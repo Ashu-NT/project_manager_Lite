@@ -136,7 +136,7 @@ def test_sites_tab_controller_slot_applies_status_filter_server_side(services, q
     site_service = services["site_service"]
     site_service.create_site(site_code="FIL-ACT", name="Filter Active Site")
     inactive = site_service.create_site(site_code="FIL-INA", name="Filter Inactive Site")
-    site_service.update_site(inactive.id, is_active=False)
+    site_service.deactivate_site(inactive.id)
 
     result = admin.organizationSitesPage(org.id, 1, 25, "", "active")
     names = [item["title"] for item in result["items"]]

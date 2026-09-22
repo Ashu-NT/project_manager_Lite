@@ -110,7 +110,7 @@ def test_cross_tenant_organization_id_is_rejected_not_visible(services) -> None:
             organization_id=foreign_org_id,
             site_code="FOREIGN-SITE",
             name="Foreign Site",
-            is_active=True,
+            status="active",
             created_at=now,
             updated_at=now,
             version=1,

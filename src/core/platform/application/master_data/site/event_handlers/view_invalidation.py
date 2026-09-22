@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from src.core.platform.domain.master_data.site.events import (
+    SiteActivated,
+    SiteArchived,
     SiteCreated,
-    SiteDisabled,
-    SiteEnabled,
+    SiteDeactivated,
     SiteProfileUpdated,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -21,7 +22,7 @@ def build_site_list_view_invalidation_handler(channel: ViewInvalidationChannel):
     last_notified_correlation_id: list[str | None] = [None]
 
     def handle_site_list_event(
-        event: SiteCreated | SiteProfileUpdated | SiteEnabled | SiteDisabled,
+        event: SiteCreated | SiteProfileUpdated | SiteActivated | SiteDeactivated | SiteArchived,
         context: DomainEventContext,
     ) -> None:
         if context.correlation_id == last_notified_correlation_id[0]:

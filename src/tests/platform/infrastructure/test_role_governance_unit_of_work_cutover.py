@@ -470,7 +470,7 @@ def test_site_role_assignment_rejects_a_foreign_tenant_site(services):
             organization_id=foreign_org_id,
             site_code=_unique_code("P5C1FSITE"),
             name="Foreign Site",
-            is_active=True,
+            status="active",
             created_at=now,
             updated_at=now,
             version=1,

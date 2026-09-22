@@ -214,10 +214,8 @@ class SiteService:
         timezone_name: str | None = None,
         currency_code: str | None = None,
         site_type: str = "",
-        status: str | None = None,
         default_calendar_id: str = "",
         default_language: str = "",
-        is_active: bool = True,
         opened_at: datetime | None = None,
         closed_at: datetime | None = None,
         notes: str = "",
@@ -237,10 +235,8 @@ class SiteService:
             timezone_name=timezone_name,
             currency_code=currency_code,
             site_type=site_type,
-            status=status,
             default_calendar_id=default_calendar_id,
             default_language=default_language,
-            is_active=is_active,
             opened_at=opened_at,
             closed_at=closed_at,
             notes=notes,
@@ -263,10 +259,8 @@ class SiteService:
         timezone_name: str | None = None,
         currency_code: str | None = None,
         site_type: str | None = None,
-        status: str | None = None,
         default_calendar_id: str | None = None,
         default_language: str | None = None,
-        is_active: bool | None = None,
         opened_at: datetime | None = None,
         closed_at: datetime | None = None,
         notes: str | None = None,
@@ -288,15 +282,22 @@ class SiteService:
             timezone_name=timezone_name,
             currency_code=currency_code,
             site_type=site_type,
-            status=status,
             default_calendar_id=default_calendar_id,
             default_language=default_language,
-            is_active=is_active,
             opened_at=opened_at,
             closed_at=closed_at,
             notes=notes,
             expected_version=expected_version,
         )
+
+    def activate_site(self, site_id: str) -> Site:
+        return _cmd.activate_site(self, site_id)
+
+    def deactivate_site(self, site_id: str) -> Site:
+        return _cmd.deactivate_site(self, site_id)
+
+    def archive_site(self, site_id: str) -> Site:
+        return _cmd.archive_site(self, site_id)
 
     def _active_organization(self) -> Organization:
         return active_organization(self)

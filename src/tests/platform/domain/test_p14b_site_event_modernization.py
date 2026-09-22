@@ -10,9 +10,10 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
     EnterpriseAuditService,
 )
 from src.core.platform.domain.master_data.site.events import (
+    SiteActivated,
+    SiteArchived,
     SiteCreated,
-    SiteDisabled,
-    SiteEnabled,
+    SiteDeactivated,
     SiteProfileUpdated,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
@@ -101,80 +102,112 @@ def test_profile_only_update_produces_exactly_one_site_profile_updated(services)
     site_service = services["site_service"]
     site = site_service.create_site(site_code=_unique_code("P14B-PROFILE"), name="Before")
     calls = _spy(services, SiteProfileUpdated)
-    availability_calls = []
-    for event_type in (SiteEnabled, SiteDisabled):
+    lifecycle_calls = []
+    for event_type in (SiteActivated, SiteDeactivated, SiteArchived):
         services["site_service"]._uow_factory._post_commit_bus.subscribe(
-            event_type, lambda event, context: availability_calls.append(event)
+            event_type, lambda event, context: lifecycle_calls.append(event)
         )
 
     site_service.update_site(site.id, name="After", expected_version=site.version)
 
     assert len(calls) == 1
     assert calls[0].site_id == site.id
-    assert availability_calls == []
+    assert lifecycle_calls == []
 
 
-def test_disable_active_site_produces_exactly_one_site_disabled(services, monkeypatch):
+def test_deactivate_active_site_produces_exactly_one_site_deactivated(services, monkeypatch):
     _bypass_known_site_datetime_defect(monkeypatch)
     site_service = services["site_service"]
     site = site_service.create_site(
-        site_code=_unique_code("P14B-DISABLE"), name="Active Site", is_active=True
+        site_code=_unique_code("P14B-DEACTIVATE"), name="Active Site"
     )
     profile_calls = _spy(services, SiteProfileUpdated)
-    calls = _spy(services, SiteDisabled)
+    calls = _spy(services, SiteDeactivated)
 
-    updated = site_service.update_site(site.id, is_active=False, expected_version=site.version)
+    updated = site_service.deactivate_site(site.id)
 
     assert [e.site_id for e in calls] == [site.id]
     assert profile_calls == []
-    assert updated.closed_at is not None
+    assert updated.status == "inactive"
+    assert updated.is_active is False
 
 
-def test_enable_inactive_site_produces_exactly_one_site_enabled(services):
+def test_activate_inactive_site_produces_exactly_one_site_activated(services):
     site_service = services["site_service"]
-    site = site_service.create_site(
-        site_code=_unique_code("P14B-ENABLE"), name="Inactive Site", is_active=False
-    )
+    created = site_service.create_site(site_code=_unique_code("P14B-ACTIVATE"), name="Inactive Site")
+    site = site_service.deactivate_site(created.id)
     profile_calls = _spy(services, SiteProfileUpdated)
-    calls = _spy(services, SiteEnabled)
+    calls = _spy(services, SiteActivated)
 
-    updated = site_service.update_site(site.id, is_active=True, expected_version=site.version)
+    updated = site_service.activate_site(site.id)
 
     assert [e.site_id for e in calls] == [site.id]
     assert profile_calls == []
     assert updated.opened_at is not None
+    assert updated.status == "active"
+    assert updated.is_active is True
 
 
-def test_mixed_profile_and_availability_update_produces_both_events(services, monkeypatch):
+def test_archive_site_produces_exactly_one_site_archived_and_is_terminal(services, monkeypatch):
+    _bypass_known_site_datetime_defect(monkeypatch)
+    site_service = services["site_service"]
+    site = site_service.create_site(site_code=_unique_code("P14B-ARCHIVE"), name="Archive Me")
+    calls = _spy(services, SiteArchived)
+
+    updated = site_service.archive_site(site.id)
+
+    assert [e.site_id for e in calls] == [site.id]
+    assert updated.status == "archived"
+    assert updated.closed_at is not None
+
+    from src.core.platform.common.exceptions import ValidationError
+
+    with pytest.raises(ValidationError):
+        site_service.activate_site(site.id)
+    with pytest.raises(ValidationError):
+        site_service.deactivate_site(site.id)
+    with pytest.raises(ValidationError):
+        site_service.archive_site(site.id)
+
+
+def test_already_active_site_activation_is_rejected(services):
+    site_service = services["site_service"]
+    site = site_service.create_site(site_code=_unique_code("P14B-ALREADYACTIVE"), name="Already")
+
+    from src.core.platform.common.exceptions import ValidationError
+
+    with pytest.raises(ValidationError):
+        site_service.activate_site(site.id)
+
+
+def test_profile_update_then_separate_deactivate_produce_two_distinct_events(services, monkeypatch):
     _bypass_known_site_datetime_defect(monkeypatch)
     site_service = services["site_service"]
     site = site_service.create_site(
-        site_code=_unique_code("P14B-MIXED"), name="Before Mixed", is_active=True
+        site_code=_unique_code("P14B-SEQUENCE"), name="Before Mixed"
     )
     profile_calls = _spy(services, SiteProfileUpdated)
-    disabled_calls = _spy(services, SiteDisabled)
+    deactivated_calls = _spy(services, SiteDeactivated)
 
-    site_service.update_site(
-        site.id, name="After Mixed", is_active=False, expected_version=site.version
-    )
+    site_service.update_site(site.id, name="After Mixed", expected_version=site.version)
+    site_service.deactivate_site(site.id)
 
     assert len(profile_calls) == 1
-    assert len(disabled_calls) == 1
+    assert len(deactivated_calls) == 1
     assert profile_calls[0].site_id == site.id
-    assert disabled_calls[0].site_id == site.id
-    assert profile_calls[0].occurred_at == disabled_calls[0].occurred_at
+    assert deactivated_calls[0].site_id == site.id
 
 
 def test_retroactive_opened_at_correction_without_availability_flip_is_a_profile_change(services):
     site_service = services["site_service"]
     site = site_service.create_site(
-        site_code=_unique_code("P14B-RETRO"), name="Retro Site", is_active=True
+        site_code=_unique_code("P14B-RETRO"), name="Retro Site"
     )
     profile_calls = _spy(services, SiteProfileUpdated)
-    availability_calls = []
-    for event_type in (SiteEnabled, SiteDisabled):
+    lifecycle_calls = []
+    for event_type in (SiteActivated, SiteDeactivated, SiteArchived):
         services["site_service"]._uow_factory._post_commit_bus.subscribe(
-            event_type, lambda event, context: availability_calls.append(event)
+            event_type, lambda event, context: lifecycle_calls.append(event)
         )
 
     from datetime import datetime, timedelta, timezone
@@ -185,20 +218,18 @@ def test_retroactive_opened_at_correction_without_availability_flip_is_a_profile
     )
 
     assert len(profile_calls) == 1
-    assert availability_calls == []
+    assert lifecycle_calls == []
 
 
 def test_no_op_update_produces_zero_events_zero_write_zero_audit_zero_updated_at_bump(services, monkeypatch):
     site_service = services["site_service"]
-    site = site_service.create_site(
-        site_code=_unique_code("P14B-NOOP"), name="Same Name", is_active=True
-    )
+    site = site_service.create_site(site_code=_unique_code("P14B-NOOP"), name="Same Name")
     before = site_service._site_repo.get(site.id)
     profile_calls = _spy(services, SiteProfileUpdated)
-    availability_calls = []
-    for event_type in (SiteEnabled, SiteDisabled):
+    lifecycle_calls = []
+    for event_type in (SiteActivated, SiteDeactivated, SiteArchived):
         services["site_service"]._uow_factory._post_commit_bus.subscribe(
-            event_type, lambda event, context: availability_calls.append(event)
+            event_type, lambda event, context: lifecycle_calls.append(event)
         )
     audit_calls = []
     monkeypatch.setattr(
@@ -206,12 +237,12 @@ def test_no_op_update_produces_zero_events_zero_write_zero_audit_zero_updated_at
     )
 
     result = site_service.update_site(
-        site.id, name="Same Name", is_active=True, expected_version=site.version
+        site.id, name="Same Name", expected_version=site.version
     )
 
     assert result.version == site.version
     assert profile_calls == []
-    assert availability_calls == []
+    assert lifecycle_calls == []
     assert audit_calls == []
     reloaded = site_service._site_repo.get(site.id)
     assert reloaded.version == before.version
@@ -345,11 +376,11 @@ def test_admin_console_sub_controller_refreshes_once_after_committed_create(serv
     assert refresh_calls == ["admin-sites"]
 
 
-def test_admin_console_sub_controller_refreshes_once_after_mixed_update(services, monkeypatch):
+def test_admin_console_sub_controller_refreshes_once_after_deactivate(services, monkeypatch):
     _bypass_known_site_datetime_defect(monkeypatch)
     site_service = services["site_service"]
     site = site_service.create_site(
-        site_code=_unique_code("P14B-ADMIN-MIXED"), name="Before", is_active=True
+        site_code=_unique_code("P14B-ADMIN-DEACTIVATE"), name="Before"
     )
 
     catalog = _platform_catalog(services)
@@ -360,9 +391,7 @@ def test_admin_console_sub_controller_refreshes_once_after_mixed_update(services
         lambda: refresh_calls.append("admin-sites") or None
     )
 
-    site_service.update_site(
-        site.id, name="After", is_active=False, expected_version=site.version
-    )
+    site_service.deactivate_site(site.id)
 
     assert refresh_calls == ["admin-sites"]
 
@@ -431,8 +460,10 @@ def test_no_forbidden_site_changed_event_name_exists():
 def test_canonical_site_uow_retained_no_raw_session_commit():
     import src.core.platform.application.master_data.site.site_commands as site_commands_module
 
-    source = inspect.getsource(site_commands_module.create_site) + inspect.getsource(
-        site_commands_module.update_site
+    source = (
+        inspect.getsource(site_commands_module.create_site)
+        + inspect.getsource(site_commands_module.update_site)
+        + inspect.getsource(site_commands_module._transition_site_status)
     )
     assert "self._session.commit(" not in source
     assert "self._session.rollback(" not in source
@@ -455,7 +486,7 @@ def test_site_commands_always_construct_a_fresh_context_per_uow_call():
     import src.core.platform.application.master_data.site.site_commands as site_commands_module
 
     source = inspect.getsource(site_commands_module)
-    assert source.count("service._uow_factory.create(context=service._new_context())") == 2
+    assert source.count("service._uow_factory.create(context=service._new_context())") == 3
     assert "context =" not in source
     assert "DomainEventContext(" not in source
 
@@ -469,17 +500,15 @@ def test_dedupe_state_is_a_single_slot_not_a_growing_collection():
     assert "[None]" in source
 
 
-def test_mixed_update_produces_exactly_one_site_list_hint(services, monkeypatch):
+def test_deactivate_site_produces_exactly_one_site_list_hint(services, monkeypatch):
     _bypass_known_site_datetime_defect(monkeypatch)
     site_service = services["site_service"]
     site = site_service.create_site(
-        site_code=_unique_code("P14BFIX-MIXED"), name="Before Mixed", is_active=True
+        site_code=_unique_code("P14BFIX-DEACTIVATE"), name="Before Mixed"
     )
     hints = _spy_site_list_hints(services)
 
-    site_service.update_site(
-        site.id, name="After Mixed", is_active=False, expected_version=site.version
-    )
+    site_service.deactivate_site(site.id)
 
     assert len(hints) == 1
 
@@ -514,16 +543,11 @@ def test_a_later_separate_commit_is_not_suppressed_by_an_earlier_commits_second_
     _bypass_known_site_datetime_defect(monkeypatch)
     site_service = services["site_service"]
     mixed_site = site_service.create_site(
-        site_code=_unique_code("P14BFIX-REENTRANT-A"), name="Before Mixed", is_active=True
+        site_code=_unique_code("P14BFIX-REENTRANT-A"), name="Before Mixed"
     )
     hints = _spy_site_list_hints(services)
 
-    site_service.update_site(
-        mixed_site.id,
-        name="After Mixed",
-        is_active=False,
-        expected_version=mixed_site.version,
-    )
+    site_service.deactivate_site(mixed_site.id)
     assert len(hints) == 1
 
     site_service.create_site(site_code=_unique_code("P14BFIX-REENTRANT-B"), name="Separate B")

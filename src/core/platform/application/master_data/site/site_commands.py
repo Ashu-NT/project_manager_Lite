@@ -8,11 +8,17 @@ from sqlalchemy.exc import IntegrityError
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.domain.master_data.site import Site
+from src.core.platform.domain.master_data.site import (
+    SITE_STATUS_ACTIVE,
+    SITE_STATUS_ARCHIVED,
+    SITE_STATUS_INACTIVE,
+    Site,
+)
 from src.core.platform.domain.master_data.site.events import (
+    SiteActivated,
+    SiteArchived,
     SiteCreated,
-    SiteDisabled,
-    SiteEnabled,
+    SiteDeactivated,
     SiteProfileUpdated,
 )
 from src.core.shared.activity import record_activity
@@ -41,14 +47,15 @@ def create_site(
     timezone_name: str | None = None,
     currency_code: str | None = None,
     site_type: str = "",
-    status: str | None = None,
     default_calendar_id: str = "",
     default_language: str = "",
-    is_active: bool = True,
     opened_at: datetime | None = None,
     closed_at: datetime | None = None,
     notes: str = "",
 ) -> Site:
+    """Lifecycle is never settable through Create -- every new site starts
+    ACTIVE. Use activate_site/deactivate_site/archive_site afterward for any
+    non-active initial state a test or import needs."""
     require_permission(service._user_session, "settings.manage", operation_label="create site")
     organization = active_organization(service)
     tenant_id = organization.tenant_id
@@ -67,14 +74,13 @@ def create_site(
         timezone=normalize_optional_text(timezone_name) or organization.timezone_name,
         currency_code=normalize_optional_text(currency_code) or organization.base_currency,
         site_type=site_type,
-        status=status,
+        status=SITE_STATUS_ACTIVE,
         # Legacy field: references working_calendars.id. Not read by the enterprise
         # CalendarResolver -- which uses site_calendar_assignments instead and falls
         # back to the GLOBAL platform_calendar. Kept for backward-compat data export.
         default_calendar_id=normalize_optional_text(default_calendar_id) or "default",
         default_language=default_language,
-        is_active=is_active,
-        opened_at=opened_at or (now if is_active else None),
+        opened_at=opened_at or now,
         closed_at=closed_at,
         notes=notes,
     )
@@ -143,15 +149,19 @@ def update_site(
     timezone_name: str | None = None,
     currency_code: str | None = None,
     site_type: str | None = None,
-    status: str | None = None,
     default_calendar_id: str | None = None,
     default_language: str | None = None,
-    is_active: bool | None = None,
     opened_at: datetime | None = None,
     closed_at: datetime | None = None,
     notes: str | None = None,
     expected_version: int | None = None,
 ) -> Site:
+    """Pure profile update -- lifecycle (status/is_active) is never accepted
+    here; it can only change through activate_site/deactivate_site/
+    archive_site below, each with its own guarded transition, audit entry,
+    and activity message. opened_at/closed_at stay directly editable here as
+    a genuine, independent business timeline (e.g. correcting a historical
+    date), no longer auto-stamped as a side effect of a status change."""
     require_permission(service._user_session, "settings.manage", operation_label="update site")
     organization = active_organization(service)
     tenant_id = organization.tenant_id
@@ -164,24 +174,7 @@ def update_site(
                 "Site changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        previous_is_active = site.is_active
         now = datetime.now(timezone.utc)
-        next_is_active = site.is_active if is_active is None else is_active
-        next_status = site.status
-        if status is not None:
-            next_status = status
-        elif is_active is not None and previous_is_active != bool(next_is_active):
-            next_status = ""
-        next_opened_at = site.opened_at if opened_at is None else opened_at
-        next_closed_at = site.closed_at if closed_at is None else closed_at
-        if is_active is not None and previous_is_active != bool(next_is_active):
-            if bool(next_is_active):
-                if closed_at is None:
-                    next_closed_at = None
-                if next_opened_at is None:
-                    next_opened_at = now
-            elif next_closed_at is None:
-                next_closed_at = now
         candidate = replace(
             site,
             site_code=site.site_code if site_code is None else site_code,
@@ -196,15 +189,12 @@ def update_site(
             timezone=site.timezone if timezone_name is None else timezone_name,
             currency_code=site.currency_code if currency_code is None else currency_code,
             site_type=site.site_type if site_type is None else site_type,
-            status=next_status,
             default_calendar_id=site.default_calendar_id if default_calendar_id is None else default_calendar_id,
             default_language=site.default_language if default_language is None else default_language,
-            is_active=next_is_active,
-            opened_at=next_opened_at,
-            closed_at=next_closed_at,
+            opened_at=site.opened_at if opened_at is None else opened_at,
+            closed_at=site.closed_at if closed_at is None else closed_at,
             notes=site.notes if notes is None else notes,
         )
-        availability_changed = is_active is not None and previous_is_active != bool(next_is_active)
         profile_changed = (
             candidate.site_code != site.site_code
             or candidate.name != site.name
@@ -221,15 +211,10 @@ def update_site(
             or candidate.default_calendar_id != site.default_calendar_id
             or candidate.default_language != site.default_language
             or candidate.notes != site.notes
+            or candidate.opened_at != site.opened_at
+            or candidate.closed_at != site.closed_at
         )
-        if not availability_changed:
-            profile_changed = (
-                profile_changed
-                or candidate.status != site.status
-                or candidate.opened_at != site.opened_at
-                or candidate.closed_at != site.closed_at
-            )
-        if not profile_changed and not availability_changed:
+        if not profile_changed:
             return site
         candidate = replace(candidate, updated_at=now)
         existing = uow.sites.get_by_code(organization.id, candidate.site_code)
@@ -261,26 +246,14 @@ def update_site(
                 icon="site",
                 commit=False,
             )
-            occurred_at = service._clock.now()
-            if profile_changed:
-                uow.record_event(
-                    SiteProfileUpdated(
-                        tenant_id=tenant_id,
-                        organization_id=organization.id,
-                        site_id=candidate.id,
-                        occurred_at=occurred_at,
-                    )
+            uow.record_event(
+                SiteProfileUpdated(
+                    tenant_id=tenant_id,
+                    organization_id=organization.id,
+                    site_id=candidate.id,
+                    occurred_at=service._clock.now(),
                 )
-            if availability_changed:
-                availability_event_cls = SiteEnabled if candidate.is_active else SiteDisabled
-                uow.record_event(
-                    availability_event_cls(
-                        tenant_id=tenant_id,
-                        organization_id=organization.id,
-                        site_id=candidate.id,
-                        occurred_at=occurred_at,
-                    )
-                )
+            )
             uow.commit()
         except IntegrityError as exc:
             raise ValidationError(
@@ -289,4 +262,111 @@ def update_site(
     return candidate
 
 
-__all__ = ["create_site", "update_site"]
+_SITE_STATUS_AUDIT_SEVERITY: dict[str, str] = {
+    "site.activate": "medium",
+    "site.deactivate": "medium",
+    "site.archive": "high",
+}
+_SITE_STATUS_ACTIVITY_MESSAGE: dict[str, str] = {
+    "site.activate": "Site activated — {name}",
+    "site.deactivate": "Site deactivated — {name}",
+    "site.archive": "Site archived — {name}",
+}
+_SITE_STATUS_EVENT_CLASS: dict[str, type] = {
+    "site.activate": SiteActivated,
+    "site.deactivate": SiteDeactivated,
+    "site.archive": SiteArchived,
+}
+
+
+def _require_valid_site_transition(site: Site, new_status: str) -> None:
+    if site.status == new_status:
+        raise ValidationError(
+            f"Site is already {new_status}.",
+            code=f"SITE_ALREADY_{new_status.upper()}",
+        )
+    if site.status == SITE_STATUS_ARCHIVED:
+        raise ValidationError(
+            "Archived sites cannot be reactivated or deactivated directly.",
+            code="SITE_ARCHIVED",
+        )
+
+
+def _transition_site_status(
+    service: SiteService, site_id: str, *, new_status: str, action: str
+) -> Site:
+    require_permission(service._user_session, "settings.manage", operation_label="change site status")
+    organization = active_organization(service)
+    tenant_id = organization.tenant_id
+    with service._uow_factory.create(context=service._new_context()) as uow:
+        site = uow.sites.get(site_id)
+        if site is None or site.organization_id != organization.id:
+            raise NotFoundError("Site not found in the active organization.", code="SITE_NOT_FOUND")
+        _require_valid_site_transition(site, new_status)
+        now = datetime.now(timezone.utc)
+        next_opened_at = site.opened_at
+        next_closed_at = site.closed_at
+        if new_status == SITE_STATUS_ACTIVE and next_opened_at is None:
+            next_opened_at = now
+        if new_status == SITE_STATUS_ARCHIVED and next_closed_at is None:
+            next_closed_at = now
+        candidate = replace(
+            site,
+            status=new_status,
+            opened_at=next_opened_at,
+            closed_at=next_closed_at,
+            updated_at=now,
+        )
+        uow.sites.update(candidate)
+        record_audit_entry(
+            uow,
+            operation="update",
+            entity_type="site",
+            entity_id=candidate.id,
+            module="platform",
+            organization_id=organization.id,
+            category="PRIVILEGED_OPERATION",
+            severity=_SITE_STATUS_AUDIT_SEVERITY[action],
+            changed_fields={"status": {"before": site.status, "after": candidate.status}},
+            after_data={"site_code": candidate.site_code, "name": candidate.name, "status": candidate.status},
+            metadata={"action": action},
+            commit=False,
+            fail_closed=True,
+        )
+        record_activity(
+            uow,
+            action=action,
+            entity_type="site",
+            entity_id=candidate.id,
+            module="platform",
+            organization_id=organization.id,
+            message=_SITE_STATUS_ACTIVITY_MESSAGE[action].format(name=candidate.name),
+            icon="site",
+            type="info" if action == "site.activate" else "warning",
+            commit=False,
+        )
+        uow.record_event(
+            _SITE_STATUS_EVENT_CLASS[action](
+                tenant_id=tenant_id,
+                organization_id=organization.id,
+                site_id=candidate.id,
+                occurred_at=service._clock.now(),
+            )
+        )
+        uow.commit()
+    return candidate
+
+
+def activate_site(service: SiteService, site_id: str) -> Site:
+    return _transition_site_status(service, site_id, new_status=SITE_STATUS_ACTIVE, action="site.activate")
+
+
+def deactivate_site(service: SiteService, site_id: str) -> Site:
+    return _transition_site_status(service, site_id, new_status=SITE_STATUS_INACTIVE, action="site.deactivate")
+
+
+def archive_site(service: SiteService, site_id: str) -> Site:
+    return _transition_site_status(service, site_id, new_status=SITE_STATUS_ARCHIVED, action="site.archive")
+
+
+__all__ = ["create_site", "update_site", "activate_site", "deactivate_site", "archive_site"]

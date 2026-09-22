@@ -21,7 +21,7 @@ class SiteProfileUpdated:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SiteEnabled:
+class SiteActivated:
     tenant_id: str
     organization_id: str
     site_id: str
@@ -29,11 +29,25 @@ class SiteEnabled:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SiteDisabled:
+class SiteDeactivated:
     tenant_id: str
     organization_id: str
     site_id: str
     occurred_at: datetime
 
 
-__all__ = ["SiteCreated", "SiteProfileUpdated", "SiteEnabled", "SiteDisabled"]
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SiteArchived:
+    tenant_id: str
+    organization_id: str
+    site_id: str
+    occurred_at: datetime
+
+
+__all__ = [
+    "SiteCreated",
+    "SiteProfileUpdated",
+    "SiteActivated",
+    "SiteDeactivated",
+    "SiteArchived",
+]

@@ -10,7 +10,6 @@ from src.core.platform.api.desktop.master_data.site.models.site import (
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
-    bool_value,
     int_value,
     preview_error_result,
     string_value,
@@ -20,14 +19,14 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
-# Site lifecycle is a plain boolean (is_active) -- a 2-state Active/Inactive
-# model, structurally different from Organization's 3-state ACTIVE/INACTIVE/
-# ARCHIVED enum. Do not conflate the two tone maps.
-_SITE_STATUS_TONE = {True: "success", False: "neutral"}
+# Site lifecycle is now the same guarded 3-state active/inactive/archived
+# model as Organization -- see SITE_STATUS_* (domain) and
+# activate_site/deactivate_site/archive_site (service/API/presenter below).
+_SITE_STATUS_TONE = {"active": "success", "inactive": "neutral", "archived": "neutral"}
 
 
-def _site_status_label(is_active: bool) -> dict[str, str]:
-    return {"label": "Active" if is_active else "Inactive", "tone": _SITE_STATUS_TONE[is_active]}
+def _site_status_label(status: str) -> dict[str, str]:
+    return {"label": status.capitalize(), "tone": _SITE_STATUS_TONE.get(status, "neutral")}
 
 
 class PlatformSiteCatalogPresenter:
@@ -151,6 +150,9 @@ class PlatformSiteCatalogPresenter:
         )
 
     def create_site(self, payload: dict[str, Any]) -> DesktopApiResult[SiteDto]:
+        """Lifecycle is not settable from Create -- every new site starts
+        ACTIVE (SiteCreateCommand's own default); status/isActive are never
+        read from the payload here."""
         if self._site_api is None:
             return preview_error_result("Platform site API is not connected in this QML preview.")
         return self._site_api.create_site(
@@ -163,13 +165,13 @@ class PlatformSiteCatalogPresenter:
                 timezone_name=string_value(payload, "timezoneName"),
                 currency_code=string_value(payload, "currencyCode").upper(),
                 site_type=string_value(payload, "siteType"),
-                status=string_value(payload, "status"),
                 notes=string_value(payload, "notes"),
-                is_active=bool_value(payload, "isActive", default=True),
             )
         )
 
     def update_site(self, payload: dict[str, Any]) -> DesktopApiResult[SiteDto]:
+        """Pure profile update -- lifecycle is never settable from Edit; use
+        activate_site/deactivate_site/archive_site below instead."""
         if self._site_api is None:
             return preview_error_result("Platform site API is not connected in this QML preview.")
         return self._site_api.update_site(
@@ -183,29 +185,25 @@ class PlatformSiteCatalogPresenter:
                 timezone_name=string_value(payload, "timezoneName"),
                 currency_code=string_value(payload, "currencyCode").upper(),
                 site_type=string_value(payload, "siteType"),
-                status=string_value(payload, "status"),
                 notes=string_value(payload, "notes"),
-                is_active=bool_value(payload, "isActive", default=True),
                 expected_version=int_value(payload, "expectedVersion"),
             )
         )
 
-    def toggle_site_active(
-        self,
-        *,
-        site_id: str,
-        is_active: bool,
-        expected_version: int | None,
-    ) -> DesktopApiResult[SiteDto]:
+    def activate_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
         if self._site_api is None:
             return preview_error_result("Platform site API is not connected in this QML preview.")
-        return self._site_api.update_site(
-            SiteUpdateCommand(
-                site_id=site_id,
-                is_active=not is_active,
-                expected_version=expected_version,
-            )
-        )
+        return self._site_api.activate_site(site_id)
+
+    def deactivate_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
+        if self._site_api is None:
+            return preview_error_result("Platform site API is not connected in this QML preview.")
+        return self._site_api.deactivate_site(site_id)
+
+    def archive_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
+        if self._site_api is None:
+            return preview_error_result("Platform site API is not connected in this QML preview.")
+        return self._site_api.archive_site(site_id)
 
     @staticmethod
     def _serialize_site(
@@ -217,7 +215,7 @@ class PlatformSiteCatalogPresenter:
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.name,
-            status_label=_site_status_label(row.is_active),
+            status_label=_site_status_label(row.status),
             subtitle=f"{row.site_code} | {row.city or '-'} | {row.country or '-'}",
             supporting_text=f"{row.site_type or 'Site'} | Runtime status: {row.status or '-'}",
             meta_text=f"Timezone {row.timezone or '-'} | Currency {row.currency_code or '-'}",

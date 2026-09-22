@@ -69,7 +69,7 @@ def _seed_site(db, *, id, tenant_id, organization_id, code, name):
             organization_id=organization_id,
             site_code=code,
             name=name,
-            is_active=True,
+            status="active",
             created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
             updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
             version=1,
@@ -252,7 +252,7 @@ def test_employee_service_get_site_breakdown_reflects_writes(services):
     employee_service = services["employee_service"]
     site_service = services["site_service"]
 
-    site = site_service.create_site(site_code="BRK-S1", name="Breakdown Site", is_active=True)
+    site = site_service.create_site(site_code="BRK-S1", name="Breakdown Site")
     employee_service.create_employee(employee_code="BRK-E3", full_name="Breakdown Three", site_id=site.id, is_active=True)
 
     rows = employee_service.get_site_breakdown()
@@ -269,7 +269,7 @@ def test_desktop_api_get_department_and_site_breakdown(services):
     api = PlatformEmployeeDesktopApi(employee_service=employee_service)
 
     dept = department_service.create_department(department_code="BRK-API-D", name="API Dept", is_active=True)
-    site = site_service.create_site(site_code="BRK-API-S", name="API Site", is_active=True)
+    site = site_service.create_site(site_code="BRK-API-S", name="API Site")
     employee_service.create_employee(employee_code="BRK-API-E1", full_name="API One", department_id=dept.id, site_id=site.id, is_active=True)
 
     department_result = api.get_department_breakdown()

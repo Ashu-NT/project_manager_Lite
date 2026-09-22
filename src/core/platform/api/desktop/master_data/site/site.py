@@ -80,10 +80,8 @@ class PlatformSiteDesktopApi:
                     timezone_name=command.timezone_name,
                     currency_code=command.currency_code,
                     site_type=command.site_type,
-                    status=command.status,
                     default_calendar_id=command.default_calendar_id,
                     default_language=command.default_language,
-                    is_active=command.is_active,
                     notes=command.notes,
                 )
             )
@@ -106,14 +104,27 @@ class PlatformSiteDesktopApi:
                     timezone_name=command.timezone_name,
                     currency_code=command.currency_code,
                     site_type=command.site_type,
-                    status=command.status,
                     default_calendar_id=command.default_calendar_id,
                     default_language=command.default_language,
-                    is_active=command.is_active,
                     notes=command.notes,
                     expected_version=command.expected_version,
                 )
             )
+        )
+
+    def activate_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_site(self._site_service.activate_site(site_id))
+        )
+
+    def deactivate_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_site(self._site_service.deactivate_site(site_id))
+        )
+
+    def archive_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_site(self._site_service.archive_site(site_id))
         )
 
     def _serialize_site_page(self, page) -> SitePageDto:

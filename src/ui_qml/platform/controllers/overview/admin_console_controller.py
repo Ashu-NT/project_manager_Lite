@@ -112,8 +112,10 @@ from src.ui_qml.platform.controllers.parties.actions import (
 )
 from src.ui_qml.platform.controllers.sites.site_controller import PlatformSiteController
 from src.ui_qml.platform.controllers.sites.actions import (
+    activate_site,
+    archive_site,
     create_site,
-    toggle_site_active,
+    deactivate_site,
     update_site,
 )
 from src.ui_qml.platform.controllers.users.user_controller import (
@@ -547,8 +549,16 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         return update_site(self, payload)
 
     @Slot(str, result="QVariantMap")
-    def toggleSiteActive(self, site_id: str) -> dict[str, object]:
-        return toggle_site_active(self, site_id)
+    def activateSite(self, site_id: str) -> dict[str, object]:
+        return activate_site(self, site_id)
+
+    @Slot(str, result="QVariantMap")
+    def deactivateSite(self, site_id: str) -> dict[str, object]:
+        return deactivate_site(self, site_id)
+
+    @Slot(str, result="QVariantMap")
+    def archiveSite(self, site_id: str) -> dict[str, object]:
+        return archive_site(self, site_id)
 
     @Slot(str, int, int, str, str, result="QVariantMap")
     def organizationSitesPage(

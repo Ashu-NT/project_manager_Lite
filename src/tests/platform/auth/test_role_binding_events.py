@@ -525,7 +525,7 @@ def test_cross_tenant_site_assignment_attempt_emits_zero_events(services, monkey
     foreign_site_id = _unique_code("p5c2-foreign-site")
     session.add(SiteORM(
         id=foreign_site_id, tenant_id=foreign_tenant_id, organization_id=foreign_org_id,
-        site_code=_unique_code("P5C2FSITE"), name="Foreign Site", is_active=True,
+        site_code=_unique_code("P5C2FSITE"), name="Foreign Site", status="active",
         created_at=now, updated_at=now, version=1,
     ))
     session.commit()

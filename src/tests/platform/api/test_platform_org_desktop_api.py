@@ -57,7 +57,6 @@ def test_platform_site_desktop_api_manages_site_dtos(services):
         SiteUpdateCommand(
             site_id=create_result.data.id,
             name="Operations Hub",
-            is_active=False,
             expected_version=create_result.data.version,
         )
     )
@@ -65,8 +64,12 @@ def test_platform_site_desktop_api_manages_site_dtos(services):
     assert update_result.ok is True
     assert update_result.data is not None
     assert update_result.data.name == "Operations Hub"
-    assert update_result.data.is_active is False
-    assert update_result.data.status == "INACTIVE"
+
+    deactivate_result = api.deactivate_site(update_result.data.id)
+    assert deactivate_result.ok is True
+    assert deactivate_result.data is not None
+    assert deactivate_result.data.is_active is False
+    assert deactivate_result.data.status == "inactive"
 
     list_result = api.list_sites(active_only=None)
 

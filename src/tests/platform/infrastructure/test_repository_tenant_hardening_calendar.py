@@ -33,10 +33,10 @@ def _seed_calendar_scope_rows(services) -> dict[str, str]:
     today = date.today()
 
     cur_site = SiteORM(id="site-current", tenant_id=ct, organization_id=cur_org.id,
-        site_code="SITE-CUR", name="Current Site", is_active=True,
+        site_code="SITE-CUR", name="Current Site", status="active",
         created_at=now, updated_at=now, version=1)
     oth_site = SiteORM(id="site-other", tenant_id=ot, organization_id=oth_org.id,
-        site_code="SITE-OTH", name="Other Site", is_active=True,
+        site_code="SITE-OTH", name="Other Site", status="active",
         created_at=now, updated_at=now, version=1)
     cur_dept = DepartmentORM(id="department-current", tenant_id=ct, organization_id=cur_org.id,
         department_code="DEPT-CUR", name="Current Department", is_active=True,

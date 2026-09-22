@@ -58,8 +58,8 @@ def test_list_employees_filters_by_site_id(services):
     employee_service = services["employee_service"]
     site_service = services["site_service"]
 
-    site_a = site_service.create_site(site_code="FILT-SA", name="Site A", is_active=True)
-    site_b = site_service.create_site(site_code="FILT-SB", name="Site B", is_active=True)
+    site_a = site_service.create_site(site_code="FILT-SA", name="Site A")
+    site_b = site_service.create_site(site_code="FILT-SB", name="Site B")
     _seed_employees(employee_service, site_id=site_a.id, count=4, prefix="SA")
     _seed_employees(employee_service, site_id=site_b.id, count=1, prefix="SB")
 
@@ -200,7 +200,7 @@ def test_site_filtered_fetch_issues_one_narrow_select_not_full_scan(services):
     session = services["session"]
     engine = session.get_bind()
 
-    site = site_service.create_site(site_code="FILT-SQL-S", name="SQL Site", is_active=True)
+    site = site_service.create_site(site_code="FILT-SQL-S", name="SQL Site")
     _seed_employees(employee_service, site_id=site.id, count=3, prefix="SQLS")
     _seed_employees(employee_service, site_id=None, count=30, prefix="SQLBULK2")
 
@@ -245,7 +245,7 @@ def test_admin_controller_employees_for_site_slot(services):
     employee_service = services["employee_service"]
     site_service = services["site_service"]
 
-    site = site_service.create_site(site_code="FILT-CTRL-S", name="Controller Site", is_active=True)
+    site = site_service.create_site(site_code="FILT-CTRL-S", name="Controller Site")
     _seed_employees(employee_service, site_id=site.id, count=3, prefix="CTRLS")
 
     registry = build_desktop_api_registry(services)

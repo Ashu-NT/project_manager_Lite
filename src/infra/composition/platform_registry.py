@@ -90,9 +90,10 @@ from src.core.platform.application.master_data.site.event_handlers.view_invalida
     build_site_list_view_invalidation_handler,
 )
 from src.core.platform.domain.master_data.site.events import (
+    SiteActivated,
+    SiteArchived,
     SiteCreated,
-    SiteDisabled,
-    SiteEnabled,
+    SiteDeactivated,
     SiteProfileUpdated,
 )
 from src.core.platform.application.master_data.party.event_handlers.view_invalidation import (
@@ -599,7 +600,9 @@ def build_platform_service_bundle(
     _site_list_view_invalidation_handler = build_site_list_view_invalidation_handler(
         platform_view_invalidation_channel
     )
-    for _site_event_type in (SiteCreated, SiteProfileUpdated, SiteEnabled, SiteDisabled):
+    for _site_event_type in (
+        SiteCreated, SiteProfileUpdated, SiteActivated, SiteDeactivated, SiteArchived,
+    ):
         platform_post_commit_bus.subscribe(
             _site_event_type, _site_list_view_invalidation_handler
         )

@@ -49,9 +49,7 @@ AppWidgets.EntityDialog {
         timezoneName: timezoneField.text.trim(),
         currencyCode: currencyField.text.trim().toUpperCase(),
         siteType: siteTypeField.text.trim(),
-        status: statusField.text.trim(),
-        notes: notesField.text.trim(),
-        isActive: activeCheck.checked
+        notes: notesField.text.trim()
     })
 
     function openForCreate() {
@@ -77,9 +75,7 @@ AppWidgets.EntityDialog {
         timezoneField.text = root.draft.timezoneName || ""
         currencyField.text = root.draft.currencyCode || ""
         siteTypeField.text = root.draft.siteType || ""
-        statusField.text = root.draft.status || ""
         notesField.text = root.draft.notes || ""
-        activeCheck.checked = root.draft.isActive !== undefined ? root.draft.isActive : true
     }
 
     AppWidgets.CodeFieldRow {
@@ -192,30 +188,14 @@ AppWidgets.EntityDialog {
         }
     }
 
-    RowLayout {
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
+        label: "Site Type"
 
-        AppWidgets.FormField {
+        AppControls.TextField {
+            id: siteTypeField
             Layout.fillWidth: true
-            label: "Site Type"
-
-            AppControls.TextField {
-                id: siteTypeField
-                Layout.fillWidth: true
-                placeholderText: "e.g. Refinery"
-            }
-        }
-
-        AppWidgets.FormField {
-            Layout.fillWidth: true
-            label: "Status"
-
-            AppControls.TextField {
-                id: statusField
-                Layout.fillWidth: true
-                placeholderText: "e.g. Operational"
-            }
+            placeholderText: "e.g. Refinery"
         }
     }
 
@@ -230,11 +210,5 @@ AppWidgets.EntityDialog {
             placeholderText: "Operational notes or context"
             wrapMode: TextEdit.WordWrap
         }
-    }
-
-    AppControls.CheckBox {
-        id: activeCheck
-
-        text: "Active site"
     }
 }

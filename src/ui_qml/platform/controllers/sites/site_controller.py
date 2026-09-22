@@ -80,20 +80,6 @@ class PlatformSiteController(QObject):
             self._feedback_message = value
             self.feedbackMessageChanged.emit()
 
-    def _find_item_state(self, items: dict[str, object], item_id: str) -> dict[str, object] | None:
-        items_list = items.get("items", [])
-        if not isinstance(items_list, list):
-            return None
-        for item in items_list:
-            if isinstance(item, dict) and item.get("id") == item_id:
-                return dict(item.get("state") or {})
-        return None
-
-    def _to_int(self, value: object) -> int | None:
-        try:
-            return int(value)
-        except (ValueError, TypeError):
-            return None
 
     @Slot()
     def refresh(self) -> None:
@@ -160,17 +146,43 @@ class PlatformSiteController(QObject):
         )
 
     @Slot(str, result="QVariantMap")
-    def toggleSiteActive(self, site_id: str) -> dict[str, object]:
-        state = self._find_item_state(self._sites, site_id)
-        if state is None:
+    def activateSite(self, site_id: str) -> dict[str, object]:
+        normalized_id = site_id.strip()
+        if not normalized_id:
             return dict(self.operationResult)
         return run_mutation(
-            operation=lambda: self._presenter.toggle_site_active(
-                site_id=site_id,
-                is_active=bool(state.get("isActive")),
-                expected_version=self._to_int(state.get("version")),
-            ),
-            success_message="Site active state updated.",
+            operation=lambda: self._presenter.activate_site(normalized_id),
+            success_message="Site activated.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def deactivateSite(self, site_id: str) -> dict[str, object]:
+        normalized_id = site_id.strip()
+        if not normalized_id:
+            return dict(self.operationResult)
+        return run_mutation(
+            operation=lambda: self._presenter.deactivate_site(normalized_id),
+            success_message="Site deactivated.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def archiveSite(self, site_id: str) -> dict[str, object]:
+        normalized_id = site_id.strip()
+        if not normalized_id:
+            return dict(self.operationResult)
+        return run_mutation(
+            operation=lambda: self._presenter.archive_site(normalized_id),
+            success_message="Site archived.",
             on_success=self.refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,

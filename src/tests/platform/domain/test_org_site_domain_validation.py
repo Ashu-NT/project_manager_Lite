@@ -18,6 +18,12 @@ class _FakeSession:
     def commit(self) -> None:
         self.commit_calls += 1
 
+    def add(self, _obj) -> None:
+        return None
+
+    def flush(self) -> None:
+        return None
+
     def flush(self) -> None:
         return None
 
@@ -111,6 +117,10 @@ class _FakeOrganizationUnitOfWork:
     def __init__(self, organization_repo: "_FakeOrganizationRepo", enterprise_audit_service) -> None:
         self.organizations = organization_repo
         self._enterprise_audit_service = enterprise_audit_service
+        # OrganizationService.create_organization() seeds the org's default
+        # calendar directly via uow.session (see _add_default_calendar_rows)
+        # rather than through a repository -- needs .add()/.flush() only.
+        self.session = _FakeSession()
 
     def __enter__(self) -> "_FakeOrganizationUnitOfWork":
         return self
@@ -373,8 +383,7 @@ def test_site_dto_normalizes_and_validates_fields():
         city="  Berlin  ",
         timezone="  Europe/Berlin  ",
         currency_code=" eur ",
-        status=" ",
-        is_active=False,
+        status="inactive",
         opened_at=now,
         closed_at=now,
         notes="  Keep gate 3 reserved.  ",
@@ -388,7 +397,8 @@ def test_site_dto_normalizes_and_validates_fields():
     assert site.city == "Berlin"
     assert site.timezone == "Europe/Berlin"
     assert site.currency_code == "EUR"
-    assert site.status == "INACTIVE"
+    assert site.status == "inactive"
+    assert site.is_active is False
     assert site.notes == "Keep gate 3 reserved."
 
     with pytest.raises(ValidationError) as exc_org:
@@ -435,7 +445,7 @@ def test_site_service_uses_entity_validation_and_final_state(monkeypatch: pytest
     assert created.timezone == "UTC"
     assert created.currency_code == "EUR"
     assert created.default_calendar_id == "default"
-    assert created.status == "ACTIVE"
+    assert created.status == "active"
 
     updated = service.update_site(
         created.id,
@@ -444,26 +454,23 @@ def test_site_service_uses_entity_validation_and_final_state(monkeypatch: pytest
         city="  Berlin  ",
         country="  Germany  ",
         site_type="  warehouse  ",
-        is_active=False,
     )
 
     assert updated.name == "North Hub"
     assert updated.city == "Berlin"
     assert updated.country == "Germany"
     assert updated.site_type == "warehouse"
-    assert updated.status == "INACTIVE"
-    assert updated.closed_at is not None
+    assert updated.status == "active"
     assert updated.version == 2
 
-    reopened = service.update_site(
-        updated.id,
-        expected_version=updated.version,
-        is_active=True,
-    )
+    deactivated = service.deactivate_site(updated.id)
+    assert deactivated.status == "inactive"
+    assert deactivated.version == 3
 
-    assert reopened.status == "ACTIVE"
-    assert reopened.closed_at is None
-    assert reopened.version == 3
+    reopened = service.activate_site(deactivated.id)
+
+    assert reopened.status == "active"
+    assert reopened.version == 4
 
     with pytest.raises(ValidationError) as exc_name:
         service.update_site(
@@ -472,3 +479,11 @@ def test_site_service_uses_entity_validation_and_final_state(monkeypatch: pytest
             name=" ",
         )
     assert exc_name.value.code == "SITE_NAME_REQUIRED"
+
+    archived = service.archive_site(reopened.id)
+    assert archived.status == "archived"
+    assert archived.closed_at is not None
+    assert archived.version == 5
+
+    with pytest.raises(ValidationError):
+        service.activate_site(archived.id)

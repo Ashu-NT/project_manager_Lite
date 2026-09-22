@@ -433,7 +433,7 @@ def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
     session.add(OrganizationORM(id=foreign_org_id, tenant_id=foreign_tenant_id, organization_code=_unique_code("P5C3FORG"), display_name="Foreign Org", version=1))
     session.commit()
     foreign_site_id = _unique_code("p5c3-foreign-site")
-    session.add(SiteORM(id=foreign_site_id, tenant_id=foreign_tenant_id, organization_id=foreign_org_id, site_code=_unique_code("P5C3FSITE"), name="Foreign Site", is_active=True, created_at=now, updated_at=now, version=1))
+    session.add(SiteORM(id=foreign_site_id, tenant_id=foreign_tenant_id, organization_id=foreign_org_id, site_code=_unique_code("P5C3FSITE"), name="Foreign Site", status="active", created_at=now, updated_at=now, version=1))
     session.commit()
 
     target, target_role = _resource_scoped_binding_setup(

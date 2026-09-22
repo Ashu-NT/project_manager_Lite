@@ -9,8 +9,18 @@ from src.core.platform.infrastructure.persistence.repositories._tenant_scope imp
     TenantScopedRepositorySupport,
 )
 from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
-from src.core.platform.domain.master_data.site import Site
+from src.core.platform.domain.master_data.site import SITE_STATUS_ACTIVE, Site
 from src.infra.persistence.db.optimistic import update_with_version_check
+
+
+def _active_only_condition(active_only: bool):
+    # active_only has no separate physical column to filter on -- status is
+    # the only lifecycle source of truth (see Site.is_active, a computed
+    # property, never a stored duplicate). False means "not active",
+    # matching the historic boolean semantics (lumps inactive + archived).
+    if active_only:
+        return SiteORM.status == SITE_STATUS_ACTIVE
+    return SiteORM.status != SITE_STATUS_ACTIVE
 
 
 class SqlAlchemySiteRepository(TenantScopedRepositorySupport, SiteRepository):
@@ -51,7 +61,6 @@ class SqlAlchemySiteRepository(TenantScopedRepositorySupport, SiteRepository):
                 "status": site.status or None,
                 "default_calendar_id": site.default_calendar_id or None,
                 "default_language": site.default_language or None,
-                "is_active": site.is_active,
                 "opened_at": site.opened_at,
                 "closed_at": site.closed_at,
                 "created_at": site.created_at,
@@ -110,7 +119,7 @@ class SqlAlchemySiteRepository(TenantScopedRepositorySupport, SiteRepository):
             SiteORM.tenant_id == ctx.tenant_id,
         )
         if active_only is not None:
-            stmt = stmt.where(SiteORM.is_active == bool(active_only))
+            stmt = stmt.where(_active_only_condition(active_only))
         rows = self.session.execute(stmt.order_by(SiteORM.name.asc())).scalars().all()
         return [site_from_orm(row) for row in rows]
 
@@ -140,7 +149,7 @@ class SqlAlchemySiteRepository(TenantScopedRepositorySupport, SiteRepository):
         filtered_stmt = select(SiteORM).where(*base_condition)
         filtered_count_stmt = select(func.count()).select_from(SiteORM).where(*base_condition)
         if active_only is not None:
-            condition = SiteORM.is_active == bool(active_only)
+            condition = _active_only_condition(active_only)
             filtered_stmt = filtered_stmt.where(condition)
             filtered_count_stmt = filtered_count_stmt.where(condition)
         normalized_search = (search or "").strip()

@@ -68,7 +68,7 @@ class SqlAlchemyPlatformOverviewRollupReader:
         total, active = self._session.execute(
             select(
                 func.count(SiteORM.id),
-                func.sum(case((SiteORM.is_active.is_(True), 1), else_=0)),
+                func.sum(case((SiteORM.status == "active", 1), else_=0)),
             ).where(*conditions)
         ).one()
 

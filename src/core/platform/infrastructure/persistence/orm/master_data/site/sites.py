@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infra.persistence.orm.base import Base
@@ -40,10 +40,9 @@ class SiteORM(Base):
     timezone: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
     site_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    status: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="active", server_default="active")
     default_calendar_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     default_language: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     opened_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -54,4 +53,4 @@ class SiteORM(Base):
 
 Index("idx_sites_tenant", SiteORM.tenant_id)
 Index("idx_sites_organization", SiteORM.organization_id)
-Index("idx_sites_active", SiteORM.organization_id, SiteORM.is_active)
+Index("idx_sites_status", SiteORM.organization_id, SiteORM.status)

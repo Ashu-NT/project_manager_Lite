@@ -75,7 +75,7 @@ def _seed_site(db, *, id, tenant_id, organization_id, code, name, is_active):
             organization_id=organization_id,
             site_code=code,
             name=name,
-            is_active=is_active,
+            status="active" if is_active else "inactive",
             created_at=_NOW,
             updated_at=_NOW,
             version=1,
@@ -466,8 +466,9 @@ def test_site_service_get_site_rollup_summary_reflects_writes(services):
     site_service = services["site_service"]
 
     baseline = site_service.get_site_rollup_summary()
-    site_service.create_site(site_code="ROLLUP-S1", name="Rollup Site 1", is_active=True)
-    site_service.create_site(site_code="ROLLUP-S2", name="Rollup Site 2", is_active=False)
+    site_service.create_site(site_code="ROLLUP-S1", name="Rollup Site 1")
+    inactive_site = site_service.create_site(site_code="ROLLUP-S2", name="Rollup Site 2")
+    site_service.deactivate_site(inactive_site.id)
 
     updated = site_service.get_site_rollup_summary()
     assert updated.total == baseline.total + 2
@@ -518,7 +519,7 @@ def test_rollup_summaries_isolated_per_organization(services):
     document_service = services["document_service"]
 
     default_organization = services["tenant_context_service"].get_active_organization()
-    site_service.create_site(site_code="ISO-S1", name="Iso Site 1", is_active=True)
+    site_service.create_site(site_code="ISO-S1", name="Iso Site 1")
     department_service.create_department(department_code="ISO-D1", name="Iso Dept 1", is_active=True)
     party_service.create_party(party_code="ISO-P1", party_name="Iso Party 1", is_active=True)
     document_service.create_document(document_code="ISO-DOC1", title="Iso Doc 1", storage_uri="/docs/iso-doc1.pdf", is_current=True)
@@ -551,8 +552,8 @@ def test_site_rollup_summary_respects_scope_restriction(services):
     from src.core.platform.application.security.authorization import get_authorization_engine
 
     site_service = services["site_service"]
-    site_a = site_service.create_site(site_code="SCOPE-A", name="Scope Site A", is_active=True)
-    site_service.create_site(site_code="SCOPE-B", name="Scope Site B", is_active=True)
+    site_a = site_service.create_site(site_code="SCOPE-A", name="Scope Site A")
+    site_service.create_site(site_code="SCOPE-B", name="Scope Site B")
 
     engine = get_authorization_engine()
     unrestricted_summary = site_service.get_site_rollup_summary()
@@ -613,7 +614,9 @@ def test_rollup_summaries_never_call_write_repository_list_methods(services):
     document_service = services["document_service"]
 
     for i in range(20):
-        site_service.create_site(site_code=f"SQL-S{i}", name=f"SQL Site {i}", is_active=(i % 2 == 0))
+        sql_site = site_service.create_site(site_code=f"SQL-S{i}", name=f"SQL Site {i}")
+        if i % 2 != 0:
+            site_service.deactivate_site(sql_site.id)
         department_service.create_department(department_code=f"SQL-D{i}", name=f"SQL Dept {i}", is_active=(i % 2 == 0))
         party_service.create_party(party_code=f"SQL-P{i}", party_name=f"SQL Party {i}", is_active=(i % 2 == 0))
         document_service.create_document(document_code=f"SQL-DOC{i}", title=f"SQL Doc {i}", storage_uri=f"/docs/sql-doc{i}.pdf", is_current=(i % 2 == 0))
@@ -663,7 +666,9 @@ def test_admin_overview_never_lists_full_master_data_collections(services):
     document_service = services["document_service"]
 
     for i in range(15):
-        site_service.create_site(site_code=f"OV-S{i}", name=f"Overview Site {i}", is_active=(i % 3 == 0))
+        ov_site = site_service.create_site(site_code=f"OV-S{i}", name=f"Overview Site {i}")
+        if i % 3 != 0:
+            site_service.deactivate_site(ov_site.id)
         department_service.create_department(department_code=f"OV-D{i}", name=f"Overview Dept {i}", is_active=(i % 3 == 0))
         party_service.create_party(party_code=f"OV-P{i}", party_name=f"Overview Party {i}", is_active=(i % 3 == 0))
         document_service.create_document(document_code=f"OV-DOC{i}", title=f"Overview Doc {i}", storage_uri=f"/docs/ov-doc{i}.pdf", is_current=(i % 3 == 0))

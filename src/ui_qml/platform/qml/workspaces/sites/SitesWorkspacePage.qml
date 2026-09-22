@@ -88,7 +88,7 @@ AppLayouts.WorkspaceFrame {
             }
             confirmDialog.open()
         } else {
-            root.workspaceController.toggleSiteActive(root.selectedRowId)
+            root.workspaceController.activateSite(root.selectedRowId)
         }
     }
 
@@ -319,7 +319,7 @@ AppLayouts.WorkspaceFrame {
         onConfirmed: {
             const pending = root._pendingConfirm
             if (!pending || !root.workspaceController) return
-            root.workspaceController.toggleSiteActive(pending.itemId)
+            root.workspaceController.deactivateSite(pending.itemId)
             root._pendingConfirm = null
         }
     }

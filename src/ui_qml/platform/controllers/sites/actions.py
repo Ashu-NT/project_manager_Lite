@@ -21,12 +21,34 @@ def update_site(controller, payload: dict) -> dict[str, object]:
     )
 
 
-def toggle_site_active(controller, site_id: str) -> dict[str, object]:
+def activate_site(controller, site_id: str) -> dict[str, object]:
     return run_admin_action(
         controller,
-        action=lambda: controller._site_controller.toggleSiteActive(site_id),
+        action=lambda: controller._site_controller.activateSite(site_id),
         on_success=lambda: refresh_after_site_change(controller),
     )
 
 
-__all__ = ["create_site", "toggle_site_active", "update_site"]
+def deactivate_site(controller, site_id: str) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._site_controller.deactivateSite(site_id),
+        on_success=lambda: refresh_after_site_change(controller),
+    )
+
+
+def archive_site(controller, site_id: str) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._site_controller.archiveSite(site_id),
+        on_success=lambda: refresh_after_site_change(controller),
+    )
+
+
+__all__ = [
+    "create_site",
+    "activate_site",
+    "deactivate_site",
+    "archive_site",
+    "update_site",
+]
