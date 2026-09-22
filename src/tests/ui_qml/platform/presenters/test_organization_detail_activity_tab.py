@@ -147,9 +147,9 @@ def test_activating_a_site_activity_row_requests_navigation_to_site_detail(servi
             QCoreApplication.processEvents()
 
         # Navigates away to the Sites workspace's own detail page rather
-        # than switching this page's own tab and nesting a copy of it here.
+        # than switching this page's own tab and nesting a copy of it here
+        # -- no local tab switch happens at all now.
         assert requests == [("sites", site.id)]
-        assert root.property("activeSectionIndex") == 5
         assert root.property("_sitesSelectedRowId") == site.id
 
         relevant = [
