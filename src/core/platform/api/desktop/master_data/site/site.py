@@ -6,6 +6,7 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.master_data.site.models.site import (
     SiteCreateCommand,
     SiteDto,
+    SitePageDto,
     SiteRollupSummaryDto,
     SiteUpdateCommand,
 )
@@ -39,6 +40,27 @@ class PlatformSiteDesktopApi:
             lambda: tuple(
                 self._serialize_site(site)
                 for site in self._site_service.list_sites(active_only=active_only)
+            )
+        )
+
+    def list_sites_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+    ) -> DesktopApiResult[SitePageDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_site_page(
+                self._site_service.list_sites_page_for_organization(
+                    organization_id,
+                    page=page,
+                    page_size=page_size,
+                    search=search,
+                    active_only=active_only,
+                )
             )
         )
 
@@ -94,6 +116,15 @@ class PlatformSiteDesktopApi:
             )
         )
 
+    def _serialize_site_page(self, page) -> SitePageDto:
+        return SitePageDto(
+            items=tuple(self._serialize_site(site) for site in page.items),
+            total=page.total,
+            filtered_total=page.filtered_total,
+            page=page.page,
+            page_size=page.page_size,
+        )
+
     @staticmethod
     def _serialize_rollup_summary(summary) -> SiteRollupSummaryDto:
         return SiteRollupSummaryDto(
@@ -127,6 +158,8 @@ class PlatformSiteDesktopApi:
             version=site.version,
             opened_at=site.opened_at,
             closed_at=site.closed_at,
+            created_at=site.created_at,
+            updated_at=site.updated_at,
         )
 
 

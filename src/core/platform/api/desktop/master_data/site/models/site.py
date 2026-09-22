@@ -28,6 +28,17 @@ class SiteDto:
     version: int
     opened_at: datetime | None = None
     closed_at: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class SitePageDto:
+    items: tuple[SiteDto, ...] = ()
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
 
 
 @dataclass(frozen=True)

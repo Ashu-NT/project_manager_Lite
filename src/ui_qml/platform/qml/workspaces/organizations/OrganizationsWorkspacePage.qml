@@ -458,6 +458,8 @@ AppLayouts.WorkspaceFrame {
                                 root.workspaceController.refresh()
                         } else if (actionId === "show_audit") {
                             root.navigateToDestination("control_audit")
+                        } else if (actionId === "create_site") {
+                            dialogHostLoader.invoke("openSiteCreate")
                         }
                     }
                 }

@@ -165,3 +165,15 @@ def test_capture_organizations_screenshots(qapp, services, theme_mode) -> None:
         assert not relevant, "\n".join(relevant)
     finally:
         qInstallMessageHandler(previous_handler)
+
+# NOTE (Sites vertical slice): a pixel-level screenshot of the Organization
+# Detail Sites tab specifically was attempted here and removed --
+# grabToImage() requires a QQuickWindow-backed root, which a standalone
+# AdminOrganizationDetailPage.qml load (no shell window ancestor) does not
+# have. The existing capture above only works because it grabs a named
+# child ("mainWindow") from within the full shell scene. Reaching the Sites
+# tab that way needs real shell navigation (open Organizations -> select a
+# row -> open detail -> switch tab), which is planned for the combined
+# visual QA pass once Departments/Employees/Documents also exist (see the
+# Phase K report). The Sites tab is instead verified end-to-end, including
+# zero console errors, by test_organization_detail_sites_tab.py.

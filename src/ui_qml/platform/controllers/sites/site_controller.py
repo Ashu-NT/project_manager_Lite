@@ -99,6 +99,32 @@ class PlatformSiteController(QObject):
     def refresh(self) -> None:
         self._refresh_sites()
 
+    @Slot(str, int, int, str, str, result="QVariantMap")
+    def organizationSitesPage(
+        self,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+    ) -> dict[str, object]:
+        """Stateless query for Organization Detail's Sites tab -- unlike
+        `sites`/`refresh()` above (this controller's own shared, session-
+        active-organization-scoped catalog), every call here is explicitly
+        scoped to `organization_id`, regardless of which organization is
+        active in the caller's session. The Sites tab owns its own
+        page/pageSize/search/status state and calls this directly; no
+        pagination state is stored on this controller."""
+        return serialize_action_list(
+            self._presenter.build_catalog_page_for_organization(
+                organization_id,
+                page=page,
+                page_size=page_size,
+                search=search,
+                status=status,
+            )
+        )
+
     @Slot("QVariantMap", result=str)
     def generateCode(self, payload: dict[str, object]) -> str:
         try:

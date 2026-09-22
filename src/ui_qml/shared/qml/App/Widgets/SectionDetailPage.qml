@@ -101,7 +101,11 @@ Item {
         }
     }
 
-    Component.onCompleted: Qt.callLater(root._syncPinnedContent)
+    Component.onCompleted: {
+        Qt.callLater(root._syncPinnedContent)
+        DetailViewTracker.open()
+    }
+    Component.onDestruction: DetailViewTracker.close()
 
     Rectangle {
         anchors.fill: parent

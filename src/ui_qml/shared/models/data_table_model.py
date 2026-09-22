@@ -222,7 +222,13 @@ class DynamicTableModel(QAbstractTableModel):
     rowCountValue = Property(int, lambda self: len(self._rows), notify=rowCountChanged)
 
     # ── Public controller API ─────────────────────────────────────────
+    # Also a `@Slot`, not just a plain Python method: a QML page with no
+    # Python controller in between (e.g. an organization-scoped child table
+    # querying its own paginated backend method directly) can push rows
+    # here too. Assigning the `rows` property directly instead would skip
+    # `_unsorted_rows` bookkeeping and desync any active column sort.
 
+    @Slot("QVariantList")
     def set_rows(self, rows: list[dict]) -> None:
         """Push a new row dataset from Python without crossing the QML bridge."""
         self._unsorted_rows = list(rows) if rows is not None else []

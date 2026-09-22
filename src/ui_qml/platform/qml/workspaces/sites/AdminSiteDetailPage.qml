@@ -33,7 +33,10 @@ Item {
 
     readonly property var _state: (root.site && root.site.state) ? root.site.state : ({})
     readonly property string _title: String(root.site && root.site.title ? root.site.title : "Site")
-    readonly property string _status: String(root.site && root.site.statusLabel ? root.site.statusLabel : "")
+    readonly property var _statusLabelValue: root.site ? root.site.statusLabel : null
+    readonly property string _status: (root._statusLabelValue && typeof root._statusLabelValue === "object")
+        ? String(root._statusLabelValue.label || "")
+        : String(root._statusLabelValue || "")
     readonly property string _subtitle: String(root.site && root.site.subtitle ? root.site.subtitle : "")
     readonly property string _supportingText: String(root.site && root.site.supportingText ? root.site.supportingText : "")
     readonly property string _metaText: String(root.site && root.site.metaText ? root.site.metaText : "")

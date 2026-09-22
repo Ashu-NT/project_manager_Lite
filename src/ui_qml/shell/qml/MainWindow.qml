@@ -16,6 +16,22 @@ Item {
     property var notificationsController
     property bool _notificationsPanelOpen: false
     property bool _globalNavCollapsed: false
+
+    // Auto-collapse the global sidebar whenever ANY module's record detail
+    // view is open (Platform, Project Management, or any future module) --
+    // frees horizontal room for the detail page's own content. Driven by
+    // DetailViewTracker, a generic counter every SectionDetailPage instance
+    // reports itself to on creation/destruction; MainWindow never needs to
+    // know which workspace or module opened it. Only reacts on the
+    // open/close transition itself (not a permanent binding), so the
+    // user's own manual sidebar toggle still works freely afterward and is
+    // never fought while a detail view stays open.
+    Connections {
+        target: AppWidgets.DetailViewTracker
+        function onAnyOpenChanged() {
+            root._globalNavCollapsed = AppWidgets.DetailViewTracker.anyOpen
+        }
+    }
     readonly property string _currentRouteSource: root.shellModel
         ? String(root.shellModel.currentRouteSource || "")
         : ""

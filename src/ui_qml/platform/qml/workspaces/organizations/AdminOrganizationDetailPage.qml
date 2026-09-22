@@ -4,6 +4,9 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Models 1.0 as AppModels
+import Platform.Components 1.0 as PlatformComponents
+import workspaces.sites 1.0 as SitesWorkspace
 
 Item {
     id: detailRoot
@@ -21,6 +24,16 @@ Item {
     signal backRequested()
     signal actionRequested(string actionId)
     signal navigateToDestination(string destinationId)
+
+    // Any site mutation anywhere (e.g. the "+ New Site" dialog, owned by
+    // the parent OrganizationsWorkspacePage's shared dialog host) re-fetches
+    // this tab's own organization-scoped page -- the same reactivity the
+    // old client-side-filtered tab had via a computed property, just
+    // sourced from the new paginated query instead of an in-memory list.
+    Connections {
+        target: detailRoot.workspaceController
+        function onSitesChanged() { detailRoot._refreshSites() }
+    }
 
     readonly property var _orgState: (detailRoot.organization && detailRoot.organization.state)
         ? detailRoot.organization.state
@@ -209,8 +222,14 @@ Item {
         if (detailRoot._activeSectionLabel === "Activity") {
             detailRoot._ensureRecentActivityLoaded()
         }
+        if (detailRoot._activeSectionLabel === "Sites") {
+            detailRoot._refreshSites()
+        }
     }
-    Component.onCompleted: detailRoot._reloadDetailContext()
+    Component.onCompleted: {
+        detailRoot._reloadDetailContext()
+        detailRoot._refreshSites()
+    }
 
     readonly property var _statistics: detailRoot._detailContext.statistics || ({})
 
@@ -253,8 +272,71 @@ Item {
         }
         return result
     }
-    readonly property var _orgSites: detailRoot.workspaceController
-        ? detailRoot._filteredByOrg(detailRoot.workspaceController.sites) : []
+    // -- Sites tab: a real, tenant-scoped + paginated Organization-Detail-
+    // owned query (SiteService.list_sites_page_for_organization) -- unlike
+    // Departments/Employees/Documents below, NOT a client-side filter of
+    // the global, session-active-organization-only catalog. Works
+    // correctly regardless of which organization is active in the
+    // caller's session, and remains readable for inactive/archived
+    // organizations (see Phase K report). ---------------------------------
+    property int _sitesPage: 1
+    property int _sitesPageSize: 25
+    property string _sitesSearch: ""
+    property string _sitesStatusFilter: ""
+    property var _sitesCatalog: ({
+        "title": "Sites", "subtitle": "", "emptyState": "", "items": [],
+        "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
+    })
+    property string _sitesSelectedRowId: ""
+    property bool _sitesDetailOpen: false
+    readonly property var _sitesStatusFilterOptions: [
+        { "value": "", "label": "All" },
+        { "value": "active", "label": "Active" },
+        { "value": "inactive", "label": "Inactive" }
+    ]
+    readonly property var _sitesColumns: [
+        { "key": "title", "label": "Site", "flex": 3, "minWidth": 160, "sortable": true, "required": true, "visible": true },
+        { "key": "siteCode", "label": "Code", "flex": 1, "minWidth": 110, "visible": true },
+        { "key": "location", "label": "Location", "flex": 2, "minWidth": 150, "visible": true },
+        { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 90, "type": "status", "required": true, "visible": true },
+        { "key": "country", "label": "Country", "flex": 1, "minWidth": 120, "visible": false },
+        { "key": "timezoneName", "label": "Time Zone", "flex": 1, "minWidth": 130, "visible": false },
+        { "key": "createdAt", "label": "Created", "flex": 1, "minWidth": 140, "visible": false },
+        { "key": "updatedAt", "label": "Updated", "flex": 1, "minWidth": 140, "visible": false }
+    ]
+    // Only your own currently-active organization can receive new sites
+    // today (SiteService.create_site() -- an existing, unchanged domain
+    // rule; this read-only phase does not add an explicit-organization
+    // create path). Viewing another organization's sites stays fully
+    // supported; creating into it from here does not.
+    readonly property bool _isViewingActiveOrganization: detailRoot.platformCatalog
+        && detailRoot.platformCatalog.organizationSwitcher
+        && detailRoot.platformCatalog.organizationSwitcher.activeOrganizationId === detailRoot._orgId
+    readonly property bool _canCreateSite: detailRoot.canWrite && detailRoot._isViewingActiveOrganization
+
+    function _refreshSites() {
+        if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) return
+        detailRoot._sitesCatalog = detailRoot.workspaceController.organizationSitesPage(
+            detailRoot._orgId, detailRoot._sitesPage, detailRoot._sitesPageSize,
+            detailRoot._sitesSearch, detailRoot._sitesStatusFilter
+        )
+    }
+    function _openSiteDetail(siteId) {
+        detailRoot._sitesSelectedRowId = siteId
+        detailRoot._sitesDetailOpen = true
+    }
+    function _closeSiteDetail() {
+        detailRoot._sitesDetailOpen = false
+    }
+    readonly property var _selectedSite: {
+        const id = detailRoot._sitesSelectedRowId
+        if (!id) return null
+        const items = detailRoot._sitesCatalog.items || []
+        for (let i = 0; i < items.length; i += 1) {
+            if (String(items[i].id) === String(id)) return items[i]
+        }
+        return null
+    }
     readonly property var _orgDepartments: detailRoot.workspaceController
         ? detailRoot._filteredByOrg(detailRoot.workspaceController.departments) : []
     readonly property var _orgEmployees: detailRoot.workspaceController
@@ -305,7 +387,18 @@ Item {
         }
 
         AppWidgets.ContextualActionToolbar {
+            id: _sectionToolbar
             detailPagePinned: true
+            // Sites already has its own full header (title + count) and
+            // toolbar (search/filter/Columns/Refresh/+New Site) via
+            // AdminEntityWorkspace below -- showing this generic per-
+            // section toolbar too would duplicate both the "Sites" heading
+            // and the Refresh button. `visible: false` alone leaves a blank
+            // gap: the sticky header area sizes itself from `childrenRect`,
+            // which (unlike a Column's own layout pass) does NOT exclude
+            // invisible children -- the height must be collapsed explicitly.
+            visible: detailRoot._activeSectionLabel !== "Sites"
+            height: visible ? implicitHeight : 0
             width: parent ? parent.width : detailRoot.width
             title: detailRoot._activeSectionLabel
             subtitle: detailRoot._toolbarSubtitle
@@ -663,10 +756,24 @@ Item {
             }
         }
 
-        // -- Sites / Departments / Employees / Documents: real filtered lists
+        // -- Sites: a real Organization-scoped management workspace (a
+        // tenant-scoped backend read, not a client-side filter of the
+        // global session-active-organization catalog -- see Phase K
+        // report). Row activation opens the same AdminSiteDetailPage the
+        // standalone Sites workspace uses. --------------------------------
         Item {
+            // Unlike the other (still content-height-driven) sections
+            // below, Sites fills the page's actual available viewport --
+            // AdminEntityWorkspace is a full-panel component (fixed
+            // pagination footer pinned to ITS bottom, internal DataTable
+            // scrolling), not content that should size to its own row
+            // count. Binding to a fixed pixel height here previously left
+            // dead space below the pagination footer on tall viewports and
+            // pushed the footer out of view entirely on short ones.
             width: parent ? parent.width : detailRoot.width
-            implicitHeight: detailRoot.activeSectionIndex === 1 ? sitesLoader.implicitHeight : 0
+            implicitHeight: detailRoot.activeSectionIndex === 1
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -678,17 +785,123 @@ Item {
                 active: detailRoot.activeSectionIndex === 1
                 keepLoaded: true
                 loadingMessage: "Loading sites..."
-                fallbackLoadingHeight: 320
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
-                    Column {
+                    Item {
+                        id: sitesSectionRoot
                         width: parent ? parent.width : 0
-                        spacing: 0
-                        AppWidgets.DataTable {
-                            width: parent.width
-                            height: 320
-                            columns: detailRoot._simpleColumns
-                            rows: detailRoot._orgSites
-                            emptyText: "No sites recorded for this organization yet."
+                        height: Math.max(420, detailPage.contentViewportHeight)
+
+                        AppModels.DynamicTableModel {
+                            id: _sitesTableModel
+                            rows: detailRoot._sitesCatalog.items || []
+                        }
+
+                        PlatformComponents.AdminEntityWorkspace {
+                            id: _sitesWorkspace
+                            anchors.fill: parent
+                            visible: !detailRoot._sitesDetailOpen
+                            sectionTitle: "Sites"
+                            entityLabel: "Site"
+                            catalog: detailRoot._sitesCatalog
+                            catalogModel: _sitesTableModel
+                            tableId: "organization.detail.sites.table"
+                            columns: detailRoot._sitesColumns
+                            canCreate: detailRoot._canCreateSite
+                            isBusy: detailRoot.busy
+                            isLoading: false
+                            errorMessage: detailRoot.errorMessage
+                            feedbackMessage: detailRoot.feedbackMessage
+                            selectedRowId: detailRoot._sitesSelectedRowId
+                            showSearch: true
+                            searchText: detailRoot._sitesSearch
+                            pageSizeOptions: [25, 50, 100]
+
+                            AppControls.ComboBox {
+                                id: _sitesStatusFilterCombo
+                                Layout.preferredWidth: 150
+                                model: detailRoot._sitesStatusFilterOptions
+                                textRole: "label"
+                                valueRole: "value"
+                                currentIndex: {
+                                    const filter = detailRoot._sitesStatusFilter
+                                    for (let i = 0; i < detailRoot._sitesStatusFilterOptions.length; i += 1) {
+                                        if (detailRoot._sitesStatusFilterOptions[i].value === filter) return i
+                                    }
+                                    return 0
+                                }
+                                onActivated: {
+                                    detailRoot._sitesStatusFilter = String(currentValue || "")
+                                    detailRoot._sitesPage = 1
+                                    detailRoot._refreshSites()
+                                }
+                            }
+
+                            onCreateRequested: detailRoot.actionRequested("create_site")
+                            onRowSelected: function(id) { detailRoot._sitesSelectedRowId = id }
+                            onRowActivated: function(id) { detailRoot._openSiteDetail(id) }
+                            onRefreshRequested: detailRoot._refreshSites()
+                            onSearchChanged: function(text) {
+                                detailRoot._sitesSearch = text
+                                detailRoot._sitesPage = 1
+                                detailRoot._refreshSites()
+                            }
+                            onPageRequested: function(page) {
+                                detailRoot._sitesPage = page
+                                detailRoot._refreshSites()
+                            }
+                            onPageSizeRequested: function(pageSize) {
+                                detailRoot._sitesPageSize = pageSize
+                                detailRoot._sitesPage = 1
+                                detailRoot._refreshSites()
+                            }
+                            onClearFiltersRequested: {
+                                detailRoot._sitesSearch = ""
+                                detailRoot._sitesStatusFilter = ""
+                                detailRoot._sitesPage = 1
+                                detailRoot._refreshSites()
+                            }
+                        }
+
+                        Loader {
+                            anchors.fill: parent
+                            active: detailRoot._sitesDetailOpen
+                            visible: active
+                            asynchronous: true
+
+                            sourceComponent: Component {
+                                SitesWorkspace.AdminSiteDetailPage {
+                                    platformCatalog: detailRoot.platformCatalog
+                                    site: detailRoot._selectedSite || ({})
+                                    departmentCatalog: detailRoot.workspaceController
+                                        ? detailRoot.workspaceController.departments
+                                        : ({ "items": [] })
+                                    employeeCatalog: detailRoot.workspaceController
+                                        ? detailRoot.workspaceController.employees
+                                        : ({ "items": [] })
+                                    canWrite: detailRoot.canWrite
+                                    busy: detailRoot.busy
+                                    errorMessage: detailRoot.errorMessage
+                                    feedbackMessage: detailRoot.feedbackMessage
+
+                                    onBackRequested: detailRoot._closeSiteDetail()
+                                    onActionRequested: function(actionId) {
+                                        // Only the site's own lifecycle/refresh are wired
+                                        // here -- cross-links to Departments/Employees/
+                                        // Calendar management from within a nested Site
+                                        // Detail are not yet re-routed to this
+                                        // organization's own scoped tabs (see Phase K
+                                        // report's known-limitations section).
+                                        if (actionId === "toggle_active") {
+                                            if (detailRoot.workspaceController && detailRoot._sitesSelectedRowId) {
+                                                detailRoot.workspaceController.toggleSiteActive(detailRoot._sitesSelectedRowId)
+                                            }
+                                        } else if (actionId === "refresh") {
+                                            detailRoot._refreshSites()
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

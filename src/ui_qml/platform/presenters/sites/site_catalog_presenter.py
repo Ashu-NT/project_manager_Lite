@@ -20,6 +20,16 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
+# Site lifecycle is a plain boolean (is_active) -- a 2-state Active/Inactive
+# model, structurally different from Organization's 3-state ACTIVE/INACTIVE/
+# ARCHIVED enum. Do not conflate the two tone maps.
+_SITE_STATUS_TONE = {True: "success", False: "neutral"}
+
+
+def _site_status_label(is_active: bool) -> dict[str, str]:
+    return {"label": "Active" if is_active else "Inactive", "tone": _SITE_STATUS_TONE[is_active]}
+
+
 class PlatformSiteCatalogPresenter:
     def __init__(
         self,
@@ -59,6 +69,68 @@ class PlatformSiteCatalogPresenter:
                 self._serialize_site(row, organization_name=context_label)
                 for row in sites_result.data
             ),
+        )
+
+    def build_catalog_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        status: str = "",
+    ) -> PlatformWorkspaceActionListViewModel:
+        """Tenant-scoped (not active-organization-scoped) paginated Sites
+        page for Organization Detail's Sites tab -- works regardless of
+        which organization is currently active in the caller's session."""
+        if self._site_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Sites",
+                subtitle="Sites appear here once the platform site API is connected.",
+                empty_state="Platform site API is not connected in this QML preview.",
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        active_only: bool | None
+        if status == "active":
+            active_only = True
+        elif status == "inactive":
+            active_only = False
+        else:
+            active_only = None
+
+        result = self._site_api.list_sites_page_for_organization(
+            organization_id,
+            page=page,
+            page_size=page_size,
+            search=search.strip(),
+            active_only=active_only,
+        )
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load sites."
+            return PlatformWorkspaceActionListViewModel(
+                title="Sites",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        site_page = result.data
+        return PlatformWorkspaceActionListViewModel(
+            title="Sites",
+            subtitle="Operational sites for this organization.",
+            empty_state="No sites yet. Add the first operational site for this organization.",
+            no_results_state="No sites match your current filters.",
+            items=tuple(self._serialize_site(row, organization_name="") for row in site_page.items),
+            paginated=True,
+            page=site_page.page,
+            page_size=site_page.page_size,
+            total_count=site_page.total,
+            filtered_total=site_page.filtered_total,
         )
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
@@ -141,10 +213,11 @@ class PlatformSiteCatalogPresenter:
         *,
         organization_name: str,
     ) -> PlatformWorkspaceActionItemViewModel:
+        location = ", ".join(part for part in (row.city, row.country) if part)
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.name,
-            status_label="Active" if row.is_active else "Inactive",
+            status_label=_site_status_label(row.is_active),
             subtitle=f"{row.site_code} | {row.city or '-'} | {row.country or '-'}",
             supporting_text=f"{row.site_type or 'Site'} | Runtime status: {row.status or '-'}",
             meta_text=f"Timezone {row.timezone or '-'} | Currency {row.currency_code or '-'}",
@@ -160,13 +233,16 @@ class PlatformSiteCatalogPresenter:
                 "description": row.description,
                 "city": row.city,
                 "country": row.country,
+                "location": location,
                 "timezoneName": row.timezone,
                 "currencyCode": row.currency_code,
                 "siteType": row.site_type,
                 "status": row.status,
-                "notes": row.notes,
                 "isActive": row.is_active,
+                "notes": row.notes,
                 "version": row.version,
+                "createdAt": row.created_at.isoformat() if row.created_at else "",
+                "updatedAt": row.updated_at.isoformat() if row.updated_at else "",
             },
         )
 

@@ -246,7 +246,12 @@ AppLayouts.WorkspaceFrame {
                 Layout.fillHeight: true
                 visible: root.selectedRowId.length > 0 && Window.width >= Theme.AppTheme.compactContentBreakpoint
                 title: root._selectedItem ? String(root._selectedItem.title || "") : ""
-                statusLabel: root._selectedItem ? String(root._selectedItem.statusLabel || "") : ""
+                statusLabel: (root._selectedItem && root._selectedItem.statusLabel)
+                    ? String(root._selectedItem.statusLabel.label || "")
+                    : ""
+                statusTone: (root._selectedItem && root._selectedItem.statusLabel)
+                    ? String(root._selectedItem.statusLabel.tone || "")
+                    : ""
                 sections: root._inspectorSections
                 busy: root.busy
                 editActionLabel: "Edit"
