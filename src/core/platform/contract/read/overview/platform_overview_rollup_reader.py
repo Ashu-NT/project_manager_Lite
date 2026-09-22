@@ -37,6 +37,20 @@ class UserRollupSummary:
     locked: int
 
 
+@dataclass(frozen=True, slots=True)
+class CalendarRollupSummary:
+    """The organization's one default (GLOBAL) calendar, for a read-only
+    overview summary -- empty calendar_id means the organization has none
+    (should not happen post-migration, but the UI must still handle it)."""
+
+    calendar_id: str = ""
+    calendar_name: str = ""
+    timezone: str = ""
+    locale: str | None = None
+    working_weekdays: tuple[int, ...] = ()
+    holiday_count: int = 0
+
+
 class PlatformOverviewRollupReader(Protocol):
     def get_organization_count(self, *, tenant_id: str) -> int: ...
 
@@ -56,8 +70,11 @@ class PlatformOverviewRollupReader(Protocol):
 
     def get_user_summary(self, *, tenant_id: str | None) -> UserRollupSummary: ...
 
+    def get_calendar_summary(self, *, organization_id: str, tenant_id: str) -> CalendarRollupSummary: ...
+
 
 __all__ = [
+    "CalendarRollupSummary",
     "DepartmentRollupSummary",
     "DocumentRollupSummary",
     "PartyRollupSummary",

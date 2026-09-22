@@ -44,6 +44,17 @@ class OrganizationStatisticsDto:
 
 
 @dataclass(frozen=True)
+class OrganizationCalendarSummaryDto:
+    has_calendar: bool = False
+    calendar_id: str = ""
+    calendar_name: str = ""
+    timezone: str = ""
+    locale: str = ""
+    working_weekdays: tuple[int, ...] = field(default_factory=tuple)
+    holiday_count: int = 0
+
+
+@dataclass(frozen=True)
 class OrganizationProvisionCommand:
     organization_code: str
     display_name: str

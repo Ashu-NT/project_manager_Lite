@@ -464,6 +464,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def organizationActivity(self, organization_id: str) -> list[dict[str, object]]:
         return self._organization_controller.organizationActivity(organization_id)
 
+    @Slot(str, result="QVariantMap")
+    def organizationCalendarSummary(self, organization_id: str) -> dict[str, object]:
+        return self._organization_controller.organizationCalendarSummary(organization_id)
+
     @Slot(str, int, int, str, str, str, result="QVariantMap")
     def organizationActivityPage(
         self,

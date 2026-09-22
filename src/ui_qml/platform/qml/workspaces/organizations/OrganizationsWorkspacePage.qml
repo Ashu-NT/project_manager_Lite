@@ -89,12 +89,21 @@ AppLayouts.WorkspaceFrame {
     // per selection, not per row, so this stays cheap regardless of how
     // many rows the table has.
     property var _detailContext: ({ "statistics": ({}) })
+    // Compact operational-calendar preview for the Inspector -- same
+    // read-model Organization Overview uses (organizationCalendarSummary),
+    // fetched once per selection alongside _detailContext above.
+    property var _calendarSummary: ({
+        "hasCalendar": false, "calendarId": "", "calendarName": "",
+        "workingWeekLabel": "", "timeZone": ""
+    })
     function _reloadDetailContext() {
         if (!root.workspaceController || root.selectedRowId.length === 0) {
             root._detailContext = ({ "statistics": ({}) })
+            root._calendarSummary = ({ "hasCalendar": false, "calendarId": "", "calendarName": "", "workingWeekLabel": "", "timeZone": "" })
             return
         }
         root._detailContext = root.workspaceController.organizationDetailContext(root.selectedRowId)
+        root._calendarSummary = root.workspaceController.organizationCalendarSummary(root.selectedRowId)
     }
     onSelectedRowIdChanged: root._reloadDetailContext()
     readonly property var _statistics: root._detailContext.statistics || ({})
@@ -470,6 +479,55 @@ AppLayouts.WorkspaceFrame {
                 onEditRequested: root.openEdit(root.selectedRowId)
                 onMenuActionTriggered: function(id) { root._onInspectorMenuAction(id) }
                 onViewDetailsRequested: root.detailOpen = true
+
+                // -- Operational Calendar preview: a compact 3-line summary
+                // only -- never the working rules/exceptions/shift patterns
+                // themselves. "View Calendar" is the only way to act on it,
+                // navigating to the existing Platform > Calendars workspace
+                // (same relatedRecordRequested("calendars", ...) mechanism
+                // Organization Overview's "Manage Calendar" uses) -- this
+                // panel never edits or creates calendar data itself.
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: root._calendarSummary.hasCalendar
+                    spacing: 2
+
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        text: "Operational Calendar"
+                        color: Theme.AppTheme.textMuted
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.bold: true
+                    }
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        text: String(root._calendarSummary.calendarName || "—")
+                        color: Theme.AppTheme.textPrimary
+                        font.pixelSize: Theme.AppTheme.smallSize
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    }
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        text: root._joinNonEmpty(
+                            [root._calendarSummary.workingWeekLabel, root._calendarSummary.timeZone], " · "
+                        )
+                        color: Theme.AppTheme.textMuted
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    }
+                    AppControls.Label {
+                        Layout.topMargin: 2
+                        text: "View Calendar"
+                        color: Theme.AppTheme.accent
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.bold: true
+
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            onTapped: root.relatedRecordRequested("calendars", root._calendarSummary.calendarId)
+                        }
+                    }
+                }
             }
         }
 

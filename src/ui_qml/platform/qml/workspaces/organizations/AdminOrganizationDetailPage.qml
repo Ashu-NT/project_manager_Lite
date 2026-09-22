@@ -202,11 +202,29 @@ Item {
     // paginated + filterable Activity tab is a separate state block below.
     property var _detailContext: ({ "statistics": ({}), "recentActivity": [] })
 
+    // -- Operational calendar summary: the organization's one default
+    // calendar (name/working week/time zone/holiday set), read-only --
+    // full calendar editing stays exclusively in Platform > Calendars (see
+    // OrganizationOverviewSection.qml). Fetched once per organization id,
+    // like _detailContext above, and correctly scoped to _orgId regardless
+    // of which organization is active in the caller's session.
+    property var _calendarSummary: ({
+        "hasCalendar": false, "calendarId": "", "calendarName": "",
+        "workingWeekLabel": "No working days configured", "timeZone": "",
+        "holidaySetLabel": "No holidays configured"
+    })
+
     function _reloadDetailContext() {
         if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) {
             return
         }
         detailRoot._detailContext = detailRoot.workspaceController.organizationDetailContext(detailRoot._orgId)
+        detailRoot._calendarSummary = detailRoot.workspaceController.organizationCalendarSummary(detailRoot._orgId)
+    }
+
+    function _openCalendarManagement() {
+        if (detailRoot._calendarSummary.calendarId.length === 0) return
+        detailRoot.relatedRecordRequested("calendars", detailRoot._calendarSummary.calendarId)
     }
 
     // -- Activity tab: a real, paginated + searchable + filterable business-
@@ -645,10 +663,12 @@ Item {
                         relatedActions: detailRoot._relatedActions
                         recentActivity: detailRoot._detailContext.recentActivity || []
                         isDestinationAccessible: detailRoot._isDestinationAccessible
+                        calendarSummary: detailRoot._calendarSummary
 
                         onNavigateToDestination: function(destinationId) {
                             detailRoot._navigateFromOverview(destinationId)
                         }
+                        onManageCalendarRequested: detailRoot._openCalendarManagement()
                         // scrollToSection (not a direct activeSectionIndex
                         // assignment) so the nav rail's own highlighted item
                         // stays in sync -- it owns that state and only

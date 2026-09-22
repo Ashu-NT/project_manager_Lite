@@ -227,6 +227,20 @@ class PlatformOrganizationController(QObject):
             return {"statistics": {}, "recentActivity": []}
         return self._presenter.build_detail_context(normalized_id)
 
+    @Slot(str, result="QVariantMap")
+    def organizationCalendarSummary(self, organization_id: str) -> dict[str, object]:
+        normalized_id = organization_id.strip()
+        if not normalized_id:
+            return {
+                "hasCalendar": False,
+                "calendarId": "",
+                "calendarName": "",
+                "workingWeekLabel": "No working days configured",
+                "timeZone": "",
+                "holidaySetLabel": "No holidays configured",
+            }
+        return self._presenter.build_calendar_summary(normalized_id)
+
     @Slot(str, result="QVariantList")
     def organizationActivity(self, organization_id: str) -> list[dict[str, object]]:
         normalized_id = organization_id.strip()

@@ -11,6 +11,7 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
 from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationCalendarSummaryDto,
     OrganizationCatalogPageDto,
     OrganizationDto,
     OrganizationProvisionCommand,
@@ -78,6 +79,15 @@ class PlatformRuntimeDesktopApi:
         return self._execute(
             lambda: self._serialize_organization_statistics(
                 self._platform_runtime_application_service.get_organization_statistics(organization_id)
+            )
+        )
+
+    def get_organization_calendar_summary(
+        self, organization_id: str
+    ) -> DesktopApiResult[OrganizationCalendarSummaryDto]:
+        return self._execute(
+            lambda: self._serialize_organization_calendar_summary(
+                self._platform_runtime_application_service.get_organization_calendar_summary(organization_id)
             )
         )
 
@@ -364,6 +374,18 @@ class PlatformRuntimeDesktopApi:
             department_count=statistics.department_count,
             employee_count=statistics.employee_count,
             document_count=statistics.document_count,
+        )
+
+    @staticmethod
+    def _serialize_organization_calendar_summary(summary) -> OrganizationCalendarSummaryDto:
+        return OrganizationCalendarSummaryDto(
+            has_calendar=summary.has_calendar,
+            calendar_id=summary.calendar_id,
+            calendar_name=summary.calendar_name,
+            timezone=summary.timezone,
+            locale=summary.locale or "",
+            working_weekdays=summary.working_weekdays,
+            holiday_count=summary.holiday_count,
         )
 
     def _build_runtime_context(self) -> PlatformRuntimeContextDto:

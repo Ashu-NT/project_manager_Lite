@@ -165,6 +165,21 @@ class OrganizationStatistics:
     document_count: int = 0
 
 
+@dataclass(frozen=True)
+class OrganizationCalendarSummary:
+    """Read-only summary of the organization's one default calendar, for
+    Organization Overview/Inspector. has_calendar False means the migration
+    invariant is somehow unmet -- the UI must show an empty state, not crash."""
+
+    has_calendar: bool = False
+    calendar_id: str = ""
+    calendar_name: str = ""
+    timezone: str = ""
+    locale: str | None = None
+    working_weekdays: tuple[int, ...] = ()
+    holiday_count: int = 0
+
+
 class OrganizationService:
     def __init__(
         self,
@@ -326,6 +341,32 @@ class OrganizationService:
             department_count=department_summary.total,
             employee_count=employee_count,
             document_count=document_summary.total,
+        )
+
+    def get_organization_calendar_summary(self, organization_id: str) -> OrganizationCalendarSummary:
+        """Scoped to the given organization_id explicitly, matching
+        get_organization_statistics() above -- Organization Overview may be
+        showing an organization the caller hasn't switched to."""
+        require_permission(self._user_session, "settings.manage", operation_label="view organization calendar")
+        tenant_id = self._require_current_tenant_id(operation_label="view organization calendar")
+        if self._overview_rollup_reader is None:
+            return OrganizationCalendarSummary()
+        summary = self._overview_rollup_reader.get_calendar_summary(
+            organization_id=organization_id, tenant_id=tenant_id
+        )
+        # See list_organizations() -- releases the implicit read transaction
+        # on this shared session so it never blocks WAL checkpointing.
+        self._session.commit()
+        if not summary.calendar_id:
+            return OrganizationCalendarSummary()
+        return OrganizationCalendarSummary(
+            has_calendar=True,
+            calendar_id=summary.calendar_id,
+            calendar_name=summary.calendar_name,
+            timezone=summary.timezone,
+            locale=summary.locale,
+            working_weekdays=summary.working_weekdays,
+            holiday_count=summary.holiday_count,
         )
 
     def get_organization_recent_activity(

@@ -7,6 +7,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
+    CalendarRollupSummary,
     DepartmentRollupSummary,
     DocumentRollupSummary,
     PartyRollupSummary,
@@ -22,6 +23,11 @@ from src.core.platform.infrastructure.persistence.orm.master_data.party.party im
 from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import RoleBindingORM, RoleORM, UserORM
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
+from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
+    CalendarExceptionORM,
+    CalendarWorkingRuleORM,
+    PlatformCalendarORM,
+)
 
 # Must stay in sync with PLATFORM_ROLE_NAMES in
 # application/security/authorization/roles/role_scope_policy.py -- not
@@ -162,6 +168,50 @@ class SqlAlchemyPlatformOverviewRollupReader:
             )
         ).one()
         return UserRollupSummary(total=int(total or 0), active=int(active or 0), locked=int(locked or 0))
+
+    def get_calendar_summary(self, *, organization_id: str, tenant_id: str) -> CalendarRollupSummary:
+        """Deliberately queried by the EXPLICIT organization_id/tenant_id
+        given here, not the caller's ambient active organization -- an
+        overview rollup reader, like every other summary method on this
+        class, must be able to describe a non-active organization. Bypasses
+        SqlAlchemyPlatformCalendarRepository entirely, which -- unlike this
+        reader -- is deliberately scoped to the caller's active organization
+        (see test_repository_tenant_hardening_calendar.py)."""
+        calendar = self._session.execute(
+            select(PlatformCalendarORM)
+            .where(
+                PlatformCalendarORM.organization_id == organization_id,
+                PlatformCalendarORM.tenant_id == tenant_id,
+                PlatformCalendarORM.calendar_type == "GLOBAL",
+                PlatformCalendarORM.is_active.is_(True),
+            )
+            .order_by(PlatformCalendarORM.priority.desc())
+        ).scalars().first()
+        if calendar is None:
+            return CalendarRollupSummary()
+
+        working_weekdays = tuple(sorted(
+            self._session.execute(
+                select(CalendarWorkingRuleORM.weekday).where(
+                    CalendarWorkingRuleORM.calendar_id == calendar.id,
+                    CalendarWorkingRuleORM.is_working_day.is_(True),
+                )
+            ).scalars().all()
+        ))
+        holiday_count = self._session.execute(
+            select(func.count(CalendarExceptionORM.id)).where(
+                CalendarExceptionORM.calendar_id == calendar.id,
+                CalendarExceptionORM.exception_type == "HOLIDAY",
+            )
+        ).scalar_one()
+        return CalendarRollupSummary(
+            calendar_id=calendar.id,
+            calendar_name=calendar.name,
+            timezone=calendar.timezone,
+            locale=calendar.locale,
+            working_weekdays=working_weekdays,
+            holiday_count=int(holiday_count or 0),
+        )
 
 
 __all__ = ["SqlAlchemyPlatformOverviewRollupReader"]

@@ -21,9 +21,24 @@ Column {
     property var relatedActions: []
     property var recentActivity: []
     property var isDestinationAccessible: function(_destinationId) { return false }
+    property var calendarSummary: ({
+        "hasCalendar": false, "calendarName": "", "workingWeekLabel": "",
+        "timeZone": "", "holidaySetLabel": ""
+    })
 
     signal navigateToDestination(string destinationId)
     signal viewAllActivityRequested()
+    signal manageCalendarRequested()
+
+    // Real backend/read-model fields only -- see build_calendar_summary()
+    // (organization_catalog_presenter.py). No calendar identifiers are ever
+    // shown here, only the display labels already resolved server-side.
+    readonly property var _calendarFields: root.calendarSummary.hasCalendar ? [
+        { "label": "Default Calendar", "value": String(root.calendarSummary.calendarName || "-") },
+        { "label": "Working Week", "value": String(root.calendarSummary.workingWeekLabel || "-") },
+        { "label": "Time Zone", "value": String(root.calendarSummary.timeZone || "-") },
+        { "label": "Holiday Set", "value": String(root.calendarSummary.holidaySetLabel || "-") }
+    ] : []
 
     Item {
         width: root.width
@@ -88,7 +103,7 @@ Column {
 
                                 AppControls.Label {
                                     Layout.fillWidth: true
-                                    text: String(modelData.value || "—")
+                                    text: String(modelData.value || "-")
                                     color: Theme.AppTheme.textPrimary
                                     font.pixelSize: Theme.AppTheme.smallSize
                                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -131,7 +146,7 @@ Column {
 
                                 AppControls.Label {
                                     Layout.fillWidth: true
-                                    text: String(modelData.value || "—")
+                                    text: String(modelData.value || "-")
                                     color: Theme.AppTheme.textPrimary
                                     font.pixelSize: Theme.AppTheme.smallSize
                                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -174,7 +189,7 @@ Column {
 
                                 AppControls.Label {
                                     Layout.fillWidth: true
-                                    text: String(modelData.value || "—")
+                                    text: String(modelData.value || "-")
                                     color: Theme.AppTheme.textPrimary
                                     font.pixelSize: Theme.AppTheme.smallSize
                                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -275,6 +290,95 @@ Column {
                             emptyText: "No recent administrative activity for this organization."
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // -- Operational Calendar: the organization's one default calendar,
+    // compact + read-only. Full editing (working rules, exceptions, shift
+    // patterns) lives exclusively in Platform > Calendars -- "Manage
+    // Calendar" below navigates there, opened to this organization's
+    // calendar; this card never lets you create or edit calendar data.
+    Item {
+        width: root.width
+        implicitHeight: calendarCard.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+        AppWidgets.SectionCard {
+            id: calendarCard
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: Theme.AppTheme.spacingMd
+            title: "Operational Calendar"
+            outlined: true
+
+            ColumnLayout {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Theme.AppTheme.marginMd
+                spacing: Theme.AppTheme.spacingMd
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    visible: !root.calendarSummary.hasCalendar
+                    text: "No operational calendar is configured for this organization."
+                    color: Theme.AppTheme.textMuted
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                }
+
+                GridLayout {
+                    Layout.fillWidth: true
+                    visible: root.calendarSummary.hasCalendar
+                    // Container-width breakpoints (this card's own width,
+                    // not the window) so the four fields stay one readable
+                    // horizontal row on desktop and stack cleanly on narrow
+                    // layouts -- same technique as overviewGrid above.
+                    columns: root.width < 420 ? 1 : (root.width < 760 ? 2 : 4)
+                    columnSpacing: Theme.AppTheme.spacingLg
+                    rowSpacing: Theme.AppTheme.spacingSm
+
+                    Repeater {
+                        model: root._calendarFields
+
+                        delegate: ColumnLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(modelData.label || "")
+                                color: Theme.AppTheme.textMuted
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.bold: true
+                            }
+
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(modelData.value || "-")
+                                color: Theme.AppTheme.textPrimary
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                            }
+                        }
+                    }
+                }
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignRight
+                    horizontalAlignment: Text.AlignRight
+                    visible: root.calendarSummary.hasCalendar
+                    text: "Manage Calendar"
+                    color: Theme.AppTheme.accent
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: root.manageCalendarRequested() }
                 }
             }
         }

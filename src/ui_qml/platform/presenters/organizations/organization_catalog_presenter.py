@@ -48,6 +48,27 @@ _ORGANIZATION_STATUS_TONE: dict[str, str] = {
     ORGANIZATION_STATUS_ARCHIVED: "neutral",
 }
 
+_WEEKDAY_ABBREVIATIONS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+
+def _working_week_label(working_weekdays: tuple[int, ...]) -> str:
+    days = sorted(d for d in working_weekdays if 0 <= d <= 6)
+    if not days:
+        return "No working days configured"
+    if len(days) == 7:
+        return "Every day"
+    if days == list(range(days[0], days[-1] + 1)):
+        return f"{_WEEKDAY_ABBREVIATIONS[days[0]]}–{_WEEKDAY_ABBREVIATIONS[days[-1]]}"
+    return ", ".join(_WEEKDAY_ABBREVIATIONS[d] for d in days)
+
+
+def _holiday_set_label(locale: str, holiday_count: int) -> str:
+    if locale:
+        return locale
+    if holiday_count > 0:
+        return f"{holiday_count} holiday{'s' if holiday_count != 1 else ''} configured"
+    return "No holidays configured"
+
 
 def _organization_status_label(status: str) -> dict[str, str]:
     return {"label": status.capitalize(), "tone": _ORGANIZATION_STATUS_TONE.get(status, "neutral")}
@@ -91,6 +112,34 @@ class PlatformOrganizationCatalogPresenter:
                     "documentCount": result.data.document_count,
                 }
         return {"statistics": statistics, "recentActivity": self.build_recent_activity(organization_id, limit=5)}
+
+    def build_calendar_summary(self, organization_id: str) -> dict[str, Any]:
+        """Read-only summary of the organization's one default calendar for
+        Organization Overview/Inspector -- never a full calendar editor.
+        Scoped to `organization_id` explicitly, so it is correct even when
+        this is not the caller's currently active organization."""
+        empty = {
+            "hasCalendar": False,
+            "calendarId": "",
+            "calendarName": "",
+            "workingWeekLabel": "No working days configured",
+            "timeZone": "",
+            "holidaySetLabel": "No holidays configured",
+        }
+        if self._runtime_api is None:
+            return empty
+        result = self._runtime_api.get_organization_calendar_summary(organization_id)
+        if not result.ok or result.data is None or not result.data.has_calendar:
+            return empty
+        summary = result.data
+        return {
+            "hasCalendar": True,
+            "calendarId": summary.calendar_id,
+            "calendarName": summary.calendar_name,
+            "workingWeekLabel": _working_week_label(tuple(summary.working_weekdays)),
+            "timeZone": summary.timezone,
+            "holidaySetLabel": _holiday_set_label(summary.locale, summary.holiday_count),
+        }
 
     def build_recent_activity(self, organization_id: str, *, limit: int = 25) -> list[dict[str, Any]]:
         if self._activity_api is None:

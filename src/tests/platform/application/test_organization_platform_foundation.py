@@ -71,6 +71,52 @@ def test_create_organization_rolls_back_entirely_if_default_calendar_seeding_fai
     assert "CAL-ROLLBACK" not in codes
 
 
+def test_organization_calendar_summary_is_correct_for_a_non_active_organization(services):
+    """Organization Overview/Inspector's calendar summary must describe the
+    ORGANIZATION_ID it is given, not the caller's ambient active
+    organization -- the exact bug this read-model was introduced to avoid
+    (see SqlAlchemyPlatformOverviewRollupReader.get_calendar_summary)."""
+    organization_service = services["organization_service"]
+    tenant_context_service = services["tenant_context_service"]
+
+    active_org = tenant_context_service.get_active_organization()
+    other_org = organization_service.create_organization(
+        organization_code="CAL-OTHER", display_name="Calendar Other Org"
+    )
+    assert tenant_context_service.get_active_organization().id == active_org.id
+    assert other_org.id != active_org.id
+
+    summary = organization_service.get_organization_calendar_summary(other_org.id)
+
+    assert summary.has_calendar is True
+    assert summary.calendar_name == "Global Calendar"
+    assert summary.timezone == "UTC"
+    assert set(summary.working_weekdays) == {0, 1, 2, 3, 4}
+
+
+def test_organization_calendar_summary_handles_missing_calendar_cleanly(services, session):
+    """An organization with no GLOBAL calendar row (should not happen
+    post-invariant, but the read model must never crash) returns a clean
+    empty summary instead of raising."""
+    organization_service = services["organization_service"]
+
+    org = organization_service.create_organization(
+        organization_code="CAL-MISSING", display_name="Calendar Missing Org"
+    )
+    session.execute(
+        PlatformCalendarORM.__table__.delete().where(
+            PlatformCalendarORM.organization_id == org.id
+        )
+    )
+    session.commit()
+
+    summary = organization_service.get_organization_calendar_summary(org.id)
+
+    assert summary.has_calendar is False
+    assert summary.calendar_id == ""
+    assert summary.working_weekdays == ()
+
+
 def test_organization_service_bootstraps_default_and_activates_another_organization_independently(services):
     """Activating one organization must never deactivate a sibling -- multiple organizations in
     the same tenant may be `status == ACTIVE` simultaneously."""
