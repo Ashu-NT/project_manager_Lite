@@ -264,6 +264,7 @@ def test_capture_organization_detail_combined_screenshots(qapp, services) -> Non
             2: "departments",
             3: "employees",
             4: "documents",
+            5: "activity",
         }
         for index, name in tabs.items():
             detail_page.setProperty("activeSectionIndex", index)

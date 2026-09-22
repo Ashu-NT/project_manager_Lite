@@ -30,5 +30,27 @@ class ActivityRepository(ABC):
         activity for whichever organization it is showing."""
         ...
 
+    @abstractmethod
+    def list_page_recent(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        tenant_id: str | None = None,
+        organization_id: str | None = None,
+        entity_type: str | None = None,
+        entity_types: Sequence[str] | None = None,
+        module: str | None = None,
+        search: str | None = None,
+        since=None,
+    ) -> tuple[list[ActivityEntry], int, int]:
+        """Paginated variant of `list_recent` for a full activity workspace
+        (e.g. Organization Detail's Activity tab) rather than a bounded
+        preview -- same organization-scoping rule as `list_recent`, plus
+        server-side search (against the stored human_message) and an
+        optional `since` cutoff datetime. Returns
+        (page_items, total_count, filtered_total_count)."""
+        ...
+
 
 __all__ = ["ActivityRepository"]

@@ -36,6 +36,9 @@ from src.ui_qml.shared.models.activity_item import (
     tone_for_action,
 )
 from src.ui_qml.shared.models.currency_options import CURRENCY_OPTIONS
+from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
+    ORGANIZATION_ACTIVITY_ENTITY_TYPES,
+)
 
 # StatusChip tone per lifecycle status -- explicit, presenter-owned mapping.
 # QML never infers a tone from status text (see StatusChip.qml).
@@ -92,7 +95,9 @@ class PlatformOrganizationCatalogPresenter:
     def build_recent_activity(self, organization_id: str, *, limit: int = 25) -> list[dict[str, Any]]:
         if self._activity_api is None:
             return []
-        entries = self._activity_api.list_for_organization_overview(organization_id, limit=limit)
+        entries = self._activity_api.list_for_organization_overview(
+            organization_id, limit=limit, entity_types=ORGANIZATION_ACTIVITY_ENTITY_TYPES
+        )
         return serialize_activity_items(_to_activity_item(entry) for entry in entries)
 
     def build_catalog_page(

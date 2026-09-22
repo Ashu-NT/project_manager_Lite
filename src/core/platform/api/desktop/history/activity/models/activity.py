@@ -24,3 +24,12 @@ class ActivityEntryDto:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "occurred_at", self.timestamp)
+
+
+@dataclass(frozen=True)
+class ActivityEntryPageDto:
+    items: tuple[ActivityEntryDto, ...] = ()
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25

@@ -26,6 +26,9 @@ from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import 
 from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter import (
     PlatformOrganizationCatalogPresenter,
 )
+from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
+    PlatformOrganizationActivityPresenter,
+)
 from src.ui_qml.platform.presenters.parties.party_catalog_presenter import (
     PlatformPartyCatalogPresenter,
 )
@@ -162,6 +165,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         *,
         overview_presenter: PlatformAdminWorkspacePresenter,
         organization_presenter: PlatformOrganizationCatalogPresenter,
+        organization_activity_presenter: PlatformOrganizationActivityPresenter | None = None,
         calendar_presenter: PlatformCalendarCatalogPresenter,
         site_presenter: PlatformSiteCatalogPresenter,
         department_presenter: PlatformDepartmentCatalogPresenter,
@@ -178,7 +182,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._overview_presenter = overview_presenter
         self._enterprise_calendar_api = enterprise_calendar_api
         self._runtime_api = runtime_api
-        self._organization_controller = PlatformOrganizationController(organization_presenter, self)
+        self._organization_controller = PlatformOrganizationController(
+            organization_presenter, self, activity_presenter=organization_activity_presenter
+        )
         self._calendar_controller = PlatformCalendarController(calendar_presenter, self)
         self._site_controller = PlatformSiteController(site_presenter, self)
         self._department_controller = PlatformDepartmentController(department_presenter, self)
@@ -457,6 +463,20 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, result="QVariantList")
     def organizationActivity(self, organization_id: str) -> list[dict[str, object]]:
         return self._organization_controller.organizationActivity(organization_id)
+
+    @Slot(str, int, int, str, str, str, result="QVariantMap")
+    def organizationActivityPage(
+        self,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        entity_type: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        return self._organization_controller.organizationActivityPage(
+            organization_id, page, page_size, search, entity_type, date_range
+        )
 
     # ── Calendar slots ────────────────────────────────────────────────────
 

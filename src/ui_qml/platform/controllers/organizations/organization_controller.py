@@ -6,6 +6,9 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter import (
     PlatformOrganizationCatalogPresenter,
 )
+from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
+    PlatformOrganizationActivityPresenter,
+)
 
 from src.ui_qml.platform.controllers.common import run_mutation, safe_exception_message, serialize_action_list
 
@@ -25,9 +28,16 @@ class PlatformOrganizationController(QObject):
     organizationStatusFilterChanged = Signal()
     selectedOrganizationIdsChanged = Signal()
 
-    def __init__(self, presenter: PlatformOrganizationCatalogPresenter, parent: QObject | None = None) -> None:
+    def __init__(
+        self,
+        presenter: PlatformOrganizationCatalogPresenter,
+        parent: QObject | None = None,
+        *,
+        activity_presenter: PlatformOrganizationActivityPresenter | None = None,
+    ) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._activity_presenter = activity_presenter or PlatformOrganizationActivityPresenter()
         self._table_model = DynamicTableModel(self)
         self._organizations: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._organization_editor_options: dict[str, object] = {
@@ -223,6 +233,35 @@ class PlatformOrganizationController(QObject):
         if not normalized_id:
             return []
         return self._presenter.build_recent_activity(normalized_id)
+
+    @Slot(str, int, int, str, str, str, result="QVariantMap")
+    def organizationActivityPage(
+        self,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        entity_type: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        """Full, paginated + searchable Activity workspace for Organization
+        Detail's Activity tab -- unlike `organizationActivity` above (this
+        controller's bounded ~5-item Overview preview), explicitly scoped
+        to `organization_id` with server-side search/type/date filters and
+        stable pagination. No pagination state is stored on this
+        controller; the Activity tab owns its own state and calls this
+        directly."""
+        normalized_id = organization_id.strip()
+        if not normalized_id:
+            return {"items": [], "page": page, "pageSize": page_size, "totalCount": 0, "filteredTotal": 0, "emptyState": "", "noResultsState": ""}
+        return self._activity_presenter.build_activity_page_for_organization(
+            normalized_id,
+            page=page,
+            page_size=page_size,
+            search=search,
+            entity_type=entity_type,
+            date_range=date_range,
+        )
 
     @Slot("QVariantMap", result=str)
     def generateCode(self, payload: dict[str, object]) -> str:

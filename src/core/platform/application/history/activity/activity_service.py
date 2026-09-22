@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -12,6 +14,19 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_any_permission,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContext, TenantContextService
+
+
+_DEFAULT_ACTIVITY_PAGE_SIZE = 25
+ACTIVITY_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
+
+
+@dataclass(frozen=True)
+class ActivityPage:
+    items: list[ActivityEntry] = field(default_factory=list)
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = _DEFAULT_ACTIVITY_PAGE_SIZE
 
 
 class ActivityService:
@@ -158,6 +173,50 @@ class ActivityService:
             action_prefix=action_prefix,
         )
 
+    def list_recent_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = _DEFAULT_ACTIVITY_PAGE_SIZE,
+        search: str = "",
+        entity_type: str | None = None,
+        entity_types: Sequence[str] | None = None,
+        since: datetime | None = None,
+    ) -> ActivityPage:
+        """Full, paginated + searchable Activity workspace for a specific
+        organization, regardless of which organization is currently active
+        in the caller's session -- the "real" Activity tab, as opposed to
+        `list_recent_for_organization_id`'s bounded Overview preview. Same
+        organization-scoping rule and permission check as that method."""
+        require_any_permission(
+            self._user_session,
+            ("settings.manage", "activity.read"),
+            operation_label="view activity entries",
+        )
+        scope = self._require_scope(operation_label="list activity for organization")
+        normalized_page = max(1, page)
+        normalized_page_size = (
+            page_size if page_size in ACTIVITY_PAGE_SIZE_OPTIONS else _DEFAULT_ACTIVITY_PAGE_SIZE
+        )
+        items, total, filtered_total = self._activity_repo.list_page_recent(
+            page=normalized_page,
+            page_size=normalized_page_size,
+            tenant_id=scope.tenant_id,
+            organization_id=organization_id,
+            entity_type=entity_type,
+            entity_types=entity_types,
+            search=search,
+            since=since,
+        )
+        return ActivityPage(
+            items=items,
+            total=total,
+            filtered_total=filtered_total,
+            page=normalized_page,
+            page_size=normalized_page_size,
+        )
+
     def _require_scope(self, *, operation_label: str) -> TenantContext:
         if self._tenant_context_service is None:
             raise BusinessRuleError(
@@ -169,4 +228,4 @@ class ActivityService:
         )
 
 
-__all__ = ["ActivityService"]
+__all__ = ["ActivityService", "ActivityPage", "ACTIVITY_PAGE_SIZE_OPTIONS"]

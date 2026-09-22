@@ -202,10 +202,10 @@ Item {
 
     // -- Real composed detail context (statistics + recent activity) -----
     // Fetched once per organization id, not per section activation, since
-    // it backs Overview which is always the first section shown.
+    // it backs Overview which is always the first section shown. Overview's
+    // preview stays small/unbounded-filter-free by design -- the full,
+    // paginated + filterable Activity tab is a separate state block below.
     property var _detailContext: ({ "statistics": ({}), "recentActivity": [] })
-    property var _recentActivity: []
-    property bool _recentActivityLoaded: false
 
     function _reloadDetailContext() {
         if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) {
@@ -214,21 +214,87 @@ Item {
         detailRoot._detailContext = detailRoot.workspaceController.organizationDetailContext(detailRoot._orgId)
     }
 
-    function _ensureRecentActivityLoaded() {
-        if (detailRoot._recentActivityLoaded || !detailRoot.workspaceController || detailRoot._orgId.length === 0) {
-            return
+    // -- Activity tab: a real, paginated + searchable + filterable business-
+    // activity workspace for this organization (regardless of which
+    // organization is active in the caller's session -- ActivityService's
+    // organization-scoped reads already worked this way before this phase,
+    // unlike Sites/Departments/Employees/Documents which needed a genuine
+    // fix). Row activation opens the corresponding Site/Department/
+    // Employee/Document's own nested Detail page.
+    property int _activityPage: 1
+    property int _activityPageSize: 25
+    property string _activitySearch: ""
+    property string _activityTypeFilter: ""
+    property string _activityDateFilter: ""
+    property var _activityCatalog: ({
+        "items": [], "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0,
+        "emptyState": "", "noResultsState": ""
+    })
+    readonly property var _activityTypeFilterOptions: [
+        { "value": "", "label": "All" },
+        { "value": "organization", "label": "Organization" },
+        { "value": "site", "label": "Site" },
+        { "value": "department", "label": "Department" },
+        { "value": "employee", "label": "Employee" },
+        { "value": "document", "label": "Document" }
+    ]
+    readonly property var _activityDateFilterOptions: [
+        { "value": "", "label": "All time" },
+        { "value": "today", "label": "Today" },
+        { "value": "7d", "label": "Last 7 days" },
+        { "value": "30d", "label": "Last 30 days" }
+    ]
+
+    function _refreshActivityPage() {
+        if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) return
+        detailRoot._activityCatalog = detailRoot.workspaceController.organizationActivityPage(
+            detailRoot._orgId, detailRoot._activityPage, detailRoot._activityPageSize,
+            detailRoot._activitySearch, detailRoot._activityTypeFilter, detailRoot._activityDateFilter
+        )
+    }
+
+    // Routes an Activity row's activationState ({entityType, entityId}) to
+    // that entity's own nested Detail page, switching this page's own tab
+    // -- never navigating away to a global Platform workspace, same
+    // scoped-routing principle as Related Actions/Key Statistics. Resets
+    // the target tab's own filters first so the entity is more likely to
+    // appear on the default first page (a full "jump to any record
+    // regardless of its page" would need a dedicated get-by-id read this
+    // phase does not add -- see the Activity report's known-gaps section).
+    function _openEntityFromActivity(entityType, entityId) {
+        if (entityType === "site") {
+            detailRoot._sitesSearch = ""
+            detailRoot._sitesStatusFilter = ""
+            detailRoot._sitesPage = 1
+            detailPage.scrollToSection(1)
+            detailRoot._openSiteDetail(entityId)
+        } else if (entityType === "department") {
+            detailRoot._departmentsSearch = ""
+            detailRoot._departmentsStatusFilter = ""
+            detailRoot._departmentsPage = 1
+            detailPage.scrollToSection(2)
+            detailRoot._openDepartmentDetail(entityId)
+        } else if (entityType === "employee") {
+            detailRoot._employeesSearch = ""
+            detailRoot._employeesStatusFilter = ""
+            detailRoot._employeesPage = 1
+            detailPage.scrollToSection(3)
+            detailRoot._openEmployeeDetail(entityId)
+        } else if (entityType === "document") {
+            detailRoot._documentsSearch = ""
+            detailRoot._documentsStatusFilter = ""
+            detailRoot._documentsPage = 1
+            detailPage.scrollToSection(4)
+            detailRoot._openDocumentDetail(entityId)
         }
-        detailRoot._recentActivity = detailRoot.workspaceController.organizationActivity(detailRoot._orgId)
-        detailRoot._recentActivityLoaded = true
     }
 
     onOrganizationChanged: {
-        detailRoot._recentActivityLoaded = false
         detailRoot._reloadDetailContext()
     }
     onActiveSectionIndexChanged: {
         if (detailRoot._activeSectionLabel === "Activity") {
-            detailRoot._ensureRecentActivityLoaded()
+            detailRoot._refreshActivityPage()
         }
         if (detailRoot._activeSectionLabel === "Sites") {
             detailRoot._refreshSites()
@@ -249,6 +315,7 @@ Item {
         detailRoot._refreshDepartments()
         detailRoot._refreshEmployees()
         detailRoot._refreshDocuments()
+        detailRoot._refreshActivityPage()
     }
 
     readonly property var _statistics: detailRoot._detailContext.statistics || ({})
@@ -611,7 +678,8 @@ Item {
             detailPagePinned: true
             // Sites/Departments/Employees/Documents already have their own
             // full header (title + count) and toolbar (search/filter/
-            // Columns/Refresh/+New) via AdminEntityWorkspace below --
+            // Columns/Refresh/+New) via AdminEntityWorkspace below, and
+            // Activity has its own search/type/date/Refresh toolbar --
             // showing this generic per-section toolbar too would duplicate
             // both the heading and the Refresh button. `visible: false`
             // alone leaves a blank gap: the sticky header area sizes
@@ -622,6 +690,7 @@ Item {
                 && detailRoot._activeSectionLabel !== "Departments"
                 && detailRoot._activeSectionLabel !== "Employees"
                 && detailRoot._activeSectionLabel !== "Documents"
+                && detailRoot._activeSectionLabel !== "Activity"
             height: visible ? implicitHeight : 0
             width: parent ? parent.width : detailRoot.width
             title: detailRoot._activeSectionLabel
@@ -1053,12 +1122,22 @@ Item {
 
         // -- Activity: this organization's own history only -- a distinct,
         // narrower scope than the tenant-wide Platform audit trail (Platform
-        // > Control > Audit). Same underlying entries as Overview's Recent
-        // Activity preview, shown here in full (see terminology-glossary.md
-        // "Recent Activity" / "Audit").
+        // > Control > Audit). A real, paginated + searchable + filterable
+        // business-activity workspace (see terminology-glossary.md "Recent
+        // Activity" / "Audit") -- separate from Overview's small, bounded
+        // Recent Activity preview above.
         Item {
+            // Same viewport-fill pattern as Sites/Departments/Employees/
+            // Documents (see their own height fix in the Phase K reports):
+            // a fixed pixel/content-driven height here previously left
+            // dead space below the pagination footer on tall viewports.
+            // OrganizationActivitySection fills this height itself and
+            // scrolls the feed internally, keeping the toolbar/pagination
+            // pinned to the top/bottom of the actual available space.
             width: parent ? parent.width : detailRoot.width
-            implicitHeight: detailRoot.activeSectionIndex === 5 ? auditLoader.implicitHeight : 0
+            implicitHeight: detailRoot.activeSectionIndex === 5
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -1070,10 +1149,50 @@ Item {
                 active: detailRoot.activeSectionIndex === 5
                 keepLoaded: true
                 loadingMessage: "Loading organization activity..."
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
                     OrgSections.OrganizationActivitySection {
                         width: parent ? parent.width : 0
-                        items: detailRoot._recentActivity
+                        height: Math.max(420, detailPage.contentViewportHeight)
+                        catalog: detailRoot._activityCatalog
+                        busy: detailRoot.busy
+                        searchText: detailRoot._activitySearch
+                        typeFilterOptions: detailRoot._activityTypeFilterOptions
+                        typeFilter: detailRoot._activityTypeFilter
+                        dateFilterOptions: detailRoot._activityDateFilterOptions
+                        dateFilter: detailRoot._activityDateFilter
+
+                        onRefreshRequested: detailRoot._refreshActivityPage()
+                        onSearchChanged: function(text) {
+                            detailRoot._activitySearch = text
+                            detailRoot._activityPage = 1
+                            detailRoot._refreshActivityPage()
+                        }
+                        onTypeFilterRequested: function(value) {
+                            detailRoot._activityTypeFilter = value
+                            detailRoot._activityPage = 1
+                            detailRoot._refreshActivityPage()
+                        }
+                        onDateFilterRequested: function(value) {
+                            detailRoot._activityDateFilter = value
+                            detailRoot._activityPage = 1
+                            detailRoot._refreshActivityPage()
+                        }
+                        onPageRequested: function(page) {
+                            detailRoot._activityPage = page
+                            detailRoot._refreshActivityPage()
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            detailRoot._activityPageSize = pageSize
+                            detailRoot._activityPage = 1
+                            detailRoot._refreshActivityPage()
+                        }
+                        onItemActivated: function(item) {
+                            const activation = item ? item.activationState : null
+                            if (activation && activation.entityType && activation.entityId) {
+                                detailRoot._openEntityFromActivity(String(activation.entityType), String(activation.entityId))
+                            }
+                        }
                     }
                 }
             }

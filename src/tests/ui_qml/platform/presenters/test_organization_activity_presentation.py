@@ -13,7 +13,7 @@ class _FakeActivityApi:
         self._entries = entries
         self.calls: list[tuple[str, int]] = []
 
-    def list_for_organization_overview(self, organization_id: str, *, limit: int = 5):
+    def list_for_organization_overview(self, organization_id: str, *, limit: int = 5, entity_types=None):
         self.calls.append((organization_id, limit))
         return tuple(self._entries)
 

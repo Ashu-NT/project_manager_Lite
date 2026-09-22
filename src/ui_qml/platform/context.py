@@ -78,6 +78,7 @@ from src.ui_qml.platform.presenters import (
     PlatformDocumentManagementPresenter,
     PlatformEmployeeCatalogPresenter,
     PlatformOrganizationCatalogPresenter,
+    PlatformOrganizationActivityPresenter,
     PlatformPartyCatalogPresenter,
     PlatformRuntimePresenter,
     PlatformSettingsCatalogPresenter,
@@ -160,6 +161,14 @@ class PlatformWorkspaceCatalog(QObject):
         self._admin_workspace = PlatformAdminWorkspaceController(
             overview_presenter=admin_overview_presenter,
             organization_presenter=PlatformOrganizationCatalogPresenter(runtime_api=runtime_api, activity_api=activity_api),
+            organization_activity_presenter=PlatformOrganizationActivityPresenter(
+                activity_api=activity_api,
+                site_api=site_api,
+                department_api=department_api,
+                employee_api=employee_api,
+                document_api=document_api,
+                user_api=user_api,
+            ),
             calendar_presenter=PlatformCalendarCatalogPresenter(
                 calendar_api=calendar_api,
                 enterprise_calendar_api=enterprise_calendar_api,

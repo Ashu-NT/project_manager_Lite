@@ -29,6 +29,9 @@ from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import 
 from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter import (
     PlatformOrganizationCatalogPresenter,
 )
+from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
+    PlatformOrganizationActivityPresenter,
+)
 from src.ui_qml.platform.presenters.parties.party_catalog_presenter import (
     PlatformPartyCatalogPresenter,
 )
@@ -67,6 +70,7 @@ __all__ = [
     "PlatformEmployeeCatalogPresenter",
     "OrganizationSwitcherPresenter",
     "PlatformOrganizationCatalogPresenter",
+    "PlatformOrganizationActivityPresenter",
     "PlatformPartyCatalogPresenter",
     "PlatformRuntimePresenter",
     "PlatformSettingsCatalogPresenter",

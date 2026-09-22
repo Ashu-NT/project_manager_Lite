@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 
-from sqlalchemy import false, select
+from sqlalchemy import false, func, select
 from sqlalchemy.orm import Session
 
 from src.core.platform.contract.repositories.history.activity.contracts import ActivityRepository
@@ -101,6 +102,70 @@ class SqlAlchemyActivityRepository(TenantScopedRepositorySupport, ActivityReposi
         stmt = stmt.order_by(ActivityEntryORM.timestamp.desc()).limit(max(1, int(limit)))
         rows = self.session.execute(stmt).scalars().all()
         return [activity_from_orm(row) for row in rows]
+
+    def _scoped_statement(self, *, tenant_id: str | None, organization_id: str | None):
+        ctx = self._context(operation_label="list activity")
+        if tenant_id is not None and tenant_id != ctx.tenant_id:
+            raise BusinessRuleError(
+                "Activity tenant is outside the active scope.",
+                code="TENANT_SCOPE_VIOLATION",
+            )
+        if organization_id is not None and organization_id == ctx.organization_id:
+            return self._apply_scope(select(ActivityEntryORM), ActivityEntryORM, ctx)
+        if organization_id is not None:
+            return select(ActivityEntryORM).where(
+                ActivityEntryORM.tenant_id == ctx.tenant_id,
+                ActivityEntryORM.organization_id == organization_id,
+            )
+        return self._apply_scope(select(ActivityEntryORM), ActivityEntryORM, ctx)
+
+    def list_page_recent(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        tenant_id: str | None = None,
+        organization_id: str | None = None,
+        entity_type: str | None = None,
+        entity_types: Sequence[str] | None = None,
+        module: str | None = None,
+        search: str | None = None,
+        since: datetime | None = None,
+    ) -> tuple[list[ActivityEntry], int, int]:
+        base_stmt = self._scoped_statement(tenant_id=tenant_id, organization_id=organization_id)
+        if entity_type is not None:
+            base_stmt = base_stmt.where(ActivityEntryORM.entity_type == entity_type)
+        if entity_types is not None:
+            normalized_types = tuple(str(t).strip() for t in entity_types if str(t).strip())
+            base_stmt = (
+                base_stmt.where(ActivityEntryORM.entity_type.in_(normalized_types))
+                if normalized_types
+                else base_stmt.where(false())
+            )
+        if module is not None:
+            base_stmt = base_stmt.where(ActivityEntryORM.module == module)
+
+        total = self.session.execute(
+            select(func.count()).select_from(base_stmt.subquery())
+        ).scalar_one()
+
+        filtered_stmt = base_stmt
+        if since is not None:
+            filtered_stmt = filtered_stmt.where(ActivityEntryORM.timestamp >= since)
+        normalized_search = (search or "").strip()
+        if normalized_search:
+            pattern = f"%{normalized_search}%"
+            filtered_stmt = filtered_stmt.where(ActivityEntryORM.human_message.ilike(pattern))
+
+        filtered_total = self.session.execute(
+            select(func.count()).select_from(filtered_stmt.subquery())
+        ).scalar_one()
+
+        offset = max(0, (page - 1) * page_size)
+        rows = self.session.execute(
+            filtered_stmt.order_by(ActivityEntryORM.timestamp.desc()).offset(offset).limit(page_size)
+        ).scalars().all()
+        return [activity_from_orm(row) for row in rows], total, filtered_total
 
 
 __all__ = ["SqlAlchemyActivityRepository"]

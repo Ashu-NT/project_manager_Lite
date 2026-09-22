@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
+from src.core.platform.api.desktop.history.activity.models.activity import (
+    ActivityEntryDto,
+    ActivityEntryPageDto,
+)
 from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 
@@ -37,21 +42,58 @@ class PlatformActivityDesktopApi:
         )
 
     def list_for_organization_overview(
-        self, organization_id: str, *, limit: int = 5
+        self, organization_id: str, *, limit: int = 5, entity_types=None
     ) -> tuple[ActivityEntryDto, ...]:
         """Entries scoped to one explicit organization (which may not be the
         caller's active one), used by Organization Detail's Overview "Recent
         Activity" preview and its full Activity section. Every stored entry
         here is already curated business activity (Organization/Site/
         Department/Employee/Document CRUD/lifecycle events with a real
-        human_message set at write time)."""
+        human_message set at write time). `entity_types`, when given,
+        restricts to exactly those (e.g. Organization Detail's own five
+        entity types, excluding other modules' deeply-nested activity that
+        happens to share this organization_id)."""
         try:
             entries = self._activity_service.list_recent_for_organization_id(
-                organization_id, limit=limit
+                organization_id, limit=limit, entity_types=entity_types
             )
         except Exception:
             return ()
         return self._serialize_entries(entries)
+
+    def list_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        entity_type: str | None = None,
+        entity_types=None,
+        since: datetime | None = None,
+    ) -> DesktopApiResult[ActivityEntryPageDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_page(
+                self._activity_service.list_recent_page_for_organization(
+                    organization_id,
+                    page=page,
+                    page_size=page_size,
+                    search=search,
+                    entity_type=entity_type,
+                    entity_types=entity_types,
+                    since=since,
+                )
+            )
+        )
+
+    def _serialize_page(self, page) -> ActivityEntryPageDto:
+        return ActivityEntryPageDto(
+            items=self._serialize_entries(list(page.items)),
+            total=page.total,
+            filtered_total=page.filtered_total,
+            page=page.page,
+            page_size=page.page_size,
+        )
 
     def _serialize_entries(self, entries: list[ActivityEntry]) -> tuple[ActivityEntryDto, ...]:
         return tuple(self._serialize_entry(e) for e in entries)
