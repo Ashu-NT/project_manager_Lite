@@ -167,7 +167,7 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
     department_by_id = {item["id"]: item for item in catalog.adminWorkspace.departments["items"]}
 
     assert "QML Labs" in organization_titles
-    assert catalog.adminWorkspace.organizations["items"][1]["statusLabel"] == "Active"
+    assert catalog.adminWorkspace.organizations["items"][1]["statusLabel"] == {"label": "Active", "tone": "success"}
     assert "Hamburg Hub" in site_titles
     assert catalog.adminWorkspace.sites["items"][-1]["organizationName"] == "TechAsh"
     assert department_by_id["dep-2"]["statusLabel"] == "Active"

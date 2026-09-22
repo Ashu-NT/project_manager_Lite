@@ -64,6 +64,18 @@ def _seed_organizations(services, *, count: int, prefix: str) -> None:
         )
 
 
+def _seed_mixed_lifecycle_organizations(services, *, prefix: str) -> None:
+    """One of each status -- for a screenshot that actually shows the
+    Active/Inactive/Archived StatusChip tones side by side, and for the
+    status-filtered captures below."""
+    organization_service = services["organization_service"]
+    active = organization_service.create_organization(organization_code=f"{prefix}-ACT", display_name=f"{prefix} Active Org")
+    inactive = organization_service.create_organization(organization_code=f"{prefix}-INA", display_name=f"{prefix} Inactive Org")
+    archived = organization_service.create_organization(organization_code=f"{prefix}-ARC", display_name=f"{prefix} Archived Org")
+    organization_service.deactivate_organization(inactive.id)
+    organization_service.archive_organization(archived.id)
+
+
 @pytest.mark.parametrize("theme_mode", ["light", "dark"])
 def test_capture_organizations_screenshots(qapp, services, theme_mode) -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -72,6 +84,7 @@ def test_capture_organizations_screenshots(qapp, services, theme_mode) -> None:
 
     try:
         _seed_organizations(services, count=30, prefix="VQAORG")
+        _seed_mixed_lifecycle_organizations(services, prefix="VQALIFE")
 
         registry = build_qml_route_registry()
         shell_context = build_shell_context(build_main_window_navigation(registry))
@@ -123,6 +136,26 @@ def test_capture_organizations_screenshots(qapp, services, theme_mode) -> None:
         item = root.findChild(QQuickItem, "mainWindow")
         saved = _grab(qapp, item, OUT_DIR / f"organizations_noresults_{theme_mode}_1600x1000.png")
         assert saved
+        platform_catalog.adminWorkspace.setOrganizationSearchText("")
+
+        # Mixed-status rows -- Active/Inactive/Archived StatusChip tones
+        # side by side (search narrowed to the seeded lifecycle trio so
+        # they land on the same page regardless of page size/sort).
+        platform_catalog.adminWorkspace.setOrganizationSearchText("VQALIFE")
+        platform_catalog.adminWorkspace.setOrganizationPage(1)
+        _settle(qapp)
+        item = root.findChild(QQuickItem, "mainWindow")
+        saved = _grab(qapp, item, OUT_DIR / f"organizations_mixedstatus_{theme_mode}_1600x1000.png")
+        assert saved
+
+        # Status filter applied server-side (Archived only).
+        platform_catalog.adminWorkspace.setOrganizationStatusFilter("archived")
+        _settle(qapp)
+        item = root.findChild(QQuickItem, "mainWindow")
+        saved = _grab(qapp, item, OUT_DIR / f"organizations_filtered_archived_{theme_mode}_1600x1000.png")
+        assert saved
+        platform_catalog.adminWorkspace.setOrganizationStatusFilter("")
+        platform_catalog.adminWorkspace.setOrganizationSearchText("")
 
         relevant = [
             m for m in messages

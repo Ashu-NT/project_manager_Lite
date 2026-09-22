@@ -54,6 +54,12 @@ ColumnLayout {
     property var    bulkActions:     []
     readonly property var bulkActionBar: _bulkActionBar
 
+    // Opt-in slot for a caller-supplied inline filter control (e.g. a status
+    // ComboBox) rendered directly in the toolbar next to search -- forwards
+    // to TableToolbar's own filterContent slot. Empty/unused by every
+    // existing caller that doesn't declare children here.
+    default property alias filterContent: _tableToolbar.filterContent
+
     signal createRequested()
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)

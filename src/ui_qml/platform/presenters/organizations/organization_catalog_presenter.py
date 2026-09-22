@@ -14,6 +14,7 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.domain.master_data.org import (
     ORGANIZATION_STATUS_ACTIVE,
     ORGANIZATION_STATUS_ARCHIVED,
+    ORGANIZATION_STATUS_INACTIVE,
 )
 from src.core.shared.reference_data import country_name_for_code
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
@@ -35,6 +36,18 @@ from src.ui_qml.shared.models.activity_item import (
     tone_for_action,
 )
 from src.ui_qml.shared.models.currency_options import CURRENCY_OPTIONS
+
+# StatusChip tone per lifecycle status -- explicit, presenter-owned mapping.
+# QML never infers a tone from status text (see StatusChip.qml).
+_ORGANIZATION_STATUS_TONE: dict[str, str] = {
+    ORGANIZATION_STATUS_ACTIVE: "success",
+    ORGANIZATION_STATUS_INACTIVE: "neutral",
+    ORGANIZATION_STATUS_ARCHIVED: "neutral",
+}
+
+
+def _organization_status_label(status: str) -> dict[str, str]:
+    return {"label": status.capitalize(), "tone": _ORGANIZATION_STATUS_TONE.get(status, "neutral")}
 
 
 def _to_activity_item(entry: ActivityEntryDto) -> ActivityItemViewModel:
@@ -88,6 +101,7 @@ class PlatformOrganizationCatalogPresenter:
         page: int = 1,
         page_size: int = 25,
         search: str = "",
+        status: str | None = None,
     ) -> PlatformWorkspaceActionListViewModel:
         if self._runtime_api is None:
             return PlatformWorkspaceActionListViewModel(
@@ -100,7 +114,7 @@ class PlatformOrganizationCatalogPresenter:
             )
 
         result = self._runtime_api.list_organizations_page(
-            page=page, page_size=page_size, search=search.strip() or None
+            page=page, page_size=page_size, search=search.strip() or None, status=status
         )
         if not result.ok or result.data is None:
             message = result.error.message if result.error is not None else "Unable to load organizations."
@@ -337,10 +351,12 @@ class PlatformOrganizationCatalogPresenter:
 
     @staticmethod
     def _serialize_organization(row: OrganizationDto) -> PlatformWorkspaceActionItemViewModel:
+        country_name = country_name_for_code(row.country_code) or row.country_code
+        location = ", ".join(part for part in (row.city, country_name) if part)
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.display_name,
-            status_label=row.status.capitalize(),
+            status_label=_organization_status_label(row.status),
             subtitle=f"{row.organization_code} | {row.timezone_name}",
             supporting_text=f"Base currency: {row.base_currency}",
             meta_text=f"Version {row.version}",
@@ -364,7 +380,8 @@ class PlatformOrganizationCatalogPresenter:
                 "city": row.city,
                 "stateRegion": row.state_region,
                 "countryCode": row.country_code,
-                "countryName": country_name_for_code(row.country_code) or row.country_code,
+                "countryName": country_name,
+                "location": location,
                 "email": row.email,
                 "phone": row.phone,
                 "website": row.website,

@@ -5,6 +5,7 @@ import QtQuick.Window
 import App.Theme 1.0 as Theme
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
+import App.Controls 1.0 as AppControls
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
 import Platform.Dialogs 1.0 as AdminDialogs
@@ -144,21 +145,74 @@ AppLayouts.WorkspaceFrame {
         if (root.workspaceController) root.workspaceController.clearMessages()
     }
 
+    // -- Deactivate/Archive confirmation -- shared by the InspectorPanel's
+    // single-organization quick action and the bulk action bar. Activation
+    // is lower-risk and applies immediately (see PlatformOrganizationController).
+    property var _pendingConfirm: null
+
+    function _requestSingleLifecycleConfirm(action, orgId, orgName) {
+        const name = orgName || "this organization"
+        if (action === "deactivate") {
+            root._pendingConfirm = {
+                "kind": "single", "action": "deactivate", "orgId": orgId,
+                "message": "Deactivate " + name + "?",
+                "supportingText": name + " will no longer be available for new operational activity. " +
+                    "Existing records and historical information will remain available according to permissions. " +
+                    "If this organization is currently selected, the active organization context will be cleared."
+            }
+        } else if (action === "archive") {
+            root._pendingConfirm = {
+                "kind": "single", "action": "archive", "orgId": orgId,
+                "message": "Archive " + name + "?",
+                "supportingText": name + " will be removed from normal operational use and retained for historical " +
+                    "reference. This action cannot be reversed through the normal Organization workspace. " +
+                    "Existing business history will be preserved."
+            }
+        } else {
+            return
+        }
+        _lifecycleConfirmDialog.open()
+    }
+
+    function _requestBulkLifecycleConfirm(action) {
+        const count = root._selectedCount
+        if (action === "deactivate") {
+            root._pendingConfirm = {
+                "kind": "bulk", "action": "deactivate",
+                "message": "Deactivate " + count + " organization(s)?",
+                "supportingText": "They will no longer be available for new operational activity. Existing records " +
+                    "and historical information will remain available according to permissions. Any of them " +
+                    "currently selected as the active organization will have that context cleared."
+            }
+        } else if (action === "archive") {
+            root._pendingConfirm = {
+                "kind": "bulk", "action": "archive",
+                "message": "Archive " + count + " organization(s)?",
+                "supportingText": "They will be removed from normal operational use and retained for historical " +
+                    "reference. This action cannot be reversed through the normal Organization workspace. " +
+                    "Existing business history will be preserved."
+            }
+        } else {
+            return
+        }
+        _lifecycleConfirmDialog.open()
+    }
+
     // -- Bulk actions (row-selection checkboxes + BulkActionBar) ------------
     readonly property var _editorOptions: root.workspaceController
         ? root.workspaceController.organizationEditorOptions
         : ({})
+    // Lifecycle is changed through the dedicated Activate/Deactivate/Archive
+    // bulk actions below, never through this generic property-value popup.
     readonly property var _bulkChangeProperties: [
-        {
-            "id": "status", "label": "Status",
-            "values": [
-                { "value": "active", "label": "Active" },
-                { "value": "inactive", "label": "Inactive" },
-                { "value": "archived", "label": "Archived" }
-            ]
-        },
         { "id": "currency", "label": "Base Currency", "values": root._editorOptions.currencyOptions || [] },
         { "id": "timezone", "label": "Timezone", "values": root._editorOptions.timezoneOptions || [] }
+    ]
+    readonly property var _statusFilterOptions: [
+        { "value": "", "label": "All" },
+        { "value": "active", "label": "Active" },
+        { "value": "inactive", "label": "Inactive" },
+        { "value": "archived", "label": "Archived" }
     ]
     readonly property var _bulkModuleOptions: root._editorOptions.moduleOptions || []
     readonly property int _selectedCount: root.workspaceController
@@ -220,9 +274,30 @@ AppLayouts.WorkspaceFrame {
                 multiSelect: root._canWrite
                 selectedRowIds: root.workspaceController ? (root.workspaceController.selectedOrganizationIds || []) : []
                 bulkActions: [
+                    { "id": "activate", "label": "Activate", "icon": "approve", "danger": false, "enabled": true },
+                    { "id": "deactivate", "label": "Deactivate", "icon": "reject", "danger": false, "enabled": true },
+                    { "id": "archive", "label": "Archive", "icon": "inventory", "danger": true, "enabled": true },
                     { "id": "change_property", "label": "Change Property", "icon": "edit", "danger": false, "enabled": true },
                     { "id": "assign_modules", "label": "Assign Modules", "icon": "module", "danger": false, "enabled": true }
                 ]
+
+                AppControls.ComboBox {
+                    id: _statusFilterCombo
+                    Layout.preferredWidth: 160
+                    model: root._statusFilterOptions
+                    textRole: "label"
+                    valueRole: "value"
+                    currentIndex: {
+                        const filter = root.workspaceController ? root.workspaceController.organizationStatusFilter : ""
+                        for (let i = 0; i < root._statusFilterOptions.length; i += 1) {
+                            if (root._statusFilterOptions[i].value === filter) return i
+                        }
+                        return 0
+                    }
+                    onActivated: {
+                        if (root.workspaceController) root.workspaceController.setOrganizationStatusFilter(String(currentValue || ""))
+                    }
+                }
 
                 onCreateRequested: dialogHostLoader.invoke("openOrganizationCreate")
                 onRowSelected: function(id) { root.selectedRowId = id }
@@ -238,7 +313,9 @@ AppLayouts.WorkspaceFrame {
                     if (root.workspaceController) root.workspaceController.setOrganizationPageSize(pageSize)
                 }
                 onClearFiltersRequested: {
-                    if (root.workspaceController) root.workspaceController.setOrganizationSearchText("")
+                    if (!root.workspaceController) return
+                    root.workspaceController.setOrganizationSearchText("")
+                    root.workspaceController.setOrganizationStatusFilter("")
                 }
                 onColumnsStateChanged: function(cols) { root._saveColumnState(cols) }
                 onRowSelectionToggled: function(id, selected) {
@@ -259,6 +336,12 @@ AppLayouts.WorkspaceFrame {
                     } else if (actionId === "assign_modules") {
                         _bulkModulePopup.anchorItem = _adminWorkspace.bulkActionBar.actionButtonForId("assign_modules")
                         _bulkModulePopup.open()
+                    } else if (actionId === "activate") {
+                        if (root.workspaceController) root.workspaceController.bulkActivateOrganizations()
+                    } else if (actionId === "deactivate") {
+                        root._requestBulkLifecycleConfirm("deactivate")
+                    } else if (actionId === "archive") {
+                        root._requestBulkLifecycleConfirm("archive")
                     }
                 }
             }
@@ -288,27 +371,57 @@ AppLayouts.WorkspaceFrame {
                 Layout.fillHeight: true
                 visible: root.selectedRowId.length > 0 && Window.width >= Theme.AppTheme.compactContentBreakpoint
                 title: root._selectedItem ? String(root._selectedItem.title || "") : ""
-                statusLabel: root._selectedItem ? String(root._selectedItem.statusLabel || "") : ""
+                statusLabel: (root._selectedItem && root._selectedItem.statusLabel)
+                    ? String(root._selectedItem.statusLabel.label || "")
+                    : ""
+                statusTone: (root._selectedItem && root._selectedItem.statusLabel)
+                    ? String(root._selectedItem.statusLabel.tone || "")
+                    : ""
                 sections: root._inspectorSections
                 busy: root.busy
                 editActionLabel: "Edit"
                 showEditAction: root._canWrite
-                secondaryActionLabel: root._selectedItem && root._selectedItem.statusLabel === "Active" ? "Deactivate" : "Activate"
-                showSecondaryAction: root._canWrite
+                // Archived organizations have no valid single-click lifecycle
+                // transition (see OrganizationService._require_valid_organization_transition) --
+                // the quick action is hidden rather than offered and rejected.
+                secondaryActionLabel: root._selectedItem && root._selectedItem.status === "active" ? "Deactivate" : "Activate"
+                showSecondaryAction: root._canWrite && root._selectedItem && root._selectedItem.status !== "archived"
                 viewDetailsLabel: "View Details"
                 showViewDetailsAction: true
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
                 onSecondaryActionRequested: {
-                    if (!root.workspaceController) return
-                    if (root._selectedItem && root._selectedItem.statusLabel === "Active") {
-                        root.workspaceController.deactivateOrganization(root.selectedRowId)
+                    if (!root.workspaceController || !root._selectedItem) return
+                    if (root._selectedItem.status === "active") {
+                        root._requestSingleLifecycleConfirm("deactivate", root.selectedRowId, root._selectedItem.title)
                     } else {
                         root.workspaceController.activateOrganization(root.selectedRowId)
                     }
                 }
                 onViewDetailsRequested: root.detailOpen = true
+            }
+        }
+
+        AppControls.ConfirmationDialog {
+            id: _lifecycleConfirmDialog
+            title: "Confirm"
+            confirmLabel: root._pendingConfirm && root._pendingConfirm.action === "archive" ? "Archive organization" : "Deactivate organization"
+            confirmIcon: root._pendingConfirm && root._pendingConfirm.action === "archive" ? "inventory" : "reject"
+            confirmDanger: true
+            message: root._pendingConfirm ? String(root._pendingConfirm.message || "") : ""
+            supportingText: root._pendingConfirm ? String(root._pendingConfirm.supportingText || "") : ""
+            onConfirmed: {
+                const pending = root._pendingConfirm
+                if (!pending || !root.workspaceController) return
+                if (pending.kind === "bulk") {
+                    if (pending.action === "deactivate") root.workspaceController.bulkDeactivateOrganizations()
+                    else if (pending.action === "archive") root.workspaceController.bulkArchiveOrganizations()
+                } else {
+                    if (pending.action === "deactivate") root.workspaceController.deactivateOrganization(pending.orgId)
+                    else if (pending.action === "archive") root.workspaceController.archiveOrganization(pending.orgId)
+                }
+                root._pendingConfirm = null
             }
         }
 
@@ -340,12 +453,6 @@ AppLayouts.WorkspaceFrame {
                     onActionRequested: function(actionId) {
                         if (actionId === "edit") {
                             root.openEdit(root.selectedRowId)
-                        } else if (actionId === "enable") {
-                            if (root.workspaceController)
-                                root.workspaceController.activateOrganization(root.selectedRowId)
-                        } else if (actionId === "disable") {
-                            if (root.workspaceController)
-                                root.workspaceController.deactivateOrganization(root.selectedRowId)
                         } else if (actionId === "refresh") {
                             if (root.workspaceController)
                                 root.workspaceController.refresh()

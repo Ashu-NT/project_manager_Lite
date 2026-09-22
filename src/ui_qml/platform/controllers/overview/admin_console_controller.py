@@ -90,9 +90,11 @@ from src.ui_qml.platform.controllers.organizations.actions import (
     activate_organization,
     apply_bulk_organization_currency,
     apply_bulk_organization_modules,
-    apply_bulk_organization_status,
     apply_bulk_organization_timezone,
     archive_organization,
+    bulk_activate_organizations,
+    bulk_archive_organizations,
+    bulk_deactivate_organizations,
     create_organization,
     deactivate_organization,
     update_organization,
@@ -146,6 +148,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     documentStructuresChanged = Signal()
     organizationEditorOptionsChanged = Signal()
     organizationSearchTextChanged = Signal()
+    organizationStatusFilterChanged = Signal()
     selectedOrganizationIdsChanged = Signal()
     departmentEditorOptionsChanged = Signal()
     employeeEditorOptionsChanged = Signal()
@@ -203,6 +206,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Property(str, notify=organizationSearchTextChanged)
     def organizationSearchText(self) -> str:
         return self._organization_controller.organizationSearchText
+
+    @Property(str, notify=organizationStatusFilterChanged)
+    def organizationStatusFilter(self) -> str:
+        return self._organization_controller.organizationStatusFilter
 
     @Property("QVariantList", constant=True)
     def organizationPageSizeOptions(self) -> list[int]:
@@ -403,9 +410,17 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def selectVisibleOrganizations(self) -> None:
         self._organization_controller.selectVisibleOrganizations()
 
-    @Slot("QVariantMap", result="QVariantMap")
-    def applyBulkOrganizationStatus(self, payload: dict[str, object]) -> dict[str, object]:
-        return apply_bulk_organization_status(self, payload)
+    @Slot(result="QVariantMap")
+    def bulkActivateOrganizations(self) -> dict[str, object]:
+        return bulk_activate_organizations(self)
+
+    @Slot(result="QVariantMap")
+    def bulkDeactivateOrganizations(self) -> dict[str, object]:
+        return bulk_deactivate_organizations(self)
+
+    @Slot(result="QVariantMap")
+    def bulkArchiveOrganizations(self) -> dict[str, object]:
+        return bulk_archive_organizations(self)
 
     @Slot("QVariantMap", result="QVariantMap")
     def applyBulkOrganizationCurrency(self, payload: dict[str, object]) -> dict[str, object]:
@@ -430,6 +445,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str)
     def setOrganizationSearchText(self, text: str) -> None:
         self._organization_controller.setOrganizationSearchText(text)
+
+    @Slot(str)
+    def setOrganizationStatusFilter(self, status: str) -> None:
+        self._organization_controller.setOrganizationStatusFilter(status)
 
     @Slot(str, result="QVariantMap")
     def organizationDetailContext(self, organization_id: str) -> dict[str, object]:

@@ -25,6 +25,9 @@ def bind_child_signals(controller) -> None:
     controller._organization_controller.organizationSearchTextChanged.connect(
         controller.organizationSearchTextChanged.emit
     )
+    controller._organization_controller.organizationStatusFilterChanged.connect(
+        controller.organizationStatusFilterChanged.emit
+    )
     controller._organization_controller.selectedOrganizationIdsChanged.connect(
         controller.selectedOrganizationIdsChanged.emit
     )

@@ -6,11 +6,12 @@
 
 function baseColumns(compactBreakpoint) {
     return [
-        { "key": "title",              "label": "Name",                 "flex": 3,   "minWidth": 160, "sortable": true,  "required": true, "visibleByDefault": true },
+        { "key": "title",              "label": "Organization",         "flex": 3,   "minWidth": 160, "sortable": true,  "required": true, "visibleByDefault": true },
         { "key": "organizationCode",   "label": "Code",                 "flex": 1,   "minWidth": 110, "visibleByDefault": true },
         { "key": "statusLabel",        "label": "Status",               "flex": 0,   "minWidth": 90,  "type": "status", "required": true, "visibleByDefault": true },
-        { "key": "city",               "label": "City",                 "flex": 2,   "minWidth": 120, "hideBelow": compactBreakpoint, "visibleByDefault": true },
-        { "key": "countryName",        "label": "Country",              "flex": 1,   "minWidth": 120, "hideBelow": compactBreakpoint, "visibleByDefault": true },
+        { "key": "location",           "label": "Country / Location",   "flex": 2,   "minWidth": 150, "hideBelow": compactBreakpoint, "visibleByDefault": true },
+        { "key": "city",               "label": "City",                 "flex": 2,   "minWidth": 120, "visibleByDefault": false },
+        { "key": "countryName",        "label": "Country",              "flex": 1,   "minWidth": 120, "visibleByDefault": false },
         { "key": "countryCode",        "label": "Country Code",         "flex": 0,   "minWidth": 90,  "visibleByDefault": false },
         { "key": "legalName",          "label": "Legal Name",           "flex": 2,   "minWidth": 160, "visibleByDefault": false },
         { "key": "registrationNumber", "label": "Registration Number",  "flex": 1,   "minWidth": 140, "visibleByDefault": false },

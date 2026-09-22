@@ -51,10 +51,26 @@ def archive_organization(controller, organization_id: str) -> dict[str, object]:
     )
 
 
-def apply_bulk_organization_status(controller, payload: dict) -> dict[str, object]:
+def bulk_activate_organizations(controller) -> dict[str, object]:
     return run_admin_action(
         controller,
-        action=lambda: controller._organization_controller.applyBulkOrganizationStatus(payload),
+        action=lambda: controller._organization_controller.bulkActivateOrganizations(),
+        on_success=lambda: refresh_after_organization_change(controller),
+    )
+
+
+def bulk_deactivate_organizations(controller) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._organization_controller.bulkDeactivateOrganizations(),
+        on_success=lambda: refresh_after_organization_change(controller),
+    )
+
+
+def bulk_archive_organizations(controller) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._organization_controller.bulkArchiveOrganizations(),
         on_success=lambda: refresh_after_organization_change(controller),
     )
 
@@ -87,9 +103,11 @@ __all__ = [
     "activate_organization",
     "apply_bulk_organization_currency",
     "apply_bulk_organization_modules",
-    "apply_bulk_organization_status",
     "apply_bulk_organization_timezone",
     "archive_organization",
+    "bulk_activate_organizations",
+    "bulk_archive_organizations",
+    "bulk_deactivate_organizations",
     "create_organization",
     "deactivate_organization",
     "update_organization",

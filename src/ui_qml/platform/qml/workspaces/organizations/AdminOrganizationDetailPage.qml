@@ -31,14 +31,83 @@ Item {
     readonly property string _orgTitle: String(detailRoot.organization && detailRoot.organization.title
         ? detailRoot.organization.title
         : "Organization")
-    readonly property string _orgStatus: String(detailRoot.organization && detailRoot.organization.statusLabel
-        ? detailRoot.organization.statusLabel
-        : "")
+    readonly property var _orgStatusLabelValue: detailRoot.organization ? detailRoot.organization.statusLabel : null
+    readonly property string _orgStatus: (detailRoot._orgStatusLabelValue && typeof detailRoot._orgStatusLabelValue === "object")
+        ? String(detailRoot._orgStatusLabelValue.label || "")
+        : String(detailRoot._orgStatusLabelValue || "")
+    readonly property string _orgStatusTone: (detailRoot._orgStatusLabelValue && typeof detailRoot._orgStatusLabelValue === "object")
+        ? String(detailRoot._orgStatusLabelValue.tone || "neutral")
+        : "neutral"
     readonly property string _orgSubtitle: String(detailRoot.organization && detailRoot.organization.subtitle
         ? detailRoot.organization.subtitle
         : "")
-    readonly property bool _isEnabledOrganization: detailRoot._orgState.status === "active"
-    readonly property string _orgStatusTone: detailRoot._isEnabledOrganization ? "success" : "neutral"
+    readonly property string _orgCode: String(detailRoot._orgState.organizationCode || "")
+    readonly property string _orgLocation: String(detailRoot._orgState.location || detailRoot._orgState.countryName || "")
+    readonly property string _headerSubtitle: detailRoot._joinNonEmpty([detailRoot._orgCode, detailRoot._orgLocation], "  ·  ")
+    readonly property bool _isActiveOrganization: detailRoot._orgState.status === "active"
+    readonly property bool _isInactiveOrganization: detailRoot._orgState.status === "inactive"
+    readonly property bool _isArchivedOrganization: detailRoot._orgState.status === "archived"
+
+    // -- Actions -- a standalone [Edit] button plus a lifecycle "Actions ▾"
+    // menu. The menu also repeats Edit organization ahead of a divider (per
+    // the approved reference header design) so every command reachable from
+    // this header is keyboard/menu-discoverable, not only the quick button.
+    // Archived is a terminal state (see OrganizationService._require_valid_
+    // organization_transition) -- no lifecycle items apply, so the whole
+    // menu is omitted rather than shown with nothing useful in it.
+    readonly property var _lifecycleMenuItems: {
+        const items = [
+            { "id": "edit", "label": "Edit organization", "icon": "edit", "enabled": detailRoot.canWrite },
+            { "separator": true }
+        ]
+        if (detailRoot._isActiveOrganization) {
+            items.push({ "id": "deactivate", "label": "Deactivate organization", "icon": "reject", "enabled": detailRoot.canWrite })
+            items.push({ "id": "archive", "label": "Archive organization", "icon": "inventory", "danger": true, "enabled": detailRoot.canWrite })
+        } else if (detailRoot._isInactiveOrganization) {
+            items.push({ "id": "activate", "label": "Activate organization", "icon": "approve", "enabled": detailRoot.canWrite })
+            items.push({ "id": "archive", "label": "Archive organization", "icon": "inventory", "danger": true, "enabled": detailRoot.canWrite })
+        }
+        return items
+    }
+    readonly property bool _showLifecycleMenu: detailRoot._isActiveOrganization || detailRoot._isInactiveOrganization
+
+    property var _pendingConfirm: null
+
+    function _requestLifecycleConfirm(action) {
+        const name = detailRoot._orgTitle || "this organization"
+        if (action === "deactivate") {
+            detailRoot._pendingConfirm = {
+                "action": "deactivate",
+                "message": "Deactivate " + name + "?",
+                "supportingText": name + " will no longer be available for new operational activity. " +
+                    "Existing records and historical information will remain available according to permissions. " +
+                    "If this organization is currently selected, the active organization context will be cleared."
+            }
+        } else if (action === "archive") {
+            detailRoot._pendingConfirm = {
+                "action": "archive",
+                "message": "Archive " + name + "?",
+                "supportingText": name + " will be removed from normal operational use and retained for historical " +
+                    "reference. This action cannot be reversed through the normal Organization workspace. " +
+                    "Existing business history will be preserved."
+            }
+        } else {
+            return
+        }
+        _lifecycleConfirmDialog.open()
+    }
+
+    function _onLifecycleMenuAction(actionId) {
+        if (actionId === "edit") {
+            detailRoot.actionRequested("edit")
+        } else if (actionId === "activate") {
+            if (detailRoot.workspaceController) detailRoot.workspaceController.activateOrganization(detailRoot._orgId)
+        } else if (actionId === "deactivate") {
+            detailRoot._requestLifecycleConfirm("deactivate")
+        } else if (actionId === "archive") {
+            detailRoot._requestLifecycleConfirm("archive")
+        }
+    }
 
     readonly property var _sections: [
         { "label": "Overview" },
@@ -59,24 +128,18 @@ Item {
         if (detailRoot._activeSectionLabel === "Activity") return "Activity for this organization only"
         return ""
     }
-    readonly property var _toolbarActions: {
-        if (detailRoot._activeSectionLabel !== "Overview") {
-            return [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
-        }
-        const actions = [{ "id": "edit", "label": "Edit", "icon": "edit", "enabled": detailRoot.canWrite }]
-        if (detailRoot._isEnabledOrganization) {
-            actions.push({ "id": "disable", "label": "Disable", "icon": "approve", "enabled": detailRoot.canWrite })
-        } else {
-            actions.push({ "id": "enable", "label": "Enable", "icon": "approve", "enabled": detailRoot.canWrite })
-        }
-        actions.push({ "id": "refresh", "label": "Refresh", "icon": "refresh" })
-        return actions
-    }
+    // Identity, lifecycle badge, and Edit/Actions live in the persistent
+    // header below (visible across every section) -- this per-section
+    // toolbar only ever offers Refresh now.
+    readonly property var _toolbarActions: [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
     // Blank persisted values ("") display as "-" rather than an empty label
     // or literal "None"/"null" -- the persisted value itself is untouched.
     function _displayValue(value) {
         const text = String(value || "").trim()
         return text.length > 0 ? text : "—"
+    }
+    function _joinNonEmpty(parts, sep) {
+        return parts.filter(function(p) { return String(p || "").trim().length > 0 }).join(sep)
     }
     readonly property string _countryDisplay: {
         const code = String(detailRoot._orgState.countryCode || "").trim()
@@ -210,13 +273,19 @@ Item {
         anchors.fill: parent
         open: true
         title: detailRoot._orgTitle
+        statusLabel: detailRoot._orgStatus
+        statusTone: detailRoot._orgStatusTone
+        subtitleLine: detailRoot._headerSubtitle
         breadcrumb: detailRoot.breadcrumb
         isBusy: detailRoot.busy
-        showEdit: false
+        showEdit: detailRoot.canWrite
         showDelete: false
+        menuActions: detailRoot._showLifecycleMenu ? detailRoot._lifecycleMenuItems : []
         sections: detailRoot._sections
 
         onBackRequested: detailRoot.backRequested()
+        onEditRequested: detailRoot.actionRequested("edit")
+        onMenuActionTriggered: function(id) { detailRoot._onLifecycleMenuAction(id) }
         onSectionChanged: function(index) {
             detailRoot.activeSectionIndex = index
         }
@@ -767,6 +836,27 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    AppControls.ConfirmationDialog {
+        id: _lifecycleConfirmDialog
+        title: "Confirm"
+        confirmLabel: detailRoot._pendingConfirm && detailRoot._pendingConfirm.action === "archive"
+            ? "Archive organization" : "Deactivate organization"
+        confirmIcon: detailRoot._pendingConfirm && detailRoot._pendingConfirm.action === "archive" ? "inventory" : "reject"
+        confirmDanger: true
+        message: detailRoot._pendingConfirm ? String(detailRoot._pendingConfirm.message || "") : ""
+        supportingText: detailRoot._pendingConfirm ? String(detailRoot._pendingConfirm.supportingText || "") : ""
+        onConfirmed: {
+            const pending = detailRoot._pendingConfirm
+            if (!pending || !detailRoot.workspaceController) return
+            if (pending.action === "deactivate") {
+                detailRoot.workspaceController.deactivateOrganization(detailRoot._orgId)
+            } else if (pending.action === "archive") {
+                detailRoot.workspaceController.archiveOrganization(detailRoot._orgId)
+            }
+            detailRoot._pendingConfirm = null
         }
     }
 }

@@ -106,6 +106,80 @@ def test_populated_fields_render_real_values():
     assert _by_label(contact, "Website") == "https://acme.example"
 
 
+def _organization_with_status(status: str, *, tone: str):
+    org = _populated_organization()
+    org["statusLabel"] = {"label": status.capitalize(), "tone": tone}
+    org["state"]["status"] = status
+    org["state"]["location"] = "New York, United States"
+    return org
+
+
+def _menu_ids(items):
+    return [entry["id"] for entry in items if "id" in entry]
+
+
+def test_active_organization_header_badge_and_actions_menu():
+    _engine, root = _load_detail_page(_organization_with_status("active", tone="success"))
+
+    assert root.property("_orgStatus") == "Active"
+    assert root.property("_orgStatusTone") == "success"
+    assert root.property("_headerSubtitle") == "ACME  ·  New York, United States"
+    assert root.property("_showLifecycleMenu") is True
+
+    items = root.property("_lifecycleMenuItems")
+    items = items.toVariant() if hasattr(items, "toVariant") else items
+    ids = _menu_ids(items)
+    assert ids == ["edit", "deactivate", "archive"]
+    assert items[1]["separator"] is True
+
+
+def test_inactive_organization_actions_menu_offers_activate_not_deactivate():
+    _engine, root = _load_detail_page(_organization_with_status("inactive", tone="neutral"))
+
+    assert root.property("_showLifecycleMenu") is True
+    items = root.property("_lifecycleMenuItems")
+    items = items.toVariant() if hasattr(items, "toVariant") else items
+    assert _menu_ids(items) == ["edit", "activate", "archive"]
+
+
+def test_archived_organization_has_no_lifecycle_actions_in_the_menu():
+    """Archived is terminal (OrganizationService._require_valid_organization_
+    transition rejects every transition out of it) -- the Actions menu must
+    not offer a reactivation/deactivation command that would only be
+    rejected by the backend. The whole menu trigger is hidden rather than
+    shown with nothing but a duplicate Edit in it."""
+    _engine, root = _load_detail_page(_organization_with_status("archived", tone="neutral"))
+
+    assert root.property("_orgStatus") == "Archived"
+    assert root.property("_showLifecycleMenu") is False
+
+
+def test_detail_page_loads_with_no_console_errors_for_every_lifecycle_status():
+    """Loads the real QML file (not just reads its properties) for each of
+    ACTIVE/INACTIVE/ARCHIVED and scans Qt's own message handler for
+    ReferenceError/TypeError/unknown-icon-name -- the same technique that
+    caught an undefined _joinNonEmpty() call during this phase's header
+    rework, which a pure property-read assertion missed because QML just
+    leaves a failed binding at its default value instead of raising."""
+    from PySide6.QtCore import qInstallMessageHandler
+
+    for status, tone in (("active", "success"), ("inactive", "neutral"), ("archived", "neutral")):
+        messages: list[str] = []
+        previous_handler = qInstallMessageHandler(lambda t, c, m: messages.append(str(m)))
+        try:
+            engine, root = _load_detail_page(_organization_with_status(status, tone=tone))
+        finally:
+            qInstallMessageHandler(previous_handler)
+
+        relevant = [
+            m for m in messages
+            if "TypeError" in m or "ReferenceError" in m or "is not defined" in m
+            or "unknown icon name" in m or "Cannot read propert" in m
+        ]
+        assert relevant == [], f"status={status!r}: {relevant}"
+        engine.deleteLater()
+
+
 def test_blank_fields_render_the_placeholder_not_empty_or_none():
     _engine, root = _load_detail_page(_blank_organization())
 

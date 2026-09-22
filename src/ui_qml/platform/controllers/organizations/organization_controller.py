@@ -22,6 +22,7 @@ class PlatformOrganizationController(QObject):
     operationResultChanged = Signal()
     feedbackMessageChanged = Signal()
     organizationSearchTextChanged = Signal()
+    organizationStatusFilterChanged = Signal()
     selectedOrganizationIdsChanged = Signal()
 
     def __init__(self, presenter: PlatformOrganizationCatalogPresenter, parent: QObject | None = None) -> None:
@@ -44,6 +45,7 @@ class PlatformOrganizationController(QObject):
         self._page = 1
         self._page_size = _DEFAULT_ORGANIZATION_PAGE_SIZE
         self._search_text = ""
+        self._status_filter = ""
         self._selected_organization_ids: list[str] = []
 
     @Property("QVariantMap", notify=organizationsChanged)
@@ -53,6 +55,10 @@ class PlatformOrganizationController(QObject):
     @Property(str, notify=organizationSearchTextChanged)
     def organizationSearchText(self) -> str:
         return self._search_text
+
+    @Property(str, notify=organizationStatusFilterChanged)
+    def organizationStatusFilter(self) -> str:
+        return self._status_filter
 
     @Property("QVariantList", constant=True)
     def organizationPageSizeOptions(self) -> list[int]:
@@ -168,6 +174,16 @@ class PlatformOrganizationController(QObject):
         self._search_text = normalized
         self._page = 1
         self.organizationSearchTextChanged.emit()
+        self._refresh_organizations()
+
+    @Slot(str)
+    def setOrganizationStatusFilter(self, status: str) -> None:
+        normalized = str(status or "").strip().lower()
+        if normalized == self._status_filter:
+            return
+        self._status_filter = normalized
+        self._page = 1
+        self.organizationStatusFilterChanged.emit()
         self._refresh_organizations()
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -298,19 +314,29 @@ class PlatformOrganizationController(QObject):
     # Bulk actions -- each applies to every currently-selected organization.
     # ------------------------------------------------------------------
 
-    @Slot("QVariantMap", result="QVariantMap")
-    def applyBulkOrganizationStatus(self, payload: dict[str, object]) -> dict[str, object]:
-        status = str(payload.get("value", "")).strip().lower() or "inactive"
+    def _apply_bulk_organization_status(self, *, status: str, verb: str) -> dict[str, object]:
         ids = list(self._selected_organization_ids)
         return run_mutation(
             operation=lambda: self._presenter.bulk_set_organization_status(ids, status=status),
-            success_message=f"{len(ids)} organization(s) {status}.",
+            success_message=f"{len(ids)} organization(s) {verb}.",
             on_success=self._clear_selection_and_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_operation_result=self._set_operation_result,
             set_feedback_message=self._set_feedback_message,
         )
+
+    @Slot(result="QVariantMap")
+    def bulkActivateOrganizations(self) -> dict[str, object]:
+        return self._apply_bulk_organization_status(status="active", verb="activated")
+
+    @Slot(result="QVariantMap")
+    def bulkDeactivateOrganizations(self) -> dict[str, object]:
+        return self._apply_bulk_organization_status(status="inactive", verb="deactivated")
+
+    @Slot(result="QVariantMap")
+    def bulkArchiveOrganizations(self) -> dict[str, object]:
+        return self._apply_bulk_organization_status(status="archived", verb="archived")
 
     @Slot("QVariantMap", result="QVariantMap")
     def applyBulkOrganizationCurrency(self, payload: dict[str, object]) -> dict[str, object]:
@@ -362,7 +388,10 @@ class PlatformOrganizationController(QObject):
         self._set_organizations(
             serialize_action_list(
                 self._presenter.build_catalog_page(
-                    page=self._page, page_size=self._page_size, search=self._search_text
+                    page=self._page,
+                    page_size=self._page_size,
+                    search=self._search_text,
+                    status=self._status_filter or None,
                 )
             )
         )

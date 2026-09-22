@@ -67,7 +67,7 @@ def test_bulk_activate_deactivate_applies_to_every_selected_organization(service
     admin.setOrganizationBulkSelection(org_b, True)
     assert set(admin.selectedOrganizationIds) == {org_a, org_b}
 
-    result = admin.applyBulkOrganizationStatus({"value": "inactive"})
+    result = admin.bulkDeactivateOrganizations()
     assert result["ok"] is True, result
     assert admin.selectedOrganizationIds == []
 
@@ -78,7 +78,7 @@ def test_bulk_activate_deactivate_applies_to_every_selected_organization(service
 
     admin.setOrganizationBulkSelection(org_a, True)
     admin.setOrganizationBulkSelection(org_b, True)
-    result = admin.applyBulkOrganizationStatus({"value": "active"})
+    result = admin.bulkActivateOrganizations()
     assert result["ok"] is True, result
     all_orgs = {o.id: o for o in org_service.list_organizations(status=None)}
     assert all_orgs[org_a].status == "active"
@@ -99,7 +99,7 @@ def test_bulk_status_change_opens_exactly_one_transaction_for_the_whole_selectio
 
     counts, restore = _count_uow_creations()
     try:
-        result = admin.applyBulkOrganizationStatus({"value": "inactive"})
+        result = admin.bulkDeactivateOrganizations()
     finally:
         restore()
 
