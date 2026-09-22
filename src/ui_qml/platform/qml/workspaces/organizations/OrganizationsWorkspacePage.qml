@@ -14,6 +14,7 @@ import "OrganizationsColumnConfig.js" as ColumnConfig
 
 AppLayouts.WorkspaceFrame {
     id: root
+    objectName: "organizationsWorkspacePage"
 
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property PlatformControllers.PlatformAdminWorkspaceController workspaceController: root.platformCatalog
@@ -99,7 +100,13 @@ AppLayouts.WorkspaceFrame {
         return parts.filter(function(p) { return String(p || "").trim().length > 0 }).join(sep)
     }
 
-    readonly property var _inspectorSections: {
+    // -- Enterprise grouped Inspector layout: Identity / Lifecycle /
+    // Location / Key Statistics / Business Context. Each group hides
+    // itself entirely when every one of its rows is empty (e.g. Business
+    // Context for an organization with no contact details filled in yet);
+    // an individual empty row within a populated group still hides on its
+    // own, same as the previous flat layout.
+    readonly property var _inspectorGroups: {
         const item = root._selectedItem
         if (!item) return []
         const streetLine = root._joinNonEmpty([item.addressLine1, item.addressLine2], ", ")
@@ -108,29 +115,81 @@ AppLayouts.WorkspaceFrame {
             ", "
         )
         const stats = root._statistics
+        const statusText = (item.statusLabel && typeof item.statusLabel === "object")
+            ? String(item.statusLabel.label || "")
+            : String(item.status || "")
         return [
-            // -- Always-populated identity/config fields ------------------
-            { "label": "Code", "value": String(item.organizationCode || "") },
-            // -- Legal identity (blank until filled in) --------------------
-            { "label": "Legal Name", "value": String(item.legalName || "") },
-            { "label": "Registration Number", "value": String(item.registrationNumber || "") },
-            { "label": "Tax / VAT ID", "value": String(item.taxId || "") },
-            { "label": "Timezone", "value": String(item.timezoneName || "") },
-            { "label": "Base Currency", "value": String(item.baseCurrency || "") },
-            // -- Real aggregate counts (one query each; never hidden --
-            // "0" is real information, not a blank field) ------------------
-            { "label": "Sites", "value": stats.siteCount !== undefined ? String(stats.siteCount) : "" },
-            { "label": "Departments", "value": stats.departmentCount !== undefined ? String(stats.departmentCount) : "" },
-            { "label": "Employees", "value": stats.employeeCount !== undefined ? String(stats.employeeCount) : "" },
-            { "label": "Documents", "value": stats.documentCount !== undefined ? String(stats.documentCount) : "" },
-            // -- Registered address (blank until filled in) ----------------
-            { "label": "Address", "value": streetLine },
-            { "label": "City / Postal / Country", "value": localityLine },
-            // -- Contact (blank until filled in) ---------------------------
-            { "label": "Email", "value": String(item.email || "") },
-            { "label": "Phone", "value": String(item.phone || "") },
-            { "label": "Website", "value": String(item.website || "") }
+            {
+                "title": "Identity",
+                "rows": [
+                    { "label": "Code", "value": String(item.organizationCode || "") },
+                    { "label": "Legal Name", "value": String(item.legalName || "") },
+                    { "label": "Registration Number", "value": String(item.registrationNumber || "") },
+                    { "label": "Tax / VAT ID", "value": String(item.taxId || "") }
+                ]
+            },
+            {
+                "title": "Lifecycle",
+                "rows": [
+                    { "label": "Status", "value": statusText }
+                ]
+            },
+            {
+                "title": "Location",
+                "rows": [
+                    { "label": "Address", "value": streetLine },
+                    { "label": "City / Postal / Country", "value": localityLine },
+                    { "label": "Timezone", "value": String(item.timezoneName || "") }
+                ]
+            },
+            {
+                "title": "Key Statistics",
+                "rows": [
+                    { "label": "Sites", "value": stats.siteCount !== undefined ? String(stats.siteCount) : "" },
+                    { "label": "Departments", "value": stats.departmentCount !== undefined ? String(stats.departmentCount) : "" },
+                    { "label": "Employees", "value": stats.employeeCount !== undefined ? String(stats.employeeCount) : "" },
+                    { "label": "Documents", "value": stats.documentCount !== undefined ? String(stats.documentCount) : "" }
+                ]
+            },
+            {
+                "title": "Business Context",
+                "rows": [
+                    { "label": "Base Currency", "value": String(item.baseCurrency || "") },
+                    { "label": "Email", "value": String(item.email || "") },
+                    { "label": "Phone", "value": String(item.phone || "") },
+                    { "label": "Website", "value": String(item.website || "") }
+                ]
+            }
         ]
+    }
+
+    // -- Inspector "Actions ▾" menu: the same lifecycle rules as
+    // AdminOrganizationDetailPage's header menu (Archived is terminal --
+    // see OrganizationService._require_valid_organization_transition --
+    // so no lifecycle items apply and the menu is simply empty then).
+    readonly property var _inspectorLifecycleMenuItems: {
+        const item = root._selectedItem
+        if (!item) return []
+        const items = []
+        if (item.status === "active") {
+            items.push({ "id": "deactivate", "label": "Deactivate organization", "icon": "reject", "enabled": root._canWrite })
+            items.push({ "id": "archive", "label": "Archive organization", "icon": "inventory", "danger": true, "enabled": root._canWrite })
+        } else if (item.status === "inactive") {
+            items.push({ "id": "activate", "label": "Activate organization", "icon": "approve", "enabled": root._canWrite })
+            items.push({ "id": "archive", "label": "Archive organization", "icon": "inventory", "danger": true, "enabled": root._canWrite })
+        }
+        return items
+    }
+
+    function _onInspectorMenuAction(actionId) {
+        if (!root.workspaceController || !root._selectedItem) return
+        if (actionId === "activate") {
+            root.workspaceController.activateOrganization(root.selectedRowId)
+        } else if (actionId === "deactivate") {
+            root._requestSingleLifecycleConfirm("deactivate", root.selectedRowId, root._selectedItem.title)
+        } else if (actionId === "archive") {
+            root._requestSingleLifecycleConfirm("archive", root.selectedRowId, root._selectedItem.title)
+        }
     }
 
     function _itemById(itemId) {
@@ -370,6 +429,14 @@ AppLayouts.WorkspaceFrame {
             AppWidgets.InspectorPanel {
                 Layout.fillHeight: true
                 visible: root.selectedRowId.length > 0 && Window.width >= Theme.AppTheme.compactContentBreakpoint
+                // Compact enterprise inspector width (340-420px range) --
+                // wider than the shared 288px default so the grouped
+                // Identity/Lifecycle/Location/Key Statistics/Business
+                // Context layout below has room to breathe. Scoped to
+                // Organizations only via the opt-in `panelWidth` property;
+                // every other InspectorPanel consumer keeps the shared
+                // default width unchanged.
+                panelWidth: 380
                 title: root._selectedItem ? String(root._selectedItem.title || "") : ""
                 statusLabel: (root._selectedItem && root._selectedItem.statusLabel)
                     ? String(root._selectedItem.statusLabel.label || "")
@@ -377,28 +444,25 @@ AppLayouts.WorkspaceFrame {
                 statusTone: (root._selectedItem && root._selectedItem.statusLabel)
                     ? String(root._selectedItem.statusLabel.tone || "")
                     : ""
-                sections: root._inspectorSections
+                groups: root._inspectorGroups
                 busy: root.busy
+                // Enterprise action hierarchy: "Open Details" is the
+                // primary, full-width action; "Edit" and the lifecycle
+                // "Actions ▾" menu share the secondary row beneath it.
+                viewDetailsPrimary: true
+                viewDetailsLabel: "Open Details"
+                showViewDetailsAction: true
                 editActionLabel: "Edit"
                 showEditAction: root._canWrite
-                // Archived organizations have no valid single-click lifecycle
-                // transition (see OrganizationService._require_valid_organization_transition) --
-                // the quick action is hidden rather than offered and rejected.
-                secondaryActionLabel: root._selectedItem && root._selectedItem.status === "active" ? "Deactivate" : "Activate"
-                showSecondaryAction: root._canWrite && root._selectedItem && root._selectedItem.status !== "archived"
-                viewDetailsLabel: "View Details"
-                showViewDetailsAction: true
+                // Archived organizations have no valid lifecycle transition
+                // (see OrganizationService._require_valid_organization_transition)
+                // -- the menu is simply empty then, not offered-and-rejected.
+                menuActions: root._canWrite ? root._inspectorLifecycleMenuItems : []
+                menuTriggerLabel: "Actions"
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
-                onSecondaryActionRequested: {
-                    if (!root.workspaceController || !root._selectedItem) return
-                    if (root._selectedItem.status === "active") {
-                        root._requestSingleLifecycleConfirm("deactivate", root.selectedRowId, root._selectedItem.title)
-                    } else {
-                        root.workspaceController.activateOrganization(root.selectedRowId)
-                    }
-                }
+                onMenuActionTriggered: function(id) { root._onInspectorMenuAction(id) }
                 onViewDetailsRequested: root.detailOpen = true
             }
         }

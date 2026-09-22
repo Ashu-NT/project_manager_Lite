@@ -177,3 +177,106 @@ def test_capture_organizations_screenshots(qapp, services, theme_mode) -> None:
 # visual QA pass once Departments/Employees/Documents also exist (see the
 # Phase K report). The Sites tab is instead verified end-to-end, including
 # zero console errors, by test_organization_detail_sites_tab.py.
+
+
+def _seed_full_organization(services, *, code: str, name: str) -> str:
+    """One organization with a real row in each of the four Phase K tabs,
+    plus a mixed-lifecycle status so the redesigned grouped Inspector shows
+    real Key Statistics counts, not just "0" for everything."""
+    organization_service = services["organization_service"]
+    tenant_context_service = services["tenant_context_service"]
+    org = organization_service.create_organization(
+        organization_code=code,
+        display_name=name,
+        timezone_name="UTC",
+        base_currency="USD",
+        legal_name=f"{name} Legal Entity",
+        registration_number="REG-VQA-001",
+        city="Lagos",
+        country_code="NG",
+    )
+    tenant_context_service.set_active_organization(org.id)
+    services["site_service"].create_site(site_code="VQA-SITE-1", name="VQA Site One", city="Lagos", country="Nigeria")
+    services["department_service"].create_department(department_code="VQA-DEPT-1", name="VQA Department One")
+    services["employee_service"].create_employee(employee_code="VQA-EMP-1", full_name="VQA Employee One")
+    services["document_service"].create_document(
+        document_code="VQA-DOC-1", title="VQA Document One", storage_uri="C:/docs/vqa.pdf"
+    )
+    return org.id
+
+
+def test_capture_organization_detail_combined_screenshots(qapp, services) -> None:
+    """Combined visual QA (Phase K step 7): the redesigned grouped Inspector
+    plus all four entity tabs (Sites/Departments/Employees/Documents),
+    captured from within the real shell -- the only way grabToImage() can
+    work, since it needs a QQuickWindow-backed root (see the note above)."""
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    messages: list[str] = []
+    previous_handler = qInstallMessageHandler(lambda t, c, m: messages.append(str(m)))
+
+    try:
+        org_id = _seed_full_organization(services, code="VQACOMBINED", name="VQA Combined Org")
+
+        registry = build_qml_route_registry()
+        shell_context = build_shell_context(build_main_window_navigation(registry))
+
+        api_registry = build_desktop_api_registry(services)
+        platform_catalog = PlatformWorkspaceCatalog(desktop_api_registry=api_registry)
+        pm_catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=api_registry)
+
+        engine = create_qml_engine()
+        shell_route = registry.get("shell.app")
+        load_qml(
+            engine,
+            shell_route.qml_path,
+            initial_properties={
+                "shellModel": shell_context,
+                "platformCatalog": platform_catalog,
+                "pmCatalog": pm_catalog,
+            },
+        )
+        root = engine.rootObjects()[0]
+        root.resize(1600, 1000)
+        shell_context.selectRoute("platform.workspace")
+        platform_catalog.selectDestination("organizations")
+        _settle(qapp, seconds=4.0)
+
+        organizations_page = root.findChild(QQuickItem, "organizationsWorkspacePage")
+        assert organizations_page is not None
+        organizations_page.setProperty("selectedRowId", org_id)
+        _settle(qapp)
+
+        # 1. The redesigned grouped Inspector (Identity/Lifecycle/Location/
+        # Key Statistics/Business Context), compact width, Open Details +
+        # Edit/Actions hierarchy -- shown while NOT in the nested detail.
+        mainWindow = root.findChild(QQuickItem, "mainWindow")
+        assert mainWindow is not None
+        assert _grab(qapp, mainWindow, OUT_DIR / "organization_inspector_grouped_light_1600x1000.png")
+
+        organizations_page.setProperty("detailOpen", True)
+        _settle(qapp)
+        detail_page = root.findChild(QQuickItem, "adminOrganizationDetailPage")
+        assert detail_page is not None
+
+        tabs = {
+            0: "overview",
+            1: "sites",
+            2: "departments",
+            3: "employees",
+            4: "documents",
+        }
+        for index, name in tabs.items():
+            detail_page.setProperty("activeSectionIndex", index)
+            _settle(qapp)
+            mainWindow = root.findChild(QQuickItem, "mainWindow")
+            saved = _grab(qapp, mainWindow, OUT_DIR / f"organization_detail_{name}_light_1600x1000.png")
+            assert saved
+
+        relevant = [
+            m for m in messages
+            if "ReferenceError" in m or "TypeError" in m or "unknown icon name" in m
+            or "is not defined" in m or "Cannot read prop" in m
+        ]
+        assert not relevant, "\n".join(relevant)
+    finally:
+        qInstallMessageHandler(previous_handler)

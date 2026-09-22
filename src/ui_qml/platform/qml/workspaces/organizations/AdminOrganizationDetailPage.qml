@@ -13,6 +13,7 @@ import workspaces.organizations.sections 1.0 as OrgSections
 // presentational components this page wires up below.
 Item {
     id: detailRoot
+    objectName: "adminOrganizationDetailPage"
 
     property var organization: ({})
     property var workspaceController: null
@@ -274,6 +275,27 @@ Item {
             { "id": "documents", "label": "View Documents", "icon": "documents" }
         ]
         return candidates.filter(function(action) { return detailRoot._isDestinationAccessible(action.id) })
+    }
+
+    // -- Scoped routing: Related Actions and Key Statistics above are about
+    // THIS organization's own Sites/Departments/Employees/Documents -- they
+    // must switch this detail page's own tab, never navigate away to the
+    // global, session-active-organization-only Platform workspace (which
+    // would silently show a DIFFERENT organization's data whenever this
+    // isn't the caller's active organization, and loses the "viewing this
+    // organization" context even when it is). Only a destination with no
+    // local tab of its own (none exist among the current candidates) falls
+    // through to the bubbled-up navigateToDestination signal.
+    readonly property var _sectionIndexByDestination: ({
+        "sites": 1, "departments": 2, "employees": 3, "documents": 4
+    })
+    function _navigateFromOverview(destinationId) {
+        const index = detailRoot._sectionIndexByDestination[destinationId]
+        if (index !== undefined) {
+            detailPage.scrollToSection(index)
+            return
+        }
+        detailRoot.navigateToDestination(destinationId)
     }
 
     // -- Per-organization filtered catalogs (existing tenant-scoped lists,
@@ -638,7 +660,7 @@ Item {
                         isDestinationAccessible: detailRoot._isDestinationAccessible
 
                         onNavigateToDestination: function(destinationId) {
-                            detailRoot.navigateToDestination(destinationId)
+                            detailRoot._navigateFromOverview(destinationId)
                         }
                         // scrollToSection (not a direct activeSectionIndex
                         // assignment) so the nav rail's own highlighted item
