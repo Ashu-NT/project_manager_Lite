@@ -4,13 +4,15 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Models 1.0 as AppModels
 import Platform.Components 1.0 as PlatformComponents
-import workspaces.sites 1.0 as SitesWorkspace
 
 // Organization Detail's Sites tab: a real, tenant-scoped management
 // workspace (a tenant-scoped backend read, not a client-side filter of the
 // global session-active-organization catalog -- see Phase K report). Row
-// activation opens the same AdminSiteDetailPage the standalone Sites
-// workspace uses. All state (catalog/page/search/filter/selection) is
+// activation navigates to the standalone Sites workspace's own detail page
+// (see AdminOrganizationDetailPage.qml's relatedRecordRequested) rather than
+// nesting a second copy of that detail UI here -- nesting duplicated state
+// across two owners and was the root cause of a real cross-scope
+// InlineMessage leak. All state (catalog/page/search/filter/selection) is
 // owned by the orchestrator (AdminOrganizationDetailPage.qml); this
 // section is presentational and emits signals for every user action.
 Item {
@@ -31,8 +33,6 @@ Item {
     property string searchText: ""
     property var statusFilterOptions: []
     property string statusFilter: ""
-    property bool detailOpen: false
-    property var selectedSite: null
 
     signal createRequested()
     signal rowSelected(string id)
@@ -43,8 +43,6 @@ Item {
     signal pageSizeRequested(int pageSize)
     signal clearFiltersRequested()
     signal statusFilterRequested(string value)
-    signal detailBackRequested()
-    signal detailActionRequested(string actionId)
 
     width: parent ? parent.width : 0
     height: root.viewportHeight
@@ -57,7 +55,6 @@ Item {
     PlatformComponents.AdminEntityWorkspace {
         id: _workspace
         anchors.fill: parent
-        visible: !root.detailOpen
         sectionTitle: "Sites"
         entityLabel: "Site"
         catalog: root.catalog
@@ -97,32 +94,5 @@ Item {
         onPageRequested: function(page) { root.pageRequested(page) }
         onPageSizeRequested: function(pageSize) { root.pageSizeRequested(pageSize) }
         onClearFiltersRequested: root.clearFiltersRequested()
-    }
-
-    Loader {
-        anchors.fill: parent
-        active: root.detailOpen
-        visible: active
-        asynchronous: true
-
-        sourceComponent: Component {
-            SitesWorkspace.AdminSiteDetailPage {
-                platformCatalog: root.platformCatalog
-                site: root.selectedSite || ({})
-                departmentCatalog: root.workspaceController
-                    ? root.workspaceController.departments
-                    : ({ "items": [] })
-                employeeCatalog: root.workspaceController
-                    ? root.workspaceController.employees
-                    : ({ "items": [] })
-                canWrite: root.canWrite
-                busy: root.busy
-                errorMessage: root.errorMessage
-                feedbackMessage: root.feedbackMessage
-
-                onBackRequested: root.detailBackRequested()
-                onActionRequested: function(actionId) { root.detailActionRequested(actionId) }
-            }
-        }
     }
 }

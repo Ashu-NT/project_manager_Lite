@@ -29,12 +29,7 @@ Item {
     signal actionRequested(string actionId)
     signal navigateToDestination(string destinationId)
 
-    // Any site/department mutation anywhere (e.g. the "+ New Site"/"+ New
-    // Department" dialogs, owned by the parent OrganizationsWorkspacePage's
-    // shared dialog host) re-fetches this tab's own organization-scoped
-    // page -- the same reactivity the old client-side-filtered tab had via
-    // a computed property, just sourced from the new paginated query
-    // instead of an in-memory list.
+    signal relatedRecordRequested(string destinationId, string rowId)
     Connections {
         target: detailRoot.workspaceController
         function onSitesChanged() { detailRoot._refreshSites() }
@@ -255,37 +250,17 @@ Item {
     }
 
     // Routes an Activity row's activationState ({entityType, entityId}) to
-    // that entity's own nested Detail page, switching this page's own tab
-    // -- never navigating away to a global Platform workspace, same
-    // scoped-routing principle as Related Actions/Key Statistics. Resets
-    // the target tab's own filters first so the entity is more likely to
-    // appear on the default first page (a full "jump to any record
-    // regardless of its page" would need a dedicated get-by-id read this
-    // phase does not add -- see the Activity report's known-gaps section).
+    // that entity's own standalone workspace detail page (see
+    // relatedRecordRequested above) -- the same destination every
+    // Sites/Departments/Employees/Documents row activation uses.
     function _openEntityFromActivity(entityType, entityId) {
         if (entityType === "site") {
-            detailRoot._sitesSearch = ""
-            detailRoot._sitesStatusFilter = ""
-            detailRoot._sitesPage = 1
-            detailPage.scrollToSection(1)
             detailRoot._openSiteDetail(entityId)
         } else if (entityType === "department") {
-            detailRoot._departmentsSearch = ""
-            detailRoot._departmentsStatusFilter = ""
-            detailRoot._departmentsPage = 1
-            detailPage.scrollToSection(2)
             detailRoot._openDepartmentDetail(entityId)
         } else if (entityType === "employee") {
-            detailRoot._employeesSearch = ""
-            detailRoot._employeesStatusFilter = ""
-            detailRoot._employeesPage = 1
-            detailPage.scrollToSection(3)
             detailRoot._openEmployeeDetail(entityId)
         } else if (entityType === "document") {
-            detailRoot._documentsSearch = ""
-            detailRoot._documentsStatusFilter = ""
-            detailRoot._documentsPage = 1
-            detailPage.scrollToSection(4)
             detailRoot._openDocumentDetail(entityId)
         }
     }
@@ -396,7 +371,6 @@ Item {
         "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
     })
     property string _sitesSelectedRowId: ""
-    property bool _sitesDetailOpen: false
     readonly property var _sitesStatusFilterOptions: [
         { "value": "", "label": "All" },
         { "value": "active", "label": "Active" },
@@ -432,25 +406,7 @@ Item {
     }
     function _openSiteDetail(siteId) {
         detailRoot._sitesSelectedRowId = siteId
-        detailRoot._sitesDetailOpen = true
-        // errorMessage/feedbackMessage are forwarded into both the Sites
-        // list AND this nested detail view -- clear them on this
-        // transition so a stale list-scoped message doesn't leak in as if
-        // it were about this specific site.
-        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
-    }
-    function _closeSiteDetail() {
-        detailRoot._sitesDetailOpen = false
-        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
-    }
-    readonly property var _selectedSite: {
-        const id = detailRoot._sitesSelectedRowId
-        if (!id) return null
-        const items = detailRoot._sitesCatalog.items || []
-        for (let i = 0; i < items.length; i += 1) {
-            if (String(items[i].id) === String(id)) return items[i]
-        }
-        return null
+        detailRoot.relatedRecordRequested("sites", siteId)
     }
 
     // -- Departments tab: same tenant-scoped + paginated pattern as Sites
@@ -466,7 +422,6 @@ Item {
         "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
     })
     property string _departmentsSelectedRowId: ""
-    property bool _departmentsDetailOpen: false
     readonly property var _departmentsStatusFilterOptions: [
         { "value": "", "label": "All" },
         { "value": "active", "label": "Active" },
@@ -500,25 +455,7 @@ Item {
     }
     function _openDepartmentDetail(departmentId) {
         detailRoot._departmentsSelectedRowId = departmentId
-        detailRoot._departmentsDetailOpen = true
-        // errorMessage/feedbackMessage are forwarded into both the
-        // Departments list AND this nested detail view -- clear them on
-        // this transition so a stale list-scoped message doesn't leak in
-        // as if it were about this specific department.
-        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
-    }
-    function _closeDepartmentDetail() {
-        detailRoot._departmentsDetailOpen = false
-        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
-    }
-    readonly property var _selectedDepartment: {
-        const id = detailRoot._departmentsSelectedRowId
-        if (!id) return null
-        const items = detailRoot._departmentsCatalog.items || []
-        for (let i = 0; i < items.length; i += 1) {
-            if (String(items[i].id) === String(id)) return items[i]
-        }
-        return null
+        detailRoot.relatedRecordRequested("departments", departmentId)
     }
 
     // -- Employees tab: same tenant-scoped + paginated pattern as Sites/
@@ -537,7 +474,6 @@ Item {
         "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
     })
     property string _employeesSelectedRowId: ""
-    property bool _employeesDetailOpen: false
     readonly property var _employeesStatusFilterOptions: [
         { "value": "", "label": "All" },
         { "value": "active", "label": "Active" },
@@ -569,25 +505,7 @@ Item {
     }
     function _openEmployeeDetail(employeeId) {
         detailRoot._employeesSelectedRowId = employeeId
-        detailRoot._employeesDetailOpen = true
-        // errorMessage/feedbackMessage are forwarded into both the
-        // Employees list AND this nested detail view -- clear them on
-        // this transition so a stale list-scoped message doesn't leak in
-        // as if it were about this specific employee.
-        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
-    }
-    function _closeEmployeeDetail() {
-        detailRoot._employeesDetailOpen = false
-        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
-    }
-    readonly property var _selectedEmployee: {
-        const id = detailRoot._employeesSelectedRowId
-        if (!id) return null
-        const items = detailRoot._employeesCatalog.items || []
-        for (let i = 0; i < items.length; i += 1) {
-            if (String(items[i].id) === String(id)) return items[i]
-        }
-        return null
+        detailRoot.relatedRecordRequested("employees", employeeId)
     }
 
     // -- Documents tab: same tenant-scoped + paginated pattern as Sites/
@@ -606,7 +524,6 @@ Item {
         "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
     })
     property string _documentsSelectedRowId: ""
-    property bool _documentsDetailOpen: false
     readonly property var _documentsStatusFilterOptions: [
         { "value": "", "label": "All" },
         { "value": "active", "label": "Active" },
@@ -639,25 +556,7 @@ Item {
     function _openDocumentDetail(documentId) {
         detailRoot._documentsSelectedRowId = documentId
         if (detailRoot.workspaceController) detailRoot.workspaceController.selectDocument(documentId)
-        detailRoot._documentsDetailOpen = true
-        // errorMessage/feedbackMessage are forwarded into both the
-        // Documents list AND this nested detail view -- clear them on
-        // this transition so a stale list-scoped message doesn't leak in
-        // as if it were about this specific document.
-        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
-    }
-    function _closeDocumentDetail() {
-        detailRoot._documentsDetailOpen = false
-        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
-    }
-    readonly property var _selectedDocumentItem: {
-        const id = detailRoot._documentsSelectedRowId
-        if (!id) return null
-        const items = detailRoot._documentsCatalog.items || []
-        for (let i = 0; i < items.length; i += 1) {
-            if (String(items[i].id) === String(id)) return items[i]
-        }
-        return null
+        detailRoot.relatedRecordRequested("documents", documentId)
     }
 
     readonly property var _simpleColumns: [
@@ -817,8 +716,6 @@ Item {
                         searchText: detailRoot._sitesSearch
                         statusFilterOptions: detailRoot._sitesStatusFilterOptions
                         statusFilter: detailRoot._sitesStatusFilter
-                        detailOpen: detailRoot._sitesDetailOpen
-                        selectedSite: detailRoot._selectedSite
 
                         onCreateRequested: detailRoot.actionRequested("create_site")
                         onRowSelected: function(id) { detailRoot._sitesSelectedRowId = id }
@@ -848,22 +745,6 @@ Item {
                             detailRoot._sitesStatusFilter = value
                             detailRoot._sitesPage = 1
                             detailRoot._refreshSites()
-                        }
-                        onDetailBackRequested: detailRoot._closeSiteDetail()
-                        onDetailActionRequested: function(actionId) {
-                            // Only the site's own lifecycle/refresh are wired
-                            // here -- cross-links to Departments/Employees/
-                            // Calendar management from within a nested Site
-                            // Detail are not yet re-routed to this
-                            // organization's own scoped tabs (see the
-                            // routing-correction phase).
-                            if (actionId === "toggle_active") {
-                                if (detailRoot.workspaceController && detailRoot._sitesSelectedRowId) {
-                                    detailRoot.workspaceController.toggleSiteActive(detailRoot._sitesSelectedRowId)
-                                }
-                            } else if (actionId === "refresh") {
-                                detailRoot._refreshSites()
-                            }
                         }
                     }
                 }
@@ -908,8 +789,6 @@ Item {
                         searchText: detailRoot._departmentsSearch
                         statusFilterOptions: detailRoot._departmentsStatusFilterOptions
                         statusFilter: detailRoot._departmentsStatusFilter
-                        detailOpen: detailRoot._departmentsDetailOpen
-                        selectedDepartment: detailRoot._selectedDepartment
 
                         onCreateRequested: detailRoot.actionRequested("create_department")
                         onRowSelected: function(id) { detailRoot._departmentsSelectedRowId = id }
@@ -939,22 +818,6 @@ Item {
                             detailRoot._departmentsStatusFilter = value
                             detailRoot._departmentsPage = 1
                             detailRoot._refreshDepartments()
-                        }
-                        onDetailBackRequested: detailRoot._closeDepartmentDetail()
-                        onDetailActionRequested: function(actionId) {
-                            // Only the department's own lifecycle/refresh are
-                            // wired here -- cross-links to Employees/
-                            // Calendar/Documents/Audit from within a nested
-                            // Department Detail are not yet re-routed to
-                            // this organization's own scoped tabs (see the
-                            // routing-correction phase).
-                            if (actionId === "toggle_active") {
-                                if (detailRoot.workspaceController && detailRoot._departmentsSelectedRowId) {
-                                    detailRoot.workspaceController.toggleDepartmentActive(detailRoot._departmentsSelectedRowId)
-                                }
-                            } else if (actionId === "refresh") {
-                                detailRoot._refreshDepartments()
-                            }
                         }
                     }
                 }
@@ -999,9 +862,6 @@ Item {
                         searchText: detailRoot._employeesSearch
                         statusFilterOptions: detailRoot._employeesStatusFilterOptions
                         statusFilter: detailRoot._employeesStatusFilter
-                        detailOpen: detailRoot._employeesDetailOpen
-                        selectedEmployee: detailRoot._selectedEmployee
-
                         onCreateRequested: detailRoot.actionRequested("create_employee")
                         onRowSelected: function(id) { detailRoot._employeesSelectedRowId = id }
                         onRowActivated: function(id) { detailRoot._openEmployeeDetail(id) }
@@ -1030,22 +890,6 @@ Item {
                             detailRoot._employeesStatusFilter = value
                             detailRoot._employeesPage = 1
                             detailRoot._refreshEmployees()
-                        }
-                        onDetailBackRequested: detailRoot._closeEmployeeDetail()
-                        onDetailActionRequested: function(actionId) {
-                            // Only the employee's own lifecycle/refresh are
-                            // wired here -- cross-links to User Account/
-                            // Assignments/Calendar/Documents/Audit from
-                            // within a nested Employee Detail are not yet
-                            // re-routed to this organization's own scoped
-                            // tabs (see the routing-correction phase).
-                            if (actionId === "toggle_active") {
-                                if (detailRoot.workspaceController && detailRoot._employeesSelectedRowId) {
-                                    detailRoot.workspaceController.toggleEmployeeActive(detailRoot._employeesSelectedRowId)
-                                }
-                            } else if (actionId === "refresh") {
-                                detailRoot._refreshEmployees()
-                            }
                         }
                     }
                 }
@@ -1092,8 +936,6 @@ Item {
                         searchText: detailRoot._documentsSearch
                         statusFilterOptions: detailRoot._documentsStatusFilterOptions
                         statusFilter: detailRoot._documentsStatusFilter
-                        detailOpen: detailRoot._documentsDetailOpen
-                        selectedDocumentItem: detailRoot._selectedDocumentItem
 
                         onCreateRequested: detailRoot.actionRequested("create_document")
                         onRowSelected: function(id) { detailRoot._documentsSelectedRowId = id }
@@ -1123,21 +965,6 @@ Item {
                             detailRoot._documentsStatusFilter = value
                             detailRoot._documentsPage = 1
                             detailRoot._refreshDocuments()
-                        }
-                        onDetailBackRequested: detailRoot._closeDocumentDetail()
-                        onDetailActionRequested: function(actionId) {
-                            // Only the document's own lifecycle/refresh are
-                            // wired here -- cross-links (Control/Audit) from
-                            // within a nested Document Detail are not yet
-                            // re-routed to this organization's own scoped
-                            // tabs (see the routing-correction phase).
-                            if (actionId === "toggle_active") {
-                                if (detailRoot.workspaceController && detailRoot._documentsSelectedRowId) {
-                                    detailRoot.workspaceController.toggleDocumentActive(detailRoot._documentsSelectedRowId)
-                                }
-                            } else if (actionId === "refresh") {
-                                detailRoot._refreshDocuments()
-                            }
                         }
                         onDocumentLinkCreateRequested: {
                             if (detailRoot.workspaceController && detailRoot.workspaceController.selectedDocument.hasSelection) {
