@@ -217,6 +217,76 @@ class ActivityService:
             page_size=normalized_page_size,
         )
 
+    def list_recent_for_entity(
+        self,
+        entity_type: str,
+        entity_id: str,
+        organization_id: str,
+        limit: int = 200,
+    ) -> list[ActivityEntry]:
+        """Activity for one specific entity (e.g. one Site), scoped to an
+        EXPLICIT organization_id -- not the caller's ambient active
+        organization -- since the entity's own detail page may be showing
+        data for an organization the caller hasn't switched into. Mirrors
+        list_recent_for_organization_id's explicit-scope rule, narrowed to
+        one entity_id rather than the whole organization."""
+        require_any_permission(
+            self._user_session,
+            ("settings.manage", "activity.read"),
+            operation_label="view activity entries",
+        )
+        scope = self._require_scope(operation_label="list activity for entity")
+        return self._activity_repo.list_recent(
+            limit=limit,
+            tenant_id=scope.tenant_id,
+            organization_id=organization_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+        )
+
+    def list_recent_page_for_entity(
+        self,
+        entity_type: str,
+        entity_id: str,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = _DEFAULT_ACTIVITY_PAGE_SIZE,
+        search: str = "",
+        since: datetime | None = None,
+    ) -> ActivityPage:
+        """Full, paginated + searchable Activity workspace for one specific
+        entity -- the real Activity tab, as opposed to
+        list_recent_for_entity's bounded Overview preview. Same
+        explicit-organization-scoping rule as list_recent_page_for_organization."""
+        require_any_permission(
+            self._user_session,
+            ("settings.manage", "activity.read"),
+            operation_label="view activity entries",
+        )
+        scope = self._require_scope(operation_label="list activity for entity")
+        normalized_page = max(1, page)
+        normalized_page_size = (
+            page_size if page_size in ACTIVITY_PAGE_SIZE_OPTIONS else _DEFAULT_ACTIVITY_PAGE_SIZE
+        )
+        items, total, filtered_total = self._activity_repo.list_page_recent(
+            page=normalized_page,
+            page_size=normalized_page_size,
+            tenant_id=scope.tenant_id,
+            organization_id=organization_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            search=search,
+            since=since,
+        )
+        return ActivityPage(
+            items=items,
+            total=total,
+            filtered_total=filtered_total,
+            page=normalized_page,
+            page_size=normalized_page_size,
+        )
+
     def _require_scope(self, *, operation_label: str) -> TenantContext:
         if self._tenant_context_service is None:
             raise BusinessRuleError(

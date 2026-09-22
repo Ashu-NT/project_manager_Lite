@@ -35,6 +35,9 @@ from src.ui_qml.platform.presenters.parties.party_catalog_presenter import (
 from src.ui_qml.platform.presenters.sites.site_catalog_presenter import (
     PlatformSiteCatalogPresenter,
 )
+from src.ui_qml.platform.presenters.sites.site_activity_presenter import (
+    PlatformSiteActivityPresenter,
+)
 from src.ui_qml.platform.presenters.users.user_catalog_presenter import (
     PlatformUserCatalogPresenter,
 )
@@ -170,6 +173,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         organization_activity_presenter: PlatformOrganizationActivityPresenter | None = None,
         calendar_presenter: PlatformCalendarCatalogPresenter,
         site_presenter: PlatformSiteCatalogPresenter,
+        site_activity_presenter: PlatformSiteActivityPresenter | None = None,
         department_presenter: PlatformDepartmentCatalogPresenter,
         employee_presenter: PlatformEmployeeCatalogPresenter,
         user_presenter: PlatformUserCatalogPresenter,
@@ -188,7 +192,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             organization_presenter, self, activity_presenter=organization_activity_presenter
         )
         self._calendar_controller = PlatformCalendarController(calendar_presenter, self)
-        self._site_controller = PlatformSiteController(site_presenter, self)
+        self._site_controller = PlatformSiteController(
+            site_presenter, self, activity_presenter=site_activity_presenter
+        )
         self._department_controller = PlatformDepartmentController(department_presenter, self)
         self._employee_controller = PlatformEmployeeController(employee_presenter, self)
         self._user_controller = PlatformUserController(user_presenter, self)
@@ -570,6 +576,22 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         status: str,
     ) -> dict[str, object]:
         return self._site_controller.organizationSitesPage(organization_id, page, page_size, search, status)
+
+    @Slot(str, str, result="QVariantList")
+    def siteActivity(self, site_id: str, organization_id: str) -> list[dict[str, object]]:
+        return self._site_controller.siteActivity(site_id, organization_id)
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def siteActivityPage(
+        self,
+        site_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        return self._site_controller.siteActivityPage(site_id, organization_id, page, page_size, search, date_range)
 
     # ── Department slots ──────────────────────────────────────────────────
 

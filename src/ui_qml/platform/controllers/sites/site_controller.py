@@ -4,6 +4,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.platform.presenters.sites.site_catalog_presenter import PlatformSiteCatalogPresenter
+from src.ui_qml.platform.presenters.sites.site_activity_presenter import PlatformSiteActivityPresenter
 
 from src.ui_qml.platform.controllers.common import run_mutation, safe_exception_message, serialize_action_list
 
@@ -15,9 +16,16 @@ class PlatformSiteController(QObject):
     operationResultChanged = Signal()
     feedbackMessageChanged = Signal()
 
-    def __init__(self, presenter: PlatformSiteCatalogPresenter, parent: QObject | None = None) -> None:
+    def __init__(
+        self,
+        presenter: PlatformSiteCatalogPresenter,
+        parent: QObject | None = None,
+        *,
+        activity_presenter: PlatformSiteActivityPresenter | None = None,
+    ) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._activity_presenter = activity_presenter or PlatformSiteActivityPresenter()
         self._table_model = DynamicTableModel(self)
         self._sites: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._is_busy = False
@@ -188,6 +196,33 @@ class PlatformSiteController(QObject):
             set_error_message=self._set_error_message,
             set_operation_result=self._set_operation_result,
             set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, str, result="QVariantList")
+    def siteActivity(self, site_id: str, organization_id: str) -> list[dict[str, object]]:
+        normalized_site_id = site_id.strip()
+        normalized_org_id = organization_id.strip()
+        if not normalized_site_id or not normalized_org_id:
+            return []
+        return self._activity_presenter.build_recent_activity(normalized_site_id, normalized_org_id)
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def siteActivityPage(
+        self,
+        site_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        normalized_site_id = site_id.strip()
+        normalized_org_id = organization_id.strip()
+        if not normalized_site_id or not normalized_org_id:
+            return {"items": [], "page": page, "pageSize": page_size, "totalCount": 0, "filteredTotal": 0, "emptyState": "", "noResultsState": ""}
+        return self._activity_presenter.build_activity_page_for_site(
+            normalized_site_id, normalized_org_id,
+            page=page, page_size=page_size, search=search, date_range=date_range,
         )
 
     def _refresh_sites(self) -> None:

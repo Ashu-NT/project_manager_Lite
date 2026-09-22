@@ -128,6 +128,7 @@ class SqlAlchemyActivityRepository(TenantScopedRepositorySupport, ActivityReposi
         organization_id: str | None = None,
         entity_type: str | None = None,
         entity_types: Sequence[str] | None = None,
+        entity_id: str | None = None,
         module: str | None = None,
         search: str | None = None,
         since: datetime | None = None,
@@ -135,6 +136,8 @@ class SqlAlchemyActivityRepository(TenantScopedRepositorySupport, ActivityReposi
         base_stmt = self._scoped_statement(tenant_id=tenant_id, organization_id=organization_id)
         if entity_type is not None:
             base_stmt = base_stmt.where(ActivityEntryORM.entity_type == entity_type)
+        if entity_id is not None:
+            base_stmt = base_stmt.where(ActivityEntryORM.entity_id == entity_id)
         if entity_types is not None:
             normalized_types = tuple(str(t).strip() for t in entity_types if str(t).strip())
             base_stmt = (

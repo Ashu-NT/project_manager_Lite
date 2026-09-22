@@ -13,7 +13,6 @@ a small, bounded, unfiltered list."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
@@ -23,6 +22,11 @@ from src.core.platform.api.desktop.master_data.documents.document import Platfor
 from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.ui_qml.platform.presenters.common.activity_presenter_support import (
+    ACTIVITY_DATE_FILTER_OPTIONS,
+    since_for_date_range,
+    split_human_message,
+)
 from src.ui_qml.shared.models.activity_item import (
     ActivityItemViewModel,
     humanize_action,
@@ -78,39 +82,6 @@ ACTIVITY_TYPE_FILTER_OPTIONS: tuple[dict[str, str], ...] = (
     {"value": "employee", "label": "Employee"},
     {"value": "document", "label": "Document"},
 )
-
-ACTIVITY_DATE_FILTER_OPTIONS: tuple[dict[str, str], ...] = (
-    {"value": "", "label": "All time"},
-    {"value": "today", "label": "Today"},
-    {"value": "7d", "label": "Last 7 days"},
-    {"value": "30d", "label": "Last 30 days"},
-)
-
-
-def _since_for_date_range(date_range: str) -> datetime | None:
-    now = datetime.now(timezone.utc)
-    if date_range == "today":
-        return now.replace(hour=0, minute=0, second=0, microsecond=0)
-    if date_range == "7d":
-        return now - timedelta(days=7)
-    if date_range == "30d":
-        return now - timedelta(days=30)
-    return None
-
-
-def _split_human_message(message: str) -> tuple[str, str]:
-    """"Site created — Hamburg Office" -> ("Site created", "Hamburg Office").
-    Every create/update/lifecycle human_message recorded for Organization/
-    Site/Department/Employee/Document activity is written as "<verb
-    phrase> — <subject>" (see site_commands.py/department_commands.py/
-    employee_service.py/organization_service.py/document_commands.py).
-    Falls back to the whole message as the title when the separator isn't
-    present, rather than guessing at a split that isn't there."""
-    if " — " in message:
-        title, _, remainder = message.partition(" — ")
-        return title.strip(), remainder.strip()
-    return message.strip(), ""
-
 
 def _split_document_link_remainder(remainder: str) -> tuple[str, str]:
     """"Report.pdf to site" -> ("Report.pdf", "Linked to site"); "Report.pdf
@@ -190,7 +161,7 @@ class PlatformOrganizationActivityPresenter:
             search=search.strip(),
             entity_type=entity_type or None,
             entity_types=None if entity_type else ORGANIZATION_ACTIVITY_ENTITY_TYPES,
-            since=_since_for_date_range(date_range),
+            since=since_for_date_range(date_range),
         )
         if not result.ok or result.data is None:
             message = result.error.message if result.error is not None else "Unable to load activity."
@@ -290,7 +261,7 @@ class PlatformOrganizationActivityPresenter:
         actor_lookup: dict[str, str],
         entity_lookups: dict[str, dict[str, str]],
     ) -> ActivityItemViewModel:
-        title, remainder = _split_human_message(entry.human_message or "")
+        title, remainder = split_human_message(entry.human_message or "")
         # Safety net: if the human_message didn't follow the expected
         # "<verb phrase> — <subject>" convention (e.g. it was left as the
         # bare action code), never let a raw "entity.verb" code reach the

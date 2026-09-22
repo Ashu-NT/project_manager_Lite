@@ -61,6 +61,46 @@ class PlatformActivityDesktopApi:
             return ()
         return self._serialize_entries(entries)
 
+    def list_for_entity_overview(
+        self, entity_type: str, entity_id: str, organization_id: str, *, limit: int = 5
+    ) -> tuple[ActivityEntryDto, ...]:
+        """Entries scoped to one specific entity (e.g. one Site) within an
+        explicit organization (which may not be the caller's active one),
+        used by that entity's Overview "Recent Activity" preview -- the
+        entity-scoped analog of list_for_organization_overview above."""
+        try:
+            entries = self._activity_service.list_recent_for_entity(
+                entity_type, entity_id, organization_id, limit=limit
+            )
+        except Exception:
+            return ()
+        return self._serialize_entries(entries)
+
+    def list_page_for_entity(
+        self,
+        entity_type: str,
+        entity_id: str,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        since: datetime | None = None,
+    ) -> DesktopApiResult[ActivityEntryPageDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_page(
+                self._activity_service.list_recent_page_for_entity(
+                    entity_type,
+                    entity_id,
+                    organization_id,
+                    page=page,
+                    page_size=page_size,
+                    search=search,
+                    since=since,
+                )
+            )
+        )
+
     def list_page_for_organization(
         self,
         organization_id: str,
