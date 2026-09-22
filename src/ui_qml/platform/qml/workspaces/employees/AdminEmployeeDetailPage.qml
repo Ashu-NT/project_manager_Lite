@@ -26,7 +26,10 @@ Item {
 
     readonly property var _state: (root.employee && root.employee.state) ? root.employee.state : ({})
     readonly property string _title: String(root.employee && root.employee.title ? root.employee.title : "Employee")
-    readonly property string _status: String(root.employee && root.employee.statusLabel ? root.employee.statusLabel : "")
+    readonly property var _statusLabelValue: root.employee ? root.employee.statusLabel : null
+    readonly property string _status: (root._statusLabelValue && typeof root._statusLabelValue === "object")
+        ? String(root._statusLabelValue.label || "")
+        : String(root._statusLabelValue || "")
     readonly property string _subtitle: String(root.employee && root.employee.subtitle ? root.employee.subtitle : "")
     readonly property bool _isActive: root._state.isActive === true
     readonly property bool _hasCalendarAssignment: String(root.empCalendarAssignment && root.empCalendarAssignment.assignmentId ? root.empCalendarAssignment.assignmentId : "").length > 0

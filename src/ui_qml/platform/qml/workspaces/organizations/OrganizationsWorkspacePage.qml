@@ -462,6 +462,8 @@ AppLayouts.WorkspaceFrame {
                             dialogHostLoader.invoke("openSiteCreate")
                         } else if (actionId === "create_department") {
                             dialogHostLoader.invoke("openDepartmentCreate")
+                        } else if (actionId === "create_employee") {
+                            dialogHostLoader.invoke("openEmployeeCreate")
                         }
                     }
                 }

@@ -7,6 +7,7 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeDepartmentBreakdownRowDto,
     EmployeeDto,
     EmployeeHeadcountSummaryDto,
+    EmployeePageDto,
     EmployeeSiteBreakdownRowDto,
     EmployeeUpdateCommand,
 )
@@ -30,6 +31,31 @@ class PlatformEmployeeDesktopApi:
             lambda: tuple(
                 self._serialize_employee(employee)
                 for employee in self._employee_service.list_employees(
+                    active_only=active_only,
+                    department_id=department_id,
+                    site_id=site_id,
+                )
+            )
+        )
+
+    def list_employees_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+        department_id: str | None = None,
+        site_id: str | None = None,
+    ) -> DesktopApiResult[EmployeePageDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_employee_page(
+                self._employee_service.list_employees_page_for_organization(
+                    organization_id,
+                    page=page,
+                    page_size=page_size,
+                    search=search,
                     active_only=active_only,
                     department_id=department_id,
                     site_id=site_id,
@@ -100,6 +126,15 @@ class PlatformEmployeeDesktopApi:
                     expected_version=command.expected_version,
                 )
             )
+        )
+
+    def _serialize_employee_page(self, page) -> EmployeePageDto:
+        return EmployeePageDto(
+            items=tuple(self._serialize_employee(employee) for employee in page.items),
+            total=page.total,
+            filtered_total=page.filtered_total,
+            page=page.page,
+            page_size=page.page_size,
         )
 
     @staticmethod

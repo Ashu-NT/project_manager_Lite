@@ -23,6 +23,15 @@ class EmployeeDto:
 
 
 @dataclass(frozen=True)
+class EmployeePageDto:
+    items: tuple[EmployeeDto, ...] = ()
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
+@dataclass(frozen=True)
 class EmployeeCreateCommand:
     employee_code: str
     full_name: str

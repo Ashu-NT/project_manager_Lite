@@ -121,6 +121,32 @@ class PlatformEmployeeController(QObject):
     def employeesForSite(self, site_id: str) -> dict[str, object]:
         return serialize_action_list(self._presenter.build_catalog_for_site(site_id))
 
+    @Slot(str, int, int, str, str, result="QVariantMap")
+    def organizationEmployeesPage(
+        self,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+    ) -> dict[str, object]:
+        """Stateless query for Organization Detail's Employees tab -- unlike
+        `employees`/`refresh()` above (this controller's own shared,
+        session-active-organization-scoped catalog), every call here is
+        explicitly scoped to `organization_id`, regardless of which
+        organization is active in the caller's session. The Employees tab
+        owns its own page/pageSize/search/status state and calls this
+        directly; no pagination state is stored on this controller."""
+        return serialize_action_list(
+            self._presenter.build_catalog_page_for_organization(
+                organization_id,
+                page=page,
+                page_size=page_size,
+                search=search,
+                status=status,
+            )
+        )
+
     @Slot("QVariantMap", result=str)
     def generateCode(self, payload: dict[str, object]) -> str:
         try:

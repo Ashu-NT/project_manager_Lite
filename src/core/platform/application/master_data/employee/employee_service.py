@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -45,6 +45,19 @@ from src.core.shared.time.clock import Clock
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.domain.security.auth.session import UserSessionContext
+
+
+_DEFAULT_EMPLOYEE_PAGE_SIZE = 25
+EMPLOYEE_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
+
+
+@dataclass(frozen=True)
+class EmployeePage:
+    items: list[Employee] = field(default_factory=list)
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = _DEFAULT_EMPLOYEE_PAGE_SIZE
 
 
 class EmployeeService:
@@ -347,6 +360,71 @@ class EmployeeService:
             site_id=site_id,
         )
 
+    def list_employees_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = _DEFAULT_EMPLOYEE_PAGE_SIZE,
+        search: str = "",
+        active_only: bool | None = None,
+        department_id: str | None = None,
+        site_id: str | None = None,
+    ) -> EmployeePage:
+        """Tenant-scoped read for ANY organization in the caller's tenant --
+        unlike list_employees(), not limited to the session's active
+        organization. For Organization Detail's Employees tab, where an
+        admin may be viewing an organization they haven't switched into.
+
+        Read-only: never used by create/update/delete, which keep using
+        self._active_organization_id() (the existing, unchanged domain
+        rule). Never gates on the organization's own lifecycle status --
+        inactive and archived organizations' employee history remains
+        readable here. Mirrors list_employees()'s own permission check
+        (plain employee.read, no scope-row filtering -- Employee has none
+        today, unlike Site/Department).
+        """
+        require_permission(
+            self._user_session, "employee.read", operation_label="list employees for organization"
+        )
+        if self._tenant_context_service is None:
+            raise ValidationError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        if self._organization_repo is None:
+            raise RuntimeError("Organization repository is not configured.")
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="list employees for organization"
+        )
+        target_organization = self._organization_repo.get_for_tenant(organization_id, tenant_id)
+        if target_organization is None:
+            raise NotFoundError(
+                "Organization not found in the current tenant.",
+                code="ORGANIZATION_NOT_FOUND",
+            )
+        normalized_page = max(1, page)
+        normalized_page_size = (
+            page_size if page_size in EMPLOYEE_PAGE_SIZE_OPTIONS else _DEFAULT_EMPLOYEE_PAGE_SIZE
+        )
+        items, total, filtered_total = self._employee_repo.list_page_for_organization_in_tenant(
+            organization_id,
+            tenant_id,
+            page=normalized_page,
+            page_size=normalized_page_size,
+            search=search,
+            active_only=active_only,
+            department_id=department_id,
+            site_id=site_id,
+        )
+        return EmployeePage(
+            items=items,
+            total=total,
+            filtered_total=filtered_total,
+            page=normalized_page,
+            page_size=normalized_page_size,
+        )
+
     def get_headcount_summary(self) -> EmployeeHeadcountSummary:
         require_permission(
             self._user_session, "employee.read", operation_label="view employee headcount summary"
@@ -429,4 +507,4 @@ class EmployeeService:
         )
 
 
-__all__ = ["EmployeeService"]
+__all__ = ["EmployeeService", "EmployeePage", "EMPLOYEE_PAGE_SIZE_OPTIONS"]

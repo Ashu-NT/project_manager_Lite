@@ -24,6 +24,16 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
+# Employee lifecycle is a plain boolean (is_active) -- a 2-state
+# Active/Inactive model, structurally different from Organization's 3-state
+# ACTIVE/INACTIVE/ARCHIVED enum. Do not conflate the two tone maps.
+_EMPLOYEE_STATUS_TONE = {True: "success", False: "neutral"}
+
+
+def _employee_status_label(is_active: bool) -> dict[str, str]:
+    return {"label": "Active" if is_active else "Inactive", "tone": _EMPLOYEE_STATUS_TONE[is_active]}
+
+
 class PlatformEmployeeCatalogPresenter:
     def __init__(
         self,
@@ -106,6 +116,69 @@ class PlatformEmployeeCatalogPresenter:
             subtitle="Employees aligned to this site through the shared employee master.",
             empty_state="This site does not currently have employees assigned.",
             items=tuple(self._serialize_employee(row) for row in result.data),
+        )
+
+    def build_catalog_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        status: str = "",
+    ) -> PlatformWorkspaceActionListViewModel:
+        """Tenant-scoped (not active-organization-scoped) paginated
+        Employees page for Organization Detail's Employees tab -- works
+        regardless of which organization is currently active in the
+        caller's session."""
+        if self._employee_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Employees",
+                subtitle="Employees appear here once the platform employee API is connected.",
+                empty_state="Platform employee API is not connected in this QML preview.",
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        active_only: bool | None
+        if status == "active":
+            active_only = True
+        elif status == "inactive":
+            active_only = False
+        else:
+            active_only = None
+
+        result = self._employee_api.list_employees_page_for_organization(
+            organization_id,
+            page=page,
+            page_size=page_size,
+            search=search.strip(),
+            active_only=active_only,
+        )
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load employees."
+            return PlatformWorkspaceActionListViewModel(
+                title="Employees",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        employee_page = result.data
+        return PlatformWorkspaceActionListViewModel(
+            title="Employees",
+            subtitle="Workforce records for this organization.",
+            empty_state="No employees yet. Add the first employee for this organization.",
+            no_results_state="No employees match your current filters.",
+            items=tuple(self._serialize_employee(row) for row in employee_page.items),
+            paginated=True,
+            page=employee_page.page,
+            page_size=employee_page.page_size,
+            total_count=employee_page.total,
+            filtered_total=employee_page.filtered_total,
         )
 
     def build_site_options(self) -> tuple[dict[str, str], ...]:
@@ -218,7 +291,7 @@ class PlatformEmployeeCatalogPresenter:
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.full_name,
-            status_label="Active" if row.is_active else "Inactive",
+            status_label=_employee_status_label(row.is_active),
             subtitle=f"{row.employee_code} | {row.title or 'No title'}",
             supporting_text=f"{row.department or 'No department'} | {row.site_name or 'No site'}",
             meta_text=f"{row.employment_type.replace('_', ' ').title()} | {contact_label}",

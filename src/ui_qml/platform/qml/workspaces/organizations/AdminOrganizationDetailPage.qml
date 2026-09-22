@@ -38,6 +38,7 @@ Item {
         target: detailRoot.workspaceController
         function onSitesChanged() { detailRoot._refreshSites() }
         function onDepartmentsChanged() { detailRoot._refreshDepartments() }
+        function onEmployeesChanged() { detailRoot._refreshEmployees() }
     }
 
     readonly property var _orgState: (detailRoot.organization && detailRoot.organization.state)
@@ -233,11 +234,15 @@ Item {
         if (detailRoot._activeSectionLabel === "Departments") {
             detailRoot._refreshDepartments()
         }
+        if (detailRoot._activeSectionLabel === "Employees") {
+            detailRoot._refreshEmployees()
+        }
     }
     Component.onCompleted: {
         detailRoot._reloadDetailContext()
         detailRoot._refreshSites()
         detailRoot._refreshDepartments()
+        detailRoot._refreshEmployees()
     }
 
     readonly property var _statistics: detailRoot._detailContext.statistics || ({})
@@ -407,8 +412,68 @@ Item {
         return null
     }
 
-    readonly property var _orgEmployees: detailRoot.workspaceController
-        ? detailRoot._filteredByOrg(detailRoot.workspaceController.employees) : []
+    // -- Employees tab: same tenant-scoped + paginated pattern as Sites/
+    // Departments (EmployeeService.list_employees_page_for_organization) --
+    // works correctly regardless of which organization is active in the
+    // caller's session, and remains readable for inactive/archived
+    // organizations. Employee already denormalizes department/site NAMES
+    // onto itself (no extra lookup joins needed, unlike Department's
+    // site/parent-department name resolution).
+    property int _employeesPage: 1
+    property int _employeesPageSize: 25
+    property string _employeesSearch: ""
+    property string _employeesStatusFilter: ""
+    property var _employeesCatalog: ({
+        "title": "Employees", "subtitle": "", "emptyState": "", "items": [],
+        "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
+    })
+    property string _employeesSelectedRowId: ""
+    property bool _employeesDetailOpen: false
+    readonly property var _employeesStatusFilterOptions: [
+        { "value": "", "label": "All" },
+        { "value": "active", "label": "Active" },
+        { "value": "inactive", "label": "Inactive" }
+    ]
+    readonly property var _employeesColumns: [
+        { "key": "title", "label": "Employee", "flex": 3, "minWidth": 160, "sortable": true, "required": true, "visible": true },
+        { "key": "employeeCode", "label": "Code", "flex": 1, "minWidth": 110, "visible": true },
+        { "key": "departmentName", "label": "Department", "flex": 2, "minWidth": 150, "visible": true },
+        { "key": "siteName", "label": "Site", "flex": 2, "minWidth": 150, "visible": true },
+        { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 90, "type": "status", "required": true, "visible": true },
+        { "key": "employmentType", "label": "Employment Type", "flex": 1, "minWidth": 140, "visible": false },
+        { "key": "email", "label": "Email", "flex": 1, "minWidth": 160, "visible": false }
+    ]
+    // Only your own currently-active organization can receive new
+    // employees today (EmployeeService.create_employee() -- an existing,
+    // unchanged domain rule; this read-only phase does not add an
+    // explicit-organization create path). Viewing another organization's
+    // employees stays fully supported; creating into it from here does not.
+    readonly property bool _canCreateEmployee: detailRoot.canWrite && detailRoot._isViewingActiveOrganization
+
+    function _refreshEmployees() {
+        if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) return
+        detailRoot._employeesCatalog = detailRoot.workspaceController.organizationEmployeesPage(
+            detailRoot._orgId, detailRoot._employeesPage, detailRoot._employeesPageSize,
+            detailRoot._employeesSearch, detailRoot._employeesStatusFilter
+        )
+    }
+    function _openEmployeeDetail(employeeId) {
+        detailRoot._employeesSelectedRowId = employeeId
+        detailRoot._employeesDetailOpen = true
+    }
+    function _closeEmployeeDetail() {
+        detailRoot._employeesDetailOpen = false
+    }
+    readonly property var _selectedEmployee: {
+        const id = detailRoot._employeesSelectedRowId
+        if (!id) return null
+        const items = detailRoot._employeesCatalog.items || []
+        for (let i = 0; i < items.length; i += 1) {
+            if (String(items[i].id) === String(id)) return items[i]
+        }
+        return null
+    }
+
     readonly property var _orgDocuments: detailRoot.workspaceController
         ? detailRoot._filteredByOrg(detailRoot.workspaceController.documents) : []
 
@@ -457,15 +522,17 @@ Item {
         AppWidgets.ContextualActionToolbar {
             id: _sectionToolbar
             detailPagePinned: true
-            // Sites/Departments already have their own full header (title +
-            // count) and toolbar (search/filter/Columns/Refresh/+New) via
-            // AdminEntityWorkspace below -- showing this generic per-
-            // section toolbar too would duplicate both the heading and the
-            // Refresh button. `visible: false` alone leaves a blank gap:
-            // the sticky header area sizes itself from `childrenRect`,
+            // Sites/Departments/Employees already have their own full header
+            // (title + count) and toolbar (search/filter/Columns/Refresh/
+            // +New) via AdminEntityWorkspace below -- showing this generic
+            // per-section toolbar too would duplicate both the heading and
+            // the Refresh button. `visible: false` alone leaves a blank
+            // gap: the sticky header area sizes itself from `childrenRect`,
             // which (unlike a Column's own layout pass) does NOT exclude
             // invisible children -- the height must be collapsed explicitly.
-            visible: detailRoot._activeSectionLabel !== "Sites" && detailRoot._activeSectionLabel !== "Departments"
+            visible: detailRoot._activeSectionLabel !== "Sites"
+                && detailRoot._activeSectionLabel !== "Departments"
+                && detailRoot._activeSectionLabel !== "Employees"
             height: visible ? implicitHeight : 0
             width: parent ? parent.width : detailRoot.width
             title: detailRoot._activeSectionLabel
@@ -707,9 +774,15 @@ Item {
             }
         }
 
+        // -- Employees: same tenant-scoped, paginated Organization-Detail-
+        // owned query pattern as Sites/Departments above. Row activation
+        // opens the same AdminEmployeeDetailPage the standalone Employees
+        // workspace uses. --------------------------------------------------
         Item {
             width: parent ? parent.width : detailRoot.width
-            implicitHeight: detailRoot.activeSectionIndex === 3 ? employeesLoader.implicitHeight : 0
+            implicitHeight: detailRoot.activeSectionIndex === 3
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -721,13 +794,72 @@ Item {
                 active: detailRoot.activeSectionIndex === 3
                 keepLoaded: true
                 loadingMessage: "Loading employees..."
-                fallbackLoadingHeight: 320
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
-                    OrgSections.OrganizationSimpleListSection {
-                        width: parent ? parent.width : 0
-                        columns: detailRoot._simpleColumns
-                        rows: detailRoot._orgEmployees
-                        emptyText: "No employees recorded for this organization yet."
+                    OrgSections.OrganizationEmployeesSection {
+                        platformCatalog: detailRoot.platformCatalog
+                        workspaceController: detailRoot.workspaceController
+                        canWrite: detailRoot.canWrite
+                        busy: detailRoot.busy
+                        errorMessage: detailRoot.errorMessage
+                        feedbackMessage: detailRoot.feedbackMessage
+                        viewportHeight: Math.max(420, detailPage.contentViewportHeight)
+
+                        catalog: detailRoot._employeesCatalog
+                        columns: detailRoot._employeesColumns
+                        canCreate: detailRoot._canCreateEmployee
+                        selectedRowId: detailRoot._employeesSelectedRowId
+                        searchText: detailRoot._employeesSearch
+                        statusFilterOptions: detailRoot._employeesStatusFilterOptions
+                        statusFilter: detailRoot._employeesStatusFilter
+                        detailOpen: detailRoot._employeesDetailOpen
+                        selectedEmployee: detailRoot._selectedEmployee
+
+                        onCreateRequested: detailRoot.actionRequested("create_employee")
+                        onRowSelected: function(id) { detailRoot._employeesSelectedRowId = id }
+                        onRowActivated: function(id) { detailRoot._openEmployeeDetail(id) }
+                        onRefreshRequested: detailRoot._refreshEmployees()
+                        onSearchChanged: function(text) {
+                            detailRoot._employeesSearch = text
+                            detailRoot._employeesPage = 1
+                            detailRoot._refreshEmployees()
+                        }
+                        onPageRequested: function(page) {
+                            detailRoot._employeesPage = page
+                            detailRoot._refreshEmployees()
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            detailRoot._employeesPageSize = pageSize
+                            detailRoot._employeesPage = 1
+                            detailRoot._refreshEmployees()
+                        }
+                        onClearFiltersRequested: {
+                            detailRoot._employeesSearch = ""
+                            detailRoot._employeesStatusFilter = ""
+                            detailRoot._employeesPage = 1
+                            detailRoot._refreshEmployees()
+                        }
+                        onStatusFilterRequested: function(value) {
+                            detailRoot._employeesStatusFilter = value
+                            detailRoot._employeesPage = 1
+                            detailRoot._refreshEmployees()
+                        }
+                        onDetailBackRequested: detailRoot._closeEmployeeDetail()
+                        onDetailActionRequested: function(actionId) {
+                            // Only the employee's own lifecycle/refresh are
+                            // wired here -- cross-links to User Account/
+                            // Assignments/Calendar/Documents/Audit from
+                            // within a nested Employee Detail are not yet
+                            // re-routed to this organization's own scoped
+                            // tabs (see the routing-correction phase).
+                            if (actionId === "toggle_active") {
+                                if (detailRoot.workspaceController && detailRoot._employeesSelectedRowId) {
+                                    detailRoot.workspaceController.toggleEmployeeActive(detailRoot._employeesSelectedRowId)
+                                }
+                            } else if (actionId === "refresh") {
+                                detailRoot._refreshEmployees()
+                            }
+                        }
                     }
                 }
             }
