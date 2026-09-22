@@ -398,3 +398,46 @@ def test_project_calendar_adapter_add_working_days(
     # Starting Monday 2026-06-01, add 5 working days → Friday 2026-06-05
     result = adapter.add_working_days("proj-x", date(2026, 6, 1), 5)
     assert result == date(2026, 6, 5)
+
+
+def test_project_calendar_adapter_fails_fast_with_no_calendar_chain(
+    assignment_service, resolver, monkeypatch
+):
+    """A project with NO calendar assignment anywhere in its hierarchy (no
+    project/site/department/global calendar at all -- note: no global_cal
+    fixture here) previously made add_working_days/next_working_day walk
+    day-by-day, re-running full calendar resolution (DB-backed chain/
+    exception/recurring-event lookups) for every day, up to max_iter (as
+    far as ~40 years for a large `n`) before giving up -- real, observed
+    production impact: hundreds of resolver calls (and log lines) for one
+    add_working_days call, and a nonsensical decades-old/future date
+    silently returned as the "computed" result. It must now detect the
+    missing chain ONCE and return immediately."""
+    adapter = ProjectCalendarAdapter(
+        resolver=resolver,
+        assignment_service=assignment_service,
+    )
+    calls = {"count": 0}
+    original = resolver.resolve_calendar_context
+
+    def counting_resolve(*args, **kwargs):
+        calls["count"] += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(resolver, "resolve_calendar_context", counting_resolve)
+
+    start = date(2026, 6, 1)
+    result = adapter.add_working_days("proj-with-no-calendar-at-all", start, 500)
+
+    assert result == start, (
+        "with no calendar chain at all, add_working_days must return the "
+        "start date unchanged rather than walking arbitrarily far away"
+    )
+    assert calls["count"] == 0, (
+        "the fast-fail check must avoid ever calling full calendar "
+        "resolution when the chain is empty from the start"
+    )
+
+    next_day = adapter.next_working_day("proj-with-no-calendar-at-all", start)
+    assert next_day == start
+    assert calls["count"] == 0

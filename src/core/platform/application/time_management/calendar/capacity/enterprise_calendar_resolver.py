@@ -130,6 +130,7 @@ class EnterpriseCalendarResolver:
         self._shift_pattern_days_cache: dict[str, list] = {}  # pattern_id → ShiftPatternDay list
 
         self._missing_rule_warning_keys: set[tuple[tuple[str, ...], int]] = set()
+        self._missing_chain_warning_keys: set[tuple[str | None, ...]] = set()
 
     def invalidate_cache(self) -> None:
         """Clear the in-process caches. Call after calendar data is mutated."""
@@ -144,6 +145,7 @@ class EnterpriseCalendarResolver:
         self._shift_pattern_cache.clear()
         self._shift_pattern_days_cache.clear()
         self._missing_rule_warning_keys.clear()
+        self._missing_chain_warning_keys.clear()
 
     # ------------------------------------------------------------------
     # Public API
@@ -215,12 +217,14 @@ class EnterpriseCalendarResolver:
                 duration_ms,
             )
         if not chain:
-            logger.warning(
-                "Calendar context resolved without source chain organization_id=%s target_date=%s project_id=%s resource_id=%s",
-                self._org_id,
-                target_date,
-                project_id or "-",
-                resource_id or "-",
+            self._warn_missing_chain_once(
+                site_id=site_id,
+                department_id=department_id,
+                employee_id=employee_id,
+                project_id=project_id,
+                resource_id=resource_id,
+                worker_type=worker_type,
+                target_date=target_date,
             )
         return result
 
@@ -576,6 +580,35 @@ class EnterpriseCalendarResolver:
             target_date,
             weekday,
             [label for label, _calendar_id in chain],
+        )
+
+    def _warn_missing_chain_once(
+        self,
+        *,
+        site_id: str | None,
+        department_id: str | None,
+        employee_id: str | None,
+        project_id: str | None,
+        resource_id: str | None,
+        worker_type: str | None,
+        target_date: date,
+    ) -> None:
+        # A missing chain is a property of the SCOPE (this project/resource/
+        # site/... has no calendar assignment anywhere in its hierarchy), not
+        # of any one date -- a caller walking many dates for the same scope
+        # (e.g. add_working_days searching backward/forward) would otherwise
+        # log this once per day, flooding the log for what is a single
+        # configuration gap.
+        key = (site_id, department_id, employee_id, project_id, resource_id, worker_type)
+        if key in self._missing_chain_warning_keys:
+            return
+        self._missing_chain_warning_keys.add(key)
+        logger.warning(
+            "Calendar context resolved without source chain organization_id=%s target_date=%s project_id=%s resource_id=%s",
+            self._org_id,
+            target_date,
+            project_id or "-",
+            resource_id or "-",
         )
 
     def _resolve_timezone(self, chain: list[tuple[str, str]]) -> str:

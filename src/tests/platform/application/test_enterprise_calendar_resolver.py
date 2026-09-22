@@ -238,6 +238,46 @@ def test_resolver_returns_unavailable_with_no_global_calendar(resolver):
     assert ctx.source_chain == []
 
 
+def test_resolver_warns_once_per_scope_not_once_per_date(resolver, caplog):
+    """A day-by-day caller (e.g. ProjectCalendarAdapter.add_working_days
+    walking backward/forward searching for a working day) can call
+    resolve_calendar_context hundreds of times for the SAME missing-chain
+    project/resource -- this must log the "no source chain" warning once
+    per distinct scope, not once per date, or a single call floods the log
+    with one line per day (observed: hundreds of lines for one real
+    add_working_days call on a project with no calendar configured)."""
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        for day in range(1, 15):
+            resolver.resolve_calendar_context(
+                project_id="proj-without-a-calendar",
+                target_date=date(2026, 1, day),
+            )
+
+    no_chain_records = [
+        r for r in caplog.records
+        if "resolved without source chain" in r.message
+    ]
+    assert len(no_chain_records) == 1, (
+        f"expected exactly one dedup'd warning for 14 calls on the same "
+        f"scope, got {len(no_chain_records)}"
+    )
+
+    # A DIFFERENT scope must still get its own warning -- dedup is per-scope,
+    # not global.
+    with caplog.at_level(logging.WARNING):
+        resolver.resolve_calendar_context(
+            project_id="a-different-project-without-a-calendar",
+            target_date=date(2026, 1, 1),
+        )
+    no_chain_records = [
+        r for r in caplog.records
+        if "resolved without source chain" in r.message
+    ]
+    assert len(no_chain_records) == 2
+
+
 def test_resolver_source_chain_global(resolver, repos, global_cal, rule_service, org_id):
     rule_service.seed_standard_week(
         global_cal.id,
