@@ -97,7 +97,7 @@ class OrganizationSwitcherController(PlatformWorkspaceControllerBase):
                 "id": vm.id,
                 "displayName": vm.display_name,
                 "organizationCode": vm.organization_code,
-                "isEnabled": vm.is_enabled,
+                "status": vm.status,
             }
             for vm in self._presenter.build_organization_list()
         ]

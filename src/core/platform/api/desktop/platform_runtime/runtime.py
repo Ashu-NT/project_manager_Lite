@@ -49,13 +49,13 @@ class PlatformRuntimeDesktopApi:
     def list_organizations(
         self,
         *,
-        enabled_only: bool | None = None,
+        status: str | None = None,
     ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         return self._execute(
             lambda: tuple(
                 self._serialize_organization(row)
                 for row in self._platform_runtime_application_service.list_organizations(
-                    enabled_only=enabled_only
+                    status=status
                 )
             )
         )
@@ -66,11 +66,11 @@ class PlatformRuntimeDesktopApi:
         page: int = 1,
         page_size: int = 25,
         search: str | None = None,
-        enabled_only: bool | None = None,
+        status: str | None = None,
     ) -> DesktopApiResult[OrganizationCatalogPageDto]:
         return self._execute(
             lambda: self._build_organizations_page(
-                page=page, page_size=page_size, search=search, enabled_only=enabled_only
+                page=page, page_size=page_size, search=search, status=status
             )
         )
 
@@ -211,7 +211,6 @@ class PlatformRuntimeDesktopApi:
                     display_name=command.display_name,
                     timezone_name=command.timezone_name,
                     base_currency=command.base_currency,
-                    is_enabled=command.is_enabled,
                     initial_module_codes=command.initial_module_codes,
                     legal_name=command.legal_name,
                     registration_number=command.registration_number,
@@ -241,7 +240,6 @@ class PlatformRuntimeDesktopApi:
                     display_name=command.display_name,
                     timezone_name=command.timezone_name,
                     base_currency=command.base_currency,
-                    is_enabled=command.is_enabled,
                     expected_version=command.expected_version,
                     legal_name=command.legal_name,
                     registration_number=command.registration_number,
@@ -259,28 +257,59 @@ class PlatformRuntimeDesktopApi:
             )
         )
 
-    def enable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+    def activate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
             lambda: self._serialize_organization(
-                self._platform_runtime_application_service.enable_organization(organization_id)
+                self._platform_runtime_application_service.activate_organization(organization_id)
             )
         )
 
-    def disable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+    def deactivate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
             lambda: self._serialize_organization(
-                self._platform_runtime_application_service.disable_organization(organization_id)
+                self._platform_runtime_application_service.deactivate_organization(organization_id)
             )
         )
 
-    def bulk_set_organization_enabled(
-        self, organization_ids: tuple[str, ...], *, is_enabled: bool
+    def archive_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        return self._execute(
+            lambda: self._serialize_organization(
+                self._platform_runtime_application_service.archive_organization(organization_id)
+            )
+        )
+
+    def bulk_activate_organizations(
+        self, organization_ids: tuple[str, ...]
     ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         return self._execute(
             lambda: tuple(
                 self._serialize_organization(row)
-                for row in self._platform_runtime_application_service.bulk_set_organization_enabled(
-                    organization_ids, is_enabled=is_enabled
+                for row in self._platform_runtime_application_service.bulk_activate_organizations(
+                    organization_ids
+                )
+            )
+        )
+
+    def bulk_deactivate_organizations(
+        self, organization_ids: tuple[str, ...]
+    ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return self._execute(
+            lambda: tuple(
+                self._serialize_organization(row)
+                for row in self._platform_runtime_application_service.bulk_deactivate_organizations(
+                    organization_ids
+                )
+            )
+        )
+
+    def bulk_archive_organizations(
+        self, organization_ids: tuple[str, ...]
+    ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return self._execute(
+            lambda: tuple(
+                self._serialize_organization(row)
+                for row in self._platform_runtime_application_service.bulk_archive_organizations(
+                    organization_ids
                 )
             )
         )
@@ -315,10 +344,10 @@ class PlatformRuntimeDesktopApi:
         page: int,
         page_size: int,
         search: str | None,
-        enabled_only: bool | None,
+        status: str | None,
     ) -> OrganizationCatalogPageDto:
         organization_page = self._platform_runtime_application_service.list_organizations_page(
-            page=page, page_size=page_size, search=search, enabled_only=enabled_only
+            page=page, page_size=page_size, search=search, status=status
         )
         return OrganizationCatalogPageDto(
             items=tuple(self._serialize_organization(row) for row in organization_page.items),
@@ -438,7 +467,7 @@ class PlatformRuntimeDesktopApi:
             display_name=organization.display_name,
             timezone_name=organization.timezone_name,
             base_currency=organization.base_currency,
-            is_enabled=organization.is_enabled,
+            status=organization.status,
             version=organization.version,
             legal_name=organization.legal_name,
             registration_number=organization.registration_number,

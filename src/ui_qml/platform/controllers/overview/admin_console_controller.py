@@ -87,13 +87,14 @@ from src.ui_qml.platform.controllers.organizations.organization_controller impor
     PlatformOrganizationController,
 )
 from src.ui_qml.platform.controllers.organizations.actions import (
+    activate_organization,
     apply_bulk_organization_currency,
     apply_bulk_organization_modules,
     apply_bulk_organization_status,
     apply_bulk_organization_timezone,
+    archive_organization,
     create_organization,
-    disable_organization,
-    enable_organization,
+    deactivate_organization,
     update_organization,
 )
 from src.ui_qml.platform.controllers.parties.party_controller import (
@@ -379,12 +380,16 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         return update_organization(self, payload)
 
     @Slot(str, result="QVariantMap")
-    def enableOrganization(self, organization_id: str) -> dict[str, object]:
-        return enable_organization(self, organization_id)
+    def activateOrganization(self, organization_id: str) -> dict[str, object]:
+        return activate_organization(self, organization_id)
 
     @Slot(str, result="QVariantMap")
-    def disableOrganization(self, organization_id: str) -> dict[str, object]:
-        return disable_organization(self, organization_id)
+    def deactivateOrganization(self, organization_id: str) -> dict[str, object]:
+        return deactivate_organization(self, organization_id)
+
+    @Slot(str, result="QVariantMap")
+    def archiveOrganization(self, organization_id: str) -> dict[str, object]:
+        return archive_organization(self, organization_id)
 
     @Slot(str, bool)
     def setOrganizationBulkSelection(self, organization_id: str, selected: bool) -> None:

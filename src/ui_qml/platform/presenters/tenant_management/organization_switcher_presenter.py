@@ -43,7 +43,7 @@ class OrganizationSwitcherPresenter:
             id=o.id,
             display_name=o.display_name,
             organization_code=o.organization_code,
-            is_enabled=o.is_enabled,
+            status=o.status,
         )
 
 

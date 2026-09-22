@@ -36,6 +36,7 @@ from src.core.platform.domain.security.identity.service_principal import (
     ServicePrincipal,
 )
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
+from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,
@@ -344,7 +345,7 @@ class ServicePrincipalService:
             principal_record.organization_id,
             principal_record.tenant_id,
         )
-        if organization is None or not organization.is_enabled:
+        if organization is None or organization.status != ORGANIZATION_STATUS_ACTIVE:
             raise ValidationError("Organization is inactive.", code="ORGANIZATION_INACTIVE")
         user = self._user_repo.get(principal_record.user_id)
         if (

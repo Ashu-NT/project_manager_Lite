@@ -114,7 +114,7 @@ Rectangle {
                 required property var modelData
 
                 readonly property bool _isCurrent: root._activeId === _item.modelData.id
-                readonly property bool _canSwitch: _item.modelData.isEnabled === true
+                readonly property bool _canSwitch: _item.modelData.status === "active"
 
                 text: _item.modelData.displayName || _item.modelData.organizationCode || ""
                 enabled: _item._canSwitch && !_item._isCurrent

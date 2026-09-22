@@ -11,9 +11,12 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.domain.master_data.org import (
+    ORGANIZATION_STATUS_ACTIVE,
+    ORGANIZATION_STATUS_ARCHIVED,
+)
 from src.core.shared.reference_data import country_name_for_code
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
-    bool_value,
     int_value,
     option_item,
     preview_error_result,
@@ -177,7 +180,7 @@ class PlatformOrganizationCatalogPresenter:
 
         existing: set[str] = set()
         if self._runtime_api is not None:
-            result = self._runtime_api.list_organizations(enabled_only=None)
+            result = self._runtime_api.list_organizations(status=None)
             if result.ok and result.data is not None:
                 existing = {str(row.organization_code or "").upper() for row in result.data}
         name = string_value(payload, "displayName")
@@ -197,7 +200,6 @@ class PlatformOrganizationCatalogPresenter:
                 display_name=string_value(payload, "displayName"),
                 timezone_name=string_value(payload, "timezoneName", default="UTC"),
                 base_currency=string_value(payload, "baseCurrency", default="USD").upper(),
-                is_enabled=bool_value(payload, "isEnabled", default=True),
                 initial_module_codes=tuple_of_strings(payload, "initialModuleCodes"),
                 legal_name=string_value(payload, "legalName"),
                 registration_number=string_value(payload, "registrationNumber"),
@@ -224,7 +226,6 @@ class PlatformOrganizationCatalogPresenter:
                 display_name=string_value(payload, "displayName"),
                 timezone_name=string_value(payload, "timezoneName", default="UTC"),
                 base_currency=string_value(payload, "baseCurrency", default="USD").upper(),
-                is_enabled=bool_value(payload, "isEnabled", default=True),
                 expected_version=int_value(payload, "expectedVersion"),
                 legal_name=string_value(payload, "legalName"),
                 registration_number=string_value(payload, "registrationNumber"),
@@ -241,15 +242,20 @@ class PlatformOrganizationCatalogPresenter:
             )
         )
 
-    def enable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+    def activate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         if self._runtime_api is None:
             return preview_error_result("Platform runtime API is not connected in this QML preview.")
-        return self._runtime_api.enable_organization(organization_id)
+        return self._runtime_api.activate_organization(organization_id)
 
-    def disable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+    def deactivate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         if self._runtime_api is None:
             return preview_error_result("Platform runtime API is not connected in this QML preview.")
-        return self._runtime_api.disable_organization(organization_id)
+        return self._runtime_api.deactivate_organization(organization_id)
+
+    def archive_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        if self._runtime_api is None:
+            return preview_error_result("Platform runtime API is not connected in this QML preview.")
+        return self._runtime_api.archive_organization(organization_id)
 
     def update_organization_currency(
         self, organization_id: str, base_currency: str
@@ -294,11 +300,16 @@ class PlatformOrganizationCatalogPresenter:
 
 
     def bulk_set_organization_status(
-        self, organization_ids: Sequence[str], *, is_enabled: bool
+        self, organization_ids: Sequence[str], *, status: str
     ) -> DesktopApiResult[Any]:
         if self._runtime_api is None:
             return preview_error_result("Platform runtime API is not connected in this QML preview.")
-        return self._runtime_api.bulk_set_organization_enabled(tuple(organization_ids), is_enabled=is_enabled)
+        ids = tuple(organization_ids)
+        if status == ORGANIZATION_STATUS_ACTIVE:
+            return self._runtime_api.bulk_activate_organizations(ids)
+        if status == ORGANIZATION_STATUS_ARCHIVED:
+            return self._runtime_api.bulk_archive_organizations(ids)
+        return self._runtime_api.bulk_deactivate_organizations(ids)
 
     def bulk_update_organization_currency(
         self, organization_ids: Sequence[str], base_currency: str
@@ -329,12 +340,12 @@ class PlatformOrganizationCatalogPresenter:
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.display_name,
-            status_label="Enabled" if row.is_enabled else "Disabled",
+            status_label=row.status.capitalize(),
             subtitle=f"{row.organization_code} | {row.timezone_name}",
             supporting_text=f"Base currency: {row.base_currency}",
             meta_text=f"Version {row.version}",
             can_primary_action=True,
-            can_secondary_action=not row.is_enabled,
+            can_secondary_action=row.status != ORGANIZATION_STATUS_ACTIVE,
             state={
                 "id": row.id,
                 "organizationId": row.id,
@@ -342,7 +353,7 @@ class PlatformOrganizationCatalogPresenter:
                 "displayName": row.display_name,
                 "timezoneName": row.timezone_name,
                 "baseCurrency": row.base_currency,
-                "isEnabled": row.is_enabled,
+                "status": row.status,
                 "version": row.version,
                 "legalName": row.legal_name,
                 "registrationNumber": row.registration_number,

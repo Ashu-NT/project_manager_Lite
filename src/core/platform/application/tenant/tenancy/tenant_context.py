@@ -12,7 +12,11 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
 )
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
-from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.master_data.org import (
+    ORGANIZATION_STATUS_ACTIVE,
+    ORGANIZATION_STATUS_ARCHIVED,
+    Organization,
+)
 from src.core.platform.contract.repositories.tenant.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
 from src.core.platform.application.tenant.tenancy.context_policy import (
     LocalSingleTenantContextPolicy,
@@ -106,7 +110,7 @@ class TenantContextService:
     def initial_organization_id_for_tenant(self, tenant_id: str) -> str | None:
         organizations = self._organization_repo.list_for_tenant(
             tenant_id,
-            enabled_only=True,
+            status=ORGANIZATION_STATUS_ACTIVE,
         )
         return organizations[0].id if len(organizations) == 1 else None
 
@@ -252,7 +256,7 @@ class TenantContextService:
                 "Organization does not belong to the requested tenant.",
                 code="ORGANIZATION_TENANT_MISMATCH",
             )
-        if not getattr(organization, "is_enabled", True):
+        if getattr(organization, "status", ORGANIZATION_STATUS_ACTIVE) != ORGANIZATION_STATUS_ACTIVE:
             raise BusinessRuleError(
                 "Cannot restore an inactive organization.",
                 code="ORGANIZATION_INACTIVE",
@@ -277,7 +281,7 @@ class TenantContextService:
         if organization_id:
             organization = self._organization_repo.get(organization_id)
             if organization is not None and self._can_access(organization):
-                if getattr(organization, "is_enabled", True):
+                if getattr(organization, "status", ORGANIZATION_STATUS_ACTIVE) == ORGANIZATION_STATUS_ACTIVE:
                     return organization
                 return None
             if self._user_session is not None:
@@ -285,18 +289,20 @@ class TenantContextService:
         return None
 
     def list_accessible_organizations(self) -> list[Organization]:
-        """Enabled organizations in the active tenant that the current session may switch
-        into -- the exact same predicate `set_active_organization` itself enforces (`is_enabled`
-        + `_can_access`), computed without mutating context. Backs the Organization Switcher;
-        not a permission-gated administrative listing (mirrors `TenantAdminService
-        .list_accessible_tenants`, which any authenticated user may call for their own
-        memberships)."""
+        """Active organizations in the active tenant that the current session may switch
+        into -- the exact same predicate `set_active_organization` itself enforces (`status
+        == ACTIVE` + `_can_access`), computed without mutating context. Backs the
+        Organization Switcher; not a permission-gated administrative listing (mirrors
+        `TenantAdminService.list_accessible_tenants`, which any authenticated user may
+        call for their own memberships)."""
         tenant_id = self.get_active_tenant_id()
         if not tenant_id:
             return []
         return [
             organization
-            for organization in self._organization_repo.list_for_tenant(tenant_id, enabled_only=True)
+            for organization in self._organization_repo.list_for_tenant(
+                tenant_id, status=ORGANIZATION_STATUS_ACTIVE
+            )
             if self._can_access(organization)
         ]
 
@@ -329,7 +335,13 @@ class TenantContextService:
         organization = self._organization_repo.get(normalized_id)
         if organization is None:
             raise NotFoundError("Organization not found.", code="ORGANIZATION_NOT_FOUND")
-        if not getattr(organization, "is_enabled", True):
+        organization_status = getattr(organization, "status", ORGANIZATION_STATUS_ACTIVE)
+        if organization_status == ORGANIZATION_STATUS_ARCHIVED:
+            raise BusinessRuleError(
+                "Cannot switch to an archived organization.",
+                code="ORGANIZATION_ARCHIVED",
+            )
+        if organization_status != ORGANIZATION_STATUS_ACTIVE:
             raise BusinessRuleError(
                 "Cannot switch to an inactive organization.",
                 code="ORGANIZATION_INACTIVE",
@@ -416,7 +428,7 @@ class TenantContextService:
         )
         organizations = self._organization_repo.list_for_tenant(
             tenant.id,
-            enabled_only=True,
+            status=ORGANIZATION_STATUS_ACTIVE,
         )
         organization_id = organizations[0].id if len(organizations) == 1 else None
         if self._principal_rebuilder is None:

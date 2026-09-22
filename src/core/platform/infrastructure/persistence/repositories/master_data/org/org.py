@@ -34,7 +34,7 @@ class SqlAlchemyOrganizationRepository(OrganizationRepository):
                 "display_name": organization.display_name,
                 "timezone_name": organization.timezone_name,
                 "base_currency": organization.base_currency,
-                "is_enabled": organization.is_enabled,
+                "status": organization.status,
                 "legal_name": organization.legal_name,
                 "registration_number": organization.registration_number,
                 "tax_id": organization.tax_id,
@@ -79,17 +79,17 @@ class SqlAlchemyOrganizationRepository(OrganizationRepository):
         obj = self.session.execute(stmt).scalars().first()
         return organization_from_orm(obj) if obj else None
 
-    def list_all(self, *, enabled_only: bool | None = None) -> list[Organization]:
+    def list_all(self, *, status: str | None = None) -> list[Organization]:
         stmt = select(OrganizationORM)
-        if enabled_only is not None:
-            stmt = stmt.where(OrganizationORM.is_enabled == bool(enabled_only))
+        if status is not None:
+            stmt = stmt.where(OrganizationORM.status == status)
         rows = self.session.execute(stmt.order_by(OrganizationORM.display_name.asc())).scalars().all()
         return [organization_from_orm(row) for row in rows]
 
-    def list_for_tenant(self, tenant_id: str, *, enabled_only: bool | None = None) -> list[Organization]:
+    def list_for_tenant(self, tenant_id: str, *, status: str | None = None) -> list[Organization]:
         stmt = select(OrganizationORM).where(OrganizationORM.tenant_id == tenant_id)
-        if enabled_only is not None:
-            stmt = stmt.where(OrganizationORM.is_enabled == bool(enabled_only))
+        if status is not None:
+            stmt = stmt.where(OrganizationORM.status == status)
         rows = self.session.execute(stmt.order_by(OrganizationORM.display_name.asc())).scalars().all()
         return [organization_from_orm(row) for row in rows]
 
@@ -100,7 +100,7 @@ class SqlAlchemyOrganizationRepository(OrganizationRepository):
         page: int,
         page_size: int,
         search: str | None = None,
-        enabled_only: bool | None = None,
+        status: str | None = None,
     ) -> tuple[list[Organization], int, int]:
         total = self.session.execute(
             select(func.count())
@@ -114,8 +114,8 @@ class SqlAlchemyOrganizationRepository(OrganizationRepository):
             .select_from(OrganizationORM)
             .where(OrganizationORM.tenant_id == tenant_id)
         )
-        if enabled_only is not None:
-            condition = OrganizationORM.is_enabled == bool(enabled_only)
+        if status is not None:
+            condition = OrganizationORM.status == status
             filtered_stmt = filtered_stmt.where(condition)
             filtered_count_stmt = filtered_count_stmt.where(condition)
         normalized_search = (search or "").strip()

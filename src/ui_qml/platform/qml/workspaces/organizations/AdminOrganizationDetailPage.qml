@@ -37,7 +37,7 @@ Item {
     readonly property string _orgSubtitle: String(detailRoot.organization && detailRoot.organization.subtitle
         ? detailRoot.organization.subtitle
         : "")
-    readonly property bool _isEnabledOrganization: detailRoot._orgState.isEnabled === true
+    readonly property bool _isEnabledOrganization: detailRoot._orgState.status === "active"
     readonly property string _orgStatusTone: detailRoot._isEnabledOrganization ? "success" : "neutral"
 
     readonly property var _sections: [

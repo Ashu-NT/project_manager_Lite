@@ -31,10 +31,11 @@ class OrganizationProfileUpdated:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class OrganizationEnabled:
-    """`Organization.is_enabled` committed False -> True; never emitted for an already-enabled
-    organization. Not a session-selection event -- see `TenantContextService.
-    set_active_organization`, which is untouched by this vocabulary."""
+class OrganizationActivated:
+    """`Organization.status` committed INACTIVE -> ACTIVE; never emitted for an
+    already-active organization. Not a session-selection event -- see
+    `TenantContextService.set_active_organization`, which is untouched by
+    this vocabulary."""
 
     tenant_id: str
     organization_id: str
@@ -42,9 +43,20 @@ class OrganizationEnabled:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class OrganizationDisabled:
-    """`Organization.is_enabled` committed True -> False; never emitted for an already-disabled
-    organization. See `OrganizationEnabled`'s own note on session selection."""
+class OrganizationDeactivated:
+    """`Organization.status` committed ACTIVE -> INACTIVE; never emitted for an
+    already-inactive organization. See `OrganizationActivated`'s own note on
+    session selection."""
+
+    tenant_id: str
+    organization_id: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OrganizationArchived:
+    """`Organization.status` committed ACTIVE or INACTIVE -> ARCHIVED; never
+    emitted for an already-archived organization."""
 
     tenant_id: str
     organization_id: str
@@ -52,8 +64,9 @@ class OrganizationDisabled:
 
 
 __all__ = [
+    "OrganizationActivated",
+    "OrganizationArchived",
     "OrganizationCreated",
-    "OrganizationDisabled",
-    "OrganizationEnabled",
+    "OrganizationDeactivated",
     "OrganizationProfileUpdated",
 ]

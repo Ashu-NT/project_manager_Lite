@@ -169,10 +169,10 @@ class PlatformRuntimeApplicationService:
             module_snapshot=module_snapshot,
         )
 
-    def list_organizations(self, *, enabled_only: bool | None = None) -> list[Organization]:
+    def list_organizations(self, *, status: str | None = None) -> list[Organization]:
         if self._organization_service is None:
             return []
-        return self._organization_service.list_organizations(enabled_only=enabled_only)
+        return self._organization_service.list_organizations(status=status)
 
     def list_organizations_page(
         self,
@@ -180,12 +180,12 @@ class PlatformRuntimeApplicationService:
         page: int = 1,
         page_size: int = 25,
         search: str | None = None,
-        enabled_only: bool | None = None,
+        status: str | None = None,
     ) -> OrganizationPage:
         if self._organization_service is None:
             return OrganizationPage(page=page, page_size=page_size)
         return self._organization_service.list_organizations_page(
-            page=page, page_size=page_size, search=search, enabled_only=enabled_only
+            page=page, page_size=page_size, search=search, status=status
         )
 
     def get_organization_statistics(self, organization_id: str):
@@ -217,7 +217,6 @@ class PlatformRuntimeApplicationService:
         display_name: str,
         timezone_name: str,
         base_currency: str,
-        is_enabled: bool,
         legal_name: str = "",
         registration_number: str = "",
         tax_id: str = "",
@@ -238,7 +237,6 @@ class PlatformRuntimeApplicationService:
             display_name=display_name,
             timezone_name=timezone_name,
             base_currency=base_currency,
-            is_enabled=is_enabled,
             legal_name=legal_name,
             registration_number=registration_number,
             tax_id=tax_id,
@@ -261,7 +259,6 @@ class PlatformRuntimeApplicationService:
         display_name: str | None = None,
         timezone_name: str | None = None,
         base_currency: str | None = None,
-        is_enabled: bool | None = None,
         expected_version: int | None = None,
         legal_name: str | None = None,
         registration_number: str | None = None,
@@ -284,7 +281,6 @@ class PlatformRuntimeApplicationService:
             display_name=display_name,
             timezone_name=timezone_name,
             base_currency=base_currency,
-            is_enabled=is_enabled,
             expected_version=expected_version,
             legal_name=legal_name,
             registration_number=registration_number,
@@ -307,7 +303,6 @@ class PlatformRuntimeApplicationService:
         display_name: str,
         timezone_name: str,
         base_currency: str,
-        is_enabled: bool,
         initial_module_codes: list[str] | tuple[str, ...] | set[str] | None = None,
         legal_name: str = "",
         registration_number: str = "",
@@ -331,8 +326,7 @@ class PlatformRuntimeApplicationService:
         tenant_id = self._organization_service.require_current_tenant_id(
             operation_label="provision organization"
         )
-        if is_enabled:
-            self._require_settings_manage("set active organization context")
+        self._require_settings_manage("set active organization context")
 
         selected_module_codes = (
             set(initial_module_codes)
@@ -354,7 +348,6 @@ class PlatformRuntimeApplicationService:
                     display_name=display_name,
                     timezone_name=timezone_name,
                     base_currency=base_currency,
-                    is_enabled=is_enabled,
                     tenant_id=tenant_id,
                     legal_name=legal_name,
                     registration_number=registration_number,
@@ -390,32 +383,50 @@ class PlatformRuntimeApplicationService:
                 raise ValidationError(
                     "Organization code already exists.", code="ORGANIZATION_CODE_EXISTS"
                 ) from exc
-        if is_enabled:
-            if self._tenant_context_service is None:
-                raise RuntimeError("Tenant context service is not configured.")
-            self._tenant_context_service.set_active_organization(organization.id)
-            self._module_catalog_service.notify_module_entitlements_stale(organization.id)
+        if self._tenant_context_service is None:
+            raise RuntimeError("Tenant context service is not configured.")
+        self._tenant_context_service.set_active_organization(organization.id)
+        self._module_catalog_service.notify_module_entitlements_stale(organization.id)
         return organization
 
-    def enable_organization(self, organization_id: str) -> Organization:
-        # Availability mutation only -- never touches session/tenant context. Selecting this
+    def activate_organization(self, organization_id: str) -> Organization:
+        # Lifecycle mutation only -- never touches session/tenant context. Selecting this
         # organization as the acting user's working context is a separate action
         # (`TenantContextService.set_active_organization`).
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.enable_organization(organization_id)
+        return self._organization_service.activate_organization(organization_id)
 
-    def disable_organization(self, organization_id: str) -> Organization:
+    def deactivate_organization(self, organization_id: str) -> Organization:
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.disable_organization(organization_id)
+        return self._organization_service.deactivate_organization(organization_id)
 
-    def bulk_set_organization_enabled(
-        self, organization_ids: list[str] | tuple[str, ...], *, is_enabled: bool
+    def archive_organization(self, organization_id: str) -> Organization:
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is not configured.")
+        return self._organization_service.archive_organization(organization_id)
+
+    def bulk_activate_organizations(
+        self, organization_ids: list[str] | tuple[str, ...]
     ) -> list[Organization]:
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.bulk_set_organization_enabled(organization_ids, is_enabled=is_enabled)
+        return self._organization_service.bulk_activate_organizations(organization_ids)
+
+    def bulk_deactivate_organizations(
+        self, organization_ids: list[str] | tuple[str, ...]
+    ) -> list[Organization]:
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is not configured.")
+        return self._organization_service.bulk_deactivate_organizations(organization_ids)
+
+    def bulk_archive_organizations(
+        self, organization_ids: list[str] | tuple[str, ...]
+    ) -> list[Organization]:
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is not configured.")
+        return self._organization_service.bulk_archive_organizations(organization_ids)
 
     def bulk_update_organization_currency(
         self, organization_ids: list[str] | tuple[str, ...], base_currency: str

@@ -66,9 +66,10 @@ from src.core.platform.application.master_data.org.event_handlers.view_invalidat
     build_organization_profile_view_invalidation_handler,
 )
 from src.core.platform.domain.master_data.org.events import (
+    OrganizationActivated,
+    OrganizationArchived,
     OrganizationCreated,
-    OrganizationDisabled,
-    OrganizationEnabled,
+    OrganizationDeactivated,
     OrganizationProfileUpdated,
 )
 from src.core.platform.application.master_data.employee.event_handlers.view_invalidation import (
@@ -206,7 +207,7 @@ from src.core.platform.contract.repositories.master_data.org.contracts import Or
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
 )
-from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE, Organization
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
@@ -333,7 +334,7 @@ def _bootstrap_local_single_tenant_context(
 
     organizations = repositories.organization_repo.list_for_tenant(
         default_tenant.id,
-        enabled_only=True,
+        status=ORGANIZATION_STATUS_ACTIVE,
     )
     if not organizations:
         organizations = repositories.organization_repo.list_for_tenant(
@@ -479,8 +480,9 @@ def build_platform_service_bundle(
     )
     for _organization_profile_event_type in (
         OrganizationProfileUpdated,
-        OrganizationEnabled,
-        OrganizationDisabled,
+        OrganizationActivated,
+        OrganizationDeactivated,
+        OrganizationArchived,
     ):
         platform_post_commit_bus.subscribe(
             _organization_profile_event_type, _organization_profile_view_invalidation_handler

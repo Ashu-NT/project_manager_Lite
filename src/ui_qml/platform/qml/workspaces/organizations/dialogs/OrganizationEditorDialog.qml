@@ -57,7 +57,6 @@ AppWidgets.EntityDialog {
         displayName: displayNameField.text.trim(),
         timezoneName: _currentValue(timezoneModel, timezoneCombo),
         baseCurrency: _currentValue(currencyModel, currencyCombo).toUpperCase(),
-        isEnabled: enabledCheck.checked,
         initialModuleCodes: _selectedModuleCodes(),
         legalName: legalNameField.text.trim(),
         registrationNumber: registrationNumberField.text.trim(),
@@ -100,7 +99,6 @@ AppWidgets.EntityDialog {
     function _loadDraft() {
         root.organizationCode = root.draft.organizationCode || ""
         displayNameField.text = root.draft.displayName || ""
-        enabledCheck.checked = root.draft.isEnabled !== undefined ? root.draft.isEnabled : true
         legalNameField.text = root.draft.legalName || ""
         registrationNumberField.text = root.draft.registrationNumber || ""
         taxIdField.text = root.draft.taxId || ""
@@ -257,12 +255,6 @@ AppWidgets.EntityDialog {
                 model: currencyModel
                 textRole: "label"
             }
-        }
-
-        AppControls.CheckBox {
-            Layout.columnSpan: formGrid.columns
-            id: enabledCheck
-            text: "Enabled"
         }
 
         // ── LEGAL ────────────────────────────────────────────────────────

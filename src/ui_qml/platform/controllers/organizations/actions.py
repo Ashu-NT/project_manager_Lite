@@ -21,20 +21,30 @@ def update_organization(controller, payload: dict) -> dict[str, object]:
     )
 
 
-def enable_organization(controller, organization_id: str) -> dict[str, object]:
+def activate_organization(controller, organization_id: str) -> dict[str, object]:
     return run_admin_action(
         controller,
-        action=lambda: controller._organization_controller.enableOrganization(
+        action=lambda: controller._organization_controller.activateOrganization(
             organization_id
         ),
         on_success=lambda: refresh_after_organization_change(controller),
     )
 
 
-def disable_organization(controller, organization_id: str) -> dict[str, object]:
+def deactivate_organization(controller, organization_id: str) -> dict[str, object]:
     return run_admin_action(
         controller,
-        action=lambda: controller._organization_controller.disableOrganization(
+        action=lambda: controller._organization_controller.deactivateOrganization(
+            organization_id
+        ),
+        on_success=lambda: refresh_after_organization_change(controller),
+    )
+
+
+def archive_organization(controller, organization_id: str) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._organization_controller.archiveOrganization(
             organization_id
         ),
         on_success=lambda: refresh_after_organization_change(controller),
@@ -74,12 +84,13 @@ def apply_bulk_organization_modules(controller, payload: dict) -> dict[str, obje
 
 
 __all__ = [
+    "activate_organization",
     "apply_bulk_organization_currency",
     "apply_bulk_organization_modules",
     "apply_bulk_organization_status",
     "apply_bulk_organization_timezone",
+    "archive_organization",
     "create_organization",
-    "disable_organization",
-    "enable_organization",
+    "deactivate_organization",
     "update_organization",
 ]

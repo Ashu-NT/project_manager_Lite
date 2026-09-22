@@ -12,7 +12,7 @@ class OrganizationSwitcherItemViewModel:
     id: str
     display_name: str
     organization_code: str
-    is_enabled: bool
+    status: str
 
 
 class OrganizationSwitcherPresenter:
@@ -60,7 +60,7 @@ class OrganizationSwitcherPresenter:
             id=o.id,
             display_name=o.display_name,
             organization_code=o.organization_code,
-            is_enabled=o.is_enabled,
+            status=o.status,
         )
 
 

@@ -17,6 +17,27 @@ from src.core.platform.domain.master_data.org.support import (
 )
 from src.core.platform.finance.money.currency import CurrencyCode
 
+ORGANIZATION_STATUS_ACTIVE = "active"
+ORGANIZATION_STATUS_INACTIVE = "inactive"
+ORGANIZATION_STATUS_ARCHIVED = "archived"
+
+VALID_ORGANIZATION_STATUSES: frozenset[str] = frozenset({
+    ORGANIZATION_STATUS_ACTIVE,
+    ORGANIZATION_STATUS_INACTIVE,
+    ORGANIZATION_STATUS_ARCHIVED,
+})
+
+
+def normalize_organization_status(value: object) -> str:
+    normalized = str(value or "").strip().lower() or ORGANIZATION_STATUS_ACTIVE
+    if normalized not in VALID_ORGANIZATION_STATUSES:
+        raise ValidationError(
+            "Organization status is invalid.",
+            code="ORGANIZATION_STATUS_INVALID",
+        )
+    return normalized
+
+
 _OPTIONAL_TEXT_FIELDS = (
     "legal_name",
     "registration_number",
@@ -37,7 +58,7 @@ class Organization:
     display_name: str
     timezone_name: str = "UTC"
     base_currency: str = "EUR"
-    is_enabled: bool = True
+    status: str = ORGANIZATION_STATUS_ACTIVE
     version: int = 1
     tenant_id: str | None = None
     # Legal identity
@@ -101,6 +122,11 @@ class Organization:
             ) from exc
         return currency.code
 
+    @field_validator("status", mode="before")
+    @classmethod
+    def _validate_status(cls, value: object) -> str:
+        return normalize_organization_status(value)
+
     @field_validator("tenant_id", mode="before")
     @classmethod
     def _normalize_tenant_id(cls, value: object) -> str | None:
@@ -143,7 +169,6 @@ class Organization:
         display_name: str,
         timezone_name: str = "UTC",
         base_currency: str = "EUR",
-        is_enabled: bool = True,
         tenant_id: str | None = None,
         legal_name: str = "",
         registration_number: str = "",
@@ -158,13 +183,17 @@ class Organization:
         phone: str = "",
         website: str = "",
     ) -> "Organization":
+        # New organizations always start ACTIVE -- there is no onboarding
+        # workflow that needs a different starting state, and lifecycle
+        # transitions after creation go through the dedicated activate/
+        # deactivate/archive operations, never a create-time parameter.
         return Organization(
             id=generate_id(),
             organization_code=organization_code,
             display_name=display_name,
             timezone_name=timezone_name,
             base_currency=base_currency,
-            is_enabled=is_enabled,
+            status=ORGANIZATION_STATUS_ACTIVE,
             version=1,
             tenant_id=tenant_id,
             legal_name=legal_name,
@@ -182,4 +211,11 @@ class Organization:
         )
 
 
-__all__ = ["Organization"]
+__all__ = [
+    "ORGANIZATION_STATUS_ACTIVE",
+    "ORGANIZATION_STATUS_ARCHIVED",
+    "ORGANIZATION_STATUS_INACTIVE",
+    "VALID_ORGANIZATION_STATUSES",
+    "Organization",
+    "normalize_organization_status",
+]

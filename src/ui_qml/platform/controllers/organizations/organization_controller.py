@@ -218,13 +218,13 @@ class PlatformOrganizationController(QObject):
             return ""
 
     @Slot(str, result="QVariantMap")
-    def enableOrganization(self, organization_id: str) -> dict[str, object]:
+    def activateOrganization(self, organization_id: str) -> dict[str, object]:
         normalized_id = organization_id.strip()
         if not normalized_id:
             return dict(self.operationResult)
         return run_mutation(
-            operation=lambda: self._presenter.enable_organization(normalized_id),
-            success_message="Organization enabled.",
+            operation=lambda: self._presenter.activate_organization(normalized_id),
+            success_message="Organization activated.",
             on_success=self.refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
@@ -233,13 +233,28 @@ class PlatformOrganizationController(QObject):
         )
 
     @Slot(str, result="QVariantMap")
-    def disableOrganization(self, organization_id: str) -> dict[str, object]:
+    def deactivateOrganization(self, organization_id: str) -> dict[str, object]:
         normalized_id = organization_id.strip()
         if not normalized_id:
             return dict(self.operationResult)
         return run_mutation(
-            operation=lambda: self._presenter.disable_organization(normalized_id),
-            success_message="Organization disabled.",
+            operation=lambda: self._presenter.deactivate_organization(normalized_id),
+            success_message="Organization deactivated.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def archiveOrganization(self, organization_id: str) -> dict[str, object]:
+        normalized_id = organization_id.strip()
+        if not normalized_id:
+            return dict(self.operationResult)
+        return run_mutation(
+            operation=lambda: self._presenter.archive_organization(normalized_id),
+            success_message="Organization archived.",
             on_success=self.refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
@@ -285,11 +300,11 @@ class PlatformOrganizationController(QObject):
 
     @Slot("QVariantMap", result="QVariantMap")
     def applyBulkOrganizationStatus(self, payload: dict[str, object]) -> dict[str, object]:
-        is_enabled = str(payload.get("value", "")).strip().lower() == "enabled"
+        status = str(payload.get("value", "")).strip().lower() or "inactive"
         ids = list(self._selected_organization_ids)
         return run_mutation(
-            operation=lambda: self._presenter.bulk_set_organization_status(ids, is_enabled=is_enabled),
-            success_message=f"{len(ids)} organization(s) {'enabled' if is_enabled else 'disabled'}.",
+            operation=lambda: self._presenter.bulk_set_organization_status(ids, status=status),
+            success_message=f"{len(ids)} organization(s) {status}.",
             on_success=self._clear_selection_and_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,

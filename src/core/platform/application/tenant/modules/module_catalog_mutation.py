@@ -64,7 +64,7 @@ class ModuleCatalogMutationMixin:
         module_code) pairs -- e.g. Organizations' bulk "Assign Modules" action
         applying N modules to M selected organizations. One UnitOfWork/commit
         for every pair instead of one per pair, same reasoning as
-        OrganizationService.bulk_set_organization_enabled()."""
+        OrganizationService.bulk_activate_organizations()."""
         require_permission(
             self._user_session,
             "settings.manage",

@@ -151,7 +151,11 @@ AppLayouts.WorkspaceFrame {
     readonly property var _bulkChangeProperties: [
         {
             "id": "status", "label": "Status",
-            "values": [{ "value": "enabled", "label": "Enabled" }, { "value": "disabled", "label": "Disabled" }]
+            "values": [
+                { "value": "active", "label": "Active" },
+                { "value": "inactive", "label": "Inactive" },
+                { "value": "archived", "label": "Archived" }
+            ]
         },
         { "id": "currency", "label": "Base Currency", "values": root._editorOptions.currencyOptions || [] },
         { "id": "timezone", "label": "Timezone", "values": root._editorOptions.timezoneOptions || [] }
@@ -289,7 +293,7 @@ AppLayouts.WorkspaceFrame {
                 busy: root.busy
                 editActionLabel: "Edit"
                 showEditAction: root._canWrite
-                secondaryActionLabel: root._selectedItem && root._selectedItem.statusLabel === "Enabled" ? "Disable" : "Enable"
+                secondaryActionLabel: root._selectedItem && root._selectedItem.statusLabel === "Active" ? "Deactivate" : "Activate"
                 showSecondaryAction: root._canWrite
                 viewDetailsLabel: "View Details"
                 showViewDetailsAction: true
@@ -298,10 +302,10 @@ AppLayouts.WorkspaceFrame {
                 onEditRequested: root.openEdit(root.selectedRowId)
                 onSecondaryActionRequested: {
                     if (!root.workspaceController) return
-                    if (root._selectedItem && root._selectedItem.statusLabel === "Enabled") {
-                        root.workspaceController.disableOrganization(root.selectedRowId)
+                    if (root._selectedItem && root._selectedItem.statusLabel === "Active") {
+                        root.workspaceController.deactivateOrganization(root.selectedRowId)
                     } else {
-                        root.workspaceController.enableOrganization(root.selectedRowId)
+                        root.workspaceController.activateOrganization(root.selectedRowId)
                     }
                 }
                 onViewDetailsRequested: root.detailOpen = true
@@ -338,10 +342,10 @@ AppLayouts.WorkspaceFrame {
                             root.openEdit(root.selectedRowId)
                         } else if (actionId === "enable") {
                             if (root.workspaceController)
-                                root.workspaceController.enableOrganization(root.selectedRowId)
+                                root.workspaceController.activateOrganization(root.selectedRowId)
                         } else if (actionId === "disable") {
                             if (root.workspaceController)
-                                root.workspaceController.disableOrganization(root.selectedRowId)
+                                root.workspaceController.deactivateOrganization(root.selectedRowId)
                         } else if (actionId === "refresh") {
                             if (root.workspaceController)
                                 root.workspaceController.refresh()
