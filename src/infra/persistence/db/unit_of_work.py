@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 import threading
-from collections.abc import Callable, Generator
-from contextlib import contextmanager
+from collections.abc import Callable
+from contextlib import AbstractContextManager, nullcontext
 from typing import Self
 
 from sqlalchemy.orm import Session
@@ -48,18 +48,34 @@ MAX_DISPATCH_ROUNDS = 20
 _SQLITE_WRITE_LOCK = threading.RLock()
 
 
-@contextmanager
-def _write_lock_for(session: Session) -> Generator[None, None, None]:
+_NO_OP_WRITE_LOCK = nullcontext()
+
+
+def sqlite_write_lock(session: Session) -> AbstractContextManager:
+    """The lock to hold while committing `session`'s pending writes.
+
+    Returns the one process-wide lock for a SQLite-bound session -- serializing
+    it against every other write this process makes through
+    `SqlAlchemyUnitOfWorkBase.commit()`, and, via the composition root's
+    wrapping of its one long-lived shared Session (see `app.py`), against
+    direct commits made by services bound to that session outside any
+    UnitOfWork (auth context switching, notifications, calendars, ...).
+    Returns a shared no-op context manager for non-SQLite backends, which
+    support concurrent writers natively.
+
+    Returns the lock/context-manager itself (not a wrapper around it) so
+    callers can cache and reuse it, or compare it by identity, across many
+    commits on the same or different sessions."""
     try:
         is_sqlite = session.get_bind().dialect.name == "sqlite"
     except Exception:
         is_sqlite = False
 
-    if is_sqlite:
-        with _SQLITE_WRITE_LOCK:
-            yield
-    else:
-        yield
+    return _SQLITE_WRITE_LOCK if is_sqlite else _NO_OP_WRITE_LOCK
+
+
+# Back-compat alias for this module's own prior-private name.
+_write_lock_for = sqlite_write_lock
 
 class SqlAlchemyUnitOfWorkBase(UnitOfWork):
     def __init__(
@@ -123,7 +139,7 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
         collected_events: list[DomainEvent] = []
 
         try:
-            with _write_lock_for(self._session):
+            with sqlite_write_lock(self._session):
                 collected_events = self._drain_and_dispatch()
                 self._session.commit()
                 self._committed = True
@@ -221,4 +237,5 @@ __all__ = [
     "SqlAlchemyUnitOfWorkBase",
     "SqlAlchemyUnitOfWorkFactoryBase",
     "MAX_DISPATCH_ROUNDS",
+    "sqlite_write_lock",
 ]

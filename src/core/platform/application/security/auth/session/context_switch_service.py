@@ -74,6 +74,14 @@ def commit_context_switch(
 
     occurred_at = datetime.now(timezone.utc)
     try:
+        # This commits directly on `service`'s Session rather than through a
+        # per-operation UnitOfWork -- it is the long-lived Session the
+        # composition root shares across the process (see app.py), so this
+        # write must take the same SQLite write lock a UnitOfWork.commit()
+        # would, or it can race one for SQLite's single writer slot and
+        # surface as "database is locked" on an unrelated mutation.
+        from src.infra.persistence.db.unit_of_work import sqlite_write_lock
+
         _stage_persisted_session_context(
             service,
             target_principal,
@@ -91,7 +99,8 @@ def commit_context_switch(
             new_tenant_id=new_tenant_id,
             new_organization_id=new_organization_id,
         )
-        service._session.commit()
+        with sqlite_write_lock(service._session):
+            service._session.commit()
     except Exception as exc:
         service._session.rollback()
         logger.exception(

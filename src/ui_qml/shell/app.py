@@ -14,6 +14,7 @@ from src.infra.platform.env_loader import load_env_file
 from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.db.engine import get_db_url
 from src.infra.persistence.db.session_factory import SessionLocal
+from src.infra.persistence.db.unit_of_work import sqlite_write_lock
 from src.infra.persistence.migrations.runner import run_migrations
 from src.infra.platform.app_settings import AppSettingsStore
 from src.infra.platform.logging_config import setup_logging
@@ -56,6 +57,23 @@ logger = logging.getLogger(__name__)
 load_env_file()
 
 
+def _serialize_shared_session_commits(session) -> None:
+    """This one Session is bound directly into many application services
+    (auth context switching, notifications, financial periods, calendars,
+    module catalog, ...) for the life of the process, and several of them
+    commit on it directly rather than through a per-operation UnitOfWork.
+    Those commits are real SQLite writes that can otherwise race an entity
+    UnitOfWork's commit for SQLite's single writer slot -- serialize them
+    through the same process-local lock UnitOfWork.commit() uses."""
+    original_commit = session.commit
+
+    def _locked_commit() -> None:
+        with sqlite_write_lock(session):
+            original_commit()
+
+    session.commit = _locked_commit
+
+
 def build_services() -> dict[str, object]:
     started = perf_counter()
     db_url = get_db_url()
@@ -72,6 +90,7 @@ def build_services() -> dict[str, object]:
         (perf_counter() - migration_started) * 1000,
     )
     session = SessionLocal()
+    _serialize_shared_session_commits(session)
     logger.debug("Database session created session_class=%s", type(session).__name__)
     graph_started = perf_counter()
     services = build_service_dict(session)
