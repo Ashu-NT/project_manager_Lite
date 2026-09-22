@@ -8,6 +8,7 @@ from src.core.platform.api.desktop.master_data.documents.models.document import 
     DocumentDto,
     DocumentLinkCreateCommand,
     DocumentLinkDto,
+    DocumentPageDto,
     DocumentRollupSummaryDto,
     DocumentStructureCreateCommand,
     DocumentStructureDto,
@@ -38,6 +39,27 @@ class PlatformDocumentDesktopApi:
             lambda: tuple(
                 self._serialize_document(document)
                 for document in self._document_service.list_documents(active_only=active_only)
+            )
+        )
+
+    def list_documents_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+    ) -> DesktopApiResult[DocumentPageDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_document_page(
+                self._document_service.list_documents_page_for_organization(
+                    organization_id,
+                    page=page,
+                    page_size=page_size,
+                    search=search,
+                    active_only=active_only,
+                )
             )
         )
 
@@ -184,6 +206,15 @@ class PlatformDocumentDesktopApi:
     def remove_link(self, link_id: str) -> DesktopApiResult[None]:
         return execute_desktop_operation(
             lambda: self._document_service.remove_link(link_id)
+        )
+
+    def _serialize_document_page(self, page) -> DocumentPageDto:
+        return DocumentPageDto(
+            items=tuple(self._serialize_document(document) for document in page.items),
+            total=page.total,
+            filtered_total=page.filtered_total,
+            page=page.page,
+            page_size=page.page_size,
         )
 
     @staticmethod

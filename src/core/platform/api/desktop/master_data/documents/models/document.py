@@ -32,6 +32,15 @@ class DocumentDto:
 
 
 @dataclass(frozen=True)
+class DocumentPageDto:
+    items: tuple[DocumentDto, ...] = ()
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
+@dataclass(frozen=True)
 class DocumentStructureDto:
     id: str
     organization_id: str

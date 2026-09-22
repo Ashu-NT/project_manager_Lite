@@ -25,6 +25,18 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
+# Document lifecycle is a plain boolean (is_active) -- a 2-state
+# Active/Inactive model, structurally different from Organization's 3-state
+# ACTIVE/INACTIVE/ARCHIVED enum. Do not conflate the two tone maps. Also
+# distinct from `is_current` (current vs. superseded revision), a separate
+# concept not surfaced as a lifecycle tone.
+_DOCUMENT_STATUS_TONE = {True: "success", False: "neutral"}
+
+
+def _document_status_label(is_active: bool) -> dict[str, str]:
+    return {"label": "Active" if is_active else "Inactive", "tone": _DOCUMENT_STATUS_TONE[is_active]}
+
+
 class PlatformDocumentCatalogPresenter:
     def __init__(self, *, document_api: PlatformDocumentDesktopApi | None = None) -> None:
         self._document_api = document_api
@@ -65,6 +77,73 @@ class PlatformDocumentCatalogPresenter:
                 self._serialize_document(row, structure_lookup=structure_lookup)
                 for row in documents_result.data
             ),
+        )
+
+    def build_catalog_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        status: str = "",
+    ) -> PlatformWorkspaceActionListViewModel:
+        """Tenant-scoped (not active-organization-scoped) paginated
+        Documents page for Organization Detail's Documents tab -- works
+        regardless of which organization is currently active in the
+        caller's session. Does not resolve document_structure_id to a
+        structure name (unlike the active-org-scoped build_catalog() above)
+        -- see Phase K Documents report for why that lookup is deferred."""
+        if self._document_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Documents",
+                subtitle="Documents appear here once the platform document API is connected.",
+                empty_state="Platform document API is not connected in this QML preview.",
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        active_only: bool | None
+        if status == "active":
+            active_only = True
+        elif status == "inactive":
+            active_only = False
+        else:
+            active_only = None
+
+        result = self._document_api.list_documents_page_for_organization(
+            organization_id,
+            page=page,
+            page_size=page_size,
+            search=search.strip(),
+            active_only=active_only,
+        )
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load documents."
+            return PlatformWorkspaceActionListViewModel(
+                title="Documents",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        document_page = result.data
+        return PlatformWorkspaceActionListViewModel(
+            title="Documents",
+            subtitle="Controlled documents for this organization.",
+            empty_state="No documents yet. Add the first document for this organization.",
+            no_results_state="No documents match your current filters.",
+            items=tuple(
+                self._serialize_document(row, structure_lookup={}) for row in document_page.items
+            ),
+            paginated=True,
+            page=document_page.page,
+            page_size=document_page.page_size,
+            total_count=document_page.total,
+            filtered_total=document_page.filtered_total,
         )
 
     def build_type_options(self) -> tuple[dict[str, str], ...]:
@@ -209,7 +288,7 @@ class PlatformDocumentCatalogPresenter:
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.title,
-            status_label="Active" if row.is_active else "Inactive",
+            status_label=_document_status_label(row.is_active),
             subtitle=f"{row.document_code} | {title_case_code(row.document_type)}",
             supporting_text=(
                 f"{structure_label} | Version {row.business_version_label or '-'} | "

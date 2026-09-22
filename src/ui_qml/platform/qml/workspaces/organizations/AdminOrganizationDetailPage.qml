@@ -39,6 +39,7 @@ Item {
         function onSitesChanged() { detailRoot._refreshSites() }
         function onDepartmentsChanged() { detailRoot._refreshDepartments() }
         function onEmployeesChanged() { detailRoot._refreshEmployees() }
+        function onDocumentsChanged() { detailRoot._refreshDocuments() }
     }
 
     readonly property var _orgState: (detailRoot.organization && detailRoot.organization.state)
@@ -237,12 +238,16 @@ Item {
         if (detailRoot._activeSectionLabel === "Employees") {
             detailRoot._refreshEmployees()
         }
+        if (detailRoot._activeSectionLabel === "Documents") {
+            detailRoot._refreshDocuments()
+        }
     }
     Component.onCompleted: {
         detailRoot._reloadDetailContext()
         detailRoot._refreshSites()
         detailRoot._refreshDepartments()
         detailRoot._refreshEmployees()
+        detailRoot._refreshDocuments()
     }
 
     readonly property var _statistics: detailRoot._detailContext.statistics || ({})
@@ -474,8 +479,68 @@ Item {
         return null
     }
 
-    readonly property var _orgDocuments: detailRoot.workspaceController
-        ? detailRoot._filteredByOrg(detailRoot.workspaceController.documents) : []
+    // -- Documents tab: same tenant-scoped + paginated pattern as Sites/
+    // Departments/Employees for the LIST (DocumentService.
+    // list_documents_page_for_organization) -- works correctly regardless
+    // of which organization is active in the caller's session, and remains
+    // readable for inactive/archived organizations. Row activation to the
+    // full nested detail page is gated to only the ACTIVE organization --
+    // see OrganizationDocumentsSection.qml's header comment for why.
+    property int _documentsPage: 1
+    property int _documentsPageSize: 25
+    property string _documentsSearch: ""
+    property string _documentsStatusFilter: ""
+    property var _documentsCatalog: ({
+        "title": "Documents", "subtitle": "", "emptyState": "", "items": [],
+        "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
+    })
+    property string _documentsSelectedRowId: ""
+    property bool _documentsDetailOpen: false
+    readonly property var _documentsStatusFilterOptions: [
+        { "value": "", "label": "All" },
+        { "value": "active", "label": "Active" },
+        { "value": "inactive", "label": "Inactive" }
+    ]
+    readonly property var _documentsColumns: [
+        { "key": "title", "label": "Document", "flex": 3, "minWidth": 160, "sortable": true, "required": true, "visible": true },
+        { "key": "documentCode", "label": "Code", "flex": 1, "minWidth": 110, "visible": true },
+        { "key": "documentType", "label": "Type", "flex": 1, "minWidth": 120, "visible": true },
+        { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 90, "type": "status", "required": true, "visible": true },
+        { "key": "businessVersionLabel", "label": "Version", "flex": 1, "minWidth": 100, "visible": false },
+        { "key": "isCurrent", "label": "Current", "flex": 0, "minWidth": 90, "visible": false },
+        { "key": "fileName", "label": "File", "flex": 1, "minWidth": 160, "visible": false }
+    ]
+    // Only your own currently-active organization can receive new documents
+    // today (DocumentService.create_document() -- an existing, unchanged
+    // domain rule; this read-only phase does not add an explicit-
+    // organization create path). Viewing another organization's documents
+    // stays fully supported; creating into it from here does not.
+    readonly property bool _canCreateDocument: detailRoot.canWrite && detailRoot._isViewingActiveOrganization
+
+    function _refreshDocuments() {
+        if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) return
+        detailRoot._documentsCatalog = detailRoot.workspaceController.organizationDocumentsPage(
+            detailRoot._orgId, detailRoot._documentsPage, detailRoot._documentsPageSize,
+            detailRoot._documentsSearch, detailRoot._documentsStatusFilter
+        )
+    }
+    function _openDocumentDetail(documentId) {
+        detailRoot._documentsSelectedRowId = documentId
+        if (detailRoot.workspaceController) detailRoot.workspaceController.selectDocument(documentId)
+        detailRoot._documentsDetailOpen = true
+    }
+    function _closeDocumentDetail() {
+        detailRoot._documentsDetailOpen = false
+    }
+    readonly property var _selectedDocumentItem: {
+        const id = detailRoot._documentsSelectedRowId
+        if (!id) return null
+        const items = detailRoot._documentsCatalog.items || []
+        for (let i = 0; i < items.length; i += 1) {
+            if (String(items[i].id) === String(id)) return items[i]
+        }
+        return null
+    }
 
     readonly property var _simpleColumns: [
         { key: "title", label: "Name", flex: 2, minWidth: 160, sortable: true, visible: true },
@@ -522,17 +587,19 @@ Item {
         AppWidgets.ContextualActionToolbar {
             id: _sectionToolbar
             detailPagePinned: true
-            // Sites/Departments/Employees already have their own full header
-            // (title + count) and toolbar (search/filter/Columns/Refresh/
-            // +New) via AdminEntityWorkspace below -- showing this generic
-            // per-section toolbar too would duplicate both the heading and
-            // the Refresh button. `visible: false` alone leaves a blank
-            // gap: the sticky header area sizes itself from `childrenRect`,
-            // which (unlike a Column's own layout pass) does NOT exclude
-            // invisible children -- the height must be collapsed explicitly.
+            // Sites/Departments/Employees/Documents already have their own
+            // full header (title + count) and toolbar (search/filter/
+            // Columns/Refresh/+New) via AdminEntityWorkspace below --
+            // showing this generic per-section toolbar too would duplicate
+            // both the heading and the Refresh button. `visible: false`
+            // alone leaves a blank gap: the sticky header area sizes
+            // itself from `childrenRect`, which (unlike a Column's own
+            // layout pass) does NOT exclude invisible children -- the
+            // height must be collapsed explicitly.
             visible: detailRoot._activeSectionLabel !== "Sites"
                 && detailRoot._activeSectionLabel !== "Departments"
                 && detailRoot._activeSectionLabel !== "Employees"
+                && detailRoot._activeSectionLabel !== "Documents"
             height: visible ? implicitHeight : 0
             width: parent ? parent.width : detailRoot.width
             title: detailRoot._activeSectionLabel
@@ -865,9 +932,16 @@ Item {
             }
         }
 
+        // -- Documents: same tenant-scoped, paginated Organization-Detail-
+        // owned query pattern as Sites/Departments/Employees above for the
+        // LIST. Row activation to the full nested detail page is gated to
+        // only the ACTIVE organization -- see
+        // OrganizationDocumentsSection.qml's header comment for why.
         Item {
             width: parent ? parent.width : detailRoot.width
-            implicitHeight: detailRoot.activeSectionIndex === 4 ? documentsLoader.implicitHeight : 0
+            implicitHeight: detailRoot.activeSectionIndex === 4
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -879,13 +953,77 @@ Item {
                 active: detailRoot.activeSectionIndex === 4
                 keepLoaded: true
                 loadingMessage: "Loading documents..."
-                fallbackLoadingHeight: 320
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
-                    OrgSections.OrganizationSimpleListSection {
-                        width: parent ? parent.width : 0
-                        columns: detailRoot._simpleColumns
-                        rows: detailRoot._orgDocuments
-                        emptyText: "No documents recorded for this organization yet."
+                    OrgSections.OrganizationDocumentsSection {
+                        platformCatalog: detailRoot.platformCatalog
+                        workspaceController: detailRoot.workspaceController
+                        canWrite: detailRoot.canWrite
+                        busy: detailRoot.busy
+                        errorMessage: detailRoot.errorMessage
+                        feedbackMessage: detailRoot.feedbackMessage
+                        viewportHeight: Math.max(420, detailPage.contentViewportHeight)
+
+                        catalog: detailRoot._documentsCatalog
+                        columns: detailRoot._documentsColumns
+                        canCreate: detailRoot._canCreateDocument
+                        isViewingActiveOrganization: detailRoot._isViewingActiveOrganization
+                        selectedRowId: detailRoot._documentsSelectedRowId
+                        searchText: detailRoot._documentsSearch
+                        statusFilterOptions: detailRoot._documentsStatusFilterOptions
+                        statusFilter: detailRoot._documentsStatusFilter
+                        detailOpen: detailRoot._documentsDetailOpen
+                        selectedDocumentItem: detailRoot._selectedDocumentItem
+
+                        onCreateRequested: detailRoot.actionRequested("create_document")
+                        onRowSelected: function(id) { detailRoot._documentsSelectedRowId = id }
+                        onRowActivated: function(id) { detailRoot._openDocumentDetail(id) }
+                        onRefreshRequested: detailRoot._refreshDocuments()
+                        onSearchChanged: function(text) {
+                            detailRoot._documentsSearch = text
+                            detailRoot._documentsPage = 1
+                            detailRoot._refreshDocuments()
+                        }
+                        onPageRequested: function(page) {
+                            detailRoot._documentsPage = page
+                            detailRoot._refreshDocuments()
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            detailRoot._documentsPageSize = pageSize
+                            detailRoot._documentsPage = 1
+                            detailRoot._refreshDocuments()
+                        }
+                        onClearFiltersRequested: {
+                            detailRoot._documentsSearch = ""
+                            detailRoot._documentsStatusFilter = ""
+                            detailRoot._documentsPage = 1
+                            detailRoot._refreshDocuments()
+                        }
+                        onStatusFilterRequested: function(value) {
+                            detailRoot._documentsStatusFilter = value
+                            detailRoot._documentsPage = 1
+                            detailRoot._refreshDocuments()
+                        }
+                        onDetailBackRequested: detailRoot._closeDocumentDetail()
+                        onDetailActionRequested: function(actionId) {
+                            // Only the document's own lifecycle/refresh are
+                            // wired here -- cross-links (Control/Audit) from
+                            // within a nested Document Detail are not yet
+                            // re-routed to this organization's own scoped
+                            // tabs (see the routing-correction phase).
+                            if (actionId === "toggle_active") {
+                                if (detailRoot.workspaceController && detailRoot._documentsSelectedRowId) {
+                                    detailRoot.workspaceController.toggleDocumentActive(detailRoot._documentsSelectedRowId)
+                                }
+                            } else if (actionId === "refresh") {
+                                detailRoot._refreshDocuments()
+                            }
+                        }
+                        onDocumentLinkCreateRequested: {
+                            if (detailRoot.workspaceController && detailRoot.workspaceController.selectedDocument.hasSelection) {
+                                detailRoot.actionRequested("create_document_link")
+                            }
+                        }
                     }
                 }
             }

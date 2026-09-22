@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
 
@@ -43,6 +44,19 @@ from . import document_commands as _cmd
 from .document_context import active_organization, resolve_structure_for_context
 
 
+_DEFAULT_DOCUMENT_PAGE_SIZE = 25
+DOCUMENT_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
+
+
+@dataclass(frozen=True)
+class DocumentPage:
+    items: list[Document] = field(default_factory=list)
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = _DEFAULT_DOCUMENT_PAGE_SIZE
+
+
 class DocumentService:
     def __init__(
         self,
@@ -82,6 +96,64 @@ class DocumentService:
         require_permission(self._user_session, "settings.manage", operation_label="list documents")
         organization = self._active_organization()
         return self._document_repo.list_for_organization(organization.id, active_only=active_only)
+
+    def list_documents_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = _DEFAULT_DOCUMENT_PAGE_SIZE,
+        search: str = "",
+        active_only: bool | None = None,
+    ) -> DocumentPage:
+        """Tenant-scoped read for ANY organization in the caller's tenant --
+        unlike list_documents(), not limited to the session's active
+        organization. For Organization Detail's Documents tab, where an
+        admin may be viewing an organization they haven't switched into.
+
+        Read-only: never used by create/update, which keep using
+        self._active_organization() (the existing, unchanged domain rule).
+        Never gates on the organization's own lifecycle status -- inactive
+        and archived organizations' document history remains readable
+        here. Does not touch DocumentLink at all -- link/unlink semantics
+        are completely untouched by this addition.
+        """
+        require_permission(
+            self._user_session, "settings.manage", operation_label="list documents for organization"
+        )
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Tenant context is required to list documents.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="list documents for organization"
+        )
+        target_organization = self._organization_repo.get_for_tenant(organization_id, tenant_id)
+        if target_organization is None:
+            raise NotFoundError(
+                "Organization not found in the current tenant.",
+                code="ORGANIZATION_NOT_FOUND",
+            )
+        normalized_page = max(1, page)
+        normalized_page_size = (
+            page_size if page_size in DOCUMENT_PAGE_SIZE_OPTIONS else _DEFAULT_DOCUMENT_PAGE_SIZE
+        )
+        items, total, filtered_total = self._document_repo.list_page_for_organization_in_tenant(
+            organization_id,
+            tenant_id,
+            page=normalized_page,
+            page_size=normalized_page_size,
+            search=search,
+            active_only=active_only,
+        )
+        return DocumentPage(
+            items=items,
+            total=total,
+            filtered_total=filtered_total,
+            page=normalized_page,
+            page_size=normalized_page_size,
+        )
 
     def get_document_rollup_summary(self) -> DocumentRollupSummary:
         require_permission(self._user_session, "settings.manage", operation_label="view document rollup summary")
@@ -333,4 +405,4 @@ class DocumentService:
         return active_organization(self)
 
 
-__all__ = ["DocumentService"]
+__all__ = ["DocumentService", "DocumentPage", "DOCUMENT_PAGE_SIZE_OPTIONS"]

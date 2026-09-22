@@ -464,6 +464,15 @@ AppLayouts.WorkspaceFrame {
                             dialogHostLoader.invoke("openDepartmentCreate")
                         } else if (actionId === "create_employee") {
                             dialogHostLoader.invoke("openEmployeeCreate")
+                        } else if (actionId === "create_document") {
+                            dialogHostLoader.invoke("openDocumentCreate")
+                        } else if (actionId === "create_document_link") {
+                            const documentId = root.workspaceController
+                                ? String(root.workspaceController.selectedDocument.documentId || "")
+                                : ""
+                            if (documentId.length > 0) {
+                                dialogHostLoader.invoke("openDocumentLinkCreate", documentId)
+                            }
                         }
                     }
                 }

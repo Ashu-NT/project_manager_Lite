@@ -645,6 +645,19 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def selectDocument(self, document_id: str) -> None:
         select_document(self, document_id)
 
+    @Slot(str, int, int, str, str, result="QVariantMap")
+    def organizationDocumentsPage(
+        self,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+    ) -> dict[str, object]:
+        return self._document_controller.organizationDocumentsPage(
+            organization_id, page, page_size, search, status
+        )
+
     @Slot("QVariantMap", result="QVariantMap")
     def createDocumentStructure(self, payload: dict[str, object]) -> dict[str, object]:
         return create_document_structure(self, payload)

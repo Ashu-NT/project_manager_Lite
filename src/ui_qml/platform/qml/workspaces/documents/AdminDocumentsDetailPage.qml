@@ -32,7 +32,10 @@ Item {
     readonly property string _subtitle: String(root.selectedDocument && root.selectedDocument.summary
         ? root.selectedDocument.summary
         : (root.document && root.document.subtitle ? root.document.subtitle : ""))
-    readonly property string _status: String(root.document && root.document.statusLabel ? root.document.statusLabel : "")
+    readonly property var _statusLabelValue: root.document ? root.document.statusLabel : null
+    readonly property string _status: (root._statusLabelValue && typeof root._statusLabelValue === "object")
+        ? String(root._statusLabelValue.label || "")
+        : String(root._statusLabelValue || "")
     readonly property bool _isActive: root._state.isActive === true
     readonly property var _sections: [
         { "label": "Overview" },
