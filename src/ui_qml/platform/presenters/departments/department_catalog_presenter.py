@@ -188,6 +188,84 @@ class PlatformDepartmentCatalogPresenter:
             filtered_total=department_page.filtered_total,
         )
 
+    def build_catalog_page_for_site(
+        self,
+        site_id: str,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        status: str = "",
+    ) -> PlatformWorkspaceActionListViewModel:
+        """Explicit site_id-scoped, paginated Departments read for Site
+        Detail's own Departments tab -- the paginated counterpart to
+        build_catalog_for_site() above, for the canonical DataTable +
+        TablePaginationBar workspace pattern. organization_id is required
+        the same way it is for build_catalog_page_for_organization (the
+        backend read is tenant-scoped-by-organization, not ambient-active-
+        organization-scoped), so this works correctly regardless of which
+        organization/site is active in the caller's session."""
+        if self._department_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle="Departments appear here once the platform department API is connected.",
+                empty_state="Platform department API is not connected in this QML preview.",
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        active_only: bool | None
+        if status == "active":
+            active_only = True
+        elif status == "inactive":
+            active_only = False
+        else:
+            active_only = None
+
+        result = self._department_api.list_departments_page_for_organization(
+            organization_id,
+            page=page,
+            page_size=page_size,
+            search=search.strip(),
+            active_only=active_only,
+            site_id=site_id,
+        )
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load departments."
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        department_page = result.data
+        site_lookup = self._site_lookup_for_organization(organization_id)
+        department_lookup = self._department_lookup_for_organization(organization_id)
+        return PlatformWorkspaceActionListViewModel(
+            title="Departments",
+            subtitle="Departments assigned to this site.",
+            empty_state="No departments assigned to this site.",
+            no_results_state="No departments match your current filters.",
+            items=tuple(
+                self._serialize_department(
+                    row,
+                    site_lookup=site_lookup,
+                    department_lookup=department_lookup,
+                )
+                for row in department_page.items
+            ),
+            paginated=True,
+            page=department_page.page,
+            page_size=department_page.page_size,
+            total_count=department_page.total,
+            filtered_total=department_page.filtered_total,
+        )
+
     def build_site_options(self) -> tuple[dict[str, str], ...]:
         if self._site_api is None:
             return ()

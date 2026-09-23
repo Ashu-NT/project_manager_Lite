@@ -36,6 +36,7 @@ class DepartmentRepository(ABC):
         page_size: int,
         search: str | None = None,
         active_only: bool | None = None,
+        site_id: str | None = None,
     ) -> tuple[list[Department], int, int]:
         """Tenant-scoped only -- NOT filtered to the ambient active
         organization. For an admin viewing ANY organization's departments

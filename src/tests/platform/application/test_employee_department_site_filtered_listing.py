@@ -332,3 +332,147 @@ def test_admin_controller_departments_for_site_empty_when_no_matches(services):
 
     result = admin.departmentsForSite(site.id)
     assert result["items"] == []
+
+
+# ---------------------------------------------------------------------------
+# Paginated site-scoped reads -- the canonical DataTable + TablePaginationBar
+# counterpart to the fetch-all departmentsForSite/employeesForSite slots
+# above, for Site Detail's own Departments/Employees tabs.
+# ---------------------------------------------------------------------------
+
+
+def test_departments_page_for_organization_filters_by_site_id(services):
+    department_service = services["department_service"]
+    site_service = services["site_service"]
+    organization_id = services["tenant_context_service"].get_active_organization().id
+
+    site_a = site_service.create_site(site_code="FILT-DEPT-PG-SA", name="Dept Page Site A")
+    site_b = site_service.create_site(site_code="FILT-DEPT-PG-SB", name="Dept Page Site B")
+    for i in range(3):
+        department_service.create_department(
+            department_code=f"FILT-DEPT-PG-A{i}", name=f"Page Dept A{i}", site_id=site_a.id, is_active=True
+        )
+    department_service.create_department(
+        department_code="FILT-DEPT-PG-B0", name="Page Dept B0", site_id=site_b.id, is_active=True
+    )
+
+    page = department_service.list_departments_page_for_organization(
+        organization_id, page=1, page_size=25, site_id=site_a.id
+    )
+
+    assert page.filtered_total == 3
+    assert len(page.items) == 3
+    assert all(row.site_id == site_a.id for row in page.items)
+
+
+def test_departments_page_for_organization_site_scope_paginates_and_searches(services):
+    department_service = services["department_service"]
+    site_service = services["site_service"]
+    organization_id = services["tenant_context_service"].get_active_organization().id
+
+    site = site_service.create_site(site_code="FILT-DEPT-PG-SC", name="Page Site C")
+    for i in range(3):
+        department_service.create_department(
+            department_code=f"FILT-DEPT-PGC-{i}", name=f"Findme Dept {i}", site_id=site.id, is_active=True
+        )
+    department_service.create_department(
+        department_code="FILT-DEPT-PGC-OTHER", name="Unrelated Dept", site_id=site.id, is_active=True
+    )
+
+    page_1 = department_service.list_departments_page_for_organization(
+        organization_id, page=1, page_size=25, site_id=site.id
+    )
+    assert page_1.filtered_total == 4
+    assert len(page_1.items) == 4
+
+    search_page = department_service.list_departments_page_for_organization(
+        organization_id, page=1, page_size=25, search="Findme", site_id=site.id
+    )
+    assert search_page.filtered_total == 3
+    assert all("Findme" in row.name for row in search_page.items)
+
+
+def test_admin_controller_departments_for_site_page_slot(services):
+    from src.application.runtime import build_desktop_api_registry
+    from src.ui_qml.platform.context import PlatformWorkspaceCatalog
+
+    department_service = services["department_service"]
+    site_service = services["site_service"]
+    organization_id = services["tenant_context_service"].get_active_organization().id
+
+    site = site_service.create_site(site_code="FILT-DEPT-PGCTRL-S", name="Page Controller Site")
+    for i in range(2):
+        department_service.create_department(
+            department_code=f"FILT-DEPT-PGCTRL-{i}", name=f"Page Controller Dept {i}", site_id=site.id, is_active=True
+        )
+
+    registry = build_desktop_api_registry(services)
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
+    admin = catalog.adminWorkspace
+
+    result = admin.departmentsForSitePage(site.id, organization_id, 1, 25, "", "")
+    assert result["paginated"] is True
+    assert result["filteredTotal"] == 2
+    for item in result["items"]:
+        assert item["state"]["siteId"] == site.id
+
+
+def test_employees_page_for_organization_filters_by_site_id(services):
+    employee_service = services["employee_service"]
+    site_service = services["site_service"]
+    organization_id = services["tenant_context_service"].get_active_organization().id
+
+    site_a = site_service.create_site(site_code="FILT-EMP-PG-SA", name="Emp Page Site A")
+    site_b = site_service.create_site(site_code="FILT-EMP-PG-SB", name="Emp Page Site B")
+    _seed_employees(employee_service, site_id=site_a.id, count=3, prefix="EMPPGA")
+    _seed_employees(employee_service, site_id=site_b.id, count=1, prefix="EMPPGB")
+
+    page = employee_service.list_employees_page_for_organization(
+        organization_id, page=1, page_size=25, site_id=site_a.id
+    )
+
+    assert page.filtered_total == 3
+    assert all(row.site_id == site_a.id for row in page.items)
+
+
+def test_employees_page_for_organization_site_scope_respects_status_filter(services):
+    employee_service = services["employee_service"]
+    site_service = services["site_service"]
+    organization_id = services["tenant_context_service"].get_active_organization().id
+
+    site = site_service.create_site(site_code="FILT-EMP-PG-SC", name="Emp Page Site C")
+    active_employees = _seed_employees(employee_service, site_id=site.id, count=2, prefix="EMPPGC-ACTIVE")
+    for employee in _seed_employees(employee_service, site_id=site.id, count=1, prefix="EMPPGC-INACTIVE"):
+        employee_service.update_employee(employee_id=employee.id, is_active=False, expected_version=employee.version)
+
+    active_page = employee_service.list_employees_page_for_organization(
+        organization_id, page=1, page_size=25, site_id=site.id, active_only=True
+    )
+    inactive_page = employee_service.list_employees_page_for_organization(
+        organization_id, page=1, page_size=25, site_id=site.id, active_only=False
+    )
+
+    assert active_page.filtered_total == 2
+    assert inactive_page.filtered_total == 1
+
+
+def test_admin_controller_employees_for_site_page_slot(services):
+    from src.application.runtime import build_desktop_api_registry
+    from src.ui_qml.platform.context import PlatformWorkspaceCatalog
+
+    employee_service = services["employee_service"]
+    site_service = services["site_service"]
+    organization_id = services["tenant_context_service"].get_active_organization().id
+
+    site = site_service.create_site(site_code="FILT-EMP-PGCTRL-S", name="Emp Page Controller Site")
+    _seed_employees(employee_service, site_id=site.id, count=3, prefix="EMPPGCTRL")
+
+    registry = build_desktop_api_registry(services)
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
+    admin = catalog.adminWorkspace
+
+    result = admin.employeesForSitePage(site.id, organization_id, 1, 25, "", "", "")
+    assert result["paginated"] is True
+    assert result["filteredTotal"] == 3
+    for item in result["items"]:
+        assert item["state"]["siteId"] == site.id

@@ -112,6 +112,7 @@ class SqlAlchemyDepartmentRepository(TenantScopedRepositorySupport, DepartmentRe
         page_size: int,
         search: str | None = None,
         active_only: bool | None = None,
+        site_id: str | None = None,
     ) -> tuple[list[Department], int, int]:
         # Deliberately bypasses self._context()/_organization_in_scope() --
         # both organization_id and tenant_id are caller-supplied and trusted
@@ -119,10 +120,12 @@ class SqlAlchemyDepartmentRepository(TenantScopedRepositorySupport, DepartmentRe
         # this tenant before calling here), not the session's ambient active
         # organization. See SqlAlchemySiteRepository.list_page_for_organization_in_tenant
         # for the same pattern.
-        base_condition = (
+        base_condition = [
             DepartmentORM.organization_id == organization_id,
             DepartmentORM.tenant_id == tenant_id,
-        )
+        ]
+        if site_id is not None:
+            base_condition.append(DepartmentORM.site_id == site_id)
         total = self.session.execute(
             select(func.count()).select_from(DepartmentORM).where(*base_condition)
         ).scalar_one()

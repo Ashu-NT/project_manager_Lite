@@ -9,6 +9,7 @@ import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
 import Platform.Dialogs 1.0 as AdminDialogs
 import App.Controls 1.0 as AppControls
+import "sections/SitesColumnConfig.js" as ColumnConfig
 import "sections/SiteDepartmentsColumns.js" as DepartmentColumns
 import "sections/SiteEmployeesColumns.js" as EmployeeColumns
 
@@ -46,13 +47,29 @@ AppLayouts.WorkspaceFrame {
         ? root.workspaceController.employees
         : ({ "title": "Employees", "subtitle": "", "emptyState": "", "items": [] })
 
-    readonly property var _columns: [
-        { key: "title",       label: "Name",            flex: 3, minWidth: 160, sortable: true,  visible: true },
-        { key: "subtitle",    label: "Code / Location", flex: 4, minWidth: 200, sortable: false, visible: true },
-        { key: "organizationName", label: "Organization", flex: 2.5, minWidth: 180, sortable: true, visible: true },
-        { key: "statusLabel", label: "Status",          flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
-        { key: "metaText",    label: "Timezone / FX",   flex: 2, minWidth: 150, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint }
-    ]
+    readonly property string _tableId: "platform.sites.table"
+    property var _columns: []
+
+    function _initializeColumns() {
+        const base = ColumnConfig.baseColumns(Theme.AppTheme.compactContentBreakpoint)
+        const saved = root.workspaceController !== null
+            ? root.workspaceController.loadTableColumnState(root._tableId)
+            : ({})
+        root._columns = ColumnConfig.applyColumnState(base, saved)
+    }
+
+    function _saveColumnState(newColumns) {
+        if (root.workspaceController !== null) {
+            root.workspaceController.saveTableColumnState(
+                root._tableId,
+                ColumnConfig.buildColumnState(newColumns)
+            )
+        }
+        root._columns = newColumns
+    }
+
+    Component.onCompleted: root._initializeColumns()
+
     readonly property var _departmentColumns: DepartmentColumns.columns()
     readonly property var _employeeColumns: EmployeeColumns.columns()
     // "Archived" is deliberately not offered here -- the backend list_sites_
@@ -68,31 +85,10 @@ AppLayouts.WorkspaceFrame {
 
     property string selectedRowId: ""
     property bool detailOpen: false
-    property var _pendingConfirm: null
 
-    // D5: asymmetric toggle-active. Activate executes directly (existing
-    // success toast via feedbackMessage); Deactivate blocks on a named
-    // ConfirmationDialog since it can affect assignment/scope consequences.
-    function requestToggleActive() {
-        const item = root._selectedItem
-        if (!item || !root.workspaceController) return
-        if (item.isActive) {
-            root._pendingConfirm = {
-                "itemId": root.selectedRowId,
-                "message": "Deactivate " + String(item.title || "this site") + "?",
-                "supportingText": "It will be marked inactive."
-            }
-            confirmDialog.open()
-        } else {
-            root.workspaceController.activateSite(root.selectedRowId)
-        }
-    }
-
-    // RBAC: gates create/edit/set-active buttons for the site's own
-    // mutations, plus the related-record "New Employee" and calendar
-    // assignment actions surfaced from the site detail page -- a
-    // client-side UX optimization; the backend enforces these permissions
-    // independently regardless.
+    // RBAC: gates create/edit/enable buttons -- a client-side UX
+    // optimization; the backend enforces these permissions independently
+    // regardless.
     readonly property bool _canWrite: root.platformCatalog
         ? root.platformCatalog.hasPermission("settings.manage")
         : true
@@ -151,6 +147,13 @@ AppLayouts.WorkspaceFrame {
                 ]
             },
             {
+                "title": "Key Statistics",
+                "rows": [
+                    { "label": "Departments", "value": String(root._departmentCountFor(state) ?? "") },
+                    { "label": "Employees", "value": String(root._employeeCountFor(state) ?? "") }
+                ]
+            },
+            {
                 "title": "Business Context",
                 "rows": [
                     { "label": "Currency", "value": String(state.currencyCode || "") },
@@ -158,6 +161,82 @@ AppLayouts.WorkspaceFrame {
                 ]
             }
         ]
+    }
+
+    // Cheap, on-demand counts for the currently inspected site only (one
+    // site_id-scoped query each, via the same backend Site Detail's own
+    // Departments/Employees tabs already use) -- never a full-catalog N+1.
+    function _departmentCountFor(state) {
+        const siteId = String(state.siteId || state.id || "")
+        if (siteId.length === 0 || !root.workspaceController) return undefined
+        const result = root.workspaceController.departmentsForSite(siteId)
+        return result && result.items ? result.items.length : 0
+    }
+    function _employeeCountFor(state) {
+        const siteId = String(state.siteId || state.id || "")
+        if (siteId.length === 0 || !root.workspaceController) return undefined
+        const result = root.workspaceController.employeesForSite(siteId)
+        return result && result.items ? result.items.length : 0
+    }
+
+    // -- Inspector "Actions ▾" menu: full 3-state lifecycle (Active/
+    // Inactive/Archived), matching AdminOrganizationDetailPage's own menu
+    // exactly. Archived is terminal (see SiteService -- the same guarded
+    // 3-state model as Organization) -- the menu is simply empty then.
+    readonly property var _inspectorLifecycleMenuItems: {
+        const item = root._selectedItem
+        if (!item) return []
+        const status = item.state ? String(item.state.status || "") : ""
+        const items = []
+        if (status === "active") {
+            items.push({ "id": "deactivate", "label": "Deactivate site", "icon": "reject", "enabled": root._canWrite })
+            items.push({ "id": "archive", "label": "Archive site", "icon": "inventory", "danger": true, "enabled": root._canWrite })
+        } else if (status === "inactive") {
+            items.push({ "id": "activate", "label": "Activate site", "icon": "approve", "enabled": root._canWrite })
+            items.push({ "id": "archive", "label": "Archive site", "icon": "inventory", "danger": true, "enabled": root._canWrite })
+        }
+        return items
+    }
+
+    property var _pendingConfirm: null
+
+    function _requestLifecycleConfirm(action, siteId, siteName) {
+        const name = siteName || "this site"
+        if (action === "deactivate") {
+            root._pendingConfirm = {
+                "action": "deactivate", "siteId": siteId,
+                "message": "Deactivate " + name + "?",
+                "supportingText": name + " will no longer be available for new operational activity. " +
+                    "Existing records and historical information will remain available."
+            }
+        } else if (action === "archive") {
+            root._pendingConfirm = {
+                "action": "archive", "siteId": siteId,
+                "message": "Archive " + name + "?",
+                "supportingText": name + " will be retired from normal operational use and retained for " +
+                    "historical reference. This action cannot be reversed through the normal Site workspace."
+            }
+        } else {
+            return
+        }
+        _lifecycleConfirmDialog.open()
+    }
+
+    // Shared by the Inspector's own Actions ▾ menu and the Detail header's
+    // Actions ▾ menu (bubbled up via handleDetailAction below) -- one
+    // dialog instance, not duplicated per surface.
+    function _performLifecycleAction(actionId, siteId, siteName) {
+        if (!root.workspaceController) return
+        if (actionId === "activate") {
+            root.workspaceController.activateSite(siteId)
+        } else if (actionId === "deactivate" || actionId === "archive") {
+            root._requestLifecycleConfirm(actionId, siteId, siteName)
+        }
+    }
+
+    function _onInspectorMenuAction(actionId) {
+        if (!root._selectedItem) return
+        root._performLifecycleAction(actionId, root.selectedRowId, root._selectedItem.title)
     }
 
     // Calendar assignment context for the selected site -- same formula as
@@ -172,6 +251,15 @@ AppLayouts.WorkspaceFrame {
         return root.workspaceController.calendarAssignmentContext(
             "site", entityId, String(state.siteId || ""), String(state.departmentId || "")
         )
+    }
+    readonly property var _calendarSummary: {
+        const item = root._selectedItem
+        if (!root.workspaceController || !item) return ({ "hasCalendar": false })
+        const state = item.state || {}
+        const siteId = String(state.siteId || state.id || item.id || "")
+        const orgId = String(state.organizationId || "")
+        if (!siteId.length) return ({ "hasCalendar": false })
+        return root.workspaceController.siteCalendarSummary(siteId, orgId)
     }
 
     function _calendarOptions() {
@@ -212,10 +300,10 @@ AppLayouts.WorkspaceFrame {
 
     function handleDetailAction(actionId) {
         const id = root.selectedRowId
+        const item = root._selectedItem
         if (actionId === "assign_calendar") {
-            const item = root._selectedItem || {}
-            const state = item.state || {}
-            const entityId = String(state.siteId || state.id || item.id || "")
+            const state = item ? (item.state || {}) : {}
+            const entityId = String(state.siteId || state.id || (item ? item.id : "") || "")
             if (entityId.length) {
                 dialogHostLoader.invoke("openCalendarAssign", "site", entityId, String(item.title || entityId), root._calendarOptions())
             }
@@ -232,8 +320,8 @@ AppLayouts.WorkspaceFrame {
             // (same relatedRecordRequested("calendars", calendarId) cross-
             // navigation Organization Overview's "Manage Calendar" already
             // uses) -- falls back to the unfiltered Calendars workspace only
-            // when this site has no assignment yet (inherits Global), since
-            // there is no specific calendar row to open in that case.
+            // when this site has no override (inherits the Organization
+            // default), since there is no specific calendar row to open then.
             const assigned = root._calendarContext.assignedCalendar || {}
             const calendarId = String(assigned.calendarId || "")
             if (calendarId.length) {
@@ -247,7 +335,10 @@ AppLayouts.WorkspaceFrame {
         if (actionId === "create_employee") { dialogHostLoader.invoke("openEmployeeCreate"); return }
         if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
         if (actionId === "edit") { root.openEdit(id); return }
-        if (actionId === "toggle_active" && root.workspaceController) { root.requestToggleActive(); return }
+        if (actionId === "activate" || actionId === "deactivate" || actionId === "archive") {
+            root._performLifecycleAction(actionId, id, item ? item.title : "")
+            return
+        }
     }
 
     title: "Sites"
@@ -263,12 +354,14 @@ AppLayouts.WorkspaceFrame {
             visible: !root.detailOpen
 
             PlatformComponents.AdminEntityWorkspace {
+                id: _adminWorkspace
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 sectionTitle: "Sites"
                 entityLabel: "Site"
                 catalog: root.siteCatalog
                 catalogModel: root.workspaceController ? root.workspaceController.sitesTableModel : null
+                tableId: root._tableId
                 columns: root._columns
                 canCreate: root._canWrite
                 isBusy: root.busy
@@ -314,6 +407,7 @@ AppLayouts.WorkspaceFrame {
                     root.workspaceController.setSiteSearchText("")
                     root.workspaceController.setSiteStatusFilter("")
                 }
+                onColumnsStateChanged: function(cols) { root._saveColumnState(cols) }
                 onRefreshRequested: { if (root.workspaceController) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
             }
 
@@ -330,14 +424,21 @@ AppLayouts.WorkspaceFrame {
                     : ""
                 groups: root._inspectorGroups
                 busy: root.busy
+                // Enterprise action hierarchy: "Open Details" is the primary,
+                // full-width action; "Edit" and the lifecycle "Actions ▾"
+                // menu share the secondary row beneath it.
+                viewDetailsPrimary: true
+                viewDetailsLabel: "Open Details"
+                showViewDetailsAction: true
                 editActionLabel: "Edit"
                 showEditAction: root._canWrite
-                secondaryActionLabel: root._selectedItem && root._selectedItem.isActive ? "Deactivate" : "Activate"
-                showSecondaryAction: root._canWrite
+                menuActions: root._canWrite ? root._inspectorLifecycleMenuItems : []
+                menuTriggerLabel: "Actions"
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
-                onSecondaryActionRequested: root.requestToggleActive()
+                onMenuActionTriggered: function(id) { root._onInspectorMenuAction(id) }
+                onViewDetailsRequested: root.detailOpen = true
             }
         }
 
@@ -351,6 +452,9 @@ AppLayouts.WorkspaceFrame {
                 AdminSiteDetailPage {
                     platformCatalog: root.platformCatalog
                     site: root._selectedItem || ({})
+                    breadcrumb: (root.breadcrumb || []).concat(
+                        root._selectedItem ? [String(root._selectedItem.title || "")] : []
+                    )
                     canWrite: root._canWrite
                     canManageEmployees: root._canManageEmployees
                     canManageCalendar: root._canManageCalendar
@@ -359,6 +463,7 @@ AppLayouts.WorkspaceFrame {
                     employeeColumns: root._employeeColumns
                     siteCalendarAssignment: root._calendarContext.assignedCalendar || ({})
                     calendarSourceChain: root._calendarContext.sourceChain || []
+                    siteCalendarSummary: root._calendarSummary
                     busy: root.busy
                     errorMessage: root.err
                     feedbackMessage: root.ok
@@ -384,17 +489,18 @@ AppLayouts.WorkspaceFrame {
     }
 
     AppControls.ConfirmationDialog {
-        id: confirmDialog
+        id: _lifecycleConfirmDialog
         title: "Confirm"
-        confirmLabel: "Deactivate"
-        confirmIcon: "delete"
+        confirmLabel: root._pendingConfirm && root._pendingConfirm.action === "archive" ? "Archive site" : "Deactivate site"
+        confirmIcon: root._pendingConfirm && root._pendingConfirm.action === "archive" ? "inventory" : "reject"
         confirmDanger: true
         message: root._pendingConfirm ? String(root._pendingConfirm.message || "") : ""
         supportingText: root._pendingConfirm ? String(root._pendingConfirm.supportingText || "") : ""
         onConfirmed: {
             const pending = root._pendingConfirm
             if (!pending || !root.workspaceController) return
-            root.workspaceController.deactivateSite(pending.itemId)
+            if (pending.action === "deactivate") root.workspaceController.deactivateSite(pending.siteId)
+            else if (pending.action === "archive") root.workspaceController.archiveSite(pending.siteId)
             root._pendingConfirm = null
         }
     }

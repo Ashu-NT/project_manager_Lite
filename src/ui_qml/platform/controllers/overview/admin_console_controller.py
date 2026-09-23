@@ -56,6 +56,7 @@ from src.ui_qml.platform.controllers.calendars.actions import (
 from src.ui_qml.platform.controllers.calendars.context import (
     calendar_assignment_context,
     calendar_detail_context,
+    site_calendar_summary,
 )
 from src.ui_qml.platform.controllers.calendars.calendar_controller import PlatformCalendarController
 from src.ui_qml.platform.controllers.documents.actions import (
@@ -558,6 +559,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     ) -> dict[str, object]:
         return calendar_assignment_context(self, entity_type, entity_id, site_id, department_id)
 
+    @Slot(str, str, result="QVariantMap")
+    def siteCalendarSummary(self, site_id: str, organization_id: str) -> dict[str, object]:
+        return site_calendar_summary(self, site_id, organization_id)
+
     # ── Site slots ────────────────────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -654,6 +659,20 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def departmentsForSite(self, site_id: str) -> dict[str, object]:
         return self._department_controller.departmentsForSite(site_id)
 
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def departmentsForSitePage(
+        self,
+        site_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+    ) -> dict[str, object]:
+        return self._department_controller.departmentsForSitePage(
+            site_id, organization_id, page, page_size, search, status
+        )
+
     # ── Employee slots ────────────────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -688,6 +707,21 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, result="QVariantMap")
     def employeesForSite(self, site_id: str) -> dict[str, object]:
         return self._employee_controller.employeesForSite(site_id)
+
+    @Slot(str, str, int, int, str, str, str, result="QVariantMap")
+    def employeesForSitePage(
+        self,
+        site_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+        department_id: str,
+    ) -> dict[str, object]:
+        return self._employee_controller.employeesForSitePage(
+            site_id, organization_id, page, page_size, search, status, department_id
+        )
 
     # ── User slots ────────────────────────────────────────────────────────
 

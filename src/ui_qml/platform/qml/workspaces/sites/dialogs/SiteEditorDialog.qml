@@ -44,7 +44,11 @@ AppWidgets.EntityDialog {
         siteCode: root.siteCode.trim(),
         name: nameField.text.trim(),
         description: descriptionField.text.trim(),
+        addressLine1: addressLine1Field.text.trim(),
+        addressLine2: addressLine2Field.text.trim(),
         city: cityField.text.trim(),
+        region: regionField.text.trim(),
+        postalCode: postalCodeField.text.trim(),
         country: countryField.text.trim(),
         timezoneName: timezoneField.text.trim(),
         currencyCode: currencyField.text.trim().toUpperCase(),
@@ -70,7 +74,11 @@ AppWidgets.EntityDialog {
         root.siteCode = root.draft.siteCode || ""
         nameField.text = root.draft.name || ""
         descriptionField.text = root.draft.description || ""
+        addressLine1Field.text = root.draft.addressLine1 || ""
+        addressLine2Field.text = root.draft.addressLine2 || ""
         cityField.text = root.draft.city || ""
+        regionField.text = root.draft.region || ""
+        postalCodeField.text = root.draft.postalCode || ""
         countryField.text = root.draft.country || ""
         timezoneField.text = root.draft.timezoneName || ""
         currencyField.text = root.draft.currencyCode || ""
@@ -134,9 +142,42 @@ AppWidgets.EntityDialog {
         }
     }
 
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Address Line 1"
+
+        AppControls.TextField {
+            id: addressLine1Field
+            Layout.fillWidth: true
+            placeholderText: "Street address"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Address Line 2"
+
+        AppControls.TextField {
+            id: addressLine2Field
+            Layout.fillWidth: true
+            placeholderText: "Suite, building, unit (optional)"
+        }
+    }
+
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Postal Code"
+
+            AppControls.TextField {
+                id: postalCodeField
+                Layout.fillWidth: true
+                placeholderText: "e.g. 3011"
+            }
+        }
 
         AppWidgets.FormField {
             Layout.fillWidth: true
@@ -146,6 +187,22 @@ AppWidgets.EntityDialog {
                 id: cityField
                 Layout.fillWidth: true
                 placeholderText: "e.g. Rotterdam"
+            }
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "State / Region"
+
+            AppControls.TextField {
+                id: regionField
+                Layout.fillWidth: true
+                placeholderText: "e.g. South Holland"
             }
         }
 

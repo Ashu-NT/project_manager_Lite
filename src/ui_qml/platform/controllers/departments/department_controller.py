@@ -144,6 +144,31 @@ class PlatformDepartmentController(QObject):
     def departmentsForSite(self, site_id: str) -> dict[str, object]:
         return serialize_action_list(self._presenter.build_catalog_for_site(site_id))
 
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def departmentsForSitePage(
+        self,
+        site_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+    ) -> dict[str, object]:
+        """Stateless, paginated counterpart to departmentsForSite() above,
+        for Site Detail's canonical DataTable Departments tab. Mirrors
+        organizationDepartmentsPage()'s stateless-query shape exactly; no
+        pagination state is stored on this controller."""
+        return serialize_action_list(
+            self._presenter.build_catalog_page_for_site(
+                site_id,
+                organization_id,
+                page=page,
+                page_size=page_size,
+                search=search,
+                status=status,
+            )
+        )
+
     @Slot("QVariantMap", result=str)
     def generateCode(self, payload: dict[str, object]) -> str:
         try:

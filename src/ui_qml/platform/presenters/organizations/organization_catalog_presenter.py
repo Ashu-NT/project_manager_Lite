@@ -39,6 +39,10 @@ from src.ui_qml.shared.models.currency_options import CURRENCY_OPTIONS
 from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
     ORGANIZATION_ACTIVITY_ENTITY_TYPES,
 )
+from src.ui_qml.platform.presenters.common.calendar_summary_support import (
+    holiday_set_label as _holiday_set_label,
+    working_week_label as _working_week_label,
+)
 
 # StatusChip tone per lifecycle status -- explicit, presenter-owned mapping.
 # QML never infers a tone from status text (see StatusChip.qml).
@@ -47,28 +51,6 @@ _ORGANIZATION_STATUS_TONE: dict[str, str] = {
     ORGANIZATION_STATUS_INACTIVE: "neutral",
     ORGANIZATION_STATUS_ARCHIVED: "neutral",
 }
-
-_WEEKDAY_ABBREVIATIONS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-
-
-def _working_week_label(working_weekdays: tuple[int, ...]) -> str:
-    days = sorted(d for d in working_weekdays if 0 <= d <= 6)
-    if not days:
-        return "No working days configured"
-    if len(days) == 7:
-        return "Every day"
-    if days == list(range(days[0], days[-1] + 1)):
-        return f"{_WEEKDAY_ABBREVIATIONS[days[0]]}–{_WEEKDAY_ABBREVIATIONS[days[-1]]}"
-    return ", ".join(_WEEKDAY_ABBREVIATIONS[d] for d in days)
-
-
-def _holiday_set_label(locale: str, holiday_count: int) -> str:
-    if locale:
-        return locale
-    if holiday_count > 0:
-        return f"{holiday_count} holiday{'s' if holiday_count != 1 else ''} configured"
-    return "No holidays configured"
-
 
 def _organization_status_label(status: str) -> dict[str, str]:
     return {"label": status.capitalize(), "tone": _ORGANIZATION_STATUS_TONE.get(status, "neutral")}

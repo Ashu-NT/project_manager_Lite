@@ -181,6 +181,77 @@ class PlatformEmployeeCatalogPresenter:
             filtered_total=employee_page.filtered_total,
         )
 
+    def build_catalog_page_for_site(
+        self,
+        site_id: str,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        status: str = "",
+        department_id: str = "",
+    ) -> PlatformWorkspaceActionListViewModel:
+        """Explicit site_id-scoped, paginated Employees read for Site
+        Detail's own Employees tab -- the paginated counterpart to
+        build_catalog_for_site() above, for the canonical DataTable +
+        TablePaginationBar workspace pattern. organization_id is required
+        the same way it is for build_catalog_page_for_organization (the
+        backend read is tenant-scoped-by-organization, not ambient-active-
+        organization-scoped), so this works correctly regardless of which
+        organization/site is active in the caller's session."""
+        if self._employee_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Employees",
+                subtitle="Employees appear here once the platform employee API is connected.",
+                empty_state="Platform employee API is not connected in this QML preview.",
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        active_only: bool | None
+        if status == "active":
+            active_only = True
+        elif status == "inactive":
+            active_only = False
+        else:
+            active_only = None
+
+        result = self._employee_api.list_employees_page_for_organization(
+            organization_id,
+            page=page,
+            page_size=page_size,
+            search=search.strip(),
+            active_only=active_only,
+            department_id=department_id or None,
+            site_id=site_id,
+        )
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load employees."
+            return PlatformWorkspaceActionListViewModel(
+                title="Employees",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        employee_page = result.data
+        return PlatformWorkspaceActionListViewModel(
+            title="Employees",
+            subtitle="Employees assigned to this site.",
+            empty_state="No employees assigned to this site.",
+            no_results_state="No employees match your current filters.",
+            items=tuple(self._serialize_employee(row) for row in employee_page.items),
+            paginated=True,
+            page=employee_page.page,
+            page_size=employee_page.page_size,
+            total_count=employee_page.total,
+            filtered_total=employee_page.filtered_total,
+        )
+
     def build_site_options(self) -> tuple[dict[str, str], ...]:
         if self._site_api is None:
             return ()
@@ -308,6 +379,13 @@ class PlatformEmployeeCatalogPresenter:
                 "siteId": row.site_id or "",
                 "siteName": row.site_name,
                 "title": row.title,
+                # "title" above is shadowed on the flattened row by the
+                # item's own top-level convenience "title" (the employee's
+                # full name, see serialize_action_item -- the first writer
+                # of a key wins) -- "jobTitle" is the non-colliding column
+                # key for Site Detail's own Employees table (job title as
+                # its own concept, not compounded into `subtitle`).
+                "jobTitle": row.title,
                 "employmentType": row.employment_type,
                 "email": row.email or "",
                 "phone": row.phone or "",

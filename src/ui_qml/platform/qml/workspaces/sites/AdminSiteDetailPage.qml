@@ -17,11 +17,16 @@ Item {
 
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property var site: ({})
+    property var breadcrumb: []
     property var employeeCatalog: ({ "items": [], "emptyState": "No employees are available yet." })
     property var employeeColumns: []
     property var departmentColumns: []
     property var siteCalendarAssignment: ({})
     property var calendarSourceChain: []
+    property var siteCalendarSummary: ({
+        "hasCalendar": false, "calendarId": "", "calendarName": "", "source": "",
+        "workingWeekLabel": "No working days configured", "timeZone": "", "holidaySetLabel": "No holidays configured"
+    })
     property bool canWrite: true
     property bool canManageEmployees: true
     property bool canManageCalendar: true
@@ -41,8 +46,6 @@ Item {
         ? String(root._statusLabelValue.label || "")
         : String(root._statusLabelValue || "")
     readonly property string _subtitle: String(root.site && root.site.subtitle ? root.site.subtitle : "")
-    readonly property string _supportingText: String(root.site && root.site.supportingText ? root.site.supportingText : "")
-    readonly property string _metaText: String(root.site && root.site.metaText ? root.site.metaText : "")
     readonly property bool _isActive: root._state.isActive === true
     readonly property string _statusTone: root._isActive ? "success" : "neutral"
     readonly property bool _pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
@@ -50,33 +53,116 @@ Item {
     readonly property string _organizationId: String(root._state.organizationId || "")
     readonly property bool _hasCalendarAssignment: String(root.siteCalendarAssignment && root.siteCalendarAssignment.assignmentId ? root.siteCalendarAssignment.assignmentId : "").length > 0
 
-    // -- Departments tab: explicit site_id-scoped backend query
-    // (DepartmentService.list_departments(site_id=...)), not a client-side
-    // filter of the shared, session-active-organization-only catalog --
-    // works correctly regardless of which organization/site is active in
-    // the caller's session.
-    property var _departmentsCatalog: ({ "items": [], "emptyState": "No departments are available yet." })
-    readonly property var _departmentRows: root._departmentsCatalog.items || []
-    function _refreshDepartments() {
-        if (root._siteId.length === 0 || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
-            root._departmentsCatalog = ({ "items": [], "emptyState": "No departments are available yet." })
-            return
-        }
-        root._departmentsCatalog = root.platformCatalog.adminWorkspace.departmentsForSite(root._siteId)
+    readonly property string _siteCode: String(root._state.siteCode || "")
+    readonly property string _siteType: String(root._state.siteType || "")
+    readonly property string _siteLocation: String(root._state.location || "")
+    readonly property string _headerSubtitle: root._joinNonEmpty([root._siteCode, root._siteType, root._siteLocation], "  ·  ")
+    readonly property bool _isActiveSite: root._state.status === "active"
+    readonly property bool _isInactiveSite: root._state.status === "inactive"
+
+    function _joinNonEmpty(parts, sep) {
+        return parts.filter(function(p) { return String(p || "").trim().length > 0 }).join(sep)
+    }
+    function _displayValue(value) {
+        const text = String(value || "").trim()
+        return text.length > 0 ? text : "—"
     }
 
-    readonly property var _employeeRows: {
-        // Depend on employeeCatalog so this re-fetches whenever the shared
-        // employee catalog changes (create/update/activate/deactivate
-        // elsewhere), but query only this site's rows via SQL rather than
-        // a full-org client-side filter.
-        const _refreshToken = root.employeeCatalog
-        const siteId = root._siteId
-        if (siteId.length === 0 || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
-            return []
+    // -- Header lifecycle menu: full 3-state (Active/Inactive/Archived),
+    // matching AdminOrganizationDetailPage's own header menu exactly.
+    // Archived is terminal -- the menu is simply empty then. Mutations
+    // bubble up via actionRequested() to SitesWorkspacePage.qml's
+    // handleDetailAction, which owns the shared confirm dialog (this page
+    // has no direct workspaceController of its own).
+    readonly property var _lifecycleMenuItems: {
+        const items = [
+            { "id": "edit", "label": "Edit site", "icon": "edit", "enabled": root.canWrite },
+            { "separator": true }
+        ]
+        if (root._isActiveSite) {
+            items.push({ "id": "deactivate", "label": "Deactivate site", "icon": "reject", "enabled": root.canWrite })
+            items.push({ "id": "archive", "label": "Archive site", "icon": "inventory", "danger": true, "enabled": root.canWrite })
+        } else if (root._isInactiveSite) {
+            items.push({ "id": "activate", "label": "Activate site", "icon": "approve", "enabled": root.canWrite })
+            items.push({ "id": "archive", "label": "Archive site", "icon": "inventory", "danger": true, "enabled": root.canWrite })
         }
-        const result = root.platformCatalog.adminWorkspace.employeesForSite(siteId)
-        return (result && result.items) || []
+        return items
+    }
+    readonly property bool _showLifecycleMenu: root._isActiveSite || root._isInactiveSite
+
+    // -- Departments tab: explicit site_id-scoped, paginated backend query
+    // (DepartmentService.list_departments_page_for_organization(site_id=...)) --
+    // works correctly regardless of which organization/site is active in
+    // the caller's session.
+    property int _departmentsPage: 1
+    property int _departmentsPageSize: 25
+    property string _departmentsSearch: ""
+    property string _departmentsStatusFilter: ""
+    property var _departmentsCatalog: ({
+        "title": "Departments", "items": [], "emptyState": "No departments assigned to this site.",
+        "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
+    })
+    property string _departmentsSelectedRowId: ""
+    function _refreshDepartments() {
+        if (root._siteId.length === 0 || root._organizationId.length === 0
+            || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            return
+        }
+        root._departmentsCatalog = root.platformCatalog.adminWorkspace.departmentsForSitePage(
+            root._siteId, root._organizationId, root._departmentsPage, root._departmentsPageSize,
+            root._departmentsSearch, root._departmentsStatusFilter
+        )
+    }
+    readonly property int _departmentCount: root._departmentsCatalog.totalCount || 0
+
+    // -- Employees tab: same site_id-scoped, paginated pattern as
+    // Departments above.
+    property int _employeesPage: 1
+    property int _employeesPageSize: 25
+    property string _employeesSearch: ""
+    property string _employeesStatusFilter: ""
+    property string _employeesDepartmentFilter: ""
+    property var _employeesCatalog: ({
+        "title": "Employees", "items": [], "emptyState": "This site does not currently have employees assigned.",
+        "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
+    })
+    property string _employeesSelectedRowId: ""
+    function _refreshEmployees() {
+        if (root._siteId.length === 0 || root._organizationId.length === 0
+            || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            return
+        }
+        root._employeesCatalog = root.platformCatalog.adminWorkspace.employeesForSitePage(
+            root._siteId, root._organizationId, root._employeesPage, root._employeesPageSize,
+            root._employeesSearch, root._employeesStatusFilter, root._employeesDepartmentFilter
+        )
+    }
+    readonly property int _employeeCount: root._employeesCatalog.totalCount || 0
+    // Real department options for this site only -- reuses the already-
+    // fetched Departments tab data (no extra query) rather than the full
+    // organization's department list.
+    readonly property var _employeesDepartmentFilterOptions: {
+        const options = [{ "value": "", "label": "All Departments" }]
+        const rows = root._departmentsCatalog.items || []
+        for (let i = 0; i < rows.length; i += 1) {
+            const state = rows[i].state || {}
+            const id = String(state.departmentId || state.id || rows[i].id || "")
+            if (id.length === 0) continue
+            options.push({ "value": id, "label": String(rows[i].title || state.name || id) })
+        }
+        return options
+    }
+
+    // -- Overview: bounded (~5 item) recent activity, distinct from the
+    // full paginated Activity tab's own state below.
+    property var _recentActivity: []
+    function _refreshRecentActivity() {
+        if (root._siteId.length === 0 || root._organizationId.length === 0
+            || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            root._recentActivity = []
+            return
+        }
+        root._recentActivity = root.platformCatalog.adminWorkspace.siteActivity(root._siteId, root._organizationId) || []
     }
 
     // -- Activity tab: this site's own paginated, searchable business-
@@ -110,8 +196,8 @@ Item {
     readonly property var _sections: {
         const sections = [
             { "label": "Overview" },
-            { "label": "Departments", "count": root._departmentRows.length },
-            { "label": "Employees", "count": root._employeeRows.length }
+            { "label": "Departments", "count": root._departmentCount },
+            { "label": "Employees", "count": root._employeeCount }
         ]
         if (root._pmEnabled) {
             sections.push({ "label": "Projects" })
@@ -125,114 +211,97 @@ Item {
         const section = root._sections[root.activeSectionIndex]
         return section ? String(section.label || "") : "Overview"
     }
+    function _indexOfSection(label) {
+        for (let i = 0; i < root._sections.length; i += 1) {
+            if (root._sections[i].label === label) return i
+        }
+        return -1
+    }
     readonly property string _toolbarSubtitle: {
         switch (root._activeSectionLabel) {
         case "Overview":
             return root._subtitle
-        case "Departments":
-            return "Shared departments mapped to this site through the platform department master."
-        case "Employees":
-            return "Employees aligned to this site through the shared employee master."
-        case "Projects":
-            return "Project Management project/site alignment delegated to the PM module."
         case "Calendar":
-            return "Site-level calendar assignment and working schedule inherited from the global calendar hierarchy."
-        case "Documents":
-            return "Site-scoped document governance stays in the shared document workspace."
-        case "Activity":
-            return "Activity for this site only"
+            return "Site-level calendar assignment and working schedule."
         default:
             return ""
         }
     }
+    // Identity, lifecycle badge, and Edit/Actions live in the persistent
+    // header below (visible across every section) -- the per-section
+    // toolbar is only shown for Overview (Refresh) and Calendar (its own
+    // assignment actions); Departments/Employees/Activity own their own
+    // embedded toolbar+refresh, and Projects/Documents have nothing to
+    // refresh, so the outer toolbar is hidden there entirely (avoids the
+    // duplicate-Refresh problem the previous Activity implementation had).
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
-            return [
-                { "id": "edit", "label": "Edit", "icon": "edit", "enabled": root.canWrite },
-                { "id": "toggle_active", "label": root._isActive ? "Set Inactive" : "Set Active", "icon": "approve", "enabled": root.canWrite },
-                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
-            ]
-        }
-        if (root._activeSectionLabel === "Departments") {
-            return [
-                { "id": "create_department", "label": "New Department", "icon": "add", "enabled": root.canWrite },
-                { "id": "show_departments", "label": "Open Departments", "icon": "chevron_right" }
-            ]
-        }
-        if (root._activeSectionLabel === "Employees") {
-            return [
-                { "id": "create_employee", "label": "New Employee", "icon": "add", "enabled": root.canManageEmployees },
-                { "id": "show_employees", "label": "Open Employees", "icon": "chevron_right" }
-            ]
+            return [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
         }
         if (root._activeSectionLabel === "Calendar") {
             return [
-                { "id": "assign_calendar", "label": root._hasCalendarAssignment ? "Change Calendar" : "Assign Calendar", "icon": "calendar", "enabled": root.canManageCalendar },
-                { "id": "clear_calendar_assignment", "label": "Clear Assignment", "icon": "delete", "danger": true, "enabled": root._hasCalendarAssignment && root.canManageCalendar },
-                { "id": "open_calendar_mgmt", "label": "Calendar Management", "icon": "chevron_right" },
+                { "id": "assign_calendar", "label": root._hasCalendarAssignment ? "Change Calendar" : "Assign Site Calendar", "icon": "calendar", "enabled": root.canManageCalendar },
+                { "id": "clear_calendar_assignment", "label": "Remove Override", "icon": "delete", "danger": true, "enabled": root._hasCalendarAssignment && root.canManageCalendar },
+                { "id": "open_calendar_mgmt", "label": root._hasCalendarAssignment ? "Open Calendar" : "Open Calendar Management", "icon": "chevron_right" },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
-        if (root._activeSectionLabel === "Documents") {
-            return [
-                { "id": "show_documents", "label": "Open Documents", "icon": "chevron_right" }
-            ]
-        }
-        return [
-            { "id": "refresh", "label": "Refresh", "icon": "refresh" }
-        ]
+        return []
     }
-    readonly property var _overviewFields: [
-        { "label": "Site Code", "value": root._state.siteCode },
-        { "label": "Display Name", "value": root._state.name || root.site.title },
-        { "label": "Site Type", "value": root._state.siteType },
-        { "label": "Status", "value": root._status },
-        { "label": "Version", "value": root._state.version },
-        { "label": "Active", "value": root._isActive },
-        { "label": "City", "value": root._state.city },
-        { "label": "Country", "value": root._state.country },
-        { "label": "Timezone", "value": root._state.timezoneName },
-        { "label": "Currency", "value": root._state.currencyCode }
-    ]
-    readonly property string _overviewDescription: String(
-        root._state.description || root._state.notes
-        || "This shared platform site anchors downstream PM and inventory records without duplicating those module-owned operational structures here."
-    )
+    readonly property bool _showSectionToolbar: root._activeSectionLabel === "Overview" || root._activeSectionLabel === "Calendar"
 
-    // -- Scoped routing: "Open Departments"/"Open Employees" are about THIS
-    // site's own child data, which already has a full local tab -- they
-    // must switch this detail page's own tab (never navigate away to the
-    // global, session-active-organization-only Platform workspace, which
-    // would silently show a DIFFERENT site's/org's data whenever this isn't
-    // the caller's active context). Departments is always index 1 and
-    // Employees always index 2 in _sections above (Projects/Calendar/
-    // Documents/Activity only ever appear after them). Calendar/Projects/
-    // Documents have no local tab with this capability, so those stay
-    // genuine cross-workspace navigation (handled by SitesWorkspacePage.qml).
-    readonly property var _sectionIndexByDestination: ({
-        "show_departments": 1, "show_employees": 2
+    // -- Overview: Basic Information / Physical Address / Operational
+    // Context field groups, plus Key Statistics / Related Actions sourced
+    // from real, already-fetched (no extra N+1) site-scoped data.
+    readonly property var _basicInfoFields: [
+        { "label": "Site Name", "value": root._displayValue(root._state.name || root.site.title) },
+        { "label": "Site Code", "value": root._displayValue(root._state.siteCode) },
+        { "label": "Site Type", "value": root._displayValue(root._state.siteType) },
+        { "label": "Organization", "value": root._displayValue(root._state.organizationName) },
+        { "label": "Description", "value": root._displayValue(root._state.description) }
+    ]
+    readonly property var _addressFields: [
+        { "label": "Address Line 1", "value": root._displayValue(root._state.addressLine1) },
+        { "label": "Address Line 2", "value": root._displayValue(root._state.addressLine2) },
+        { "label": "Postal Code", "value": root._displayValue(root._state.postalCode) },
+        { "label": "City", "value": root._displayValue(root._state.city) },
+        { "label": "State / Region", "value": root._displayValue(root._state.region) },
+        { "label": "Country", "value": root._displayValue(root._state.country) }
+    ]
+    readonly property var _operationalContextFields: [
+        { "label": "Time Zone", "value": root._displayValue(root._state.timezoneName) },
+        { "label": "Currency", "value": root._displayValue(root._state.currencyCode) }
+    ]
+    readonly property var _statistics: ({
+        "departmentCount": root._departmentCount,
+        "employeeCount": root._employeeCount
     })
-    function _handleToolbarAction(actionId) {
-        const index = root._sectionIndexByDestination[actionId]
-        if (index !== undefined) {
+    readonly property var _relatedActions: [
+        { "id": "departments", "label": "Manage Departments", "icon": "department" },
+        { "id": "employees", "label": "Manage Employees", "icon": "employee" }
+    ]
+
+    function _navigateFromOverview(destinationId) {
+        const label = destinationId === "departments" ? "Departments" : destinationId === "employees" ? "Employees" : ""
+        const index = label.length > 0 ? root._indexOfSection(label) : -1
+        if (index >= 0) {
             detailPage.scrollToSection(index)
             return
         }
-        root.actionRequested(actionId)
-    }
-
-    function _tableHeightForCount(count) {
-        const visibleRows = Math.max(1, Math.min(count, 8))
-        return Theme.AppTheme.headerHeight + (visibleRows * Theme.AppTheme.normalRowHeight) + Theme.AppTheme.spacingLg
+        root.actionRequested(destinationId)
     }
 
     onSiteChanged: {
         root._refreshDepartments()
+        root._refreshEmployees()
         root._refreshActivityPage()
+        root._refreshRecentActivity()
     }
     Component.onCompleted: {
         root._refreshDepartments()
+        root._refreshEmployees()
         root._refreshActivityPage()
+        root._refreshRecentActivity()
     }
 
     AppWidgets.SectionDetailPage {
@@ -240,12 +309,19 @@ Item {
         anchors.fill: parent
         open: true
         title: root._title
+        statusLabel: root._status
+        statusTone: root._statusTone
+        subtitleLine: root._headerSubtitle
+        breadcrumb: root.breadcrumb
         isBusy: root.busy
-        showEdit: false
+        showEdit: root.canWrite
         showDelete: false
+        menuActions: root._showLifecycleMenu ? root._lifecycleMenuItems : []
         sections: root._sections
 
         onBackRequested: root.backRequested()
+        onEditRequested: root.actionRequested("edit")
+        onMenuActionTriggered: function(id) { root.actionRequested(id) }
         onSectionChanged: function(index) {
             root.activeSectionIndex = index
         }
@@ -266,13 +342,15 @@ Item {
 
         AppWidgets.ContextualActionToolbar {
             detailPagePinned: true
+            visible: root._showSectionToolbar
+            height: visible ? implicitHeight : 0
             width: parent ? parent.width : root.width
             title: root._activeSectionLabel
             subtitle: root._toolbarSubtitle
             busy: root.busy
             actions: root._toolbarActions
             onActionTriggered: function(actionId) {
-                root._handleToolbarAction(actionId)
+                root.actionRequested(actionId)
             }
         }
 
@@ -292,12 +370,25 @@ Item {
                 loadingMessage: "Loading site overview..."
                 sourceComponent: Component {
                     SiteSections.SiteOverviewSection {
-                        overviewFields: root._overviewFields
-                        status: root._status
-                        statusTone: root._statusTone
-                        supportingText: root._supportingText
-                        metaText: root._metaText
-                        description: root._overviewDescription
+                        basicInfoFields: root._basicInfoFields
+                        addressFields: root._addressFields
+                        operationalContextFields: root._operationalContextFields
+                        statistics: root._statistics
+                        relatedActions: root._relatedActions
+                        recentActivity: root._recentActivity
+                        calendarSummary: root.siteCalendarSummary
+
+                        onNavigateToDestination: function(destinationId) {
+                            root._navigateFromOverview(destinationId)
+                        }
+                        onManageCalendarRequested: {
+                            const index = root._indexOfSection("Calendar")
+                            if (index >= 0) detailPage.scrollToSection(index)
+                        }
+                        onViewAllActivityRequested: {
+                            const index = root._indexOfSection("Activity")
+                            if (index >= 0) detailPage.scrollToSection(index)
+                        }
                     }
                 }
             }
@@ -305,7 +396,9 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Departments" ? departmentsLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Departments"
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -317,14 +410,56 @@ Item {
                 active: root._activeSectionLabel === "Departments"
                 keepLoaded: true
                 loadingMessage: "Loading site departments..."
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
                     SiteSections.SiteDepartmentsSection {
-                        rows: root._departmentRows
+                        platformCatalog: root.platformCatalog
+                        canWrite: root.canWrite
+                        busy: root.busy
+                        errorMessage: root.errorMessage
+                        feedbackMessage: root.feedbackMessage
+                        viewportHeight: Math.max(420, detailPage.contentViewportHeight)
+
+                        catalog: root._departmentsCatalog
                         columns: root.departmentColumns
-                        tableHeight: root._tableHeightForCount(root._departmentRows.length)
-                        loading: root.busy
-                        onRowActivated: function(rowId) {
-                            root.relatedRowActivated("departments", rowId)
+                        canCreate: root.canWrite
+                        selectedRowId: root._departmentsSelectedRowId
+                        searchText: root._departmentsSearch
+                        statusFilterOptions: [
+                            { "value": "", "label": "All" },
+                            { "value": "active", "label": "Active" },
+                            { "value": "inactive", "label": "Inactive" }
+                        ]
+                        statusFilter: root._departmentsStatusFilter
+
+                        onCreateRequested: root.actionRequested("create_department")
+                        onRowSelected: function(id) { root._departmentsSelectedRowId = id }
+                        onRowActivated: function(id) { root.relatedRowActivated("departments", id) }
+                        onRefreshRequested: root._refreshDepartments()
+                        onSearchChanged: function(text) {
+                            root._departmentsSearch = text
+                            root._departmentsPage = 1
+                            root._refreshDepartments()
+                        }
+                        onPageRequested: function(page) {
+                            root._departmentsPage = page
+                            root._refreshDepartments()
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            root._departmentsPageSize = pageSize
+                            root._departmentsPage = 1
+                            root._refreshDepartments()
+                        }
+                        onClearFiltersRequested: {
+                            root._departmentsSearch = ""
+                            root._departmentsStatusFilter = ""
+                            root._departmentsPage = 1
+                            root._refreshDepartments()
+                        }
+                        onStatusFilterRequested: function(value) {
+                            root._departmentsStatusFilter = value
+                            root._departmentsPage = 1
+                            root._refreshDepartments()
                         }
                     }
                 }
@@ -333,7 +468,9 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Employees" ? employeesLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Employees"
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -345,14 +482,64 @@ Item {
                 active: root._activeSectionLabel === "Employees"
                 keepLoaded: true
                 loadingMessage: "Loading site employees..."
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
                     SiteSections.SiteEmployeesSection {
-                        rows: root._employeeRows
+                        platformCatalog: root.platformCatalog
+                        canWrite: root.canManageEmployees
+                        busy: root.busy
+                        errorMessage: root.errorMessage
+                        feedbackMessage: root.feedbackMessage
+                        viewportHeight: Math.max(420, detailPage.contentViewportHeight)
+
+                        catalog: root._employeesCatalog
                         columns: root.employeeColumns
-                        loading: root.busy
-                        tableHeight: root._tableHeightForCount(root._employeeRows.length)
-                        onRowActivated: function(rowId) {
-                            root.relatedRowActivated("employees", rowId)
+                        canCreate: root.canManageEmployees
+                        selectedRowId: root._employeesSelectedRowId
+                        searchText: root._employeesSearch
+                        statusFilterOptions: [
+                            { "value": "", "label": "All" },
+                            { "value": "active", "label": "Active" },
+                            { "value": "inactive", "label": "Inactive" }
+                        ]
+                        statusFilter: root._employeesStatusFilter
+                        departmentFilterOptions: root._employeesDepartmentFilterOptions
+                        departmentFilter: root._employeesDepartmentFilter
+
+                        onCreateRequested: root.actionRequested("create_employee")
+                        onRowSelected: function(id) { root._employeesSelectedRowId = id }
+                        onRowActivated: function(id) { root.relatedRowActivated("employees", id) }
+                        onRefreshRequested: root._refreshEmployees()
+                        onSearchChanged: function(text) {
+                            root._employeesSearch = text
+                            root._employeesPage = 1
+                            root._refreshEmployees()
+                        }
+                        onPageRequested: function(page) {
+                            root._employeesPage = page
+                            root._refreshEmployees()
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            root._employeesPageSize = pageSize
+                            root._employeesPage = 1
+                            root._refreshEmployees()
+                        }
+                        onClearFiltersRequested: {
+                            root._employeesSearch = ""
+                            root._employeesStatusFilter = ""
+                            root._employeesDepartmentFilter = ""
+                            root._employeesPage = 1
+                            root._refreshEmployees()
+                        }
+                        onStatusFilterRequested: function(value) {
+                            root._employeesStatusFilter = value
+                            root._employeesPage = 1
+                            root._refreshEmployees()
+                        }
+                        onDepartmentFilterRequested: function(value) {
+                            root._employeesDepartmentFilter = value
+                            root._employeesPage = 1
+                            root._refreshEmployees()
                         }
                     }
                 }
@@ -399,6 +586,7 @@ Item {
                         entityLabel: root._title
                         assignedCalendar: root.siteCalendarAssignment
                         sourceChain: root.calendarSourceChain
+                        effectiveCalendarSummary: root.siteCalendarSummary
                         busy: root.busy
                         onAssignCalendarRequested: root.actionRequested("assign_calendar")
                         onOpenCalendarManagementRequested: root.actionRequested("open_calendar_mgmt")

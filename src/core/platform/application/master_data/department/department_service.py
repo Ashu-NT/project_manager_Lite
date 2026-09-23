@@ -103,6 +103,7 @@ class DepartmentService:
         page_size: int = _DEFAULT_DEPARTMENT_PAGE_SIZE,
         search: str = "",
         active_only: bool | None = None,
+        site_id: str | None = None,
     ) -> DepartmentPage:
         """Tenant-scoped read for ANY organization in the caller's tenant --
         unlike list_departments()/search_departments(), not limited to the
@@ -142,6 +143,7 @@ class DepartmentService:
             page_size=normalized_page_size,
             search=search,
             active_only=active_only,
+            site_id=site_id,
         )
         items = filter_scope_rows(
             items,

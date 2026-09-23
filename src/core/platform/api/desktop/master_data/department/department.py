@@ -54,6 +54,7 @@ class PlatformDepartmentDesktopApi:
         page_size: int = 25,
         search: str = "",
         active_only: bool | None = None,
+        site_id: str | None = None,
     ) -> DesktopApiResult[DepartmentPageDto]:
         return execute_desktop_operation(
             lambda: self._serialize_department_page(
@@ -63,6 +64,7 @@ class PlatformDepartmentDesktopApi:
                     page_size=page_size,
                     search=search,
                     active_only=active_only,
+                    site_id=site_id,
                 )
             )
         )

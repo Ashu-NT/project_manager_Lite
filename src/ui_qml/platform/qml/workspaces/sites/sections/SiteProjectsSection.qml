@@ -3,17 +3,18 @@ import QtQuick
 import Platform.Components 1.0
 
 // Site Detail's Projects tab (only shown when Project Management is
-// enabled for this tenant) -- an informational boundary pointing to the
-// PM module, which owns project/site alignment. Site Detail never
-// duplicates PM's own project data here.
+// enabled for this tenant). No safe, already-approved cross-module read
+// exists today for Platform to show real PM project rows scoped to a site
+// (Platform must not depend on Project Management's schema -- see
+// test_platform_does_not_import_business_modules.py), so this stays a
+// polished business-facing summary rather than a fabricated local table.
 AdminInformationalDetailSection {
     id: root
     width: parent ? parent.width : 0
     sectionLabel: "Projects"
-    infoMessage: "Project Management is enabled for this tenant. Project/site alignment stays PM-owned and references the shared site master."
-    cardTitle: "PM Boundary"
+    cardTitle: "Projects"
     notes: [
-        "Use the Project Management module to review projects, work packages, schedules, and delivery records linked to this site.",
-        "Platform admin keeps the site reference authoritative while PM owns the project and task execution layer."
+        "Projects associated with this site are managed in Project Management.",
+        "Open Project Management to review projects, schedules, and delivery records linked to this site."
     ]
 }
