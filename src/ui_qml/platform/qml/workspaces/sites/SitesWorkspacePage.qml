@@ -19,6 +19,7 @@ import "sections/SiteEmployeesColumns.js" as EmployeeColumns
 // context, both reused verbatim from the facade's existing wiring.
 AppLayouts.WorkspaceFrame {
     id: root
+    objectName: "sitesWorkspacePage"
 
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property PlatformControllers.PlatformAdminWorkspaceController workspaceController: root.platformCatalog

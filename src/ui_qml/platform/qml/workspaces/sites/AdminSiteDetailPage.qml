@@ -14,6 +14,7 @@ import workspaces.sites.sections 1.0 as SiteSections
 // presentational components this page wires up below.
 Item {
     id: root
+    objectName: "adminSiteDetailPage"
 
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property var site: ({})
@@ -113,7 +114,14 @@ Item {
             root._departmentsSearch, root._departmentsStatusFilter
         )
     }
-    readonly property int _departmentCount: root._departmentsCatalog.totalCount || 0
+    // NOTE: `totalCount` on a paginated catalog is deliberately the whole-
+    // ORGANIZATION total (unaffected by any filter, including this site_id
+    // scope) -- the same convention `active_only` already follows for
+    // `filteredTotal` vs `totalCount`. `filteredTotal` is the one actually
+    // scoped to this site; using `totalCount` here previously leaked
+    // another site's/the organization's whole department count into this
+    // site's own tab badge and Key Statistics tile.
+    readonly property int _departmentCount: root._departmentsCatalog.filteredTotal || 0
 
     // -- Employees tab: same site_id-scoped, paginated pattern as
     // Departments above.
@@ -137,7 +145,10 @@ Item {
             root._employeesSearch, root._employeesStatusFilter, root._employeesDepartmentFilter
         )
     }
-    readonly property int _employeeCount: root._employeesCatalog.totalCount || 0
+    // See the matching note on _departmentCount above: `totalCount` is the
+    // whole-organization total, `filteredTotal` is the one scoped to this
+    // site.
+    readonly property int _employeeCount: root._employeesCatalog.filteredTotal || 0
     // Real department options for this site only -- reuses the already-
     // fetched Departments tab data (no extra query) rather than the full
     // organization's department list.
