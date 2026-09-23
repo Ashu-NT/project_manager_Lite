@@ -19,6 +19,7 @@ Item {
     property var site: ({})
     property var employeeCatalog: ({ "items": [], "emptyState": "No employees are available yet." })
     property var employeeColumns: []
+    property var departmentColumns: []
     property var siteCalendarAssignment: ({})
     property var calendarSourceChain: []
     property bool canWrite: true
@@ -198,6 +199,28 @@ Item {
         || "This shared platform site anchors downstream PM and inventory records without duplicating those module-owned operational structures here."
     )
 
+    // -- Scoped routing: "Open Departments"/"Open Employees" are about THIS
+    // site's own child data, which already has a full local tab -- they
+    // must switch this detail page's own tab (never navigate away to the
+    // global, session-active-organization-only Platform workspace, which
+    // would silently show a DIFFERENT site's/org's data whenever this isn't
+    // the caller's active context). Departments is always index 1 and
+    // Employees always index 2 in _sections above (Projects/Calendar/
+    // Documents/Activity only ever appear after them). Calendar/Projects/
+    // Documents have no local tab with this capability, so those stay
+    // genuine cross-workspace navigation (handled by SitesWorkspacePage.qml).
+    readonly property var _sectionIndexByDestination: ({
+        "show_departments": 1, "show_employees": 2
+    })
+    function _handleToolbarAction(actionId) {
+        const index = root._sectionIndexByDestination[actionId]
+        if (index !== undefined) {
+            detailPage.scrollToSection(index)
+            return
+        }
+        root.actionRequested(actionId)
+    }
+
     function _tableHeightForCount(count) {
         const visibleRows = Math.max(1, Math.min(count, 8))
         return Theme.AppTheme.headerHeight + (visibleRows * Theme.AppTheme.normalRowHeight) + Theme.AppTheme.spacingLg
@@ -249,7 +272,7 @@ Item {
             busy: root.busy
             actions: root._toolbarActions
             onActionTriggered: function(actionId) {
-                root.actionRequested(actionId)
+                root._handleToolbarAction(actionId)
             }
         }
 

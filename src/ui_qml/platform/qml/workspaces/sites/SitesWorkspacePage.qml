@@ -227,11 +227,24 @@ AppLayouts.WorkspaceFrame {
             if (root.workspaceController && assignmentId.length) root.workspaceController.removeCalendarAssignment(assignmentId, "site")
             return
         }
-        if (actionId === "open_calendar_mgmt") { root.navigateToDestination("calendars"); return }
+        if (actionId === "open_calendar_mgmt") {
+            // Opens THIS site's actual assigned calendar row when one exists
+            // (same relatedRecordRequested("calendars", calendarId) cross-
+            // navigation Organization Overview's "Manage Calendar" already
+            // uses) -- falls back to the unfiltered Calendars workspace only
+            // when this site has no assignment yet (inherits Global), since
+            // there is no specific calendar row to open in that case.
+            const assigned = root._calendarContext.assignedCalendar || {}
+            const calendarId = String(assigned.calendarId || "")
+            if (calendarId.length) {
+                root.relatedRecordRequested("calendars", calendarId)
+            } else {
+                root.navigateToDestination("calendars")
+            }
+            return
+        }
         if (actionId === "create_department") { dialogHostLoader.invoke("openDepartmentCreate"); return }
-        if (actionId === "show_departments") { root.navigateToDestination("departments"); return }
         if (actionId === "create_employee") { dialogHostLoader.invoke("openEmployeeCreate"); return }
-        if (actionId === "show_employees") { root.navigateToDestination("employees"); return }
         if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
         if (actionId === "edit") { root.openEdit(id); return }
         if (actionId === "toggle_active" && root.workspaceController) { root.requestToggleActive(); return }
