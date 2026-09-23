@@ -9,6 +9,8 @@ import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
 import Platform.Dialogs 1.0 as AdminDialogs
 import App.Controls 1.0 as AppControls
+import "sections/SiteDepartmentsColumns.js" as DepartmentColumns
+import "sections/SiteEmployeesColumns.js" as EmployeeColumns
 
 // R4: Sites as a standalone Platform destination. Same shape as
 // OrganizationsWorkspacePage, plus: the existing AdminSiteDetailPage's
@@ -40,9 +42,6 @@ AppLayouts.WorkspaceFrame {
     property var siteCatalog: root.workspaceController
         ? root.workspaceController.sites
         : ({ "title": "Sites", "subtitle": "", "emptyState": "", "items": [] })
-    property var departmentCatalog: root.workspaceController
-        ? root.workspaceController.departments
-        : ({ "title": "Departments", "subtitle": "", "emptyState": "", "items": [] })
     property var employeeCatalog: root.workspaceController
         ? root.workspaceController.employees
         : ({ "title": "Employees", "subtitle": "", "emptyState": "", "items": [] })
@@ -54,20 +53,17 @@ AppLayouts.WorkspaceFrame {
         { key: "statusLabel", label: "Status",          flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
         { key: "metaText",    label: "Timezone / FX",   flex: 2, minWidth: 150, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint }
     ]
-    readonly property var _departmentColumns: [
-        { key: "title",       label: "Name",        flex: 3, minWidth: 160, sortable: true,  visible: true },
-        { key: "subtitle",    label: "Code / Type", flex: 3, minWidth: 160, sortable: false, visible: true },
-        { key: "siteName",    label: "Site",        flex: 2.4, minWidth: 180, sortable: true, visible: true },
-        { key: "statusLabel", label: "Status",      flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
-        { key: "metaText",    label: "Cost Center", flex: 2, minWidth: 120, sortable: false, visible: true }
-    ]
-    readonly property var _employeeColumns: [
-        { key: "title",       label: "Name",             flex: 3, minWidth: 160, sortable: true,  visible: true },
-        { key: "subtitle",    label: "Code / Job Title", flex: 3, minWidth: 180, sortable: false, visible: true },
-        { key: "departmentName", label: "Department",    flex: 2.4, minWidth: 180, sortable: true, visible: true },
-        { key: "siteName",    label: "Site",             flex: 2.2, minWidth: 160, sortable: true, visible: true },
-        { key: "statusLabel", label: "Status",           flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
-        { key: "metaText",    label: "Employment",       flex: 3, minWidth: 160, sortable: false, visible: true }
+    readonly property var _departmentColumns: DepartmentColumns.columns()
+    readonly property var _employeeColumns: EmployeeColumns.columns()
+    // "Archived" is deliberately not offered here -- the backend list_sites_
+    // page_for_organization filter is still the legacy active_only boolean
+    // (active vs. "not active"), which cannot distinguish inactive from
+    // archived. Add it once that filter is upgraded to a real status string
+    // (matching Organization's own list filter), not before.
+    readonly property var _statusFilterOptions: [
+        { "value": "", "label": "All" },
+        { "value": "active", "label": "Active" },
+        { "value": "inactive", "label": "Inactive" }
     ]
 
     property string selectedRowId: ""
@@ -122,12 +118,45 @@ AppLayouts.WorkspaceFrame {
         return null
     }
 
-    readonly property var _inspectorSections: {
+    // Enterprise grouped Inspector layout (Identity/Lifecycle/Location/
+    // Business Context), matching AdminOrganizationDetailPage's own
+    // Inspector -- real per-field data, never a synthetic "Details"/"Info"
+    // row collapsing an already-concatenated subtitle/metaText string. Each
+    // group hides itself entirely when every one of its rows is empty.
+    readonly property var _inspectorGroups: {
         const item = root._selectedItem
         if (!item) return []
+        const state = item.state || {}
         return [
-            { "label": "Details", "value": String(item.subtitle || "") },
-            { "label": "Info", "value": String(item.metaText || "") }
+            {
+                "title": "Identity",
+                "rows": [
+                    { "label": "Code", "value": String(state.siteCode || "") },
+                    { "label": "Site Type", "value": String(state.siteType || "") },
+                    { "label": "Organization", "value": String(state.organizationName || "") }
+                ]
+            },
+            {
+                "title": "Lifecycle",
+                "rows": [
+                    { "label": "Status", "value": item.statusLabel ? String(item.statusLabel.label || "") : "" }
+                ]
+            },
+            {
+                "title": "Location",
+                "rows": [
+                    { "label": "City", "value": String(state.city || "") },
+                    { "label": "Country", "value": String(state.country || "") },
+                    { "label": "Timezone", "value": String(state.timezoneName || "") }
+                ]
+            },
+            {
+                "title": "Business Context",
+                "rows": [
+                    { "label": "Currency", "value": String(state.currencyCode || "") },
+                    { "label": "Notes", "value": String(state.notes || "") }
+                ]
+            }
         ]
     }
 
@@ -204,7 +233,6 @@ AppLayouts.WorkspaceFrame {
         if (actionId === "create_employee") { dialogHostLoader.invoke("openEmployeeCreate"); return }
         if (actionId === "show_employees") { root.navigateToDestination("employees"); return }
         if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
-        if (actionId === "show_audit") { root.navigateToDestination("control_audit"); return }
         if (actionId === "edit") { root.openEdit(id); return }
         if (actionId === "toggle_active" && root.workspaceController) { root.requestToggleActive(); return }
     }
@@ -235,16 +263,51 @@ AppLayouts.WorkspaceFrame {
                 errorMessage: root.err
                 feedbackMessage: root.ok
                 selectedRowId: root.selectedRowId
+                showSearch: true
+                searchText: root.workspaceController ? root.workspaceController.siteSearchText : ""
+                pageSizeOptions: root.workspaceController ? root.workspaceController.sitePageSizeOptions : [25, 50, 100]
+
+                AppControls.ComboBox {
+                    Layout.preferredWidth: 160
+                    model: root._statusFilterOptions
+                    textRole: "label"
+                    valueRole: "value"
+                    currentIndex: {
+                        const filter = root.workspaceController ? root.workspaceController.siteStatusFilter : ""
+                        for (let i = 0; i < root._statusFilterOptions.length; i += 1) {
+                            if (root._statusFilterOptions[i].value === filter) return i
+                        }
+                        return 0
+                    }
+                    onActivated: {
+                        if (root.workspaceController) root.workspaceController.setSiteStatusFilter(String(currentValue || ""))
+                    }
+                }
 
                 onCreateRequested: dialogHostLoader.invoke("openSiteCreate")
                 onRowSelected: function(id) { root.selectedRowId = id }
                 onRowActivated: function(id) { root.selectedRowId = id; root.detailOpen = true }
+                onSearchChanged: function(text) {
+                    if (root.workspaceController) root.workspaceController.setSiteSearchText(text)
+                }
+                onPageRequested: function(page) {
+                    if (root.workspaceController) root.workspaceController.setSitePage(page)
+                }
+                onPageSizeRequested: function(pageSize) {
+                    if (root.workspaceController) root.workspaceController.setSitePageSize(pageSize)
+                }
+                onClearFiltersRequested: {
+                    if (!root.workspaceController) return
+                    root.workspaceController.setSiteSearchText("")
+                    root.workspaceController.setSiteStatusFilter("")
+                }
                 onRefreshRequested: { if (root.workspaceController) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
             }
 
             AppWidgets.InspectorPanel {
                 Layout.fillHeight: true
                 visible: root.selectedRowId.length > 0 && Window.width >= Theme.AppTheme.compactContentBreakpoint
+                panelWidth: 380
                 title: root._selectedItem ? String(root._selectedItem.title || "") : ""
                 statusLabel: (root._selectedItem && root._selectedItem.statusLabel)
                     ? String(root._selectedItem.statusLabel.label || "")
@@ -252,7 +315,7 @@ AppLayouts.WorkspaceFrame {
                 statusTone: (root._selectedItem && root._selectedItem.statusLabel)
                     ? String(root._selectedItem.statusLabel.tone || "")
                     : ""
-                sections: root._inspectorSections
+                groups: root._inspectorGroups
                 busy: root.busy
                 editActionLabel: "Edit"
                 showEditAction: root._canWrite
@@ -278,7 +341,6 @@ AppLayouts.WorkspaceFrame {
                     canWrite: root._canWrite
                     canManageEmployees: root._canManageEmployees
                     canManageCalendar: root._canManageCalendar
-                    departmentCatalog: root.departmentCatalog
                     departmentColumns: root._departmentColumns
                     employeeCatalog: root.employeeCatalog
                     employeeColumns: root._employeeColumns

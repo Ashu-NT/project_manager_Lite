@@ -9,12 +9,18 @@ from src.ui_qml.platform.presenters.sites.site_activity_presenter import Platfor
 from src.ui_qml.platform.controllers.common import run_mutation, safe_exception_message, serialize_action_list
 
 
+_SITE_PAGE_SIZE_OPTIONS = (25, 50, 100)
+_DEFAULT_SITE_PAGE_SIZE = 25
+
+
 class PlatformSiteController(QObject):
     sitesChanged = Signal()
     isBusyChanged = Signal()
     errorMessageChanged = Signal()
     operationResultChanged = Signal()
     feedbackMessageChanged = Signal()
+    siteSearchTextChanged = Signal()
+    siteStatusFilterChanged = Signal()
 
     def __init__(
         self,
@@ -37,10 +43,26 @@ class PlatformSiteController(QObject):
             "message": "",
         }
         self._feedback_message = ""
+        self._page = 1
+        self._page_size = _DEFAULT_SITE_PAGE_SIZE
+        self._search_text = ""
+        self._status_filter = ""
 
     @Property("QVariantMap", notify=sitesChanged)
     def sites(self) -> dict[str, object]:
         return self._sites
+
+    @Property(str, notify=siteSearchTextChanged)
+    def siteSearchText(self) -> str:
+        return self._search_text
+
+    @Property(str, notify=siteStatusFilterChanged)
+    def siteStatusFilter(self) -> str:
+        return self._status_filter
+
+    @Property("QVariantList", constant=True)
+    def sitePageSizeOptions(self) -> list[int]:
+        return list(_SITE_PAGE_SIZE_OPTIONS)
 
     @Property(QObject, constant=True)
     def tableModel(self) -> DynamicTableModel:
@@ -91,6 +113,46 @@ class PlatformSiteController(QObject):
 
     @Slot()
     def refresh(self) -> None:
+        self._refresh_sites()
+
+    @Slot(int)
+    def setSitePage(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized == self._page:
+            return
+        self._page = normalized
+        self._refresh_sites()
+
+    @Slot(int)
+    def setSitePageSize(self, page_size: int) -> None:
+        normalized = int(page_size) if int(page_size) in _SITE_PAGE_SIZE_OPTIONS else _DEFAULT_SITE_PAGE_SIZE
+        if normalized == self._page_size:
+            return
+        self._page_size = normalized
+        # Changing the page size while positioned deep in the result set
+        # could land past the new last page -- resetting to page 1 keeps
+        # the result always valid without a second round-trip to clamp it.
+        self._page = 1
+        self._refresh_sites()
+
+    @Slot(str)
+    def setSiteSearchText(self, text: str) -> None:
+        normalized = str(text or "")
+        if normalized == self._search_text:
+            return
+        self._search_text = normalized
+        self._page = 1
+        self.siteSearchTextChanged.emit()
+        self._refresh_sites()
+
+    @Slot(str)
+    def setSiteStatusFilter(self, status: str) -> None:
+        normalized = str(status or "").strip().lower()
+        if normalized == self._status_filter:
+            return
+        self._status_filter = normalized
+        self._page = 1
+        self.siteStatusFilterChanged.emit()
         self._refresh_sites()
 
     @Slot(str, int, int, str, str, result="QVariantMap")
@@ -226,7 +288,16 @@ class PlatformSiteController(QObject):
         )
 
     def _refresh_sites(self) -> None:
-        self._set_sites(serialize_action_list(self._presenter.build_catalog()))
+        self._set_sites(
+            serialize_action_list(
+                self._presenter.build_catalog_page(
+                    page=self._page,
+                    page_size=self._page_size,
+                    search=self._search_text,
+                    status=self._status_filter,
+                )
+            )
+        )
 
 
 __all__ = ["PlatformSiteController"]

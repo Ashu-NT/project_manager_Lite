@@ -158,6 +158,8 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     organizationSearchTextChanged = Signal()
     organizationStatusFilterChanged = Signal()
     selectedOrganizationIdsChanged = Signal()
+    siteSearchTextChanged = Signal()
+    siteStatusFilterChanged = Signal()
     departmentEditorOptionsChanged = Signal()
     employeeEditorOptionsChanged = Signal()
     userEditorOptionsChanged = Signal()
@@ -240,6 +242,18 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantMap", notify=sitesChanged)
     def sites(self) -> dict[str, object]:
         return self._site_controller.sites
+
+    @Property(str, notify=siteSearchTextChanged)
+    def siteSearchText(self) -> str:
+        return self._site_controller.siteSearchText
+
+    @Property(str, notify=siteStatusFilterChanged)
+    def siteStatusFilter(self) -> str:
+        return self._site_controller.siteStatusFilter
+
+    @Property("QVariantList", constant=True)
+    def sitePageSizeOptions(self) -> list[int]:
+        return self._site_controller.sitePageSizeOptions
 
     @Property("QVariantMap", notify=departmentsChanged)
     def departments(self) -> dict[str, object]:
@@ -566,6 +580,22 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def archiveSite(self, site_id: str) -> dict[str, object]:
         return archive_site(self, site_id)
 
+    @Slot(int)
+    def setSitePage(self, page: int) -> None:
+        self._site_controller.setSitePage(page)
+
+    @Slot(int)
+    def setSitePageSize(self, page_size: int) -> None:
+        self._site_controller.setSitePageSize(page_size)
+
+    @Slot(str)
+    def setSiteSearchText(self, text: str) -> None:
+        self._site_controller.setSiteSearchText(text)
+
+    @Slot(str)
+    def setSiteStatusFilter(self, status: str) -> None:
+        self._site_controller.setSiteStatusFilter(status)
+
     @Slot(str, int, int, str, str, result="QVariantMap")
     def organizationSitesPage(
         self,
@@ -619,6 +649,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         return self._department_controller.organizationDepartmentsPage(
             organization_id, page, page_size, search, status
         )
+
+    @Slot(str, result="QVariantMap")
+    def departmentsForSite(self, site_id: str) -> dict[str, object]:
+        return self._department_controller.departmentsForSite(site_id)
 
     # ── Employee slots ────────────────────────────────────────────────────
 

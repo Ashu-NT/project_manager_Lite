@@ -70,6 +70,47 @@ class PlatformSiteCatalogPresenter:
             ),
         )
 
+    def build_catalog_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        status: str = "",
+    ) -> PlatformWorkspaceActionListViewModel:
+        """Server-side paginated Sites page for the primary Platform > Sites
+        destination, scoped to the caller's currently active organization --
+        the ambient-context counterpart to build_catalog_page_for_organization
+        below (Organization Detail's explicit-organization_id variant)."""
+        if self._site_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Sites",
+                subtitle="Sites appear here once the platform site API is connected.",
+                empty_state="Platform site API is not connected in this QML preview.",
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+        context_result = self._site_api.get_context()
+        if not context_result.ok or context_result.data is None:
+            message = context_result.error.message if context_result.error is not None else "Unable to load sites."
+            return PlatformWorkspaceActionListViewModel(
+                title="Sites",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+        return self._build_catalog_page_for_organization(
+            context_result.data.id,
+            organization_name=context_result.data.display_name,
+            page=page,
+            page_size=page_size,
+            search=search,
+            status=status,
+        )
+
     def build_catalog_page_for_organization(
         self,
         organization_id: str,
@@ -82,6 +123,25 @@ class PlatformSiteCatalogPresenter:
         """Tenant-scoped (not active-organization-scoped) paginated Sites
         page for Organization Detail's Sites tab -- works regardless of
         which organization is currently active in the caller's session."""
+        return self._build_catalog_page_for_organization(
+            organization_id,
+            organization_name="",
+            page=page,
+            page_size=page_size,
+            search=search,
+            status=status,
+        )
+
+    def _build_catalog_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        organization_name: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+    ) -> PlatformWorkspaceActionListViewModel:
         if self._site_api is None:
             return PlatformWorkspaceActionListViewModel(
                 title="Sites",
@@ -124,7 +184,7 @@ class PlatformSiteCatalogPresenter:
             subtitle="Operational sites for this organization.",
             empty_state="No sites yet. Add the first operational site for this organization.",
             no_results_state="No sites match your current filters.",
-            items=tuple(self._serialize_site(row, organization_name="") for row in site_page.items),
+            items=tuple(self._serialize_site(row, organization_name=organization_name) for row in site_page.items),
             paginated=True,
             page=site_page.page,
             page_size=site_page.page_size,

@@ -87,6 +87,7 @@ class SqlAlchemyDepartmentRepository(TenantScopedRepositorySupport, DepartmentRe
         organization_id: str,
         *,
         active_only: bool | None = None,
+        site_id: str | None = None,
     ) -> list[Department]:
         ctx = self._context(operation_label="access departments")
         if not self._organization_in_scope(ctx, organization_id):
@@ -97,6 +98,8 @@ class SqlAlchemyDepartmentRepository(TenantScopedRepositorySupport, DepartmentRe
         )
         if active_only is not None:
             stmt = stmt.where(DepartmentORM.is_active == bool(active_only))
+        if site_id is not None:
+            stmt = stmt.where(DepartmentORM.site_id == site_id)
         rows = self.session.execute(stmt.order_by(DepartmentORM.name.asc())).scalars().all()
         return [department_from_orm(row) for row in rows]
 

@@ -1,20 +1,22 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
-import Platform.Components 1.0
-import workspaces.calendars 1.0
+import workspaces.sites.sections 1.0 as SiteSections
 
+// Orchestrator only: owns site identity/lifecycle, per-tab state (page/
+// search/filter) and data fetching. Each tab's own markup lives in
+// workspaces/sites/sections/ -- see that folder's files for the
+// Overview/Departments/Employees/Projects/Calendar/Documents/Activity
+// presentational components this page wires up below.
 Item {
     id: root
 
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property var site: ({})
-    property var departmentCatalog: ({ "items": [], "emptyState": "No departments are available yet." })
-    property var departmentColumns: []
     property var employeeCatalog: ({ "items": [], "emptyState": "No employees are available yet." })
     property var employeeColumns: []
     property var siteCalendarAssignment: ({})
@@ -44,23 +46,29 @@ Item {
     readonly property string _statusTone: root._isActive ? "success" : "neutral"
     readonly property bool _pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
     readonly property string _siteId: String(root._state.siteId || root._state.id || root.site.id || "")
+    readonly property string _organizationId: String(root._state.organizationId || "")
     readonly property bool _hasCalendarAssignment: String(root.siteCalendarAssignment && root.siteCalendarAssignment.assignmentId ? root.siteCalendarAssignment.assignmentId : "").length > 0
-    readonly property var _departmentRows: {
-        const rows = root.departmentCatalog.items || []
-        const siteId = root._siteId
-        if (siteId.length === 0) {
-            return []
+
+    // -- Departments tab: explicit site_id-scoped backend query
+    // (DepartmentService.list_departments(site_id=...)), not a client-side
+    // filter of the shared, session-active-organization-only catalog --
+    // works correctly regardless of which organization/site is active in
+    // the caller's session.
+    property var _departmentsCatalog: ({ "items": [], "emptyState": "No departments are available yet." })
+    readonly property var _departmentRows: root._departmentsCatalog.items || []
+    function _refreshDepartments() {
+        if (root._siteId.length === 0 || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            root._departmentsCatalog = ({ "items": [], "emptyState": "No departments are available yet." })
+            return
         }
-        return rows.filter(function(row) {
-            const state = row && row.state ? row.state : {}
-            return String(state.siteId || "") === siteId
-        })
+        root._departmentsCatalog = root.platformCatalog.adminWorkspace.departmentsForSite(root._siteId)
     }
+
     readonly property var _employeeRows: {
         // Depend on employeeCatalog so this re-fetches whenever the shared
-        // employee catalog changes (create/update/toggle-active elsewhere),
-        // but query only this site's rows via SQL rather than a full-org
-        // client-side filter.
+        // employee catalog changes (create/update/activate/deactivate
+        // elsewhere), but query only this site's rows via SQL rather than
+        // a full-org client-side filter.
         const _refreshToken = root.employeeCatalog
         const siteId = root._siteId
         if (siteId.length === 0 || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
@@ -69,6 +77,35 @@ Item {
         const result = root.platformCatalog.adminWorkspace.employeesForSite(siteId)
         return (result && result.items) || []
     }
+
+    // -- Activity tab: this site's own paginated, searchable business-
+    // activity history -- distinct from the tenant-wide Platform audit
+    // trail the previous "Audit" stub tab pointed to.
+    property int _activityPage: 1
+    property int _activityPageSize: 25
+    property string _activitySearch: ""
+    property string _activityDateFilter: ""
+    property var _activityCatalog: ({
+        "items": [], "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0,
+        "emptyState": "", "noResultsState": ""
+    })
+    readonly property var _activityDateFilterOptions: [
+        { "value": "", "label": "All time" },
+        { "value": "today", "label": "Today" },
+        { "value": "7d", "label": "Last 7 days" },
+        { "value": "30d", "label": "Last 30 days" }
+    ]
+    function _refreshActivityPage() {
+        if (root._siteId.length === 0 || root._organizationId.length === 0
+            || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            return
+        }
+        root._activityCatalog = root.platformCatalog.adminWorkspace.siteActivityPage(
+            root._siteId, root._organizationId, root._activityPage, root._activityPageSize,
+            root._activitySearch, root._activityDateFilter
+        )
+    }
+
     readonly property var _sections: {
         const sections = [
             { "label": "Overview" },
@@ -80,7 +117,7 @@ Item {
         }
         sections.push({ "label": "Calendar" })
         sections.push({ "label": "Documents" })
-        sections.push({ "label": "Audit" })
+        sections.push({ "label": "Activity" })
         return sections
     }
     readonly property string _activeSectionLabel: {
@@ -101,8 +138,8 @@ Item {
             return "Site-level calendar assignment and working schedule inherited from the global calendar hierarchy."
         case "Documents":
             return "Site-scoped document governance stays in the shared document workspace."
-        case "Audit":
-            return "Entity-level audit detail is still routed through the shared audit workspace."
+        case "Activity":
+            return "Activity for this site only"
         default:
             return ""
         }
@@ -140,11 +177,6 @@ Item {
                 { "id": "show_documents", "label": "Open Documents", "icon": "chevron_right" }
             ]
         }
-        if (root._activeSectionLabel === "Audit") {
-            return [
-                { "id": "show_audit", "label": "Open Audit", "icon": "chevron_right" }
-            ]
-        }
         return [
             { "id": "refresh", "label": "Refresh", "icon": "refresh" }
         ]
@@ -161,10 +193,23 @@ Item {
         { "label": "Timezone", "value": root._state.timezoneName },
         { "label": "Currency", "value": root._state.currencyCode }
     ]
+    readonly property string _overviewDescription: String(
+        root._state.description || root._state.notes
+        || "This shared platform site anchors downstream PM and inventory records without duplicating those module-owned operational structures here."
+    )
 
     function _tableHeightForCount(count) {
         const visibleRows = Math.max(1, Math.min(count, 8))
         return Theme.AppTheme.headerHeight + (visibleRows * Theme.AppTheme.normalRowHeight) + Theme.AppTheme.spacingLg
+    }
+
+    onSiteChanged: {
+        root._refreshDepartments()
+        root._refreshActivityPage()
+    }
+    Component.onCompleted: {
+        root._refreshDepartments()
+        root._refreshActivityPage()
     }
 
     AppWidgets.SectionDetailPage {
@@ -223,124 +268,13 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading site overview..."
                 sourceComponent: Component {
-                    Column {
-                        width: parent ? parent.width : 0
-                        spacing: 0
-
-                        AppWidgets.SectionHeading {
-                            width: parent.width
-                            label: "Overview"
-                        }
-
-                        Item {
-                            width: parent.width
-                            implicitHeight: overviewColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                            ColumnLayout {
-                                id: overviewColumn
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.topMargin: Theme.AppTheme.spacingMd
-                                anchors.leftMargin: Theme.AppTheme.spacingMd
-                                anchors.rightMargin: Theme.AppTheme.spacingMd
-                                spacing: Theme.AppTheme.spacingMd
-
-                                AppWidgets.SectionCard {
-                                    Layout.fillWidth: true
-                                    implicitHeight: overviewGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Site Summary"
-                                    outlined: true
-
-                                    GridLayout {
-                                        id: overviewGrid
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        columns: 2
-                                        columnSpacing: Theme.AppTheme.spacingLg
-                                        rowSpacing: Theme.AppTheme.spacingSm
-
-                                        Repeater {
-                                            model: root._overviewFields
-
-                                            delegate: ColumnLayout {
-                                                required property var modelData
-                                                Layout.fillWidth: true
-                                                spacing: 2
-
-                                                AppControls.Label {
-                                                    Layout.fillWidth: true
-                                                    text: String(modelData.label || "")
-                                                    color: Theme.AppTheme.textMuted
-                                                    font.pixelSize: Theme.AppTheme.captionSize
-                                                    font.bold: true
-                                                }
-
-                                                AppControls.Label {
-                                                    Layout.fillWidth: true
-                                                    text: modelData.value === undefined || modelData.value === null || String(modelData.value).length === 0
-                                                        ? "-"
-                                                        : (typeof modelData.value === "boolean" ? (modelData.value ? "Yes" : "No") : String(modelData.value))
-                                                    color: Theme.AppTheme.textPrimary
-                                                    font.pixelSize: Theme.AppTheme.smallSize
-                                                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                AppWidgets.SectionCard {
-                                    Layout.fillWidth: true
-                                    implicitHeight: notesColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Operational Notes"
-                                    outlined: true
-
-                                    ColumnLayout {
-                                        id: notesColumn
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        spacing: Theme.AppTheme.spacingSm
-
-                                        AppWidgets.StatusChip {
-                                            visible: root._status.length > 0
-                                            status: root._status
-                                            tone:   root._statusTone
-                                        }
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            visible: root._supportingText.length > 0
-                                            text: root._supportingText
-                                            color: Theme.AppTheme.textSecondary
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                        }
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            visible: root._metaText.length > 0
-                                            text: root._metaText
-                                            color: Theme.AppTheme.textMuted
-                                            font.pixelSize: Theme.AppTheme.captionSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                        }
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: String(root._state.description || root._state.notes || "This shared platform site anchors downstream PM and inventory records without duplicating those module-owned operational structures here.")
-                                            color: Theme.AppTheme.textSecondary
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    SiteSections.SiteOverviewSection {
+                        overviewFields: root._overviewFields
+                        status: root._status
+                        statusTone: root._statusTone
+                        supportingText: root._supportingText
+                        metaText: root._metaText
+                        description: root._overviewDescription
                     }
                 }
             }
@@ -361,11 +295,7 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading site departments..."
                 sourceComponent: Component {
-                    AdminDetailTableSection {
-                        sectionLabel: "Departments"
-                        infoMessage: "Departments remain shared platform masters. This section filters them by the selected site association."
-                        emptyTitle: "No departments for this site"
-                        emptyMessage: "No departments are currently assigned to this site."
+                    SiteSections.SiteDepartmentsSection {
                         rows: root._departmentRows
                         columns: root.departmentColumns
                         tableHeight: root._tableHeightForCount(root._departmentRows.length)
@@ -393,11 +323,7 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading site employees..."
                 sourceComponent: Component {
-                    AdminDetailTableSection {
-                        sectionLabel: "Employees"
-                        infoMessage: "Employee assignment remains sourced from the shared employee master."
-                        emptyTitle: "No employees mapped"
-                        emptyMessage: "This site does not currently have employees assigned."
+                    SiteSections.SiteEmployeesSection {
                         rows: root._employeeRows
                         columns: root.employeeColumns
                         loading: root.busy
@@ -425,15 +351,7 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading site project guidance..."
                 sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Projects"
-                        infoMessage: "Project Management is enabled for this tenant. Project/site alignment stays PM-owned and references the shared site master."
-                        cardTitle: "PM Boundary"
-                        notes: [
-                            "Use the Project Management module to review projects, work packages, schedules, and delivery records linked to this site.",
-                            "Platform admin keeps the site reference authoritative while PM owns the project and task execution layer."
-                        ]
-                    }
+                    SiteSections.SiteProjectsSection {}
                 }
             }
         }
@@ -453,9 +371,7 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading site calendar..."
                 sourceComponent: Component {
-                    AdminCalendarAssignmentSection {
-                        width: parent ? parent.width : 0
-                        entityType: "site"
+                    SiteSections.SiteCalendarSection {
                         entityId: root._siteId
                         entityLabel: root._title
                         assignedCalendar: root.siteCalendarAssignment
@@ -483,42 +399,58 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading site document guidance..."
                 sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Documents"
-                        infoMessage: "Site-scoped document governance remains in the shared documents workspace."
-                        cardTitle: "Document Boundary"
-                        notes: [
-                            "Use the shared Documents workspace to manage governed documents and document structures linked to platform records.",
-                            "The admin controller does not yet surface a site-filtered document relationship view, so this section intentionally delegates to the owning document workspace."
-                        ]
-                    }
+                    SiteSections.SiteDocumentsSection {}
                 }
             }
         }
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Audit" ? auditLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Activity"
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
             AppWidgets.LazySectionLoader {
-                id: auditLoader
+                id: activityLoader
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root._activeSectionLabel === "Audit"
+                active: root._activeSectionLabel === "Activity"
                 keepLoaded: true
-                loadingMessage: "Loading audit guidance..."
+                loadingMessage: "Loading site activity..."
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Audit"
-                        infoMessage: "Entity-level site audit detail is still routed through the shared Platform audit workspace."
-                        cardTitle: "Audit Follow-up"
-                        notes: [
-                            "Use the shared audit workspace to inspect platform-wide events, approval history, and related operational activity for this site.",
-                            "This keeps audit delivery centralized while the site detail page stays focused on master-data inspection."
-                        ]
+                    SiteSections.SiteActivitySection {
+                        width: parent ? parent.width : 0
+                        height: Math.max(420, detailPage.contentViewportHeight)
+                        catalog: root._activityCatalog
+                        busy: root.busy
+                        searchText: root._activitySearch
+                        dateFilterOptions: root._activityDateFilterOptions
+                        dateFilter: root._activityDateFilter
+
+                        onRefreshRequested: root._refreshActivityPage()
+                        onSearchChanged: function(text) {
+                            root._activitySearch = text
+                            root._activityPage = 1
+                            root._refreshActivityPage()
+                        }
+                        onDateFilterRequested: function(value) {
+                            root._activityDateFilter = value
+                            root._activityPage = 1
+                            root._refreshActivityPage()
+                        }
+                        onPageRequested: function(page) {
+                            root._activityPage = page
+                            root._refreshActivityPage()
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            root._activityPageSize = pageSize
+                            root._activityPage = 1
+                            root._refreshActivityPage()
+                        }
                     }
                 }
             }

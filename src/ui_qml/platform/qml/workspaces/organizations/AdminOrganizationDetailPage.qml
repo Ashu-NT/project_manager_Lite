@@ -5,6 +5,10 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import workspaces.organizations.sections 1.0 as OrgSections
+import "sections/OrganizationSitesColumns.js" as SitesColumns
+import "sections/OrganizationDepartmentsColumns.js" as DepartmentsColumns
+import "sections/OrganizationEmployeesColumns.js" as EmployeesColumns
+import "sections/OrganizationDocumentsColumns.js" as DocumentsColumns
 
 // Orchestrator only: owns organization identity/lifecycle, per-tab
 // state (page/search/filter/selection) and data fetching. Each tab's own
@@ -389,21 +393,8 @@ Item {
         "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
     })
     property string _sitesSelectedRowId: ""
-    readonly property var _sitesStatusFilterOptions: [
-        { "value": "", "label": "All" },
-        { "value": "active", "label": "Active" },
-        { "value": "inactive", "label": "Inactive" }
-    ]
-    readonly property var _sitesColumns: [
-        { "key": "title", "label": "Site", "flex": 3, "minWidth": 160, "sortable": true, "required": true, "visible": true },
-        { "key": "siteCode", "label": "Code", "flex": 1, "minWidth": 110, "visible": true },
-        { "key": "location", "label": "Location", "flex": 2, "minWidth": 150, "visible": true },
-        { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 90, "type": "status", "required": true, "visible": true },
-        { "key": "country", "label": "Country", "flex": 1, "minWidth": 120, "visible": false },
-        { "key": "timezoneName", "label": "Time Zone", "flex": 1, "minWidth": 130, "visible": false },
-        { "key": "createdAt", "label": "Created", "flex": 1, "minWidth": 140, "visible": false },
-        { "key": "updatedAt", "label": "Updated", "flex": 1, "minWidth": 140, "visible": false }
-    ]
+    readonly property var _sitesStatusFilterOptions: SitesColumns.statusFilterOptions()
+    readonly property var _sitesColumns: SitesColumns.columns()
     // Only your own currently-active organization can receive new sites
     // today (SiteService.create_site() -- an existing, unchanged domain
     // rule; this read-only phase does not add an explicit-organization
@@ -440,22 +431,8 @@ Item {
         "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
     })
     property string _departmentsSelectedRowId: ""
-    readonly property var _departmentsStatusFilterOptions: [
-        { "value": "", "label": "All" },
-        { "value": "active", "label": "Active" },
-        { "value": "inactive", "label": "Inactive" }
-    ]
-    readonly property var _departmentsColumns: [
-        { "key": "title", "label": "Department", "flex": 3, "minWidth": 160, "sortable": true, "required": true, "visible": true },
-        { "key": "departmentCode", "label": "Code", "flex": 1, "minWidth": 110, "visible": true },
-        { "key": "siteName", "label": "Site", "flex": 2, "minWidth": 150, "visible": true },
-        { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 90, "type": "status", "required": true, "visible": true },
-        { "key": "departmentType", "label": "Type", "flex": 1, "minWidth": 120, "visible": false },
-        { "key": "parentDepartmentName", "label": "Parent Department", "flex": 1, "minWidth": 150, "visible": false },
-        { "key": "costCenterCode", "label": "Cost Center", "flex": 1, "minWidth": 120, "visible": false },
-        { "key": "createdAt", "label": "Created", "flex": 1, "minWidth": 140, "visible": false },
-        { "key": "updatedAt", "label": "Updated", "flex": 1, "minWidth": 140, "visible": false }
-    ]
+    readonly property var _departmentsStatusFilterOptions: DepartmentsColumns.statusFilterOptions()
+    readonly property var _departmentsColumns: DepartmentsColumns.columns()
     // Only your own currently-active organization can receive new
     // departments today (DepartmentService.create_department() -- an
     // existing, unchanged domain rule; this read-only phase does not add
@@ -492,20 +469,8 @@ Item {
         "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
     })
     property string _employeesSelectedRowId: ""
-    readonly property var _employeesStatusFilterOptions: [
-        { "value": "", "label": "All" },
-        { "value": "active", "label": "Active" },
-        { "value": "inactive", "label": "Inactive" }
-    ]
-    readonly property var _employeesColumns: [
-        { "key": "title", "label": "Employee", "flex": 3, "minWidth": 160, "sortable": true, "required": true, "visible": true },
-        { "key": "employeeCode", "label": "Code", "flex": 1, "minWidth": 110, "visible": true },
-        { "key": "departmentName", "label": "Department", "flex": 2, "minWidth": 150, "visible": true },
-        { "key": "siteName", "label": "Site", "flex": 2, "minWidth": 150, "visible": true },
-        { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 90, "type": "status", "required": true, "visible": true },
-        { "key": "employmentType", "label": "Employment Type", "flex": 1, "minWidth": 140, "visible": false },
-        { "key": "email", "label": "Email", "flex": 1, "minWidth": 160, "visible": false }
-    ]
+    readonly property var _employeesStatusFilterOptions: EmployeesColumns.statusFilterOptions()
+    readonly property var _employeesColumns: EmployeesColumns.columns()
     // Only your own currently-active organization can receive new
     // employees today (EmployeeService.create_employee() -- an existing,
     // unchanged domain rule; this read-only phase does not add an
@@ -542,20 +507,8 @@ Item {
         "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
     })
     property string _documentsSelectedRowId: ""
-    readonly property var _documentsStatusFilterOptions: [
-        { "value": "", "label": "All" },
-        { "value": "active", "label": "Active" },
-        { "value": "inactive", "label": "Inactive" }
-    ]
-    readonly property var _documentsColumns: [
-        { "key": "title", "label": "Document", "flex": 3, "minWidth": 160, "sortable": true, "required": true, "visible": true },
-        { "key": "documentCode", "label": "Code", "flex": 1, "minWidth": 110, "visible": true },
-        { "key": "documentType", "label": "Type", "flex": 1, "minWidth": 120, "visible": true },
-        { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 90, "type": "status", "required": true, "visible": true },
-        { "key": "businessVersionLabel", "label": "Version", "flex": 1, "minWidth": 100, "visible": false },
-        { "key": "isCurrent", "label": "Current", "flex": 0, "minWidth": 90, "visible": false },
-        { "key": "fileName", "label": "File", "flex": 1, "minWidth": 160, "visible": false }
-    ]
+    readonly property var _documentsStatusFilterOptions: DocumentsColumns.statusFilterOptions()
+    readonly property var _documentsColumns: DocumentsColumns.columns()
     // Only your own currently-active organization can receive new documents
     // today (DocumentService.create_document() -- an existing, unchanged
     // domain rule; this read-only phase does not add an explicit-

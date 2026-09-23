@@ -271,3 +271,64 @@ def test_admin_controller_employees_for_department_empty_when_no_matches(service
 
     result = admin.employeesForDepartment(dept.id)
     assert result["items"] == []
+
+
+# ---------------------------------------------------------------------------
+# Departments by Site -- same explicit site_id-scoped read capability,
+# for Site Detail's own Departments tab (see AdminSiteDetailPage.qml).
+# ---------------------------------------------------------------------------
+
+
+def test_list_departments_filters_by_site_id(services):
+    department_service = services["department_service"]
+    site_service = services["site_service"]
+
+    site_a = site_service.create_site(site_code="FILT-DEPT-SA", name="Dept Site A")
+    site_b = site_service.create_site(site_code="FILT-DEPT-SB", name="Dept Site B")
+    department_service.create_department(department_code="FILT-DEPT-DA1", name="Dept A1", site_id=site_a.id, is_active=True)
+    department_service.create_department(department_code="FILT-DEPT-DA2", name="Dept A2", site_id=site_a.id, is_active=True)
+    department_service.create_department(department_code="FILT-DEPT-DB1", name="Dept B1", site_id=site_b.id, is_active=True)
+
+    rows_a = department_service.list_departments(site_id=site_a.id)
+    rows_b = department_service.list_departments(site_id=site_b.id)
+
+    assert len(rows_a) == 2
+    assert all(row.site_id == site_a.id for row in rows_a)
+    assert len(rows_b) == 1
+    assert all(row.site_id == site_b.id for row in rows_b)
+
+
+def test_admin_controller_departments_for_site_slot(services):
+    from src.application.runtime import build_desktop_api_registry
+    from src.ui_qml.platform.context import PlatformWorkspaceCatalog
+
+    department_service = services["department_service"]
+    site_service = services["site_service"]
+
+    site = site_service.create_site(site_code="FILT-DEPT-CTRL-S", name="Controller Dept Site")
+    department_service.create_department(department_code="FILT-DEPT-CTRL-D1", name="Controller Dept 1", site_id=site.id, is_active=True)
+    department_service.create_department(department_code="FILT-DEPT-CTRL-D2", name="Controller Dept 2", site_id=site.id, is_active=True)
+
+    registry = build_desktop_api_registry(services)
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
+    admin = catalog.adminWorkspace
+
+    result = admin.departmentsForSite(site.id)
+    assert len(result["items"]) == 2
+    for item in result["items"]:
+        assert item["state"]["siteId"] == site.id
+
+
+def test_admin_controller_departments_for_site_empty_when_no_matches(services):
+    from src.application.runtime import build_desktop_api_registry
+    from src.ui_qml.platform.context import PlatformWorkspaceCatalog
+
+    site_service = services["site_service"]
+    site = site_service.create_site(site_code="FILT-DEPT-CTRL-EMPTY", name="Empty Dept Site")
+
+    registry = build_desktop_api_registry(services)
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
+    admin = catalog.adminWorkspace
+
+    result = admin.departmentsForSite(site.id)
+    assert result["items"] == []

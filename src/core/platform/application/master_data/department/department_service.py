@@ -72,8 +72,10 @@ class DepartmentService:
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
-    def list_departments(self, *, active_only: bool | None = None) -> list[Department]:
-        return _queries.list_departments(self, active_only=active_only)
+    def list_departments(
+        self, *, active_only: bool | None = None, site_id: str | None = None
+    ) -> list[Department]:
+        return _queries.list_departments(self, active_only=active_only, site_id=site_id)
 
     def get_department_rollup_summary(self) -> DepartmentRollupSummary:
         require_department_read_access(self, "view department rollup summary")

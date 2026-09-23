@@ -84,6 +84,38 @@ class PlatformDepartmentCatalogPresenter:
             ),
         )
 
+    def build_catalog_for_site(self, site_id: str) -> PlatformWorkspaceActionListViewModel:
+        """Explicit site_id-scoped Departments read for Site Detail's own
+        Departments tab -- a real backend filter (DepartmentService.
+        list_departments(site_id=...)), not a client-side filter of the
+        shared, session-active-organization-only catalog."""
+        if self._department_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle="Departments appear here once the platform department API is connected.",
+                empty_state="Platform department API is not connected in this QML preview.",
+            )
+
+        result = self._department_api.list_departments(active_only=None, site_id=site_id)
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load departments."
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle=message,
+                empty_state=message,
+            )
+
+        site_lookup = self._site_lookup()
+        return PlatformWorkspaceActionListViewModel(
+            title="Departments",
+            subtitle="Departments aligned to this site through the shared department master.",
+            empty_state="This site does not currently have departments assigned.",
+            items=tuple(
+                self._serialize_department(row, site_lookup=site_lookup)
+                for row in result.data
+            ),
+        )
+
     def build_catalog_page_for_organization(
         self,
         organization_id: str,

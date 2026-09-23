@@ -140,6 +140,10 @@ class PlatformDepartmentController(QObject):
             )
         )
 
+    @Slot(str, result="QVariantMap")
+    def departmentsForSite(self, site_id: str) -> dict[str, object]:
+        return serialize_action_list(self._presenter.build_catalog_for_site(site_id))
+
     @Slot("QVariantMap", result=str)
     def generateCode(self, payload: dict[str, object]) -> str:
         try:

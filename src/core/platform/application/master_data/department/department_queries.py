@@ -16,10 +16,14 @@ if TYPE_CHECKING:
     from .department_service import DepartmentService
 
 
-def list_departments(service: DepartmentService, *, active_only: bool | None = None) -> list[Department]:
+def list_departments(
+    service: DepartmentService, *, active_only: bool | None = None, site_id: str | None = None
+) -> list[Department]:
     require_department_read_access(service, "list departments")
     organization = active_organization(service)
-    return service._department_repo.list_for_organization(organization.id, active_only=active_only)
+    return service._department_repo.list_for_organization(
+        organization.id, active_only=active_only, site_id=site_id
+    )
 
 
 def search_departments(
