@@ -46,7 +46,7 @@ class SqlAlchemyDepartmentRepository(TenantScopedRepositorySupport, DepartmentRe
                 "parent_department_id": department.parent_department_id,
                 "department_type": department.department_type or None,
                 "cost_center_code": department.cost_center_code or None,
-                "manager_employee_id": department.manager_employee_id,
+                "head_of_department_employee_id": department.head_of_department_employee_id,
                 "is_active": department.is_active,
                 "created_at": department.created_at,
                 "updated_at": department.updated_at,

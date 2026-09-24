@@ -11,7 +11,7 @@ AppWidgets.EntityDialog {
     property var draft: ({})
     property var siteOptions: []
     property var parentOptions: []
-    property var managerOptions: []
+    property var headOfDepartmentOptions: []
     property var workspaceController: null
     property string departmentCode: ""
 
@@ -53,7 +53,7 @@ AppWidgets.EntityDialog {
         parentDepartmentId: _currentValue(parentModel, parentCombo),
         departmentType: departmentTypeField.text.trim(),
         costCenterCode: costCenterField.text.trim(),
-        managerEmployeeId: _currentValue(managerModel, managerCombo),
+        headOfDepartmentEmployeeId: _currentValue(headOfDepartmentModel, headOfDepartmentCombo),
         notes: notesField.text.trim()
     })
 
@@ -76,10 +76,10 @@ AppWidgets.EntityDialog {
     function _assignOptions(options) {
         root.siteOptions = options.siteOptions || []
         root.parentOptions = options.parentOptions || []
-        root.managerOptions = options.managerOptions || []
+        root.headOfDepartmentOptions = options.headOfDepartmentOptions || []
         _reloadOptionModel(siteModel, root.siteOptions)
         _reloadOptionModel(parentModel, root.parentOptions, root.draft.departmentId || root.draft.id || "")
-        _reloadOptionModel(managerModel, root.managerOptions)
+        _reloadOptionModel(headOfDepartmentModel, root.headOfDepartmentOptions)
     }
 
     function _reloadOptionModel(model, options, excludedValue) {
@@ -106,7 +106,7 @@ AppWidgets.EntityDialog {
         notesField.text = root.draft.notes || ""
         _setCurrentIndex(siteModel, siteCombo, root.draft.siteId || "")
         _setCurrentIndex(parentModel, parentCombo, root.draft.parentDepartmentId || "")
-        _setCurrentIndex(managerModel, managerCombo, root.draft.managerEmployeeId || "")
+        _setCurrentIndex(headOfDepartmentModel, headOfDepartmentCombo, root.draft.headOfDepartmentEmployeeId || "")
     }
 
     function _setCurrentIndex(model, combo, value) {
@@ -128,7 +128,7 @@ AppWidgets.EntityDialog {
 
     ListModel { id: siteModel }
     ListModel { id: parentModel }
-    ListModel { id: managerModel }
+    ListModel { id: headOfDepartmentModel }
 
     AppWidgets.CodeFieldRow {
         Layout.fillWidth: true
@@ -225,12 +225,12 @@ AppWidgets.EntityDialog {
 
     AppWidgets.FormField {
         Layout.fillWidth: true
-        label: "Manager / Lead"
+        label: "Head of Department (HOD)"
 
         AppControls.ComboBox {
-            id: managerCombo
+            id: headOfDepartmentCombo
             Layout.fillWidth: true
-            model: managerModel
+            model: headOfDepartmentModel
             textRole: "label"
         }
     }

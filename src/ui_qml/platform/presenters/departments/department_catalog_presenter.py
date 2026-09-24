@@ -305,12 +305,12 @@ class PlatformDepartmentCatalogPresenter:
             for row in result.data
         )
 
-    def build_manager_options(self) -> tuple[dict[str, str], ...]:
-        """Real Employee options for the Manager / Lead picker -- active-
-        organization-scoped, matching build_site_options() above. A manager
-        may be any active employee in the organization (not restricted to
-        this department), matching the existing service-layer validation
-        (validate_manager_employee_id checks organization membership only)."""
+    def build_head_of_department_options(self) -> tuple[dict[str, str], ...]:
+        """Real Employee options for the Head of Department (HOD) picker --
+        active-organization-scoped, matching build_site_options() above. An
+        HOD may be any active employee in the organization (not restricted
+        to this department), matching the existing service-layer validation
+        (validate_head_of_department_employee_id checks organization membership only)."""
         if self._employee_api is None:
             return ()
         result = self._employee_api.list_employees(active_only=True)
@@ -359,12 +359,13 @@ class PlatformDepartmentCatalogPresenter:
                 cost_center_code=string_value(payload, "costCenterCode"),
                 # Deliberately string_value(), not optional_string_value():
                 # an empty string must still reach create_department() as ""
-                # (normalizes to no manager), which is the same thing as
-                # never having selected one. Using optional_string_value()
-                # here would make no observable difference on create, but
-                # keeping create/update symmetric matters for update below,
-                # where the distinction is load-bearing (see its comment).
-                manager_employee_id=string_value(payload, "managerEmployeeId"),
+                # (normalizes to no Head of Department), which is the same
+                # thing as never having selected one. Using
+                # optional_string_value() here would make no observable
+                # difference on create, but keeping create/update symmetric
+                # matters for update below, where the distinction is
+                # load-bearing (see its comment).
+                head_of_department_employee_id=string_value(payload, "headOfDepartmentEmployeeId"),
                 notes=string_value(payload, "notes"),
             )
         )
@@ -385,14 +386,15 @@ class PlatformDepartmentCatalogPresenter:
                 department_type=string_value(payload, "departmentType"),
                 cost_center_code=string_value(payload, "costCenterCode"),
                 # Deliberately string_value(), not optional_string_value().
-                # update_department() treats manager_employee_id=None as
-                # "leave unchanged" but treats "" as "clear the manager" (it
-                # gates on `is not None`, then validate_manager_employee_id
-                # normalizes "" down to None) -- optional_string_value()
-                # would collapse a real "clear the manager" request from the
-                # dialog into a no-op None, making Manager permanently
-                # un-clearable once set.
-                manager_employee_id=string_value(payload, "managerEmployeeId"),
+                # update_department() treats head_of_department_employee_id=
+                # None as "leave unchanged" but treats "" as "clear the Head
+                # of Department" (it gates on `is not None`, then
+                # validate_head_of_department_employee_id normalizes "" down
+                # to None) -- optional_string_value() would collapse a real
+                # "clear the Head of Department" request from the dialog
+                # into a no-op None, making it permanently un-clearable once
+                # set.
+                head_of_department_employee_id=string_value(payload, "headOfDepartmentEmployeeId"),
                 notes=string_value(payload, "notes"),
                 expected_version=int_value(payload, "expectedVersion"),
             )
@@ -464,9 +466,9 @@ class PlatformDepartmentCatalogPresenter:
 
     def _employee_lookup(self) -> dict[str, str]:
         """Employee id -> full name, active-organization-scoped, for
-        resolving Manager / Lead display names. QML never resolves an
+        resolving Head of Department display names. QML never resolves an
         Employee ID to a name itself -- this presenter always hands over an
-        already-resolved managerDisplay string."""
+        already-resolved headOfDepartmentDisplay string."""
         if self._employee_api is None:
             return {}
         result = self._employee_api.list_employees(active_only=None)
@@ -505,7 +507,7 @@ class PlatformDepartmentCatalogPresenter:
     ) -> PlatformWorkspaceActionItemViewModel:
         site_label = site_lookup.get(row.site_id or "", "No site")
         parent_label = (department_lookup or {}).get(row.parent_department_id or "", "")
-        manager_label = (employee_lookup or {}).get(row.manager_employee_id or "", "")
+        head_of_department_label = (employee_lookup or {}).get(row.head_of_department_employee_id or "", "")
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.name,
@@ -528,8 +530,8 @@ class PlatformDepartmentCatalogPresenter:
                 "parentDepartmentName": parent_label,
                 "departmentType": row.department_type,
                 "costCenterCode": row.cost_center_code,
-                "managerEmployeeId": row.manager_employee_id or "",
-                "managerDisplay": manager_label,
+                "headOfDepartmentEmployeeId": row.head_of_department_employee_id or "",
+                "headOfDepartmentDisplay": head_of_department_label,
                 "notes": row.notes,
                 "isActive": row.is_active,
                 "version": row.version,

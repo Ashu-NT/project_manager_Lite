@@ -21,7 +21,7 @@ from src.core.shared.audit import record_audit_entry
 from .department_context import active_organization
 from .department_utils import resolve_name
 from .department_validation import (
-    validate_manager_employee_id,
+    validate_head_of_department_employee_id,
     validate_parent_department_id,
     validate_site_id,
 )
@@ -41,7 +41,7 @@ def create_department(
     parent_department_id: str | None = None,
     department_type: str = "",
     cost_center_code: str = "",
-    manager_employee_id: str | None = None,
+    head_of_department_employee_id: str | None = None,
     notes: str = "",
 ) -> Department:
     """Lifecycle is never settable through Create -- every new department
@@ -58,7 +58,7 @@ def create_department(
         parent_department_id=parent_department_id,
         department_type=department_type,
         cost_center_code=cost_center_code,
-        manager_employee_id=manager_employee_id,
+        head_of_department_employee_id=head_of_department_employee_id,
         is_active=True,
         notes=notes,
     )
@@ -74,9 +74,9 @@ def create_department(
             department.parent_department_id,
             organization_id=organization.id,
         )
-        department.manager_employee_id = validate_manager_employee_id(
+        department.head_of_department_employee_id = validate_head_of_department_employee_id(
             uow.employees,
-            department.manager_employee_id,
+            department.head_of_department_employee_id,
             organization_id=organization.id,
         )
         try:
@@ -135,7 +135,7 @@ def update_department(
     parent_department_id: str | None = None,
     department_type: str | None = None,
     cost_center_code: str | None = None,
-    manager_employee_id: str | None = None,
+    head_of_department_employee_id: str | None = None,
     notes: str | None = None,
     expected_version: int | None = None,
 ) -> Department:
@@ -168,10 +168,10 @@ def update_department(
                 current_department_id=department.id,
             )
 
-        target_manager_employee_id = department.manager_employee_id
-        if manager_employee_id is not None:
-            target_manager_employee_id = validate_manager_employee_id(
-                uow.employees, manager_employee_id, organization_id=organization.id
+        target_head_of_department_employee_id = department.head_of_department_employee_id
+        if head_of_department_employee_id is not None:
+            target_head_of_department_employee_id = validate_head_of_department_employee_id(
+                uow.employees, head_of_department_employee_id, organization_id=organization.id
             )
 
         candidate = replace(
@@ -187,7 +187,7 @@ def update_department(
             parent_department_id=target_parent_department_id,
             department_type=department_type if department_type is not None else department.department_type,
             cost_center_code=cost_center_code if cost_center_code is not None else department.cost_center_code,
-            manager_employee_id=target_manager_employee_id,
+            head_of_department_employee_id=target_head_of_department_employee_id,
             notes=notes if notes is not None else department.notes,
         )
         profile_changed = (
@@ -198,7 +198,7 @@ def update_department(
             or candidate.parent_department_id != department.parent_department_id
             or candidate.department_type != department.department_type
             or candidate.cost_center_code != department.cost_center_code
-            or candidate.manager_employee_id != department.manager_employee_id
+            or candidate.head_of_department_employee_id != department.head_of_department_employee_id
             or candidate.notes != department.notes
         )
         if not profile_changed:

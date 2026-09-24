@@ -81,22 +81,22 @@ def _require_no_ancestry_cycle(
         cursor = ancestor.parent_department_id if ancestor is not None else None
 
 
-def validate_manager_employee_id(
-    employee_repo: EmployeeRepository | None, manager_employee_id: str | None, *, organization_id: str
+def validate_head_of_department_employee_id(
+    employee_repo: EmployeeRepository | None, head_of_department_employee_id: str | None, *, organization_id: str
 ) -> str | None:
-    normalized = normalize_optional_text(manager_employee_id) or None
+    normalized = normalize_optional_text(head_of_department_employee_id) or None
     if normalized is None or employee_repo is None:
         return normalized
     if employee_repo.get_for_organization(normalized, organization_id) is None:
         raise ValidationError(
-            "Department manager employee does not exist.",
-            code="DEPARTMENT_MANAGER_INVALID",
+            "Department Head of Department must reference an existing employee.",
+            code="DEPARTMENT_HEAD_OF_DEPARTMENT_INVALID",
         )
     return normalized
 
 
 __all__ = [
-    "validate_manager_employee_id",
+    "validate_head_of_department_employee_id",
     "validate_parent_department_id",
     "validate_site_id",
 ]

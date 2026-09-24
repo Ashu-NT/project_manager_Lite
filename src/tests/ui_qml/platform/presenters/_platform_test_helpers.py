@@ -616,7 +616,7 @@ class FakePlatformDepartmentApi:
             parent_department_id=command.parent_department_id,
             department_type=command.department_type,
             cost_center_code=command.cost_center_code,
-            manager_employee_id=command.manager_employee_id or None,
+            head_of_department_employee_id=command.head_of_department_employee_id or None,
             is_active=True,
             notes=command.notes,
             version=1,
@@ -637,7 +637,7 @@ class FakePlatformDepartmentApi:
                 parent_department_id=row.parent_department_id if command.parent_department_id is None else command.parent_department_id,
                 department_type=row.department_type if command.department_type is None else command.department_type,
                 cost_center_code=row.cost_center_code if command.cost_center_code is None else command.cost_center_code,
-                manager_employee_id=row.manager_employee_id if command.manager_employee_id is None else (command.manager_employee_id or None),
+                head_of_department_employee_id=row.head_of_department_employee_id if command.head_of_department_employee_id is None else (command.head_of_department_employee_id or None),
                 notes=row.notes if command.notes is None else command.notes,
                 version=row.version + 1,
             )
@@ -1406,8 +1406,8 @@ def build_connected_platform_registry() -> SimpleNamespace:
         SiteDto(id="site-2", organization_id="org-1", site_code="DXB", name="Dubai Yard", description="Secondary site", country="AE", region="Dubai", city="Dubai", address_line_1="Street 2", address_line_2="", postal_code="00000", timezone="Asia/Dubai", currency_code="AED", site_type="yard", status="inactive", default_calendar_id="cal-2", default_language="en", is_active=False, notes="", version=1),
     )
     department_rows = (
-        DepartmentDto(id="dep-1", organization_id="org-1", department_code="ENG", name="Engineering", description="Engineering", site_id="site-1", parent_department_id=None, department_type="functional", cost_center_code="CC-1", manager_employee_id=None, is_active=True, notes="", version=1),
-        DepartmentDto(id="dep-2", organization_id="org-1", department_code="OPS", name="Operations", description="Operations", site_id="site-2", parent_department_id=None, department_type="functional", cost_center_code="CC-2", manager_employee_id=None, is_active=False, notes="", version=1),
+        DepartmentDto(id="dep-1", organization_id="org-1", department_code="ENG", name="Engineering", description="Engineering", site_id="site-1", parent_department_id=None, department_type="functional", cost_center_code="CC-1", head_of_department_employee_id=None, is_active=True, notes="", version=1),
+        DepartmentDto(id="dep-2", organization_id="org-1", department_code="OPS", name="Operations", description="Operations", site_id="site-2", parent_department_id=None, department_type="functional", cost_center_code="CC-2", head_of_department_employee_id=None, is_active=False, notes="", version=1),
     )
     employee_rows = (
         EmployeeDto(id="emp-1", employee_code="E-001", full_name="Ada Lovelace", department_id="dep-1", department="Engineering", site_id="site-1", site_name="Berlin Campus", title="Engineer", employment_type="FULL_TIME", email="ada@example.com", phone=None, is_active=True, version=1),

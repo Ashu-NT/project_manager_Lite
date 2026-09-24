@@ -136,7 +136,7 @@ Item {
     }
     // Lifecycle status lives in the header/toolbar badge only -- never
     // duplicated here as a second "Status"/"Active" row. IDs are never
-    // shown as primary values; Site/Parent Department/Manager all resolve
+    // shown as primary values; Site/Parent Department/Head of Department all resolve
     // to their real display names (already provided by the presenter).
     readonly property var _overviewFields: [
         { "label": "Department Code", "value": root._state.departmentCode },
@@ -144,7 +144,7 @@ Item {
         { "label": "Department Type", "value": root._state.departmentType },
         { "label": "Site", "value": root._state.siteName },
         { "label": "Parent Department", "value": root._state.parentDepartmentName },
-        { "label": "Manager / Lead", "value": root._state.managerDisplay },
+        { "label": "Head of Department", "value": root._state.headOfDepartmentDisplay },
         { "label": "Cost Center", "value": root._state.costCenterCode }
     ]
 

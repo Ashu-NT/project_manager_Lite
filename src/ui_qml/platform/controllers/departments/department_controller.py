@@ -24,7 +24,7 @@ class PlatformDepartmentController(QObject):
         self._department_editor_options: dict[str, object] = {
             "siteOptions": [],
             "parentOptions": [],
-            "managerOptions": [],
+            "headOfDepartmentOptions": [],
         }
         self._is_busy = False
         self._error_message = ""
@@ -226,7 +226,7 @@ class PlatformDepartmentController(QObject):
             {
                 "siteOptions": list(self._presenter.build_site_options()),
                 "parentOptions": list(self._presenter.build_parent_options()),
-                "managerOptions": list(self._presenter.build_manager_options()),
+                "headOfDepartmentOptions": list(self._presenter.build_head_of_department_options()),
             }
         )
 

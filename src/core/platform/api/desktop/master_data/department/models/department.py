@@ -15,7 +15,7 @@ class DepartmentDto:
     parent_department_id: str | None
     department_type: str
     cost_center_code: str
-    manager_employee_id: str | None
+    head_of_department_employee_id: str | None
     is_active: bool
     notes: str
     version: int
@@ -50,7 +50,7 @@ class DepartmentCreateCommand:
     parent_department_id: str | None = None
     department_type: str = ""
     cost_center_code: str = ""
-    manager_employee_id: str | None = None
+    head_of_department_employee_id: str | None = None
     notes: str = ""
 
 
@@ -67,6 +67,6 @@ class DepartmentUpdateCommand:
     parent_department_id: str | None = None
     department_type: str | None = None
     cost_center_code: str | None = None
-    manager_employee_id: str | None = None
+    head_of_department_employee_id: str | None = None
     notes: str | None = None
     expected_version: int | None = None

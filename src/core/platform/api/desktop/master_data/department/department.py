@@ -80,7 +80,7 @@ class PlatformDepartmentDesktopApi:
                     parent_department_id=command.parent_department_id,
                     department_type=command.department_type,
                     cost_center_code=command.cost_center_code,
-                    manager_employee_id=command.manager_employee_id,
+                    head_of_department_employee_id=command.head_of_department_employee_id,
                     notes=command.notes,
                 )
             )
@@ -98,7 +98,7 @@ class PlatformDepartmentDesktopApi:
                     parent_department_id=command.parent_department_id,
                     department_type=command.department_type,
                     cost_center_code=command.cost_center_code,
-                    manager_employee_id=command.manager_employee_id,
+                    head_of_department_employee_id=command.head_of_department_employee_id,
                     notes=command.notes,
                     expected_version=command.expected_version,
                 )
@@ -140,7 +140,7 @@ class PlatformDepartmentDesktopApi:
             parent_department_id=department.parent_department_id,
             department_type=department.department_type,
             cost_center_code=department.cost_center_code,
-            manager_employee_id=department.manager_employee_id,
+            head_of_department_employee_id=department.head_of_department_employee_id,
             is_active=department.is_active,
             notes=department.notes,
             version=department.version,

@@ -43,7 +43,7 @@ class DepartmentORM(Base):
     )
     department_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     cost_center_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    manager_employee_id: Mapped[Optional[str]] = mapped_column(
+    head_of_department_employee_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("employees.id", ondelete="SET NULL"),
         nullable=True,

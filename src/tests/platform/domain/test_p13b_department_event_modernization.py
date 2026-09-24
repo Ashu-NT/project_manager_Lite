@@ -161,20 +161,20 @@ def test_cross_org_site_rejection_produces_zero_event(services):
     assert calls == []
 
 
-def test_cross_org_manager_rejection_produces_zero_event(services):
+def test_cross_org_head_of_department_rejection_produces_zero_event(services):
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     default_organization = tenant_context_service.get_active_organization()
 
     other_organization = organization_service.create_organization(
-        organization_code=_unique_code("P13B-MGR-OTHER"),
-        display_name="Other Org For Manager",
+        organization_code=_unique_code("P13B-HOD-OTHER"),
+        display_name="Other Org For HOD",
         timezone_name="UTC",
         base_currency="USD",
     )
     tenant_context_service.set_active_organization(other_organization.id)
-    foreign_manager = services["employee_service"].create_employee(
-        employee_code=_unique_code("P13B-FOREIGN-MGR"), full_name="Foreign Manager"
+    foreign_head_of_department = services["employee_service"].create_employee(
+        employee_code=_unique_code("P13B-FOREIGN-HOD"), full_name="Foreign Head of Department"
     )
     tenant_context_service.set_active_organization(default_organization.id)
 
@@ -184,9 +184,9 @@ def test_cross_org_manager_rejection_produces_zero_event(services):
 
     with pytest.raises(ValidationError):
         department_service.create_department(
-            department_code=_unique_code("P13B-MGR-CHILD"),
-            name="Dept With Foreign Manager",
-            manager_employee_id=foreign_manager.id,
+            department_code=_unique_code("P13B-HOD-CHILD"),
+            name="Dept With Foreign HOD",
+            head_of_department_employee_id=foreign_head_of_department.id,
         )
 
     assert calls == []

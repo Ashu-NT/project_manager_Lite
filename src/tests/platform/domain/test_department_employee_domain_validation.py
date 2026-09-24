@@ -257,7 +257,7 @@ def test_department_dto_normalizes_and_validates_fields():
         parent_department_id="  parent-1  ",
         department_type="  operations  ",
         cost_center_code="  cc-100  ",
-        manager_employee_id="  emp-1  ",
+        head_of_department_employee_id="  emp-1  ",
         notes="  Note  ",
     )
 
@@ -269,7 +269,7 @@ def test_department_dto_normalizes_and_validates_fields():
     assert department.parent_department_id == "parent-1"
     assert department.department_type == "operations"
     assert department.cost_center_code == "CC-100"
-    assert department.manager_employee_id == "emp-1"
+    assert department.head_of_department_employee_id == "emp-1"
     assert department.notes == "Note"
     assert department.created_at is not None
     assert department.updated_at is not None

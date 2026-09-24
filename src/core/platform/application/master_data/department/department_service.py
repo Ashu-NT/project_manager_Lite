@@ -188,7 +188,7 @@ class DepartmentService:
         parent_department_id: str | None = None,
         department_type: str = "",
         cost_center_code: str = "",
-        manager_employee_id: str | None = None,
+        head_of_department_employee_id: str | None = None,
         notes: str = "",
     ) -> Department:
         return _cmd.create_department(
@@ -201,7 +201,7 @@ class DepartmentService:
             parent_department_id=parent_department_id,
             department_type=department_type,
             cost_center_code=cost_center_code,
-            manager_employee_id=manager_employee_id,
+            head_of_department_employee_id=head_of_department_employee_id,
             notes=notes,
         )
 
@@ -217,7 +217,7 @@ class DepartmentService:
         parent_department_id: str | None = None,
         department_type: str | None = None,
         cost_center_code: str | None = None,
-        manager_employee_id: str | None = None,
+        head_of_department_employee_id: str | None = None,
         notes: str | None = None,
         expected_version: int | None = None,
     ) -> Department:
@@ -232,7 +232,7 @@ class DepartmentService:
             parent_department_id=parent_department_id,
             department_type=department_type,
             cost_center_code=cost_center_code,
-            manager_employee_id=manager_employee_id,
+            head_of_department_employee_id=head_of_department_employee_id,
             notes=notes,
             expected_version=expected_version,
         )
