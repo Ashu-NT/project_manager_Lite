@@ -131,7 +131,7 @@ def test_departments_tab_controller_slot_applies_status_filter_server_side(servi
     department_service = services["department_service"]
     department_service.create_department(department_code="FIL-ACT-DEPT", name="Filter Active Dept")
     inactive = department_service.create_department(department_code="FIL-INA-DEPT", name="Filter Inactive Dept")
-    department_service.update_department(inactive.id, is_active=False)
+    department_service.deactivate_department(inactive.id)
 
     result = admin.organizationDepartmentsPage(org.id, 1, 25, "", "active")
     names = [item["title"] for item in result["items"]]

@@ -21,12 +21,20 @@ def update_department(controller, payload: dict) -> dict[str, object]:
     )
 
 
-def toggle_department_active(controller, department_id: str) -> dict[str, object]:
+def activate_department(controller, department_id: str) -> dict[str, object]:
     return run_admin_action(
         controller,
-        action=lambda: controller._department_controller.toggleDepartmentActive(department_id),
+        action=lambda: controller._department_controller.activateDepartment(department_id),
         on_success=lambda: refresh_after_department_change(controller),
     )
 
 
-__all__ = ["create_department", "toggle_department_active", "update_department"]
+def deactivate_department(controller, department_id: str) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._department_controller.deactivateDepartment(department_id),
+        on_success=lambda: refresh_after_department_change(controller),
+    )
+
+
+__all__ = ["activate_department", "create_department", "deactivate_department", "update_department"]

@@ -81,7 +81,6 @@ class PlatformDepartmentDesktopApi:
                     department_type=command.department_type,
                     cost_center_code=command.cost_center_code,
                     manager_employee_id=command.manager_employee_id,
-                    is_active=command.is_active,
                     notes=command.notes,
                 )
             )
@@ -100,11 +99,20 @@ class PlatformDepartmentDesktopApi:
                     department_type=command.department_type,
                     cost_center_code=command.cost_center_code,
                     manager_employee_id=command.manager_employee_id,
-                    is_active=command.is_active,
                     notes=command.notes,
                     expected_version=command.expected_version,
                 )
             )
+        )
+
+    def activate_department(self, department_id: str) -> DesktopApiResult[DepartmentDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_department(self._department_service.activate_department(department_id))
+        )
+
+    def deactivate_department(self, department_id: str) -> DesktopApiResult[DepartmentDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_department(self._department_service.deactivate_department(department_id))
         )
 
     def _serialize_department_page(self, page) -> DepartmentPageDto:

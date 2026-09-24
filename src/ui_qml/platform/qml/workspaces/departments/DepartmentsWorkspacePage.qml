@@ -42,6 +42,7 @@ AppLayouts.WorkspaceFrame {
         { key: "subtitle",    label: "Code / Type", flex: 3, minWidth: 160, sortable: false, visible: true },
         { key: "siteName",    label: "Site",        flex: 2.4, minWidth: 180, sortable: true, visible: true },
         { key: "statusLabel", label: "Status",      flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "managerDisplay", label: "Manager / Lead", flex: 2.2, minWidth: 160, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint },
         { key: "metaText",    label: "Cost Center", flex: 2, minWidth: 120, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint }
     ]
     readonly property var _employeeColumns: [
@@ -57,19 +58,43 @@ AppLayouts.WorkspaceFrame {
     property bool detailOpen: false
     property var _pendingConfirm: null
 
-    function requestToggleActive() {
+    // -- Inspector "Actions ▾" menu: Department's own 2-state lifecycle
+    // (Active/Inactive only -- no Archive; see activate_department/
+    // deactivate_department, a distinct, guarded command pair, not the
+    // generic profile update). Deactivate is confirmed (a state change with
+    // real operational consequence); Activate executes directly, matching
+    // the existing asymmetric convention already used for Site.
+    readonly property var _inspectorLifecycleMenuItems: {
         const item = root._selectedItem
-        if (!item || !root.workspaceController) return
+        if (!item) return []
         if (item.isActive) {
-            root._pendingConfirm = {
-                "itemId": root.selectedRowId,
-                "message": "Deactivate " + String(item.title || "this department") + "?",
-                "supportingText": "It will be marked inactive."
-            }
-            confirmDialog.open()
-        } else {
-            root.workspaceController.toggleDepartmentActive(root.selectedRowId)
+            return [{ "id": "deactivate", "label": "Deactivate department", "icon": "reject", "enabled": root._canWrite }]
         }
+        return [{ "id": "activate", "label": "Activate department", "icon": "approve", "enabled": root._canWrite }]
+    }
+
+    function _requestDeactivateConfirm(departmentId, departmentName) {
+        root._pendingConfirm = {
+            "itemId": departmentId,
+            "message": "Deactivate " + String(departmentName || "this department") + "?",
+            "supportingText": "It will no longer be available for new operational activity. " +
+                "Existing records and historical information will remain available."
+        }
+        confirmDialog.open()
+    }
+
+    function _performLifecycleAction(actionId, departmentId, departmentName) {
+        if (!root.workspaceController) return
+        if (actionId === "activate") {
+            root.workspaceController.activateDepartment(departmentId)
+        } else if (actionId === "deactivate") {
+            root._requestDeactivateConfirm(departmentId, departmentName)
+        }
+    }
+
+    function _onInspectorMenuAction(actionId) {
+        if (!root._selectedItem) return
+        root._performLifecycleAction(actionId, root.selectedRowId, root._selectedItem.title)
     }
 
     // RBAC: gates create/edit/set-active buttons for the department's own
@@ -102,12 +127,28 @@ AppLayouts.WorkspaceFrame {
         return null
     }
 
-    readonly property var _inspectorSections: {
+    readonly property var _inspectorGroups: {
         const item = root._selectedItem
         if (!item) return []
+        const state = item.state || {}
         return [
-            { "label": "Details", "value": String(item.subtitle || "") },
-            { "label": "Info", "value": String(item.metaText || "") }
+            {
+                "title": "Identity",
+                "rows": [
+                    { "label": "Code", "value": String(state.departmentCode || "") },
+                    { "label": "Type", "value": String(state.departmentType || "") },
+                    { "label": "Site", "value": String(state.siteName || "") },
+                    { "label": "Parent Department", "value": String(state.parentDepartmentName || "") }
+                ]
+            },
+            {
+                "title": "Business Context",
+                "rows": [
+                    { "label": "Manager / Lead", "value": String(state.managerDisplay || "") },
+                    { "label": "Cost Center", "value": String(state.costCenterCode || "") },
+                    { "label": "Notes", "value": String(state.notes || "") }
+                ]
+            }
         ]
     }
 
@@ -160,10 +201,10 @@ AppLayouts.WorkspaceFrame {
 
     function handleDetailAction(actionId) {
         const id = root.selectedRowId
+        const item = root._selectedItem
         if (actionId === "assign_calendar") {
-            const item = root._selectedItem || {}
-            const state = item.state || {}
-            const entityId = String(state.departmentId || state.id || item.id || "")
+            const state = item ? (item.state || {}) : {}
+            const entityId = String(state.departmentId || state.id || (item ? item.id : "") || "")
             if (entityId.length) {
                 dialogHostLoader.invoke("openCalendarAssign", "department", entityId, String(item.title || entityId), root._calendarOptions())
             }
@@ -181,7 +222,10 @@ AppLayouts.WorkspaceFrame {
         if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
         if (actionId === "show_audit") { root.navigateToDestination("control_audit"); return }
         if (actionId === "edit") { root.openEdit(id); return }
-        if (actionId === "toggle_active" && root.workspaceController) { root.requestToggleActive(); return }
+        if (actionId === "activate" || actionId === "deactivate") {
+            root._performLifecycleAction(actionId, id, item ? item.title : "")
+            return
+        }
     }
 
     title: "Departments"
@@ -220,6 +264,7 @@ AppLayouts.WorkspaceFrame {
             AppWidgets.InspectorPanel {
                 Layout.fillHeight: true
                 visible: root.selectedRowId.length > 0 && Window.width >= Theme.AppTheme.compactContentBreakpoint
+                panelWidth: 380
                 title: root._selectedItem ? String(root._selectedItem.title || "") : ""
                 statusLabel: (root._selectedItem && root._selectedItem.statusLabel)
                     ? String(root._selectedItem.statusLabel.label || "")
@@ -227,16 +272,20 @@ AppLayouts.WorkspaceFrame {
                 statusTone: (root._selectedItem && root._selectedItem.statusLabel)
                     ? String(root._selectedItem.statusLabel.tone || "")
                     : ""
-                sections: root._inspectorSections
+                groups: root._inspectorGroups
                 busy: root.busy
+                viewDetailsPrimary: true
+                viewDetailsLabel: "Open Details"
+                showViewDetailsAction: true
                 editActionLabel: "Edit"
                 showEditAction: root._canWrite
-                secondaryActionLabel: root._selectedItem && root._selectedItem.isActive ? "Deactivate" : "Activate"
-                showSecondaryAction: root._canWrite
+                menuActions: root._canWrite ? root._inspectorLifecycleMenuItems : []
+                menuTriggerLabel: "Actions"
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
-                onSecondaryActionRequested: root.requestToggleActive()
+                onMenuActionTriggered: function(id) { root._onInspectorMenuAction(id) }
+                onViewDetailsRequested: root.detailOpen = true
             }
         }
 
@@ -284,15 +333,15 @@ AppLayouts.WorkspaceFrame {
     AppControls.ConfirmationDialog {
         id: confirmDialog
         title: "Confirm"
-        confirmLabel: "Deactivate"
-        confirmIcon: "delete"
+        confirmLabel: "Deactivate department"
+        confirmIcon: "reject"
         confirmDanger: true
         message: root._pendingConfirm ? String(root._pendingConfirm.message || "") : ""
         supportingText: root._pendingConfirm ? String(root._pendingConfirm.supportingText || "") : ""
         onConfirmed: {
             const pending = root._pendingConfirm
             if (!pending || !root.workspaceController) return
-            root.workspaceController.toggleDepartmentActive(pending.itemId)
+            root.workspaceController.deactivateDepartment(pending.itemId)
             root._pendingConfirm = null
         }
     }

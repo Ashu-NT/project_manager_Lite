@@ -189,7 +189,6 @@ class DepartmentService:
         department_type: str = "",
         cost_center_code: str = "",
         manager_employee_id: str | None = None,
-        is_active: bool = True,
         notes: str = "",
     ) -> Department:
         return _cmd.create_department(
@@ -203,7 +202,6 @@ class DepartmentService:
             department_type=department_type,
             cost_center_code=cost_center_code,
             manager_employee_id=manager_employee_id,
-            is_active=is_active,
             notes=notes,
         )
 
@@ -220,7 +218,6 @@ class DepartmentService:
         department_type: str | None = None,
         cost_center_code: str | None = None,
         manager_employee_id: str | None = None,
-        is_active: bool | None = None,
         notes: str | None = None,
         expected_version: int | None = None,
     ) -> Department:
@@ -236,10 +233,15 @@ class DepartmentService:
             department_type=department_type,
             cost_center_code=cost_center_code,
             manager_employee_id=manager_employee_id,
-            is_active=is_active,
             notes=notes,
             expected_version=expected_version,
         )
+
+    def activate_department(self, department_id: str) -> Department:
+        return _cmd.activate_department(self, department_id)
+
+    def deactivate_department(self, department_id: str) -> Department:
+        return _cmd.deactivate_department(self, department_id)
 
 
 __all__ = ["DepartmentService", "DepartmentPage", "DEPARTMENT_PAGE_SIZE_OPTIONS"]

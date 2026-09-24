@@ -29,7 +29,7 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
 )
 from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
 from src.core.platform.api.desktop.master_data.party.models.party import PartyDto, PartyRollupSummaryDto
-from src.core.platform.api.desktop.master_data.site.models.site import SiteDto, SiteRollupSummaryDto
+from src.core.platform.api.desktop.master_data.site.models.site import SiteDto, SitePageDto, SiteRollupSummaryDto
 from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
 from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     CountryDto,
@@ -474,7 +474,38 @@ class FakePlatformSiteApi:
             ),
         )
 
+    def list_sites_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+    ) -> DesktopApiResult[SitePageDto]:
+        rows = [row for row in self._rows if row.organization_id == organization_id]
+        total = len(rows)
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        normalized_search = (search or "").strip().lower()
+        if normalized_search:
+            rows = [
+                row for row in rows
+                if normalized_search in row.name.lower() or normalized_search in row.site_code.lower()
+            ]
+        filtered_total = len(rows)
+        start = max(0, (page - 1) * page_size)
+        page_rows = rows[start:start + page_size]
+        return DesktopApiResult(
+            ok=True,
+            data=SitePageDto(
+                items=tuple(page_rows), total=total, filtered_total=filtered_total, page=page, page_size=page_size,
+            ),
+        )
+
     def create_site(self, command) -> DesktopApiResult[SiteDto]:
+        # Lifecycle is never settable through SiteCreateCommand -- every new
+        # site starts ACTIVE, matching the real create_site() contract.
         active_organization = self._runtime_api.get_runtime_context().data.active_organization
         site = SiteDto(
             id=f"site-{len(self._rows) + 1}",
@@ -491,10 +522,10 @@ class FakePlatformSiteApi:
             timezone=command.timezone_name,
             currency_code=command.currency_code,
             site_type=command.site_type,
-            status=command.status,
+            status="active",
             default_calendar_id="",
             default_language="en",
-            is_active=command.is_active,
+            is_active=True,
             notes=command.notes,
             version=1,
         )
@@ -502,6 +533,8 @@ class FakePlatformSiteApi:
         return DesktopApiResult(ok=True, data=site)
 
     def update_site(self, command) -> DesktopApiResult[SiteDto]:
+        # Pure profile update -- SiteUpdateCommand carries no status/is_active
+        # field; lifecycle changes only through activate_site/deactivate_site.
         for index, row in enumerate(self._rows):
             if row.id != command.site_id:
                 continue
@@ -515,9 +548,7 @@ class FakePlatformSiteApi:
                 timezone=row.timezone if command.timezone_name is None else command.timezone_name,
                 currency_code=row.currency_code if command.currency_code is None else command.currency_code,
                 site_type=row.site_type if command.site_type is None else command.site_type,
-                status=row.status if command.status is None else command.status,
                 notes=row.notes if command.notes is None else command.notes,
-                is_active=row.is_active if command.is_active is None else command.is_active,
                 version=row.version + 1,
             )
             self._rows[index] = updated
@@ -525,6 +556,27 @@ class FakePlatformSiteApi:
         return DesktopApiResult(
             ok=False,
             error=DesktopApiError(code="site_not_found", message=f"Site '{command.site_id}' was not found.", category="not_found"),
+        )
+
+    def activate_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
+        return self._transition_site_status(site_id, status="active", is_active=True)
+
+    def deactivate_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
+        return self._transition_site_status(site_id, status="inactive", is_active=False)
+
+    def archive_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
+        return self._transition_site_status(site_id, status="archived", is_active=False)
+
+    def _transition_site_status(self, site_id: str, *, status: str, is_active: bool) -> DesktopApiResult[SiteDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != site_id:
+                continue
+            updated = replace(row, status=status, is_active=is_active, version=row.version + 1)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(code="site_not_found", message=f"Site '{site_id}' was not found.", category="not_found"),
         )
 
 
@@ -564,8 +616,8 @@ class FakePlatformDepartmentApi:
             parent_department_id=command.parent_department_id,
             department_type=command.department_type,
             cost_center_code=command.cost_center_code,
-            manager_employee_id=None,
-            is_active=command.is_active,
+            manager_employee_id=command.manager_employee_id or None,
+            is_active=True,
             notes=command.notes,
             version=1,
         )
@@ -585,7 +637,7 @@ class FakePlatformDepartmentApi:
                 parent_department_id=row.parent_department_id if command.parent_department_id is None else command.parent_department_id,
                 department_type=row.department_type if command.department_type is None else command.department_type,
                 cost_center_code=row.cost_center_code if command.cost_center_code is None else command.cost_center_code,
-                is_active=row.is_active if command.is_active is None else command.is_active,
+                manager_employee_id=row.manager_employee_id if command.manager_employee_id is None else (command.manager_employee_id or None),
                 notes=row.notes if command.notes is None else command.notes,
                 version=row.version + 1,
             )
@@ -594,6 +646,24 @@ class FakePlatformDepartmentApi:
         return DesktopApiResult(
             ok=False,
             error=DesktopApiError(code="department_not_found", message=f"Department '{command.department_id}' was not found.", category="not_found"),
+        )
+
+    def activate_department(self, department_id: str) -> DesktopApiResult[DepartmentDto]:
+        return self._transition_department_status(department_id, is_active=True)
+
+    def deactivate_department(self, department_id: str) -> DesktopApiResult[DepartmentDto]:
+        return self._transition_department_status(department_id, is_active=False)
+
+    def _transition_department_status(self, department_id: str, *, is_active: bool) -> DesktopApiResult[DepartmentDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != department_id:
+                continue
+            updated = replace(row, is_active=is_active, version=row.version + 1)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(code="department_not_found", message=f"Department '{department_id}' was not found.", category="not_found"),
         )
 
 

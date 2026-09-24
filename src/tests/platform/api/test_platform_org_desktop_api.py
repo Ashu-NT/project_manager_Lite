@@ -112,14 +112,17 @@ def test_platform_department_desktop_api_manages_department_dtos(services):
         DepartmentUpdateCommand(
             department_id=create_result.data.id,
             name="Operations Team",
-            is_active=False,
             expected_version=create_result.data.version,
         )
     )
     assert update_result.ok is True
     assert update_result.data is not None
     assert update_result.data.name == "Operations Team"
-    assert update_result.data.is_active is False
+
+    deactivate_result = api.deactivate_department(update_result.data.id)
+    assert deactivate_result.ok is True
+    assert deactivate_result.data is not None
+    assert deactivate_result.data.is_active is False
 
 
 def test_platform_employee_desktop_api_manages_employee_dtos(services):

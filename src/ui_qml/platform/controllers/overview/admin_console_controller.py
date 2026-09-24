@@ -78,8 +78,9 @@ from src.ui_qml.platform.controllers.departments.department_controller import (
     PlatformDepartmentController,
 )
 from src.ui_qml.platform.controllers.departments.actions import (
+    activate_department,
     create_department,
-    toggle_department_active,
+    deactivate_department,
     update_department,
 )
 from src.ui_qml.platform.controllers.employees.employee_controller import (
@@ -639,8 +640,12 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         return update_department(self, payload)
 
     @Slot(str, result="QVariantMap")
-    def toggleDepartmentActive(self, department_id: str) -> dict[str, object]:
-        return toggle_department_active(self, department_id)
+    def activateDepartment(self, department_id: str) -> dict[str, object]:
+        return activate_department(self, department_id)
+
+    @Slot(str, result="QVariantMap")
+    def deactivateDepartment(self, department_id: str) -> dict[str, object]:
+        return deactivate_department(self, department_id)
 
     @Slot(str, int, int, str, str, result="QVariantMap")
     def organizationDepartmentsPage(

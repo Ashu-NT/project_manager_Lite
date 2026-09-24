@@ -479,8 +479,9 @@ def test_department_service_get_department_rollup_summary_reflects_writes(servic
     department_service = services["department_service"]
 
     baseline = department_service.get_department_rollup_summary()
-    department_service.create_department(department_code="ROLLUP-D1", name="Rollup Dept 1", is_active=True)
-    department_service.create_department(department_code="ROLLUP-D2", name="Rollup Dept 2", is_active=False)
+    department_service.create_department(department_code="ROLLUP-D1", name="Rollup Dept 1")
+    inactive_department = department_service.create_department(department_code="ROLLUP-D2", name="Rollup Dept 2")
+    department_service.deactivate_department(inactive_department.id)
 
     updated = department_service.get_department_rollup_summary()
     assert updated.total == baseline.total + 2
@@ -520,7 +521,7 @@ def test_rollup_summaries_isolated_per_organization(services):
 
     default_organization = services["tenant_context_service"].get_active_organization()
     site_service.create_site(site_code="ISO-S1", name="Iso Site 1")
-    department_service.create_department(department_code="ISO-D1", name="Iso Dept 1", is_active=True)
+    department_service.create_department(department_code="ISO-D1", name="Iso Dept 1")
     party_service.create_party(party_code="ISO-P1", party_name="Iso Party 1", is_active=True)
     document_service.create_document(document_code="ISO-DOC1", title="Iso Doc 1", storage_uri="/docs/iso-doc1.pdf", is_current=True)
 
@@ -617,7 +618,9 @@ def test_rollup_summaries_never_call_write_repository_list_methods(services):
         sql_site = site_service.create_site(site_code=f"SQL-S{i}", name=f"SQL Site {i}")
         if i % 2 != 0:
             site_service.deactivate_site(sql_site.id)
-        department_service.create_department(department_code=f"SQL-D{i}", name=f"SQL Dept {i}", is_active=(i % 2 == 0))
+        sql_department = department_service.create_department(department_code=f"SQL-D{i}", name=f"SQL Dept {i}")
+        if i % 2 != 0:
+            department_service.deactivate_department(sql_department.id)
         party_service.create_party(party_code=f"SQL-P{i}", party_name=f"SQL Party {i}", is_active=(i % 2 == 0))
         document_service.create_document(document_code=f"SQL-DOC{i}", title=f"SQL Doc {i}", storage_uri=f"/docs/sql-doc{i}.pdf", is_current=(i % 2 == 0))
 
@@ -669,7 +672,9 @@ def test_admin_overview_never_lists_full_master_data_collections(services):
         ov_site = site_service.create_site(site_code=f"OV-S{i}", name=f"Overview Site {i}")
         if i % 3 != 0:
             site_service.deactivate_site(ov_site.id)
-        department_service.create_department(department_code=f"OV-D{i}", name=f"Overview Dept {i}", is_active=(i % 3 == 0))
+        ov_department = department_service.create_department(department_code=f"OV-D{i}", name=f"Overview Dept {i}")
+        if i % 3 != 0:
+            department_service.deactivate_department(ov_department.id)
         party_service.create_party(party_code=f"OV-P{i}", party_name=f"Overview Party {i}", is_active=(i % 3 == 0))
         document_service.create_document(document_code=f"OV-DOC{i}", title=f"Overview Doc {i}", storage_uri=f"/docs/ov-doc{i}.pdf", is_current=(i % 3 == 0))
 

@@ -8,10 +8,10 @@ from src.core.platform.api.desktop.master_data.department.models.department impo
     DepartmentDto,
     DepartmentUpdateCommand,
 )
+from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
-    bool_value,
     int_value,
     option_item,
     optional_string_value,
@@ -39,9 +39,11 @@ class PlatformDepartmentCatalogPresenter:
         *,
         department_api: PlatformDepartmentDesktopApi | None = None,
         site_api: PlatformSiteDesktopApi | None = None,
+        employee_api: PlatformEmployeeDesktopApi | None = None,
     ) -> None:
         self._department_api = department_api
         self._site_api = site_api
+        self._employee_api = employee_api
 
     def build_catalog(self) -> PlatformWorkspaceActionListViewModel:
         if self._department_api is None:
@@ -54,6 +56,7 @@ class PlatformDepartmentCatalogPresenter:
         context_result = self._department_api.get_context()
         departments_result = self._department_api.list_departments(active_only=None)
         site_lookup = self._site_lookup()
+        employee_lookup = self._employee_lookup()
         if not departments_result.ok or departments_result.data is None:
             message = (
                 departments_result.error.message
@@ -79,6 +82,7 @@ class PlatformDepartmentCatalogPresenter:
                 self._serialize_department(
                     row,
                     site_lookup=site_lookup,
+                    employee_lookup=employee_lookup,
                 )
                 for row in departments_result.data
             ),
@@ -106,12 +110,13 @@ class PlatformDepartmentCatalogPresenter:
             )
 
         site_lookup = self._site_lookup()
+        employee_lookup = self._employee_lookup()
         return PlatformWorkspaceActionListViewModel(
             title="Departments",
             subtitle="Departments aligned to this site through the shared department master.",
             empty_state="This site does not currently have departments assigned.",
             items=tuple(
-                self._serialize_department(row, site_lookup=site_lookup)
+                self._serialize_department(row, site_lookup=site_lookup, employee_lookup=employee_lookup)
                 for row in result.data
             ),
         )
@@ -168,6 +173,7 @@ class PlatformDepartmentCatalogPresenter:
         department_page = result.data
         site_lookup = self._site_lookup_for_organization(organization_id)
         department_lookup = self._department_lookup_for_organization(organization_id)
+        employee_lookup = self._employee_lookup_for_organization(organization_id)
         return PlatformWorkspaceActionListViewModel(
             title="Departments",
             subtitle="Operational departments for this organization.",
@@ -178,6 +184,7 @@ class PlatformDepartmentCatalogPresenter:
                     row,
                     site_lookup=site_lookup,
                     department_lookup=department_lookup,
+                    employee_lookup=employee_lookup,
                 )
                 for row in department_page.items
             ),
@@ -246,6 +253,7 @@ class PlatformDepartmentCatalogPresenter:
         department_page = result.data
         site_lookup = self._site_lookup_for_organization(organization_id)
         department_lookup = self._department_lookup_for_organization(organization_id)
+        employee_lookup = self._employee_lookup_for_organization(organization_id)
         return PlatformWorkspaceActionListViewModel(
             title="Departments",
             subtitle="Departments assigned to this site.",
@@ -256,6 +264,7 @@ class PlatformDepartmentCatalogPresenter:
                     row,
                     site_lookup=site_lookup,
                     department_lookup=department_lookup,
+                    employee_lookup=employee_lookup,
                 )
                 for row in department_page.items
             ),
@@ -296,6 +305,26 @@ class PlatformDepartmentCatalogPresenter:
             for row in result.data
         )
 
+    def build_manager_options(self) -> tuple[dict[str, str], ...]:
+        """Real Employee options for the Manager / Lead picker -- active-
+        organization-scoped, matching build_site_options() above. A manager
+        may be any active employee in the organization (not restricted to
+        this department), matching the existing service-layer validation
+        (validate_manager_employee_id checks organization membership only)."""
+        if self._employee_api is None:
+            return ()
+        result = self._employee_api.list_employees(active_only=True)
+        if not result.ok or result.data is None:
+            return ()
+        return tuple(
+            option_item(
+                label=row.full_name,
+                value=row.id,
+                supporting_text=row.title or row.employee_code,
+            )
+            for row in result.data
+        )
+
     def suggest_code(self, payload: dict[str, Any]) -> str:
         """Suggest a unique department code (DEPT-<NAME>-0001 / DEPT-<YEAR>-0001)."""
         from src.core.platform.common.code_generation import CodeGenerator
@@ -314,6 +343,9 @@ class PlatformDepartmentCatalogPresenter:
         )
 
     def create_department(self, payload: dict[str, Any]) -> DesktopApiResult[DepartmentDto]:
+        """Profile fields only -- lifecycle is never settable from Create;
+        every new department starts ACTIVE (DepartmentCreateCommand's own
+        default). Use activate_department/deactivate_department instead."""
         if self._department_api is None:
             return preview_error_result("Platform department API is not connected in this QML preview.")
         return self._department_api.create_department(
@@ -325,12 +357,21 @@ class PlatformDepartmentCatalogPresenter:
                 parent_department_id=optional_string_value(payload, "parentDepartmentId"),
                 department_type=string_value(payload, "departmentType"),
                 cost_center_code=string_value(payload, "costCenterCode"),
+                # Deliberately string_value(), not optional_string_value():
+                # an empty string must still reach create_department() as ""
+                # (normalizes to no manager), which is the same thing as
+                # never having selected one. Using optional_string_value()
+                # here would make no observable difference on create, but
+                # keeping create/update symmetric matters for update below,
+                # where the distinction is load-bearing (see its comment).
+                manager_employee_id=string_value(payload, "managerEmployeeId"),
                 notes=string_value(payload, "notes"),
-                is_active=bool_value(payload, "isActive", default=True),
             )
         )
 
     def update_department(self, payload: dict[str, Any]) -> DesktopApiResult[DepartmentDto]:
+        """Pure profile update -- lifecycle is never settable from Edit; use
+        activate_department/deactivate_department instead."""
         if self._department_api is None:
             return preview_error_result("Platform department API is not connected in this QML preview.")
         return self._department_api.update_department(
@@ -343,28 +384,29 @@ class PlatformDepartmentCatalogPresenter:
                 parent_department_id=optional_string_value(payload, "parentDepartmentId"),
                 department_type=string_value(payload, "departmentType"),
                 cost_center_code=string_value(payload, "costCenterCode"),
+                # Deliberately string_value(), not optional_string_value().
+                # update_department() treats manager_employee_id=None as
+                # "leave unchanged" but treats "" as "clear the manager" (it
+                # gates on `is not None`, then validate_manager_employee_id
+                # normalizes "" down to None) -- optional_string_value()
+                # would collapse a real "clear the manager" request from the
+                # dialog into a no-op None, making Manager permanently
+                # un-clearable once set.
+                manager_employee_id=string_value(payload, "managerEmployeeId"),
                 notes=string_value(payload, "notes"),
-                is_active=bool_value(payload, "isActive", default=True),
                 expected_version=int_value(payload, "expectedVersion"),
             )
         )
 
-    def toggle_department_active(
-        self,
-        *,
-        department_id: str,
-        is_active: bool,
-        expected_version: int | None,
-    ) -> DesktopApiResult[DepartmentDto]:
+    def activate_department(self, department_id: str) -> DesktopApiResult[DepartmentDto]:
         if self._department_api is None:
             return preview_error_result("Platform department API is not connected in this QML preview.")
-        return self._department_api.update_department(
-            DepartmentUpdateCommand(
-                department_id=department_id,
-                is_active=not is_active,
-                expected_version=expected_version,
-            )
-        )
+        return self._department_api.activate_department(department_id)
+
+    def deactivate_department(self, department_id: str) -> DesktopApiResult[DepartmentDto]:
+        if self._department_api is None:
+            return preview_error_result("Platform department API is not connected in this QML preview.")
+        return self._department_api.deactivate_department(department_id)
 
     def _site_lookup(self) -> dict[str, str]:
         if self._site_api is None:
@@ -420,15 +462,50 @@ class PlatformDepartmentCatalogPresenter:
             page += 1
         return lookup
 
+    def _employee_lookup(self) -> dict[str, str]:
+        """Employee id -> full name, active-organization-scoped, for
+        resolving Manager / Lead display names. QML never resolves an
+        Employee ID to a name itself -- this presenter always hands over an
+        already-resolved managerDisplay string."""
+        if self._employee_api is None:
+            return {}
+        result = self._employee_api.list_employees(active_only=None)
+        if not result.ok or result.data is None:
+            return {}
+        return {row.id: row.full_name for row in result.data}
+
+    def _employee_lookup_for_organization(self, organization_id: str, *, max_pages: int = 20) -> dict[str, str]:
+        """Same purpose as _employee_lookup(), but tenant-scoped to a
+        specific (possibly non-active) organization, for Organization/Site
+        Detail's own Departments tabs."""
+        if self._employee_api is None:
+            return {}
+        lookup: dict[str, str] = {}
+        page = 1
+        while page <= max_pages:
+            result = self._employee_api.list_employees_page_for_organization(
+                organization_id, page=page, page_size=100, active_only=None,
+            )
+            if not result.ok or result.data is None:
+                break
+            for row in result.data.items:
+                lookup[row.id] = row.full_name
+            if page * 100 >= result.data.total:
+                break
+            page += 1
+        return lookup
+
     @staticmethod
     def _serialize_department(
         row: DepartmentDto,
         *,
         site_lookup: dict[str, str],
         department_lookup: dict[str, str] | None = None,
+        employee_lookup: dict[str, str] | None = None,
     ) -> PlatformWorkspaceActionItemViewModel:
         site_label = site_lookup.get(row.site_id or "", "No site")
         parent_label = (department_lookup or {}).get(row.parent_department_id or "", "")
+        manager_label = (employee_lookup or {}).get(row.manager_employee_id or "", "")
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.name,
@@ -451,6 +528,8 @@ class PlatformDepartmentCatalogPresenter:
                 "parentDepartmentName": parent_label,
                 "departmentType": row.department_type,
                 "costCenterCode": row.cost_center_code,
+                "managerEmployeeId": row.manager_employee_id or "",
+                "managerDisplay": manager_label,
                 "notes": row.notes,
                 "isActive": row.is_active,
                 "version": row.version,

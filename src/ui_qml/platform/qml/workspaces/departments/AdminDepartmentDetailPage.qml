@@ -95,7 +95,9 @@ Item {
         if (root._activeSectionLabel === "Overview") {
             return [
                 { "id": "edit", "label": "Edit", "icon": "edit", "enabled": root.canWrite },
-                { "id": "toggle_active", "label": root._isActive ? "Set Inactive" : "Set Active", "icon": "approve", "enabled": root.canWrite },
+                root._isActive
+                    ? { "id": "deactivate", "label": "Deactivate", "icon": "reject", "enabled": root.canWrite }
+                    : { "id": "activate", "label": "Activate", "icon": "approve", "enabled": root.canWrite },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
@@ -132,16 +134,18 @@ Item {
             { "id": "refresh", "label": "Refresh", "icon": "refresh" }
         ]
     }
+    // Lifecycle status lives in the header/toolbar badge only -- never
+    // duplicated here as a second "Status"/"Active" row. IDs are never
+    // shown as primary values; Site/Parent Department/Manager all resolve
+    // to their real display names (already provided by the presenter).
     readonly property var _overviewFields: [
         { "label": "Department Code", "value": root._state.departmentCode },
         { "label": "Display Name", "value": root._state.name || root.department.title },
         { "label": "Department Type", "value": root._state.departmentType },
-        { "label": "Cost Center", "value": root._state.costCenterCode },
-        { "label": "Status", "value": root._status },
-        { "label": "Version", "value": root._state.version },
-        { "label": "Site ID", "value": root._state.siteId },
-        { "label": "Parent Department ID", "value": root._state.parentDepartmentId },
-        { "label": "Active", "value": root._isActive }
+        { "label": "Site", "value": root._state.siteName },
+        { "label": "Parent Department", "value": root._state.parentDepartmentName },
+        { "label": "Manager / Lead", "value": root._state.managerDisplay },
+        { "label": "Cost Center", "value": root._state.costCenterCode }
     ]
 
     function _tableHeightForCount(count) {

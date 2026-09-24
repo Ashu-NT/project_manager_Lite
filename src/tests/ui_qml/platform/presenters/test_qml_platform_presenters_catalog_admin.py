@@ -93,7 +93,7 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
             "isActive": True,
         }
     )
-    department_result = catalog.adminWorkspace.toggleDepartmentActive("dep-2")
+    department_result = catalog.adminWorkspace.activateDepartment("dep-2")
     employee_result = catalog.adminWorkspace.createEmployee(
         {
             "employeeCode": "E-003",
@@ -152,7 +152,7 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
     assert organization_result == {"ok": True, "category": "", "code": "", "message": "Organization created."}
     assert activate_result == {"ok": True, "category": "", "code": "", "message": "Organization activated."}
     assert site_result == {"ok": True, "category": "", "code": "", "message": "Site created."}
-    assert department_result == {"ok": True, "category": "", "code": "", "message": "Department active state updated."}
+    assert department_result == {"ok": True, "category": "", "code": "", "message": "Department activated."}
     assert employee_result == {"ok": True, "category": "", "code": "", "message": "Employee created."}
     assert user_result == {"ok": True, "category": "", "code": "", "message": "User created."}
     assert party_result == {"ok": True, "category": "", "code": "", "message": "Party created."}

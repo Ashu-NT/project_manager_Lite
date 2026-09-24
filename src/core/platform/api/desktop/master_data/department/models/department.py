@@ -40,6 +40,9 @@ class DepartmentRollupSummaryDto:
 
 @dataclass(frozen=True)
 class DepartmentCreateCommand:
+    """Lifecycle is not settable from Create -- every new department starts
+    ACTIVE; use activate_department/deactivate_department instead."""
+
     department_code: str
     name: str
     description: str = ""
@@ -48,12 +51,14 @@ class DepartmentCreateCommand:
     department_type: str = ""
     cost_center_code: str = ""
     manager_employee_id: str | None = None
-    is_active: bool = True
     notes: str = ""
 
 
 @dataclass(frozen=True)
 class DepartmentUpdateCommand:
+    """Pure profile update -- lifecycle is never settable from Edit; use
+    activate_department/deactivate_department instead."""
+
     department_id: str
     department_code: str | None = None
     name: str | None = None
@@ -63,6 +68,5 @@ class DepartmentUpdateCommand:
     department_type: str | None = None
     cost_center_code: str | None = None
     manager_employee_id: str | None = None
-    is_active: bool | None = None
     notes: str | None = None
     expected_version: int | None = None

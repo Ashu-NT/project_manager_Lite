@@ -35,6 +35,7 @@ UI_QML_ROOT = REPO_ROOT / "src" / "ui_qml"
 _WORKSPACE_PAGES_WITH_LAZY_DETAIL_LOADER = [
     "platform/qml/workspaces/sites/SitesWorkspacePage.qml",
     "platform/qml/workspaces/organizations/OrganizationsWorkspacePage.qml",
+    "platform/qml/workspaces/departments/DepartmentsWorkspacePage.qml",
 ]
 
 

@@ -11,6 +11,7 @@ AppWidgets.EntityDialog {
     property var draft: ({})
     property var siteOptions: []
     property var parentOptions: []
+    property var managerOptions: []
     property var workspaceController: null
     property string departmentCode: ""
 
@@ -39,6 +40,9 @@ AppWidgets.EntityDialog {
         root.saveRequested(root.mode, root.formData)
     }
 
+    // Lifecycle (Active/Inactive) is never editable here -- new departments
+    // always start ACTIVE, and existing ones change state only through the
+    // dedicated Activate/Deactivate actions (Inspector/Detail Actions ▾).
     readonly property var formData: ({
         departmentId: root.draft.departmentId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
@@ -49,8 +53,8 @@ AppWidgets.EntityDialog {
         parentDepartmentId: _currentValue(parentModel, parentCombo),
         departmentType: departmentTypeField.text.trim(),
         costCenterCode: costCenterField.text.trim(),
-        notes: notesField.text.trim(),
-        isActive: activeCheck.checked
+        managerEmployeeId: _currentValue(managerModel, managerCombo),
+        notes: notesField.text.trim()
     })
 
     function openForCreate(options) {
@@ -72,8 +76,10 @@ AppWidgets.EntityDialog {
     function _assignOptions(options) {
         root.siteOptions = options.siteOptions || []
         root.parentOptions = options.parentOptions || []
+        root.managerOptions = options.managerOptions || []
         _reloadOptionModel(siteModel, root.siteOptions)
         _reloadOptionModel(parentModel, root.parentOptions, root.draft.departmentId || root.draft.id || "")
+        _reloadOptionModel(managerModel, root.managerOptions)
     }
 
     function _reloadOptionModel(model, options, excludedValue) {
@@ -98,9 +104,9 @@ AppWidgets.EntityDialog {
         departmentTypeField.text = root.draft.departmentType || ""
         costCenterField.text = root.draft.costCenterCode || ""
         notesField.text = root.draft.notes || ""
-        activeCheck.checked = root.draft.isActive !== undefined ? root.draft.isActive : true
         _setCurrentIndex(siteModel, siteCombo, root.draft.siteId || "")
         _setCurrentIndex(parentModel, parentCombo, root.draft.parentDepartmentId || "")
+        _setCurrentIndex(managerModel, managerCombo, root.draft.managerEmployeeId || "")
     }
 
     function _setCurrentIndex(model, combo, value) {
@@ -122,6 +128,7 @@ AppWidgets.EntityDialog {
 
     ListModel { id: siteModel }
     ListModel { id: parentModel }
+    ListModel { id: managerModel }
 
     AppWidgets.CodeFieldRow {
         Layout.fillWidth: true
@@ -218,6 +225,18 @@ AppWidgets.EntityDialog {
 
     AppWidgets.FormField {
         Layout.fillWidth: true
+        label: "Manager / Lead"
+
+        AppControls.ComboBox {
+            id: managerCombo
+            Layout.fillWidth: true
+            model: managerModel
+            textRole: "label"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
         label: "Notes"
 
         AppControls.TextArea {
@@ -227,11 +246,5 @@ AppWidgets.EntityDialog {
             placeholderText: "Operational notes or context"
             wrapMode: TextEdit.WordWrap
         }
-    }
-
-    AppControls.CheckBox {
-        id: activeCheck
-
-        text: "Active department"
     }
 }

@@ -182,6 +182,7 @@ class PlatformWorkspaceCatalog(QObject):
             department_presenter=PlatformDepartmentCatalogPresenter(
                 department_api=department_api,
                 site_api=site_api,
+                employee_api=employee_api,
             ),
             employee_presenter=PlatformEmployeeCatalogPresenter(
                 employee_api=employee_api,

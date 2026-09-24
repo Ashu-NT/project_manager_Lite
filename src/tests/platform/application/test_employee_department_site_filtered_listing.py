@@ -40,8 +40,8 @@ def test_list_employees_filters_by_department_id(services):
     employee_service = services["employee_service"]
     department_service = services["department_service"]
 
-    dept_a = department_service.create_department(department_code="FILT-DA", name="Dept A", is_active=True)
-    dept_b = department_service.create_department(department_code="FILT-DB", name="Dept B", is_active=True)
+    dept_a = department_service.create_department(department_code="FILT-DA", name="Dept A")
+    dept_b = department_service.create_department(department_code="FILT-DB", name="Dept B")
     _seed_employees(employee_service, department_id=dept_a.id, count=3, prefix="DA")
     _seed_employees(employee_service, department_id=dept_b.id, count=2, prefix="DB")
 
@@ -76,7 +76,7 @@ def test_list_employees_department_and_site_filter_excludes_unassigned_and_other
     employee_service = services["employee_service"]
     department_service = services["department_service"]
 
-    dept = department_service.create_department(department_code="FILT-DC", name="Dept C", is_active=True)
+    dept = department_service.create_department(department_code="FILT-DC", name="Dept C")
     _seed_employees(employee_service, department_id=dept.id, count=2, prefix="DC")
     _seed_employees(employee_service, department_id=None, count=2, prefix="UNASSIGNED")
 
@@ -92,7 +92,7 @@ def test_list_employees_unfiltered_still_returns_everything(services):
     employee_service = services["employee_service"]
 
     baseline = employee_service.list_employees()
-    employee_service.create_employee(employee_code="FILT-UNSCOPED-1", full_name="Unscoped One", is_active=True)
+    employee_service.create_employee(employee_code="FILT-UNSCOPED-1", full_name="Unscoped One")
 
     updated = employee_service.list_employees()
     assert len(updated) == len(baseline) + 1
@@ -110,7 +110,7 @@ def test_department_filter_from_foreign_organization_yields_no_rows(services):
 
     default_organization = services["tenant_context_service"].get_active_organization()
     dept_in_default_org = department_service.create_department(
-        department_code="FILT-CROSS-D", name="Cross Dept", is_active=True
+        department_code="FILT-CROSS-D", name="Cross Dept"
     )
     _seed_employees(employee_service, department_id=dept_in_default_org.id, count=2, prefix="CROSS")
 
@@ -142,7 +142,7 @@ def test_desktop_api_list_employees_accepts_department_and_site_filters(services
     department_service = services["department_service"]
     api = PlatformEmployeeDesktopApi(employee_service=employee_service)
 
-    dept = department_service.create_department(department_code="FILT-API-D", name="API Dept", is_active=True)
+    dept = department_service.create_department(department_code="FILT-API-D", name="API Dept")
     _seed_employees(employee_service, department_id=dept.id, count=2, prefix="API")
 
     result = api.list_employees(department_id=dept.id)
@@ -178,7 +178,7 @@ def test_department_filtered_fetch_issues_one_narrow_select_not_full_scan(servic
     session = services["session"]
     engine = session.get_bind()
 
-    dept = department_service.create_department(department_code="FILT-SQL-D", name="SQL Dept", is_active=True)
+    dept = department_service.create_department(department_code="FILT-SQL-D", name="SQL Dept")
     _seed_employees(employee_service, department_id=dept.id, count=2, prefix="SQLD")
     # A large pool of OTHER employees in the org, unrelated to dept -- if the
     # fix regressed to full materialization + Python filter, this row count
@@ -225,7 +225,7 @@ def test_admin_controller_employees_for_department_slot(services):
     employee_service = services["employee_service"]
     department_service = services["department_service"]
 
-    dept = department_service.create_department(department_code="FILT-CTRL-D", name="Controller Dept", is_active=True)
+    dept = department_service.create_department(department_code="FILT-CTRL-D", name="Controller Dept")
     _seed_employees(employee_service, department_id=dept.id, count=2, prefix="CTRLD")
 
     registry = build_desktop_api_registry(services)
@@ -263,7 +263,7 @@ def test_admin_controller_employees_for_department_empty_when_no_matches(service
     from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
     department_service = services["department_service"]
-    dept = department_service.create_department(department_code="FILT-CTRL-EMPTY", name="Empty Dept", is_active=True)
+    dept = department_service.create_department(department_code="FILT-CTRL-EMPTY", name="Empty Dept")
 
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
@@ -285,9 +285,9 @@ def test_list_departments_filters_by_site_id(services):
 
     site_a = site_service.create_site(site_code="FILT-DEPT-SA", name="Dept Site A")
     site_b = site_service.create_site(site_code="FILT-DEPT-SB", name="Dept Site B")
-    department_service.create_department(department_code="FILT-DEPT-DA1", name="Dept A1", site_id=site_a.id, is_active=True)
-    department_service.create_department(department_code="FILT-DEPT-DA2", name="Dept A2", site_id=site_a.id, is_active=True)
-    department_service.create_department(department_code="FILT-DEPT-DB1", name="Dept B1", site_id=site_b.id, is_active=True)
+    department_service.create_department(department_code="FILT-DEPT-DA1", name="Dept A1", site_id=site_a.id)
+    department_service.create_department(department_code="FILT-DEPT-DA2", name="Dept A2", site_id=site_a.id)
+    department_service.create_department(department_code="FILT-DEPT-DB1", name="Dept B1", site_id=site_b.id)
 
     rows_a = department_service.list_departments(site_id=site_a.id)
     rows_b = department_service.list_departments(site_id=site_b.id)
@@ -306,8 +306,8 @@ def test_admin_controller_departments_for_site_slot(services):
     site_service = services["site_service"]
 
     site = site_service.create_site(site_code="FILT-DEPT-CTRL-S", name="Controller Dept Site")
-    department_service.create_department(department_code="FILT-DEPT-CTRL-D1", name="Controller Dept 1", site_id=site.id, is_active=True)
-    department_service.create_department(department_code="FILT-DEPT-CTRL-D2", name="Controller Dept 2", site_id=site.id, is_active=True)
+    department_service.create_department(department_code="FILT-DEPT-CTRL-D1", name="Controller Dept 1", site_id=site.id)
+    department_service.create_department(department_code="FILT-DEPT-CTRL-D2", name="Controller Dept 2", site_id=site.id)
 
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
@@ -350,10 +350,10 @@ def test_departments_page_for_organization_filters_by_site_id(services):
     site_b = site_service.create_site(site_code="FILT-DEPT-PG-SB", name="Dept Page Site B")
     for i in range(3):
         department_service.create_department(
-            department_code=f"FILT-DEPT-PG-A{i}", name=f"Page Dept A{i}", site_id=site_a.id, is_active=True
+            department_code=f"FILT-DEPT-PG-A{i}", name=f"Page Dept A{i}", site_id=site_a.id
         )
     department_service.create_department(
-        department_code="FILT-DEPT-PG-B0", name="Page Dept B0", site_id=site_b.id, is_active=True
+        department_code="FILT-DEPT-PG-B0", name="Page Dept B0", site_id=site_b.id
     )
 
     page = department_service.list_departments_page_for_organization(
@@ -373,10 +373,10 @@ def test_departments_page_for_organization_site_scope_paginates_and_searches(ser
     site = site_service.create_site(site_code="FILT-DEPT-PG-SC", name="Page Site C")
     for i in range(3):
         department_service.create_department(
-            department_code=f"FILT-DEPT-PGC-{i}", name=f"Findme Dept {i}", site_id=site.id, is_active=True
+            department_code=f"FILT-DEPT-PGC-{i}", name=f"Findme Dept {i}", site_id=site.id
         )
     department_service.create_department(
-        department_code="FILT-DEPT-PGC-OTHER", name="Unrelated Dept", site_id=site.id, is_active=True
+        department_code="FILT-DEPT-PGC-OTHER", name="Unrelated Dept", site_id=site.id
     )
 
     page_1 = department_service.list_departments_page_for_organization(
@@ -403,7 +403,7 @@ def test_admin_controller_departments_for_site_page_slot(services):
     site = site_service.create_site(site_code="FILT-DEPT-PGCTRL-S", name="Page Controller Site")
     for i in range(2):
         department_service.create_department(
-            department_code=f"FILT-DEPT-PGCTRL-{i}", name=f"Page Controller Dept {i}", site_id=site.id, is_active=True
+            department_code=f"FILT-DEPT-PGCTRL-{i}", name=f"Page Controller Dept {i}", site_id=site.id
         )
 
     registry = build_desktop_api_registry(services)

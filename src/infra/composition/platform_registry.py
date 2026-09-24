@@ -83,7 +83,9 @@ from src.core.platform.application.master_data.department.event_handlers.view_in
     build_department_list_view_invalidation_handler,
 )
 from src.core.platform.domain.master_data.department.events import (
+    DepartmentActivated,
     DepartmentCreated,
+    DepartmentDeactivated,
     DepartmentProfileUpdated,
 )
 from src.core.platform.application.master_data.site.event_handlers.view_invalidation import (
@@ -592,7 +594,9 @@ def build_platform_service_bundle(
     _department_list_view_invalidation_handler = build_department_list_view_invalidation_handler(
         platform_view_invalidation_channel
     )
-    for _department_event_type in (DepartmentCreated, DepartmentProfileUpdated):
+    for _department_event_type in (
+        DepartmentCreated, DepartmentProfileUpdated, DepartmentActivated, DepartmentDeactivated,
+    ):
         platform_post_commit_bus.subscribe(
             _department_event_type, _department_list_view_invalidation_handler
         )
