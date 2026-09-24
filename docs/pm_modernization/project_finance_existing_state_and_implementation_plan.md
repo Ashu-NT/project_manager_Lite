@@ -1,8 +1,167 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-C COMPLETE; R6F-D COMPLETE; R6F-E NOT STARTED
-Last updated: 2026-09-20
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-C COMPLETE; R6F-D COMPLETE; R6F-E COMPLETE; R6F CLOSED
+Last updated: 2026-09-24
 Scope: Project Management finance plus reusable platform financial foundations
+
+## R6F-E Integrated Closure Evidence
+
+**R6F CLOSED (2026-09-24).** All R6F-owned closure gates passed. This is a
+phase closure, not a claim that the complete PM suite has zero unrelated debt:
+the four broad failures below were conclusively classified outside R6F, as
+permitted by the final closure brief.
+
+This section supersedes earlier R6F checkpoints below. R6G (Accounting Handoff /
+Integration) is next, not started. Historical status paragraphs remain execution
+history, not current phase status.
+
+### Final Authority and Scope
+
+| Concept | Sole current authority / consumer boundary |
+| --- | --- |
+| Billing governance | ProjectBillingProfileService and ProjectBillingPreparationService, governed fresh-session Finance UoW, scoped repositories and Platform Approval. Preparation is evidence, never an issued invoice or projected total revenue. |
+| Projected revenue | CommercialProjectionQuery delegates to ProjectProfitabilityCalculator. Fixed price uses contract value, never schedule totals, preparation totals, EV or Accounting outcomes. |
+| Margin and percentage | Calculator subtracts canonical Finance EAC from revenue; percentage is margin / revenue * 100. CostPolicyEngine supplies EAC; Commercial does not recalculate Actual, ETC, labor or procurement cost. |
+| BILLING Rate | RateCardResolver with RateType.BILLING snapshots approved-Time source valuation. No COST Rate or Resource.hourly_rate fallback. Historical source evidence is not revalued by subsequent Rate edits/deactivation. |
+| Method availability | Fixed price supported; T&M UNSUPPORTED without future billable-volume authority; cost-plus UNSUPPORTED without recoverable-cost forecast authority; non-billable NOT_APPLICABLE. No new forecast authority introduced. |
+| Typed availability | One CommercialMetricAvailability and separate CommercialMetricUnavailableReason, reused by desktop rather than duplicated. Revenue/margin/percentage availability fields are required. Zero is AVAILABLE; valid negative margin remains visible; zero denominator is NOT_APPLICABLE; missing EAC leaves revenue AVAILABLE and margin/percentage UNAVAILABLE; permission denial is RESTRICTED. |
+| Consumers | Application fact -> Reporting -> desktop DTO/serializer -> Commercial presenter -> QML. No current commercial revenue/margin Dashboard, export or snapshot consumer was invented. Cost/EVM reports retain their distinct semantics. |
+| Dates and currency | Query requires explicit as_of_date. API/Reporting may resolve an omitted boundary date once. Cost uses that cutoff; commercial terms and approved signed preparation progress are current governed state, not a historical contract ledger. Monetary authority is Decimal/Money; currency mismatch is UNAVAILABLE; no FX. |
+| Accounting boundary | delivery_pending means a local handoff request. Delivered/acknowledged/reconciled require supplied external evidence. Existing gateway payload/outcome contracts remain valid future-integration contracts, not a publisher. Reconciled is not paid; an invoice reference is not an invoice amount. No invoice issuance, payment, GL, AR, tax or statutory revenue authority. |
+
+### Closure Changes and Golden Evidence
+
+- Fixed an idempotency-scope defect in record_external_outcome: a key already
+  belonging to another preparation/project now raises
+  BILLING_EXTERNAL_OUTCOME_SCOPE_MISMATCH rather than returning that event.
+  Valid same-preparation replay still succeeds without duplicate events.
+- Added test_r6f_e_integrated_commercial.py. Its governed fixed-price project
+  has an active customer/contract profile, ready schedule, approved Forecast,
+  creator self-decision denial, independent Platform Approval, finalized source
+  evidence, delivery_pending, externally supplied reconciliation and an approved
+  correction. Preparation progress moves from 24000 to 25000 while contract
+  revenue stays 50000, canonical EAC 30000, margin 20000 and percentage 40.
+  Parent evidence is unchanged; reserved source reuse is rejected; Reporting and
+  desktop agree. Cross-preparation and cross-project outcome-key reuse is denied.
+- Approved-Time/BILLING evidence is proved in the complementary PostgreSQL
+  scenario, not attached to a fixed-price preparation in violation of its method.
+  The live rate race captures version-1 rate 120 and quantity 2.375 (amount 285)
+  despite a concurrent edit to 240. After domain approval, a later edit to 360
+  and deactivation leave the persisted historical line identical. Independent
+  Platform Approval integration is proved by the fixed-price scenario and the
+  existing governed Billing matrix; the rate test isolates snapshot persistence.
+- Added explicit Commercial profitability late-result tests for project and
+  subsection switches. Only the current generation/context is applied.
+- Repaired two stale Finance QML path tests for capability folders and removed
+  their unused monolithic workspace seeding/statement-count helpers and imports.
+  No compatibility production paths were restored.
+- Made the consumed COST-rate regression's permitted end-date calendar-safe;
+  its hardcoded September 20 date had expired. Updated the PostgreSQL commitment
+  fixture from retired sites.is_active to canonical sites.status. These are
+  Finance integration-test repairs, not production Rate/Sites design changes.
+
+### Security, Events and Read Architecture
+
+| Gate | Evidence |
+| --- | --- |
+| Permissions | Reporting enforces finance.read and project access; finance.read_profitability controls server-side inclusion. Restricted requests never invoke EAC. Sensitive resource-identifiable Rate provenance is redacted without finance.read_sensitive. |
+| Scope/RLS | Billing Reader tests execute through app_runtime (NOSUPERUSER, NOBYPASSRLS, non-owner) with real tenant/org session context. Six Billing tables and hostile child/parent references cover other tenant and same-tenant other organization; application tests additionally reject same-tenant unauthorized projects and outcome-key reuse. |
+| Concurrency | Live profile, schedule, preparation, submit, approve/reject, source reservation, correction branch and BILLING-rate races. Source-lock and correction uniqueness are database-enforced. UoW fault injection proves rollback of writes/audit/events together. |
+| Lifecycle/SOD | R6F-C/P39 tests cover profile/schedule/preparation transitions, creator vs submitter restrictions, independent reviewer, source release/reuse, approved immutability, one correction chain and idempotent replay. Platform Approval remains canonical. |
+| Invalidation | Profile changes refresh commercial terms; approved Forecast and posted/reversed Actual refresh EAC-dependent margin; Commitment invalidation includes Commercial; Billing refreshes preparation progress. Project/subsection-scoped typed post-commit events only. Transaction-context coalescing preserves separate commits sharing a correlation ID. |
+| Async/UI | Billing A/B/C selection/filter tests, project-switch clearing and new Commercial project/subsection late-result tests preserve generation guards. Dialog tests cover shared shell, bounded method-specific selectors, validation, focus and keyboard behavior. Five Commercial viewports still render zero and distinct availability labels. No visible QML changed in R6F-E. |
+| Bounded reads | R6F-D's 13-statement projection characterization and growth tests remain applicable: 4 -> 124 preparations plus 120 draft costs/schedules/unposted Time rows do not increase query count. The R6F-E write-side replay guard does not change query shape; no new EXPLAIN/index exercise or speculative index. |
+| Migration/schema | Fresh Alembic bootstrap; active-only source-lock uniqueness; one active correction branch; scoped preparation-line foreign key. No new migration or analytical persistence. |
+
+### Retired-Authority Search Classification
+
+| Search result | Classification / disposition |
+| --- | --- |
+| CommercialProjectionQuery, calculator and thin Reporting delegate | A: canonical current authority. One assembly/formula path; no unbounded preparation/event walk. |
+| Availability labels, QML Number() for row versions/pages/counts | B: presentation/identity behavior, not binary-float monetary arithmetic. QML has no revenue/margin formula. |
+| Domain UTC creation/update timestamps; API/Reporting omitted-date resolution | A/B: lifecycle timestamps or allowed boundary default, not an independent analytical cutoff. Query/calculator contain no clock authority. |
+| Delivery payload and external-outcome contract | C: valid future R6G integration boundary. No concrete publisher or invoice/payment/GL/AR/tax implementation. |
+| Old unavailable-revenue-basis mapping, false paid/invoiced mappings, duplicate enums/formulas, monetary truthiness, COST-rate fallback, Resource.hourly_rate commercial valuation | D: absent. No compatibility wrapper, obsolete DI/qmldir or duplicate projected analytical storage found in the active R6F production paths. |
+| Dead test helpers for the retired workspace path | D: deleted from the existing test file; no source files needed deletion. |
+
+Superseded R6F production architecture count: **zero**. A substring such as
+"adapter" in the canonical query's UI-independence docstring is not a production
+compatibility implementation. Searches were scoped to R6F and its consumers;
+this does not assert that unrelated modules contain no historical naming.
+
+### Regression Record
+
+| Execution | Actual result |
+| --- | --- |
+| Focused R6F closure + R6C/D/E application regressions + all architecture guards + PM presenters + Billing migration/schema + SQLite session handoff | 733 passed, 0 failed, in 129.74s. Includes 32 typed-availability tests, 18 projection integrations, golden project, five Commercial viewports, Billing dialog/focus tests and two new Commercial context-switch tests. |
+| Fresh PostgreSQL R6B/C/D/F matrix (all test_r6*.py under integration/postgresql) | 97 passed, 0 failed, in 21.97s after fixture repairs; fresh Alembic schema, runtime-role RLS/foreign-parent checks, governed concurrency/atomicity, approved-Time and historical BILLING-rate evidence. |
+| Platform Approval application/domain/UoW + infrastructure events | 111 passed, 0 failed, in 26.20s. |
+| Complete current PM suite, including PM UI/QML | 2420 passed, 2 skipped, 4 failed, in 669.41s. All four failures are unrelated test-contract/fixture debt documented below; no R6F failure remains. |
+| Quality | Explicit phase-file Ruff F/I and compilation passed; Finance QML lint passed; architecture included in the 733 run; retired-authority search and git diff --check passed. |
+
+The complete PM result is separate from the focused matrix; counts overlap and
+must not be added together. The earlier R6F-D 724-test run was not a full suite.
+
+Full PM command: `pmenv/python -m pytest -q src/tests/project_management
+src/tests/pm src/tests/ui_qml/project_management --tb=short -ra`.
+PostgreSQL command uses `PM_RUN_POSTGRES_INTEGRATION=1` with every
+`src/tests/integration/postgresql/test_r6*.py` file in one process, so the shared
+test database is bootstrapped once rather than reset by competing test runners.
+SQLite remains the fast unit/domain test backend.
+
+The current full run completed after the Finance path failures were repaired.
+The four remaining failures are classified B (pre-existing/unrelated), not
+suppressed, skipped or redefined to make the result look green:
+
+| Test | Concrete cause / untouched boundary |
+| --- | --- |
+| test_project_management_desktop_api_lists_workspace_descriptors | EXPECTED_PM_WORKSPACE_KEYS omits the active review_queue descriptor in api/desktop/workspaces.py. Finance does not own this workspace registry expectation. |
+| test_activity_repository_filters_by_parent_entity_id_and_action_prefix | Direct ActivityEntry fixture inserts omit organization_id; ActivityRepository stamps tenant only and default reads enforce tenant + active organization. Empty results follow the current scope contract. ActivityService supplies organization scope in production; no scope weakening is justified. |
+| test_r5g_keeps_frozen_workload_navigation_and_task_time_owner | Source-text assertion searches the former inline Workload Management list; controller delegates to build_pm_context_navigation(). This is an R5 navigation test ownership mismatch, not a Commercial regression. |
+| test_platform_master_data_services_use_runtime_tenant_context | _PlatformScopedRepo test double does not accept site_id. DepartmentService now passes that optional filter; the real SqlAlchemyDepartmentRepository.list_for_organization accepts it and applies it. This is Platform fixture drift, not an R6F isolation failure. |
+
+Two skips are explicit: the opt-in large-scale performance suite requires
+PM_RUN_PERF_TESTS=1, and the minimal P19 forecast invalidation fixture has no
+financial sources to generate a draft. Neither is silently represented as a
+passing test. Governed Forecast, bounded commercial growth and PostgreSQL
+approved-Time tests execute in the green closure matrices above.
+
+The initial expanded PostgreSQL run exposed an expired permitted Rate end-date;
+the resumed run exposed the stale Sites fixture column. Both were repaired and
+rerun, rather than counted as acceptable failing Finance integration evidence.
+
+### Worktree Ownership
+
+R6F changes span the Billing preparation service, one new golden integration test,
+the historical BILLING-rate test, Finance presenter tests, and the Finance QML
+path tests. Necessary regression infrastructure repairs touch the approved-Time
+and Commitment PostgreSQL fixtures. Documentation changes are confined to this
+active Finance plan. No unrelated production code, schema or QML was modified.
+Earlier continuation changes were already present in the user's clean worktree
+on resumption; the agent did not create or amend a commit.
+
+| Phase file inventory | Change |
+| --- | --- |
+| src/core/modules/project_management/application/financials/invoicing/preparation_service.py | Changed: reject foreign-preparation/project outcome-key replay. |
+| src/tests/project_management/application/test_r6f_e_integrated_commercial.py | Created: governed golden project and replay-scope regression. |
+| src/tests/integration/postgresql/test_r6f_billing_rate_snapshot.py | Changed: approved historical snapshot after subsequent Rate edit/deactivation. |
+| src/tests/ui_qml/project_management/presenters/test_qml_project_management_presenters_financials.py | Changed: Commercial late-result context-switch regressions. |
+| src/tests/project_management/application/test_finance_workspace_phase_b8.py | Changed: current capability-folder paths; removed dead helpers/imports. |
+| src/tests/integration/postgresql/test_r6d_d_approved_time_labor_posting.py | Changed: date-safe regression fixture and import ordering. |
+| src/tests/integration/postgresql/test_r6d_e_commitment_projection.py | Changed: current Sites fixture schema and import cleanup. |
+| docs/pm_modernization/project_finance_existing_state_and_implementation_plan.md | Changed: authoritative closure evidence and failure classification. |
+
+Files deleted: none. Dead helper code was deleted in-place. No temporary
+production scaffold, alternate query, visual redesign or compatibility layer was
+added. Only the plan and two PostgreSQL fixture files remained modified on the
+final resumed worktree; earlier phase changes were already incorporated by the
+user. No unrelated user/team files were edited.
+
+Final disposition: R6F-A/B/C/D/E COMPLETE; R6F CLOSED. R6D and R6E remain
+CLOSED. **NEXT: R6G - Accounting Handoff / Integration**, requiring explicit
+authorization before any implementation. No R6G, Accounting publisher, invoice,
+payment, GL, AR, tax, statutory recognition or FX work was started. No commit was
+created or amended by the agent.
 
 ## R6F-D Commercial Projection and Typed Availability
 

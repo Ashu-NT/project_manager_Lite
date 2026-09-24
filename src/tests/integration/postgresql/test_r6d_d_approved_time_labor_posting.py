@@ -64,6 +64,7 @@ from src.core.platform.application.finance.financial_period_service import (
 from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.finance import DecimalQuantity, DecimalQuantityPayload
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,
@@ -71,7 +72,6 @@ from src.core.platform.domain.security.auth.session import (
 from src.core.platform.domain.security.identity.service_principal import (
     ServicePrincipal,
 )
-from src.core.platform.domain.finance import DecimalQuantity, DecimalQuantityPayload
 from src.core.platform.infrastructure.persistence.repositories.time_management.time_financial_outbox import (
     SqlAlchemyTimeFinancialOutboxRepository,
 )

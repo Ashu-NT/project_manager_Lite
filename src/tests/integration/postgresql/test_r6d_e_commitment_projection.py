@@ -5,7 +5,7 @@ from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import event, select, text
+from sqlalchemy import event, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import sessionmaker
 
@@ -20,18 +20,22 @@ from src.core.modules.project_management.application.financials.procurement_cons
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
     ProcurementFinancialConsumer,
 )
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
-    SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
-)
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.commitments.commitment import (
     SqlAlchemyProjectCommitmentRepository,
 )
-from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
+from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
+    SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
+)
+from src.core.platform.application.finance.financial_period_service import (
+    FinancialPeriodService,
+)
 from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
-from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.domain.security.identity.service_principal import ServicePrincipal
 from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.domain.security.identity.service_principal import (
+    ServicePrincipal,
+)
 from src.core.platform.infrastructure.persistence.repositories.integration.procurement_financial_outbox import (
     SqlAlchemyProcurementFinancialOutboxRepository,
 )
@@ -42,13 +46,16 @@ from src.core.platform.integration import (
     ProcurementCommitmentEventPayload,
     ProcurementReceiptAccrualEventPayload,
 )
-from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
-from src.infra.integration.procurement_financial_dispatcher import ProcurementFinancialDispatcher
+from src.infra.integration.procurement_financial_dispatcher import (
+    ProcurementFinancialDispatcher,
+)
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
-
 
 pytestmark = pytest.mark.postgresql_integration
 
@@ -114,8 +121,8 @@ def seed_procurement_scope(postgres_test_environment):
         ), {"tenant": TENANT_A, "org": ORG_A, "project": PROJECT_A, "cost": COST_CODE_A, "now": now})
         connection.execute(text(
             "INSERT INTO sites (id, tenant_id, organization_id, site_code, name, currency_code, "
-            "is_active, created_at, updated_at, version) "
-            "VALUES (:id, :tenant, :org, 'PROC', 'Procurement site', 'USD', true, :now, :now, 1)"
+            "status, created_at, updated_at, version) "
+            "VALUES (:id, :tenant, :org, 'PROC', 'Procurement site', 'USD', 'active', :now, :now, 1)"
         ), {"id": SITE_A, "tenant": TENANT_A, "org": ORG_A, "now": now})
         connection.execute(text(
             "INSERT INTO parties (id, tenant_id, organization_id, party_code, party_name, "
