@@ -84,7 +84,7 @@ from src.core.modules.project_management.api.desktop.scheduling.serializers.depe
 from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import (
     unwrap_platform_calendar_result,
 )
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.platform.domain.finance.money import canonical_decimal_text
 from src.core.modules.project_management.api.desktop.scheduling.services.dependency_resolution_service import (
     build_tasks_by_id,
     get_task_method,

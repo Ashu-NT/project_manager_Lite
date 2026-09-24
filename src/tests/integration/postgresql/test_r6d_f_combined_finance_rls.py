@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
-from src.core.platform.finance import DecimalQuantityPayload, MonetaryRatePayload
+from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload
 from src.core.platform.integration import (
     PROCUREMENT_COMMITMENT_EVENT_TYPE,
     PROCUREMENT_RECEIPT_ACCRUAL_EVENT_TYPE,

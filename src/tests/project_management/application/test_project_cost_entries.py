@@ -27,7 +27,7 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryStatus,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.finance.money.money import Money
+from src.core.platform.domain.finance.money.money import Money
 
 
 def _login(services, username: str, password: str) -> None:

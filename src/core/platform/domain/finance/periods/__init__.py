@@ -1,4 +1,4 @@
-from src.core.platform.finance.periods.financial_period import (
+from src.core.platform.domain.finance.periods.financial_period import (
     FinancialPeriod,
     FinancialPeriodStatus,
 )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
 )
-from src.core.platform.finance import MoneyPayload
+from src.core.platform.domain.finance import MoneyPayload
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 

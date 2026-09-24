@@ -22,7 +22,7 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceInspectorFact,
     ResourceSummaryFact,
 )
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 def serialize_resource(

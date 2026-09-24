@@ -1,7 +1,7 @@
 from src.core.modules.project_management.api.desktop.portfolio.models.heatmap import PortfolioHeatmapDesktopDto
 from src.core.modules.project_management.api.desktop.common.financial_formatting import format_signed_money
 from src.core.modules.project_management.api.desktop.portfolio.formatters.percent_formatter import format_percent
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 def serialize_heatmap_row(row) -> PortfolioHeatmapDesktopDto:

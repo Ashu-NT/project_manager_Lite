@@ -15,7 +15,7 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
     _FinancialSourceContract,
     _required_text,
 )
-from src.core.platform.finance.money.serialization import (
+from src.core.platform.domain.finance.money.serialization import (
     DecimalQuantityPayload,
     MonetaryRatePayload,
 )

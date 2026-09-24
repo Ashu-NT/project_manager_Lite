@@ -13,7 +13,7 @@ from src.core.modules.project_management.api.desktop.portfolio.formatters.percen
     format_signed_percent,
 )
 from src.core.modules.project_management.api.desktop.portfolio.formatters.date_formatter import format_datetime
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 def serialize_scenario(scenario) -> PortfolioScenarioDesktopDto:

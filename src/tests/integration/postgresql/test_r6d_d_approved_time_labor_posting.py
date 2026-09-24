@@ -71,7 +71,7 @@ from src.core.platform.domain.security.auth.session import (
 from src.core.platform.domain.security.identity.service_principal import (
     ServicePrincipal,
 )
-from src.core.platform.finance import DecimalQuantity, DecimalQuantityPayload
+from src.core.platform.domain.finance import DecimalQuantity, DecimalQuantityPayload
 from src.core.platform.infrastructure.persistence.repositories.time_management.time_financial_outbox import (
     SqlAlchemyTimeFinancialOutboxRepository,
 )

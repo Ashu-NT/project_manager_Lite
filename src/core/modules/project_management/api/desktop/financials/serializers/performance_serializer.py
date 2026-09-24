@@ -16,7 +16,7 @@ from src.core.modules.project_management.api.desktop.financials.serializers.base
     serialize_baseline_version,
     serialize_variance_record,
 )
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 def _evm_decimal_text(value: Decimal | None) -> str | None:

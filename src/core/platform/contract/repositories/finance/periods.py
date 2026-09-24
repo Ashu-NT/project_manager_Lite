@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import date
 
-from src.core.platform.finance.periods import FinancialPeriod, FinancialPeriodStatus
+from src.core.platform.domain.finance.periods import FinancialPeriod, FinancialPeriodStatus
 
 
 class FinancialPeriodRepository(ABC):

@@ -43,7 +43,7 @@ from src.core.modules.project_management.contracts.reads.financials.commercial_m
 from src.core.modules.project_management.domain.financials.configuration import (
     BillingMethod,
 )
-from src.core.platform.finance.money.money import Money
+from src.core.platform.domain.finance.money.money import Money
 
 
 @dataclass(frozen=True)

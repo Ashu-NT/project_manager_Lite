@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError as PydanticValidationError
 
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.finance import (
+from src.core.platform.domain.finance import (
     EXCHANGE_RATE_STORAGE,
     MONEY_STORAGE,
     PERCENTAGE_STORAGE,
@@ -24,7 +24,7 @@ from src.core.platform.finance import (
     RoundingPolicy,
     resolve_currency_code,
 )
-from src.core.platform.finance.money.currency import ISO_4217_MINOR_UNITS
+from src.core.platform.domain.finance.money.currency import ISO_4217_MINOR_UNITS
 
 
 def test_currency_code_uses_current_iso_list_and_minor_units() -> None:

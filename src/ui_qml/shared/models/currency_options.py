@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.finance.money.currency import ISO_4217_MINOR_UNITS
+from src.core.platform.domain.finance.money.currency import ISO_4217_MINOR_UNITS
 
 
 DEFAULT_CURRENCY_CODE = "XAF"

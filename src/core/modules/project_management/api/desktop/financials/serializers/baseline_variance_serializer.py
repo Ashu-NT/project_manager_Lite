@@ -7,7 +7,7 @@ from src.core.modules.project_management.api.desktop.financials.models.baseline_
     FinancialBaselineVersionDto,
 )
 from src.core.modules.project_management.api.desktop.common.financial_formatting import format_signed_money
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 def serialize_variance_record(r) -> BaselineVarianceRecordDto:

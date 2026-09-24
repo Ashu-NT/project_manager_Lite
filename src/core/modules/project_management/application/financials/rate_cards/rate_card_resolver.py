@@ -27,8 +27,8 @@ from src.core.modules.project_management.domain.financials.rate_cards import (
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.finance.money.money import Money
-from src.core.platform.finance.money.quantity import MonetaryRate, normalize_unit
+from src.core.platform.domain.finance.money.money import Money
+from src.core.platform.domain.finance.money.quantity import MonetaryRate, normalize_unit
 
 _PER_RESOURCE_FAILURE_CODES = frozenset(
     {"RATE_CARD_NO_APPLICABLE_RATE", "RATE_CARD_AMBIGUOUS_SELECTION"}

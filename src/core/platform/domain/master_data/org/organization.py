@@ -15,7 +15,7 @@ from src.core.platform.domain.master_data.org.support import (
     normalize_optional_organization_text,
     normalize_phone,
 )
-from src.core.platform.finance.money.currency import CurrencyCode
+from src.core.platform.domain.finance.money.currency import CurrencyCode
 
 ORGANIZATION_STATUS_ACTIVE = "active"
 ORGANIZATION_STATUS_INACTIVE = "inactive"

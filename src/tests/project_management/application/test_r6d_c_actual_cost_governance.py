@@ -24,7 +24,7 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryStatus,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.finance import Money
+from src.core.platform.domain.finance import Money
 
 
 def _setup(services):

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.common.ids import generate_id
-from src.core.platform.finance import DecimalQuantity, DecimalQuantityPayload
+from src.core.platform.domain.finance import DecimalQuantity, DecimalQuantityPayload
 from src.core.platform.integration import (
     APPROVED_TIME_ENTRY_EVENT_TYPE,
     ApprovedTimeEntryEventPayload,

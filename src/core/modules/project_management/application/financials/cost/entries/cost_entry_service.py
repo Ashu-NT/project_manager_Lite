@@ -109,7 +109,7 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.domain.approval.policy import is_governance_required
-from src.core.platform.finance import EXCHANGE_RATE_STORAGE, Money
+from src.core.platform.domain.finance import EXCHANGE_RATE_STORAGE, Money
 
 if TYPE_CHECKING:
     from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (

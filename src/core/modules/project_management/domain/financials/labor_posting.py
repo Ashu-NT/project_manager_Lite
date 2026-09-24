@@ -8,7 +8,7 @@ from pydantic import field_validator, model_validator
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.pydantic import normalize_optional_identifier, normalize_required_text, validated_dataclass
-from src.core.platform.finance import MONEY_STORAGE, QUANTITY_STORAGE, CurrencyCode
+from src.core.platform.domain.finance import MONEY_STORAGE, QUANTITY_STORAGE, CurrencyCode
 
 
 def _utc_now() -> datetime:

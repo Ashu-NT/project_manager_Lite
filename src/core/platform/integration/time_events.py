@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, field_validator
 
-from src.core.platform.finance import DecimalQuantityPayload
+from src.core.platform.domain.finance import DecimalQuantityPayload
 
 
 APPROVED_TIME_ENTRY_EVENT_TYPE = "platform_time.time_entry.approved.v1"

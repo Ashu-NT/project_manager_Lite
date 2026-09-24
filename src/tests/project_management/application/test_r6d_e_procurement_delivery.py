@@ -39,7 +39,7 @@ from src.core.platform.integration import (
     ProcurementCommitmentEventPayload,
     ProcurementReceiptAccrualEventPayload,
 )
-from src.core.platform.finance import DecimalQuantityPayload, MonetaryRatePayload
+from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload
 
 
 def _setup(services):

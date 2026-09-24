@@ -31,7 +31,7 @@ from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.security.identity.service_principal import ServicePrincipal
-from src.core.platform.finance import DecimalQuantityPayload, MonetaryRatePayload
+from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload
 from src.core.platform.infrastructure.persistence.repositories.integration.procurement_financial_outbox import (
     SqlAlchemyProcurementFinancialOutboxRepository,
 )

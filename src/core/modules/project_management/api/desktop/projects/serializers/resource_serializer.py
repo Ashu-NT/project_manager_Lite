@@ -8,7 +8,7 @@ from src.core.modules.project_management.api.desktop.common.financial_formatting
     format_hourly_rate,
     format_hours,
 )
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 def serialize_project_resource(project_resource, *, resource_by_id) -> ProjectResourceDesktopDto:

@@ -17,7 +17,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.finance import FinancialPeriod, FinancialPeriodStatus
+from src.core.platform.domain.finance import FinancialPeriod, FinancialPeriodStatus
 from src.tests.ui_runtime_helpers import login_as, register_and_login
 
 

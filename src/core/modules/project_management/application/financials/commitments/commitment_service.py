@@ -67,7 +67,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import TenantCo
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
 from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
-from src.core.platform.finance import (
+from src.core.platform.domain.finance import (
     EXCHANGE_RATE_STORAGE,
     DecimalQuantity,
     MonetaryRate,

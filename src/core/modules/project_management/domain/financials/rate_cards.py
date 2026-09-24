@@ -17,8 +17,8 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.finance.money.currency import CurrencyCode
-from src.core.platform.finance.money.quantity import MonetaryRate, normalize_unit
+from src.core.platform.domain.finance.money.currency import CurrencyCode
+from src.core.platform.domain.finance.money.quantity import MonetaryRate, normalize_unit
 
 
 class RateType(str, Enum):

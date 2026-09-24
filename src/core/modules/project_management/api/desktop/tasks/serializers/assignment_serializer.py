@@ -14,7 +14,7 @@ from src.core.modules.project_management.api.desktop.tasks.services.capacity_sta
 from src.core.modules.project_management.api.desktop.tasks.services.resource_lookup_service import (
     resource_name_for_assignment,
 )
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 def serialize_assignment(

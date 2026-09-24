@@ -27,7 +27,7 @@ PROJECT_FINANCE_SCOPED_TABLES = {
     "project_commitment_matches",
 }
 PROJECT_FINANCE_RLS_SCOPE = "tenant_organization"
-FINANCE_PRIMITIVES_ROOT = Path("src/core/platform/finance")
+FINANCE_PRIMITIVES_ROOT = Path("src/core/platform/domain/finance")
 PROJECT_FINANCE_TRANSITION_FILES = (
     Path(
         "src/core/modules/project_management/application/financials/"
@@ -174,7 +174,7 @@ def test_pm_money_rate_and_quantity_columns_use_canonical_numeric_storage() -> N
 
 def test_legacy_float_conversion_apis_cannot_return() -> None:
     source_roots = (
-        Path("src/core/platform/finance"),
+        Path("src/core/platform/domain/finance"),
         Path("src/core/modules/project_management"),
         Path("src/ui_qml/modules/project_management"),
     )

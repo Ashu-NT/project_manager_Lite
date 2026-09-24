@@ -4,9 +4,9 @@ from decimal import Decimal
 from typing import TypeAlias
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.finance.money import decimal_value
-from src.core.platform.finance.money.currency import CurrencyCode
-from src.core.platform.finance.money.rounding import DEFAULT_ROUNDING_POLICY
+from src.core.platform.domain.finance.money import decimal_value
+from src.core.platform.domain.finance.money.currency import CurrencyCode
+from src.core.platform.domain.finance.money.rounding import DEFAULT_ROUNDING_POLICY
 
 
 DesktopNumericInput: TypeAlias = Decimal | int | str

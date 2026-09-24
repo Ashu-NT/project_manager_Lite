@@ -9,7 +9,7 @@ from src.core.modules.project_management.api.desktop.financials.models.commitmen
     FinancialCommitmentLineDto,
     FinancialCommitmentSummaryDto,
 )
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 def build_commitment_line_dto(line) -> FinancialCommitmentLineDto:

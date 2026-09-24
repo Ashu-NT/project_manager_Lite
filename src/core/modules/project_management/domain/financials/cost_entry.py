@@ -21,7 +21,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.finance import (
+from src.core.platform.domain.finance import (
     EXCHANGE_RATE_STORAGE,
     MONEY_STORAGE,
     CurrencyCode,

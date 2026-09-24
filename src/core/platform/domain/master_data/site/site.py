@@ -12,7 +12,7 @@ from src.core.platform.common.pydantic import (
     validated_dataclass,
 )
 from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.finance.money.currency import CurrencyCode
+from src.core.platform.domain.finance.money.currency import CurrencyCode
 
 SITE_STATUS_ACTIVE = "active"
 SITE_STATUS_INACTIVE = "inactive"

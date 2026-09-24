@@ -18,7 +18,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.finance import (
+from src.core.platform.domain.finance import (
     MONEY_STORAGE,
     PERCENTAGE_STORAGE,
     QUANTITY_STORAGE,

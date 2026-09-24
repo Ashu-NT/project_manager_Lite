@@ -38,7 +38,7 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryKind,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
-from src.core.platform.finance import DecimalQuantityPayload, MonetaryRatePayload, Money
+from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload, Money
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ResourceScope
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog

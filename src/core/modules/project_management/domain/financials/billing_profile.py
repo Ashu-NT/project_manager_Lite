@@ -15,7 +15,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.finance import MONEY_STORAGE, PERCENTAGE_STORAGE, CurrencyCode
+from src.core.platform.domain.finance import MONEY_STORAGE, PERCENTAGE_STORAGE, CurrencyCode
 
 
 class BillingProfileStatus(str, Enum):

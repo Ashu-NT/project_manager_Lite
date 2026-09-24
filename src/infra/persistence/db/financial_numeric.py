@@ -4,7 +4,7 @@ from enum import Enum
 
 from sqlalchemy import Numeric
 
-from src.core.platform.finance.precision import (
+from src.core.platform.domain.finance.precision import (
     EXCHANGE_RATE_STORAGE,
     MONEY_STORAGE,
     PERCENTAGE_STORAGE,

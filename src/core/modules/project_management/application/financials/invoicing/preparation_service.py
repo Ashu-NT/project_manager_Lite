@@ -75,7 +75,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.finance import DecimalQuantity, Money
+from src.core.platform.domain.finance import DecimalQuantity, Money
 from src.core.platform.integration.canonical_json import canonical_json_sha256
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
