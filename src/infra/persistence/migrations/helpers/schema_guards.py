@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 _COST_ENTRY_COLUMNS = (
     "tenant_id", "organization_id", "project_id", "description", "entry_kind",
     "amount", "currency_code", "base_amount", "base_currency_code", "exchange_rate",

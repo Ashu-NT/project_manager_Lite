@@ -7,7 +7,9 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.repositories._tenant_scope import TenantScopedRepositorySupport
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
 from src.core.platform.integration import (
     InboxProcessingStatus,
     IntegrationEventEnvelope,

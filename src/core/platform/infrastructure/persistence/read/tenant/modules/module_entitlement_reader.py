@@ -18,7 +18,9 @@ from src.core.platform.contract.read.tenant.modules.module_entitlement_reader im
 )
 from src.core.platform.domain.tenant.modules.module_codes import normalize_module_code
 from src.core.platform.domain.tenant.modules.subscription import ModuleEntitlementRecord
-from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules import ModuleEntitlementORM
+from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules import (
+    ModuleEntitlementORM,
+)
 
 
 class SqlAlchemyModuleEntitlementReader:

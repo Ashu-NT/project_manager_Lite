@@ -15,6 +15,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.billing 
     ProjectBillingProfileORM,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
+    AuditEntryORM,
+)
 from src.core.platform.infrastructure.persistence.orm.integration.accounting_connector import (
     AccountingConnectorORM,
 )
@@ -92,7 +95,8 @@ def test_durable_request_and_profile_independent_replay(accounting_services, ses
 
 
 @pytest.mark.parametrize(
-    "failure", ["before_snapshot", "enqueue", "state", "audit", "commit"]
+    "failure",
+    ["before_snapshot", "snapshot_validation", "enqueue", "state", "audit", "commit"],
 )
 def test_handoff_failure_rolls_back_everything_then_retry(
     accounting_services, session, monkeypatch, failure
@@ -114,8 +118,10 @@ def test_handoff_failure_rolls_back_everything_then_retry(
     services = accounting_services
     approved = approved_preparation(services)
     hints = _spy_hints(services)
+    audit_count = session.scalar(select(func.count()).select_from(AuditEntryORM))
     targets = {
         "before_snapshot": (SqlAlchemyAccountingHandoffRepository, "add"),
+        "snapshot_validation": (request_service, "AccountingHandoffSnapshot"),
         "enqueue": (IntegrationOutboxService, "enqueue"),
         "state": (ProjectBillingPreparationService, "_mark_delivery_requested"),
         "audit": (request_service, "record_audit_entry"),
@@ -133,6 +139,9 @@ def test_handoff_failure_rolls_back_everything_then_retry(
             )
     assert not hints
     session.expire_all()
+    assert (
+        session.scalar(select(func.count()).select_from(AuditEntryORM)) == audit_count
+    )
     assert (
         session.scalar(select(func.count()).select_from(ProjectAccountingHandoffORM))
         == 0
@@ -261,6 +270,49 @@ def test_absent_accounting_does_not_block_preparation(services):
     assert error.value.code == "adapter_not_installed"
 
 
+def test_invalid_approved_evidence_cannot_leave_a_partial_request(
+    accounting_services, session
+):
+    from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
+        ProjectBillingPreparationLineORM,
+    )
+
+    approved = approved_preparation(accounting_services)
+    session.execute(
+        update(ProjectBillingPreparationLineORM)
+        .where(
+            ProjectBillingPreparationLineORM.preparation_id == approved.id,
+        )
+        .values(currency_code="EUR" if approved.currency_code != "EUR" else "USD")
+    )
+    session.commit()
+    audit_count = session.scalar(select(func.count()).select_from(AuditEntryORM))
+    hints = _spy_hints(accounting_services)
+    with pytest.raises(ValueError):
+        accounting_services["billing_preparation_service"].request_delivery(
+            approved.id,
+            expected_row_version=approved.row_version,
+        )
+    assert not hints
+    assert (
+        session.scalar(select(func.count()).select_from(ProjectAccountingHandoffORM))
+        == 0
+    )
+    assert (
+        session.scalar(select(func.count()).select_from(ProjectAccountingOutboxORM))
+        == 0
+    )
+    assert (
+        session.scalar(select(func.count()).select_from(AuditEntryORM)) == audit_count
+    )
+    assert (
+        accounting_services["billing_preparation_service"]
+        .get_preparation(approved.id)
+        .status.value
+        == "approved"
+    )
+
+
 def test_changed_snapshot_is_rejected_and_history_survives_disable(
     accounting_services, session
 ):
@@ -338,51 +390,164 @@ def test_read_capability_serializes_safe_reason(accounting_services):
 
 
 def test_configuration_permission_is_distinct_and_versioned(accounting_services):
-    from src.core.platform.application.integration.accounting.configuration_service import (
-        AccountingConnectorConfigurationService,
-    )
     from src.core.shared.events.domain_event_context import DomainEventContext
 
     services = accounting_services
-    boundary = services["finance_governance_commands"]
+    commands = services["accounting_connector_commands"]
     user = services["user_session"]
     original = user.principal
-    boundary._prepare_command()
-    with boundary._uow_factory.create(
-        context=DomainEventContext(correlation_id="connector-admin")
-    ) as uow:
-        service = AccountingConnectorConfigurationService(
-            repository=uow.accounting_connectors,
-            tenant_context_service=services["tenant_context_service"],
-            user_session=user,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            installed_adapters={"test_connector"},
+    user.set_principal(
+        replace(
+            original,
+            role_names=frozenset(),
+            permissions=frozenset({"finance.accounting_handoff.request"}),
         )
-        user.set_principal(
-            replace(
-                original,
-                role_names=frozenset(),
-                permissions=frozenset({"finance.accounting_handoff.request"}),
-            )
-        )
+    )
+    values = dict(
+        adapter_id="test_connector",
+        connection_id="other",
+        secret_reference="ref",
+        enabled=True,
+        expected_version=1,
+    )
+    try:
         with pytest.raises(BusinessRuleError):
-            service.configure(
-                adapter_id="test_connector",
-                connection_id="other",
-                secret_reference="ref",
-                enabled=True,
-                expected_version=1,
-            )
+            commands.configure(**values)
+    finally:
         user.set_principal(original)
-        configured = service.configure(
+    configured = commands.configure(**values)
+    assert configured.version == 2
+    with pytest.raises(BusinessRuleError):
+        commands.configure(**values)
+    with commands._uow_factory.create(
+        context=DomainEventContext(correlation_id="verify-config")
+    ) as uow:
+        assert uow.accounting_connectors.get().version == 2
+
+
+def test_configuration_audit_failure_rolls_back(
+    accounting_services, session, monkeypatch
+):
+    from src.core.platform.application.integration.accounting import (
+        configuration_service,
+    )
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("configuration audit unavailable")
+
+    before = session.scalar(select(func.count()).select_from(AuditEntryORM))
+    monkeypatch.setattr(configuration_service, "record_audit_entry", fail)
+    with pytest.raises(RuntimeError, match="configuration audit unavailable"):
+        accounting_services["accounting_connector_commands"].configure(
             adapter_id="test_connector",
-            connection_id="other",
+            connection_id="changed",
             secret_reference="ref",
-            enabled=True,
+            enabled=False,
             expected_version=1,
         )
-        assert configured.version == 2
-        uow.commit()
+    session.expire_all()
+    config = session.scalars(select(AccountingConnectorORM)).one()
+    assert config.version == 1 and config.enabled
+    assert config.connection_id == "test_connection"
+    assert session.scalar(select(func.count()).select_from(AuditEntryORM)) == before
+
+
+def test_missing_connector_is_safe_and_does_not_block_billing(
+    accounting_services, session
+):
+    from sqlalchemy import delete
+
+    session.execute(delete(AccountingConnectorORM))
+    session.commit()
+    approved = approved_preparation(accounting_services)
+    detail = (
+        accounting_services["finance_workspace_query"]
+        .get_billing_read_workspace(
+            approved.project_id,
+            selected_preparation_id=approved.id,
+        )
+        .selected_preparation
+    )
+    assert detail.handoff_denial_reason == "integration_not_configured"
+    with pytest.raises(BusinessRuleError) as error:
+        accounting_services["billing_preparation_service"].request_delivery(
+            approved.id,
+            expected_row_version=approved.row_version,
+        )
+    assert error.value.code == "integration_not_configured"
+
+
+def test_handoff_permission_for_another_project_is_not_sufficient(accounting_services):
+    approved = approved_preparation(accounting_services)
+    user = accounting_services["user_session"]
+    permissions = frozenset({"finance.read", "finance.accounting_handoff.request"})
+    user.set_principal(
+        replace(
+            user.principal,
+            role_names=frozenset(),
+            permissions=permissions,
+            scoped_access={"project": {"unrelated-project": permissions}},
+        )
+    )
+    with pytest.raises(BusinessRuleError):
+        accounting_services["billing_preparation_service"].request_delivery(
+            approved.id,
+            expected_row_version=approved.row_version,
+        )
+
+
+@pytest.mark.parametrize("line_count", [1, 25])
+def test_handoff_uses_one_scoped_line_query(accounting_services, session, line_count):
+    from uuid import uuid4
+
+    from sqlalchemy import event
+
+    from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
+        ProjectBillingPreparationLineORM,
+        ProjectBillingPreparationORM,
+    )
+
+    approved = approved_preparation(accounting_services)
+    line = session.scalars(select(ProjectBillingPreparationLineORM)).one()
+    for index in range(1, line_count):
+        values = {
+            column.name: getattr(line, column.name)
+            for column in ProjectBillingPreparationLineORM.__table__.columns
+        }
+        values.update(
+            id=str(uuid4()),
+            source_id=str(uuid4()),
+            description=f"Approved source {index}",
+        )
+        session.add(ProjectBillingPreparationLineORM(**values))
+    session.execute(
+        update(ProjectBillingPreparationORM)
+        .where(
+            ProjectBillingPreparationORM.id == approved.id,
+        )
+        .values(line_count=line_count, total_amount=line.net_amount * line_count)
+    )
+    session.commit()
+    selects = []
+
+    def record(connection, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT"):
+            selects.append(statement)
+
+    event.listen(session.bind, "before_cursor_execute", record)
+    try:
+        accounting_services["billing_preparation_service"].request_delivery(
+            approved.id,
+            expected_row_version=approved.row_version,
+        )
+    finally:
+        event.remove(session.bind, "before_cursor_execute", record)
+    line_queries = [
+        query for query in selects if "FROM project_billing_preparation_lines" in query
+    ]
+    assert len(line_queries) == 1
+    assert "preparation_id =" in line_queries[0]
+    assert len(selects) < 60
 
 
 def test_correction_gets_new_identity_without_changing_parent(

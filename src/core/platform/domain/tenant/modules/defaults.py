@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.tenant.modules.module_codes import normalize_module_code
-from src.core.platform.domain.tenant.modules.module_definition import EnterpriseModule, PlatformCapability
+from src.core.platform.domain.tenant.modules.module_definition import (
+    EnterpriseModule,
+    PlatformCapability,
+)
 
 MODULE_LIFECYCLE_INACTIVE = "inactive"
 MODULE_LIFECYCLE_ACTIVE = "active"

@@ -5,23 +5,26 @@ from typing import Any, Callable, Iterable
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.tenant.modules.module_catalog_context import (
     ModuleCatalogContextMixin,
 )
 from src.core.platform.application.tenant.modules.module_catalog_mutation import (
     ModuleCatalogMutationMixin,
 )
-from src.core.platform.application.tenant.modules.module_catalog_query import ModuleCatalogQueryMixin
+from src.core.platform.application.tenant.modules.module_catalog_query import (
+    ModuleCatalogQueryMixin,
+)
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.read.tenant.modules.module_entitlement_reader import (
+    ModuleEntitlementReader,
+)
+from src.core.platform.contract.repositories.tenant.modules.contracts import (
+    ModuleEntitlementRepository,
+)
 from src.core.platform.contract.uow.module_entitlement_unit_of_work import (
     ModuleEntitlementUnitOfWorkFactory,
 )
-from src.core.platform.contract.repositories.tenant.modules.contracts import ModuleEntitlementRepository
-from src.core.platform.contract.read.tenant.modules.module_entitlement_reader import ModuleEntitlementReader
-from src.core.platform.common.ids import generate_id
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.view_invalidation import ViewInvalidationChannel
-from src.core.shared.time.clock import Clock
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.tenant.modules import (
     DEFAULT_ENTERPRISE_MODULES,
     DEFAULT_PLATFORM_CAPABILITIES,
@@ -41,6 +44,9 @@ from src.core.platform.domain.tenant.modules import (
     parse_module_codes,
 )
 from src.core.platform.domain.tenant.modules.module_codes import normalize_module_code
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.events.view_invalidation import ViewInvalidationChannel
+from src.core.shared.time.clock import Clock
 
 
 class ModuleCatalogService(

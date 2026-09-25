@@ -1,71 +1,50 @@
 from __future__ import annotations
 
 import logging
-from time import perf_counter
-
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
-from src.core.platform.application.integration import IntegrationOutboxService
-from src.core.shared.events.view_invalidation import ViewInvalidationChannel
-from src.core.platform.access import AccessControlService
-from src.core.platform.integration.module_registry import ModuleRegistry
-from src.core.platform.integration.resolver import IntegrationResolver
-from src.core.platform.application.history.activity.activity_service import ActivityService
-from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.finance import FinancialPeriodService
-from src.core.platform.application.events.notifications.notification_service import NotificationService
-from src.core.platform.application.security.auth import AuthService
-from src.core.platform.application.security.authorization.roles import (
-    RoleGovernanceService,
-    TenantRoleAdministrationService,
+from src.core.application.global_overview.api.desktop.global_overview import (
+    GlobalOverviewDesktopApi,
 )
-from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
-from src.core.platform.application.master_data.documents.document_service import DocumentService
-from src.core.platform.application.tenant.modules import ModuleCatalogService
-from src.core.platform.application.master_data.department.department_service import DepartmentService
-from src.core.platform.application.master_data.employee.employee_service import EmployeeService
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.time_management.time import TimeService
-from src.core.platform.application.tenant.tenancy import (
-    TenantAdminService,
-    TenantContextService,
-    TenantMembershipService,
+from src.core.application.global_overview.services.action_center_service import (
+    ActionCenterService,
 )
-from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
-from src.core.platform.application.security.identity import ServicePrincipalService
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.application.global_overview.services.global_overview_service import (
+    GlobalOverviewService,
+)
+from src.core.modules.project_management.application.collaboration import (
+    CollaborationService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
     BudgetService,
-    FinancialConfigurationService,
     FinanceService,
     FinancialChangeService,
+    FinancialConfigurationService,
     ForecastGenerationService,
     ForecastVersionService,
     PlannedCostService,
-    ProjectCommitmentService,
     ProjectBillingPreparationService,
     ProjectBillingProfileService,
+    ProjectCommitmentService,
     ProjectCostEntryService,
-    ProjectFinanceWorkspaceQuery,
     ProjectFinancePerformanceQuery,
+    ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
     RateCardResolver,
 )
+from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
+    APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
+)
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
+)
+from src.core.modules.project_management.application.financials.procurement_consumer import (
+    PROCUREMENT_FINANCE_PRINCIPAL_NAME,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -73,56 +52,138 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
+from src.core.modules.project_management.application.resources.assignment_validation import (
+    AssignmentSkillValidator,
+)
+from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
+    EnterpriseResourceAvailabilityService,
+)
+from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
+    PortfolioResourcePoolService,
+)
+from src.core.modules.project_management.application.resources.resource_capacity_calculator import (
+    ResourceCapacityCalculator,
+)
+from src.core.modules.project_management.application.resources.resource_workload_service import (
+    ResourceWorkloadService,
+)
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
 )
-from src.core.modules.project_management.infrastructure.importers import DataImportService
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.collaboration import CollaborationService
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
+    BaselineService,
+)
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.modules.project_management.application.resources.assignment_validation import (
-    AssignmentSkillValidator,
+from src.core.modules.project_management.infrastructure.importers import (
+    DataImportService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import EnterpriseCalendarService
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import CalendarExceptionService
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import RecurringEventService
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import CalendarAssignmentService
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import EnterpriseCalendarResolver
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
-from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
-from src.core.modules.project_management.application.resources.resource_workload_service import ResourceWorkloadService
-from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
-from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
-from src.core.application.global_overview.api.desktop.global_overview import (
-    GlobalOverviewDesktopApi,
+from src.core.modules.project_management.infrastructure.reporting import (
+    ReportingService,
 )
-from src.core.application.global_overview.services.action_center_service import ActionCenterService
-from src.core.application.global_overview.services.global_overview_service import (
-    GlobalOverviewService,
-)
+from src.core.platform.access import AccessControlService
 from src.core.platform.api.desktop.events.notifications.notification import (
     PlatformNotificationDesktopApi,
 )
-from src.infra.composition.global_overview_registry import build_global_overview_service_bundle
+from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.data_operations.runtime_tracking import (
+    RuntimeExecutionService,
+)
+from src.core.platform.application.events.notifications.notification_service import (
+    NotificationService,
+)
+from src.core.platform.application.finance import FinancialPeriodService
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
+from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.integration import IntegrationOutboxService
+from src.core.platform.application.integration.accounting.commands import (
+    AccountingConnectorConfigurationCommands,
+)
+from src.core.platform.application.master_data.data_exchange import (
+    MasterDataExchangeService,
+)
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.documents.document_service import (
+    DocumentService,
+)
+from src.core.platform.application.master_data.employee.employee_service import (
+    EmployeeService,
+)
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationService,
+)
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.platform_runtime import (
+    PlatformRuntimeApplicationService,
+)
+from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.security.authorization.roles import (
+    RoleGovernanceService,
+    TenantRoleAdministrationService,
+)
+from src.core.platform.application.security.identity import ServicePrincipalService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.tenant.tenancy import (
+    TenantAdminService,
+    TenantContextService,
+    TenantMembershipService,
+)
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
+    EnterpriseCalendarResolver,
+)
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
+    WorkingTimeCalculator,
+)
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
+    CalendarExceptionService,
+)
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
+    RecurringEventService,
+)
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
+    ShiftPatternService,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.application.time_management.time import TimeService
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.integration.module_registry import ModuleRegistry
+from src.core.platform.integration.resolver import IntegrationResolver
+from src.core.shared.events.view_invalidation import ViewInvalidationChannel
+from src.infra.composition.accounting_integration import (
+    build_accounting_configuration_commands,
+)
+from src.infra.composition.global_overview_registry import (
+    build_global_overview_service_bundle,
+)
 from src.infra.composition.platform_registry import build_platform_service_bundle
-from src.infra.composition.project_registry import build_project_management_service_bundle
+from src.infra.composition.project_registry import (
+    build_project_management_service_bundle,
+)
 from src.infra.composition.repositories import build_repository_bundle
+from src.infra.integration.approved_time_dispatcher import (
+    ApprovedTimeFinancialDispatcher,
+)
 from src.infra.integration.delivery import SystemDeliveryClock
-from src.infra.integration.approved_time_dispatcher import ApprovedTimeFinancialDispatcher
-from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
-    APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
-)
-from src.core.modules.project_management.application.financials.procurement_consumer import (
-    PROCUREMENT_FINANCE_PRINCIPAL_NAME,
-)
 from src.infra.integration.procurement_financial_dispatcher import (
     ProcurementFinancialDispatcher,
 )
-
 
 logger = logging.getLogger(__name__)
 

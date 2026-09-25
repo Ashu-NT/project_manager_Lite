@@ -1,39 +1,75 @@
 from __future__ import annotations
 
 from typing import Protocol
-from src.core.modules.project_management.contracts.repositories.finance.accounting.handoff import AccountingHandoffRepository
-from src.core.platform.contract.repositories.integration import IntegrationOutboxRepository
-from src.core.platform.contract.repositories.integration.accounting_connector import AccountingConnectorRepository
 
-from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import ProjectBudgetRepository
-from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import ProjectCommitmentRepository
+from src.core.modules.project_management.contracts.repositories.finance.accounting.handoff import (
+    AccountingHandoffRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import (
+    ProjectBudgetRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
+    ProjectCommitmentRepository,
+)
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import ProjectCostEntryRepository
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import ApprovedTimeLaborPostingRepository
-from src.core.modules.project_management.contracts.repositories.finance.financial_changes.financial_change import FinancialChangeRepository
-from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import ProjectForecastRepository
-from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import ProjectBillingRepository
-from src.core.modules.project_management.contracts.repositories.finance.planned_costs.planned_cost import ProjectPlannedCostVersionRepository
-from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import ProjectRateCardRepository
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
+    ProjectCostEntryRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import (
+    ApprovedTimeLaborPostingRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.financial_changes.financial_change import (
+    FinancialChangeRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import (
+    ProjectForecastRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
+    ProjectBillingRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.planned_costs.planned_cost import (
+    ProjectPlannedCostVersionRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import (
+    ProjectRateCardRepository,
+)
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
     ProjectResourceRepository,
 )
-from src.core.modules.project_management.contracts.repositories.register.register import RegisterEntryRepository
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.register.register import (
+    RegisterEntryRepository,
+)
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )
-from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
-from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
+from src.core.platform.application.history.audit.enterprise_audit_service import (
+    EnterpriseAuditService,
+)
+from src.core.platform.contract.repositories.approval.contracts import (
+    ApprovalRepository,
+)
 from src.core.platform.contract.repositories.finance import FinancialPeriodRepository
-from src.core.platform.contract.repositories.integration import IntegrationInboxRepository
-from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
-from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
+from src.core.platform.contract.repositories.integration import (
+    IntegrationInboxRepository,
+    IntegrationOutboxRepository,
+)
+from src.core.platform.contract.repositories.integration.accounting_connector import (
+    AccountingConnectorRepository,
+)
+from src.core.platform.contract.repositories.master_data.party.contracts import (
+    PartyRepository,
+)
+from src.core.platform.contract.repositories.master_data.site.contracts import (
+    SiteRepository,
+)
 from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 

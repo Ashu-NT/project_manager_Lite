@@ -6,7 +6,6 @@ from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from src.core.modules.project_management.domain.financials.accounting.handoff import AccountingHandoffRequestResult
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -37,6 +36,9 @@ from src.core.modules.project_management.contracts.repositories.finance.cost_ent
 )
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
     ProjectBillingRepository,
+)
+from src.core.modules.project_management.domain.financials.accounting.handoff import (
+    AccountingHandoffRequestResult,
 )
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillableSourceType,

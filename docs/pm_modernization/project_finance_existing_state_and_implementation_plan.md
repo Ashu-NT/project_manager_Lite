@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CURRENT; R6G-A COMPLETE; R6G-B IN PROGRESS
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CURRENT; R6G-A COMPLETE; R6G-B COMPLETE; R6G-C NOT STARTED
 Last updated: 2026-09-25
 Scope: Project Management finance plus reusable platform financial foundations
 
@@ -39,9 +39,168 @@ synchronous capability, not an implemented Inventory module; review its typed
 Decimal/quantity contracts before activation. No operational modules or generic
 event-bus redesign are authorized by this clarification.
 
-R6G-B remains in progress: capability/configuration, dedicated authorization,
+R6G-B is complete: capability/configuration, dedicated authorization,
 immutable scoped handoff and owned outbox, atomic fresh-UoW request, RLS and
 concurrency evidence. R6G-C is not started. R6D/E/F remain closed.
+
+## R6G-B Closure: Optional Capability and Durable Request
+
+**R6G-B COMPLETE (2026-09-25).** This closure supersedes implementation-gap
+statements in the historical R6G-A characterization below. R6G as a whole is
+not closed. No transport, worker, concrete vendor adapter or future operational
+module is implemented by B. Nothing was committed by the agent.
+
+### Capability, Configuration and Security
+
+The existing ModuleCatalogService, organization entitlement Reader and
+ModuleRegistry own the optional `accounting_integration` / `accounting.handoff`
+registration. A read-only catalog view uses the same operation session without
+seeding entitlement records or introducing another licensing authority.
+Trusted composition supplies installed adapter identifiers; the production
+default is empty. Organization data cannot supply Python import paths.
+
+Server capability distinguishes `adapter_not_installed`, `module_not_enabled`,
+`integration_not_configured`, `permission_denied` and
+`business_precondition_failed`. Permission denial takes precedence over
+configuration disclosure. Commands recheck authoritative entitlement,
+configuration, project authorization and approved preparation state; read-time
+capability is not a token. QML consumes safe capability/reason facts only.
+
+`finance.accounting_handoff.request` is distinct from `finance.manage`.
+`finance.accounting_status.read` controls historical external status, including
+redaction on Billing summaries/details. `integration.accounting.configure`
+is separate from both. Project access and independent-approval SoD remain in
+force; an independently authorized approver need not recruit a third person
+to request handoff.
+
+External connector configuration is organization scoped and versioned, with
+adapter/connection identifiers and a secret reference only. The public
+`accounting_connector_commands` composition entry uses a fresh Platform UoW,
+CAS persistence and fail-closed transactional audit. It cannot silently discard
+pending shared-session writes. Secret references/configuration are not copied
+into PM payloads, QML or request audit. Future internal Accounting consumption
+must not require this external connector configuration.
+
+### Handoff, Snapshot and Transaction
+
+The three new tables are `organization_accounting_connectors`,
+`project_accounting_handoffs` and `project_accounting_outbox`.
+Migration `a7c4e1b9d625` follows `d6a3f8c2b951`, using normal Alembic bootstrap,
+explicit tenant/organization RLS classification and scoped parent constraints.
+Handoff/outbox carry project scope. Runtime tests use the real session context
+and non-owner, NOSUPERUSER/NOBYPASSRLS `app_runtime`, not the schema owner.
+
+One persisted handoff ID is also the envelope event ID and payload message ID.
+Its business unique key includes tenant, organization, project, preparation,
+the approved version captured BEFORE request-state increment, and handoff kind.
+The preparation lock serializes competing requests; two users in independent
+runtime UoWs converge on one identity/outbox. A correction gets a new identity.
+Changed content under an existing identity fails closed.
+
+`AccountingHandoffSnapshot` has explicit `project_accounting_handoff.v1` schema,
+approval/request provenance, approved/profile versions, the existing typed
+commercial evidence and complete approved line/source/rate snapshots. Validation
+checks finite exact Decimal text, currencies, scope, line correspondence,
+nonempty/nonzero evidence and exact header/line sums. Canonical bytes and SHA-256
+are persisted and verified on load; database guards prohibit handoff mutation
+and outbox envelope mutation. Retry/reuse reads the stored snapshot, never a
+new live-profile payload. Profile changes after request cannot rewrite evidence.
+The outward command returns a minimal local receipt, not the full payload or
+an Accounting acceptance receipt.
+
+The existing Finance command boundary owns ONE fresh UoW/commit. Handoff,
+outbox, delivery_pending state, audit and staged Billing status event participate
+in that transaction. IntegrationOutboxService remains transaction-neutral.
+One clock value supplies request time, snapshot time and envelope time. Reuse
+is audited distinctly without re-emitting a business-state change. Failures
+before snapshot persistence, snapshot validation, enqueue, local state, audit
+and commit leave no partial handoff/outbox/success audit or premature refresh.
+Retry after rollback succeeds without orphan records.
+
+`delivery_pending` now means the local request AND matching durable outbox were
+committed. It does NOT mean Accounting received evidence or issued an invoice.
+No network call occurs. No invoice number, tax, GL, AR, payment, statutory
+revenue or FX authority is manufactured.
+
+### UI, Continuity and Query Shape
+
+Billing's request control uses server `can_request_delivery`, structured denial
+reason and safe explanatory text. Status visibility has separate authorization;
+permitted historical status remains readable after connector disablement.
+The existing typed Billing invalidation remains post-commit and project scoped.
+Delivery request does not change projected revenue/EAC/margin. Existing
+cross-commit correlation and stale project/selection-result protections remain.
+
+PM-only startup and Budget, Forecast, Actual, EVM, Variance, Cost Phasing,
+Billing Preparation and commercial/profitability reads remain supported without
+Accounting, Procurement or Inventory operations. Missing Accounting is a
+capability state, not fabricated invoice/payment zeroes. The command reads
+approved lines once with a preparation predicate: 1-line and 25-line evidence
+both execute one scoped line SELECT, without per-line source queries or scans
+of all preparations/outbox messages.
+
+### File Map and Cleanup
+
+Paths below are relative to `src/`; package `__init__.py` files accompany the
+new packages. This records the entire B cutover, not only the final incremental
+working-tree diff.
+
+| Created area | Files |
+|---|---|
+| Platform domain/application | `core/platform/domain/integration/accounting/connector.py`; `core/platform/application/integration/accounting/{capability,configuration_service,commands}.py` |
+| Platform persistence contracts | `core/platform/contract/repositories/integration/accounting_connector.py`; `core/platform/contract/uow/integration/accounting_connector.py` |
+| Platform persistence | `core/platform/infrastructure/persistence/{orm,repositories,uow}/integration/accounting_connector.py` |
+| PM evidence and request | `core/modules/project_management/domain/financials/accounting/handoff.py`; `core/modules/project_management/application/financials/accounting/request_service.py` |
+| PM persistence | `core/modules/project_management/contracts/repositories/finance/accounting/handoff.py`; `core/modules/project_management/infrastructure/persistence/orm/accounting/handoff.py`; `core/modules/project_management/infrastructure/persistence/repositories/finance/accounting/handoff.py` |
+| Composition/migration | `infra/composition/accounting_integration.py`; `infra/persistence/migrations/versions/a7c4e1b9d625_accounting_handoff_outbox.py` |
+| Focused evidence | `tests/project_management/application/test_r6g_b_accounting_handoff.py`; `tests/integration/postgresql/test_r6g_b_accounting_handoff.py`; Accounting-enabled application fixture in `tests/project_management/application/conftest.py` |
+
+Changed existing areas: module defaults/catalog/context/entitlement Reader and
+registry; permission catalog; Billing repository protocol/implementation;
+Finance UoW protocol/implementation; Billing Preparation service; Billing read
+facts/query/serializer; Billing status-event documentation; Billing section QML;
+app/project composition; ORM registration; canonical JSON and generic outbox
+insert hook; RLS/schema guard helpers; affected Billing/commercial/foundation
+tests. Only this active Finance plan was updated for documentation.
+
+No files were deleted. The public live `build_delivery_payload` path was removed;
+initial evidence construction is private to first handoff creation and reuse
+reads immutable storage. No compatibility wrapper remains. The unused
+`ProjectBillingPreparationPublisher` Protocol remains explicitly R6G-C scaffold,
+not a production publisher; C must replace/delete it without a compatibility
+adapter when the final delivery boundary is implemented.
+
+### Final Validation Evidence
+
+Executed with Conda `pmenv` on 2026-09-25. Targeted suites only; not the full
+repository suite. Final non-overlapping matrix runs total **645 passed**:
+
+| Matrix | Result |
+|---|---|
+| R6G-B (32 cases), R6G-A, R6F Billing/commercial, Platform integration/entitlements/RLS context, all architecture guards | 307 passed |
+| PM-only Budget/Forecast/Actual/Decimal EVM/Variance/Commitment regressions | 82 passed |
+| Finance invalidation/mutation boundaries, Billing dialog/source runtime, Platform Approval, outbox atomicity, Performance/Cost Phasing Reader | 133 passed |
+| Finance presenters/project-selection stale-result protections, UoW event dispatch, R6D-E shared-correlation regressions | 66 passed |
+| Fresh PostgreSQL R6G-B runtime RLS/atomicity/concurrency plus R6F Billing concurrency and R6B Billing Reader | 57 passed |
+
+The PostgreSQL matrix includes independent-user request races, preparation
+version/status changes, profile edits before/after locking, database uniqueness,
+scoped-parent integrity, hostile tenant/org/no-context reads and writes,
+wrong-project repository access, immutable evidence guards and actual Session
+commit failure rollback. Connector permission/CAS/audit rollback, changed
+capability recheck, malformed snapshot and correction identity are also proven.
+
+Targeted Ruff F/I, Python compilation, Billing Finance QML lint and
+`git diff --check` passed. Fresh migrations and schema/immutability guards passed
+in SQLite foundation and live PostgreSQL tests. Retired-authority/network search
+found no public live payload builder or Accounting network client in the new
+request path. No temporary compatibility implementation was introduced.
+
+R6D/E/F stay CLOSED. R6G-C is NOT STARTED: destination policy/identity at delivery,
+external port/receipts, secrets, leases/retries and runtime delivery remain its
+explicit scope, subject to the internal/external clarification above. B adds no
+worker, vendor adapter, Accounting operation, FX or Procurement/Inventory
+operation. Stop here pending explicit authorization for C.
 
 ## R6G-A Accounting Boundary Characterization
 
@@ -377,7 +536,7 @@ quarantined, transport-delivered and business-acknowledged.
 | Phase | Scope and closure evidence required |
 | --- | --- |
 | R6G-A COMPLETE | Current authority/contracts/optional behavior characterized; PM-only test and focused existing tests run. No delivery implementation. |
-| R6G-B NEXT: capability + durable request | Add minimal existing-catalog integration registration/configuration and distinct authorization; deny-safe server capabilities; immutable payload/approved-version identity; scoped PM handoff/outbox in fresh Finance UoW; atomic local request/outbox/audit/event; dedup under concurrent request. Disabled/uninstalled/config-missing/unauthorized tests; every fault boundary rollback proof; migration/RLS tests. No network publisher in the interactive path. |
+| R6G-B COMPLETE: capability + durable request | Implemented and validated; see the R6G-B closure and file/evidence map above. One immutable handoff and scoped PM outbox, dedicated authorization, optional external eligibility, atomic fresh-UoW request and live runtime RLS/concurrency. No network publisher. |
 | R6G-C: worker + port | Introduce single neutral AccountingHandoffPort/typed receipt; remove unused ProjectBillingPreparationPublisher Protocol with no shim; runtime-independent worker/secret injection; adapter registration and configuration recheck; reuse/harden lease/retry machinery, especially max-attempt expiry. Test crash-after-acceptance, duplicate effects, worker ownership, outages, config suspension, safe logging and bounded queues. No vendor/Accounting aggregate implementation. |
 | R6G-D: authenticated inbound | Reuse inbox/dedup/quarantine with exact handoff/version correlation and scoped FKs; retain immutable conflicting evidence; ordered outcomes/contradiction policy; atomic inbox/outcome/audit; replay, reordered events, cross-scope parents and malformed ingress tests. No automatic invoice/payment semantics from generic status. |
 | R6G-E: status/operator UX | Bounded status/attempt/history Readers, precise capability/reason/state presentation, authorized retry/requeue and failure visibility, redaction, post-commit scoped invalidation, project-switch/keyboard/viewport tests. No local-config QML authorization. |
@@ -416,7 +575,7 @@ characterization tests.
 
 Files created: one characterization test. Files changed: this active Finance
 plan only. Files deleted: none. Production source/schema/QML remain unchanged.
-No historical audit documents recreated. R6G-B is not started; no Accounting
+At the R6G-A characterization checkpoint, no historical audit documents were recreated and R6G-B was not started; no Accounting
 publisher, invoice/payment/GL/AR/tax/statutory recognition, FX, Inventory or
 Procurement operations were implemented. Unrelated work untouched; no commit.
 

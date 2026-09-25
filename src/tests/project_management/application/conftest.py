@@ -11,20 +11,15 @@ from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules imp
 
 
 @pytest.fixture
-def accounting_services(monkeypatch, request):
-    from src.infra.composition import accounting_integration
+def accounting_services(session):
+    from src.infra.composition.app_container import build_service_dict
 
-    original = accounting_integration.build_accounting_capability
-
-    def configured(**kwargs):
-        kwargs["installed_adapters"] = frozenset({"test_connector"})
-        return original(**kwargs)
-
-    monkeypatch.setattr(
-        accounting_integration, "build_accounting_capability", configured
+    services = build_service_dict(
+        session, accounting_adapter_ids=frozenset({"test_connector"})
     )
-    services = request.getfixturevalue("services")
-    session = request.getfixturevalue("session")
+    auth = services["auth_service"]
+    admin = auth.authenticate("admin", "ChangeMe123!")
+    services["user_session"].set_principal(auth.build_principal(admin))
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="seed connector"
     )

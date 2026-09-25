@@ -16,7 +16,6 @@ from .postgresql_rls import (
     enable_tenant_organization_rls,
 )
 
-
 TENANT_AND_ORGANIZATION_TABLES = frozenset(
     {
         "organization_accounting_connectors",
