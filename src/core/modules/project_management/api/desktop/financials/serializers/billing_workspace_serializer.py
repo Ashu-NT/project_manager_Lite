@@ -199,6 +199,9 @@ def _preparation_detail(item: BillingPreparationDetailFact) -> FinancialBillingD
             "canCancel": item.can_cancel,
             "canCreateCorrection": item.can_create_correction,
             "canRequestDelivery": item.can_request_delivery,
+            "handoffDenialReason": item.handoff_denial_reason,
+            "handoffDenialMessage": item.handoff_denial_message,
+            "canViewAccountingStatus": item.can_view_accounting_status,
         },
     )
 

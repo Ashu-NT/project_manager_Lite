@@ -101,6 +101,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         enterprise_audit_service=None,
         module_catalog_service=None,
         record_event: Callable[[object], None] | None = None,
+        handoff_request_service=None,
     ) -> None:
         self._session = session
         self._billing_repo = billing_repo
@@ -116,6 +117,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._record_event = record_event
+        self._handoff_request_service = handoff_request_service
         # Wired post-construction by composition, only for the governed direct-command
         # instance. None means "not governed-composition-wired" (e.g. the approval
         # participant's own fresh instance, which never calls submit_preparation).
@@ -138,7 +140,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
     def list_latest_external_events(
         self, project_id: str, preparation_ids: tuple[str, ...]
     ) -> dict[str, ProjectBillingExternalEvent]:
-        self._require(project_id, "finance.read", "list latest accounting outcomes")
+        self._require(project_id, "finance.accounting_status.read", "list latest accounting outcomes")
         return self._billing_repo.list_latest_external_events(preparation_ids)
 
     def list_lines(self, preparation_id: str) -> list[ProjectBillingPreparationLine]:
@@ -147,6 +149,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
 
     def list_external_events(self, preparation_id: str) -> list[ProjectBillingExternalEvent]:
         preparation = self.get_preparation(preparation_id)
+        self._require(preparation.project_id, "finance.accounting_status.read", "view Accounting outcomes")
         return self._billing_repo.list_external_events(preparation.id)
 
     def create_preparation(
@@ -537,10 +540,11 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
     def request_delivery(
         self, preparation_id: str, *, expected_row_version: int
     ) -> ProjectBillingPreparationPayload:
-        preparation = self._require_preparation(preparation_id)
-        self._require(preparation.project_id, "finance.manage", "request accounting delivery")
-        payload = self.build_delivery_payload(preparation.id)
-        now = self._clock.now()
+        if self._handoff_request_service is None:
+            raise BusinessRuleError("Accounting handoff is not configured.", code="integration_not_configured")
+        return self._handoff_request_service.request(preparation_id, expected_row_version=expected_row_version)
+
+    def _mark_delivery_requested(self, preparation, *, expected_row_version, now):
         preparation.request_delivery(occurred_at=now)
         event = BillingPreparationStatusChanged(
             tenant_id=preparation.tenant_id,
@@ -558,7 +562,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             ),
             event,
         )
-        return payload
 
     def build_delivery_payload(self, preparation_id: str) -> ProjectBillingPreparationPayload:
         preparation = self._require_preparation(preparation_id)

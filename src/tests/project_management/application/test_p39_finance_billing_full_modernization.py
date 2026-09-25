@@ -582,7 +582,8 @@ def test_fixed_price_source_selector_is_bounded_and_excludes_reservations(servic
     ).total == 0
 
 
-def test_request_delivery_produces_status_changed_delivery_pending(services):
+def test_request_delivery_produces_status_changed_delivery_pending(accounting_services):
+    services = accounting_services
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
@@ -607,10 +608,11 @@ def test_request_delivery_produces_status_changed_delivery_pending(services):
     assert len(_billing_hints(hints)) == 1
 
 
-def test_external_outcome_delivery_accepted_produces_outcome_and_two_status_facts(services):
+def test_external_outcome_delivery_accepted_produces_outcome_and_two_status_facts(accounting_services):
     """`record_external_outcome(DELIVERY_ACCEPTED)` transitions status twice in one call
     (DELIVERED then ACKNOWLEDGED) -- both are recorded as separate facts, plus the outcome fact
     itself: 3 typed events total, still one deduped ViewInvalidation hint."""
+    services = accounting_services
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
@@ -647,7 +649,8 @@ def test_external_outcome_delivery_accepted_produces_outcome_and_two_status_fact
     assert len(_billing_hints(hints)) == 1
 
 
-def test_correction_uses_reconciled_parent_without_mutating_its_evidence(services):
+def test_correction_uses_reconciled_parent_without_mutating_its_evidence(accounting_services):
+    services = accounting_services
     _login(services, "admin", "ChangeMe123!")
     organization, project, cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
@@ -701,7 +704,8 @@ def test_correction_uses_reconciled_parent_without_mutating_its_evidence(service
         correction(parent.id, other_project)
 
 
-def test_external_outcome_replay_produces_zero_hints(services):
+def test_external_outcome_replay_produces_zero_hints(accounting_services):
+    services = accounting_services
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)

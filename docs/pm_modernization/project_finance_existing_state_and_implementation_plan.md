@@ -1,8 +1,385 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-C COMPLETE; R6F-D COMPLETE; R6F-E COMPLETE; R6F CLOSED
-Last updated: 2026-09-24
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CURRENT; R6G-A COMPLETE; R6G-B NOT STARTED
+Last updated: 2026-09-25
 Scope: Project Management finance plus reusable platform financial foundations
+
+## R6G-A Accounting Boundary Characterization
+
+**R6G-A COMPLETE. Characterization only.** This section is the current R6G
+authority/implementation plan and supersedes earlier next-phase notes. R6D,
+R6E and R6F remain CLOSED. No publisher, worker, transport adapter, new permission,
+new table, production capability or Accounting workflow was implemented here.
+
+### Ownership and Optional Operation
+
+**CURRENT: PM contains neutral future-facing Procurement integration contracts/gateway.**
+This does not mean that PM contains Procurement. Existing PM financial consumers
+project received source facts into managerial Commitment/Actual evidence; they
+do not own requisitions, purchase orders, suppliers' operational lifecycle or
+receipts. **FUTURE: Procurement module owns procurement operations and publishes
+authoritative facts through the gateway.** Future Inventory owns stock,
+reservations, receipts, issues and valuation source facts. Task material demand
+is a future operational integration, outside R6G.
+
+PM owns budgets, forecasts, managerial Actual costs, EVM, variance, Cost Phasing,
+governed Billing Preparation and commercial projections. External Accounting
+alone owns invoice issuance/numbering, tax, GL, AR, payments and statutory
+revenue. R6G transports approved evidence and records authenticated outcomes;
+it must not manufacture those Accounting facts. No FX is in scope.
+
+The current `src/core/modules` production package inventory contains PM only.
+There is no Accounting operational package to import. Searches found zero PM
+imports of Accounting/invoice/GL/AR/payment/tax domain repositories or models.
+The existing Procurement dispatcher/outbox contracts in composition are neutral
+financial integration infrastructure, not an installed Procurement operational
+module. They must not become required optional-module imports or network calls
+for a PM-only client.
+
+PM-only operation remains supported when Accounting, Procurement and Inventory
+are unavailable. The new characterization test builds the real service graph,
+checks optional-module enablement is false, creates a Billing Profile and
+Preparation, approves a Forecast and obtains revenue 1000, EAC 750, margin 250
+and percentage 25 without optional modules. Existing Finance regression coverage
+continues to own Budget/Actual/EVM/variance/phasing; no Accounting precondition
+may be added to those paths. This is proof of the current PM-only path, not a
+claim that future Accounting-disabled delivery controls already exist.
+
+### Installed, Enabled and Authorized Are Separate
+
+| Dimension | Existing authority and characterization |
+| --- | --- |
+| Product/module availability | `core/platform/domain/tenant/modules/defaults.py` lists PM, QHSE and HR definitions/stages. A catalog entry is not proof that a transport adapter is installed. Composition must supply actual adapter availability; no connector discovery registry currently proves Accounting installation. |
+| Organization enablement | `ModuleCatalogService`, its query/Reader and organization entitlement records are canonical. They distinguish licensing, enablement and lifecycle (active/trial versus suspended/expired). Reuse them; do not add a second licensing/entitlement registry. |
+| Capability facade | `core/platform/integration/module_registry.py:ModuleRegistry` wraps the catalog; unknown capabilities fail closed. `_INTEGRATION_RULES` is empty. There is no Accounting capability or module definition today. `has_capability()` checks enablement, not user RBAC or connection health. |
+| User authorization | Existing global/project permission services remain authoritative. `ModuleAccessPolicy` is a navigation accessibility aid, not a financial command authorization boundary. None of these checks may be replaced by QML configuration. |
+| Connection configuration | No organization-scoped Accounting connector configuration/secret-reference authority was found. This is a small Platform integration configuration gap, distinct from licensing and RBAC. |
+
+**Decision for R6G-B:** register an optional `accounting_integration` capability
+provider in the existing catalog/ModuleRegistry when its connector is packaged;
+map `accounting.handoff` to that provider. Do not require a local Accounting
+domain module for an external system connection. Use the existing organization
+entitlement authority plus a narrowly scoped connector configuration record
+(adapter identity, enabled connection, endpoint identifier, secret reference,
+configuration version). Composition reports installed adapters; configuration
+must not load arbitrary import paths supplied by a tenant. No giant plugin or
+licensing framework is needed. Exact registry registration is future code, not
+something available today.
+
+Server-authored capabilities should expose `can_request_accounting_handoff`,
+`can_view_accounting_status`, and separately authorized retry/admin actions.
+Require installed adapter AND enabled organization entitlement/connection AND
+valid configuration AND user/project permission AND business eligibility.
+Recheck on commands; a read-time capability is not an authorization token.
+Keep structured reasons distinct: `adapter_not_installed`, `module_not_enabled`,
+`integration_not_configured`, `permission_denied`, `business_precondition_failed`.
+Only disclose detailed configuration to its administrators. QML renders the
+capability/reason and does not calculate Accounting availability itself.
+
+Disabled/missing Accounting makes handoff unavailable and external monetary
+outcomes unavailable/not configured, never zero. Preserve historical approved
+PM evidence and permitted historical external acknowledgements when a connection
+is disabled; disable new delivery/retry, not ordinary PM work or status history.
+Configuration/authorization failure is not equivalent to a business rejection.
+
+### Existing Contract Inventory
+
+Classification: A = canonical current PM contract; B = reusable Platform/infra;
+C = R6G scaffold to replace before its cutover closes; D = obsolete/dead;
+E = future conceptual only.
+
+| Evidence path/symbol | Class | Actual current responsibility / limit |
+| --- | --- | --- |
+| `core/modules/project_management/gateway/billing/accounting_billing.py` payload dataclasses | A | Frozen validated PM commercial evidence, Decimal values serialized as strings; not invoice commands. |
+| `ProjectBillingPreparationPublisher.publish(payload) -> None` in that file | C | Vendor-neutral Protocol only. Search found the declaration/export, no implementation, injection or call site. No durable receipt/idempotency result contract. Retire it when the single R6G-C transport port is introduced; no compatibility wrapper. |
+| `AccountingHandoffPort` | E | Not implemented anywhere in the current production tree. Proposed canonical transport boundary below. |
+| `application/financials/invoicing/preparation_service.py` request/build/outcome methods | A | Governed local request, payload builder and externally supplied outcome application. Not a publisher/outbox. |
+| `core/platform/integration/events.py:IntegrationEventEnvelope` | B | Frozen Pydantic envelope, schema and aggregate identity/version, scope, correlation/causation and canonical hashes. Payload is a dict; model frozen does not recursively freeze nested dicts. Persist validated canonical bytes rather than rely on shallow object immutability. |
+| `core/platform/application/integration/delivery_service.py` | B | Transaction-neutral Outbox/Inbox services, leased claims, exponential retry, conflict quarantine and dead letters. |
+| `infra/persistence/{orm,repositories}/integration_delivery.py` | B | Scoped reusable ORM mixins/repository mechanics; actual stores remain owner-specific. No single global generic Accounting queue currently exists. |
+| Platform Time/neutral Procurement financial outboxes; `ProjectFinanceInboxORM` | B | Current owned stores using the common machinery; not PM outbound Accounting storage. Finance inbox has scoped project/resource references, dedup indexes and RLS metadata. |
+| `infra/integration/{approved_time_dispatcher,procurement_financial_dispatcher}.py` | B | At-least-once local financial consumers; fresh consumption UoW and worker scope. Their caller-supplied source session/startup replay is not a ready-made runtime-independent remote Accounting worker. |
+| `domain/financials/billing_preparation.py:ProjectBillingExternalEvent` and ORM | A | Current PM external evidence record; not an authenticated inbound adapter/inbox. |
+| Accounting Status Reader/fact/serializer/QML | A | Bounded current local request/latest external outcome view, detailed below. |
+| Concrete Accounting adapter/configuration/worker/handoff aggregate | E | Absent; no production implementation is being hidden behind a fallback. |
+
+No D production path was identified for deletion during characterization.
+The unused publisher Protocol is explicitly marked C for replacement in R6G-C,
+not permanent parallel architecture. Keep valid neutral financial source
+contracts; their future-facing nature does not make them dead Procurement code.
+
+### Outbound Source, Payload and Stable Identity
+
+The only initial outbound business source is an approved/governed Billing
+Preparation. Do not automatically export every cost, budget, forecast or
+analytical metric. Current `request_delivery` requires `finance.manage`, loads
+scoped preparation, builds payload, allows only APPROVED -> DELIVERY_PENDING,
+and applies the expected row version. `build_delivery_payload` also permits
+already pending/delivered/acknowledged/reconciled evidence for reading and
+requires `finance.read`, usable Billing Profile, customer and approval evidence.
+An explicitly closed profile may be read for an existing preparation.
+
+| Current payload | Actual fields |
+| --- | --- |
+| Header | schema_name=`project_billing_preparation.v1`; message_id=`project-billing-preparation:{preparation.id}`; tenant_id, organization_id, project_id, preparation_id, preparation_number, billing_method, period_start/end, currency_code, customer_party_id, contract_reference, external_customer_reference, purchase_order_reference, payment_terms_days, total_amount, approved_by, approved_at, lines tuple. |
+| Line | line_id, source_type/id/revision/content_hash, description, source_date, quantity, unit, unit_rate, net_amount, currency_code, optional task_id/resource_id. |
+| Not present | Dedicated handoff ID, approved preparation revision, profile revision, immutable whole-payload hash, approval-request ID, requester evidence, Rate line/card snapshot IDs/versions and adapter receipt. |
+| Not Accounting authority | No legal invoice number, tax decision, GL/AR account or statutory posting date. Payment terms are commercial terms, not payment processing or proof of payment. |
+
+**Material gap:** the builder reads current profile customer/contract/terms;
+rebuilding after profile edits can change content under the same message_id.
+Current validation checks required text, not the complete external financial
+schema: arbitrary numeric text/empty line tuples are not a safe remote contract.
+R6G-B must validate finite Decimal text, currency/line consistency, sum integrity,
+scope, provenance, approval, references and adapter-supported method/schema.
+Do not invent additional billing methods. Historical approved line evidence
+remains unchanged; if required references changed, fail or use governed successor
+evidence, never silently rewrite an approved outbound snapshot.
+
+**Identity decision:** create one persisted `handoff_id` on the first governed
+request and reuse it as outbound envelope event_id and payload message_id.
+Enforce a scoped business unique key `(tenant, organization, project,
+preparation_id, approved_preparation_version, handoff_kind)` so concurrent clicks
+cannot create different IDs for the same approved fact. Capture the approved
+version before the local request status increment; mutable current row_version
+must not become a retry identity. Freeze exact validated payload bytes/hash,
+profile/reference snapshot and approval provenance with this handoff.
+Retries replay stored bytes and ID, never call the live payload builder again.
+Corrections are separately governed preparations with their own identity and
+explicit predecessor reference. A duplicate request returns the existing
+handoff; changed content for the same identity is a conflict, not a new send.
+
+### Port, Atomic Outbox and Worker Decisions
+
+**Port decision:** converge in R6G-C on one small Platform contract,
+`AccountingHandoffPort.deliver(envelope) -> AccountingTransportReceipt`, using
+the existing IntegrationEventEnvelope with typed, schema-versioned source
+payloads. Receipt means authenticated transport/durable acceptance evidence,
+not invoice issuance or payment. Typed failure categories distinguish retryable,
+permanent and configuration/authorization failure. Vendor adapters translate
+outside PM; no SAP/DATEV/Xero/QuickBooks/Dynamics fields enter PM contracts.
+PM retains its Billing payload authority. Future Procurement/Inventory can use
+other payload schemas and their own UoWs/outboxes with the same transport,
+without a universal financial domain aggregate or optional-module imports.
+
+`IntegrationOutboxService.enqueue()` flushes but never commits. Reuse it and
+the generic repositories/mixins. FinanceGovernanceUnitOfWork currently exposes
+`billing` and `finance_inbox` but no PM Accounting outbox. R6G-B adds the minimum
+PM-owned handoff/outbox persistence to that fresh UoW, not a second ORM session
+inside the request or a post-commit enqueue. One transaction must include:
+
+1. Authorization, exact approved version/source validation and capability check.
+2. Immutable handoff snapshot and deduplicated durable outbox record.
+3. Local DELIVERY_PENDING/request state, enterprise audit and staged domain event.
+4. One caller-owned commit; only then post-commit invalidation.
+
+Current request_delivery does **not** provide that durable-message guarantee;
+it is local state + audit + event and returns the payload. R6F deliberately did
+not claim delivery. R6G-B must prove failures before enqueue, after enqueue,
+during audit and at database commit leave neither request nor message committed;
+success leaves both. Existing generic outbox/UoW rollback tests demonstrate the
+mechanism but are not proof of an as-yet nonexistent Billing outbox command.
+No network call may occur inside the interactive transaction.
+
+Use a runtime-independent **AccountingHandoffWorker**, in host integration
+composition, with a fresh scoped session/UoW for each claim/finalization/inbound
+operation. Claim and commit a bounded lease batch; call the external port
+outside database transactions; finalize receipt/state/audit in a fresh scoped
+transaction. Do not reuse desktop UserSessionContext or its mutable session.
+Resolve a tenant/org-bound service principal and connector configuration afresh;
+validate target project/preparation and use worker_tenant_scope. Enumerating
+organizations must use authorized worker assignments, never bypass RLS.
+
+Reuse `IntegrationRetryPolicy` (5-second initial exponential delay, 15-minute
+cap; default max attempts 8), `available_at`, leases and existing scheduler/host
+entrypoint patterns. No second retry framework or UI QTimer as worker authority.
+Current claim uses PostgreSQL FOR UPDATE SKIP LOCKED, expiry recovery and a
+1..200 service batch bound. Current services implement retry/dead-letter and
+inbox quarantine, not a complete Accounting failure/requeue policy.
+
+| Failure | R6G handling to implement and prove |
+| --- | --- |
+| Timeout/network/temporary remote failure | Retry with same identity and exact bytes; bounded backoff/attempts. |
+| Invalid schema/business rejection | Permanent explicit outcome/dead letter, no automatic content rewrite; retain approved PM evidence. |
+| Credentials/entitlement/configuration disabled | Block/suspend new delivery with explicit reason; preserve queued evidence and restart safely only after authorized repair/requeue. Do not rollback approval. |
+| Malformed/conflicting/foreign-scope poison event | Quarantine with safe reason and restricted evidence; never apply to business state. |
+| Crash after external acceptance before local acknowledgement | Expired lease retries the same handoff; adapter must support durable idempotency or authoritative lookup by handoff ID. If neither exists, block automatic ambiguous resend and require reconciliation. |
+
+Guarantee **at-least-once delivery plus idempotent effects**, never distributed
+exactly-once. Test expired leases at the maximum attempt boundary: current claim
+increments without an attempt-limit predicate while record validation rejects
+attempt_count > max_attempts. R6G-C must harden this shared edge before relying
+on it for remote delivery. Also cover stale lease finalization and inbox
+PROCESSING recovery; transaction atomicity must not leave an unleased processing
+receipt committed with no completed mutation.
+
+### Inbound Outcomes, Inbox and Status Truth
+
+Current event types are exactly `delivery_accepted`, `delivery_rejected`,
+`status_updated`, `reconciled`. Fields include scoped preparation ID, external
+system/status, idempotency key, occurred/recorded timestamps, optional invoice
+reference, reconciliation reference and message. The ORM has scoped parent FKs
+and unique `(tenant, organization, external_system, idempotency_key)`.
+R6F-E rejects key reuse against another preparation/project. It does not detect
+changed content under the same valid preparation's key, authenticate a sender,
+correlate a handoff revision or quarantine contradictory remote events.
+
+`record_external_outcome` is presently a `finance.manage` internal service
+boundary, not a network ingest authority. DELIVERY_ACCEPTED marks delivered then
+acknowledged; RECONCILED requires acknowledged; rejection/status-updated records
+do not independently change preparation status. Event status/message strings
+are not validated legal invoice/payment evidence.
+
+Reuse IntegrationInboxService and PM's consumer-owned Finance inbox mechanics.
+Dedup uses consumer + tenant + event ID with scoped database uniqueness; envelope
+hash conflicts are quarantined; processed duplicates have no second effect;
+older/equal aggregate versions are quarantined. For Accounting, namespace
+external event IDs by authenticated connector identity. Use handoff_id as the
+inbound aggregate identity and an authoritative external outcome sequence,
+separate from preparation's local row version. Do not fabricate ordering from
+arrival timestamps. Adapters without reliable sequence must supply an explicit
+reconciliation/query protocol before ordered state updates are enabled.
+
+Validate authenticated connector tenant/org, local handoff, project,
+preparation, approved version and external reference mapping before applying.
+An arbitrary guessed external invoice/preparation ID must not choose the target.
+Extend Finance inbox projected scope/link columns for Accounting: its current
+repository populates source_project_id/resource_id only for approved-Time
+events. Use distinct consumer identity; receipt + outcome + state + audit commit
+atomically. Malformed input that cannot construct an envelope needs a bounded
+quarantine ingress record keyed by authenticated connector scope, not scope
+asserted by the malicious payload. This capability does not yet exist.
+
+| Local/external state | Required evidence / non-equivalence |
+| --- | --- |
+| ready | Approved PM fact satisfies business prerequisites; capability/configuration may still deny handoff. |
+| delivery_pending | Local committed request; after R6G-B it includes an atomic outbox record. It does not mean accepted by Accounting. |
+| delivered | Authenticated durable transport receipt correlated to the exact handoff/hash; not merely an attempted send or ambiguous HTTP timeout. |
+| acknowledged | Correlated external business acceptance. A durable acceptance response may prove both delivered and acknowledged, as the existing accepted event does; do not infer both from arbitrary HTTP 200. |
+| reconciled | Explicit authoritative reconciliation reference for the accepted handoff; not paid. |
+| rejected/failed/quarantined | Integration/outcome facts with actionable safe reason, separate from PM preparation approval. Never rewrite approved amounts or release source locks merely because transport failed. |
+| invoice/payment | Only a future typed authenticated contract carrying sufficient invoice/payment evidence can support those claims. Current string references/generic statuses prove neither amounts nor payment. R6G-A adds none. |
+
+Current Accounting Status path: `workspace_query.get_accounting_statuses` ->
+`SqlAlchemyFinanceBillingReader.list_accounting_statuses` -> frozen
+`AccountingStatusFact` -> desktop serializer -> Commercial/Accounting QML in
+`shared/panels/FinancialsDetailPanel.qml`. It shows preparation/correction,
+local requested timestamp and latest external system/status/reference/message.
+Reader uses SQL pagination/filter/sort, stable preparation-ID tie-breaker and
+row_number latest-event selection by occurred_at then ID, scoped to tenant/org/
+project. Latest timestamp ordering is a display rule, not inbound causality.
+The screen does not show authoritative invoice/payment amounts today.
+
+R6G-E adds server capability/configuration reason, immutable handoff identity/
+version, safe local delivery state, attempts/next-attempt/age, last safe error,
+receipt/reference and authorized retry capability to bounded facts. Preserve
+separate local and external states, latest-status summary versus paged attempt/
+event history, no ORM leakage or Python per-row history walks. Do not substitute
+an empty list or zeros for missing configuration. Current `can_request_delivery`
+is only `finance.manage AND approved`; it does not inspect optional Accounting
+availability. That gap belongs to R6G-B's server command/capability cutover.
+
+### Security, Scope and Operational Visibility
+
+Recommended distinct permissions (names to register in R6G-B/C, not implemented
+now): `finance.accounting_handoff.request`, `finance.accounting_status.read`,
+`finance.accounting_handoff.retry`, `integration.accounting.configure`, plus
+non-interactive service-principal send/receive permissions. Retain finance.read
+and project access for PM facts; require an explicit authorized policy for
+external-status detail. Do not grant delivery, retry or configuration merely
+because a user has finance.manage. Preserve sensitive Rate/source redaction.
+
+**SoD decision:** creator and approval-request submitter cannot approve their
+own preparation. A legitimately independent approver may also request delivery
+if separately authorized: sending already approved immutable evidence is not
+a new financial approval. No mandatory third person is introduced. Integration
+configuration/secret rotation and retry administration remain separately granted
+and audited; a retry cannot change approved content or create a new handoff ID.
+
+External credentials belong to a Platform/infrastructure secret provider;
+configuration stores only a secret reference, never PM domain columns, payloads,
+QML or logs. Existing ServicePrincipal/API-key hashing authenticates callers; it
+is not a reversible external credential vault. No general external Accounting
+secret-provider/configuration API was found. Add the narrow provider boundary in
+R6G-C, with runtime injection, not a home-grown PM vault. Adapter errors must be
+mapped to safe categories/messages before persistence and presentation.
+`infra/platform/operational_support.py` provides redaction helpers, but current
+workers use exception text and the Accounting serializer forwards external
+message/status. Neither should receive unchecked remote content. Preserve
+restricted raw evidence only where justified with size/retention/access controls.
+
+New handoff/outbox/inbound records need tenant/org/project plus scoped
+preparation/handoff FKs, uniqueness and version checks. Reuse metadata-driven
+RLS policy installation and real runtime session/worker context. Migration and
+hostile parent/child tests must execute through app_runtime, NOSUPERUSER,
+NOBYPASSRLS and non-owner; include same-tenant wrong-org and wrong-project cases.
+Generic outbox envelope scope alone does not establish a valid PM project FK.
+Fresh-schema PostgreSQL tests must prove new owner-specific tables/policies.
+
+Current Billing events map through `billing_commercial` to the scoped Commercial
+destination. Context-identity coalescing, not correlation-ID equality, preserves
+separate commits sharing a correlation. R6G request/attempt/outcome events should
+invalidate only that project's Billing/Accounting subsections (and any actual
+dependent progress summary), not all Finance or unrelated profitability. No
+invalidation before commit. Retain generation guards on project/selection changes.
+
+Structured logs: handoff/message ID, tenant/org/project, preparation/version,
+attempt, adapter identity, result category and safe incident/correlation ID.
+No secrets or entire payloads. Existing stores have status, attempts,
+available_at, created/updated/published/processed times and safe-error fields;
+they can support scoped SQL queue-depth, oldest-age, retry/failure/quarantine
+counts. There is no dedicated Accounting operator metrics surface yet. Add
+bounded operational reads, not a new monitoring platform. Operator labels must
+distinguish queued, retrying, blocked configuration, permanent failure,
+quarantined, transport-delivered and business-acknowledged.
+
+### Prioritized Gaps and Exact Execution Sequence
+
+| Phase | Scope and closure evidence required |
+| --- | --- |
+| R6G-A COMPLETE | Current authority/contracts/optional behavior characterized; PM-only test and focused existing tests run. No delivery implementation. |
+| R6G-B NEXT: capability + durable request | Add minimal existing-catalog integration registration/configuration and distinct authorization; deny-safe server capabilities; immutable payload/approved-version identity; scoped PM handoff/outbox in fresh Finance UoW; atomic local request/outbox/audit/event; dedup under concurrent request. Disabled/uninstalled/config-missing/unauthorized tests; every fault boundary rollback proof; migration/RLS tests. No network publisher in the interactive path. |
+| R6G-C: worker + port | Introduce single neutral AccountingHandoffPort/typed receipt; remove unused ProjectBillingPreparationPublisher Protocol with no shim; runtime-independent worker/secret injection; adapter registration and configuration recheck; reuse/harden lease/retry machinery, especially max-attempt expiry. Test crash-after-acceptance, duplicate effects, worker ownership, outages, config suspension, safe logging and bounded queues. No vendor/Accounting aggregate implementation. |
+| R6G-D: authenticated inbound | Reuse inbox/dedup/quarantine with exact handoff/version correlation and scoped FKs; retain immutable conflicting evidence; ordered outcomes/contradiction policy; atomic inbox/outcome/audit; replay, reordered events, cross-scope parents and malformed ingress tests. No automatic invoice/payment semantics from generic status. |
+| R6G-E: status/operator UX | Bounded status/attempt/history Readers, precise capability/reason/state presentation, authorized retry/requeue and failure visibility, redaction, post-commit scoped invalidation, project-switch/keyboard/viewport tests. No local-config QML authorization. |
+| R6G-F: integrated closure | PM-only and enabled-connector matrices; live app_runtime RLS/concurrency, remote crash/restart/idempotency simulation, command atomicity, no lost work, one port/read architecture, payload/secret boundaries, broad PM/Platform regressions, cleanup of any temporary cutover scaffold, active-plan closure. |
+
+Highest-priority blockers before real delivery: no atomic PM outbox; mutable
+reference rebuild under stable message ID; missing approved-version/hash
+contract; enablement/configuration/permission checks absent from handoff;
+no authenticated correlated inbox; no worker/runtime/secret boundary. Secondary
+hardening: malformed numeric payloads, lease exhaustion/recovery, repeated
+same-key changed outcome, untrusted status/error presentation, paged operations
+and retry observability. These are planned R6G gaps, not an assertion that R6F
+implemented remote delivery. The dedicated R6F-E replay-scope fix remains intact.
+
+### Executed Evidence and Missing Proofs
+
+| Current evidence | Result / limit |
+| --- | --- |
+| New `test_r6g_a_boundary_characterization.py` | Real PM-only graph/Forecast/Billing Preparation/profitability, plus payload financial-ownership field guard; 2 tests. No assertions freezing a future missing publisher as permanent behavior. |
+| Platform integration foundation/envelope tests | Atomic enqueue rollback, tenant/org scope, lease ownership, retry/dead letter, inbox duplicates/stale aggregate/content conflict and schema guards. Reused, not duplicated. |
+| Generic UoW outbox tests | Business/outbox-like commit together; handler/commit failure rollback together. Mechanism proof only; R6G-B must add real Billing command tests. |
+| Module tests | Organization licensing/context, access policy and entitlement Reader tests. No installed Accounting adapter or authenticated remote system was fabricated. |
+| Billing foundation/P39/Reader + architecture | Existing governed preparation, replay/outcome, approval/source-lock behavior, current Accounting Status pagination/truth and modular boundaries. |
+| Targeted aggregate run | **230 passed in 44.63s**, including the above and all architecture guards. Not a full PM suite. |
+| Live PostgreSQL Billing Reader/concurrency | **47 passed in 10.40s**, fresh schema, real app_runtime RLS/scoped-parent and current Billing races/atomicity. These do not prove a future Accounting queue or remote worker. |
+| Final change checks | Targeted Ruff F/I and Python compilation passed for the new characterization test; `git diff --check` passed. Only this plan and the new test are changed. |
+
+Missing R6G proofs are explicitly assigned in B-F above: installed versus
+enabled versus authorized combinations; disabled PM-only continuity across all
+Finance commands; byte-stable retry after profile edits; identity races; network
+acceptance before crash; max-lease exhaustion; authenticated foreign events;
+same-key changed content; reordered/contradictory outcomes; malformed quarantine;
+secret/error redaction; worker reconfiguration and safe requeue; Reader scale and
+new-table PostgreSQL isolation. None is represented as implemented by the
+characterization tests.
+
+Files created: one characterization test. Files changed: this active Finance
+plan only. Files deleted: none. Production source/schema/QML remain unchanged.
+No historical audit documents recreated. R6G-B is not started; no Accounting
+publisher, invoice/payment/GL/AR/tax/statutory recognition, FX, Inventory or
+Procurement operations were implemented. Unrelated work untouched; no commit.
 
 ## R6F-E Integrated Closure Evidence
 

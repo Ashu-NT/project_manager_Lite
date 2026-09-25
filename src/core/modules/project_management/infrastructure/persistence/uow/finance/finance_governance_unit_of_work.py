@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from sqlalchemy.orm import Session
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.accounting.handoff import SqlAlchemyAccountingHandoffRepository, SqlAlchemyAccountingOutboxRepository
+from src.core.platform.infrastructure.persistence.repositories.integration.accounting_connector import SqlAlchemyAccountingConnectorRepository
 
 from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import FinanceGovernanceUnitOfWork
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import SqlAlchemyProjectBudgetRepository
@@ -78,6 +80,9 @@ class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGov
         self.approvals = SqlAlchemyApprovalRepository(session)
         self.rate_cards = SqlAlchemyProjectRateCardRepository(session)
         self.billing = SqlAlchemyProjectBillingRepository(session)
+        self.accounting_handoffs = SqlAlchemyAccountingHandoffRepository(session)
+        self.accounting_outbox = SqlAlchemyAccountingOutboxRepository(session)
+        self.accounting_connectors = SqlAlchemyAccountingConnectorRepository(session)
         scoped = (
             self.projects, self.tasks, self.budgets, self.forecasts, self.changes,
             self.profiles, self.cost_codes, self.planned_costs, self.assignments,
@@ -85,6 +90,7 @@ class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGov
             self.labor_postings, self.finance_inbox, self.parties, self.sites,
             self.register_entries, self.resources, self.financial_periods,
             self.approvals, self.rate_cards, self.billing,
+            self.accounting_handoffs, self.accounting_outbox, self.accounting_connectors,
         )
         for repository in scoped:
             repository._tenant_context_service = tenant_context_service

@@ -438,6 +438,7 @@ def build_project_management_service_bundle(
     platform_services: PlatformServiceBundle,
     *,
     approved_time_outbox_service: IntegrationOutboxService | None = None,
+    accounting_adapter_ids: frozenset[str] = frozenset(),
 ) -> ProjectManagementServiceBundle:
     started = perf_counter()
     logger.debug("Project Management service bundle build begin")
@@ -820,7 +821,14 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
+    from src.infra.composition.accounting_integration import build_accounting_capability
+    from src.core.modules.project_management.application.financials.accounting.request_service import AccountingHandoffRequestService
+
     finance_workspace_query = ProjectFinanceWorkspaceQuery(
+        accounting_capability=build_accounting_capability(
+            session=session, tenant_context_service=platform_services.tenant_context_service,
+            user_session=platform_services.user_session, installed_adapters=accounting_adapter_ids,
+        ),
         setup_reader=SqlAlchemyFinanceSetupReader(session=session),
         lookup_reader=SqlAlchemyFinanceLookupReader(session=session),
         budget_reader=SqlAlchemyFinanceBudgetReader(session=session),
@@ -1279,6 +1287,14 @@ def build_project_management_service_bundle(
             record_event=uow.record_event,
         )
         billing_preparation_operations._approval_repo = uow.approvals
+        billing_preparation_operations._handoff_request_service = AccountingHandoffRequestService(
+            preparations=billing_preparation_operations, handoffs=uow.accounting_handoffs,
+            outbox=uow.accounting_outbox, context=uow.context,
+            capability=build_accounting_capability(
+                session=uow._session, tenant_context_service=platform_services.tenant_context_service,
+                user_session=platform_services.user_session, installed_adapters=accounting_adapter_ids,
+            ),
+        )
         billing_preparation_operations._approval_requested_staged = lambda request: (
             post_commit_actions.append(
                 lambda: platform_services.approval_service.publish_requested(request)

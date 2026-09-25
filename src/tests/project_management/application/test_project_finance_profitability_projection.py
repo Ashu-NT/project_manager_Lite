@@ -336,7 +336,8 @@ def test_project_scope_is_enforced(services) -> None:
         reporting.get_project_commercial_projection(project_b.id)
 
 
-def test_external_events_do_not_manufacture_invoice_or_payment_amounts(services) -> None:
+def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accounting_services) -> None:
+    services = accounting_services
     _organization, project, cost_code = _setup_billable_project(
         services, billing_method=BillingMethod.FIXED_PRICE
     )

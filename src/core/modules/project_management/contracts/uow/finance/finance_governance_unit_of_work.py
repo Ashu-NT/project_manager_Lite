@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from typing import Protocol
+from src.core.modules.project_management.contracts.repositories.finance.accounting.handoff import AccountingHandoffRepository
+from src.core.platform.contract.repositories.integration import IntegrationOutboxRepository
+from src.core.platform.contract.repositories.integration.accounting_connector import AccountingConnectorRepository
 
 from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import ProjectBudgetRepository
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import ProjectCommitmentRepository
@@ -59,6 +62,9 @@ class FinanceGovernanceUnitOfWork(UnitOfWork, Protocol):
     approvals: ApprovalRepository
     rate_cards: ProjectRateCardRepository
     billing: ProjectBillingRepository
+    accounting_handoffs: AccountingHandoffRepository
+    accounting_outbox: IntegrationOutboxRepository
+    accounting_connectors: AccountingConnectorRepository
     _enterprise_audit_service: EnterpriseAuditService
 
 

@@ -72,6 +72,14 @@ DEFAULT_PLATFORM_CAPABILITIES: tuple[PlatformCapability, ...] = (
 
 DEFAULT_ENTERPRISE_MODULES: tuple[EnterpriseModule, ...] = (
     EnterpriseModule(
+        code="accounting_integration",
+        label="Accounting Integration",
+        description="Optional delivery of approved evidence to external Accounting.",
+        default_enabled=False,
+        stage="enabled",
+        primary_capabilities=("accounting.handoff",),
+    ),
+    EnterpriseModule(
         code="project_management",
         label="Project Management",
         description="Planning, delivery, portfolio, governance, and execution control.",

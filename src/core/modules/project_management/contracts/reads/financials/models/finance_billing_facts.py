@@ -253,6 +253,9 @@ class BillingPreparationDetailFact:
     can_cancel: bool = False
     can_create_correction: bool = False
     can_request_delivery: bool = False
+    handoff_denial_reason: str = ""
+    handoff_denial_message: str = ""
+    can_view_accounting_status: bool = False
 
 
 @dataclass(frozen=True, slots=True)

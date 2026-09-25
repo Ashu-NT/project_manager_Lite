@@ -29,11 +29,10 @@ def _json_default(value: object) -> object:
     raise TypeError(f"Unsupported canonical JSON value: {type(value).__name__}")
 
 
-def canonical_json_sha256(value: BaseModel | Mapping[str, object]) -> str:
-    """Return a stable SHA-256 digest for a contract payload."""
-
+def canonical_json_bytes(value: BaseModel | Mapping[str, object]) -> bytes:
+    """Serialize exact transport evidence using the shared hashing convention."""
     payload = value.model_dump(mode="json") if isinstance(value, BaseModel) else value
-    encoded = json.dumps(
+    return json.dumps(
         payload,
         allow_nan=False,
         default=_json_default,
@@ -41,7 +40,11 @@ def canonical_json_sha256(value: BaseModel | Mapping[str, object]) -> str:
         separators=(",", ":"),
         sort_keys=True,
     ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
 
 
-__all__ = ["canonical_json_sha256"]
+def canonical_json_sha256(value: BaseModel | Mapping[str, object]) -> str:
+    """Return a stable SHA-256 digest for a contract payload."""
+    return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
+
+
+__all__ = ["canonical_json_bytes", "canonical_json_sha256"]

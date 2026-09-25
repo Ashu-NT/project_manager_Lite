@@ -272,6 +272,13 @@ Item {
             }
         }
 
+        Text {
+            Layout.fillWidth: true
+            visible: text.length > 0
+            text: String((root.selectedPreparation.state || {}).handoffDenialMessage || "")
+            wrapMode: Text.WordWrap
+        }
+
         AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Billing Schedule" }
         AppControls.SecondaryButton {
             Layout.alignment: Qt.AlignLeft

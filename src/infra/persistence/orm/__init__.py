@@ -45,5 +45,7 @@ import src.core.modules.project_management.infrastructure.persistence.orm.collab
 import src.core.modules.project_management.infrastructure.persistence.orm.portfolio  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.skills  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.integration.procurement_financial_outbox  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.integration.accounting_connector  # noqa: F401
+import src.core.modules.project_management.infrastructure.persistence.orm.accounting.handoff  # noqa: F401
 
 __all__ = ["Base"]

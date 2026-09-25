@@ -17,6 +17,7 @@ from src.core.platform.application.tenant.modules import ModuleCatalogService
 
 # Maps capability_id → module_id.  "platform" capabilities are always available.
 _CAPABILITY_MODULE: dict[str, str] = {
+    "accounting.handoff": "accounting_integration",
     # Platform (always on)
     "platform.sites.read": "platform",
     "platform.parties.read": "platform",

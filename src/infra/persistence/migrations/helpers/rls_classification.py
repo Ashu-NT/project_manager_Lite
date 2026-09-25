@@ -19,6 +19,9 @@ from .postgresql_rls import (
 
 TENANT_AND_ORGANIZATION_TABLES = frozenset(
     {
+        "organization_accounting_connectors",
+        "project_accounting_handoffs",
+        "project_accounting_outbox",
         "activity_entries",
         "approval_requests",
         "departments",
@@ -217,8 +220,13 @@ def validate_rls_classification(
             raise RuntimeError(f"{table} requires tenant_id for RLS")
 
 
+_POST_BASELINE_SCOPED_TABLES = frozenset({
+    "organization_accounting_connectors", "project_accounting_handoffs", "project_accounting_outbox",
+})
+
+
 def enable_baseline_rls(operations: Any, bind: Any) -> None:
-    for table in sorted(TENANT_AND_ORGANIZATION_TABLES):
+    for table in sorted(TENANT_AND_ORGANIZATION_TABLES - _POST_BASELINE_SCOPED_TABLES):
         enable_tenant_organization_rls(operations, bind, table)
     for table in sorted(TENANT_ONLY_TABLES):
         enable_tenant_only_rls(operations, bind, table)
@@ -240,7 +248,7 @@ def disable_baseline_rls(operations: Any, bind: Any) -> None:
         disable_nullable_tenant_audit_rls(operations, bind, table)
     for table in sorted(TENANT_ONLY_TABLES, reverse=True):
         disable_tenant_only_rls(operations, bind, table)
-    for table in sorted(TENANT_AND_ORGANIZATION_TABLES, reverse=True):
+    for table in sorted(TENANT_AND_ORGANIZATION_TABLES - _POST_BASELINE_SCOPED_TABLES, reverse=True):
         disable_tenant_organization_rls(operations, bind, table)
 
 

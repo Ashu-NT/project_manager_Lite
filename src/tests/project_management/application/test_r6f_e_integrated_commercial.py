@@ -30,8 +30,9 @@ from src.tests.project_management.application.test_project_finance_profitability
 
 
 def test_governed_golden_project_keeps_preparation_progress_separate_from_revenue(
-    services,
+    accounting_services,
 ):
+    services = accounting_services
     _, project, cost_code = _setup_billable_project(services)
     profile, schedule = _ready_schedule_line(services, project, amount=Decimal("24000"))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="30000")

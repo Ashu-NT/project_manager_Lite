@@ -111,6 +111,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         module_catalog_service=None,
+        accounting_capability=None,
     ) -> None:
         self._setup_reader = setup_reader
         self._lookup_reader = lookup_reader
@@ -124,6 +125,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+        self._accounting_capability = accounting_capability
 
     def active_scope_ids(self) -> tuple[str, str]:
         if self._tenant_context_service is None:
@@ -1297,6 +1299,15 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                 and actor_id != selected.created_by
                 and actor_id != (selected.submitted_by or "")
             )
+            from src.core.platform.domain.integration.accounting.connector import AccountingHandoffCapability, AccountingHandoffDenial
+            handoff = (
+                self._accounting_capability.evaluate(
+                    authorized=self._has_project_permission(project_id, "finance.accounting_handoff.request"),
+                    eligible=selected.status == "approved",
+                ) if self._accounting_capability is not None else AccountingHandoffCapability(
+                    allowed=False, reason=AccountingHandoffDenial.ADAPTER_NOT_INSTALLED,
+                )
+            )
             selected = replace(
                 selected,
                 can_edit_draft=can_manage and is_draft,
@@ -1307,7 +1318,10 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                 can_reject=can_decide and selected.status == "submitted" and independent_decider,
                 can_cancel=can_manage and is_draft,
                 can_create_correction=can_manage and selected.status == "reconciled",
-                can_request_delivery=can_manage and selected.status == "approved",
+                can_request_delivery=handoff.allowed,
+                handoff_denial_reason=handoff.reason.value if handoff.reason else "",
+                handoff_denial_message=handoff.message,
+                can_view_accounting_status=self._has_project_permission(project_id, "finance.accounting_status.read"),
             )
         requested_lines = line_request or BillingPreparationLineQuery()
         lines = (
@@ -1361,6 +1375,14 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         *,
         request: AccountingStatusQuery | None = None,
     ) -> FinancePageFacts[AccountingStatusFact]:
+        require_permission(
+            self._user_session, "finance.accounting_status.read",
+            operation_label="view Accounting handoff status",
+        )
+        require_project_permission(
+            self._user_session, project_id, "finance.accounting_status.read",
+            operation_label="view Accounting handoff status",
+        )
         require_permission(
             self._user_session,
             "finance.read",

@@ -93,15 +93,16 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
         self._require_project(profile.project_id, context)
         self.session.add(billing_profile_to_orm(profile))
 
-    def get_profile(self, project_id: str) -> ProjectBillingProfile | None:
+    def get_profile(self, project_id: str, *, for_update: bool = False) -> ProjectBillingProfile | None:
         context = self._context(operation_label="access project billing profile")
-        row = self.session.execute(
-            select(ProjectBillingProfileORM).where(
+        statement = select(ProjectBillingProfileORM).where(
                 ProjectBillingProfileORM.project_id == project_id,
                 ProjectBillingProfileORM.tenant_id == context.tenant_id,
                 ProjectBillingProfileORM.organization_id == context.organization_id,
-            )
-        ).scalar_one_or_none()
+            ).execution_options(populate_existing=True)
+        if for_update:
+            statement = statement.with_for_update()
+        row = self.session.execute(statement).scalar_one_or_none()
         return billing_profile_from_orm(row) if row else None
 
     def update_profile(
@@ -219,15 +220,16 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
             )
         self.session.add(preparation_to_orm(preparation))
 
-    def get_preparation(self, preparation_id: str) -> ProjectBillingPreparation | None:
+    def get_preparation(self, preparation_id: str, *, for_update: bool = False) -> ProjectBillingPreparation | None:
         context = self._context(operation_label="access billing preparation")
-        row = self.session.execute(
-            select(ProjectBillingPreparationORM).where(
+        statement = select(ProjectBillingPreparationORM).where(
                 ProjectBillingPreparationORM.id == preparation_id,
                 ProjectBillingPreparationORM.tenant_id == context.tenant_id,
                 ProjectBillingPreparationORM.organization_id == context.organization_id,
-            )
-        ).scalar_one_or_none()
+            ).execution_options(populate_existing=True)
+        if for_update:
+            statement = statement.with_for_update()
+        row = self.session.execute(statement).scalar_one_or_none()
         return preparation_from_orm(row) if row else None
 
     def get_preparation_by_idempotency_key(

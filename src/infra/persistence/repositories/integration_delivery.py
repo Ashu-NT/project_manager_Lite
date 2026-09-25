@@ -61,7 +61,11 @@ class SqlAlchemyIntegrationOutboxRepository(TenantScopedRepositorySupport):
             published_at=record.published_at, last_error_code=record.last_error_code,
             last_error_message=record.last_error_message, created_at=record.created_at,
             updated_at=record.updated_at, version=record.row_version,
+            **self._additional_insert_values(record),
         ))
+
+    def _additional_insert_values(self, record: IntegrationOutboxRecord) -> dict[str, Any]:
+        return {}
 
     def get(self, record_id: str) -> IntegrationOutboxRecord | None:
         row = self._get_in_scope(self._orm_type, record_id, operation_label="access integration outbox")
