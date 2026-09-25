@@ -31,6 +31,7 @@ class SqlAlchemyModuleEntitlementReader:
             .where(ModuleEntitlementORM.organization_id == organization_id)
             .where(ModuleEntitlementORM.tenant_id == tenant_id)
             .order_by(ModuleEntitlementORM.module_code.asc())
+            .execution_options(populate_existing=True)
         ).scalars().all()
 
         # A legacy-aliased code (module_storage_codes) and its canonical

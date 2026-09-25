@@ -117,8 +117,8 @@ class BillingPreparationStatusChangeType(str, Enum):
 class BillingPreparationStatusChanged:
     """`submit`/`approve`/`reject`/`request_delivery` and the status-transitioning branches of
     `record_external_outcome` are all the same kind of fact (the preparation's status field
-    changed), differentiated by `change_type`. `request_delivery` produces no separate durable
-    fact: it returns an in-memory delivery payload and persists nothing else. Some
+    changed), differentiated by `change_type`. `request_delivery` commits its immutable
+    handoff and durable outbox in the same UoW; this event only invalidates local views. Some
     `record_external_outcome` outcomes (e.g. DELIVERY_ACCEPTED) transition status twice in one
     call (`mark_delivered` then `acknowledge`), each persisted as its own fact."""
 

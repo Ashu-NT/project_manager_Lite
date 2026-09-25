@@ -160,6 +160,7 @@ class ServiceGraph:
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
     financial_period_service: FinancialPeriodService
+    accounting_connector_commands: AccountingConnectorConfigurationCommands
     notification_service: NotificationService
     approval_service: ApprovalService
     collaboration_service: CollaborationService
@@ -245,6 +246,7 @@ class ServiceGraph:
             "activity_service": self.activity_service,
             "enterprise_audit_service": self.enterprise_audit_service,
             "financial_period_service": self.financial_period_service,
+            "accounting_connector_commands": self.accounting_connector_commands,
             "notification_service": self.notification_service,
             "approval_service": self.approval_service,
             "collaboration_service": self.collaboration_service,
@@ -300,7 +302,7 @@ class ServiceGraph:
         }
 
 
-def build_service_graph(session: Session) -> ServiceGraph:
+def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[str] = frozenset()) -> ServiceGraph:
     started = perf_counter()
     logger.debug("Service graph build begin session_type=%s", type(session).__name__)
     repositories = build_repository_bundle(session)
@@ -329,6 +331,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         repositories,
         platform_services,
         approved_time_outbox_service=_time_financial_outbox_service,
+        accounting_adapter_ids=accounting_adapter_ids,
     )
     logger.debug(
         "Project Management service bundle built duration_ms=%.1f",
@@ -404,6 +407,9 @@ def build_service_graph(session: Session) -> ServiceGraph:
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         financial_period_service=platform_services.financial_period_service,
+        accounting_connector_commands=build_accounting_configuration_commands(
+            session=session, platform_services=platform_services, installed_adapters=accounting_adapter_ids,
+        ),
         notification_service=platform_services.notification_service,
         approval_service=platform_services.approval_service,
         collaboration_service=project_management_services.collaboration_service,
@@ -465,9 +471,9 @@ def build_service_graph(session: Session) -> ServiceGraph:
     return graph
 
 
-def build_service_dict(session: Session) -> dict[str, Any]:
+def build_service_dict(session: Session, *, accounting_adapter_ids: frozenset[str] = frozenset()) -> dict[str, Any]:
     started = perf_counter()
-    graph = build_service_graph(session)
+    graph = build_service_graph(session, accounting_adapter_ids=accounting_adapter_ids)
     services = graph.as_dict()
     logger.debug(
         "Service dictionary build complete service_count=%s duration_ms=%.1f",

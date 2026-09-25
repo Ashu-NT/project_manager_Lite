@@ -7,7 +7,11 @@ from src.infra.persistence.orm.base import Base
 class AccountingConnectorORM(Base):
     __tablename__ = "organization_accounting_connectors"
     __table_args__ = (
-        ForeignKeyConstraint(["tenant_id", "organization_id"], ["organizations.tenant_id", "organizations.id"], ondelete="RESTRICT"),
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id"],
+            ["organizations.tenant_id", "organizations.id"],
+            ondelete="RESTRICT",
+        ),
         CheckConstraint("version >= 1", name="ck_accounting_connector_version"),
         {"info": {"rls_scope": "tenant_organization"}},
     )

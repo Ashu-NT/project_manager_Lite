@@ -3,11 +3,12 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 Identifier = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 
 
 class AccountingConnectorConfiguration(BaseModel):
+    """External connection only; future internal consumers need no connector secrets."""
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     tenant_id: str = Field(min_length=1)

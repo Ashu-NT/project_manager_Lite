@@ -64,6 +64,7 @@ class ModuleCatalogService(
         uow_factory: ModuleEntitlementUnitOfWorkFactory | None = None,
         clock: Clock | None = None,
         view_invalidation_channel: ViewInvalidationChannel | None = None,
+        read_only: bool = False,
     ) -> None:
         known_modules = tuple(modules)
         known_codes = {module.code for module in known_modules}
@@ -83,6 +84,7 @@ class ModuleCatalogService(
             else set(licensed)
         )
         self._modules = known_modules
+        self._read_only = read_only
         self._platform_capabilities = tuple(platform_capabilities or DEFAULT_PLATFORM_CAPABILITIES)
         self._licensed_codes = set(code for code in licensed if code in known_codes)
         self._enabled_codes = set(code for code in enabled if code in self._licensed_codes)

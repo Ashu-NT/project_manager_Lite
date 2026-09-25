@@ -97,8 +97,8 @@ def _install_cost_entry_guards(operations: Any, dialect: str) -> None:
         )
 
 
-def _install_immutable_ledger_guards(operations: Any, dialect: str) -> None:
-    for table in _IMMUTABLE_LEDGER_TABLES:
+def install_immutable_row_guards(operations: Any, dialect: str, tables: tuple[str, ...]) -> None:
+    for table in tables:
         if dialect == "postgresql":
             function = f"prevent_{table}_mutation"
             operations.execute(
@@ -118,12 +118,12 @@ def _install_immutable_ledger_guards(operations: Any, dialect: str) -> None:
                 )
 
 
-def _install_envelope_guards(operations: Any, dialect: str) -> None:
-    for table in _ENVELOPE_TABLES:
+def install_envelope_guards(operations: Any, dialect: str, tables: tuple[str, ...], *, extra_columns: tuple[str, ...] = ()) -> None:
+    for table in tables:
         if dialect == "postgresql":
             function = f"protect_{table}_envelope"
             comparisons = " OR ".join(
-                f"OLD.{column} IS DISTINCT FROM NEW.{column}" for column in _ENVELOPE_COLUMNS
+                f"OLD.{column} IS DISTINCT FROM NEW.{column}" for column in (*_ENVELOPE_COLUMNS, *extra_columns)
             )
             operations.execute(
                 f"CREATE FUNCTION {function}() RETURNS trigger AS $$ BEGIN IF {comparisons} "
@@ -136,7 +136,7 @@ def _install_envelope_guards(operations: Any, dialect: str) -> None:
             )
         elif dialect == "sqlite":
             comparisons = " OR ".join(
-                f"OLD.{column} IS NOT NEW.{column}" for column in _ENVELOPE_COLUMNS
+                f"OLD.{column} IS NOT NEW.{column}" for column in (*_ENVELOPE_COLUMNS, *extra_columns)
             )
             operations.execute(
                 f"CREATE TRIGGER trg_{table}_envelope_immutable BEFORE UPDATE ON {table} "
@@ -148,8 +148,8 @@ def _install_envelope_guards(operations: Any, dialect: str) -> None:
 def install_database_guards(operations: Any, bind: Any) -> None:
     dialect = bind.dialect.name
     _install_cost_entry_guards(operations, dialect)
-    _install_immutable_ledger_guards(operations, dialect)
-    _install_envelope_guards(operations, dialect)
+    install_immutable_row_guards(operations, dialect, _IMMUTABLE_LEDGER_TABLES)
+    install_envelope_guards(operations, dialect, _ENVELOPE_TABLES)
 
 
 def remove_database_guards(operations: Any, bind: Any) -> None:
@@ -172,4 +172,4 @@ def remove_database_guards(operations: Any, bind: Any) -> None:
         operations.execute("DROP FUNCTION IF EXISTS prevent_project_cost_entry_mutation()")
 
 
-__all__ = ["install_database_guards", "remove_database_guards"]
+__all__ = ["install_database_guards", "remove_database_guards", "install_immutable_row_guards", "install_envelope_guards"]

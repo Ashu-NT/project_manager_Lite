@@ -276,6 +276,9 @@ Item {
             Layout.fillWidth: true
             visible: text.length > 0
             text: String((root.selectedPreparation.state || {}).handoffDenialMessage || "")
+            color: Theme.AppTheme.textSecondary
+            font.pixelSize: Theme.AppTheme.smallSize
+            textFormat: Text.PlainText
             wrapMode: Text.WordWrap
         }
 

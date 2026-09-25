@@ -1,8 +1,47 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CURRENT; R6G-A COMPLETE; R6G-B NOT STARTED
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CURRENT; R6G-A COMPLETE; R6G-B IN PROGRESS
 Last updated: 2026-09-25
 Scope: Project Management finance plus reusable platform financial foundations
+
+## R6G Destination Clarification
+
+Future module ownership does not imply current implementation. Accounting,
+Procurement and Inventory operational modules remain future and optional.
+PM produces ONE governed business handoff, irrespective of its future consumer:
+an internal Accounting inbox/application or an external Accounting connection.
+PM must not import either destination's Accounting domain or duplicate its
+commercial business logic for destination selection.
+
+The current `AccountingConnectorConfiguration` describes an EXTERNAL connection
+only. Its adapter, connection and secret references must never become mandatory
+for a future internal Accounting consumer. Internal delivery may execute inside
+the modular-monolith runtime using the persisted outbox/event/inbox path; it
+does not require a separate OS process. External delivery has separate transport,
+secret, retry and failure concerns. R6G-C must review this distinction before
+choosing its delivery port/runtime architecture.
+
+One handoff has one authoritative destination. No independent internal/external
+fan-out creating duplicate financial effects. If internal Accounting later
+exports to an external provider, that synchronization belongs to Accounting,
+not a second PM send. Do not introduce speculative NONE/INTERNAL/EXTERNAL
+routing implementations in R6G-B; persist and preserve concrete delivery
+identity when introducing transport, without rebuilding approved PM evidence.
+
+Boundary rule: immediate cross-module capability uses a port/gateway;
+authoritative facts use producer outbox/event/consumer inbox; read-only access
+uses Reader/query contracts. Platform mechanics must not depend on PM domain.
+The unused ApprovedTimeFinancialSourceProvider and ProcurementFinancialSourceProvider
+must be classified during integration cleanup as synchronous capability,
+explicit recovery/backfill, or speculative alternative; do not promote them
+to a parallel pull authority. TaskReservationGateway is a distinct future
+synchronous capability, not an implemented Inventory module; review its typed
+Decimal/quantity contracts before activation. No operational modules or generic
+event-bus redesign are authorized by this clarification.
+
+R6G-B remains in progress: capability/configuration, dedicated authorization,
+immutable scoped handoff and owned outbox, atomic fresh-UoW request, RLS and
+concurrency evidence. R6G-C is not started. R6D/E/F remain closed.
 
 ## R6G-A Accounting Boundary Characterization
 

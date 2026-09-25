@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from src.core.modules.project_management.domain.financials.accounting.handoff import AccountingHandoffRequestResult
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -539,7 +540,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
 
     def request_delivery(
         self, preparation_id: str, *, expected_row_version: int
-    ) -> ProjectBillingPreparationPayload:
+    ) -> AccountingHandoffRequestResult:
         if self._handoff_request_service is None:
             raise BusinessRuleError("Accounting handoff is not configured.", code="integration_not_configured")
         return self._handoff_request_service.request(preparation_id, expected_row_version=expected_row_version)
@@ -563,21 +564,13 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             event,
         )
 
-    def build_delivery_payload(self, preparation_id: str) -> ProjectBillingPreparationPayload:
-        preparation = self._require_preparation(preparation_id)
+    def _build_approved_delivery_payload(self, preparation, profile, *, message_id, approved_lines) -> ProjectBillingPreparationPayload:
         self._require(preparation.project_id, "finance.read", "build accounting delivery payload")
-        if preparation.status not in {
-            BillingPreparationStatus.APPROVED,
-            BillingPreparationStatus.DELIVERY_PENDING,
-            BillingPreparationStatus.DELIVERED,
-            BillingPreparationStatus.ACKNOWLEDGED,
-            BillingPreparationStatus.RECONCILED,
-        }:
+        if preparation.status is not BillingPreparationStatus.APPROVED:
             raise BusinessRuleError(
                 "Only approved billing evidence can cross the accounting boundary.",
                 code="BILLING_DELIVERY_NOT_APPROVED",
             )
-        profile = self._require_active_profile(preparation.project_id, allow_closed=True)
         if not profile.customer_party_id or not preparation.approved_by or not preparation.approved_at:
             raise BusinessRuleError(
                 "Approved billing evidence is incomplete.", code="BILLING_DELIVERY_INCOMPLETE"
@@ -599,11 +592,11 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
                 task_id=line.task_id,
                 resource_id=line.resource_id,
             )
-            for line in self._billing_repo.list_preparation_lines(preparation.id)
+            for line in approved_lines
         )
         return ProjectBillingPreparationPayload(
             schema_name="project_billing_preparation.v1",
-            message_id=f"project-billing-preparation:{preparation.id}",
+            message_id=message_id,
             tenant_id=preparation.tenant_id,
             organization_id=preparation.organization_id,
             project_id=preparation.project_id,

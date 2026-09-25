@@ -1299,11 +1299,15 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                 and actor_id != selected.created_by
                 and actor_id != (selected.submitted_by or "")
             )
-            from src.core.platform.domain.integration.accounting.connector import AccountingHandoffCapability, AccountingHandoffDenial
+            from src.core.platform.domain.integration.accounting.connector import (
+                AccountingHandoffCapability,
+                AccountingHandoffDenial,
+            )
             handoff = (
                 self._accounting_capability.evaluate(
                     authorized=self._has_project_permission(project_id, "finance.accounting_handoff.request"),
-                    eligible=selected.status == "approved",
+                    eligible=bool(selected.status == "approved" and selected.line_count > 0
+                                  and selected.approval_request_id and selected.approved_by and selected.approved_at),
                 ) if self._accounting_capability is not None else AccountingHandoffCapability(
                     allowed=False, reason=AccountingHandoffDenial.ADAPTER_NOT_INSTALLED,
                 )
@@ -1359,6 +1363,21 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                     for item in lines.items
                 ),
             )
+        if not self._has_project_permission(project_id, "finance.accounting_status.read"):
+            def without_external_status(item):
+                return replace(
+                    item, latest_external_event_type="", latest_external_system="",
+                    latest_external_status="", latest_external_invoice_reference="",
+                    latest_reconciliation_reference="", latest_external_message="",
+                    latest_external_occurred_at=None,
+                )
+            preparations = replace(preparations, items=tuple(
+                replace(item, latest_external_event_type="", latest_external_system="",
+                        latest_external_status="", latest_external_occurred_at=None)
+                for item in preparations.items
+            ))
+            if selected is not None:
+                selected = without_external_status(selected)
         return FinanceBillingWorkspaceFacts(
             profile=profile,
             selected_preparation_id=resolved_id,

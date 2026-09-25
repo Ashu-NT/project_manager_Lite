@@ -1,4 +1,11 @@
-from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, LargeBinary, String, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKeyConstraint,
+    Integer,
+    LargeBinary,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infra.persistence.orm.base import Base
@@ -8,11 +15,36 @@ from src.infra.persistence.orm.integration_delivery import IntegrationOutboxORMM
 class ProjectAccountingHandoffORM(Base):
     __tablename__ = "project_accounting_handoffs"
     __table_args__ = (
-        ForeignKeyConstraint(["tenant_id", "organization_id", "project_id", "preparation_id"], [f"project_billing_preparations.{name}" for name in ("tenant_id", "organization_id", "project_id", "id")], ondelete="RESTRICT"),
-        UniqueConstraint("tenant_id", "organization_id", "project_id", "preparation_id", "approved_version", "handoff_kind", name="uq_pm_accounting_handoff_business"),
-        UniqueConstraint("tenant_id", "organization_id", "project_id", "id", name="uq_pm_accounting_handoff_scope"),
-        CheckConstraint("approved_version >= 1", name="ck_pm_accounting_approved_version"),
-        CheckConstraint("handoff_kind = 'billing_preparation'", name="ck_pm_accounting_handoff_kind"),
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id", "project_id", "preparation_id"],
+            [
+                f"project_billing_preparations.{name}"
+                for name in ("tenant_id", "organization_id", "project_id", "id")
+            ],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "organization_id",
+            "project_id",
+            "preparation_id",
+            "approved_version",
+            "handoff_kind",
+            name="uq_pm_accounting_handoff_business",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "organization_id",
+            "project_id",
+            "id",
+            name="uq_pm_accounting_handoff_scope",
+        ),
+        CheckConstraint(
+            "approved_version >= 1", name="ck_pm_accounting_approved_version"
+        ),
+        CheckConstraint(
+            "handoff_kind = 'billing_preparation'", name="ck_pm_accounting_handoff_kind"
+        ),
         {"info": {"rls_scope": "tenant_organization"}},
     )
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -29,11 +61,32 @@ class ProjectAccountingHandoffORM(Base):
 class ProjectAccountingOutboxORM(IntegrationOutboxORMMixin, Base):
     __tablename__ = "project_accounting_outbox"
     __table_args__ = (
-        ForeignKeyConstraint(["tenant_id", "organization_id", "project_id", "event_id"], [f"project_accounting_handoffs.{name}" for name in ("tenant_id", "organization_id", "project_id", "id")], ondelete="RESTRICT"),
-        UniqueConstraint("tenant_id", "organization_id", "event_id", name="uq_pm_accounting_outbox_event"),
-        CheckConstraint("status IN ('pending', 'claimed', 'retry', 'published', 'dead_letter')", name="ck_pm_accounting_outbox_status"),
-        CheckConstraint("aggregate_version >= 1 AND version >= 1", name="ck_pm_accounting_outbox_versions"),
-        CheckConstraint("attempt_count >= 0 AND max_attempts >= 1 AND attempt_count <= max_attempts", name="ck_pm_accounting_outbox_attempts"),
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id", "project_id", "event_id"],
+            [
+                f"project_accounting_handoffs.{name}"
+                for name in ("tenant_id", "organization_id", "project_id", "id")
+            ],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "organization_id",
+            "event_id",
+            name="uq_pm_accounting_outbox_event",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'claimed', 'retry', 'published', 'dead_letter')",
+            name="ck_pm_accounting_outbox_status",
+        ),
+        CheckConstraint(
+            "aggregate_version >= 1 AND version >= 1",
+            name="ck_pm_accounting_outbox_versions",
+        ),
+        CheckConstraint(
+            "attempt_count >= 0 AND max_attempts >= 1 AND attempt_count <= max_attempts",
+            name="ck_pm_accounting_outbox_attempts",
+        ),
         {"info": {"rls_scope": "tenant_organization"}},
     )
     project_id: Mapped[str] = mapped_column(String, nullable=False)

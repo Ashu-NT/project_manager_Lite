@@ -2,11 +2,26 @@ from __future__ import annotations
 
 from dataclasses import field
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Literal, Protocol
 
 from pydantic import field_validator
 
-from src.core.platform.common.pydantic import normalize_required_text, validated_dataclass
+from src.core.platform.common.pydantic import (
+    normalize_required_text,
+    validated_dataclass,
+)
+
+
+def _decimal_text(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("Transport money and quantities must be exact Decimal text.")
+    try:
+        if not Decimal(value).is_finite():
+            raise ValueError("Finite Decimal evidence is required.")
+    except InvalidOperation as exc:
+        raise ValueError("Invalid Decimal evidence.") from exc
+    return value
 
 
 @validated_dataclass(frozen=True)
@@ -33,6 +48,8 @@ class BillingPreparationLinePayload:
     )
     @classmethod
     def _required(cls, value: object, info) -> str:
+        if info.field_name in {"quantity", "unit_rate", "net_amount"}:
+            return _decimal_text(value)
         return normalize_required_text(
             value,
             message=f"{info.field_name.replace('_', ' ').title()} is required.",
@@ -71,6 +88,8 @@ class ProjectBillingPreparationPayload:
     )
     @classmethod
     def _required(cls, value: object, info) -> str:
+        if info.field_name == "total_amount":
+            return _decimal_text(value)
         return normalize_required_text(
             value,
             message=f"{info.field_name.replace('_', ' ').title()} is required.",

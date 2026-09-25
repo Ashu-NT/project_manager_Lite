@@ -7,7 +7,9 @@ from src.core.platform.domain.integration.accounting.connector import (
 class AccountingIntegrationCapabilityService:
     """Installed adapters come from trusted composition, never organization data."""
 
-    def __init__(self, *, module_registry, connector_repository, installed_adapters=frozenset()):
+    def __init__(
+        self, *, module_registry, connector_repository, installed_adapters=frozenset()
+    ):
         self._registry = module_registry
         self._connectors = connector_repository
         self._installed = frozenset(installed_adapters)

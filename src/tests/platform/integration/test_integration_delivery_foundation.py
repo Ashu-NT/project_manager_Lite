@@ -158,7 +158,8 @@ def test_delivery_migration_installs_owned_stores_and_envelope_guards(tmp_path) 
         trigger_names = set(connection.execute(sa.text(
             "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'trg_%_envelope_immutable'"
         )).scalars())
-    assert trigger_names == {
+        assert trigger_names == {
+            "trg_project_accounting_outbox_envelope_immutable",
         "trg_platform_time_financial_outbox_envelope_immutable",
         "trg_inventory_procurement_financial_outbox_envelope_immutable",
         "trg_project_finance_inbox_receipts_envelope_immutable",
