@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    BaselineComparisonResult,
+    BaselineComparisonRow,
+)
 from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
     BaselineRepository,
 )
@@ -11,10 +15,6 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineTask,
     ProjectBaseline,
-)
-from src.core.modules.project_management.application.dashboard.models.report_models import (
-    BaselineComparisonResult,
-    BaselineComparisonRow,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 

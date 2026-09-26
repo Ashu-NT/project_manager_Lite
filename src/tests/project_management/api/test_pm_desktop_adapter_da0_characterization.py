@@ -50,6 +50,9 @@ from src.core.modules.project_management.api.desktop.tasks.builders.resource_opt
 from src.core.modules.project_management.api.desktop.tasks.services.access_resolution_service import (
     project_rows_for_task_scope,
 )
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    ResourceLoadRow,
+)
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceAssignmentFact,
 )
@@ -57,9 +60,6 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
-)
-from src.core.modules.project_management.application.dashboard.models.report_models import (
-    ResourceLoadRow,
 )
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 

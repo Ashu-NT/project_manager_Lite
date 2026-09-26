@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    TaskVarianceRow,
+)
 from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
     BaselineRepository,
 )
@@ -7,9 +10,6 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
-from src.core.modules.project_management.application.dashboard.models.report_models import (
-    TaskVarianceRow,
-)
 
 
 class ReportingVarianceMixin:

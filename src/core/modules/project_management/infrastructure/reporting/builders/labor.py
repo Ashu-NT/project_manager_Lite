@@ -7,6 +7,10 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    LaborDetailsResult,
+    LaborResourceRow,
+)
 from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
     LaborCostEngine,
 )
@@ -26,10 +30,6 @@ from src.core.modules.project_management.contracts.repositories.resources.resour
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
-)
-from src.core.modules.project_management.application.dashboard.models.report_models import (
-    LaborDetailsResult,
-    LaborResourceRow,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,

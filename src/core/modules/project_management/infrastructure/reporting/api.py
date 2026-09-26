@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    GanttTaskBar,
+)
 from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.evm import (
     EvmCurveRenderer,
@@ -23,9 +26,6 @@ from src.core.modules.project_management.infrastructure.reporting.models.context
     ExcelReportContext,
     FinanceLedgerExportPage,
     PdfReportContext,
-)
-from src.core.modules.project_management.application.dashboard.models.report_models import (
-    GanttTaskBar,
 )
 from src.core.modules.project_management.infrastructure.reporting.services.reporting_service import (
     ReportingService,
