@@ -36,6 +36,13 @@ from src.tests.project_management.application.test_r6g_b_accounting_handoff impo
 
 @pytest.fixture
 def worker(accounting_services, session):
+    from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+        AccountingTransportFinalized,
+    )
+    from src.core.modules.project_management.application.financials.invoicing.event_handlers.view_invalidation import (
+        build_billing_view_invalidation_handler,
+    )
+
     approved = approved_preparation(accounting_services)
     accounting_services["billing_preparation_service"].request_delivery(
         approved.id, expected_row_version=approved.row_version
@@ -43,6 +50,10 @@ def worker(accounting_services, session):
     scope = accounting_services["tenant_context_service"].require_active_scope_ids(
         operation_label="test"
     )
+    bus = InProcessPostCommitEventBus()
+    bus.subscribe(AccountingTransportFinalized, build_billing_view_invalidation_handler(
+        accounting_services["platform_view_invalidation_channel"],
+    ))
     transactions = SqlAlchemyAccountingDeliveryTransactions(
         session_factory=sessionmaker(bind=session.bind, expire_on_commit=False),
         scope=AccountingWorkerScope(
@@ -59,7 +70,7 @@ def worker(accounting_services, session):
         ),
         clock=SystemClock(),
         transactional_dispatcher=InProcessTransactionalEventDispatcher(),
-        post_commit_bus=InProcessPostCommitEventBus(),
+        post_commit_bus=bus,
     )
     adapter = Mock(supports_durable_idempotency=True)
 
@@ -83,6 +94,30 @@ def worker(accounting_services, session):
         credentials=credentials,
     )
     return processor, transactions, adapter, approved
+
+
+def test_transport_invalidation_is_post_commit_and_not_correlation_deduped(worker, accounting_services, session):
+    from datetime import timedelta
+
+    from sqlalchemy import update
+
+    from src.tests.project_management.application.test_p39_finance_billing_full_modernization import (
+        _spy_hints,
+    )
+
+    processor, transactions, _, approved = worker
+    hints = _spy_hints(accounting_services)
+    claim = transactions.claim()
+    assert not hints
+    transactions.finalize(claim, ExternalAccountingFailureKind.RETRYABLE)
+    assert len(hints) == 1
+    assert hints[0].scope_code == "billing_transport"
+    assert hints[0].entity_id == approved.project_id
+    session.execute(update(ProjectAccountingOutboxORM).values(available_at=datetime.now(timezone.utc) - timedelta(seconds=1)))
+    session.commit()
+    processor.process_one()
+    assert len(hints) == 2
+    assert all(hint.scope_code == "billing_transport" for hint in hints)
 
 
 def test_durable_transport_receipt_does_not_acknowledge_business(

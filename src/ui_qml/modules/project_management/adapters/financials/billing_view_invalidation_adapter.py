@@ -5,6 +5,7 @@ from PySide6.QtCore import QObject, Signal
 from src.core.modules.project_management.application.financials.invoicing.event_handlers.view_invalidation import (
     BILLING_CATEGORY,
     BILLING_COMMERCIAL_SCOPE_CODE,
+    BILLING_TRANSPORT_SCOPE_CODE,
 )
 from src.core.shared.events.view_invalidation import (
     ExactOrganization,
@@ -18,6 +19,7 @@ from src.ui_qml.shared.adapters.scoped_view_invalidation_subscription import (
 
 class BillingViewInvalidationAdapter(QObject):
     billingCommercialStale = Signal(str)  # project_id
+    billingTransportStale = Signal(str)
 
     def __init__(
         self,
@@ -41,6 +43,8 @@ class BillingViewInvalidationAdapter(QObject):
             return
         if hint.scope_code == BILLING_COMMERCIAL_SCOPE_CODE:
             self.billingCommercialStale.emit(hint.entity_id or "")
+        elif hint.scope_code == BILLING_TRANSPORT_SCOPE_CODE:
+            self.billingTransportStale.emit(hint.entity_id or "")
 
     def dispose(self) -> None:
         self._subscription.dispose()

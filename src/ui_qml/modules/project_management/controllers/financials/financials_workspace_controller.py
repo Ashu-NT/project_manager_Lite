@@ -965,6 +965,16 @@ class ProjectManagementFinancialsWorkspaceController(
     def onBillingCommercialStale(self, project_id: str) -> None:
         on_billing_commercial_stale(self, project_id)
 
+    def onBillingTransportStale(self, project_id: str) -> None:
+        if project_id != self._selected_project_id:
+            return
+        self._loaded_destination_keys = {
+            key for key in self._loaded_destination_keys
+            if not (key[0] == project_id and key[1] == "commercial" and key[2] in {"billing", "accounting"})
+        }
+        if self._active_destination == "commercial" and self._active_subsection in {"billing", "accounting"}:
+            self._request_domain_refresh()
+
     def onRateCardListStale(self, rate_card_id: str) -> None:
         on_rate_card_list_stale(self, rate_card_id)
 

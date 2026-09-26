@@ -9,8 +9,6 @@ from sqlalchemy import select, text
 
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     AccountingTransportFinalized,
-    BillingPreparationStatusChanged,
-    BillingPreparationStatusChangeType,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.accounting.handoff import (
     ProjectAccountingOutboxORM,
@@ -335,16 +333,6 @@ class SqlAlchemyAccountingDeliveryTransactions:
                 version = preparation.row_version
                 preparation.mark_delivered(occurred_at=now)
                 billing.update_preparation(preparation, expected_row_version=version)
-                uow.record_event(
-                    BillingPreparationStatusChanged(
-                        tenant_id=self._scope.tenant_id,
-                        organization_id=self._scope.organization_id,
-                        project_id=self._scope.project_id,
-                        billing_preparation_id=preparation.id,
-                        change_type=BillingPreparationStatusChangeType.DELIVERED,
-                        occurred_at=now,
-                    )
-                )
                 outcome = "transport_accepted"
             elif result in (
                 ExternalAccountingFailureKind.RETRYABLE,

@@ -187,3 +187,42 @@ def test_idle_runtime_waits_instead_of_spinning(delivery):
     stop.is_set.side_effect = [False, True]
     run_accounting_delivery(processor, stop=stop, idle_seconds=2)
     stop.wait.assert_called_once_with(2)
+
+
+def test_unconfigured_executable_host_fails_before_database_access(monkeypatch):
+    from src.application.runtime.accounting_delivery import main
+
+    monkeypatch.delenv("PM_DB_URL", raising=False)
+    assert main(["--tenant", "tenant", "--organization", "org", "--project", "project", "--principal", "worker"]) == 2
+
+
+def test_executable_host_handles_termination_and_restores_signal_handlers(monkeypatch):
+    import signal
+
+    from src.application.runtime.accounting_delivery import main
+    from src.infra.composition import accounting_delivery
+
+    previous = signal.getsignal(signal.SIGTERM)
+    processor = Mock()
+
+    def completed_attempt():
+        signal.raise_signal(signal.SIGTERM)
+        return True
+
+    processor.process_one.side_effect = completed_attempt
+    monkeypatch.setattr(accounting_delivery, "build_external_accounting_processor", lambda **kwargs: processor)
+    monkeypatch.setenv("PM_DB_URL", "sqlite:///:memory:")
+    assert main(["--tenant", "tenant", "--organization", "org", "--project", "project", "--principal", "worker"],
+                adapters={"test": Mock()}, credentials=Mock()) == 0
+    processor.process_one.assert_called_once()
+    assert signal.getsignal(signal.SIGTERM) == previous
+
+
+def test_transport_contract_rejects_hash_tampering_and_legal_accounting_fields(delivery):
+    _, _, _, _, claim, receipt = delivery
+    with pytest.raises(ValidationError):
+        ExternalAccountingEvidence.model_validate(claim.evidence.model_dump() | {"payload_bytes": b"tampered"})
+    with pytest.raises(ValidationError):
+        ExternalAccountingReceipt.model_validate(receipt.model_dump() | {"invoice_number": "not-transport-authority"})
+    with pytest.raises(ValidationError):
+        ExternalAccountingReceipt.model_validate(receipt.model_dump() | {"accepted_at": datetime(2026, 1, 1)})

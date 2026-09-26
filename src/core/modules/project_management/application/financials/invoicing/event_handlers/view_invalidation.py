@@ -21,6 +21,7 @@ from src.core.shared.events.view_invalidation import (
 
 BILLING_CATEGORY = "billing"
 BILLING_COMMERCIAL_SCOPE_CODE = "billing_commercial"
+BILLING_TRANSPORT_SCOPE_CODE = "billing_transport"
 BILLING_MODULE_CODE = "project_management"
 BILLING_PROJECT_ENTITY_TYPE = "project"
 
@@ -83,7 +84,8 @@ def build_billing_view_invalidation_handler(channel: ViewInvalidationChannel):
             organization_id=event.organization_id,
             project_id=event.project_id,
         )
-        for scope_code in _SCOPE_CODES:
+        scope_codes = (BILLING_TRANSPORT_SCOPE_CODE,) if isinstance(event, AccountingTransportFinalized) else _SCOPE_CODES
+        for scope_code in scope_codes:
             target = _project_scope_target(scope_code, scope)
             if target in notified_targets:
                 continue
@@ -105,6 +107,7 @@ __all__ = [
     "build_billing_view_invalidation_handler",
     "BILLING_CATEGORY",
     "BILLING_COMMERCIAL_SCOPE_CODE",
+    "BILLING_TRANSPORT_SCOPE_CODE",
     "BILLING_MODULE_CODE",
     "BILLING_PROJECT_ENTITY_TYPE",
 ]
