@@ -11,7 +11,7 @@ from sqlalchemy import select, text
 from src.core.modules.project_management.infrastructure.persistence.orm.accounting.handoff import (
     ProjectAccountingOutboxORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.accounting_delivery import (
+from src.core.modules.project_management.infrastructure.persistence.uow.integration.accounting.accounting_delivery import (
     AccountingWorkerScope,
 )
 from src.core.platform.common.exceptions import BusinessRuleError

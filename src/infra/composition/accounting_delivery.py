@@ -4,7 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.accounting_delivery import (
+from src.core.modules.project_management.infrastructure.persistence.uow.integration.accounting.accounting_delivery import (
     SqlAlchemyAccountingDeliveryTransactions,
 )
 from src.core.platform.application.integration.accounting.delivery_processor import (

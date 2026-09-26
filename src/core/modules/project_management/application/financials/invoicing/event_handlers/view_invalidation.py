@@ -84,7 +84,7 @@ def build_billing_view_invalidation_handler(channel: ViewInvalidationChannel):
             organization_id=event.organization_id,
             project_id=event.project_id,
         )
-        scope_codes = (BILLING_TRANSPORT_SCOPE_CODE,) if isinstance(event, AccountingTransportFinalized) else _SCOPE_CODES
+        scope_codes = (BILLING_TRANSPORT_SCOPE_CODE,) if isinstance(event, (AccountingTransportFinalized, BillingPreparationExternalOutcomeRecorded)) else _SCOPE_CODES
         for scope_code in scope_codes:
             target = _project_scope_target(scope_code, scope)
             if target in notified_targets:

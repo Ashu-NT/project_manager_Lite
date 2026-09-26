@@ -10,7 +10,7 @@ from src.core.modules.project_management.application.common.clock import SystemC
 from src.core.modules.project_management.infrastructure.persistence.orm.accounting.handoff import (
     ProjectAccountingOutboxORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.accounting_delivery import (
+from src.core.modules.project_management.infrastructure.persistence.uow.integration.accounting.accounting_delivery import (
     AccountingWorkerScope,
     SqlAlchemyAccountingDeliveryTransactions,
 )

@@ -57,7 +57,7 @@ def main(argv=None, *, adapters=None, credentials=None) -> int:
         parser.error("--idle-seconds must be between 0.1 and 300")
     from sqlalchemy import create_engine
 
-    from src.core.modules.project_management.infrastructure.persistence.uow.finance.accounting_delivery import (
+    from src.core.modules.project_management.infrastructure.persistence.uow.integration.accounting.accounting_delivery import (
         AccountingWorkerScope,
     )
     from src.infra.composition.accounting_delivery import (
