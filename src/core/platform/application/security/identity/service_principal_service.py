@@ -9,39 +9,50 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
-from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.application.security.auth import AuthService
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.repositories.security.auth import UserRepository
-from src.core.platform.domain.security.auth import (
-    ACCOUNT_TYPE_SERVICE,
-    UserSessionContext,
-    UserSessionPrincipal,
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.security.identity.execution_principal import (
+    resolve_execution_principal,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.contract.repositories.history.audit.contracts import (
+    AuditRepository,
+)
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.repositories.security.auth import UserRepository
 from src.core.platform.contract.repositories.security.identity.contracts import (
     ApiKeyCredentialRepository,
     ServicePrincipalRepository,
 )
-from src.core.platform.domain.security.identity.service_principal import (
-    ApiKeyCredential,
-    IssuedApiKey,
-    SERVICE_PRINCIPAL_STATUS_ACTIVE,
-    SERVICE_PRINCIPAL_STATUS_DISABLED,
-    ServicePrincipal,
-)
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
-from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.domain.history.audit import AuditEntry
+from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
+from src.core.platform.domain.security.auth import (
+    ACCOUNT_TYPE_SERVICE,
+    UserSessionContext,
+    UserSessionPrincipal,
+)
+from src.core.platform.domain.security.identity.service_principal import (
+    SERVICE_PRINCIPAL_STATUS_ACTIVE,
+    SERVICE_PRINCIPAL_STATUS_DISABLED,
+    ApiKeyCredential,
+    IssuedApiKey,
+    ServicePrincipal,
+)
 
 _TOKEN_PATTERN = re.compile(
     r"^pmk_([A-Za-z0-9-]{1,64})_([A-Za-z0-9]{12})_([A-Za-z0-9_-]{32,})$"
@@ -138,36 +149,10 @@ class ServicePrincipalService:
         ctx = self._tenant_context_service.require_active_scope_ids(
             operation_label="resolve integration worker identity"
         )
-        principal = self._principal_repo.get_by_name(name)
-        if principal is None:
-            raise BusinessRuleError(
-                f"Required integration service principal '{name}' is not configured.",
-                code="INTEGRATION_SERVICE_PRINCIPAL_NOT_CONFIGURED",
-            )
-        if (
-            principal.tenant_id != ctx.tenant_id
-            or principal.organization_id != ctx.organization_id
-        ):
-            raise BusinessRuleError(
-                "Integration service principal is outside the active scope.",
-                code="INTEGRATION_SERVICE_PRINCIPAL_SCOPE_MISMATCH",
-            )
-        if principal.status != SERVICE_PRINCIPAL_STATUS_ACTIVE:
-            raise BusinessRuleError(
-                "Integration service principal is disabled.",
-                code="INTEGRATION_SERVICE_PRINCIPAL_DISABLED",
-            )
-        user = self._user_repo.get(principal.user_id)
-        if (
-            user is None
-            or not user.is_active
-            or user.account_type != ACCOUNT_TYPE_SERVICE
-        ):
-            raise BusinessRuleError(
-                "Integration service account is inactive or invalid.",
-                code="INTEGRATION_SERVICE_ACCOUNT_INVALID",
-            )
-        return principal
+        return resolve_execution_principal(
+            name=name, scope=ctx, principal_repository=self._principal_repo,
+            user_repository=self._user_repo,
+        )
 
     def disable_service_principal(self, principal_id: str) -> ServicePrincipal:
         self._require_admin("disable a service principal")

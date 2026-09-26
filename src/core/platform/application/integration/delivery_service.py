@@ -54,7 +54,8 @@ class IntegrationRetryPolicy:
         self._maximum_delay = maximum_delay
 
     def next_attempt_at(self, *, now: datetime, attempt_count: int) -> datetime:
-        multiplier = 2 ** max(0, attempt_count - 1)
+        # Saturate before exponentiation, including corrupted/extreme attempt input.
+        multiplier = 2 ** min(63, max(0, attempt_count - 1))
         delay_seconds = min(
             self._initial_delay.total_seconds() * multiplier,
             self._maximum_delay.total_seconds(),

@@ -3,10 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillableSourceType,
     BillingExternalEventType,
+)
+from src.core.platform.contract.port.integration.external_accounting import (
+    ExternalAccountingFailureKind,
 )
 
 # ---------------------------------------------------------------------------
@@ -146,7 +150,20 @@ class BillingPreparationExternalOutcomeRecorded:
     occurred_at: datetime
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AccountingTransportFinalized:
+    """Committed transport state only; never commercial profitability authority."""
+
+    tenant_id: str
+    organization_id: str
+    project_id: str
+    handoff_id: str
+    result: ExternalAccountingFailureKind | Literal["transport_accepted"]
+    occurred_at: datetime
+
+
 __all__ = [
+    "AccountingTransportFinalized",
     "BillingProfileCreated",
     "BillingProfileActivated",
     "BillingScheduleLineAdded",

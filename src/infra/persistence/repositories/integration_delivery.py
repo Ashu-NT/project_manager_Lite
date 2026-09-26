@@ -109,18 +109,34 @@ class SqlAlchemyIntegrationOutboxRepository(TenantScopedRepositorySupport):
                 self._orm_type.tenant_id == ctx.tenant_id,
                 self._orm_type.organization_id == ctx.organization_id,
                 eligible,
+                *self._claim_scope_filters(),
             ).order_by(self._orm_type.aggregate_type, self._orm_type.aggregate_id, self._orm_type.aggregate_version, self._orm_type.occurred_at, self._orm_type.id)
             .limit(limit).with_for_update(skip_locked=True)
         ).scalars().all()
+        claimed = []
         for row in rows:
+            if row.attempt_count >= row.max_attempts:
+                # Expired final leases are exhausted, not a new delivery attempt.
+                row.status = OutboxDeliveryStatus.DEAD_LETTER.value
+                row.lease_token = None
+                row.lease_expires_at = None
+                row.last_error_code = "DELIVERY_ATTEMPTS_EXHAUSTED"
+                row.last_error_message = "Delivery attempts exhausted; reconciliation may be required."
+                row.updated_at = now
+                row.version += 1
+                continue
             row.status = OutboxDeliveryStatus.CLAIMED.value
             row.attempt_count += 1
             row.lease_token = lease_token
             row.lease_expires_at = lease_expires_at
             row.updated_at = now
             row.version += 1
+            claimed.append(row)
         self.session.flush()
-        return [self._from_row(row) for row in rows]
+        return [self._from_row(row) for row in claimed]
+
+    def _claim_scope_filters(self) -> tuple:
+        return ()
 
     def update(self, record: IntegrationOutboxRecord, *, expected_row_version: int) -> None:
         ctx = self._context(operation_label="update integration outbox")

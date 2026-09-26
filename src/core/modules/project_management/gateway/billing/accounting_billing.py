@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import field
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Literal, Protocol
+from typing import Literal
 
 from pydantic import field_validator
 
@@ -97,14 +97,7 @@ class ProjectBillingPreparationPayload:
         )
 
 
-class ProjectBillingPreparationPublisher(Protocol):
-    """External adapter port; Accounting decides whether/how to issue an invoice."""
-
-    def publish(self, payload: ProjectBillingPreparationPayload) -> None: ...
-
-
 __all__ = [
     "BillingPreparationLinePayload",
     "ProjectBillingPreparationPayload",
-    "ProjectBillingPreparationPublisher",
 ]

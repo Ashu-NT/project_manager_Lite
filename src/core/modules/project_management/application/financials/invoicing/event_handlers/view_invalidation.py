@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    AccountingTransportFinalized,
     BillingPreparationCreated,
     BillingPreparationExternalOutcomeRecorded,
     BillingPreparationLineAdded,
@@ -35,6 +36,7 @@ _BillingEvent = (
     | BillingPreparationLineRemoved
     | BillingPreparationStatusChanged
     | BillingPreparationExternalOutcomeRecorded
+    | AccountingTransportFinalized
 )
 
 # Both aggregate families stale the same single real UI read area (Financials -> "commercial"),

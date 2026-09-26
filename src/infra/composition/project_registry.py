@@ -105,6 +105,7 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernedServicePort,
 )
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    AccountingTransportFinalized,
     BillingPreparationCreated,
     BillingPreparationExternalOutcomeRecorded,
     BillingPreparationLineAdded,
@@ -1069,6 +1070,7 @@ def build_project_management_service_bundle(
         platform_services.platform_view_invalidation_channel
     )
     for _billing_event_type in (
+        AccountingTransportFinalized,
         BillingProfileCreated,
         BillingProfileActivated,
         BillingScheduleLineAdded,

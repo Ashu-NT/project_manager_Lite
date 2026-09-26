@@ -4,6 +4,7 @@ from sqlalchemy import (
     Integer,
     LargeBinary,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -90,3 +91,7 @@ class ProjectAccountingOutboxORM(IntegrationOutboxORMMixin, Base):
         {"info": {"rls_scope": "tenant_organization"}},
     )
     project_id: Mapped[str] = mapped_column(String, nullable=False)
+    target_adapter_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    target_connection_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    target_configuration_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    transport_receipt_json: Mapped[str | None] = mapped_column(Text, nullable=True)
