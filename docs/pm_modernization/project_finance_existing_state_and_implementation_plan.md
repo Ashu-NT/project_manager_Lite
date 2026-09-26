@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CURRENT; R6G-A COMPLETE; R6G-B COMPLETE; R6G-C COMPLETE; R6G-D NOT STARTED
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CURRENT; R6G-A COMPLETE; R6G-B COMPLETE; R6G-C COMPLETE; R6G-D IN PROGRESS
 Last updated: 2026-09-26
 Scope: Project Management finance plus reusable platform financial foundations
 
@@ -41,7 +41,76 @@ event-bus redesign are authorized by this clarification.
 
 R6G-B is complete: capability/configuration, dedicated authorization,
 immutable scoped handoff and owned outbox, atomic fresh-UoW request, RLS and
-concurrency evidence. R6G-C is complete. R6G-D is not started. R6D/E/F remain closed.
+concurrency evidence. R6G-C is complete. R6G-D is in progress. R6D/E/F remain closed.
+
+## R6G-D Implementation Evidence (Not Closure)
+
+R6G-D is CURRENT and IN PROGRESS. R6G-E has not started. The contracts and
+policies below are not yet a production ingress cutover; no authenticated
+endpoint is registered until the fresh-UoW consumer and its security matrix pass.
+
+Implemented foundations:
+
+- `core/platform/contract/port/integration/accounting_outcomes.py`: one strict
+  schema-v1 external business outcome; typed acknowledged/rejected/reconciled
+  categories, explicit source version/hash, required nullable remote sequence,
+  aware timestamp and required reconciliation reference for reconciliation only.
+  Project/preparation, arbitrary messages/statuses, invoice/payment fields and
+  unknown fields are rejected. Positive revisions are bounded to DB integer size.
+- Trusted `AccountingIngressAuthenticator` resolves tenant/org/adapter/connection
+  and non-interactive principal independently of payload claims. It also declares
+  whether the provider has authoritative sequence semantics. There is no vendor
+  authenticator or payload-derived authentication fallback.
+- `core/platform/application/integration/accounting/outcome_ingress.py`:
+  authentication precedes parsing. Bodies over 16 KiB are refused before processing;
+  an eventual transport adapter must also bound reads. Unauthenticated failures
+  never reach persistence. Authenticated malformed/scope/order failures carry
+  only trusted connection, SHA-256, length and a finite reason, not raw body or
+  credentials. Authentication exceptions are replaced by a safe fixed message.
+- `core/platform/integration/accounting_events.py`: canonical Platform envelope
+  mapping and consumer `project_management.accounting_outcomes.v1`. Event IDs
+  are namespaced by authenticated tenant/org/adapter/connection, NOT handoff, so
+  replay against another handoff conflicts rather than becoming a new event.
+  Reliable sequences version the handoff aggregate. Unsequenced immutable events
+  use event-level version one; no handoff order is fabricated from arrival time.
+- `domain/financials/accounting/outcome_policy.py` in PM: first business outcome
+  may acknowledge or reject; acknowledgement may reconcile; rejection and
+  reconciliation are terminal for that handoff. Corrections need their own
+  handoff. Duplicate receipt handling belongs to the inbox, not another mutation.
+  A business outcome cannot fabricate transport delivery; early outcomes lacking
+  that evidence are quarantined. This policy does not imply invoice/payment facts.
+- `application/financials/accounting/outcome_quarantine.py` in PM: existing inbox
+  persistence with a separate quarantine consumer identity preserves every
+  distinct fingerprint/reason. Repeated identical evidence returns the original
+  receipt without changing its timestamp/version. This supplements, rather than
+  replaces, Platform's single latest-conflict slot. Caller owns serialization,
+  authorization and commit; durable DB immutability enforcement is not yet proven.
+
+Evidence so far: 65 focused ingress/state-machine/canonical-inbox/quarantine
+tests pass, including duplicate-key rejection and equivalent timestamp-offset
+normalization. The broader Platform integration, service-identity, R6G-A/B/C,
+Approved Time and architecture regression matrix passed 317 tests (before four
+final parser/bounds cases, subsequently covered in the 65-case focused run).
+Targeted Ruff F/I, compilation and diff whitespace checks pass. These are
+foundation/SQLite tests, NOT live R6G-D PostgreSQL closure evidence.
+
+Next unfinished integration gate: scoped fresh-session consumer/composition.
+Resolve current connector and service identity from trusted scope; lock before
+dedup; resolve handoff to its local project/preparation and pinned destination;
+enforce source version/hash, correction identity, sequence and transition.
+Commit inbox, immutable business outcome, preparation status, audit and a narrowly
+scoped event together. Define current disabled-connector ingress rejection while
+preserving existing historical evidence. Do not use the requester as authority.
+
+The existing `record_external_outcome` path has been identified as superseded but
+has NOT been removed yet: it remains an interactive finance.manage entrypoint,
+has no authenticated connector boundary, and acceptance also manufactures a
+delivery transition. Its test/internal callers and event invalidation must move
+with the production cutover; do not close D with both authorities present.
+Also outstanding: database immutable-quarantine/scoped-parent proof, live runtime
+RLS/replay/concurrency/commit-failure matrix, consumer invalidation/project-switch
+proofs, full focused regressions and final closure evidence. No Accounting
+operations, FX, R6G-E UX, or commits are introduced by these foundations.
 
 ## R6G-C Closure: External Delivery Runtime
 
@@ -178,7 +247,7 @@ and scoped-parent matrices remain green through the real app_runtime role.
 Transport tests additionally cover receipt mismatch, secret/error redaction,
 typed failures, safe shutdown and unconfigured-host refusal.
 
-R6D/E/F remain CLOSED. R6G-D authenticated inbound is NOT STARTED; no Accounting
+At C closure, R6D/E/F remained CLOSED and R6G-D had not started; no Accounting
 business acknowledgement, vendor integration, invoice/payment/GL/AR/AP/tax,
 statutory recognition, FX, Procurement or Inventory operations were implemented.
 No commits were made by the agent.
@@ -678,7 +747,7 @@ quarantined, transport-delivered and business-acknowledged.
 | R6G-A COMPLETE | Current authority/contracts/optional behavior characterized; PM-only test and focused existing tests run. No delivery implementation. |
 | R6G-B COMPLETE: capability + durable request | Implemented and validated; see the R6G-B closure and file/evidence map above. One immutable handoff and scoped PM outbox, dedicated authorization, optional external eligibility, atomic fresh-UoW request and live runtime RLS/concurrency. No network publisher. |
 | R6G-C COMPLETE: worker + external port | Single ExternalAccountingDeliveryPort, runtime host, scoped fresh-UoW claim/network/finalize, destination pinning, injected secrets, canonical leases/retries and terminal ambiguity; old publisher removed. Focused/live PostgreSQL evidence and file map above. No vendor/Accounting aggregate implementation. |
-| R6G-D: authenticated inbound | Reuse inbox/dedup/quarantine with exact handoff/version correlation and scoped FKs; retain immutable conflicting evidence; ordered outcomes/contradiction policy; atomic inbox/outcome/audit; replay, reordered events, cross-scope parents and malformed ingress tests. No automatic invoice/payment semantics from generic status. |
+| R6G-D IN PROGRESS: authenticated inbound | Strict ingress/authentication contract, canonical envelope namespace, state policy and fingerprint quarantine foundations tested. Fresh-UoW production consumer, old-path removal, immutable/scoped DB guards and live security/atomicity/concurrency matrix remain mandatory; see implementation evidence above. No automatic invoice/payment semantics from generic status. |
 | R6G-E: status/operator UX | Bounded status/attempt/history Readers, precise capability/reason/state presentation, authorized retry/requeue and failure visibility, redaction, post-commit scoped invalidation, project-switch/keyboard/viewport tests. No local-config QML authorization. |
 | R6G-F: integrated closure | PM-only and enabled-connector matrices; live app_runtime RLS/concurrency, remote crash/restart/idempotency simulation, command atomicity, no lost work, one port/read architecture, payload/secret boundaries, broad PM/Platform regressions, cleanup of any temporary cutover scaffold, active-plan closure. |
 
