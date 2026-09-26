@@ -44,6 +44,27 @@ class ApprovalRepository(ABC):
     ) -> list[ApprovalRequest]: ...
 
     @abstractmethod
+    def count_by_status(
+        self,
+        status: ApprovalStatus | None = None,
+        *,
+        project_id: str | None = None,
+        entity_type: str | list[str] | None = None,
+        entity_id: str | None = None,
+    ) -> int: ...
+
+    @abstractmethod
+    def count_by_status_for_organization(
+        self,
+        organization_id: str,
+        status: ApprovalStatus | None = None,
+        *,
+        project_id: str | None = None,
+        entity_type: str | list[str] | None = None,
+        entity_id: str | None = None,
+    ) -> int: ...
+
+    @abstractmethod
     def project_belongs_to_organization(self, project_id: str, organization_id: str) -> bool: ...
 
 

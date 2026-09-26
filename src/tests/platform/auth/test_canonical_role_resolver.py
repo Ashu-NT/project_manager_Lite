@@ -5,17 +5,19 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.platform.application.security.authorization.roles import CanonicalRoleResolver
+from src.core.platform.application.security.authorization.roles import (
+    CanonicalRoleResolver,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.security.auth import (
+    Role,
+    RolePermissionBinding,
+)
 from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
     RoleBinding,
 )
-from src.core.platform.domain.security.auth import (
-    Role,
-    RolePermissionBinding,
-)
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyRoleBindingRepository,
 )

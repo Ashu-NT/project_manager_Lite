@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import date, datetime, time, timezone as dt_timezone
+from datetime import date, datetime, time
+from datetime import timezone as dt_timezone
 from enum import Enum
 
 from pydantic import field_validator, model_validator
@@ -334,7 +334,7 @@ class PlatformCalendar:
         return _normalize_optional_datetime(value)
 
     @model_validator(mode="after")
-    def _validate_effective_range(self) -> "PlatformCalendar":
+    def _validate_effective_range(self) -> PlatformCalendar:
         if (
             self.effective_from is not None
             and self.effective_to is not None
@@ -364,7 +364,7 @@ class PlatformCalendar:
         effective_to: date | None = None,
         priority: int = 0,
         created_by: str | None = None,
-    ) -> "PlatformCalendar":
+    ) -> PlatformCalendar:
         now = datetime.now(dt_timezone.utc)
         return PlatformCalendar(
             id=generate_id(),
@@ -481,7 +481,7 @@ class CalendarWorkingRule:
         return _normalize_int(value, default=0)
 
     @model_validator(mode="after")
-    def _validate_ranges(self) -> "CalendarWorkingRule":
+    def _validate_ranges(self) -> CalendarWorkingRule:
         if (
             self.start_time is not None
             and self.end_time is not None
@@ -518,7 +518,7 @@ class CalendarWorkingRule:
         effective_from: date | None = None,
         effective_to: date | None = None,
         priority: int = 0,
-    ) -> "CalendarWorkingRule":
+    ) -> CalendarWorkingRule:
         return CalendarWorkingRule(
             id=generate_id(),
             calendar_id=calendar_id,
@@ -683,7 +683,7 @@ class CalendarException:
         return _normalize_optional_datetime(value)
 
     @model_validator(mode="after")
-    def _validate_time_window(self) -> "CalendarException":
+    def _validate_time_window(self) -> CalendarException:
         if (
             self.start_time is not None
             and self.end_time is not None
@@ -712,7 +712,7 @@ class CalendarException:
         priority: int = 0,
         approval_status: str = "APPROVED",
         created_by: str | None = None,
-    ) -> "CalendarException":
+    ) -> CalendarException:
         now = datetime.now(dt_timezone.utc)
         return CalendarException(
             id=generate_id(),
@@ -877,7 +877,7 @@ class CalendarRecurringEvent:
         return _normalize_int(value, default=0)
 
     @model_validator(mode="after")
-    def _validate_event_window(self) -> "CalendarRecurringEvent":
+    def _validate_event_window(self) -> CalendarRecurringEvent:
         if self.end_time <= self.start_time:
             raise ValidationError(
                 "start_time must be before end_time.",
@@ -906,7 +906,7 @@ class CalendarRecurringEvent:
         capacity_impact_percent: float | None = None,
         effective_to: date | None = None,
         priority: int = 0,
-    ) -> "CalendarRecurringEvent":
+    ) -> CalendarRecurringEvent:
         return CalendarRecurringEvent(
             id=generate_id(),
             calendar_id=calendar_id,
@@ -1023,7 +1023,7 @@ class ShiftPattern:
         description: str | None = None,
         rotation_cycle_days: int | None = None,
         anchor_date: date | None = None,
-    ) -> "ShiftPattern":
+    ) -> ShiftPattern:
         return ShiftPattern(
             id=generate_id(),
             organization_id=organization_id,
@@ -1097,7 +1097,7 @@ class ShiftPatternDay:
         return _normalize_optional_free_text(value)
 
     @model_validator(mode="after")
-    def _validate_time_window(self) -> "ShiftPatternDay":
+    def _validate_time_window(self) -> ShiftPatternDay:
         if (
             self.start_time is not None
             and self.end_time is not None
@@ -1132,7 +1132,7 @@ class ShiftPatternDay:
         break_minutes: int = 0,
         hours: float | None = None,
         shift_label: str | None = None,
-    ) -> "ShiftPatternDay":
+    ) -> ShiftPatternDay:
         return ShiftPatternDay(
             id=generate_id(),
             shift_pattern_id=shift_pattern_id,
@@ -1194,7 +1194,7 @@ class SiteCalendarAssignment:
         return _normalize_int(value, default=0)
 
     @model_validator(mode="after")
-    def _validate_effective_range(self) -> "SiteCalendarAssignment":
+    def _validate_effective_range(self) -> SiteCalendarAssignment:
         if (
             self.effective_from is not None
             and self.effective_to is not None
@@ -1215,7 +1215,7 @@ class SiteCalendarAssignment:
         effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
-    ) -> "SiteCalendarAssignment":
+    ) -> SiteCalendarAssignment:
         return SiteCalendarAssignment(
             id=generate_id(),
             site_id=site_id,
@@ -1275,7 +1275,7 @@ class DepartmentCalendarAssignment:
         return _normalize_int(value, default=0)
 
     @model_validator(mode="after")
-    def _validate_effective_range(self) -> "DepartmentCalendarAssignment":
+    def _validate_effective_range(self) -> DepartmentCalendarAssignment:
         if (
             self.effective_from is not None
             and self.effective_to is not None
@@ -1296,7 +1296,7 @@ class DepartmentCalendarAssignment:
         effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
-    ) -> "DepartmentCalendarAssignment":
+    ) -> DepartmentCalendarAssignment:
         return DepartmentCalendarAssignment(
             id=generate_id(),
             department_id=department_id,
@@ -1356,7 +1356,7 @@ class EmployeeCalendarAssignment:
         return _normalize_int(value, default=0)
 
     @model_validator(mode="after")
-    def _validate_effective_range(self) -> "EmployeeCalendarAssignment":
+    def _validate_effective_range(self) -> EmployeeCalendarAssignment:
         if (
             self.effective_from is not None
             and self.effective_to is not None
@@ -1377,7 +1377,7 @@ class EmployeeCalendarAssignment:
         effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
-    ) -> "EmployeeCalendarAssignment":
+    ) -> EmployeeCalendarAssignment:
         return EmployeeCalendarAssignment(
             id=generate_id(),
             employee_id=employee_id,

@@ -210,7 +210,7 @@ class Document:
         )
 
     @model_validator(mode="after")
-    def _validate_date_window(self) -> "Document":
+    def _validate_date_window(self) -> Document:
         if (
             self.effective_date is not None
             and self.review_date is not None
@@ -245,7 +245,7 @@ class Document:
         is_current: bool = True,
         notes: str = "",
         is_active: bool = True,
-    ) -> "Document":
+    ) -> Document:
         now = datetime.now(timezone.utc)
         return Document(
             id=generate_id(),

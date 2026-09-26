@@ -20,7 +20,7 @@ class ProjectBillingRepository(ABC):
     def add_profile(self, profile: ProjectBillingProfile) -> None: ...
 
     @abstractmethod
-    def get_profile(self, project_id: str) -> ProjectBillingProfile | None: ...
+    def get_profile(self, project_id: str, *, for_update: bool = False) -> ProjectBillingProfile | None: ...
 
     @abstractmethod
     def update_profile(
@@ -45,7 +45,7 @@ class ProjectBillingRepository(ABC):
     def add_preparation(self, preparation: ProjectBillingPreparation) -> None: ...
 
     @abstractmethod
-    def get_preparation(self, preparation_id: str) -> ProjectBillingPreparation | None: ...
+    def get_preparation(self, preparation_id: str, *, for_update: bool = False) -> ProjectBillingPreparation | None: ...
 
     @abstractmethod
     def get_preparation_by_idempotency_key(
@@ -75,6 +75,11 @@ class ProjectBillingRepository(ABC):
     ) -> list[ProjectBillingPreparationLine]: ...
 
     @abstractmethod
+    def remove_draft_line(
+        self, preparation_id: str, line_id: str
+    ) -> None: ...
+
+    @abstractmethod
     def get_source_lock(
         self, *, source_type: BillableSourceType, source_id: str
     ) -> ProjectBillingSourceLock | None: ...
@@ -87,11 +92,6 @@ class ProjectBillingRepository(ABC):
 
     @abstractmethod
     def add_external_event(self, event: ProjectBillingExternalEvent) -> None: ...
-
-    @abstractmethod
-    def get_external_event_by_idempotency_key(
-        self, *, external_system: str, idempotency_key: str
-    ) -> ProjectBillingExternalEvent | None: ...
 
     @abstractmethod
     def list_external_events(

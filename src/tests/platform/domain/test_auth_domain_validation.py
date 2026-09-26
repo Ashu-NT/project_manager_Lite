@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime
 
 import pytest
 
 from src.core.platform.application.security.auth.auth_service import AuthService
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.security.auth import (
     AuthSession,
     Permission,
@@ -13,8 +13,9 @@ from src.core.platform.domain.security.auth import (
     RolePermissionBinding,
     UserAccount,
 )
-from src.core.platform.domain.security.auth.user import normalize_auth_session_timeout_override
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.domain.security.auth.user import (
+    normalize_auth_session_timeout_override,
+)
 
 
 class _FakeNestedTransaction:
@@ -229,7 +230,9 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         lambda raw_password, password_hash: password_hash == f"hash::{raw_password}",
     )
 
-    from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+    from src.infra.events.in_process_post_commit_event_bus import (
+        InProcessPostCommitEventBus,
+    )
     from src.infra.events.in_process_transactional_event_dispatcher import (
         InProcessTransactionalEventDispatcher,
     )

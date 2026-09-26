@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from datetime import date, time, timedelta
-from src.core.platform.api.desktop.support._support import execute_desktop_operation
+
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
     CalendarAssignmentDto,
     CalendarCreateCommand,
@@ -25,8 +26,8 @@ from src.core.platform.api.desktop.time_management.calendar.models.enterprise_ca
     ResourceCapacityCommand,
     ResourceCapacityDto,
     ShiftPatternCreateCommand,
-    ShiftPatternDaySetCommand,
     ShiftPatternDayDto,
+    ShiftPatternDaySetCommand,
     ShiftPatternDto,
     ShiftPatternUpdateCommand,
     SiteCalendarAssignCommand,
@@ -38,20 +39,25 @@ from src.core.platform.api.desktop.time_management.calendar.models.enterprise_ca
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
-)
 from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
     EnterpriseCalendarResolver,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
+    CalendarExceptionService,
 )
 from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
     RecurringEventService,
 )
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
+    ShiftPatternService,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarException,
     CalendarRecurringEvent,
@@ -60,7 +66,6 @@ from src.core.platform.domain.time_management.calendar.enterprise_calendar impor
     ShiftPattern,
     ShiftPatternDay,
 )
-from src.core.platform.common.exceptions import NotFoundError
 
 
 def _parse_date(value: str) -> date | None:
@@ -839,8 +844,10 @@ class EnterpriseCalendarDesktopApi:
         self, command: ResourceCapacityCommand
     ) -> DesktopApiResult:
         if self._capacity_calculator is None:
-            from src.core.platform.api.desktop.models.common import DesktopApiResult
-            from src.core.platform.api.desktop.models.common import DesktopApiError
+            from src.core.platform.api.desktop.models.common import (
+                DesktopApiError,
+                DesktopApiResult,
+            )
             return DesktopApiResult(
                 ok=False,
                 error=DesktopApiError(

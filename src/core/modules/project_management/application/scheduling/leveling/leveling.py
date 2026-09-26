@@ -1,15 +1,20 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date, timedelta
-from typing import Callable
 
-from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
 from src.core.modules.project_management.application.scheduling.models.leveling import (
     ResourceConflict,
     ResourceConflictEntry,
+)
+from src.core.modules.project_management.domain.tasks.task import (
+    Task,
+    TaskAssignment,
+    TaskDependency,
+)
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
 )
 
 
@@ -121,7 +126,7 @@ def _iter_workdays(start: date, end: date, calendar: CalendarProtocol):
 
 
 __all__ = [
-    "build_successors_map",
     "build_resource_conflicts",
+    "build_successors_map",
     "choose_auto_level_task",
 ]

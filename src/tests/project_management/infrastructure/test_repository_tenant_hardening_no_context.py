@@ -2,27 +2,27 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.calendar_assignment import (
-    SqlAlchemyProjectCalendarAssignmentRepository,
-    SqlAlchemyResourceCalendarAssignmentRepository,
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.configuration.financial_configuration import (
+    SqlAlchemyProjectCostCodeRepository,
+    SqlAlchemyProjectFinancialProfileRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.portfolio.portfolio import (
     SqlAlchemyPortfolioIntakeRepository,
     SqlAlchemyPortfolioProjectDependencyRepository,
-    SqlAlchemyPortfolioScoringTemplateRepository,
     SqlAlchemyPortfolioScenarioRepository,
+    SqlAlchemyPortfolioScoringTemplateRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectResourceRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.configuration.financial_configuration import (
-    SqlAlchemyProjectCostCodeRepository,
-    SqlAlchemyProjectFinancialProfileRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.resources.skills import (
     SqlAlchemyResourceCertificationRepository,
     SqlAlchemyResourceSkillRepository,
     SqlAlchemyTaskSkillRequirementRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.calendar_assignment import (
+    SqlAlchemyProjectCalendarAssignmentRepository,
+    SqlAlchemyResourceCalendarAssignmentRepository,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import Property, QObject, Signal, Slot, QUrl
+from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtQml import QmlElement, QmlUncreatable
 

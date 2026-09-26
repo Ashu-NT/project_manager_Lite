@@ -7,20 +7,20 @@ from src.core.modules.project_management.access.scope_permissions import (
     filter_project_rows,
     require_project_permission,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import (
-    ProjectRepository,
-)
 from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.projects import (
     ProjectActivityPage,
-    ProjectCatalogReadPage,
     ProjectCatalogReader,
+    ProjectCatalogReadPage,
     ProjectResourceDetailPage,
 )
-from src.core.modules.project_management.contracts.reads import ReadSort
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (

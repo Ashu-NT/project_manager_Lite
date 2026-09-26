@@ -21,14 +21,14 @@ from src.ui_qml.modules.project_management.presenters.register import (
 from src.ui_qml.modules.project_management.presenters.resources import (
     ProjectResourcesWorkspacePresenter,
 )
+from src.ui_qml.modules.project_management.presenters.review_queue import (
+    ProjectTimesheetsWorkspacePresenter,
+)
 from src.ui_qml.modules.project_management.presenters.scheduling import (
     ProjectSchedulingWorkspacePresenter,
 )
 from src.ui_qml.modules.project_management.presenters.tasks import (
     ProjectTasksWorkspacePresenter,
-)
-from src.ui_qml.modules.project_management.presenters.timesheets import (
-    ProjectTimesheetsWorkspacePresenter,
 )
 from src.ui_qml.modules.project_management.presenters.workspace_presenter import (
     ProjectManagementWorkspacePresenter,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Protocol
 
@@ -33,7 +33,6 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-
 
 logger = logging.getLogger(__name__)
 
@@ -88,12 +87,27 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
         baseline_id: str | None = None,
     ) -> PerformanceEvmFact:
         self._authorize_finance(project_id, "view earned value performance")
-        resolved_as_of = as_of_date or date.today()
+        resolved_as_of = as_of_date or datetime.now(timezone.utc).astimezone().date()
         basis = self._read_basis(project_id, resolved_as_of)
+        return self._read_evm(
+            project_id=project_id,
+            as_of_date=resolved_as_of,
+            basis=basis,
+            baseline_id=baseline_id,
+        )
+
+    def _read_evm(
+        self,
+        *,
+        project_id: str,
+        as_of_date: date,
+        basis: object,
+        baseline_id: str | None,
+    ) -> PerformanceEvmFact:
         try:
             metrics = self._earned_value_authority.get_earned_value(
                 project_id,
-                as_of=resolved_as_of,
+                as_of=as_of_date,
                 baseline_id=baseline_id,
             )
         except BusinessRuleError as exc:
@@ -101,53 +115,51 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
                 raise
             return self._unavailable_evm(
                 project_id=project_id,
-                as_of_date=resolved_as_of,
+                as_of_date=as_of_date,
                 basis=basis,
                 availability=self._evm_availability(exc),
                 reason=str(exc),
                 baseline_id=baseline_id,
             )
-        except Exception as exc:  # R6E owns replacement of the current calculator.
+        except Exception:
             logger.exception(
                 "PM Performance EVM calculation unavailable project=%s as_of=%s",
                 project_id,
-                resolved_as_of,
+                as_of_date,
             )
             return self._unavailable_evm(
                 project_id=project_id,
-                as_of_date=resolved_as_of,
+                as_of_date=as_of_date,
                 basis=basis,
                 availability="calculator_error",
                 reason="Earned value is temporarily unavailable.",
                 baseline_id=baseline_id,
             )
 
-        etc = self._optional_float(getattr(metrics, "ETC", None))
+        etc = self._optional_decimal(getattr(metrics, "ETC", None))
         return PerformanceEvmFact(
             project_id=project_id,
-            as_of_date=resolved_as_of,
-            availability="available" if etc is not None else "forecast_unavailable",
-            unavailable_reason=(
-                "" if etc is not None else "No approved Forecast exists for this as-of date; ETC, EAC, and VAC are unavailable."
-            ),
+            as_of_date=as_of_date,
+            availability=str(getattr(metrics, "availability", "available")),
+            unavailable_reason=str(getattr(metrics, "unavailable_reason", "") or ""),
             baseline_id=str(getattr(metrics, "baseline_id", "") or "") or None,
             budget_revision=basis.approved_budget_revision,
             forecast_revision=basis.approved_forecast_revision,
             forecast_as_of=basis.approved_forecast_as_of,
             currency_code=basis.currency_code,
-            bac=self._optional_float(getattr(metrics, "BAC", None)),
-            pv=self._optional_float(getattr(metrics, "PV", None)),
-            ev=self._optional_float(getattr(metrics, "EV", None)),
-            ac=self._optional_float(getattr(metrics, "AC", None)),
-            cv=None,
-            sv=None,
-            cpi=self._optional_float(getattr(metrics, "CPI", None)),
-            spi=self._optional_float(getattr(metrics, "SPI", None)),
+            bac=self._optional_decimal(getattr(metrics, "BAC", None)),
+            pv=self._optional_decimal(getattr(metrics, "PV", None)),
+            ev=self._optional_decimal(getattr(metrics, "EV", None)),
+            ac=self._optional_decimal(getattr(metrics, "AC", None)),
+            cv=self._optional_decimal(getattr(metrics, "CV", None)),
+            sv=self._optional_decimal(getattr(metrics, "SV", None)),
+            cpi=self._optional_decimal(getattr(metrics, "CPI", None)),
+            spi=self._optional_decimal(getattr(metrics, "SPI", None)),
             etc=etc,
-            eac=self._optional_float(getattr(metrics, "EAC", None)),
-            vac=self._optional_float(getattr(metrics, "VAC", None)),
-            tcpi_bac=self._optional_float(getattr(metrics, "TCPI_to_BAC", None)),
-            tcpi_eac=self._optional_float(getattr(metrics, "TCPI_to_EAC", None)),
+            eac=self._optional_decimal(getattr(metrics, "EAC", None)),
+            vac=self._optional_decimal(getattr(metrics, "VAC", None)),
+            tcpi_bac=self._optional_decimal(getattr(metrics, "TCPI_to_BAC", None)),
+            tcpi_eac=self._optional_decimal(getattr(metrics, "TCPI_to_EAC", None)),
             notes=str(getattr(metrics, "notes", "") or ""),
         )
 
@@ -159,7 +171,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
         selected_baseline_id: str | None = None,
     ) -> PerformanceVarianceFacts:
         self._authorize_finance(project_id, "view finance variance")
-        resolved_as_of = as_of_date or date.today()
+        resolved_as_of = as_of_date or datetime.now(timezone.utc).astimezone().date()
         basis = self._read_basis(project_id, resolved_as_of)
         baselines = tuple(
             item
@@ -184,7 +196,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             tuple(
                 sorted(
                     self._baseline_variance_authority.list_variance_records(
-                        str(getattr(selected, "id")),
+                        str(selected.id),
                         expected_project_id=project_id,
                     ),
                     key=lambda row: abs(Decimal(getattr(row, "cost_variance", 0) or 0)),
@@ -194,35 +206,46 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             if selected is not None
             else ()
         )
-        vac = basis.variance_at_completion
+        evm = self._read_evm(
+            project_id=project_id,
+            as_of_date=resolved_as_of,
+            basis=basis,
+            baseline_id=None,
+        )
         revision = self._revision_label(
             basis.approved_budget_revision,
             basis.approved_forecast_revision,
         )
         metrics = (
-            PerformanceVarianceMetricFact(
+            self._evm_variance_metric(
+                metric_code="cost_variance",
+                display_name="Cost Variance (CV)",
+                value=evm.cv,
+                evm=evm,
+                sign_convention="Positive is favorable; negative is unfavorable.",
+                semantic_tooltip="Earned Value minus Actual Cost (EV - AC).",
+            ),
+            self._evm_variance_metric(
+                metric_code="schedule_variance",
+                display_name="Schedule Variance (SV)",
+                value=evm.sv,
+                evm=evm,
+                sign_convention="Positive is ahead in earned-value terms; negative is behind.",
+                semantic_tooltip="Earned Value minus Planned Value (EV - PV); this is monetary EVM variance, not schedule days.",
+            ),
+            self._evm_variance_metric(
                 metric_code="vac",
                 display_name="Variance at Completion (VAC)",
-                value=vac,
-                currency_code=basis.currency_code,
-                unit="money",
-                sign_convention="Positive is favorable remaining Budget; negative is projected overrun.",
-                as_of_date=resolved_as_of,
-                source_revision=revision,
-                availability="available" if vac is not None else "forecast_unavailable",
-                unavailable_reason="No approved Forecast exists for this as-of date." if vac is None else "",
+                value=evm.vac,
+                evm=evm,
+                sign_convention="Positive is favorable; negative is projected overrun.",
+                semantic_tooltip="Budget at Completion minus Estimate at Completion (BAC - EAC).",
             ),
-            PerformanceVarianceMetricFact(
-                metric_code="budget_pressure",
-                display_name="Budget Pressure",
-                value=None if vac is None else -vac,
-                currency_code=basis.currency_code,
-                unit="money",
-                sign_convention="Positive is projected overrun; negative is favorable headroom.",
+            self._budget_pressure_metric(
+                basis=basis,
+                evm=evm,
                 as_of_date=resolved_as_of,
-                source_revision=revision,
-                availability="available" if vac is not None else "forecast_unavailable",
-                unavailable_reason="No approved Forecast exists for this as-of date." if vac is None else "",
+                revision=revision,
             ),
             PerformanceVarianceMetricFact(
                 metric_code="period_actual_vs_planned",
@@ -234,19 +257,9 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
                 as_of_date=resolved_as_of,
                 source_revision="Select a bounded Cost Phasing period",
                 availability="period_required",
+                favorability="unavailable",
+                semantic_tooltip="Period Actual versus Planned requires the bounded Cost Phasing authority and is not inferred by Variance.",
                 unavailable_reason="A bounded comparison period is required; no value is inferred here.",
-            ),
-            PerformanceVarianceMetricFact(
-                metric_code="schedule_variance",
-                display_name="EVM Schedule Variance",
-                value=None,
-                currency_code=basis.currency_code,
-                unit="money",
-                sign_convention="Positive is ahead of the cost-loaded baseline schedule.",
-                as_of_date=resolved_as_of,
-                source_revision="EVM authority",
-                availability="evm_required",
-                unavailable_reason="Review the EVM subsection; baseline movement below is plan-to-plan history, not EVM SV.",
             ),
         )
         return PerformanceVarianceFacts(
@@ -256,7 +269,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             budget_revision=basis.approved_budget_revision,
             forecast_revision=basis.approved_forecast_revision,
             forecast_as_of=basis.approved_forecast_as_of,
-            selected_baseline_id=("" if selected is None else str(getattr(selected, "id"))),
+            selected_baseline_id=("" if selected is None else str(selected.id)),
             selected_baseline_label=(
                 ""
                 if selected is None
@@ -279,6 +292,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
         date_from: date,
         date_to: date,
         granularity: str = "month",
+        as_of_date: date | None = None,
     ) -> CostPhasingFacts:
         self._authorize_finance(project_id, "view project cost phasing")
         normalized_granularity = str(granularity or "").strip().lower()
@@ -309,6 +323,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
                 date_from=date_from,
                 date_to=date_to,
                 granularity=normalized_granularity,
+                as_of_date=as_of_date,
             ),
         )
         if facts is None:
@@ -333,7 +348,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             operation_label="view project finance reports",
         )
         self._authorize_finance(project_id, "view project finance report basis")
-        resolved_as_of = as_of_date or date.today()
+        resolved_as_of = as_of_date or datetime.now(timezone.utc).astimezone().date()
         basis = self._read_basis(project_id, resolved_as_of)
         return PerformanceReportsFacts(
             project_id=project_id,
@@ -382,15 +397,14 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
         return basis
 
     @staticmethod
-    def _optional_float(value: object) -> float | None:
-        return None if value is None else float(value)
+    def _optional_decimal(value: object) -> Decimal | None:
+        return None if value is None else Decimal(str(value))
 
     @staticmethod
     def _evm_availability(exc: BusinessRuleError) -> str:
         return {
             "NO_BASELINE": "baseline_unavailable",
             "BASELINE_EMPTY": "baseline_unavailable",
-            "ACTUAL_COST_INCOMPLETE": "actual_cost_unavailable",
         }.get(str(getattr(exc, "code", "")), "prerequisite_unavailable")
 
     @staticmethod
@@ -402,6 +416,88 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             f"Budget r{budget_revision if budget_revision is not None else 'N/A'} / "
             f"Forecast r{forecast_revision if forecast_revision is not None else 'N/A'}"
         )
+
+    @staticmethod
+    def _evm_variance_metric(
+        *,
+        metric_code: str,
+        display_name: str,
+        value: Decimal | None,
+        evm: PerformanceEvmFact,
+        sign_convention: str,
+        semantic_tooltip: str,
+    ) -> PerformanceVarianceMetricFact:
+        unavailable_reason = "" if value is not None else evm.unavailable_reason
+        return PerformanceVarianceMetricFact(
+            metric_code=metric_code,
+            display_name=display_name,
+            value=value,
+            currency_code=evm.currency_code,
+            unit="money",
+            sign_convention=sign_convention,
+            as_of_date=evm.as_of_date,
+            source_revision="Canonical Decimal EVM",
+            availability="available" if value is not None else evm.availability,
+            favorability=ProjectFinancePerformanceQuery._favorable_state(value),
+            semantic_tooltip=semantic_tooltip,
+            unavailable_reason=unavailable_reason,
+        )
+
+    @staticmethod
+    def _budget_pressure_metric(
+        *,
+        basis: object,
+        evm: PerformanceEvmFact,
+        as_of_date: date,
+        revision: str,
+    ) -> PerformanceVarianceMetricFact:
+        approved_budget_id = getattr(basis, "approved_budget_id", None)
+        if not approved_budget_id:
+            value = None
+            availability = "budget_unavailable"
+            unavailable_reason = "No approved Budget exists for this as-of date."
+        elif evm.eac is None:
+            value = None
+            availability = evm.availability
+            unavailable_reason = evm.unavailable_reason or "EAC is unavailable."
+        else:
+            value = evm.eac - Decimal(str(getattr(basis, "approved_budget", "0")))
+            availability = "available"
+            unavailable_reason = ""
+        return PerformanceVarianceMetricFact(
+            metric_code="budget_pressure",
+            display_name="Budget Pressure",
+            value=value,
+            currency_code=evm.currency_code,
+            unit="money",
+            sign_convention="Positive is projected pressure; negative is favorable headroom.",
+            as_of_date=as_of_date,
+            source_revision=revision,
+            availability=availability,
+            favorability=ProjectFinancePerformanceQuery._pressure_state(value),
+            semantic_tooltip="Estimate at Completion minus the exact total of the approved Budget (EAC - Approved Budget).",
+            unavailable_reason=unavailable_reason,
+        )
+
+    @staticmethod
+    def _favorable_state(value: Decimal | None) -> str:
+        if value is None:
+            return "unavailable"
+        if value > 0:
+            return "favorable"
+        if value < 0:
+            return "unfavorable"
+        return "on_target"
+
+    @staticmethod
+    def _pressure_state(value: Decimal | None) -> str:
+        if value is None:
+            return "unavailable"
+        if value > 0:
+            return "unfavorable"
+        if value < 0:
+            return "favorable"
+        return "on_target"
 
     @staticmethod
     def _unavailable_evm(

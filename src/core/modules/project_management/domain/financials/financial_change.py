@@ -15,7 +15,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.finance.money.currency import CurrencyCode
+from src.core.platform.domain.finance.money.currency import CurrencyCode
 
 
 class FinancialChangeStatus(str, Enum):
@@ -169,7 +169,7 @@ class FinancialChangeRequest:
         return _timestamp(value, code=f"FINANCIAL_CHANGE_{info.field_name.upper()}_INVALID")
 
     @model_validator(mode="after")
-    def _base_pairs(self) -> "FinancialChangeRequest":
+    def _base_pairs(self) -> FinancialChangeRequest:
         if (self.base_budget_id is None) != (self.base_budget_revision is None):
             raise ValidationError(
                 "Financial change base budget id and revision must be provided together.",
@@ -270,7 +270,7 @@ class FinancialChangeRequest:
         revision: int,
         created_at: datetime | None = None,
         **values,
-    ) -> "FinancialChangeRequest":
+    ) -> FinancialChangeRequest:
         now = created_at or _utc_now()
         return FinancialChangeRequest(
             id=generate_id(),
@@ -298,7 +298,7 @@ class FinancialChangeImpact:
     project_id: str
     impact_type: FinancialChangeImpactType
     description: str
-    amount: Decimal = Decimal("0")
+    amount: Decimal = Decimal(0)
     currency_code: str | None = None
     cost_code_id: str | None = None
     task_id: str | None = None
@@ -388,7 +388,7 @@ class FinancialChangeImpact:
         return resolved
 
     @model_validator(mode="after")
-    def _typed_shape(self) -> "FinancialChangeImpact":
+    def _typed_shape(self) -> FinancialChangeImpact:
         monetary = {
             FinancialChangeImpactType.BUDGET,
             FinancialChangeImpactType.FORECAST,
@@ -496,7 +496,7 @@ class FinancialChangeImpact:
         description: str,
         created_at: datetime | None = None,
         **values,
-    ) -> "FinancialChangeImpact":
+    ) -> FinancialChangeImpact:
         now = created_at or _utc_now()
         return FinancialChangeImpact(
             id=generate_id(),

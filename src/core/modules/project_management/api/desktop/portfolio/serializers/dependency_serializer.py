@@ -1,6 +1,12 @@
-from src.core.modules.project_management.api.desktop.portfolio.models.dependencies import PortfolioDependencyDesktopDto
-from src.core.modules.project_management.api.desktop.portfolio.formatters.date_formatter import format_datetime
-from src.core.modules.project_management.api.desktop.common.dependency_presentation import dependency_type_label
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
+    dependency_type_label,
+)
+from src.core.modules.project_management.api.desktop.portfolio.formatters.date_formatter import (
+    format_datetime,
+)
+from src.core.modules.project_management.api.desktop.portfolio.models.dependencies import (
+    PortfolioDependencyDesktopDto,
+)
 
 
 def serialize_dependency(row) -> PortfolioDependencyDesktopDto:

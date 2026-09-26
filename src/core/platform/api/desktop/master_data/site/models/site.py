@@ -28,6 +28,17 @@ class SiteDto:
     version: int
     opened_at: datetime | None = None
     closed_at: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class SitePageDto:
+    items: tuple[SiteDto, ...] = ()
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
 
 
 @dataclass(frozen=True)
@@ -51,15 +62,17 @@ class SiteCreateCommand:
     timezone_name: str = ""
     currency_code: str = ""
     site_type: str = ""
-    status: str = ""
     default_calendar_id: str = ""
     default_language: str = ""
-    is_active: bool = True
     notes: str = ""
 
 
 @dataclass(frozen=True)
 class SiteUpdateCommand:
+    """Pure profile update -- lifecycle (status/is_active) is never accepted
+    here; use PlatformSiteDesktopApi.activate_site/deactivate_site/
+    archive_site instead, each with its own guarded transition."""
+
     site_id: str
     site_code: str | None = None
     name: str | None = None
@@ -73,9 +86,7 @@ class SiteUpdateCommand:
     timezone_name: str | None = None
     currency_code: str | None = None
     site_type: str | None = None
-    status: str | None = None
     default_calendar_id: str | None = None
     default_language: str | None = None
-    is_active: bool | None = None
     notes: str | None = None
     expected_version: int | None = None

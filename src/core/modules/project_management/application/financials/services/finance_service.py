@@ -1,48 +1,23 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import cast
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
-    LaborRateResolver,
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
-    FinanceSnapshotReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_overview_reader import (
-    FinanceOverviewReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
-    FinanceOverviewFacts,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
-    FinanceSnapshotFacts,
-)
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-
-from src.core.modules.project_management.application.financials.reporting.analytics import (
-    build_dimension_analytics,
-    build_source_analytics,
-)
-from src.core.modules.project_management.application.financials.cost_phasing.cost_phasing_builder import (
-    build_period_cost_phasing,
-)
-from src.core.modules.project_management.application.financials.utils.helpers import (
-    normalize_currency,
-    normalize_period,
-)
-from src.core.modules.project_management.application.financials.cost.engines.ledger import (
-    build_finance_ledger_rows,
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
 )
 from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostPolicyEngine,
 )
 from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
     LaborCostEngine,
+)
+from src.core.modules.project_management.application.financials.cost.engines.ledger import (
+    build_finance_ledger_rows,
 )
 from src.core.modules.project_management.application.financials.models.finance_models import (
     FinanceAnalyticsRow,
@@ -51,7 +26,42 @@ from src.core.modules.project_management.application.financials.models.finance_m
     FinanceReconciliation,
     FinanceSnapshot,
 )
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.financials.reporting.analytics import (
+    build_dimension_analytics,
+    build_source_analytics,
+)
+from src.core.modules.project_management.application.financials.utils.helpers import (
+    normalize_currency,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_overview_reader import (
+    FinanceOverviewReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_performance_reader import (
+    FinancePerformanceReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
+    FinanceSnapshotReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+    FinanceOverviewFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
+    CostPhasingQuery,
+    CostPhasingSeriesAvailabilityFact,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+    FinanceSnapshotFacts,
+)
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
+    LaborRateResolver,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
 class FinanceService(ProjectManagementModuleGuardMixin):
@@ -62,12 +72,14 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         *,
         rate_resolver: LaborRateResolver,
         finance_snapshot_reader: FinanceSnapshotReader,
+        finance_performance_reader: FinancePerformanceReader,
         finance_overview_reader: FinanceOverviewReader | None = None,
         tenant_context_service: TenantContextService,
         user_session=None,
         module_catalog_service=None,
     ) -> None:
         self._finance_snapshot_reader: FinanceSnapshotReader = finance_snapshot_reader
+        self._finance_performance_reader = finance_performance_reader
         self._finance_overview_reader = finance_overview_reader or cast(
             FinanceOverviewReader,
             finance_snapshot_reader,
@@ -101,7 +113,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             "finance.read",
             operation_label="view finance overview",
         )
-        as_of = as_of or date.today()
+        as_of = as_of or datetime.now(timezone.utc).astimezone().date()
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="build finance overview"
         )
@@ -122,14 +134,16 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         as_of: date | None = None,
         period: str = "month",
     ) -> FinanceSnapshot:
-        require_permission(self._user_session, "finance.read", operation_label="view finance snapshot")
+        require_permission(
+            self._user_session, "finance.read", operation_label="view finance snapshot"
+        )
         require_project_permission(
             self._user_session,
             project_id,
             "finance.read",
             operation_label="view finance snapshot",
         )
-        as_of = as_of or date.today()
+        as_of = as_of or datetime.now(timezone.utc).astimezone().date()
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="build finance snapshot"
         )
@@ -204,6 +218,13 @@ class FinanceService(ProjectManagementModuleGuardMixin):
                 "is not granted."
             )
 
+        cost_phasing, cost_phasing_availability = self._read_canonical_cost_phasing(
+            scope=scope,
+            facts=facts,
+            project_id=project_id,
+            as_of=as_of,
+        )
+
         return FinanceSnapshot(
             project_id=project_id,
             project_currency=(
@@ -216,34 +237,40 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             actual=totals.actual,
             forecast_etc=totals.forecast_etc,
             estimate_at_completion=totals.estimate_at_completion,
-            variance_at_completion=totals.variance_at_completion,
+            budget_headroom=totals.budget_headroom,
             exposure=totals.exposure,
             available=totals.available,
             as_of=as_of,
             approved_budget_id=facts.project.approved_budget_id,
             approved_budget_revision=facts.project.approved_budget_revision,
             approved_forecast_id=(
-                None if facts.approved_forecast is None
+                None
+                if facts.approved_forecast is None
                 else facts.approved_forecast.forecast_id
             ),
             approved_forecast_revision=(
-                None if facts.approved_forecast is None
+                None
+                if facts.approved_forecast is None
                 else facts.approved_forecast.revision
             ),
             approved_forecast_as_of=(
-                None if facts.approved_forecast is None
+                None
+                if facts.approved_forecast is None
                 else facts.approved_forecast.as_of_date
             ),
             currency_basis="PROJECT_CURRENCY",
-            period_granularity=normalize_period(period),
+            # Snapshot/report cost phasing is canonically monthly until a
+            # dedicated report query exposes a second authoritative grain.
+            period_granularity="month",
             sensitive_detail_included=can_read_sensitive,
             reconciliation=reconciliation,
             ledger=ledger,
-            cost_phasing=build_period_cost_phasing(
-                ledger=ledger, period=period, as_of=as_of
-            ),
+            cost_phasing=cost_phasing,
+            cost_phasing_availability=cost_phasing_availability,
             by_source=build_source_analytics(source_breakdown.rows),
-            by_cost_type=build_dimension_analytics(ledger=ledger, dimension="cost_type"),
+            by_cost_type=build_dimension_analytics(
+                ledger=ledger, dimension="cost_type"
+            ),
             by_resource=(
                 build_dimension_analytics(ledger=ledger, dimension="resource")
                 if can_read_sensitive
@@ -252,6 +279,40 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             by_task=build_dimension_analytics(ledger=ledger, dimension="task"),
             notes=notes,
             unresolved_labor_rates=totals.unresolved_labor_rates,
+        )
+
+    def _read_canonical_cost_phasing(
+        self, *, scope, facts, project_id: str, as_of: date
+    ) -> tuple[list[FinancePeriodRow], tuple[CostPhasingSeriesAvailabilityFact, ...]]:
+        date_from = facts.project.start_date or date(as_of.year, 1, 1)
+        result = self._finance_performance_reader.read_cost_phasing(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            query=CostPhasingQuery(
+                date_from=min(date_from, as_of),
+                date_to=as_of,
+                granularity="month",
+                as_of_date=as_of,
+            ),
+        )
+        if result is None:
+            return [], ()
+        return (
+            [
+                FinancePeriodRow(
+                    period_key=item.period_key,
+                    period_start=item.period_start,
+                    period_end=item.period_end,
+                    planned=item.planned_cost,
+                    committed=item.open_commitment,
+                    actual=item.posted_actual,
+                    forecast=item.forecast_cost,
+                    exposure=item.exposure,
+                )
+                for item in result.periods
+            ],
+            result.series_availability,
         )
 
     @staticmethod
@@ -268,7 +329,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
                 visible.append(row)
                 continue
             key = (row.source_key, row.source_label, row.stage, row.currency)
-            grouped[key] = grouped.get(key, Decimal("0")) + row.amount
+            grouped[key] = grouped.get(key, Decimal(0)) + row.amount
 
         for (source_key, source_label, stage, currency), amount in sorted(
             grouped.items(),
@@ -319,7 +380,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         def stage_total(stage: str) -> Decimal:
             return sum(
                 (row.amount for row in ledger if row.stage == stage),
-                start=Decimal("0"),
+                start=Decimal(0),
             )
 
         return FinanceReconciliation(
@@ -329,9 +390,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             open_commitment_ledger=stage_total("committed"),
             forecast_etc_control=facts.control.forecast_etc,
             forecast_etc_ledger=(
-                None
-                if facts.control.forecast_etc is None
-                else stage_total("forecast")
+                None if facts.control.forecast_etc is None else stage_total("forecast")
             ),
         )
 
@@ -355,7 +414,9 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         )
         return self.get_finance_snapshot(project_id, as_of=as_of, period=period)
 
-    def list_cost_ledger(self, project_id: str, *, as_of: date | None = None) -> list[FinanceLedgerRow]:
+    def list_cost_ledger(
+        self, project_id: str, *, as_of: date | None = None
+    ) -> list[FinanceLedgerRow]:
         return self.get_finance_snapshot(project_id, as_of=as_of).ledger
 
     def get_cost_phasing_by_period(

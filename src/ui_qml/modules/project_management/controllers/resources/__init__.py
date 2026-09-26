@@ -1,21 +1,21 @@
-from src.ui_qml.modules.project_management.controllers.resources.resources_workspace_controller import (
-    ProjectManagementResourcesWorkspaceController,
-)
-from src.ui_qml.modules.project_management.controllers.resources.resource_state import (
-    default_overview,
-    default_resource_availability,
-    default_resources,
-    default_selected_resource,
-)
-from src.ui_qml.modules.project_management.controllers.resources.resource_table_models import (
-    ResourceTableModels,
-    create_resource_table_models,
-)
-from src.ui_qml.modules.project_management.controllers.resources.resource_state_setters import (
-    ResourceStateSettersMixin,
+from src.ui_qml.modules.project_management.controllers.resources.resource_context_handler import (
+    clear_resource_context,
+    load_resource_activity,
+    load_resource_assignments,
+    load_resource_projects,
 )
 from src.ui_qml.modules.project_management.controllers.resources.resource_domain_event_binder import (
     on_task_assignments_for_resource_stale,
+)
+from src.ui_qml.modules.project_management.controllers.resources.resource_export_handler import (
+    export_resources,
+)
+from src.ui_qml.modules.project_management.controllers.resources.resource_mutation_handler import (
+    create_resource,
+    deactivate_resource,
+    generate_entity_code,
+    reactivate_resource,
+    update_resource,
 )
 from src.ui_qml.modules.project_management.controllers.resources.resource_selection_handler import (
     activate_resource,
@@ -25,13 +25,6 @@ from src.ui_qml.modules.project_management.controllers.resources.resource_select
     set_resource_page,
     set_resource_page_size,
     set_search_text,
-)
-from src.ui_qml.modules.project_management.controllers.resources.resource_mutation_handler import (
-    create_resource,
-    deactivate_resource,
-    generate_entity_code,
-    reactivate_resource,
-    update_resource,
 )
 from src.ui_qml.modules.project_management.controllers.resources.resource_skills_handler import (
     add_certification,
@@ -43,14 +36,21 @@ from src.ui_qml.modules.project_management.controllers.resources.resource_skills
     set_resource_certifications,
     set_resource_skills,
 )
-from src.ui_qml.modules.project_management.controllers.resources.resource_context_handler import (
-    clear_resource_context,
-    load_resource_activity,
-    load_resource_assignments,
-    load_resource_projects,
+from src.ui_qml.modules.project_management.controllers.resources.resource_state import (
+    default_overview,
+    default_resource_availability,
+    default_resources,
+    default_selected_resource,
 )
-from src.ui_qml.modules.project_management.controllers.resources.resource_export_handler import (
-    export_resources,
+from src.ui_qml.modules.project_management.controllers.resources.resource_state_setters import (
+    ResourceStateSettersMixin,
+)
+from src.ui_qml.modules.project_management.controllers.resources.resource_table_models import (
+    ResourceTableModels,
+    create_resource_table_models,
+)
+from src.ui_qml.modules.project_management.controllers.resources.resources_workspace_controller import (
+    ProjectManagementResourcesWorkspaceController,
 )
 
 __all__ = [
@@ -60,21 +60,21 @@ __all__ = [
     "activate_resource",
     "add_certification",
     "add_skill",
-    "on_task_assignments_for_resource_stale",
+    "clear_resource_context",
     "create_resource",
     "create_resource_table_models",
+    "deactivate_resource",
     "default_overview",
     "default_resource_availability",
     "default_resources",
     "default_selected_resource",
-    "deactivate_resource",
     "export_resources",
     "generate_entity_code",
-    "load_resource_assignments",
     "load_resource_activity",
+    "load_resource_assignments",
     "load_resource_projects",
-    "clear_resource_context",
     "load_skills_and_certs",
+    "on_task_assignments_for_resource_stale",
     "reactivate_resource",
     "reload_skills_and_certs",
     "remove_certification",

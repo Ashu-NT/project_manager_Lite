@@ -8,8 +8,8 @@ from src.ui_qml.shell.login import LoginViewModel, ShellLoginController
 from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.qml_engine import QML_IMPORT_ROOTS
 from src.ui_qml.shell.qml_registry import QmlRouteRegistry, build_qml_route_registry
-from src.ui_qml.shell.runtime_session import ShellRuntimeSessionController
 from src.ui_qml.shell.routes import build_shell_routes
+from src.ui_qml.shell.runtime_session import ShellRuntimeSessionController
 
 
 def test_qml_shell_routes_point_to_existing_qml_files() -> None:
@@ -17,8 +17,15 @@ def test_qml_shell_routes_point_to_existing_qml_files() -> None:
 
     assert [route.route_id for route in routes] == ["shell.app", "shell.home"]
     assert routes[0].qml_path.name == "App.qml"
-    assert routes[1].qml_path.name == "HomeWorkspace.qml"
+    assert routes[1].qml_path.name == "OverviewWorkspace.qml"
     assert all(route.qml_path.exists() for route in routes)
+
+
+def test_qml_home_title_is_no_longer_user_visible() -> None:
+    routes = build_shell_routes()
+
+    assert all(route.title != "QML Home" for route in routes)
+    assert any(route.route_id == "shell.home" and route.title == "Overview" for route in routes)
 
 
 def test_qml_route_registry_rejects_duplicate_routes() -> None:
@@ -34,7 +41,7 @@ def test_qml_shell_navigation_view_models_are_built_from_registry() -> None:
     items = build_main_window_navigation(registry)
 
     assert [(item.route_id, item.title) for item in items] == [
-        ("shell.home", "QML Home"),
+        ("shell.home", "Overview"),
         ("platform.workspace", "Platform"),
         ("project_management.workspace", "Project Management"),
     ]

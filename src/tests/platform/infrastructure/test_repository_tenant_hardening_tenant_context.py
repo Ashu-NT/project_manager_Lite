@@ -20,6 +20,12 @@ from src.core.platform.infrastructure.persistence.repositories.master_data.docum
 from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import (
     SqlAlchemyEmployeeRepository,
 )
+from src.core.platform.infrastructure.persistence.repositories.master_data.party.party import (
+    SqlAlchemyPartyRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
+    SqlAlchemySiteRepository,
+)
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -27,12 +33,6 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyCalendarWorkingRuleRepository,
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
-)
-from src.core.platform.infrastructure.persistence.repositories.master_data.party.party import (
-    SqlAlchemyPartyRepository,
-)
-from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
-    SqlAlchemySiteRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import (
     SqlAlchemyTimeEntryRepository,

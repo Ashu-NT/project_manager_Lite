@@ -7,14 +7,14 @@ from PySide6.QtCore import QObject, QUrl, qInstallMessageHandler
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtQuick import QQuickWindow
 
+from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
-
 ROOT = Path(__file__).resolve().parents[4]
-SETTINGS_PAGE = ROOT / "ui_qml/platform/qml/settings/SettingsWorkspacePage.qml"
+SETTINGS_PAGE = ROOT / "ui_qml/platform/qml/workspaces/settings/SettingsWorkspacePage.qml"
 PLATFORM_WORKSPACE = ROOT / "ui_qml/platform/qml/workspace/PlatformWorkspace.qml"
 RELEASE_PANEL = (
-    ROOT / "ui_qml/platform/qml/support/sections/AdminSupportReleasePanel.qml"
+    ROOT / "ui_qml/platform/qml/workspaces/support/sections/AdminSupportReleasePanel.qml"
 )
 
 
@@ -47,7 +47,9 @@ def test_platform_settings_loads_without_runtime_binding_warnings(
         page.setWidth(1280)
         page.setHeight(720)
         if source == PLATFORM_WORKSPACE:
-            page.setProperty("activeDestination", "settings")
+            catalog = PlatformWorkspaceCatalog()
+            page.setProperty("platformCatalog", catalog)
+            catalog.selectDestination("settings")
         window.show()
         qapp.processEvents()
 

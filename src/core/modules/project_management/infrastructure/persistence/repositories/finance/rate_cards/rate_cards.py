@@ -19,10 +19,6 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.rate
     rate_card_line_to_orm,
     rate_card_to_orm,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
-    ProjectRateCardORM,
-    RateCardLineORM,
-)
 from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
     ProjectBillingPreparationLineORM,
 )
@@ -32,8 +28,17 @@ from src.core.modules.project_management.infrastructure.persistence.orm.labor_po
 from src.core.modules.project_management.infrastructure.persistence.orm.planned_cost import (
     ProjectPlannedCostLineORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
+    ProjectRateCardORM,
+    RateCardLineORM,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.infra.persistence.db.optimistic import update_with_version_check
 
@@ -145,14 +150,17 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
         self._require_rate_card(line.rate_card_id, context)
         self.session.add(rate_card_line_to_orm(line))
 
-    def get_line(self, line_id: str) -> RateCardLine | None:
+    def get_line(self, line_id: str, *, for_update: bool = False) -> RateCardLine | None:
         context = self._context(operation_label="access rate card line")
+        statement = select(RateCardLineORM).where(
+            RateCardLineORM.id == line_id,
+            RateCardLineORM.tenant_id == context.tenant_id,
+            RateCardLineORM.organization_id == context.organization_id,
+        )
+        if for_update:
+            statement = statement.with_for_update()
         row = self.session.execute(
-            select(RateCardLineORM).where(
-                RateCardLineORM.id == line_id,
-                RateCardLineORM.tenant_id == context.tenant_id,
-                RateCardLineORM.organization_id == context.organization_id,
-            )
+            statement.execution_options(populate_existing=True)
         ).scalar_one_or_none()
         return rate_card_line_from_orm(row) if row else None
 

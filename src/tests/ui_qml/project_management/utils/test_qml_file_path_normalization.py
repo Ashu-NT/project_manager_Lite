@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from src.ui_qml.modules.project_management.utils import table_exporter
-from src.ui_qml.modules.project_management.utils.file_paths import local_path_from_qml_file_url
+from src.ui_qml.modules.project_management.utils.file_paths import (
+    local_path_from_qml_file_url,
+)
 from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
 
 

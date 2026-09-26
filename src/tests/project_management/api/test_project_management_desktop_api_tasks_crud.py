@@ -4,23 +4,8 @@ from types import SimpleNamespace
 from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
 )
-from src.core.modules.project_management.domain.enums import (
-    CostType,
-    DependencyType,
-    ProjectStatus,
-    TaskStatus,
-    WorkerType,
-)
-from src.core.modules.project_management.domain.projects.project import Project
-from src.core.modules.project_management.domain.tasks.task import (
-    Task,
-    TaskAssignment,
-    TaskDependency,
-)
 from src.tests.project_management.api._fake_project_resource_services import (
-    _FakeProjectResourceService,
     _FakeProjectService,
-    _FakeResourceService,
 )
 from src.tests.project_management.api._fake_task_service import _FakeTaskService
 

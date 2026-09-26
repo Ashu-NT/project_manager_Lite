@@ -64,7 +64,7 @@ class ManualEtcEstimate:
         return resolved
 
     @model_validator(mode="after")
-    def _period_valid(self) -> "ManualEtcEstimate":
+    def _period_valid(self) -> ManualEtcEstimate:
         _validate_period(self.period_start, self.period_end)
         return self
 
@@ -76,7 +76,7 @@ class ManualEtcEstimate:
         amount: Decimal,
         period_start: date | None,
         period_end: date | None,
-    ) -> "ManualEtcEstimate":
+    ) -> ManualEtcEstimate:
         """Adapter-facing entry point: an already-typed `amount`/period pair (the
         caller's own command-parsing concern) plus the raw command item's remaining
         fields -- keeps callers from needing this dataclass's full field layout."""
@@ -131,7 +131,7 @@ class RiskContingencyEstimate:
         return resolved
 
     @model_validator(mode="after")
-    def _period_valid(self) -> "RiskContingencyEstimate":
+    def _period_valid(self) -> RiskContingencyEstimate:
         _validate_period(self.period_start, self.period_end)
         return self
 
@@ -143,7 +143,7 @@ class RiskContingencyEstimate:
         amount: Decimal,
         period_start: date | None,
         period_end: date | None,
-    ) -> "RiskContingencyEstimate":
+    ) -> RiskContingencyEstimate:
         """Adapter-facing entry point: an already-typed `amount`/period pair (the
         caller's own command-parsing concern) plus the raw command item's remaining
         fields -- keeps callers from needing this dataclass's full field layout."""

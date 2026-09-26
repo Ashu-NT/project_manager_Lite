@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import Optional
+from datetime import datetime
 
-from sqlalchemy import DateTime
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
-    Date,
-    Enum as SAEnum,
-    Float,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -21,9 +17,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.platform.domain.master_data.employee import EmploymentType
-from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.infra.persistence.orm.base import Base
+
 
 class UserORM(Base):
     __tablename__ = "users"
@@ -44,22 +39,22 @@ class UserORM(Base):
         default="human",
         server_default="human",
     )
-    display_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    email: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    identity_provider: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    federated_subject: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    mfa_secret: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    identity_provider: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    federated_subject: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    mfa_secret: Mapped[str | None] = mapped_column(String(128), nullable=True)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
-    session_timeout_minutes_override: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    session_timeout_minutes_override: Mapped[int | None] = mapped_column(Integer, nullable=True)
     session_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-    last_login_auth_method: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    last_login_device_label: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    last_login_auth_method: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_login_device_label: Mapped[str | None] = mapped_column(String(256), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     failed_login_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    session_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    password_changed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    session_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     must_change_password: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -85,21 +80,21 @@ class AuthSessionORM(Base):
     )
     session_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     auth_method: Mapped[str] = mapped_column(String(64), nullable=False)
-    device_label: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    last_active_tenant_id: Mapped[Optional[str]] = mapped_column(
+    device_label: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    last_active_tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="SET NULL"),
         nullable=True,
     )
-    last_active_organization_id: Mapped[Optional[str]] = mapped_column(
+    last_active_organization_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="SET NULL"),
         nullable=True,
     )
     issued_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    last_validated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_validated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
@@ -147,7 +142,7 @@ class RoleORM(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str] = mapped_column(String, nullable=False, default="")
     is_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=True,
@@ -232,21 +227,21 @@ class RoleBindingORM(Base):
         ForeignKey("roles.id", ondelete="CASCADE"),
         nullable=False,
     )
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=True,
     )
     actual_scope_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    actual_scope_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    assigned_by: Mapped[Optional[str]] = mapped_column(
+    actual_scope_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    assigned_by: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
     assigned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     version: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
@@ -307,7 +302,7 @@ class RoleDelegationPolicyORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=True,
@@ -337,7 +332,7 @@ class RoleDelegationPolicyORM(Base):
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    revoked_at: Mapped[Optional[datetime]] = mapped_column(
+    revoked_at: Mapped[datetime | None] = mapped_column(
         DateTime,
         nullable=True,
     )

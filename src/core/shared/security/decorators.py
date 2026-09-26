@@ -4,7 +4,10 @@ import functools
 from collections.abc import Iterable
 from typing import Any
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+    require_permission,
+)
 
 
 def requires_permission(permission_code: str, *, operation_label: str = "") -> Any:

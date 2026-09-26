@@ -1,38 +1,18 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timezone
-import hashlib
-import json
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     record_authorization_denial,
     require_permission,
-)
-from src.core.platform.contract.uow.role_governance_unit_of_work import (
-    RoleGovernanceUnitOfWorkFactory,
-)
-from src.core.platform.domain.security.auth import (
-    Role,
-    UserSessionContext,
-)
-from src.core.platform.domain.security.authorization.roles import (
-    ROLE_SCOPE_PLATFORM,
-    ROLE_SCOPE_TENANT,
-    RoleBinding,
-    RoleDelegationPolicy,
-    normalize_role_scope_type,
-)
-from src.core.platform.application.security.authorization.roles.role_binding_scope import (
-    ResolvedRoleBindingScope,
-    ResourceBindingScope,
-    TenantBindingScope,
 )
 from src.core.platform.application.security.authorization.roles.role_binding_mutation_participant import (
     create_role_binding_using,
@@ -41,17 +21,40 @@ from src.core.platform.application.security.authorization.roles.role_binding_mut
     resolved_scope_to_domain_scope,
     revoke_role_binding_using,
 )
-from src.core.platform.domain.security.authorization.enforcement.sod import SeparationOfDutiesPolicy
+from src.core.platform.application.security.authorization.roles.role_binding_scope import (
+    ResolvedRoleBindingScope,
+    ResourceBindingScope,
+    TenantBindingScope,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.uow.role_governance_unit_of_work import (
+    RoleGovernanceUnitOfWorkFactory,
+)
+from src.core.platform.domain.history.audit import AuditEntry
+from src.core.platform.domain.security.auth import (
+    Role,
+    UserSessionContext,
+)
+from src.core.platform.domain.security.authorization.enforcement.sod import (
+    SeparationOfDutiesPolicy,
+)
+from src.core.platform.domain.security.authorization.roles import (
+    ROLE_SCOPE_PLATFORM,
+    ROLE_SCOPE_TENANT,
+    RoleBinding,
+    RoleDelegationPolicy,
+    normalize_role_scope_type,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
-
 
 ROLE_ASSIGN_PERMISSION = "auth.role.assign"
 
@@ -790,7 +793,7 @@ class RoleGovernanceService:
             actor_username=actor.username,
             tenant_id=tenant_id,
             severity="high",
-            compliance_tag="SOC2",
+            category="SECURITY",
             metadata={"action": action, **metadata},
         )
         if tenant_id is None:
@@ -801,7 +804,7 @@ class RoleGovernanceService:
 
 __all__ = [
     "ROLE_ASSIGN_PERMISSION",
+    "OrganizationOwnerResolver",
     "RoleGovernanceService",
     "ScopeExistsResolver",
-    "OrganizationOwnerResolver",
 ]

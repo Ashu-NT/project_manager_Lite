@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 SITE_SCOPE_ROLE_ALIASES: dict[str, str] = {
     "editor": "operator",
 }

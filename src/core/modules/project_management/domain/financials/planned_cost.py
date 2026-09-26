@@ -23,7 +23,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.finance.money.currency import CurrencyCode
+from src.core.platform.domain.finance.money.currency import CurrencyCode
 
 
 class PlannedCostVersionStatus(str, Enum):
@@ -213,7 +213,7 @@ class ProjectPlannedCostVersion:
         calculated_at: datetime | None = None,
         revision: int = 1,
         **values,
-    ) -> "ProjectPlannedCostVersion":
+    ) -> ProjectPlannedCostVersion:
         now = calculated_at or _utc_now()
         return ProjectPlannedCostVersion(
             id=generate_id(),
@@ -253,9 +253,9 @@ class ProjectPlannedCostLine:
     project_resource_id: str
     cost_code_id: str
     source_assignment_id: str
-    planned_hours: Decimal = Decimal("0")
-    rate_amount: Decimal = Decimal("0")
-    amount: Decimal = Decimal("0")
+    planned_hours: Decimal = Decimal(0)
+    rate_amount: Decimal = Decimal(0)
+    amount: Decimal = Decimal(0)
     currency_code: str = ""
     rate_card_id: str = ""
     rate_line_id: str = ""
@@ -365,7 +365,7 @@ class ProjectPlannedCostLine:
         currency_code: str,
         created_at: datetime | None = None,
         **values,
-    ) -> "ProjectPlannedCostLine":
+    ) -> ProjectPlannedCostLine:
         now = created_at or _utc_now()
         return ProjectPlannedCostLine(
             id=generate_id(),

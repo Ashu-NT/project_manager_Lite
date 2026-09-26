@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.access.scope_permissions import filter_project_rows
-from src.core.modules.project_management.domain.collaboration import CollaborationMentionCandidate
+from src.core.modules.project_management.access.scope_permissions import (
+    filter_project_rows,
+)
+from src.core.modules.project_management.domain.collaboration import (
+    CollaborationMentionCandidate,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 

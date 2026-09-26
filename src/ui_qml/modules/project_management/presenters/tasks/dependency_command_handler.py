@@ -9,6 +9,7 @@ from src.core.modules.project_management.api.desktop import (
 
 from .validation import optional_int, optional_text, require_text
 
+
 def _empty_dependency_preview() -> dict[str, object]:
     return {
         "available": False,

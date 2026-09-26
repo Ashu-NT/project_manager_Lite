@@ -3,11 +3,11 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.modules.project_management.controllers.common.baseline_domain_event_binder import (
-    on_project_baseline_stale,
-)
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
+)
+from src.ui_qml.modules.project_management.controllers.common.baseline_domain_event_binder import (
+    on_project_baseline_stale,
 )
 from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
@@ -18,11 +18,11 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from .activity_log_service import ActivityLogService
 from .domain_event_binder import on_task_schedule_stale
 from .filter_service import filter_rows
-from .gantt_list_model import GanttListModel
 from .gantt_baseline_actions import (
     retry_gantt_baseline,
     select_gantt_baseline,
 )
+from .gantt_list_model import GanttListModel
 from .gantt_time_axis_controller import GanttTimeAxisController
 from .gantt_view_state import (
     gantt_zoom_in,
@@ -51,10 +51,10 @@ from .scheduling_property_updates import (
     set_baseline_register_rows,
     set_baseline_variance_rows,
     set_baselines,
+    set_calculator_result,
     set_calendar,
     set_calendar_options,
     set_calendar_summary_rows,
-    set_calculator_result,
     set_constraint_violations,
     set_delayed_activity_rows,
     set_diagnostics,

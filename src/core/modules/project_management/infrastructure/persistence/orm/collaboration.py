@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infra.persistence.orm.base import Base
@@ -20,8 +27,8 @@ class TaskCommentORM(Base):
         ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=False,
     )
-    author_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    author_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    author_user_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    author_username: Mapped[str | None] = mapped_column(String(128), nullable=True)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     mentions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
     mentioned_user_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
@@ -29,15 +36,15 @@ class TaskCommentORM(Base):
     read_by_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
     read_by_user_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    parent_comment_id: Mapped[Optional[str]] = mapped_column(
+    parent_comment_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("task_comments.id", ondelete="SET NULL"),
         nullable=True,
     )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    deleted_by_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    deletion_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    deleted_by_user_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    deletion_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     reactions_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
@@ -59,9 +66,9 @@ class TaskPresenceORM(Base):
         ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=False,
     )
-    user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[str | None] = mapped_column(String, nullable=True)
     username: Mapped[str] = mapped_column(String(128), nullable=False)
-    display_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     activity: Mapped[str] = mapped_column(String(32), nullable=False, default="reviewing", server_default="reviewing")
     started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

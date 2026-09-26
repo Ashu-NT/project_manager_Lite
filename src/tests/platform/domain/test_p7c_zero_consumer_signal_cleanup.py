@@ -80,11 +80,11 @@ def test_emit_signal_safely_removed_after_task_modernization():
 
 
 def test_project_cost_apply_participant_emits_typed_status_changed_events():
-    from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
-        ProjectCostApprovalParticipant,
-    )
     from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
         ProjectCostEntryService,
+    )
+    from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
+        ProjectCostApprovalParticipant,
     )
 
     apply_source = inspect.getsource(ProjectCostApprovalParticipant.apply)
@@ -147,7 +147,7 @@ def test_real_budget_approval_still_emits_its_own_real_view_invalidation(service
     budgets = services["budget_service"]
     budget = budgets.create_budget(project.id, "P7C Budget")
     budgets.add_line(
-        budget.id, cost_code_id=cost_code.id, description="Line", amount=Decimal("100"),
+        budget.id, cost_code_id=cost_code.id, description="Line", amount=Decimal(100),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
@@ -191,7 +191,10 @@ def test_procurement_financial_dispatcher_emits_scoped_post_commit_hints():
     import src.infra.integration.procurement_financial_dispatcher as module
 
     source = inspect.getsource(module)
-    assert "SqlAlchemyUnitOfWorkBase" in source
+    assert "FinanceGovernanceUnitOfWorkFactory" in source
+    assert "self._uow_factory.create(" in source
+    assert "worker_tenant_scope(" in source
+    assert "self._consumer_factory(uow, principal)" in source
     assert "consumption.commitment_events" in source
     assert "consumption.cost_entry_events" in source
     assert "uow.record_event(event)" in source
@@ -214,7 +217,8 @@ def test_approved_time_dispatcher_uses_canonical_unit_of_work():
     import src.infra.integration.approved_time_dispatcher as module
 
     source = inspect.getsource(module)
-    assert "SqlAlchemyUnitOfWorkBase" in source
+    assert "FinanceGovernanceUnitOfWorkFactory" in source
+    assert "self._uow_factory.create(" in source
     assert "uow.record_event(event)" in source
     assert "uow.commit()" in source
     assert "FinanceInvalidationScope" not in source

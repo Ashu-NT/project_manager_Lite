@@ -31,8 +31,8 @@ class PostCommitEventSubscriber(Protocol):
 
 
 __all__ = [
-    "TransactionalEventHandler",
     "PostCommitEventHandler",
-    "TransactionalEventSubscriber",
     "PostCommitEventSubscriber",
+    "TransactionalEventHandler",
+    "TransactionalEventSubscriber",
 ]

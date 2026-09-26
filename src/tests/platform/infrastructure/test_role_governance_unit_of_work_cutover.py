@@ -234,7 +234,7 @@ def test_project_role_assignment_reverse_direction_active_a2_target_in_a1(servic
     org_a1_id = tenant_context_service.get_active_organization_id()
 
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C1-PROJ-REV-A2"), display_name="P5C-1 Project Reverse Org A2", is_enabled=True
+        organization_code=_unique_code("P5C1-PROJ-REV-A2"), display_name="P5C-1 Project Reverse Org A2"
     )
     # Build project_a1 while A1 is still ambiently active (it already deactivated A1's DB flag
     # as a side effect, but the AMBIENT session org has not moved yet).
@@ -339,7 +339,6 @@ def test_organization_scoped_role_assignment_targets_a_non_active_organization(s
     org_a2 = services["organization_service"].create_organization(
         organization_code=_unique_code("P5C1-ORG-SCOPE-A2"),
         display_name="P5C-1 Org Scope A2",
-        is_enabled=False,
     )
     assert tenant_context_service.get_active_organization_id() == org_a1_id  # unaffected
 
@@ -395,7 +394,7 @@ def test_department_role_assignment_remains_unreachable_and_undocumented_as_a_ne
     assert department_a1.organization_id == org_a1_id  # ownership trivially derivable
 
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C1-DEPT-A2"), display_name="P5C-1 Department Org A2", is_enabled=True
+        organization_code=_unique_code("P5C1-DEPT-A2"), display_name="P5C-1 Department Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
 
@@ -418,9 +417,15 @@ def test_site_role_assignment_rejects_a_foreign_tenant_site(services):
     foreign-tenant site."""
     from datetime import datetime, timezone
 
-    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
-    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+        SiteORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+        TenantORM,
+    )
 
     now = datetime.now(timezone.utc)
     session = services["session"]
@@ -459,7 +464,6 @@ def test_site_role_assignment_rejects_a_foreign_tenant_site(services):
             tenant_id=foreign_tenant_id,
             organization_code=_unique_code("P5C1FORG"),
             display_name="Foreign Org",
-            is_enabled=True,
             version=1,
         )
     )
@@ -472,7 +476,7 @@ def test_site_role_assignment_rejects_a_foreign_tenant_site(services):
             organization_id=foreign_org_id,
             site_code=_unique_code("P5C1FSITE"),
             name="Foreign Site",
-            is_active=True,
+            status="active",
             created_at=now,
             updated_at=now,
             version=1,

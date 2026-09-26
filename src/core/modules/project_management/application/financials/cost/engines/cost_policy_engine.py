@@ -45,7 +45,7 @@ class CostControlTotals:
     actual: Decimal
     forecast_etc: Decimal | None
     estimate_at_completion: Decimal | None
-    variance_at_completion: Decimal | None
+    budget_headroom: Decimal | None
     exposure: Decimal
     available: Decimal | None
     unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = ()
@@ -62,7 +62,7 @@ class CostPolicyEngine:
     """Compose financial control totals exclusively from canonical facts."""
 
     @classmethod
-    def for_facts(cls, **_dependencies: object) -> "CostPolicyEngine":
+    def for_facts(cls, **_dependencies: object) -> CostPolicyEngine:
         return cls()
 
     def compose_from_facts(
@@ -160,7 +160,7 @@ class CostPolicyEngine:
         buckets: dict[tuple[str, str, str | None], tuple[Decimal, int]] = {}
         for entry in entries:
             key = (entry.stage, entry.cost_type, entry.currency_code)
-            amount, count = buckets.get(key, (Decimal("0"), 0))
+            amount, count = buckets.get(key, (Decimal(0), 0))
             buckets[key] = (amount + entry.amount, count + 1)
         return tuple(
             CostAggregateFact(
@@ -182,7 +182,7 @@ class CostPolicyEngine:
         exposure = actual + committed
         forecast_etc = facts.control.forecast_etc
         estimate_at_completion = facts.control.estimate_at_completion
-        variance_at_completion = facts.control.variance_at_completion
+        budget_headroom = facts.control.budget_headroom
         return CostControlTotals(
             project_id=snapshot.project_id,
             project_currency=snapshot.project_currency,
@@ -192,7 +192,7 @@ class CostPolicyEngine:
             actual=actual,
             forecast_etc=forecast_etc,
             estimate_at_completion=estimate_at_completion,
-            variance_at_completion=variance_at_completion,
+            budget_headroom=budget_headroom,
             exposure=exposure,
             available=(snapshot.budget - exposure if snapshot.budget > 0 else None),
             unresolved_labor_rates=snapshot.unresolved_labor_rates,
@@ -214,10 +214,10 @@ class CostPolicyEngine:
                 CostSourceRow(
                     source_key=entry.source_key,
                     source_label=entry.source_label,
-                    planned=Decimal("0"),
-                    committed=Decimal("0"),
-                    actual=Decimal("0"),
-                    forecast=Decimal("0"),
+                    planned=Decimal(0),
+                    committed=Decimal(0),
+                    actual=Decimal(0),
+                    forecast=Decimal(0),
                 ),
             )
             if entry.stage in {"planned", "committed", "actual", "forecast"}:
@@ -227,9 +227,9 @@ class CostPolicyEngine:
             project_id=facts.project_id,
             project_currency=project_currency,
             rows=rows,
-            total_planned=sum((row.planned for row in rows), start=Decimal("0")),
-            total_committed=sum((row.committed for row in rows), start=Decimal("0")),
-            total_actual=sum((row.actual for row in rows), start=Decimal("0")),
+            total_planned=sum((row.planned for row in rows), start=Decimal(0)),
+            total_committed=sum((row.committed for row in rows), start=Decimal(0)),
+            total_actual=sum((row.actual for row in rows), start=Decimal(0)),
             notes=[
                 "Totals use versioned planned costs, Procurement commitments, and posted actual entries."
             ],
@@ -248,7 +248,7 @@ class CostPolicyEngine:
         amount: Decimal | float,
     ) -> None:
         key = (cost_type, currency)
-        target[key] = target.get(key, Decimal("0")) + Decimal(str(amount or 0))
+        target[key] = target.get(key, Decimal(0)) + Decimal(str(amount or 0))
 
     @staticmethod
     def _currency_in_scope(currency: str, project_currency: str | None) -> bool:
@@ -263,7 +263,7 @@ class CostPolicyEngine:
                 for (_cost_type, currency), amount in values.items()
                 if self._currency_in_scope(currency, project_currency)
             ),
-            start=Decimal("0"),
+            start=Decimal(0),
         )
 
     def _sum_bucket_for_type(
@@ -280,7 +280,7 @@ class CostPolicyEngine:
                 if candidate == cost_type
                 and self._currency_in_scope(currency, project_currency)
             ),
-            start=Decimal("0"),
+            start=Decimal(0),
         )
 
     def _sum_bucket_excluding_type(
@@ -297,14 +297,14 @@ class CostPolicyEngine:
                 if candidate != excluded_type
                 and self._currency_in_scope(currency, project_currency)
             ),
-            start=Decimal("0"),
+            start=Decimal(0),
         )
 
     @staticmethod
     def _sum_stage(entries: tuple[FinanceLedgerFact, ...], stage: str) -> Decimal:
         return sum(
             (entry.amount for entry in entries if entry.stage == stage),
-            start=Decimal("0"),
+            start=Decimal(0),
         )
 
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, call
 
@@ -12,21 +12,21 @@ from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QTest
 from sqlalchemy import event
 
-from src.core.modules.project_management.api.desktop.financials.models.configuration import (
-    FinancialConfigurationWorkspaceDto,
-)
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
-    FinancialCostEntryPageDto,
-    FinancialManualActualOptionsDto,
+from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
+    FinancialAccountingStatusPageDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.changes import (
     FinancialChangeWorkspaceDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
-    FinancialAccountingStatusPageDto,
+from src.core.modules.project_management.api.desktop.financials.models.configuration import (
+    FinancialConfigurationWorkspaceDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
+    FinancialCostEntryPageDto,
+    FinancialManualActualOptionsDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialLookupOptionDto,
@@ -35,19 +35,6 @@ from src.core.modules.project_management.api.desktop.financials.models.options i
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
 )
-from src.ui_qml.modules.project_management.presenters.financials.destination_builder import (
-    build_destination_state,
-    build_shell_state,
-)
-from src.core.modules.project_management.domain.financials.forecast import (
-    ForecastGenerationMode,
-    ForecastLineSourceKind,
-    ForecastLineSourceType,
-)
-from src.core.platform.api.desktop.history.audit.models.audit_entry import (
-    AuditEntryDto,
-)
-from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinancePageRequest,
 )
@@ -55,7 +42,20 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     ForecastLineRequest,
     ForecastVersionRequest,
 )
+from src.core.modules.project_management.domain.financials.forecast import (
+    ForecastGenerationMode,
+    ForecastLineSourceKind,
+    ForecastLineSourceType,
+)
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.platform.api.desktop.history.audit.models.audit_entry import (
+    AuditEntryDto,
+)
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.ui_qml.modules.project_management.presenters.financials.shared.destination_builder import (
+    build_destination_state,
+    build_shell_state,
+)
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
@@ -91,8 +91,8 @@ def _overview() -> FinancialOverviewDto:
         forecast_etc_label="XAF 500.00",
         estimate_at_completion="700",
         estimate_at_completion_label="XAF 700.00",
-        variance_at_completion="300",
-        variance_at_completion_label="XAF 300.00",
+        budget_headroom="300",
+        budget_headroom_label="XAF 300.00",
     )
 
 
@@ -244,7 +244,7 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(service
         first.id,
         cost_code_id=cost_code.id,
         description="Alpha line",
-        amount=Decimal("125"),
+        amount=Decimal(125),
         expected_budget_version=first.row_version,
     )
     first = budgets.get_budget(first.id)
@@ -264,7 +264,7 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(service
         second.id,
         cost_code_id=cost_code.id,
         description="Zulu line",
-        amount=Decimal("250"),
+        amount=Decimal(250),
         expected_budget_version=second.row_version,
     )
 
@@ -294,7 +294,7 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(service
     assert first_page.versions.items[0].id == first.id
     assert first_page.lines.total == 1
     assert first_page.lines.items[0].budget_id == first.id
-    assert first_page.lines.items[0].amount == Decimal("125")
+    assert first_page.lines.items[0].amount == Decimal(125)
     assert first_page.show_create_version is True
     assert first_page.can_create_version is False
     assert "Draft or Submitted budget is already open" in (
@@ -339,15 +339,15 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
     )
     resource = services["resource_service"].create_resource(
         "R6B Engineer",
-        hourly_rate=Decimal("50"),
+        hourly_rate=Decimal(50),
         currency_code="USD",
     )
     project_resource = services["project_resource_service"].add_to_project(
         project.id,
         resource.id,
-        hourly_rate=Decimal("50"),
+        hourly_rate=Decimal(50),
         currency_code="USD",
-        planned_hours=Decimal("20"),
+        planned_hours=Decimal(20),
     )
     assignment = services["task_service"].assign_project_resource(
         task_id=task.id,
@@ -356,7 +356,7 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
     )
     services["task_service"].update_assignment_planned_hours(
         assignment.id,
-        allocated_planned_hours=Decimal("10"),
+        allocated_planned_hours=Decimal(10),
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,
     )
@@ -368,7 +368,7 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
         rate_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("60"),
+        rate_amount=Decimal(60),
         rate_currency="USD",
         resource_id=resource.id,
         effective_from=date(2026, 1, 1),
@@ -411,7 +411,7 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
     assert first_page.lines.items[0].version_id == first.id
     assert first_page.lines.items[0].task_name == "R6B Engineering"
     assert first_page.lines.items[0].resource_name == "R6B Engineer"
-    assert first_page.lines.items[0].amount == Decimal("600")
+    assert first_page.lines.items[0].amount == Decimal(600)
 
     second_page = query.get_planned_cost_workspace(
         project.id,
@@ -622,7 +622,7 @@ def test_forecast_master_detail_loads_at_supported_viewports(
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.sections 1.0
+import workspaces.financials.forecasts.sections 1.0
 Window {
     visible: true
     FinancialsForecastSection {
@@ -674,7 +674,7 @@ def test_financials_overview_loader_keeps_loaded_content_height(qapp) -> None:
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.panels 1.0
+import workspaces.financials.shared.panels 1.0
 Window {
     visible: true
     width: 1024
@@ -728,7 +728,8 @@ def test_manual_actual_dialog_opens_and_explains_missing_cost_code(qapp) -> None
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.dialogs 1.0
+import workspaces.financials.cost.dialogs 1.0
+import workspaces.financials.shared.dialogs 1.0
 Window {
     visible: true
     width: 900
@@ -895,8 +896,9 @@ def test_manual_actual_and_accounting_fit_supported_viewports(
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.dialogs 1.0
-import workspaces.financials.panels 1.0
+import workspaces.financials.cost.dialogs 1.0
+import workspaces.financials.shared.dialogs 1.0
+import workspaces.financials.shared.panels 1.0
 Window {
     visible: true
     FinancialsDetailPanel {
@@ -980,7 +982,8 @@ def test_financial_setup_can_open_cost_code_editor(qapp) -> None:
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.dialogs 1.0
+import workspaces.financials.cost.dialogs 1.0
+import workspaces.financials.shared.dialogs 1.0
 Window {
     visible: true
     width: 900
@@ -1097,7 +1100,8 @@ def test_controls_activity_uses_project_scoped_enterprise_audit_only() -> None:
                 actor_type="user",
                 source="desktop",
                 severity="low",
-                compliance_tag="financial_control",
+                category="FINANCIAL",
+                result="SUCCESS",
             ),
         ),
     )
@@ -1117,8 +1121,10 @@ def test_controls_activity_uses_project_scoped_enterprise_audit_only() -> None:
     assert query["module"] == "project_management"
     assert query["workspace_id"] == "project-1"
     assert "project_budget." in query["operation_prefixes"]
-    assert state.activity.total == 1
-    assert state.activity.items[0].title == "Finance Manager - Project Budget Approve"
+    assert len(state.activity["items"]) == 1
+    item = state.activity["items"][0]
+    assert item["title"] == "Project Budget Approve"
+    assert item["actorDisplay"] == "Finance Manager"
 
 
 def test_controls_changes_uses_bounded_master_detail_facade_only() -> None:
@@ -1224,7 +1230,7 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(services
         budget.id,
         cost_code_id=cost_code.id,
         description="Authorized scope",
-        amount=Decimal("1000"),
+        amount=Decimal(1000),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
@@ -1251,7 +1257,7 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(services
         forecast.id,
         cost_code_id=cost_code.id,
         description="Remaining delivery",
-        amount=Decimal("250"),
+        amount=Decimal(250),
         source_kind=ForecastLineSourceKind.MANUAL,
         source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin",
@@ -1282,11 +1288,11 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(services
         )
 
     assert len(statements) <= 5
-    assert facts.approved_budget == Decimal("1000")
-    assert facts.posted_actual == Decimal("0")
-    assert facts.open_commitment == Decimal("0")
-    assert facts.forecast_etc == Decimal("250")
-    assert facts.estimate_at_completion == Decimal("250")
-    assert facts.variance_at_completion == Decimal("750")
+    assert facts.approved_budget == Decimal(1000)
+    assert facts.posted_actual == Decimal(0)
+    assert facts.open_commitment == Decimal(0)
+    assert facts.forecast_etc == Decimal(250)
+    assert facts.estimate_at_completion == Decimal(250)
+    assert facts.budget_headroom == Decimal(750)
     assert facts.approved_budget_revision == 1
     assert facts.approved_forecast_revision == 1

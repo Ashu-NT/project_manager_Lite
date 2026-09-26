@@ -22,10 +22,16 @@ from src.core.platform.domain.security.authorization.roles.role_binding_scope im
     RoleBindingResourceScope,
     RoleBindingTenantScope,
 )
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.view_invalidation import ExactOrganization, OrganizationScope, PlatformScope, TenantScope, TenantWide
 from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWork,
+)
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.events.view_invalidation import (
+    ExactOrganization,
+    OrganizationScope,
+    PlatformScope,
+    TenantScope,
+    TenantWide,
 )
 from src.ui_qml.platform.adapters.role_binding_view_invalidation_adapter import (
     RoleBindingViewInvalidationAdapter,
@@ -318,13 +324,12 @@ def test_non_active_organization_resource_mutation_does_not_refresh_the_active_o
     catalog.adminAccessWorkspace.refresh()
     org_a1_id = tenant_context_service.get_active_organization_id()
     site_a2_org = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C3-NONACTIVE-A2"), display_name="P5C-3 Non-Active A2", is_enabled=True
+        organization_code=_unique_code("P5C3-NONACTIVE-A2"), display_name="P5C-3 Non-Active A2"
     )
     tenant_context_service.set_active_organization(site_a2_org.id)
     site_a2 = services["site_service"].create_site(
         site_code=_unique_code("P5C3-NONACTIVE-SITE"), name="A2 Site", city="Berlin", currency_code="EUR"
     )
-    services["organization_service"].update_organization(org_a1_id, is_enabled=True)
     tenant_context_service.set_active_organization(org_a1_id)
     assert tenant_context_service.get_active_organization_id() == org_a1_id
 
@@ -353,7 +358,7 @@ def test_switching_to_the_non_active_org_then_repeating_the_mutation_refreshes_e
     catalog.adminAccessWorkspace.refresh()
     org_a1_id = tenant_context_service.get_active_organization_id()
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C3-SWITCH-A2"), display_name="P5C-3 Switch A2", is_enabled=True
+        organization_code=_unique_code("P5C3-SWITCH-A2"), display_name="P5C-3 Switch A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
@@ -374,7 +379,6 @@ def test_switching_to_the_non_active_org_then_repeating_the_mutation_refreshes_e
 
     assert refresh_calls == ["refresh"]
 
-    services["organization_service"].update_organization(org_a1_id, is_enabled=True)
     tenant_context_service.set_active_organization(org_a1_id)
 
 
@@ -385,7 +389,7 @@ def test_tenant_scope_mutation_refreshes_regardless_of_which_organization_is_act
     catalog = _catalog(services)
     catalog.adminAccessWorkspace.refresh()
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C3-TENANTSCOPE-A2"), display_name="P5C-3 Tenant Scope A2", is_enabled=True
+        organization_code=_unique_code("P5C3-TENANTSCOPE-A2"), display_name="P5C-3 Tenant Scope A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
@@ -419,9 +423,15 @@ def test_tenant_scope_mutation_refreshes_regardless_of_which_organization_is_act
 def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
     from datetime import datetime as _dt
 
-    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
-    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+        SiteORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+        TenantORM,
+    )
 
     channel = services["platform_view_invalidation_channel"]
     tenant_a = _active_tenant(services)
@@ -432,10 +442,10 @@ def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
     session.add(TenantORM(id=foreign_tenant_id, tenant_code=_unique_code("P5C3FT"), display_name="Foreign Tenant", is_active=True, version=1))
     session.commit()
     foreign_org_id = _unique_code("p5c3-foreign-org")
-    session.add(OrganizationORM(id=foreign_org_id, tenant_id=foreign_tenant_id, organization_code=_unique_code("P5C3FORG"), display_name="Foreign Org", is_enabled=True, version=1))
+    session.add(OrganizationORM(id=foreign_org_id, tenant_id=foreign_tenant_id, organization_code=_unique_code("P5C3FORG"), display_name="Foreign Org", version=1))
     session.commit()
     foreign_site_id = _unique_code("p5c3-foreign-site")
-    session.add(SiteORM(id=foreign_site_id, tenant_id=foreign_tenant_id, organization_id=foreign_org_id, site_code=_unique_code("P5C3FSITE"), name="Foreign Site", is_active=True, created_at=now, updated_at=now, version=1))
+    session.add(SiteORM(id=foreign_site_id, tenant_id=foreign_tenant_id, organization_id=foreign_org_id, site_code=_unique_code("P5C3FSITE"), name="Foreign Site", status="active", created_at=now, updated_at=now, version=1))
     session.commit()
 
     target, target_role = _resource_scoped_binding_setup(
@@ -463,7 +473,10 @@ def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
 
 
 def test_adapter_subscribes_via_exact_organization_and_tenant_wide_only(services):
-    from src.core.shared.events.view_invalidation import AllTenants, AnyOrganizationInTenant
+    from src.core.shared.events.view_invalidation import (
+        AllTenants,
+        AnyOrganizationInTenant,
+    )
 
     channel = services["platform_view_invalidation_channel"]
     tenant_id = _active_tenant(services)
@@ -488,7 +501,7 @@ def test_adapter_only_reacts_to_its_exact_active_organization_for_resource_scope
     tenant_id = _active_tenant(services)
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("P5C3-ADAPTER-A2"), display_name="Adapter Scope A2", is_enabled=False
+        organization_code=_unique_code("P5C3-ADAPTER-A2"), display_name="Adapter Scope A2"
     )
 
     adapter = RoleBindingViewInvalidationAdapter(channel=channel, tenant_id=tenant_id, organization_id=org_a1.id)
@@ -541,7 +554,7 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
 
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("P5C3-REALSWITCH-A2"), display_name="Real Switch A2", is_enabled=False
+        organization_code=_unique_code("P5C3-REALSWITCH-A2"), display_name="Real Switch A2"
     )
 
     def _exact_org_filters():
@@ -549,7 +562,6 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
 
     assert any(f.organization_id == org_a1.id for f in _exact_org_filters())
 
-    organization_service.enable_organization(org_a2.id)
     services["tenant_context_service"].set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
 
@@ -589,11 +601,10 @@ def test_switching_does_not_accumulate_subscriptions(services):
     channel = services["platform_view_invalidation_channel"]
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("P5C3-NOACCUMULATE-A2"), display_name="No Accumulate A2", is_enabled=False
+        organization_code=_unique_code("P5C3-NOACCUMULATE-A2"), display_name="No Accumulate A2"
     )
     subscription_count_before = len(channel._subscriptions)
 
-    organization_service.enable_organization(org_a2.id)
     services["tenant_context_service"].set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
     services["tenant_context_service"].set_active_organization(org_a1.id)

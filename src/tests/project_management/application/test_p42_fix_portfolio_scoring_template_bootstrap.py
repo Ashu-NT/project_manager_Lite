@@ -6,10 +6,6 @@ from sqlalchemy.exc import IntegrityError
 from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
     PORTFOLIO_CATEGORY,
 )
-from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioScoringTemplateChangeType,
-    PortfolioScoringTemplateChanged,
-)
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
@@ -285,20 +281,17 @@ def test_active_template_uniqueness_is_scoped_per_organization_not_global(servic
         display_name="P42-FIX2 Ops",
         timezone_name="UTC",
         base_currency="USD",
-        is_enabled=False,
     )
 
     active_default = portfolio.get_active_scoring_template()
     assert active_default.organization_id == default_org.id
 
-    organization_service.enable_organization(other_org.id)
     tenant_context_service.set_active_organization(other_org.id)
 
     active_other = portfolio.get_active_scoring_template()
     assert active_other.organization_id == other_org.id
     assert active_other.id != active_default.id
 
-    organization_service.enable_organization(default_org.id)
     tenant_context_service.set_active_organization(default_org.id)
 
     final_default = portfolio.get_active_scoring_template()
@@ -310,7 +303,9 @@ def test_database_rejects_a_second_active_row_via_raw_insert_bypassing_applicati
 
     from sqlalchemy.exc import IntegrityError as _IntegrityError
 
-    from src.core.modules.project_management.domain.portfolio import PortfolioScoringTemplate
+    from src.core.modules.project_management.domain.portfolio import (
+        PortfolioScoringTemplate,
+    )
     from src.core.modules.project_management.infrastructure.persistence.mappers.portfolio import (
         portfolio_scoring_template_to_orm,
     )

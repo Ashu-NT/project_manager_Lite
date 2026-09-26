@@ -14,7 +14,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.finance.money.currency import CurrencyCode
+from src.core.platform.domain.finance.money.currency import CurrencyCode
 
 
 @validated_dataclass
@@ -70,7 +70,7 @@ class Project:
         return normalize_optional_identifier(value)
 
     @model_validator(mode="after")
-    def _validate_date_range(self) -> "Project":
+    def _validate_date_range(self) -> Project:
         if self.start_date and self.end_date and self.end_date < self.start_date:
             raise ValidationError(
                 "Project end date cannot be before start date.",
@@ -79,7 +79,7 @@ class Project:
         return self
 
     @staticmethod
-    def create(name: str, description: str = "", **extra) -> "Project":
+    def create(name: str, description: str = "", **extra) -> Project:
         return Project(
             id=generate_id(),
             name=name,
@@ -95,7 +95,7 @@ class ProjectResource:
     resource_id: str
     hourly_rate: Decimal | None = None
     currency_code: str | None = None
-    planned_hours: Decimal = Decimal("0")
+    planned_hours: Decimal = Decimal(0)
     is_active: bool = True
     version: int = 1
 
@@ -186,9 +186,9 @@ class ProjectResource:
         resource_id: str,
         hourly_rate: Decimal | int | str | None = None,
         currency_code: str | None = None,
-        planned_hours: Decimal | int | str = Decimal("0"),
+        planned_hours: Decimal | int | str = Decimal(0),
         is_active: bool = True,
-    ) -> "ProjectResource":
+    ) -> ProjectResource:
         return ProjectResource(
             id=generate_id(),
             project_id=project_id,

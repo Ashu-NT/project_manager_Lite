@@ -9,7 +9,10 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.domain.master_data.party.events import PartyCreated, PartyProfileUpdated
+from src.core.platform.domain.master_data.party.events import (
+    PartyCreated,
+    PartyProfileUpdated,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 _COUNTER = {"n": 0}

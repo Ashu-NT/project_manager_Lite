@@ -118,12 +118,12 @@ class ProjectResourceQueryMixin:
             )
             task_assignment_count = len(assignments)
             allocated_total = sum(
-                (a.allocated_planned_hours for a in assignments), Decimal("0")
+                (a.allocated_planned_hours for a in assignments), Decimal(0)
             )
-            actual_total = sum((a.hours_logged for a in assignments), Decimal("0"))
+            actual_total = sum((a.hours_logged for a in assignments), Decimal(0))
 
-        allocated_total = allocated_total if allocated_total is not None else Decimal("0")
-        actual_total = actual_total if actual_total is not None else Decimal("0")
+        allocated_total = allocated_total if allocated_total is not None else Decimal(0)
+        actual_total = actual_total if actual_total is not None else Decimal(0)
         unallocated = planned_hours - allocated_total
         remaining = planned_hours - actual_total
 

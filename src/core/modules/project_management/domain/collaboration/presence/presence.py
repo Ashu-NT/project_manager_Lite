@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -82,7 +83,7 @@ class TaskPresence:
         return _coerce_presence_datetime(value, code="TASK_PRESENCE_TIMESTAMP_INVALID")
 
     @model_validator(mode="after")
-    def _validate_seen_window(self) -> "TaskPresence":
+    def _validate_seen_window(self) -> TaskPresence:
         if self.last_seen_at < self.started_at:
             raise ValidationError(
                 "Presence last-seen time cannot be before the started time.",
@@ -91,7 +92,7 @@ class TaskPresence:
         return self
 
     @staticmethod
-    def create(*, task_id: str, user_id: str | None, username: str, display_name: str | None = None, activity: str = "reviewing") -> "TaskPresence":
+    def create(*, task_id: str, user_id: str | None, username: str, display_name: str | None = None, activity: str = "reviewing") -> TaskPresence:
         now = datetime.now(timezone.utc)
         return TaskPresence(
             id=generate_id(), task_id=task_id, user_id=user_id,

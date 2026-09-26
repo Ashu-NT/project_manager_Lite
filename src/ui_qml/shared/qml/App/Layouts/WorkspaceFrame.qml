@@ -9,6 +9,12 @@ Item {
     default property alias content: contentSlot.data
     property string title: ""
     property string subtitle: ""
+    property var breadcrumb: []
+    // Hidden when this workspace has pushed its own full-page detail view
+    // (e.g. AdminOrganizationDetailPage) -- that view owns its own header
+    // (back button, object title, breadcrumb context), so the list page's
+    // header would otherwise show redundantly above it.
+    property bool showHeader: true
 
     Rectangle {
         anchors.fill: parent
@@ -22,8 +28,10 @@ Item {
 
         AppWidgets.PageHeader {
             Layout.fillWidth: true
+            visible: root.showHeader
             title: root.title
             subtitle: root.subtitle
+            breadcrumb: root.breadcrumb
         }
 
         Item {

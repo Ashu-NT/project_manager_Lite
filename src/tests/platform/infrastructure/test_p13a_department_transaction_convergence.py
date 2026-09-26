@@ -5,8 +5,15 @@ import pytest
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.domain.master_data.department.events import DepartmentCreated, DepartmentProfileUpdated
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    ValidationError,
+)
+from src.core.platform.domain.master_data.department.events import (
+    DepartmentCreated,
+    DepartmentProfileUpdated,
+)
 from src.core.platform.infrastructure.persistence.uow.department_unit_of_work import (
     SqlAlchemyDepartmentUnitOfWork,
 )
@@ -220,135 +227,135 @@ def test_create_department_cross_organization_site_denied_and_records_nothing(se
     assert calls == []
 
 
-def test_create_department_invalid_manager_employee_denied_and_records_nothing(services):
+def test_create_department_invalid_head_of_department_employee_denied_and_records_nothing(services):
     department_service = services["department_service"]
     calls = _spy(services, DepartmentCreated)
 
-    with pytest.raises(ValidationError, match="Department manager employee does not exist"):
+    with pytest.raises(ValidationError, match="Department Head of Department must reference an existing employee"):
         department_service.create_department(
-            department_code=_unique_code("BADMANAGER"),
-            name="Bad Manager Dept",
-            manager_employee_id="does-not-exist",
+            department_code=_unique_code("BADHOD"),
+            name="Bad HOD Dept",
+            head_of_department_employee_id="does-not-exist",
         )
 
     assert calls == []
 
 
-def test_create_department_same_org_manager_accepted(services):
+def test_create_department_same_org_head_of_department_accepted(services):
     employee = services["employee_service"].create_employee(
-        employee_code=_unique_code("MGR-SAMEORG"), full_name="Same Org Manager"
+        employee_code=_unique_code("HOD-SAMEORG"), full_name="Same Org Head of Department"
     )
 
     department_service = services["department_service"]
     department = department_service.create_department(
-        department_code=_unique_code("SAMEORG-MGR-DEPT"),
-        name="Same Org Manager Dept",
-        manager_employee_id=employee.id,
+        department_code=_unique_code("SAMEORG-HOD-DEPT"),
+        name="Same Org HOD Dept",
+        head_of_department_employee_id=employee.id,
     )
 
-    assert department.manager_employee_id == employee.id
+    assert department.head_of_department_employee_id == employee.id
 
 
-def test_create_department_cross_organization_manager_denied_and_records_nothing(services):
+def test_create_department_cross_organization_head_of_department_denied_and_records_nothing(services):
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     default_organization = tenant_context_service.get_active_organization()
 
     other_organization = organization_service.create_organization(
-        organization_code=_unique_code("DEPT-MGR-CROSSORG-OTHER"),
-        display_name="Other Org For Manager",
+        organization_code=_unique_code("DEPT-HOD-CROSSORG-OTHER"),
+        display_name="Other Org For HOD",
         timezone_name="UTC",
         base_currency="USD",
     )
     tenant_context_service.set_active_organization(other_organization.id)
-    foreign_manager = services["employee_service"].create_employee(
-        employee_code=_unique_code("FOREIGN-MGR"), full_name="Foreign Manager"
+    foreign_head_of_department = services["employee_service"].create_employee(
+        employee_code=_unique_code("FOREIGN-HOD"), full_name="Foreign Head of Department"
     )
     tenant_context_service.set_active_organization(default_organization.id)
 
     department_service = services["department_service"]
     calls = _spy(services, DepartmentCreated)
 
-    with pytest.raises(ValidationError, match="Department manager employee does not exist"):
+    with pytest.raises(ValidationError, match="Department Head of Department must reference an existing employee"):
         department_service.create_department(
-            department_code=_unique_code("DEPT-MGR-CROSSORG-CHILD"),
-            name="Dept With Foreign Manager",
-            manager_employee_id=foreign_manager.id,
+            department_code=_unique_code("DEPT-HOD-CROSSORG-CHILD"),
+            name="Dept With Foreign HOD",
+            head_of_department_employee_id=foreign_head_of_department.id,
         )
 
     assert calls == []
 
 
-def test_update_department_cross_organization_manager_denied_and_records_nothing(services):
+def test_update_department_cross_organization_head_of_department_denied_and_records_nothing(services):
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     default_organization = tenant_context_service.get_active_organization()
 
     department_service = services["department_service"]
     department = department_service.create_department(
-        department_code=_unique_code("DEPT-MGR-UPDATE-CROSSORG"), name="Dept For Manager Update"
+        department_code=_unique_code("DEPT-HOD-UPDATE-CROSSORG"), name="Dept For HOD Update"
     )
 
     other_organization = organization_service.create_organization(
-        organization_code=_unique_code("DEPT-MGR-UPDATE-CROSSORG-OTHER"),
-        display_name="Other Org For Manager Update",
+        organization_code=_unique_code("DEPT-HOD-UPDATE-CROSSORG-OTHER"),
+        display_name="Other Org For HOD Update",
         timezone_name="UTC",
         base_currency="USD",
     )
     tenant_context_service.set_active_organization(other_organization.id)
-    foreign_manager = services["employee_service"].create_employee(
-        employee_code=_unique_code("FOREIGN-MGR-UPDATE"), full_name="Foreign Manager Update"
+    foreign_head_of_department = services["employee_service"].create_employee(
+        employee_code=_unique_code("FOREIGN-HOD-UPDATE"), full_name="Foreign Head of Department Update"
     )
     tenant_context_service.set_active_organization(default_organization.id)
 
     calls = _spy(services, DepartmentProfileUpdated)
-    with pytest.raises(ValidationError, match="Department manager employee does not exist"):
+    with pytest.raises(ValidationError, match="Department Head of Department must reference an existing employee"):
         department_service.update_department(
             department.id,
-            manager_employee_id=foreign_manager.id,
+            head_of_department_employee_id=foreign_head_of_department.id,
             expected_version=department.version,
         )
 
     assert calls == []
     reloaded = department_service._department_repo.get(department.id)
-    assert reloaded.manager_employee_id is None
+    assert reloaded.head_of_department_employee_id is None
 
 
-def test_update_department_unchanged_manager_remains_valid(services):
+def test_update_department_unchanged_head_of_department_remains_valid(services):
     employee = services["employee_service"].create_employee(
-        employee_code=_unique_code("MGR-UNCHANGED"), full_name="Unchanged Manager"
+        employee_code=_unique_code("HOD-UNCHANGED"), full_name="Unchanged Head of Department"
     )
     department_service = services["department_service"]
     department = department_service.create_department(
-        department_code=_unique_code("MGR-UNCHANGED-DEPT"),
+        department_code=_unique_code("HOD-UNCHANGED-DEPT"),
         name="Before",
-        manager_employee_id=employee.id,
+        head_of_department_employee_id=employee.id,
     )
 
     updated = department_service.update_department(
         department.id, name="After", expected_version=department.version
     )
 
-    assert updated.manager_employee_id == employee.id
+    assert updated.head_of_department_employee_id == employee.id
     assert updated.name == "After"
 
 
-def test_update_department_manager_can_be_cleared(services):
+def test_update_department_head_of_department_can_be_cleared(services):
     employee = services["employee_service"].create_employee(
-        employee_code=_unique_code("MGR-CLEAR"), full_name="Clearable Manager"
+        employee_code=_unique_code("HOD-CLEAR"), full_name="Clearable Head of Department"
     )
     department_service = services["department_service"]
     department = department_service.create_department(
-        department_code=_unique_code("MGR-CLEAR-DEPT"),
-        name="Clear Manager Dept",
-        manager_employee_id=employee.id,
+        department_code=_unique_code("HOD-CLEAR-DEPT"),
+        name="Clear HOD Dept",
+        head_of_department_employee_id=employee.id,
     )
 
     updated = department_service.update_department(
-        department.id, manager_employee_id="", expected_version=department.version
+        department.id, head_of_department_employee_id="", expected_version=department.version
     )
 
-    assert updated.manager_employee_id is None
+    assert updated.head_of_department_employee_id is None
 
 
 def test_update_department_stale_version_raises_and_does_not_mutate(services):

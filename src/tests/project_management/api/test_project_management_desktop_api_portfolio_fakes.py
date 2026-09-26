@@ -1,24 +1,14 @@
-from datetime import date, datetime, timedelta
-from types import SimpleNamespace
+from datetime import date, datetime
 
-from src.core.modules.project_management.api.desktop import (
-    build_project_management_portfolio_desktop_api,
-)
 from src.core.modules.project_management.domain.enums import (
-    DependencyType,
     ProjectStatus,
-    TaskStatus,
 )
 from src.core.modules.project_management.domain.portfolio import (
-    PortfolioExecutiveRow,
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
     PortfolioProjectDependency,
-    PortfolioProjectDependencyView,
     PortfolioRecentAction,
     PortfolioScenario,
-    PortfolioScenarioComparison,
-    PortfolioScenarioEvaluation,
     PortfolioScoringTemplate,
 )
 from src.core.modules.project_management.domain.projects.project import Project

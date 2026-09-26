@@ -6,11 +6,41 @@ from decimal import Decimal
 
 from .finance_budget_facts import FinancePageFacts
 
-
 _SCHEDULE_SORT_KEYS = {"title", "statusLabel", "subtitle", "supportingText", "metaText"}
 _PREPARATION_SORT_KEYS = {"title", "statusLabel", "subtitle", "supportingText", "metaText"}
 _LINE_SORT_KEYS = {"title", "statusLabel", "subtitle", "supportingText", "metaText"}
 _ACCOUNTING_SORT_KEYS = {"title", "statusLabel", "metaText"}
+
+
+@dataclass(frozen=True, slots=True)
+class BillingSourceQuery:
+    page: int = 1
+    page_size: int = 50
+    sort_key: str = "source_date"
+    sort_direction: str = "asc"
+    search: str = ""
+
+    @property
+    def normalized_page(self) -> int:
+        return max(1, int(self.page))
+
+    @property
+    def normalized_page_size(self) -> int:
+        return max(1, min(int(self.page_size), 200))
+
+    @property
+    def normalized_sort_key(self) -> str:
+        return self.sort_key if self.sort_key in {"source_date", "label"} else "source_date"
+
+
+@dataclass(frozen=True, slots=True)
+class BillingSourceOptionFact:
+    source_id: str
+    source_type: str
+    label: str
+    source_date: date
+    amount: Decimal
+    currency_code: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +151,9 @@ class BillingProfileFact:
     retention_years: int
     legal_hold: bool
     row_version: int
+    can_activate: bool = False
+    can_add_schedule_line: bool = False
+    can_create_preparation: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +170,7 @@ class BillingScheduleFact:
     acceptance_reference: str | None
     source_state: str
     row_version: int
+    can_mark_ready: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,6 +244,18 @@ class BillingPreparationDetailFact:
     created_at: datetime
     updated_at: datetime
     row_version: int
+    can_edit_draft: bool = False
+    can_add_source: bool = False
+    can_remove_source: bool = False
+    can_submit: bool = False
+    can_approve: bool = False
+    can_reject: bool = False
+    can_cancel: bool = False
+    can_create_correction: bool = False
+    can_request_delivery: bool = False
+    handoff_denial_reason: str = ""
+    handoff_denial_message: str = ""
+    can_view_accounting_status: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,7 +269,7 @@ class BillingPreparationLineFact:
     source_date: date
     quantity: Decimal
     unit: str
-    unit_rate: Decimal
+    unit_rate: Decimal | None
     net_amount: Decimal
     currency_code: str
     task_id: str | None
@@ -262,6 +308,7 @@ class FinanceBillingWorkspaceFacts:
     schedule: FinancePageFacts[BillingScheduleFact]
     preparations: FinancePageFacts[BillingPreparationSummaryFact]
     lines: FinancePageFacts[BillingPreparationLineFact]
+    can_manage_billing: bool = False
 
 
 __all__ = [
@@ -275,5 +322,7 @@ __all__ = [
     "BillingProfileFact",
     "BillingScheduleFact",
     "BillingScheduleQuery",
+    "BillingSourceOptionFact",
+    "BillingSourceQuery",
     "FinanceBillingWorkspaceFacts",
 ]

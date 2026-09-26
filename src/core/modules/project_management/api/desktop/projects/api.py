@@ -4,14 +4,25 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.resources import (
-    ProjectResourceService,
-    ResourceService,
+from src.core.modules.project_management.api.desktop.common.detail_pages import (
+    DetailActivityDesktopDto,
+    DetailActivityPageDesktopDto,
 )
-from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.application.master_data.department.department_service import DepartmentService
-
+from src.core.modules.project_management.api.desktop.projects.builders.resource_builder import (
+    build_assignable_options,
+    resource_lookup,
+)
+from src.core.modules.project_management.api.desktop.projects.builders.status_builder import (
+    build_status_options,
+)
+from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
+    ProjectCreateCommand,
+    ProjectUpdateCommand,
+)
+from src.core.modules.project_management.api.desktop.projects.commands.resource_commands import (
+    ProjectResourceAssignCommand,
+    ProjectResourceUpdateCommand,
+)
 from src.core.modules.project_management.api.desktop.projects.models.project import (
     ProjectCatalogPageDesktopDto,
     ProjectDesktopDto,
@@ -24,25 +35,9 @@ from src.core.modules.project_management.api.desktop.projects.models.resources i
     ProjectResourceDetailPageDesktopDto,
     ProjectResourceUsageDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.common.detail_pages import (
-    DetailActivityDesktopDto,
-    DetailActivityPageDesktopDto,
+from src.core.modules.project_management.api.desktop.projects.serializers.project_serializer import (
+    serialize_project,
 )
-from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
-    ProjectCreateCommand,
-    ProjectUpdateCommand,
-)
-from src.core.modules.project_management.api.desktop.projects.commands.resource_commands import (
-    ProjectResourceAssignCommand,
-    ProjectResourceUpdateCommand,
-)
-from src.core.modules.project_management.api.desktop.projects.builders.status_builder import build_status_options
-from src.core.modules.project_management.api.desktop.projects.builders.resource_builder import (
-    build_assignable_options,
-    list_resources_for_context,
-    resource_lookup,
-)
-from src.core.modules.project_management.api.desktop.projects.serializers.project_serializer import serialize_project
 from src.core.modules.project_management.api.desktop.projects.serializers.resource_serializer import (
     serialize_project_resource,
     serialize_project_resource_usage,
@@ -51,6 +46,15 @@ from src.core.modules.project_management.api.desktop.projects.utils.project_util
     coerce_project_status,
     optional_date,
 )
+from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.resources import (
+    ProjectResourceService,
+    ResourceService,
+)
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.site.site_service import SiteService
 
 
 class ProjectManagementProjectsDesktopApi:
@@ -306,6 +310,21 @@ class ProjectManagementProjectsDesktopApi:
             department_lookup=self._department_lookup(),
         )
 
+    def bulk_set_project_status(
+        self, project_ids: tuple[str, ...], status: str
+    ) -> tuple[ProjectDesktopDto, ...]:
+        service = self._require_project_service()
+        service.bulk_set_status(project_ids, coerce_project_status(status))
+        site_lookup = self._site_lookup()
+        department_lookup = self._department_lookup()
+        results = []
+        for project_id in project_ids:
+            project = service.get_project(project_id)
+            if project is None:
+                raise RuntimeError("Project status updated but the project could not be reloaded.")
+            results.append(serialize_project(project, site_lookup=site_lookup, department_lookup=department_lookup))
+        return tuple(results)
+
     def delete_project(self, project_id: str) -> None:
         self._require_project_service().delete_project(project_id)
 
@@ -367,7 +386,7 @@ class ProjectManagementProjectsDesktopApi:
             page=page, page_size=page_size)
         return DetailActivityPageDesktopDto(
             items=tuple(DetailActivityDesktopDto(
-                id=item.activity_id, occurred_at=item.occurred_at.isoformat(),
+                id=item.activity_id, occurred_at=item.occurred_at,
                 actor_id=item.actor_id, action=item.action, entity_type=item.entity_type,
                 summary=item.summary, details=item.details,
             ) for item in result.items), filtered_total=result.filtered_total,
@@ -420,7 +439,7 @@ class ProjectManagementProjectsDesktopApi:
             normalized_id,
             hourly_rate=command.hourly_rate,
             currency_code=None,
-            planned_hours=max(Decimal("0"), command.planned_hours),
+            planned_hours=max(Decimal(0), command.planned_hours),
             is_active=command.is_active,
             expected_version=command.expected_version,
         )

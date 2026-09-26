@@ -18,7 +18,9 @@ from src.core.platform.contract.read.tenant.modules.module_entitlement_reader im
 )
 from src.core.platform.domain.tenant.modules.module_codes import normalize_module_code
 from src.core.platform.domain.tenant.modules.subscription import ModuleEntitlementRecord
-from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules import ModuleEntitlementORM
+from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules import (
+    ModuleEntitlementORM,
+)
 
 
 class SqlAlchemyModuleEntitlementReader:
@@ -31,6 +33,7 @@ class SqlAlchemyModuleEntitlementReader:
             .where(ModuleEntitlementORM.organization_id == organization_id)
             .where(ModuleEntitlementORM.tenant_id == tenant_id)
             .order_by(ModuleEntitlementORM.module_code.asc())
+            .execution_options(populate_existing=True)
         ).scalars().all()
 
         # A legacy-aliased code (module_storage_codes) and its canonical

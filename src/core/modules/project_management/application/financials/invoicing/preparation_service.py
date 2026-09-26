@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
@@ -8,24 +7,40 @@ from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     BillingPreparationCreated,
-    BillingPreparationExternalOutcomeRecorded,
     BillingPreparationLineAdded,
-    BillingPreparationStatusChangeType,
+    BillingPreparationLineRemoved,
     BillingPreparationStatusChanged,
+    BillingPreparationStatusChangeType,
 )
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import RateCardResolver
-from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import ProjectBillingRepository
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import ProjectCostEntryRepository
-from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import ProjectFinancialProfileRepository
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import ApprovedTimeLaborPostingRepository
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
+    RateCardResolver,
+)
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
+    ProjectFinancialProfileRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
+    ProjectCostEntryRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import (
+    ApprovedTimeLaborPostingRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
+    ProjectBillingRepository,
+)
+from src.core.modules.project_management.domain.financials.accounting.handoff import (
+    AccountingHandoffRequestResult,
+)
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillableSourceType,
-    BillingExternalEventType,
     BillingPreparationStatus,
     ProjectBillingExternalEvent,
     ProjectBillingPreparation,
@@ -36,8 +51,12 @@ from src.core.modules.project_management.domain.financials.billing_profile impor
     BillingProfileStatus,
     BillingScheduleLineStatus,
 )
-from src.core.modules.project_management.domain.financials.configuration import BillingMethod
-from src.core.modules.project_management.domain.financials.cost_entry import ProjectCostEntryStatus
+from src.core.modules.project_management.domain.financials.configuration import (
+    BillingMethod,
+)
+from src.core.modules.project_management.domain.financials.cost_entry import (
+    ProjectCostEntryStatus,
+)
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.gateway.billing.accounting_billing import (
     BillingPreparationLinePayload,
@@ -47,12 +66,19 @@ from src.core.platform.application.approval.approval_mutation_participant import
     request_approval_using,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.finance.financial_period_service import (
+    FinancialPeriodService,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.finance import DecimalQuantity, Money
+from src.core.platform.domain.finance import DecimalQuantity, Money
 from src.core.platform.integration.canonical_json import canonical_json_sha256
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
@@ -76,6 +102,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         enterprise_audit_service=None,
         module_catalog_service=None,
         record_event: Callable[[object], None] | None = None,
+        handoff_request_service=None,
     ) -> None:
         self._session = session
         self._billing_repo = billing_repo
@@ -91,6 +118,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._record_event = record_event
+        self._handoff_request_service = handoff_request_service
         # Wired post-construction by composition, only for the governed direct-command
         # instance. None means "not governed-composition-wired" (e.g. the approval
         # participant's own fresh instance, which never calls submit_preparation).
@@ -113,7 +141,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
     def list_latest_external_events(
         self, project_id: str, preparation_ids: tuple[str, ...]
     ) -> dict[str, ProjectBillingExternalEvent]:
-        self._require(project_id, "finance.read", "list latest accounting outcomes")
+        self._require(project_id, "finance.accounting_status.read", "list latest accounting outcomes")
         return self._billing_repo.list_latest_external_events(preparation_ids)
 
     def list_lines(self, preparation_id: str) -> list[ProjectBillingPreparationLine]:
@@ -122,6 +150,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
 
     def list_external_events(self, preparation_id: str) -> list[ProjectBillingExternalEvent]:
         preparation = self.get_preparation(preparation_id)
+        self._require(preparation.project_id, "finance.accounting_status.read", "view Accounting outcomes")
         return self._billing_repo.list_external_events(preparation.id)
 
     def create_preparation(
@@ -218,7 +247,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             source_content_hash=source_hash,
             description=source.name,
             source_date=source.due_date,
-            quantity=Decimal("1"),
+            quantity=Decimal(1),
             unit="MILESTONE",
             unit_rate=source.amount,
             net_amount=source.amount,
@@ -301,7 +330,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self._require_source_date(preparation, entry.posting_date)
         profile = self._require_active_profile(preparation.project_id)
         self._require_currency(preparation.currency_code, entry.currency_code)
-        multiplier = Decimal("1") + (profile.cost_plus_markup_percent / Decimal("100"))
+        multiplier = Decimal(1) + (profile.cost_plus_markup_percent / Decimal(100))
         total = (Money.of(entry.amount, entry.currency_code) * multiplier).rounded()
         line = self._line(
             preparation,
@@ -311,7 +340,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             source_content_hash=entry.source_content_hash,
             description=entry.description,
             source_date=entry.posting_date,
-            quantity=Decimal("1"),
+            quantity=Decimal(1),
             unit="COST",
             unit_rate=total.amount,
             net_amount=total.amount,
@@ -321,6 +350,81 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             markup_percent=profile.cost_plus_markup_percent,
         )
         return self._reserve(preparation, line, expected_row_version)
+
+    def remove_draft_line(
+        self, preparation_id: str, *, line_id: str, expected_row_version: int
+    ) -> ProjectBillingPreparation:
+        preparation = self._require_preparation(preparation_id)
+        self._require(preparation.project_id, "finance.manage", "remove draft billing source")
+        preparation.ensure_draft()
+        if preparation.row_version != expected_row_version:
+            raise BusinessRuleError("Billing preparation changed.", code="STALE_WRITE")
+        lines = self._billing_repo.list_preparation_lines(preparation_id)
+        line = next((item for item in lines if item.id == line_id), None)
+        if line is None:
+            raise NotFoundError("Billing preparation line not found.", code="BILLING_LINE_NOT_FOUND")
+        now = self._clock.now()
+        remaining = [item for item in lines if item.id != line_id]
+        preparation.replace_totals(
+            line_count=len(remaining),
+            total_amount=sum((item.net_amount for item in remaining), Decimal(0)),
+            occurred_at=now,
+        )
+        event = BillingPreparationLineRemoved(
+            tenant_id=preparation.tenant_id,
+            organization_id=preparation.organization_id,
+            project_id=preparation.project_id,
+            billing_preparation_id=preparation.id,
+            preparation_line_id=line.id,
+            source_type=line.source_type,
+            occurred_at=now,
+        )
+        return self._write(
+            "remove_draft_line",
+            preparation,
+            lambda: (
+                self._billing_repo.remove_draft_line(preparation.id, line.id),
+                self._billing_repo.update_preparation(
+                    preparation, expected_row_version=expected_row_version
+                ),
+            ),
+            event,
+        )
+
+    def cancel_draft_preparation(
+        self, preparation_id: str, *, expected_row_version: int
+    ) -> ProjectBillingPreparation:
+        preparation = self._require_preparation(preparation_id)
+        self._require(preparation.project_id, "finance.manage", "cancel draft billing preparation")
+        preparation.ensure_draft()
+        if preparation.row_version != expected_row_version:
+            raise BusinessRuleError("Billing preparation changed.", code="STALE_WRITE")
+        now = self._clock.now()
+        preparation.cancel(occurred_at=now)
+        locks = self._billing_repo.list_source_locks(preparation.id)
+        for lock in locks:
+            lock.release(occurred_at=now)
+        event = BillingPreparationStatusChanged(
+            tenant_id=preparation.tenant_id,
+            organization_id=preparation.organization_id,
+            project_id=preparation.project_id,
+            billing_preparation_id=preparation.id,
+            change_type=BillingPreparationStatusChangeType.CANCELLED,
+            occurred_at=now,
+        )
+        def persist_cancellation() -> None:
+            for lock in locks:
+                self._billing_repo.update_source_lock(lock)
+            self._billing_repo.update_preparation(
+                preparation, expected_row_version=expected_row_version
+            )
+
+        return self._write(
+            "cancel_draft",
+            preparation,
+            persist_cancellation,
+            event,
+        )
 
     def submit_preparation(
         self, preparation_id: str, *, expected_row_version: int
@@ -374,6 +478,11 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self, preparation_id: str, *, approved_by: str, expected_version: int
     ) -> tuple[ProjectBillingPreparation, object]:
         preparation = self._require_preparation(preparation_id)
+        self._require(
+            preparation.project_id,
+            "approval.decide",
+            "approve billing preparation",
+        )
         now = self._clock.now()
         preparation.approve(approved_by=approved_by, approved_at=now)
         locks = self._billing_repo.list_source_locks(preparation.id)
@@ -404,6 +513,11 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         notes: str,
     ) -> tuple[ProjectBillingPreparation, object]:
         preparation = self._require_preparation(preparation_id)
+        self._require(
+            preparation.project_id,
+            "approval.decide",
+            "reject billing preparation",
+        )
         now = self._clock.now()
         preparation.reject(rejected_by=rejected_by, rejected_at=now, notes=notes)
         for lock in self._billing_repo.list_source_locks(preparation.id):
@@ -426,11 +540,12 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
 
     def request_delivery(
         self, preparation_id: str, *, expected_row_version: int
-    ) -> ProjectBillingPreparationPayload:
-        preparation = self._require_preparation(preparation_id)
-        self._require(preparation.project_id, "finance.manage", "request accounting delivery")
-        payload = self.build_delivery_payload(preparation.id)
-        now = self._clock.now()
+    ) -> AccountingHandoffRequestResult:
+        if self._handoff_request_service is None:
+            raise BusinessRuleError("Accounting handoff is not configured.", code="integration_not_configured")
+        return self._handoff_request_service.request(preparation_id, expected_row_version=expected_row_version)
+
+    def _mark_delivery_requested(self, preparation, *, expected_row_version, now):
         preparation.request_delivery(occurred_at=now)
         event = BillingPreparationStatusChanged(
             tenant_id=preparation.tenant_id,
@@ -448,23 +563,14 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             ),
             event,
         )
-        return payload
 
-    def build_delivery_payload(self, preparation_id: str) -> ProjectBillingPreparationPayload:
-        preparation = self._require_preparation(preparation_id)
+    def _build_approved_delivery_payload(self, preparation, profile, *, message_id, approved_lines) -> ProjectBillingPreparationPayload:
         self._require(preparation.project_id, "finance.read", "build accounting delivery payload")
-        if preparation.status not in {
-            BillingPreparationStatus.APPROVED,
-            BillingPreparationStatus.DELIVERY_PENDING,
-            BillingPreparationStatus.DELIVERED,
-            BillingPreparationStatus.ACKNOWLEDGED,
-            BillingPreparationStatus.RECONCILED,
-        }:
+        if preparation.status is not BillingPreparationStatus.APPROVED:
             raise BusinessRuleError(
                 "Only approved billing evidence can cross the accounting boundary.",
                 code="BILLING_DELIVERY_NOT_APPROVED",
             )
-        profile = self._require_active_profile(preparation.project_id, allow_closed=True)
         if not profile.customer_party_id or not preparation.approved_by or not preparation.approved_at:
             raise BusinessRuleError(
                 "Approved billing evidence is incomplete.", code="BILLING_DELIVERY_INCOMPLETE"
@@ -486,11 +592,11 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
                 task_id=line.task_id,
                 resource_id=line.resource_id,
             )
-            for line in self._billing_repo.list_preparation_lines(preparation.id)
+            for line in approved_lines
         )
         return ProjectBillingPreparationPayload(
             schema_name="project_billing_preparation.v1",
-            message_id=f"project-billing-preparation:{preparation.id}",
+            message_id=message_id,
             tenant_id=preparation.tenant_id,
             organization_id=preparation.organization_id,
             project_id=preparation.project_id,
@@ -511,85 +617,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             lines=lines,
         )
 
-    def record_external_outcome(
-        self,
-        preparation_id: str,
-        *,
-        event_type: BillingExternalEventType | str,
-        external_system: str,
-        external_status: str,
-        idempotency_key: str,
-        occurred_at,
-        external_invoice_reference: str | None = None,
-        reconciliation_reference: str | None = None,
-        message: str = "",
-    ) -> ProjectBillingExternalEvent:
-        preparation = self._require_preparation(preparation_id)
-        self._require(preparation.project_id, "finance.manage", "record accounting outcome")
-        existing = self._billing_repo.get_external_event_by_idempotency_key(
-            external_system=external_system, idempotency_key=idempotency_key
-        )
-        if existing is not None:
-            return existing
-        resolved_type = BillingExternalEventType(event_type)
-        event = ProjectBillingExternalEvent.create(
-            tenant_id=preparation.tenant_id,
-            organization_id=preparation.organization_id,
-            project_id=preparation.project_id,
-            preparation_id=preparation.id,
-            event_type=resolved_type,
-            external_system=external_system,
-            external_status=external_status,
-            idempotency_key=idempotency_key,
-            occurred_at=occurred_at,
-            external_invoice_reference=external_invoice_reference,
-            reconciliation_reference=reconciliation_reference,
-            message=message,
-            recorded_at=self._clock.now(),
-        )
-        expected = preparation.row_version
-        status_change_types: tuple[BillingPreparationStatusChangeType, ...] = ()
-        if resolved_type is BillingExternalEventType.DELIVERY_ACCEPTED:
-            preparation.mark_delivered(occurred_at=occurred_at)
-            preparation.acknowledge(occurred_at=occurred_at)
-            status_change_types = (
-                BillingPreparationStatusChangeType.DELIVERED,
-                BillingPreparationStatusChangeType.ACKNOWLEDGED,
-            )
-        elif resolved_type is BillingExternalEventType.RECONCILED:
-            preparation.reconcile(occurred_at=occurred_at)
-            status_change_types = (BillingPreparationStatusChangeType.RECONCILED,)
-        outcome_event = BillingPreparationExternalOutcomeRecorded(
-            tenant_id=preparation.tenant_id,
-            organization_id=preparation.organization_id,
-            project_id=preparation.project_id,
-            billing_preparation_id=preparation.id,
-            external_event_id=event.id,
-            event_type=resolved_type,
-            occurred_at=occurred_at,
-        )
-        events: tuple[object, ...] = (outcome_event,) + tuple(
-            BillingPreparationStatusChanged(
-                tenant_id=preparation.tenant_id,
-                organization_id=preparation.organization_id,
-                project_id=preparation.project_id,
-                billing_preparation_id=preparation.id,
-                change_type=change_type,
-                occurred_at=occurred_at,
-            )
-            for change_type in status_change_types
-        )
-        return self._write(
-            "external_outcome",
-            event,
-            lambda: (
-                self._billing_repo.add_external_event(event),
-                self._billing_repo.update_preparation(
-                    preparation, expected_row_version=expected
-                ) if preparation.row_version == expected else None,
-            ),
-            events,
-        )
 
     def _reserve(
         self,
@@ -613,7 +640,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         now = self._clock.now()
         preparation.replace_totals(
             line_count=len(current_lines) + 1,
-            total_amount=sum((item.net_amount for item in current_lines), Decimal("0")) + line.net_amount,
+            total_amount=sum((item.net_amount for item in current_lines), Decimal(0)) + line.net_amount,
             occurred_at=now,
         )
         event = BillingPreparationLineAdded(
@@ -742,22 +769,33 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
 
     @staticmethod
     def _audit_using(owner, operation: str, entity) -> None:
+        full_operation = f"project_billing_preparation.{operation}"
         record_audit_entry(
             owner,
-            operation=f"project_billing_preparation.{operation}",
+            operation=full_operation,
             entity_type=type(entity).__name__,
             entity_id=entity.id,
             entity_parent_id=entity.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps({"project_id": entity.project_id}, sort_keys=True),
+            category="FINANCIAL",
+            after_data={"project_id": entity.project_id},
             workspace_id=entity.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            owner,
+            action=full_operation,
+            entity_type=type(entity).__name__,
+            entity_id=entity.id,
+            parent_entity_id=entity.project_id,
+            module="project_management",
+            workspace_id=entity.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     def _write(self, operation: str, entity, write, events: object):

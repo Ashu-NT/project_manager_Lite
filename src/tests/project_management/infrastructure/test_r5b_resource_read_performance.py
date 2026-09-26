@@ -7,7 +7,9 @@ import pytest
 from sqlalchemy import event, text
 
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 
 
 def _p95(values: list[float]) -> float:
@@ -31,7 +33,7 @@ def test_r5b_resource_catalog_scale_measurement(services, resource_count: int) -
                 "resource_code": f"R5B-{resource_count}-{index:05d}",
                 "name": f"Resource {index:05d}",
                 "role": "Planner" if index % 2 else "Engineer",
-                "hourly_rate": Decimal("0"),
+                "hourly_rate": Decimal(0),
                 "is_active": index % 5 != 0,
                 "capacity_percent": float(80 + index % 5 * 5),
                 "cost_type": CostType.LABOR,

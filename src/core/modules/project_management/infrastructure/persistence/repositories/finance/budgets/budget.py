@@ -22,8 +22,13 @@ from src.core.modules.project_management.infrastructure.persistence.orm.budget i
     BudgetLineORM,
     ProjectBudgetORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.infra.persistence.db.optimistic import (
     delete_with_version_check,

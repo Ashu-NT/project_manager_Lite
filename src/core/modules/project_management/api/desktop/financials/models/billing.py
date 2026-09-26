@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+
+from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+    CommercialMetricAvailability,
+    CommercialMetricUnavailableReason,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,26 +70,54 @@ class FinancialBillingPreparationLineDto:
 
 
 @dataclass(frozen=True, slots=True)
+class FinancialBillingSourceOptionDto:
+    source_id: str
+    source_type: str
+    label: str
+    source_date: str
+    amount: str
+    currency_code: str
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialBillingSourcePageDto:
+    items: tuple[FinancialBillingSourceOptionDto, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 50
+    sort_key: str = "source_date"
+    sort_direction: str = "asc"
+
+
+@dataclass(frozen=True, slots=True)
 class FinancialCommercialProjectionDto:
+    revenue_availability: CommercialMetricAvailability
+    margin_availability: CommercialMetricAvailability
+    percent_availability: CommercialMetricAvailability
+    revenue_reason: CommercialMetricUnavailableReason | None
+    margin_reason: CommercialMetricUnavailableReason | None
+    percent_reason: CommercialMetricUnavailableReason | None
 
     project_id: str = ""
     project_currency: str = ""
     contract_value: str = ""
-    billable_amount: str = "0"
-    externally_invoiced_amount: str = "0"
-    externally_paid_amount: str = "0"
-    external_accounting_data_available: bool = False
+    approved_preparation_amount: str = "0"
     forecast_revenue_at_completion: str = ""
     revenue_basis: str = ""
     projected_margin_amount: str = ""
     projected_margin_percent: str = ""
     profitability_detail_included: bool = True
+    as_of_date: str = ""
 
 
 __all__ = [
+    "CommercialMetricAvailability",
+    "CommercialMetricUnavailableReason",
     "FinancialBillingPreparationDto",
     "FinancialBillingPreparationLineDto",
     "FinancialBillingProfileDto",
     "FinancialBillingScheduleLineDto",
+    "FinancialBillingSourceOptionDto",
+    "FinancialBillingSourcePageDto",
     "FinancialCommercialProjectionDto",
 ]

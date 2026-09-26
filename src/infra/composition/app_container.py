@@ -1,71 +1,50 @@
 from __future__ import annotations
 
 import logging
-from time import perf_counter
-
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
-from src.core.platform.application.integration import IntegrationInboxService, IntegrationOutboxService
-from src.core.shared.events.view_invalidation import ViewInvalidationChannel
-from src.core.platform.access import AccessControlService
-from src.core.platform.integration.module_registry import ModuleRegistry
-from src.core.platform.integration.resolver import IntegrationResolver
-from src.core.platform.application.history.activity.activity_service import ActivityService
-from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.finance import FinancialPeriodService
-from src.core.platform.application.events.notifications.notification_service import NotificationService
-from src.core.platform.application.security.auth import AuthService
-from src.core.platform.application.security.authorization.roles import (
-    RoleGovernanceService,
-    TenantRoleAdministrationService,
+from src.core.application.global_overview.api.desktop.global_overview import (
+    GlobalOverviewDesktopApi,
 )
-from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
-from src.core.platform.application.master_data.documents.document_service import DocumentService
-from src.core.platform.application.tenant.modules import ModuleCatalogService
-from src.core.platform.application.master_data.department.department_service import DepartmentService
-from src.core.platform.application.master_data.employee.employee_service import EmployeeService
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.time_management.time import TimeService
-from src.core.platform.application.tenant.tenancy import (
-    TenantAdminService,
-    TenantContextService,
-    TenantMembershipService,
+from src.core.application.global_overview.services.action_center_service import (
+    ActionCenterService,
 )
-from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
-from src.core.platform.application.security.identity import ServicePrincipalService
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.application.global_overview.services.global_overview_service import (
+    GlobalOverviewService,
+)
+from src.core.modules.project_management.application.collaboration import (
+    CollaborationService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
     BudgetService,
-    FinancialConfigurationService,
     FinanceService,
     FinancialChangeService,
+    FinancialConfigurationService,
     ForecastGenerationService,
     ForecastVersionService,
     PlannedCostService,
-    ProjectCommitmentService,
     ProjectBillingPreparationService,
     ProjectBillingProfileService,
+    ProjectCommitmentService,
     ProjectCostEntryService,
-    ProjectFinanceWorkspaceQuery,
     ProjectFinancePerformanceQuery,
+    ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
     RateCardResolver,
 )
+from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
+    APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
+)
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
+)
+from src.core.modules.project_management.application.financials.procurement_consumer import (
+    PROCUREMENT_FINANCE_PRINCIPAL_NAME,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -73,39 +52,140 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
+from src.core.modules.project_management.application.resources.assignment_validation import (
+    AssignmentSkillValidator,
+)
+from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
+    EnterpriseResourceAvailabilityService,
+)
+from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
+    PortfolioResourcePoolService,
+)
+from src.core.modules.project_management.application.resources.resource_capacity_calculator import (
+    ResourceCapacityCalculator,
+)
+from src.core.modules.project_management.application.resources.resource_workload_service import (
+    ResourceWorkloadService,
+)
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
 )
-from src.core.modules.project_management.infrastructure.importers import DataImportService
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.collaboration import CollaborationService
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
+    BaselineService,
+)
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.modules.project_management.application.resources.assignment_validation import (
-    AssignmentSkillValidator,
+from src.core.modules.project_management.infrastructure.importers import (
+    DataImportService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import EnterpriseCalendarService
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import CalendarExceptionService
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import RecurringEventService
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import CalendarAssignmentService
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import EnterpriseCalendarResolver
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
-from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
-from src.core.modules.project_management.application.resources.resource_workload_service import ResourceWorkloadService
-from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
-from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
-from src.infra.composition.platform_registry import build_platform_service_bundle
-from src.infra.composition.project_registry import build_project_management_service_bundle
-from src.infra.composition.repositories import build_repository_bundle
-from src.infra.integration.delivery import SystemDeliveryClock
-from src.infra.integration.approved_time_dispatcher import ApprovedTimeFinancialDispatcher
+from src.core.modules.project_management.infrastructure.reporting import (
+    ReportingService,
+)
+from src.core.platform.access import AccessControlService
+from src.core.platform.api.desktop.events.notifications.notification import (
+    PlatformNotificationDesktopApi,
+)
+from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.data_operations.runtime_tracking import (
+    RuntimeExecutionService,
+)
+from src.core.platform.application.events.notifications.notification_service import (
+    NotificationService,
+)
+from src.core.platform.application.finance import FinancialPeriodService
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
+from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.integration import IntegrationOutboxService
+from src.core.platform.application.integration.accounting.commands import (
+    AccountingConnectorConfigurationCommands,
+)
+from src.core.platform.application.master_data.data_exchange import (
+    MasterDataExchangeService,
+)
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.documents.document_service import (
+    DocumentService,
+)
+from src.core.platform.application.master_data.employee.employee_service import (
+    EmployeeService,
+)
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationService,
+)
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.platform_runtime import (
+    PlatformRuntimeApplicationService,
+)
+from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.security.authorization.roles import (
+    RoleGovernanceService,
+    TenantRoleAdministrationService,
+)
+from src.core.platform.application.security.identity import ServicePrincipalService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.tenant.tenancy import (
+    TenantAdminService,
+    TenantContextService,
+    TenantMembershipService,
+)
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
+    EnterpriseCalendarResolver,
+)
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
+    WorkingTimeCalculator,
+)
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
+    CalendarExceptionService,
+)
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
+    RecurringEventService,
+)
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
+    ShiftPatternService,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.application.time_management.time import TimeService
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.integration.module_registry import ModuleRegistry
+from src.core.platform.integration.resolver import IntegrationResolver
+from src.core.shared.events.view_invalidation import ViewInvalidationChannel
+from src.infra.composition.global_overview_registry import (
+    build_global_overview_service_bundle,
+)
+from src.infra.composition.integration.accounting.accounting_integration import (
+    build_accounting_configuration_commands,
+)
+from src.infra.composition.modules.platform_registry import (
+    build_platform_service_bundle,
+)
+from src.infra.composition.modules.project_registry import (
+    build_project_management_service_bundle,
+)
+from src.infra.composition.persistence.repositories import build_repository_bundle
+from src.infra.integration.approved_time_dispatcher import (
+    ApprovedTimeFinancialDispatcher,
+)
 from src.infra.integration.procurement_financial_dispatcher import (
     ProcurementFinancialDispatcher,
 )
-
+from src.infra.time.system_clock import SystemClock
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +200,6 @@ class ServiceGraph:
     integration_resolver: IntegrationResolver
     time_financial_outbox_service: IntegrationOutboxService
     procurement_financial_outbox_service: IntegrationOutboxService
-    project_finance_inbox_service: IntegrationInboxService
     approved_time_financial_dispatcher: ApprovedTimeFinancialDispatcher
     procurement_financial_dispatcher: ProcurementFinancialDispatcher
     time_service: TimeService
@@ -144,6 +223,7 @@ class ServiceGraph:
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
     financial_period_service: FinancialPeriodService
+    accounting_connector_commands: AccountingConnectorConfigurationCommands
     notification_service: NotificationService
     approval_service: ApprovalService
     collaboration_service: CollaborationService
@@ -189,6 +269,10 @@ class ServiceGraph:
     resource_workload_service: ResourceWorkloadService | None
     enterprise_resource_availability: EnterpriseResourceAvailabilityService | None
     portfolio_resource_pool_service: PortfolioResourcePoolService | None
+    action_center_service: ActionCenterService
+    global_overview_service: GlobalOverviewService
+    global_overview_desktop_api: GlobalOverviewDesktopApi
+    platform_notification_desktop_api: PlatformNotificationDesktopApi
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -200,7 +284,6 @@ class ServiceGraph:
             "integration_resolver": self.integration_resolver,
             "time_financial_outbox_service": self.time_financial_outbox_service,
             "procurement_financial_outbox_service": self.procurement_financial_outbox_service,
-            "project_finance_inbox_service": self.project_finance_inbox_service,
             "approved_time_financial_dispatcher": self.approved_time_financial_dispatcher,
             "procurement_financial_dispatcher": self.procurement_financial_dispatcher,
             "time_service": self.time_service,
@@ -226,6 +309,7 @@ class ServiceGraph:
             "activity_service": self.activity_service,
             "enterprise_audit_service": self.enterprise_audit_service,
             "financial_period_service": self.financial_period_service,
+            "accounting_connector_commands": self.accounting_connector_commands,
             "notification_service": self.notification_service,
             "approval_service": self.approval_service,
             "collaboration_service": self.collaboration_service,
@@ -274,10 +358,14 @@ class ServiceGraph:
             # uses this instance through the bounded Resource workload query.
             "resource_availability_service": self.enterprise_resource_availability,
             "portfolio_resource_pool_service": self.portfolio_resource_pool_service,
+            "action_center_service": self.action_center_service,
+            "global_overview_service": self.global_overview_service,
+            "global_overview_desktop_api": self.global_overview_desktop_api,
+            "platform_notification_desktop_api": self.platform_notification_desktop_api,
         }
 
 
-def build_service_graph(session: Session) -> ServiceGraph:
+def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[str] = frozenset()) -> ServiceGraph:
     started = perf_counter()
     logger.debug("Service graph build begin session_type=%s", type(session).__name__)
     repositories = build_repository_bundle(session)
@@ -290,7 +378,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         "Platform service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-    _delivery_clock = SystemDeliveryClock()
+    _delivery_clock = SystemClock()
     _time_financial_outbox_service = IntegrationOutboxService(
         repository=repositories.time_financial_outbox_repo,
         owner_module="platform_time",
@@ -306,33 +394,34 @@ def build_service_graph(session: Session) -> ServiceGraph:
         repositories,
         platform_services,
         approved_time_outbox_service=_time_financial_outbox_service,
+        accounting_adapter_ids=accounting_adapter_ids,
     )
     logger.debug(
         "Project Management service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
+    global_overview_services = build_global_overview_service_bundle(
+        session, platform_services, project_management_services
+    )
     _module_registry = ModuleRegistry(platform_services.module_catalog_service)
     _integration_resolver = IntegrationResolver(_module_registry)
-    _project_finance_inbox_service = IntegrationInboxService(
-        repository=repositories.project_finance_inbox_repo,
-        consumer_name="project_finance",
-        clock=_delivery_clock,
-    )
     _approved_time_financial_dispatcher = ApprovedTimeFinancialDispatcher(
         session=session,
         outbox_service=_time_financial_outbox_service,
-        inbox_service=_project_finance_inbox_service,
-        consumer=project_management_services.approved_time_labor_cost_consumer,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
+        uow_factory=project_management_services.finance_worker_uow_factory,
+        consumer_factory=project_management_services.approved_time_consumer_factory,
+        principal_resolver=lambda: platform_services.service_principal_service.resolve_execution_principal(
+            name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME
+        ),
     )
     _procurement_financial_dispatcher = ProcurementFinancialDispatcher(
         session=session,
         outbox_service=_procurement_financial_outbox_service,
-        inbox_service=_project_finance_inbox_service,
-        consumer=project_management_services.procurement_financial_consumer,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
+        uow_factory=project_management_services.finance_worker_uow_factory,
+        consumer_factory=project_management_services.procurement_consumer_factory,
+        principal_resolver=lambda: platform_services.service_principal_service.resolve_execution_principal(
+            name=PROCUREMENT_FINANCE_PRINCIPAL_NAME
+        ),
     )
     project_management_services.time_service.set_approved_time_dispatcher(
         _approved_time_financial_dispatcher.dispatch_pending
@@ -356,7 +445,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         integration_resolver=_integration_resolver,
         time_financial_outbox_service=_time_financial_outbox_service,
         procurement_financial_outbox_service=_procurement_financial_outbox_service,
-        project_finance_inbox_service=_project_finance_inbox_service,
         approved_time_financial_dispatcher=_approved_time_financial_dispatcher,
         procurement_financial_dispatcher=_procurement_financial_dispatcher,
         time_service=project_management_services.time_service,
@@ -382,6 +470,9 @@ def build_service_graph(session: Session) -> ServiceGraph:
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         financial_period_service=platform_services.financial_period_service,
+        accounting_connector_commands=build_accounting_configuration_commands(
+            session=session, platform_services=platform_services, installed_adapters=accounting_adapter_ids,
+        ),
         notification_service=platform_services.notification_service,
         approval_service=platform_services.approval_service,
         collaboration_service=project_management_services.collaboration_service,
@@ -431,6 +522,10 @@ def build_service_graph(session: Session) -> ServiceGraph:
         resource_workload_service=project_management_services.resource_workload_service,
         enterprise_resource_availability=project_management_services.enterprise_resource_availability,
         portfolio_resource_pool_service=project_management_services.portfolio_resource_pool_service,
+        action_center_service=global_overview_services.action_center_service,
+        global_overview_service=global_overview_services.global_overview_service,
+        global_overview_desktop_api=global_overview_services.global_overview_desktop_api,
+        platform_notification_desktop_api=global_overview_services.platform_notification_desktop_api,
     )
     logger.debug(
         "Service graph build complete duration_ms=%.1f",
@@ -439,9 +534,9 @@ def build_service_graph(session: Session) -> ServiceGraph:
     return graph
 
 
-def build_service_dict(session: Session) -> dict[str, Any]:
+def build_service_dict(session: Session, *, accounting_adapter_ids: frozenset[str] = frozenset()) -> dict[str, Any]:
     started = perf_counter()
-    graph = build_service_graph(session)
+    graph = build_service_graph(session, accounting_adapter_ids=accounting_adapter_ids)
     services = graph.as_dict()
     logger.debug(
         "Service dictionary build complete service_count=%s duration_ms=%.1f",

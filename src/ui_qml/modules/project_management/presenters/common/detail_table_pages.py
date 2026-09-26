@@ -18,21 +18,6 @@ def _hours(value) -> str:
     return f"{Decimal(str(value or 0)):,.1f} h"
 
 
-def activity_page(page) -> dict[str, object]:
-    rows = [{
-        "id": item.id,
-        "occurredAt": _date_label(item.occurred_at),
-        "actorLabel": "Authorized user" if item.actor_id else "System",
-        "eventLabel": item.action.replace("_", " ").replace(".", " / ").title(),
-        "sourceLabel": item.entity_type.replace("_", " ").title(),
-        "summary": item.summary,
-        "state": {"action": item.action, "details": dict(item.details or {})},
-    } for item in page.items]
-    return {"items": rows, "total": page.filtered_total, "page": page.page,
-            "pageSize": page.page_size, "sortKey": page.sort_key,
-            "sortDirection": page.sort_direction}
-
-
 def project_tasks_page(page) -> dict[str, object]:
     rows = [{
         "id": item.id, "wbsCode": item.wbs_code, "taskName": item.name,
@@ -116,5 +101,5 @@ def task_dependencies_page(page) -> dict[str, object]:
             "sortDirection": page.sort_direction}
 
 
-__all__ = ["activity_page", "project_resources_page", "project_tasks_page",
+__all__ = ["project_resources_page", "project_tasks_page",
            "task_assignments_page", "task_dependencies_page"]

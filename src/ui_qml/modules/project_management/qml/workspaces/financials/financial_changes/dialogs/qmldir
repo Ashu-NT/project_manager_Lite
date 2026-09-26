@@ -1,0 +1,4 @@
+module workspaces.financials.financial_changes.dialogs
+FinancialChangeImpactDialog 1.0 FinancialChangeImpactDialog.qml
+FinancialChangeLifecycleDialog 1.0 FinancialChangeLifecycleDialog.qml
+FinancialChangeRequestDialog 1.0 FinancialChangeRequestDialog.qml

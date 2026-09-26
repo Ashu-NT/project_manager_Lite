@@ -11,7 +11,15 @@ GroupedNavigationRail {
 
     signal sectionRequested(int index)
 
-    implicitWidth: Theme.AppTheme.detailRailWidth
+    // Auto-collapses to an icon rail at narrow widths, the same mechanism
+    // the global navigation tree already uses (GroupedNavigationRail's own
+    // `_effectiveCollapsed`) -- previously this always claimed a fixed
+    // `detailRailWidth` regardless of viewport width, which is exactly what
+    // starved the content column of room on a narrow Organization Detail
+    // panel (nav rail + section rail together left too little width for
+    // the Sites toolbar's buttons).
+    expandedWidth: Theme.AppTheme.detailRailWidth
+    autoCollapseAtNarrowWidth: true
     showRailToggle: false
     collapsed: false
 

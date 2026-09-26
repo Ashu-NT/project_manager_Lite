@@ -5,7 +5,9 @@ from typing import Protocol
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
+from src.core.platform.contract.repositories.approval.contracts import (
+    ApprovalRepository,
+)
 from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 

@@ -7,6 +7,7 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingOverviewViewModel,
 )
 
+
 def count_open_ends(schedule_items: Any, dependency_rows: Any) -> int:
     if not schedule_items:
         return 0
@@ -99,4 +100,4 @@ def build_overview(
         ),
     )
 
-__all__ = ["count_open_ends", "build_overview"]
+__all__ = ["build_overview", "count_open_ends"]

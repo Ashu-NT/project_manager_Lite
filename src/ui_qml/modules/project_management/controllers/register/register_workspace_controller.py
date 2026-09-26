@@ -3,9 +3,9 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
+    safe_error_message,
     serialize_register_collection_view_model,
     serialize_register_detail_view_model,
     serialize_register_overview_view_model,
@@ -16,26 +16,8 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
     ProjectRegisterWorkspacePresenter,
 )
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
-from .register_state import (
-    default_entries,
-    default_overview,
-    default_selected_entry,
-    default_urgent_entries,
-)
-from .register_table_models import RegisterTableModels, create_register_table_models
-from .register_state_setters import RegisterStateSettersMixin
-from .register_selection_handler import (
-    select_entry,
-    select_project,
-    set_entry_page,
-    set_entry_page_size,
-    set_entry_sort,
-    set_search_text,
-    set_severity_filter,
-    set_status_filter,
-    set_type_filter,
-)
 from .register_bulk_handler import (
     apply_bulk_entry_status,
     bulk_delete_entries,
@@ -49,6 +31,25 @@ from .register_mutation_handler import (
     generate_entity_code,
     update_entry,
 )
+from .register_selection_handler import (
+    select_entry,
+    select_project,
+    set_entry_page,
+    set_entry_page_size,
+    set_entry_sort,
+    set_search_text,
+    set_severity_filter,
+    set_status_filter,
+    set_type_filter,
+)
+from .register_state import (
+    default_entries,
+    default_overview,
+    default_selected_entry,
+    default_urgent_entries,
+)
+from .register_state_setters import RegisterStateSettersMixin
+from .register_table_models import RegisterTableModels, create_register_table_models
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -279,7 +280,9 @@ class ProjectManagementRegisterWorkspaceController(
             )
             self._set_empty_state(workspace_state.empty_state)
         except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(exc, safe_message="Register could not be loaded.")
+            )
         finally:
             self._set_is_loading(False)
 

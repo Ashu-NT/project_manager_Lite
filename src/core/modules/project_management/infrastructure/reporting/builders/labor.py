@@ -7,28 +7,34 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.application.financials.models.finance_models import (
+    LaborDetailsResult,
+    LaborResourceRow,
+)
+from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
+    LaborCostEngine,
+)
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
+    ProjectFinancialProfileRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
+    LaborRateResolver,
+)
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
     ProjectResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
 )
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import ProjectFinancialProfileRepository
-from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
-    LaborRateResolver,
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
-    LaborCostEngine,
-)
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
-    LaborAssignmentRow,
-    LaborDetailsResult,
-    LaborResourceRow,
-)
+
 
 class ReportingLaborMixin:
     _project_repo: ProjectRepository

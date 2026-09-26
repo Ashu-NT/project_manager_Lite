@@ -13,13 +13,49 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
+    ProjectCalendarAdapter,
+)
 from src.core.modules.project_management.domain.enums import (
     CostType,
     ProjectStatus,
     WorkerType,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.calendar_assignment import (
+    SqlAlchemyProjectCalendarAssignmentRepository,
+    SqlAlchemyResourceCalendarAssignmentRepository,
+)
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
+    EnterpriseCalendarResolver,
+)
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
+    WorkingTimeCalculator,
+)
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
+    CalendarExceptionService,
+)
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
+    RecurringEventService,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
+    CalendarType,
+)
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -28,42 +64,6 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyPlatformCalendarRepository,
 )
 from src.infra.persistence.orm import Base
-from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.calendar_assignment import (
-    SqlAlchemyProjectCalendarAssignmentRepository,
-    SqlAlchemyResourceCalendarAssignmentRepository,
-)
-from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
-    CalendarType,
-    ExceptionType,
-    ImpactType,
-    RecurringEventType,
-)
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
-)
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
-)
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import RecurringEventService
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
-)
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
-)
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
-from src.core.platform.common.exceptions import ValidationError
-from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
-)
-from src.core.modules.project_management.application.resources.resource_capacity_calculator import (
-    ResourceCapacityCalculator,
-)
-from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
-    ProjectCalendarAdapter,
-)
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -279,6 +279,7 @@ def _seed_resource(db_session, tenant_context, resource_id: str) -> None:
 def _make_resource_repo(resource_id, worker_type="EXTERNAL", employee_id=None):
     from dataclasses import dataclass
     from unittest.mock import MagicMock
+
     from src.core.modules.project_management.domain.enums import WorkerType
 
     @dataclass
@@ -398,3 +399,46 @@ def test_project_calendar_adapter_add_working_days(
     # Starting Monday 2026-06-01, add 5 working days → Friday 2026-06-05
     result = adapter.add_working_days("proj-x", date(2026, 6, 1), 5)
     assert result == date(2026, 6, 5)
+
+
+def test_project_calendar_adapter_fails_fast_with_no_calendar_chain(
+    assignment_service, resolver, monkeypatch
+):
+    """A project with NO calendar assignment anywhere in its hierarchy (no
+    project/site/department/global calendar at all -- note: no global_cal
+    fixture here) previously made add_working_days/next_working_day walk
+    day-by-day, re-running full calendar resolution (DB-backed chain/
+    exception/recurring-event lookups) for every day, up to max_iter (as
+    far as ~40 years for a large `n`) before giving up -- real, observed
+    production impact: hundreds of resolver calls (and log lines) for one
+    add_working_days call, and a nonsensical decades-old/future date
+    silently returned as the "computed" result. It must now detect the
+    missing chain ONCE and return immediately."""
+    adapter = ProjectCalendarAdapter(
+        resolver=resolver,
+        assignment_service=assignment_service,
+    )
+    calls = {"count": 0}
+    original = resolver.resolve_calendar_context
+
+    def counting_resolve(*args, **kwargs):
+        calls["count"] += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(resolver, "resolve_calendar_context", counting_resolve)
+
+    start = date(2026, 6, 1)
+    result = adapter.add_working_days("proj-with-no-calendar-at-all", start, 500)
+
+    assert result == start, (
+        "with no calendar chain at all, add_working_days must return the "
+        "start date unchanged rather than walking arbitrarily far away"
+    )
+    assert calls["count"] == 0, (
+        "the fast-fail check must avoid ever calling full calendar "
+        "resolution when the chain is empty from the start"
+    )
+
+    next_day = adapter.next_working_day("proj-with-no-calendar-at-all", start)
+    assert next_day == start
+    assert calls["count"] == 0

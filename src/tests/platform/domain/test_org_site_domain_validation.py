@@ -4,10 +4,12 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationService,
+)
 from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.site import Site
 
 
@@ -17,6 +19,12 @@ class _FakeSession:
 
     def commit(self) -> None:
         self.commit_calls += 1
+
+    def add(self, _obj) -> None:
+        return None
+
+    def flush(self) -> None:
+        return None
 
     def flush(self) -> None:
         return None
@@ -33,13 +41,16 @@ class _FakeEnterpriseAuditService:
 class _FakeUserSession:
     def __init__(self, tenant_id: str = "tenant-1") -> None:
         self._tenant_id = tenant_id
-        self.active_organization_id = ""
+        self._active_organization_id = ""
 
     def active_tenant_id(self) -> str:
         return self._tenant_id
 
+    def active_organization_id(self) -> str:
+        return self._active_organization_id
+
     def set_active_organization_id(self, organization_id: str) -> None:
-        self.active_organization_id = organization_id
+        self._active_organization_id = organization_id
 
 
 class _FakeOrganizationRepo:
@@ -64,10 +75,10 @@ class _FakeOrganizationRepo:
                 return row
         return None
 
-    def list_all(self, *, enabled_only: bool | None = None) -> list[Organization]:
+    def list_all(self, *, status: str | None = None) -> list[Organization]:
         rows = list(self._rows.values())
-        if enabled_only is not None:
-            rows = [row for row in rows if row.is_enabled is bool(enabled_only)]
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
         return sorted(rows, key=lambda row: row.display_name)
 
     def get_for_tenant(self, organization_id: str, tenant_id: str) -> Organization | None:
@@ -86,15 +97,15 @@ class _FakeOrganizationRepo:
         self,
         tenant_id: str,
         *,
-        enabled_only: bool | None = None,
+        status: str | None = None,
     ) -> list[Organization]:
         rows = [
             row
             for row in self._rows.values()
             if row.tenant_id == tenant_id
         ]
-        if enabled_only is not None:
-            rows = [row for row in rows if row.is_enabled is bool(enabled_only)]
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
         return sorted(rows, key=lambda row: row.display_name)
 
 
@@ -105,11 +116,15 @@ class _FakeOrganizationUnitOfWork:
     instances passed to `OrganizationService`'s constructor (not a fresh repo per call), since
     callers assert against `service._organization_repo` directly across sequential calls."""
 
-    def __init__(self, organization_repo: "_FakeOrganizationRepo", enterprise_audit_service) -> None:
+    def __init__(self, organization_repo: _FakeOrganizationRepo, enterprise_audit_service) -> None:
         self.organizations = organization_repo
         self._enterprise_audit_service = enterprise_audit_service
+        # OrganizationService.create_organization() seeds the org's default
+        # calendar directly via uow.session (see _add_default_calendar_rows)
+        # rather than through a repository -- needs .add()/.flush() only.
+        self.session = _FakeSession()
 
-    def __enter__(self) -> "_FakeOrganizationUnitOfWork":
+    def __enter__(self) -> _FakeOrganizationUnitOfWork:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -123,7 +138,7 @@ class _FakeOrganizationUnitOfWork:
 
 
 class _FakeOrganizationUnitOfWorkFactory:
-    def __init__(self, organization_repo: "_FakeOrganizationRepo", enterprise_audit_service) -> None:
+    def __init__(self, organization_repo: _FakeOrganizationRepo, enterprise_audit_service) -> None:
         self._organization_repo = organization_repo
         self._enterprise_audit_service = enterprise_audit_service
 
@@ -146,11 +161,11 @@ class _FakeTenantContext:
 
 
 class _FakeSiteUnitOfWork:
-    def __init__(self, site_repo: "_FakeSiteRepo", enterprise_audit_service) -> None:
+    def __init__(self, site_repo: _FakeSiteRepo, enterprise_audit_service) -> None:
         self.sites = site_repo
         self._enterprise_audit_service = enterprise_audit_service
 
-    def __enter__(self) -> "_FakeSiteUnitOfWork":
+    def __enter__(self) -> _FakeSiteUnitOfWork:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -164,7 +179,7 @@ class _FakeSiteUnitOfWork:
 
 
 class _FakeSiteUnitOfWorkFactory:
-    def __init__(self, site_repo: "_FakeSiteRepo", enterprise_audit_service) -> None:
+    def __init__(self, site_repo: _FakeSiteRepo, enterprise_audit_service) -> None:
         self._site_repo = site_repo
         self._enterprise_audit_service = enterprise_audit_service
 
@@ -321,35 +336,34 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
         display_name="  Default Organization  ",
         timezone_name="  UTC  ",
         base_currency=" eur ",
-        is_enabled=True,
     )
     second = service.create_organization(
         organization_code=" north ",
         display_name="  North Division  ",
         timezone_name=" Europe/Berlin ",
         base_currency=" usd ",
-        is_enabled=False,
     )
+    second = service.deactivate_organization(second.id)
 
     assert created.organization_code == "DEFAULT"
     assert second.organization_code == "NORTH"
     assert second.display_name == "North Division"
     assert second.base_currency == "USD"
 
-    activated = service.update_organization(
+    renamed = service.update_organization(
         second.id,
         expected_version=second.version,
         display_name="  North Ops  ",
-        is_enabled=True,
     )
+    activated = service.activate_organization(renamed.id)
 
     assert activated.display_name == "North Ops"
-    assert activated.is_enabled is True
-    assert activated.version == 2
-    # Enabling `second` never disables `created` -- no mutual exclusion.
+    assert activated.status == "active"
+    assert activated.version == 4
+    # Activating `second` never deactivates `created` -- no mutual exclusion.
     reloaded_first = service._organization_repo.get(created.id)
     assert reloaded_first is not None
-    assert reloaded_first.is_enabled is True
+    assert reloaded_first.status == "active"
 
     with pytest.raises(ValidationError) as exc_name:
         service.update_organization(
@@ -371,8 +385,7 @@ def test_site_dto_normalizes_and_validates_fields():
         city="  Berlin  ",
         timezone="  Europe/Berlin  ",
         currency_code=" eur ",
-        status=" ",
-        is_active=False,
+        status="inactive",
         opened_at=now,
         closed_at=now,
         notes="  Keep gate 3 reserved.  ",
@@ -386,7 +399,8 @@ def test_site_dto_normalizes_and_validates_fields():
     assert site.city == "Berlin"
     assert site.timezone == "Europe/Berlin"
     assert site.currency_code == "EUR"
-    assert site.status == "INACTIVE"
+    assert site.status == "inactive"
+    assert site.is_active is False
     assert site.notes == "Keep gate 3 reserved."
 
     with pytest.raises(ValidationError) as exc_org:
@@ -433,7 +447,7 @@ def test_site_service_uses_entity_validation_and_final_state(monkeypatch: pytest
     assert created.timezone == "UTC"
     assert created.currency_code == "EUR"
     assert created.default_calendar_id == "default"
-    assert created.status == "ACTIVE"
+    assert created.status == "active"
 
     updated = service.update_site(
         created.id,
@@ -442,26 +456,23 @@ def test_site_service_uses_entity_validation_and_final_state(monkeypatch: pytest
         city="  Berlin  ",
         country="  Germany  ",
         site_type="  warehouse  ",
-        is_active=False,
     )
 
     assert updated.name == "North Hub"
     assert updated.city == "Berlin"
     assert updated.country == "Germany"
     assert updated.site_type == "warehouse"
-    assert updated.status == "INACTIVE"
-    assert updated.closed_at is not None
+    assert updated.status == "active"
     assert updated.version == 2
 
-    reopened = service.update_site(
-        updated.id,
-        expected_version=updated.version,
-        is_active=True,
-    )
+    deactivated = service.deactivate_site(updated.id)
+    assert deactivated.status == "inactive"
+    assert deactivated.version == 3
 
-    assert reopened.status == "ACTIVE"
-    assert reopened.closed_at is None
-    assert reopened.version == 3
+    reopened = service.activate_site(deactivated.id)
+
+    assert reopened.status == "active"
+    assert reopened.version == 4
 
     with pytest.raises(ValidationError) as exc_name:
         service.update_site(
@@ -470,3 +481,11 @@ def test_site_service_uses_entity_validation_and_final_state(monkeypatch: pytest
             name=" ",
         )
     assert exc_name.value.code == "SITE_NAME_REQUIRED"
+
+    archived = service.archive_site(reopened.id)
+    assert archived.status == "archived"
+    assert archived.closed_at is not None
+    assert archived.version == 5
+
+    with pytest.raises(ValidationError):
+        service.activate_site(archived.id)

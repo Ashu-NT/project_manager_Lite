@@ -6,37 +6,46 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common import (
     project_resource_envelope_policy as envelope_policy,
 )
 from src.core.modules.project_management.application.tasks.commands.assignment_activity import (
     record_assignment_action,
 )
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskAssignmentChanged,
+    TaskAssignmentChangeType,
+)
 from src.core.modules.project_management.contracts.reads.tasks.models import (
     TaskResourceTimeBreakdownRow,
     TaskTimeSummaryFact,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectResourceRepository
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.application.tasks.task_events import (
-    TaskAssignmentChangeType,
-    TaskAssignmentChanged,
-)
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.application.security.authorization import get_authorization_engine
+from src.core.platform.application.security.authorization import (
+    get_authorization_engine,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
     OperationNotPermittedError,
     ValidationError,
 )
-from src.core.shared.audit import record_audit_entry
 from src.core.shared.notifications import safe_dispatch_notification
 
 
@@ -91,18 +100,6 @@ class TaskAssignmentMixin:
             uow.assignments.delete_with_version_check(
                 assignment_id, expected_version=assignment.version
             )
-            record_audit_entry(
-                uow,
-                operation="delete",
-                entity_type="task_assignment",
-                entity_id=assignment.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "assignment.remove", "resource_id": assignment.resource_id},
-                commit=False,
-                fail_closed=True,
-            )
             record_assignment_action(
                 uow,
                 action="assignment.remove",
@@ -153,8 +150,8 @@ class TaskAssignmentMixin:
         } if assignments else {}
 
         rows: list[TaskResourceTimeBreakdownRow] = []
-        planned_total = Decimal("0")
-        actual_total = Decimal("0")
+        planned_total = Decimal(0)
+        actual_total = Decimal(0)
         for assignment in assignments:
             planned = Decimal(str(assignment.allocated_planned_hours or 0))
             actual = Decimal(str(assignment.hours_logged or 0))
@@ -168,8 +165,8 @@ class TaskAssignmentMixin:
                     resource_name=getattr(resource, "name", "") or assignment.resource_id,
                     planned_hours=planned,
                     actual_hours=actual,
-                    remaining_hours=max(planned - actual, Decimal("0")),
-                    overrun_hours=max(actual - planned, Decimal("0")),
+                    remaining_hours=max(planned - actual, Decimal(0)),
+                    overrun_hours=max(actual - planned, Decimal(0)),
                     burn_status=envelope_policy.burn_status(
                         planned_hours=planned, actual_hours=actual
                     ),
@@ -180,8 +177,8 @@ class TaskAssignmentMixin:
             task_id=task_id,
             planned_hours=planned_total,
             actual_hours=actual_total,
-            remaining_hours=max(planned_total - actual_total, Decimal("0")),
-            overrun_hours=max(actual_total - planned_total, Decimal("0")),
+            remaining_hours=max(planned_total - actual_total, Decimal(0)),
+            overrun_hours=max(actual_total - planned_total, Decimal(0)),
             burn_status=envelope_policy.burn_status(
                 planned_hours=planned_total, actual_hours=actual_total
             ),
@@ -208,18 +205,6 @@ class TaskAssignmentMixin:
         with self._task_uow() as uow:
             updated = uow.assignments.update_hours_logged_with_version_check(
                 candidate, expected_version=assignment.version
-            )
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_assignment",
-                entity_id=updated.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "assignment.log_hours", "hours_logged": str(updated.hours_logged)},
-                commit=False,
-                fail_closed=True,
             )
             record_assignment_action(
                 uow,
@@ -278,21 +263,6 @@ class TaskAssignmentMixin:
         with self._task_uow() as uow:
             updated = uow.assignments.update_allocation_with_version_check(
                 candidate, expected_version=expected_version
-            )
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_assignment",
-                entity_id=updated.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={
-                    "action": "assignment.set_allocation",
-                    "allocation_percent": updated.allocation_percent,
-                },
-                commit=False,
-                fail_closed=True,
             )
             record_assignment_action(
                 uow,
@@ -381,21 +351,6 @@ class TaskAssignmentMixin:
                 project_resource.id,
                 expected_version=expected_project_resource_version,
             )
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_assignment",
-                entity_id=updated.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={
-                    "action": "assignment.update_planned_hours",
-                    "allocated_planned_hours": str(updated.allocated_planned_hours),
-                },
-                commit=False,
-                fail_closed=True,
-            )
             record_assignment_action(
                 uow,
                 action="assignment.update_planned_hours",
@@ -478,7 +433,7 @@ class TaskAssignmentMixin:
         project_resource_id: str,
         allocation_percent: float,
         *,
-        allocated_planned_hours: Decimal = Decimal("0"),
+        allocated_planned_hours: Decimal = Decimal(0),
     ) -> TaskAssignment:
         if not self._project_resource_repo:
             raise BusinessRuleError(
@@ -547,18 +502,6 @@ class TaskAssignmentMixin:
 
         with self._task_uow() as uow:
             uow.assignments.add(assignment)
-            record_audit_entry(
-                uow,
-                operation="create",
-                entity_type="task_assignment",
-                entity_id=assignment.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "assignment.add", "resource_id": assignment.resource_id},
-                commit=False,
-                fail_closed=True,
-            )
             record_assignment_action(
                 uow,
                 action="assignment.add",
@@ -763,18 +706,6 @@ class TaskAssignmentMixin:
             updated = uow.assignments.update_response_status_with_version_check(
                 candidate, expected_version=assignment.version
             )
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_assignment",
-                entity_id=updated.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "assignment.accept"},
-                commit=False,
-                fail_closed=True,
-            )
             record_assignment_action(
                 uow,
                 action="assignment.accept",
@@ -823,18 +754,6 @@ class TaskAssignmentMixin:
         with self._task_uow() as uow:
             updated = uow.assignments.update_response_status_with_version_check(
                 candidate, expected_version=assignment.version
-            )
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_assignment",
-                entity_id=updated.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "assignment.decline", "reason": reason},
-                commit=False,
-                fail_closed=True,
             )
             record_assignment_action(
                 uow,

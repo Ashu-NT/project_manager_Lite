@@ -406,7 +406,10 @@ def test_link_scope_is_typed_not_stringly_encoded():
         build_document_links_view_invalidation_handler,
     )
     from src.core.shared.events.domain_event_context import DomainEventContext
-    from src.core.shared.events.view_invalidation import ResourceScope, ViewInvalidationHint
+    from src.core.shared.events.view_invalidation import (
+        ResourceScope,
+        ViewInvalidationHint,
+    )
 
     captured: list[ViewInvalidationHint] = []
     handler = build_document_links_view_invalidation_handler(channel=type("C", (), {"notify": staticmethod(captured.append)})())

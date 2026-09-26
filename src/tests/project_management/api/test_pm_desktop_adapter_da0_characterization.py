@@ -4,25 +4,36 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
-import pytest
-
+from src.core.modules.project_management.api.desktop.dashboard.builders.chart_builder import (
+    _build_resource_chart,
+)
+from src.core.modules.project_management.api.desktop.dashboard.builders.operational_table_builder import (
+    _build_high_risks_table,
+    _build_resource_overloads_table,
+)
+from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
+    overloaded_resource_count,
+)
+from src.core.modules.project_management.api.desktop.dashboard.builders.panel_builder import (
+    _build_resource_overload_panel,
+)
 from src.core.modules.project_management.api.desktop.projects.builders.resource_builder import (
     list_resources_for_context,
 )
 from src.core.modules.project_management.api.desktop.projects.serializers.resource_serializer import (
     serialize_project_resource,
 )
+from src.core.modules.project_management.api.desktop.register.builders.entry_list_builder import (
+    build_entry_list,
+)
 from src.core.modules.project_management.api.desktop.resources.api import (
     ProjectManagementResourcesDesktopApi,
-)
-from src.core.modules.project_management.api.desktop.resources.serializers.context_serializer import (
-    serialize_resource_assignment,
 )
 from src.core.modules.project_management.api.desktop.resources.commands.resource_commands import (
     ResourceUpdateCommand,
 )
-from src.core.modules.project_management.api.desktop.scheduling.api import (
-    ProjectManagementSchedulingDesktopApi,
+from src.core.modules.project_management.api.desktop.resources.serializers.context_serializer import (
+    serialize_resource_assignment,
 )
 from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import (
     build_change_impact,
@@ -39,32 +50,16 @@ from src.core.modules.project_management.api.desktop.tasks.builders.resource_opt
 from src.core.modules.project_management.api.desktop.tasks.services.access_resolution_service import (
     project_rows_for_task_scope,
 )
-from src.core.modules.project_management.api.desktop.dashboard.builders.chart_builder import (
-    _build_resource_chart,
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    ResourceLoadRow,
 )
-from src.core.modules.project_management.api.desktop.dashboard.builders.operational_table_builder import (
-    _build_high_risks_table,
-    _build_resource_overloads_table,
-)
-from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
-    overloaded_resource_count,
-)
-from src.core.modules.project_management.api.desktop.dashboard.builders.panel_builder import (
-    _build_resource_overload_panel,
-)
-from src.core.modules.project_management.api.desktop.register.builders.entry_list_builder import (
-    build_entry_list,
+from src.core.modules.project_management.contracts.reads.resources import (
+    ResourceAssignmentFact,
 )
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
-)
-from src.core.modules.project_management.contracts.reads.resources import (
-    ResourceAssignmentFact,
-)
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
-    ResourceLoadRow,
 )
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
@@ -234,7 +229,7 @@ class _CapturingResourceService:
             name="Planner",
             code="RES-1",
             role="Planner",
-            hourly_rate=Decimal("100"),
+            hourly_rate=Decimal(100),
             is_active=True,
             cost_type="LABOR",
             currency_code="EUR",
@@ -268,7 +263,7 @@ def test_da3_desktop_forwards_rate_fields_without_policy_decision() -> None:
             kind="PERSON",
             name="Planner",
             role="Planner",
-            hourly_rate=Decimal("120"),
+            hourly_rate=Decimal(120),
             cost_type="LABOR",
             currency_code="USD",
             capacity_percent=100.0,
@@ -282,7 +277,7 @@ def test_da3_desktop_forwards_rate_fields_without_policy_decision() -> None:
         )
     )
 
-    assert service.update_kwargs["hourly_rate"] == Decimal("120")
+    assert service.update_kwargs["hourly_rate"] == Decimal(120)
     assert service.update_kwargs["currency_code"] == "USD"
     assert "effective_on" not in service.update_kwargs
 
@@ -301,8 +296,8 @@ def test_da1_resource_assignments_use_authoritative_typed_read_fact() -> None:
             task_status="IN_PROGRESS",
             scheduled_start=date(2026, 8, 10),
             scheduled_finish=date(2026, 8, 12),
-            allocated_planned_hours=Decimal("12"),
-            allocation_percent=Decimal("75"),
+            allocated_planned_hours=Decimal(12),
+            allocation_percent=Decimal(75),
             actual_hours=Decimal("3.5"),
             actual_hours_source="time_entries",
             response_status="accepted",
@@ -347,9 +342,9 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
         id="project-resource-1",
         project_id="project-1",
         resource_id="resource-1",
-        hourly_rate=Decimal("125"),
+        hourly_rate=Decimal(125),
         currency_code="GBP",
-        planned_hours=Decimal("40"),
+        planned_hours=Decimal(40),
         is_active=True,
     )
     resource = SimpleNamespace(
@@ -357,7 +352,7 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
         name="Planner",
         role="Lead",
         worker_type="EXTERNAL",
-        hourly_rate=Decimal("90"),
+        hourly_rate=Decimal(90),
         currency_code="EUR",
         is_active=True,
     )
@@ -382,10 +377,10 @@ def _fake_capacity_fact(*, peak_utilization_percent: float, days: tuple) -> Simp
     """Stand-in for TaskAssignmentCapacityFact -- only the fields
     `build_assignment_preview` actually reads."""
     return SimpleNamespace(
-        effective_available_capacity_hours=Decimal("10"),
-        existing_committed_capacity_hours=Decimal("6"),
-        proposed_committed_capacity_hours=Decimal("10"),
-        resulting_committed_capacity_hours=Decimal("16"),
+        effective_available_capacity_hours=Decimal(10),
+        existing_committed_capacity_hours=Decimal(6),
+        proposed_committed_capacity_hours=Decimal(10),
+        resulting_committed_capacity_hours=Decimal(16),
         peak_utilization_percent=peak_utilization_percent,
         capacity_status="OVER_CAPACITY",
         conflict_dates=(date(2026, 8, 10), date(2026, 8, 11)),

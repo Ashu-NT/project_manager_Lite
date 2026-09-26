@@ -1,33 +1,35 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
-from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.platform_runtime.runtime import (
+    PlatformRuntimeDesktopApi,
+)
+from src.ui_qml.platform.adapters.account_security_view_invalidation_adapter import (
+    AccountSecurityViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
     ApprovalViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
-    EmployeeViewInvalidationAdapter,
+from src.ui_qml.platform.adapters.authorization_context_view_invalidation_adapter import (
+    AuthorizationContextViewInvalidationAdapter,
 )
 from src.ui_qml.platform.adapters.department_view_invalidation_adapter import (
     DepartmentViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.site_view_invalidation_adapter import (
-    SiteViewInvalidationAdapter,
-)
-from src.ui_qml.platform.adapters.party_view_invalidation_adapter import (
-    PartyViewInvalidationAdapter,
-)
-from src.ui_qml.platform.adapters.document_view_invalidation_adapter import (
-    DocumentViewInvalidationAdapter,
+from src.ui_qml.platform.adapters.document_links_view_invalidation_adapter import (
+    DocumentLinksViewInvalidationAdapter,
 )
 from src.ui_qml.platform.adapters.document_structure_view_invalidation_adapter import (
     DocumentStructureViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.document_links_view_invalidation_adapter import (
-    DocumentLinksViewInvalidationAdapter,
+from src.ui_qml.platform.adapters.document_view_invalidation_adapter import (
+    DocumentViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
+    EmployeeViewInvalidationAdapter,
 )
 from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter import (
     ModuleEntitlementViewInvalidationAdapter,
@@ -35,51 +37,60 @@ from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter i
 from src.ui_qml.platform.adapters.organization_view_invalidation_adapter import (
     OrganizationViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.party_view_invalidation_adapter import (
+    PartyViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.role_binding_view_invalidation_adapter import (
     RoleBindingViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.authorization_context_view_invalidation_adapter import (
-    AuthorizationContextViewInvalidationAdapter,
-)
-from src.ui_qml.platform.adapters.account_security_view_invalidation_adapter import (
-    AccountSecurityViewInvalidationAdapter,
+from src.ui_qml.platform.adapters.site_view_invalidation_adapter import (
+    SiteViewInvalidationAdapter,
 )
 from src.ui_qml.platform.adapters.tenant_membership_view_invalidation_adapter import (
     TenantMembershipViewInvalidationAdapter,
 )
-from src.ui_qml.platform.controllers.admin_console import PlatformAdminWorkspaceController
-from src.ui_qml.platform.controllers.identity_access.access import (
+from src.ui_qml.platform.controllers.access import (
     PlatformAdminAccessWorkspaceController,
 )
-from src.ui_qml.platform.controllers.support import PlatformSupportWorkspaceController
 from src.ui_qml.platform.controllers.control import PlatformControlWorkspaceController
+from src.ui_qml.platform.controllers.overview import PlatformAdminWorkspaceController
 from src.ui_qml.platform.controllers.settings import PlatformSettingsWorkspaceController
-from src.ui_qml.platform.controllers.tenants import (
+from src.ui_qml.platform.controllers.support import PlatformSupportWorkspaceController
+from src.ui_qml.platform.controllers.tenant_management import (
     OrganizationSwitcherController,
     TenantSwitcherController,
+)
+from src.ui_qml.platform.navigation.platform_context_navigation import (
+    build_platform_context_navigation,
 )
 from src.ui_qml.platform.presenters import (
     OrganizationSwitcherPresenter,
     PlatformAccessWorkspacePresenter,
     PlatformAdminWorkspacePresenter,
+    PlatformCalendarCatalogPresenter,
     PlatformControlQueuePresenter,
     PlatformControlWorkspacePresenter,
-    PlatformCalendarCatalogPresenter,
     PlatformDepartmentCatalogPresenter,
     PlatformDocumentCatalogPresenter,
     PlatformDocumentManagementPresenter,
     PlatformEmployeeCatalogPresenter,
+    PlatformOrganizationActivityPresenter,
     PlatformOrganizationCatalogPresenter,
     PlatformPartyCatalogPresenter,
     PlatformRuntimePresenter,
     PlatformSettingsCatalogPresenter,
     PlatformSettingsWorkspacePresenter,
+    PlatformSiteActivityPresenter,
     PlatformSiteCatalogPresenter,
     PlatformSupportWorkspacePresenter,
-    TenantSwitcherPresenter,
     PlatformUserCatalogPresenter,
+    TenantSwitcherPresenter,
 )
 from src.ui_qml.platform.routes import build_platform_routes
+from src.ui_qml.shell.context_navigation import (
+    resolve_breadcrumb,
+    resolve_safe_context_destination,
+)
 
 QML_IMPORT_NAME = "Platform.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -88,6 +99,10 @@ QML_IMPORT_MAJOR_VERSION = 1
 @QmlElement
 @QmlUncreatable("Platform workspace catalogs are provided by the shell runtime.")
 class PlatformWorkspaceCatalog(QObject):
+    contextNavigationChanged = Signal()
+    currentDestinationIdChanged = Signal()
+    breadcrumbChanged = Signal()
+
     def __init__(
         self,
         desktop_api: PlatformRuntimeDesktopApi | None = None,
@@ -100,6 +115,7 @@ class PlatformWorkspaceCatalog(QObject):
             runtime_api = getattr(desktop_api_registry, "platform_runtime", None) or desktop_api
         self._runtime_api = runtime_api
         self._current_permissions: frozenset[str] = frozenset()
+        self._current_destination_id: str = "overview"
         self._reload_current_permissions()
         self._integration_api: IntegrationCapabilityDesktopApi | None = (
             getattr(desktop_api_registry, "integration_capability", None)
@@ -115,6 +131,10 @@ class PlatformWorkspaceCatalog(QObject):
         user_api = getattr(desktop_api_registry, "platform_user", None)
         document_api = getattr(desktop_api_registry, "platform_document", None)
         party_api = getattr(desktop_api_registry, "platform_party", None)
+        approval_api = getattr(desktop_api_registry, "platform_approval", None)
+        audit_api = getattr(desktop_api_registry, "platform_enterprise_audit", None)
+        activity_api = getattr(desktop_api_registry, "platform_activity", None)
+        tenant_api = getattr(desktop_api_registry, "platform_tenant", None) if desktop_api_registry is not None else None
         admin_overview_presenter = PlatformAdminWorkspacePresenter(
             runtime_api=runtime_api,
             site_api=site_api,
@@ -123,14 +143,17 @@ class PlatformWorkspaceCatalog(QObject):
             user_api=user_api,
             document_api=document_api,
             party_api=party_api,
+            approval_api=approval_api,
+            audit_api=audit_api,
+            tenant_api=tenant_api,
         )
         control_presenter = PlatformControlWorkspacePresenter(
-            approval_api=getattr(desktop_api_registry, "platform_approval", None),
-            audit_api=getattr(desktop_api_registry, "platform_enterprise_audit", None),
+            approval_api=approval_api,
+            audit_api=audit_api,
         )
         control_queue_presenter = PlatformControlQueuePresenter(
-            approval_api=getattr(desktop_api_registry, "platform_approval", None),
-            audit_api=getattr(desktop_api_registry, "platform_enterprise_audit", None),
+            approval_api=approval_api,
+            audit_api=audit_api,
         )
         settings_presenter = PlatformSettingsWorkspacePresenter(runtime_api=runtime_api)
         settings_catalog_presenter = PlatformSettingsCatalogPresenter(
@@ -139,15 +162,28 @@ class PlatformWorkspaceCatalog(QObject):
         )
         self._admin_workspace = PlatformAdminWorkspaceController(
             overview_presenter=admin_overview_presenter,
-            organization_presenter=PlatformOrganizationCatalogPresenter(runtime_api=runtime_api),
+            organization_presenter=PlatformOrganizationCatalogPresenter(runtime_api=runtime_api, activity_api=activity_api),
+            organization_activity_presenter=PlatformOrganizationActivityPresenter(
+                activity_api=activity_api,
+                site_api=site_api,
+                department_api=department_api,
+                employee_api=employee_api,
+                document_api=document_api,
+                user_api=user_api,
+            ),
             calendar_presenter=PlatformCalendarCatalogPresenter(
                 calendar_api=calendar_api,
                 enterprise_calendar_api=enterprise_calendar_api,
             ),
             site_presenter=PlatformSiteCatalogPresenter(site_api=site_api),
+            site_activity_presenter=PlatformSiteActivityPresenter(
+                activity_api=activity_api,
+                user_api=user_api,
+            ),
             department_presenter=PlatformDepartmentCatalogPresenter(
                 department_api=department_api,
                 site_api=site_api,
+                employee_api=employee_api,
             ),
             employee_presenter=PlatformEmployeeCatalogPresenter(
                 employee_api=employee_api,
@@ -188,7 +224,6 @@ class PlatformWorkspaceCatalog(QObject):
             runtime_api=runtime_api,
             parent=self,
         )
-        tenant_api = getattr(desktop_api_registry, "platform_tenant", None) if desktop_api_registry is not None else None
         self._tenant_switcher = TenantSwitcherController(
             TenantSwitcherPresenter(tenant_api=tenant_api),
             self,
@@ -514,14 +549,56 @@ class PlatformWorkspaceCatalog(QObject):
     # ------------------------------------------------------------------
 
     def _reload_current_permissions(self) -> None:
+        previous = self._current_permissions
+        self._current_permissions = self._fetch_current_permissions()
+        if self._current_permissions != previous:
+            self.contextNavigationChanged.emit()
+            self.breadcrumbChanged.emit()
+            self._redirect_if_current_destination_inaccessible()
+
+    def _redirect_if_current_destination_inaccessible(self) -> None:
+        tree = build_platform_context_navigation(held_permissions=self._current_permissions)
+        safe_id = resolve_safe_context_destination(
+            self._current_destination_id, tree, preferred_id="overview"
+        )
+        if safe_id != self._current_destination_id:
+            self._current_destination_id = safe_id
+            self.currentDestinationIdChanged.emit()
+            self.breadcrumbChanged.emit()
+
+    def _fetch_current_permissions(self) -> frozenset[str]:
         if self._runtime_api is None:
-            self._current_permissions = frozenset()
-            return
+            return frozenset()
         result = self._runtime_api.get_current_permissions()
         if not getattr(result, "ok", False) or getattr(result, "data", None) is None:
-            self._current_permissions = frozenset()
+            return frozenset()
+        return frozenset(result.data)
+
+    @Property("QVariantList", notify=contextNavigationChanged)
+    def contextNavigation(self) -> list[dict[str, object]]:
+        return build_platform_context_navigation(
+            held_permissions=self._current_permissions
+        ).to_qml_groups()
+
+    @Property(str, notify=currentDestinationIdChanged)
+    def currentDestinationId(self) -> str:
+        return self._current_destination_id
+
+    @Property("QVariantList", notify=breadcrumbChanged)
+    def breadcrumb(self) -> list[str]:
+        tree = build_platform_context_navigation(held_permissions=self._current_permissions)
+        return resolve_breadcrumb(
+            workspace_title="Platform", tree=tree, current_id=self._current_destination_id
+        )
+
+    @Slot(str)
+    def selectDestination(self, destination_id: str) -> None:
+        normalized = str(destination_id or "").strip()
+        if not normalized or normalized == self._current_destination_id:
             return
-        self._current_permissions = frozenset(result.data)
+        self._current_destination_id = normalized
+        self.currentDestinationIdChanged.emit()
+        self.breadcrumbChanged.emit()
 
     @Slot()
     def refreshCurrentPermissions(self) -> None:

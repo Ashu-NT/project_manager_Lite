@@ -1,6 +1,8 @@
 """Scheduling desktop API — modular enterprise package."""
 
-from src.core.modules.project_management.api.desktop.scheduling.api import ProjectManagementSchedulingDesktopApi
+from src.core.modules.project_management.api.desktop.scheduling.api import (
+    ProjectManagementSchedulingDesktopApi,
+)
 from src.core.modules.project_management.api.desktop.scheduling.commands.baseline_commands import (
     SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
@@ -27,7 +29,6 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     GanttTaskRowDto,
     ScheduleConflictDto,
     ScheduleDriverDto,
-    TaskScheduleImpactOverviewDesktopDto,
     ScheduleImpactAffectedTaskDto,
     ScheduleImpactReportDto,
     SchedulingBaselineComparisonRowDto,
@@ -51,10 +52,10 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingTaskDto,
     SchedulingUnresolvedConflictDto,
     SchedulingWorkingDayCalculationDto,
+    TaskScheduleImpactOverviewDesktopDto,
 )
 
 __all__ = [
-    "ProjectManagementSchedulingDesktopApi",
     "ActualVarianceDto",
     "DownstreamExposureDto",
     "GanttBaselineOverlayDto",
@@ -62,9 +63,9 @@ __all__ = [
     "GanttDependencyEdgeDto",
     "GanttProjectionDto",
     "GanttTaskRowDto",
+    "ProjectManagementSchedulingDesktopApi",
     "ScheduleConflictDto",
     "ScheduleDriverDto",
-    "TaskScheduleImpactOverviewDesktopDto",
     "ScheduleImpactAffectedTaskDto",
     "ScheduleImpactReportDto",
     "SchedulingBaselineApproveCommand",
@@ -95,5 +96,6 @@ __all__ = [
     "SchedulingUnresolvedConflictDto",
     "SchedulingWorkingDayCalculationCommand",
     "SchedulingWorkingDayCalculationDto",
+    "TaskScheduleImpactOverviewDesktopDto",
     "build_project_management_scheduling_desktop_api",
 ]

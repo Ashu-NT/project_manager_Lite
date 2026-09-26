@@ -2,18 +2,24 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import pytest
-
 from src.core.platform.domain.master_data.employee import EmploymentType
-from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import (
     DocumentLinkORM,
     DocumentORM,
     DocumentStructureORM,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
-from src.core.platform.infrastructure.persistence.orm.master_data.party.party import PartyORM
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.party.party import (
+    PartyORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
 
 
 def _seed_core_scope_rows(services) -> dict[str, str]:
@@ -25,7 +31,6 @@ def _seed_core_scope_rows(services) -> dict[str, str]:
         display_name="Operations Hub",
         timezone_name="UTC",
         base_currency="USD",
-        is_enabled=False,
     )
     assert default_org is not None
     assert other_org is not None
@@ -40,7 +45,7 @@ def _seed_core_scope_rows(services) -> dict[str, str]:
         organization_id=default_org.id,
         site_code="SITE-CUR",
         name="Current Site",
-        is_active=True,
+        status="active",
         created_at=now,
         updated_at=now,
         version=1,
@@ -51,7 +56,7 @@ def _seed_core_scope_rows(services) -> dict[str, str]:
         organization_id=other_org.id,
         site_code="SITE-OTH",
         name="Other Site",
-        is_active=True,
+        status="active",
         created_at=now,
         updated_at=now,
         version=1,

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from typing import Iterable, TypeVar
+from collections.abc import Iterable
+from typing import TypeVar
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import record_authorization_denial
+from src.core.platform.application.security.authorization import (
+    get_authorization_engine,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    record_authorization_denial,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.application.security.authorization import get_authorization_engine
-
 
 _T = TypeVar("_T")
 

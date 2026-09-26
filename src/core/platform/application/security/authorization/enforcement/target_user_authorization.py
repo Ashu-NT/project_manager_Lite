@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import authorization_denied
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    authorization_denied,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 
 if TYPE_CHECKING:
@@ -213,6 +215,6 @@ __all__ = [
     "is_platform_operator",
     "require_actor_active_tenant",
     "require_self_target",
-    "require_target_user_in_customer_tenant",
     "require_target_user_in_active_tenant",
+    "require_target_user_in_customer_tenant",
 ]

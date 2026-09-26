@@ -1,21 +1,24 @@
 from pathlib import Path
-from reportlab.lib.pagesizes import A4, landscape
+
 from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import (
-    SimpleDocTemplate,
+    Image,
     Paragraph,
+    SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
-    Image,
 )
-from reportlab.lib.styles import getSampleStyleSheet
 
-from src.core.modules.project_management.infrastructure.reporting.models.contexts import PdfReportContext
 from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.finance import (
     finance_metadata_rows,
     finance_reconciliation_rows,
     finance_summary_rows,
+)
+from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
+    PdfReportContext,
 )
 
 

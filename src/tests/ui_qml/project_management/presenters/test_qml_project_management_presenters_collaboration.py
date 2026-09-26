@@ -1,7 +1,6 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
 )
@@ -9,6 +8,9 @@ from src.core.platform.api.desktop.approval.models.approval import ApprovalReque
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.domain.approval import ApprovalStatus
 from src.core.platform.domain.master_data.documents import DocumentStorageKind
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.modules.project_management.presenters.collaboration import (
     ProjectCollaborationWorkspacePresenter,
 )

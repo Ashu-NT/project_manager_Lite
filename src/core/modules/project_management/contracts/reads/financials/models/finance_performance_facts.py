@@ -10,6 +10,7 @@ class CostPhasingQuery:
     date_from: date
     date_to: date
     granularity: str = "month"
+    as_of_date: date | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +24,15 @@ class CostPhasingPeriodFact:
     forecast_cost: Decimal
     exposure: Decimal
     currency_code: str
+
+
+@dataclass(frozen=True, slots=True)
+class CostPhasingSeriesAvailabilityFact:
+    series_code: str
+    availability: str
+    unavailable_reason: str = ""
+    phased_amount: Decimal | None = None
+    unphased_amount: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +51,7 @@ class CostPhasingFacts:
     approved_forecast_revision: int | None
     approved_forecast_as_of: date | None
     periods: tuple[CostPhasingPeriodFact, ...]
+    series_availability: tuple[CostPhasingSeriesAvailabilityFact, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,21 +65,21 @@ class PerformanceEvmFact:
     forecast_revision: int | None
     forecast_as_of: date | None
     currency_code: str
-    bac: float | None
-    pv: float | None
-    ev: float | None
-    ac: float | None
-    cv: float | None
-    sv: float | None
-    cpi: float | None
-    spi: float | None
-    etc: float | None
-    eac: float | None
-    vac: float | None
-    tcpi_bac: float | None
-    tcpi_eac: float | None
+    bac: Decimal | None
+    pv: Decimal | None
+    ev: Decimal | None
+    ac: Decimal | None
+    cv: Decimal | None
+    sv: Decimal | None
+    cpi: Decimal | None
+    spi: Decimal | None
+    etc: Decimal | None
+    eac: Decimal | None
+    vac: Decimal | None
+    tcpi_bac: Decimal | None
+    tcpi_eac: Decimal | None
     notes: str
-    calculation_precision: str = "binary_float_debt"
+    calculation_precision: str = "decimal"
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +93,8 @@ class PerformanceVarianceMetricFact:
     as_of_date: date
     source_revision: str
     availability: str
+    favorability: str
+    semantic_tooltip: str
     unavailable_reason: str = ""
 
 
@@ -126,6 +139,7 @@ __all__ = [
     "CostPhasingFacts",
     "CostPhasingPeriodFact",
     "CostPhasingQuery",
+    "CostPhasingSeriesAvailabilityFact",
     "PerformanceEvmFact",
     "PerformanceReportDefinitionFact",
     "PerformanceReportsFacts",

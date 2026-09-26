@@ -288,6 +288,7 @@ AppLayouts.WorkspaceFrame {
                 onFilterClicked: root._openFilterPopup()
                 onRefreshRequested: {
                     if (root.workspaceController !== null) {
+                        root.workspaceController.clearMessages()
                         root.workspaceController.refresh()
                     }
                 }
@@ -462,7 +463,6 @@ AppLayouts.WorkspaceFrame {
                     scheduleImpactModel: root.scheduleImpactModel
                     scheduleImpactPreviewModel: root.scheduleImpactPreviewModel
                     taskActivityModel: root.taskActivityModel
-                    taskActivityTableModel: root.workspaceController ? root.workspaceController.taskActivityTableModel : null
 
                     onRetrySectionRequested: function(sectionName) {
                         const idx = (root._detailSections || []).indexOf(sectionName)
@@ -624,6 +624,7 @@ AppLayouts.WorkspaceFrame {
                     }
                     onCollaborationRefreshRequested: {
                         if (root.workspaceController !== null) {
+                            root.workspaceController.clearMessages()
                             root.workspaceController.loadSelectedTaskCollaboration()
                         }
                     }

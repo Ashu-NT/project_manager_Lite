@@ -6,9 +6,14 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.shared.audit import record_audit_entry
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.domain.master_data.documents import (
     Document,
     DocumentClassification,
@@ -27,10 +32,18 @@ from src.core.platform.domain.master_data.documents.events import (
 )
 from src.core.platform.domain.master_data.documents.support import (
     default_file_name as _default_file_name,
+)
+from src.core.platform.domain.master_data.documents.support import (
     infer_mime_type as _infer_mime_type,
 )
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 
-from .document_context import active_organization, require_document_in_context, resolve_structure_for_context
+from .document_context import (
+    active_organization,
+    require_document_in_context,
+    resolve_structure_for_context,
+)
 
 if TYPE_CHECKING:
     from .document_service import DocumentService
@@ -81,16 +94,24 @@ def create_document_structure(
                 entity_type="document_structure",
                 entity_id=structure.id,
                 module="platform",
+                organization_id=organization.id,
+                category="MASTER_DATA",
                 severity="low",
-                metadata={
-                    "action": "document_structure.create",
-                    "organization_id": organization.id,
-                    "structure_code": structure.structure_code,
-                    "object_scope": structure.object_scope,
-                    "default_document_type": structure.default_document_type.value,
-                },
+                after_data={"structure_code": structure.structure_code, "name": structure.name},
+                metadata={"action": "document_structure.create"},
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="document_structure.create",
+                entity_type="document_structure",
+                entity_id=structure.id,
+                module="platform",
+                organization_id=organization.id,
+                message=f"Document structure created — {structure.structure_code}",
+                icon="document",
+                commit=False,
             )
             uow.record_event(
                 DocumentStructureCreated(
@@ -187,23 +208,16 @@ def update_document_structure(
                 )
         try:
             uow.structures.update(updated)
-            record_audit_entry(
+            record_activity(
                 uow,
-                operation="update",
+                action="document_structure.update",
                 entity_type="document_structure",
                 entity_id=updated.id,
                 module="platform",
-                severity="low",
-                metadata={
-                    "action": "document_structure.update",
-                    "organization_id": organization.id,
-                    "structure_code": updated.structure_code,
-                    "object_scope": updated.object_scope,
-                    "default_document_type": updated.default_document_type.value,
-                    "is_active": str(updated.is_active),
-                },
+                organization_id=organization.id,
+                message=f"Document structure updated — {updated.structure_code}",
+                icon="document",
                 commit=False,
-                fail_closed=True,
             )
             uow.record_event(
                 DocumentStructureProfileUpdated(
@@ -291,18 +305,24 @@ def create_document(
                 entity_type="document",
                 entity_id=document.id,
                 module="platform",
+                organization_id=organization.id,
+                category="MASTER_DATA",
                 severity="low",
-                metadata={
-                    "action": "document.create",
-                    "organization_id": organization.id,
-                    "document_code": document.document_code,
-                    "title": document.title,
-                    "document_type": document.document_type.value,
-                    "document_structure_id": document.document_structure_id,
-                    "storage_kind": document.storage_kind.value,
-                },
+                after_data={"document_code": document.document_code, "title": document.title},
+                metadata={"action": "document.create"},
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="document.create",
+                entity_type="document",
+                entity_id=document.id,
+                module="platform",
+                organization_id=organization.id,
+                message=f"Document added — {document.title}",
+                icon="documents",
+                commit=False,
             )
             uow.record_event(
                 DocumentCreated(
@@ -407,13 +427,10 @@ def update_document(
         )
         if file_name is not None:
             updated.file_name = _default_file_name(updated.storage_uri, file_name)
-        if mime_type is not None:
+        if mime_type is not None or storage_uri is not None or storage_ref is not None or file_name is not None:
             if not updated.mime_type:
                 updated.mime_type = _infer_mime_type(updated.file_name or updated.storage_uri)
-        elif storage_uri is not None or storage_ref is not None or file_name is not None:
-            if not updated.mime_type:
-                updated.mime_type = _infer_mime_type(updated.file_name or updated.storage_uri)
-        profile_changed = (
+        other_fields_changed = (
             updated.document_code != document.document_code
             or updated.title != document.title
             or updated.document_type != document.document_type
@@ -431,8 +448,9 @@ def update_document(
             or updated.business_version_label != document.business_version_label
             or updated.is_current != document.is_current
             or updated.notes != document.notes
-            or updated.is_active != document.is_active
         )
+        active_state_changed = updated.is_active != document.is_active
+        profile_changed = other_fields_changed or active_state_changed
         if not profile_changed:
             return document
         if document_code is not None:
@@ -441,25 +459,33 @@ def update_document(
                 raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS")
         try:
             uow.documents.update(updated)
-            record_audit_entry(
+            # A pure active-state transition (no other field changed) gets its
+            # own distinct action so the curated Organization Activity feed can
+            # tell "removed" (deactivated) apart from an ordinary profile edit.
+            if active_state_changed and not other_fields_changed:
+                document_audit_action = "document.activate" if updated.is_active else "document.deactivate"
+            else:
+                document_audit_action = "document.update"
+            # Ordinary master-data lifecycle -- business timeline (Activity)
+            # only, for every update including active-state transitions, no
+            # compliance/security significance.
+            record_activity(
                 uow,
-                operation="update",
+                action=document_audit_action,
                 entity_type="document",
                 entity_id=updated.id,
                 module="platform",
-                severity="low",
-                metadata={
-                    "action": "document.update",
-                    "organization_id": organization.id,
-                    "document_code": updated.document_code,
-                    "title": updated.title,
-                    "document_type": updated.document_type.value,
-                    "document_structure_id": updated.document_structure_id,
-                    "storage_kind": updated.storage_kind.value,
-                    "is_active": str(updated.is_active),
-                },
+                organization_id=organization.id,
+                message=(
+                    f"Document removed — {updated.title}"
+                    if document_audit_action == "document.deactivate"
+                    else f"Document restored — {updated.title}"
+                    if document_audit_action == "document.activate"
+                    else f"Document updated — {updated.title}"
+                ),
+                icon="documents",
+                type="warning" if document_audit_action == "document.deactivate" else "info",
                 commit=False,
-                fail_closed=True,
             )
             uow.record_event(
                 DocumentProfileUpdated(
@@ -514,16 +540,34 @@ def add_link(
                 entity_type="document",
                 entity_id=document.id,
                 module="platform",
+                organization_id=organization.id,
+                category="MASTER_DATA",
                 severity="low",
-                metadata={
-                    "action": "document.link",
+                after_data={
+                    "module_code": link.module_code,
+                    "entity_type": link.entity_type,
+                    "entity_id": link.entity_id,
+                },
+                metadata={"action": "document.link"},
+                commit=False,
+                fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="document.link",
+                entity_type="document",
+                entity_id=document.id,
+                module="platform",
+                organization_id=organization.id,
+                message=f"Document linked — {document.title} to {link.entity_type}",
+                icon="documents",
+                details={
                     "module_code": link.module_code,
                     "entity_type": link.entity_type,
                     "entity_id": link.entity_id,
                     "link_role": link.link_role,
                 },
                 commit=False,
-                fail_closed=True,
             )
             uow.record_event(
                 DocumentReferenceLinked(
@@ -555,20 +599,38 @@ def remove_link(service: DocumentService, link_id: str) -> None:
         uow.links.delete(link.id)
         record_audit_entry(
             uow,
-            operation="delete",
+            operation="update",
             entity_type="document",
             entity_id=document.id,
             module="platform",
+            organization_id=organization.id,
+            category="MASTER_DATA",
             severity="low",
-            metadata={
-                "action": "document.unlink",
+            before_data={
+                "module_code": link.module_code,
+                "entity_type": link.entity_type,
+                "entity_id": link.entity_id,
+            },
+            metadata={"action": "document.unlink"},
+            commit=False,
+            fail_closed=True,
+        )
+        record_activity(
+            uow,
+            action="document.unlink",
+            entity_type="document",
+            entity_id=document.id,
+            module="platform",
+            organization_id=organization.id,
+            message=f"Document unlinked — {document.title} from {link.entity_type}",
+            icon="documents",
+            details={
                 "module_code": link.module_code,
                 "entity_type": link.entity_type,
                 "entity_id": link.entity_id,
                 "link_role": link.link_role,
             },
             commit=False,
-            fail_closed=True,
         )
         uow.record_event(
             DocumentReferenceUnlinked(

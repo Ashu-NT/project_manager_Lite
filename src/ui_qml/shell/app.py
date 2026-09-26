@@ -1,41 +1,83 @@
 from __future__ import annotations
 
+import logging
 import os
 import sys
-import logging
 from time import perf_counter
 
 from PySide6.QtCore import QEventLoop
 from PySide6.QtGui import QFont, QGuiApplication, QIcon
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.application.security.authorization import get_authorization_engine
-from src.infra.platform.env_loader import load_env_file
+from src.core.platform.application.security.authorization import (
+    get_authorization_engine,
+)
 from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.db.engine import get_db_url
 from src.infra.persistence.db.session_factory import SessionLocal
+from src.infra.persistence.db.unit_of_work import sqlite_write_lock
 from src.infra.persistence.migrations.runner import run_migrations
 from src.infra.platform.app_settings import AppSettingsStore
+from src.infra.platform.env_loader import load_env_file
 from src.infra.platform.logging_config import setup_logging
 from src.infra.platform.resource import resource_path
-
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.context import build_shell_context, update_shell_runtime_state
+from src.ui_qml.shell.controllers.global_overview.global_overview_controller import (
+    GlobalOverviewController,
+)
+from src.ui_qml.shell.controllers.notifications.notifications_controller import (
+    NotificationsController,
+)
+from src.ui_qml.shell.controllers.organization.organization_switcher_controller import (
+    OrganizationSwitcherController,
+)
 from src.ui_qml.shell.login import ShellLoginController
 from src.ui_qml.shell.main_window import build_main_window_navigation
+from src.ui_qml.shell.navigation_accessibility import NavigationAccessibilityCoordinator
+from src.ui_qml.shell.presenters.global_overview_presenter import (
+    GlobalOverviewPresenter,
+)
+from src.ui_qml.shell.presenters.navigation.navigation_accessibility_presenter import (
+    NavigationAccessibilityPresenter,
+)
+from src.ui_qml.shell.presenters.notifications.notifications_presenter import (
+    NotificationsPresenter,
+)
+from src.ui_qml.shell.presenters.organization.organization_switcher_presenter import (
+    OrganizationSwitcherPresenter,
+)
 from src.ui_qml.shell.qml_engine import (
     create_qml_engine,
     load_qml,
 )
 from src.ui_qml.shell.qml_registry import build_qml_route_registry
-from src.ui_qml.shell.runtime_session import ShellRuntimeSessionController
 from src.ui_qml.shell.routes import shell_qml_path
-
+from src.ui_qml.shell.runtime_session import ShellRuntimeSessionController
 
 logger = logging.getLogger(__name__)
 
 load_env_file()
+
+
+def _serialize_shared_session_commits(session) -> None:
+    """This one Session is bound directly into many application services
+    (auth context switching, notifications, financial periods, calendars,
+    module catalog, ...) for the life of the process, and several of them
+    commit on it directly rather than through a per-operation UnitOfWork.
+    Those commits are real SQLite writes that can otherwise race an entity
+    UnitOfWork's commit for SQLite's single writer slot -- serialize them
+    through the same process-local lock UnitOfWork.commit() uses."""
+    original_commit = session.commit
+
+    def _locked_commit() -> None:
+        with sqlite_write_lock(session):
+            original_commit()
+
+    session.commit = _locked_commit
 
 
 def build_services() -> dict[str, object]:
@@ -54,6 +96,7 @@ def build_services() -> dict[str, object]:
         (perf_counter() - migration_started) * 1000,
     )
     session = SessionLocal()
+    _serialize_shared_session_commits(session)
     logger.debug("Database session created session_class=%s", type(session).__name__)
     graph_started = perf_counter()
     services = build_service_dict(session)
@@ -152,7 +195,8 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         len(routes),
         len(nav_routes),
     )
-    shell_context = build_shell_context(build_main_window_navigation(registry))
+    all_navigation_items = build_main_window_navigation(registry)
+    shell_context = build_shell_context(all_navigation_items)
     logger.info("Shell context created initial_route=%s", shell_context.currentRouteId)
     if services is not None:
         principal = services["user_session"].principal
@@ -191,11 +235,75 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         ),
     )
     logger.debug("Project Management workspace catalog created.")
+    global_overview_controller = None
+    global_overview_api = (
+        getattr(desktop_api_registry, "global_overview", None)
+        if desktop_api_registry is not None
+        else None
+    )
+    if global_overview_api is not None:
+        global_overview_controller = GlobalOverviewController(
+            presenter=GlobalOverviewPresenter(api=global_overview_api),
+            shell_context=shell_context,
+        )
+        logger.debug("Global Overview controller created.")
+
+    organization_switcher_controller = OrganizationSwitcherController(
+        presenter=OrganizationSwitcherPresenter(
+            tenant_api=getattr(desktop_api_registry, "platform_tenant", None)
+            if desktop_api_registry is not None
+            else None
+        ),
+    )
+    organization_switcher_controller.refresh()
+    logger.debug("Shell organization switcher controller created.")
+
+    notifications_controller = NotificationsController(
+        presenter=NotificationsPresenter(
+            api=getattr(desktop_api_registry, "platform_notification", None)
+            if desktop_api_registry is not None
+            else None
+        ),
+        shell_context=shell_context,
+    )
+    # Loaded proactively (not only on first drawer open) so the header bell
+    # badge is already correct the moment the shell appears.
+    notifications_controller.refresh()
+    logger.debug("Shell notifications controller created.")
+
+    navigation_accessibility_coordinator = NavigationAccessibilityCoordinator(
+        shell_context=shell_context,
+        presenter=NavigationAccessibilityPresenter(
+            platform_runtime_api=getattr(desktop_api_registry, "platform_runtime", None)
+            if desktop_api_registry is not None
+            else None
+        ),
+        all_navigation_items=all_navigation_items,
+    )
+    navigation_accessibility_coordinator.refresh()
+    if hasattr(app, "setProperty"):
+        # Not QML-exposed (the drawer only ever reads shellModel.navigationItems)
+        # -- kept alive here purely so its scopeChanged connection survives for
+        # the life of the app, same as runtimeSessionController below.
+        app.setProperty("navigationAccessibilityCoordinator", navigation_accessibility_coordinator)
+    logger.debug("Shell navigation accessibility coordinator created.")
+
     platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
         pm_workspace_catalog.refreshAllWorkspaces
     )
     platform_workspace_catalog.organizationSwitcher.organizationSwitched.connect(
         pm_workspace_catalog.refreshAllWorkspaces
+    )
+    # Shell-wide scope invalidation: both switchers feed the SAME signal.
+    # Neither switcher (nor this connection) knows anything about
+    # GlobalOverviewController/NotificationsController -- both of those
+    # controllers independently subscribed to shell_context.scopeChanged
+    # themselves, above.
+    platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
+        shell_context.scopeChanged
+    )
+    organization_switcher_controller.organizationSwitched.connect(
+        shell_context.scopeChanged
     )
     platform_workspace_catalog.adminWorkspace.organizationsChanged.connect(
         pm_workspace_catalog.refreshCapabilities
@@ -246,6 +354,9 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             "shellModel": shell_context,
             "platformCatalog": platform_workspace_catalog,
             "pmCatalog": pm_workspace_catalog,
+            "globalOverviewController": global_overview_controller,
+            "organizationSwitcherController": organization_switcher_controller,
+            "notificationsController": notifications_controller,
         },
     )
     if runtime_session_controller is not None:

@@ -5,24 +5,27 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.core.platform.application.security.authorization.roles import RolePolicyReconciliationService
-from src.core.platform.domain.security.authorization.roles import AuthPolicyReconciliation
+from src.core.platform.application.security.authorization.roles import (
+    RolePolicyReconciliationService,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.domain.security.auth import (
     Role,
     RolePermissionBinding,
+)
+from src.core.platform.domain.security.authorization.roles import (
+    AuthPolicyReconciliation,
 )
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_ROLE_PERMISSIONS,
     SYSTEM_ROLE_POLICY_NAME,
     SYSTEM_ROLE_POLICY_VERSION,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.common.ids import generate_id
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyAuthPolicyReconciliationRepository,
     SqlAlchemyRoleBindingRepository,
 )
-
 
 _REMOVED_TENANT_ADMIN_PERMISSIONS = {
     "tenant.create",

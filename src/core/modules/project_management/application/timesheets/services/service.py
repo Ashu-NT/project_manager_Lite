@@ -10,19 +10,15 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.domain.resources import TimeReportingEligibilityPolicy
-from src.core.platform.application.time_management.time import TimeService
 from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
 )
+from src.core.modules.project_management.contracts.reads import (
+    ReadSort,
+    ReadSortDirection,
+)
 from src.core.modules.project_management.contracts.reads.timesheets import (
-    TimesheetReviewCriteria,
-    TimesheetReviewInspectorFact,
-    TimesheetReviewInspectorReader,
-    TimesheetReviewQueueFact,
-    TimesheetReviewReadPage,
-    TimesheetReviewReader,
     TimesheetEntryCriteria,
     TimesheetEntryReadPage,
     TimesheetHistoryCriteria,
@@ -31,15 +27,26 @@ from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetResourceFact,
     TimesheetResourceReadPage,
     TimesheetResourceSelectorCriteria,
+    TimesheetReviewCriteria,
+    TimesheetReviewInspectorFact,
+    TimesheetReviewInspectorReader,
+    TimesheetReviewQueueFact,
+    TimesheetReviewReader,
+    TimesheetReviewReadPage,
     TimesheetScope,
     TimesheetWorkspaceAccessFact,
     TimesheetWorkspaceReader,
 )
-from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
+from src.core.modules.project_management.domain.resources import (
+    TimeReportingEligibilityPolicy,
+)
+from src.core.platform.application.security.authorization import (
+    get_authorization_engine,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_any_permission,
 )
-from src.core.platform.application.security.authorization import get_authorization_engine
+from src.core.platform.application.time_management.time import TimeService
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -139,8 +146,8 @@ class TimesheetService(
         self, *, tenant_id: str, organization_id: str, project_id: str, work_allocation
     ):
         from src.core.modules.project_management.application.tasks.task_events import (
-            TaskAssignmentChangeType,
             TaskAssignmentChanged,
+            TaskAssignmentChangeType,
         )
 
         return TaskAssignmentChanged(

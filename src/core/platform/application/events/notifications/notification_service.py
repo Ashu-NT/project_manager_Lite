@@ -7,11 +7,15 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.contract.port.events.notifications.notification_channel import NotificationChannel
-from src.core.platform.contract.repositories.events.notifications.contracts import NotificationRepository
+from src.core.platform.contract.port.events.notifications.notification_channel import (
+    NotificationChannel,
+)
+from src.core.platform.contract.repositories.events.notifications.contracts import (
+    NotificationRepository,
+)
 from src.core.platform.domain.events.notifications import Notification
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +102,19 @@ class NotificationService:
         self._notification_repo.mark_read(notification.id, read_at=read_at)
         self._session.commit()
         return replace(notification, read_at=read_at)
+
+    def count_my_unread(self) -> int:
+        principal = self._require_principal()
+        return self._notification_repo.count_unread_for_user(principal.user_id)
+
+    def mark_all_read(self) -> int:
+        principal = self._require_principal()
+        read_at = datetime.now(timezone.utc)
+        updated = self._notification_repo.mark_all_read_for_user(
+            principal.user_id, read_at=read_at
+        )
+        self._session.commit()
+        return updated
 
     def _require_principal(self):
         principal = self._user_session.principal if self._user_session is not None else None

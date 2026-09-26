@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.domain.enums import ConstraintType
-from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.application.scheduling.leveling.movability_policy import (
     task_movability,
 )
+from src.core.modules.project_management.domain.enums import ConstraintType
+from src.core.modules.project_management.domain.tasks.task import Task
 
 
 def _task(**overrides):

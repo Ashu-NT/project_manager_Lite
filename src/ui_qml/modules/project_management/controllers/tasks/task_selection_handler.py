@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.controllers.common import safe_error_message
+
 
 def select_project(controller, project_id: str) -> None:
     normalized = (project_id or "").strip()
@@ -43,7 +45,9 @@ def activate_task(controller, task_id: str) -> None:
             project_id=controller._selected_project_id or None,
         )
     except Exception as exc:
-        controller._set_error_message(str(exc))
+        controller._set_error_message(
+            safe_error_message(exc, safe_message="Task details could not be loaded.")
+        )
     else:
         controller._task_list.updateSelectedTaskOnly(ws)
         controller._set_selected_task_id(ws.selected_task_id)

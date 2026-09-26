@@ -13,6 +13,16 @@ Item {
 
     property var taskDetail: AppMock.MockFactory.detail()
     property bool isBusy: false
+
+    // Backend-owned closed enum from TaskStatus ("Todo" | "In Progress" |
+    // "Blocked" | "Done") -- mapped explicitly, not inferred from text.
+    readonly property string _taskStatusTone: {
+        const label = String(root.taskDetail.statusLabel || "").toLowerCase()
+        if (label === "done") return "success"
+        if (label === "blocked") return "warning"
+        if (label === "in progress") return "info"
+        return "neutral"
+    }
     property var detailPage: null
     property real availableHeight: 0
 
@@ -45,7 +55,6 @@ Item {
     property var taskActivityModel: ({
         "title": "Activity", "subtitle": "", "emptyState": "No activity has been recorded for this task yet.", "items": []
     })
-    property var taskActivityTableModel: null
     property var sectionErrors: ({})
     property var scheduleImpactModel: ({
         "isAvailable": false, "taskId": "", "currentStartLabel": "--", "currentFinishLabel": "--",
@@ -202,6 +211,7 @@ Item {
             AppWidgets.StatusChip {
                 visible: String(root.taskDetail.statusLabel || "").length > 0
                 status: root.taskDetail.statusLabel || ""
+                tone:   root._taskStatusTone
             }
 
             RowLayout {
@@ -427,7 +437,6 @@ Item {
                     width: parent ? parent.width : 0
                     availableHeight: root._tableSectionAvailableHeight
                     activityModel: root.taskActivityModel
-                    activityTableModel: root.taskActivityTableModel
                     workspaceController: root.pmCatalog ? root.pmCatalog.tasksWorkspace : null
                     errorText: String(root.sectionErrors["activity"] || "")
                     isBusy: root.isBusy

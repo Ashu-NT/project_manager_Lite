@@ -257,7 +257,7 @@ class RuntimeExecution:
         output_path: str | None = None,
         retry_of_execution_id: str | None = None,
         attempt_number: int = 1,
-    ) -> "RuntimeExecution":
+    ) -> RuntimeExecution:
         now = datetime.now(timezone.utc)
         return RuntimeExecution(
             id=generate_id(),

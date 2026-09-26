@@ -234,7 +234,7 @@ def test_rate_master_detail_loads_at_supported_viewports(qapp, width: int, heigh
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.sections 1.0
+import workspaces.financials.rate_cards.sections 1.0
 Window {
     visible: true
     FinancialsRateCardsSection {
@@ -268,7 +268,7 @@ Window {
 
 def test_rate_qml_contract_keeps_server_reads_and_governed_actions():
     source = (
-        "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/"
+        "src/ui_qml/modules/project_management/qml/workspaces/financials/rate_cards/sections/"
         "FinancialsRateCardsSection.qml"
     )
     text = open(source, encoding="utf-8").read()

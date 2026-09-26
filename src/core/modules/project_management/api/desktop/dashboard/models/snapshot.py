@@ -1,15 +1,29 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from src.core.modules.project_management.api.desktop.dashboard.models.overview import ProjectDashboardOverviewDescriptor
-from src.core.modules.project_management.api.desktop.dashboard.models.health_cards import ProjectDashboardHealthCardDescriptor
+
+from src.core.modules.project_management.api.desktop.dashboard.models.activity_feed import (
+    ProjectDashboardActivityFeedDescriptor,
+)
+from src.core.modules.project_management.api.desktop.dashboard.models.charts import (
+    ProjectDashboardChartDescriptor,
+)
+from src.core.modules.project_management.api.desktop.dashboard.models.health_cards import (
+    ProjectDashboardHealthCardDescriptor,
+)
+from src.core.modules.project_management.api.desktop.dashboard.models.overview import (
+    ProjectDashboardOverviewDescriptor,
+)
+from src.core.modules.project_management.api.desktop.dashboard.models.panels import (
+    ProjectDashboardPanelDescriptor,
+)
+from src.core.modules.project_management.api.desktop.dashboard.models.sections import (
+    ProjectDashboardSectionDescriptor,
+)
 from src.core.modules.project_management.api.desktop.dashboard.models.tables import (
     ProjectDashboardOperationalTabDescriptor,
     ProjectDashboardOperationalTableDescriptor,
 )
-from src.core.modules.project_management.api.desktop.dashboard.models.charts import ProjectDashboardChartDescriptor
-from src.core.modules.project_management.api.desktop.dashboard.models.panels import ProjectDashboardPanelDescriptor
-from src.core.modules.project_management.api.desktop.dashboard.models.sections import ProjectDashboardSectionDescriptor
-from src.core.modules.project_management.api.desktop.dashboard.models.activity_feed import ProjectDashboardActivityFeedDescriptor
 
 
 @dataclass(frozen=True)

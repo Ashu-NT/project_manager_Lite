@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -54,7 +55,7 @@ class ProjectDashboardOperationalTableDescriptor:
 
 __all__ = [
     "ProjectDashboardOperationalTabDescriptor",
+    "ProjectDashboardOperationalTableDescriptor",
     "ProjectDashboardTableColumnDescriptor",
     "ProjectDashboardTableRowDescriptor",
-    "ProjectDashboardOperationalTableDescriptor",
 ]

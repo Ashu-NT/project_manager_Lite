@@ -130,7 +130,7 @@ Item {
                         if (!root.shellModel) {
                             return
                         }
-                        const routeId = String(item.routeId || "")
+                        const routeId = String((item.activationState || {}).routeId || "")
                         if (routeId.length > 0) {
                             root.shellModel.selectRoute(routeId)
                         }
@@ -181,7 +181,7 @@ Item {
                     if (!root.shellModel) {
                         return
                     }
-                    const routeId = String(item.routeId || "")
+                    const routeId = String((item.activationState || {}).routeId || "")
                     if (routeId.length > 0) {
                         root.shellModel.selectRoute(routeId)
                     }

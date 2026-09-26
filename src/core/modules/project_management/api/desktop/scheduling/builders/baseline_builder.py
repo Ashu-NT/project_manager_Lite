@@ -1,12 +1,14 @@
 """Baseline view-model assembly."""
 
+from src.core.modules.project_management.api.desktop.scheduling.formatters.baseline_formatter import (
+    format_baseline_row,
+)
 from src.core.modules.project_management.api.desktop.scheduling.models.baselines import (
     SchedulingBaselineOptionDescriptor,
     SchedulingBaselineRowDto,
     SchedulingBaselineVarianceRowDto,
 )
-from src.core.modules.project_management.api.desktop.scheduling.formatters.baseline_formatter import format_baseline_row
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 def build_baseline_options(project_id: str, baseline_service=None) -> tuple[SchedulingBaselineOptionDescriptor, ...]:

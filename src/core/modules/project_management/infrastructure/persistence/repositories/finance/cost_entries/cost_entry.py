@@ -3,15 +3,15 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
-    ProjectCostEntryRepository,
-)
-from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialSourceModule,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
-    stable_order_by,
+from src.core.modules.project_management.contracts.reads import (
+    ReadSort,
+    ReadSortDirection,
+)
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
+    ProjectCostEntryRepository,
 )
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
@@ -24,7 +24,12 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.cost
 from src.core.modules.project_management.infrastructure.persistence.orm.cost_entry import (
     ProjectCostEntryORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     ActiveScopeIds,
     TenantContextService,
@@ -68,6 +73,27 @@ class SqlAlchemyProjectCostEntryRepository(ProjectCostEntryRepository):
                 ProjectCostEntryORM.idempotency_key == idempotency_key,
             )
         ).scalar_one_or_none()
+        return cost_entry_from_orm(row) if row else None
+
+    def get_by_source_identity(
+        self,
+        reference,
+        *,
+        for_update: bool = False,
+    ) -> ProjectCostEntry | None:
+        context = self._context(operation_label="access project cost source identity")
+        stmt = select(ProjectCostEntryORM).where(
+            ProjectCostEntryORM.tenant_id == context.tenant_id,
+            ProjectCostEntryORM.organization_id == context.organization_id,
+            ProjectCostEntryORM.source_module == reference.source_module.value,
+            ProjectCostEntryORM.source_type == reference.source_type.value,
+            ProjectCostEntryORM.source_id == reference.source_id,
+            ProjectCostEntryORM.source_line_id == reference.source_line_id,
+            ProjectCostEntryORM.posting_purpose == reference.posting_purpose.value,
+        )
+        if for_update:
+            stmt = stmt.with_for_update()
+        row = self.session.execute(stmt).scalar_one_or_none()
         return cost_entry_from_orm(row) if row else None
 
     def list_for_project(

@@ -7,7 +7,13 @@ from src.core.modules.project_management.api.desktop import (
     TimesheetEntryUpdateCommand,
 )
 
-from .validation import optional_int, optional_text, require_date, require_float, require_text
+from .validation import (
+    optional_int,
+    optional_text,
+    require_date,
+    require_float,
+    require_text,
+)
 
 
 def _require_expected_version(value: object) -> int:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 
-
 DEFAULT_GOVERNED_ACTIONS = {
     "baseline.create",
     "dependency.add",

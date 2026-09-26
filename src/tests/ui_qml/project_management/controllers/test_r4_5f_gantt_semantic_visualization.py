@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from dataclasses import replace
 from datetime import date
-from pathlib import Path
 from time import perf_counter
 from types import SimpleNamespace
 
@@ -23,10 +22,10 @@ from src.core.modules.project_management.domain.scheduling.baseline import Basel
 from src.core.platform.common.exceptions import NotFoundError
 from src.tests.path_rewrites import REPO_ROOT
 from src.tests.ui_qml.project_management.controllers.test_r4_5b_gantt_read_contract import (
-    _ScopeContext,
     _node,
     _projection,
     _schedule,
+    _ScopeContext,
     _task,
 )
 from src.ui_qml.modules.project_management.controllers.scheduling.gantt_list_model import (
@@ -39,7 +38,6 @@ from src.ui_qml.modules.project_management.controllers.scheduling.scheduling_wor
     ProjectManagementSchedulingWorkspaceController,
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine
-
 
 GANTT_ROOT = (
     REPO_ROOT

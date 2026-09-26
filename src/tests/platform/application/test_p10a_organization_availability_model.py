@@ -1,8 +1,9 @@
-"""Multi-organization availability model: `Organization.is_enabled` is independent per-organization
-availability, with no mutual-exclusion invariant against sibling organizations. Multiple
-organizations may be enabled per tenant simultaneously; per-user session selection
-(`TenantContextService.set_active_organization`) is independent of that availability flag.
-`enable_organization`/`disable_organization` are availability-only, single-row mutations.
+"""Multi-organization availability model: `Organization.status` (ACTIVE/INACTIVE/ARCHIVED) is
+independent per-organization availability, with no mutual-exclusion invariant against sibling
+organizations. Multiple organizations may be ACTIVE per tenant simultaneously; per-user session
+selection (`TenantContextService.set_active_organization`) is independent of that lifecycle status.
+`activate_organization`/`deactivate_organization`/`archive_organization` are lifecycle-only,
+single-row mutations.
 
 This module holds:
   1. structural guards proving the legacy sibling-mutual-exclusion machinery is gone and stays gone;
@@ -21,13 +22,28 @@ import inspect
 
 import pytest
 
-from src.core.platform.application.master_data.org import organization_service as organization_service_module
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.master_data.org import (
+    organization_service as organization_service_module,
+)
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationService,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
-from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.domain.master_data.org import (
+    ORGANIZATION_STATUS_ACTIVE,
+    ORGANIZATION_STATUS_INACTIVE,
+    Organization,
+)
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
 
 _COUNTER = {"n": 0}
 
@@ -81,10 +97,11 @@ def test_organization_service_has_no_sibling_deactivation_helpers():
         )
 
 
-def test_organization_service_has_enable_and_disable_organization_methods():
-    assert hasattr(OrganizationService, "enable_organization")
-    assert hasattr(OrganizationService, "disable_organization")
-    assert hasattr(OrganizationService, "_enable_organization_using")
+def test_organization_service_has_activate_deactivate_archive_organization_methods():
+    assert hasattr(OrganizationService, "activate_organization")
+    assert hasattr(OrganizationService, "deactivate_organization")
+    assert hasattr(OrganizationService, "archive_organization")
+    assert hasattr(OrganizationService, "_transition_organization_status")
 
 
 def test_organization_repository_contract_has_no_singular_active_lookup():
@@ -94,9 +111,10 @@ def test_organization_repository_contract_has_no_singular_active_lookup():
         assert not hasattr(OrganizationRepository, legacy_name)
 
 
-def test_organization_domain_field_is_is_enabled_not_is_active():
+def test_organization_domain_field_is_status_not_is_enabled():
     field_names = {f.name for f in dataclasses.fields(Organization)}
-    assert "is_enabled" in field_names
+    assert "status" in field_names
+    assert "is_enabled" not in field_names
     assert "is_active" not in field_names
 
 
@@ -111,9 +129,9 @@ def test_no_mutual_exclusion_vocabulary_remains_in_organization_service_source()
         assert forbidden not in source, f"legacy mutual-exclusion vocabulary found: {forbidden!r}"
 
 
-def test_no_organization_repository_implementation_still_defines_active_only_param():
-    """`active_only` must not survive as a repository filter kwarg name on any Organization
-    repository -- the correct name is `enabled_only`."""
+def test_no_organization_repository_implementation_still_defines_active_only_or_enabled_only_param():
+    """Neither `active_only` nor `enabled_only` must survive as a repository filter kwarg name on
+    any Organization repository -- the correct name is `status`."""
     import re
 
     for path in _production_source_files():
@@ -122,7 +140,9 @@ def test_no_organization_repository_implementation_still_defines_active_only_par
         with open(path, encoding="utf-8") as handle:
             source = handle.read()
         assert "active_only" not in source
-        assert re.search(r"def list_(all|for_tenant)\(self, \*, enabled_only", source)
+        assert "enabled_only" not in source
+        assert re.search(r"def list_all\(self, \*, status", source)
+        assert re.search(r"def list_for_tenant\(self, tenant_id: str, \*, status", source)
 
 
 # ---------------------------------------------------------------------------
@@ -140,9 +160,10 @@ def test_user_session_context_active_organization_id_remains_untouched():
     assert hasattr(UserSessionContext, "set_active_organization_id")
 
 
-def test_tenant_context_service_switch_checks_is_enabled_not_is_active():
+def test_tenant_context_service_switch_checks_status_not_is_enabled():
     source = inspect.getsource(TenantContextService._set_active_organization)
-    assert "is_enabled" in source
+    assert "status" in source
+    assert "is_enabled" not in source
     assert "is_active" not in source
 
 
@@ -164,12 +185,12 @@ def test_creating_organization_b_does_not_disable_organization_a(services):
     )
 
     reloaded = {
-        org.id: org.is_enabled
+        org.id: org.status
         for org in organization_service.list_organizations()
     }
-    assert reloaded[org_a.id] is True
-    assert reloaded[org_b.id] is True
-    assert reloaded[org_c.id] is True
+    assert reloaded[org_a.id] == ORGANIZATION_STATUS_ACTIVE
+    assert reloaded[org_b.id] == ORGANIZATION_STATUS_ACTIVE
+    assert reloaded[org_c.id] == ORGANIZATION_STATUS_ACTIVE
 
 
 def test_disabled_organization_cannot_be_selected_but_others_remain_unaffected(services):
@@ -180,8 +201,9 @@ def test_disabled_organization_cannot_be_selected_but_others_remain_unaffected(s
         organization_code=_unique_code("DISABLED-A"), display_name="Disabled Test A"
     )
     org_b = organization_service.create_organization(
-        organization_code=_unique_code("DISABLED-B"), display_name="Disabled Test B", is_enabled=False
+        organization_code=_unique_code("DISABLED-B"), display_name="Disabled Test B"
     )
+    org_b = organization_service.deactivate_organization(org_b.id)
 
     with pytest.raises(BusinessRuleError):
         tenant_context_service.set_active_organization(org_b.id)
@@ -189,8 +211,8 @@ def test_disabled_organization_cannot_be_selected_but_others_remain_unaffected(s
     # The denied switch must not have mutated either organization's row.
     reloaded_a = organization_service._organization_repo.get(org_a.id)
     reloaded_b = organization_service._organization_repo.get(org_b.id)
-    assert reloaded_a.is_enabled is True
-    assert reloaded_b.is_enabled is False
+    assert reloaded_a.status == ORGANIZATION_STATUS_ACTIVE
+    assert reloaded_b.status == ORGANIZATION_STATUS_INACTIVE
 
 
 def test_independent_sessions_select_different_organizations_simultaneously(services):
@@ -242,23 +264,23 @@ def test_independent_sessions_select_different_organizations_simultaneously(serv
     assert alice_context.get_active_organization_id() == org_a.id
     reloaded_a = organization_service._organization_repo.get(org_a.id)
     reloaded_b = organization_service._organization_repo.get(org_b.id)
-    assert reloaded_a.is_enabled is True
-    assert reloaded_b.is_enabled is True
+    assert reloaded_a.status == ORGANIZATION_STATUS_ACTIVE
+    assert reloaded_b.status == ORGANIZATION_STATUS_ACTIVE
 
 
-def test_enabling_organization_never_switches_any_session_context(services):
-    """Availability and session selection are fully decoupled -- enabling an organization must
+def test_activating_organization_never_switches_any_session_context(services):
+    """Availability and session selection are fully decoupled -- activating an organization must
     never, as a side effect, change what any session's current organization is."""
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
 
     before_id = tenant_context_service.get_active_organization_id()
 
-    newly_enabled = organization_service.create_organization(
+    newly_created = organization_service.create_organization(
         organization_code=_unique_code("NOSIDEEFFECT"),
         display_name="No Side Effect Org",
-        is_enabled=False,
     )
-    organization_service.enable_organization(newly_enabled.id)
+    organization_service.deactivate_organization(newly_created.id)
+    organization_service.activate_organization(newly_created.id)
 
     assert tenant_context_service.get_active_organization_id() == before_id

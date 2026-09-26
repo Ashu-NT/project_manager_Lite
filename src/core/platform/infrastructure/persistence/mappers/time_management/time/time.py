@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod
-from src.core.platform.infrastructure.persistence.orm.time_management.time.time import TimeEntryORM, TimesheetPeriodORM
+from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
+    TimeEntryORM,
+    TimesheetPeriodORM,
+)
 
 
 def time_entry_to_orm(entry: TimeEntry) -> TimeEntryORM:
@@ -101,8 +104,8 @@ def timesheet_period_from_orm(obj: TimesheetPeriodORM) -> TimesheetPeriod:
 
 
 __all__ = [
-    "time_entry_to_orm",
     "time_entry_from_orm",
-    "timesheet_period_to_orm",
+    "time_entry_to_orm",
     "timesheet_period_from_orm",
+    "timesheet_period_to_orm",
 ]

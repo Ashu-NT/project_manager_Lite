@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
 from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskORM,
+)
 from src.tests.project_management._sql_measurement_helpers import measure_sql
 
 

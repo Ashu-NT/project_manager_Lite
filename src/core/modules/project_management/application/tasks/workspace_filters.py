@@ -9,7 +9,6 @@ from src.core.modules.project_management.contracts.reads.tasks import (
     TaskWorkspaceCriteria,
 )
 
-
 _CONDITION = re.compile(
     r"^(status|priority|progress|start|end|deadline)(:|<=|>=|=|<|>)(.+)$",
     flags=re.IGNORECASE,

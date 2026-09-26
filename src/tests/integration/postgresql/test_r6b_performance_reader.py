@@ -12,8 +12,12 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_performance_reader import (
     SqlAlchemyFinancePerformanceReader,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.financials.statements.finance_snapshot_statements import (
+    actual_cost_phasing_statement,
+    commitment_cost_phasing_statement,
+    forecast_cost_phasing_statement,
+)
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
-
 
 pytestmark = pytest.mark.postgresql_integration
 
@@ -25,7 +29,9 @@ PROJECT_A = "r6b-performance-project-a"
 PROJECT_B = "r6b-performance-project-b"
 
 
-def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str) -> None:
+def _seed_scope(
+    connection, *, suffix: str, tenant_id: str, organization_id: str
+) -> None:
     now = datetime(2026, 8, 28, 12, 0, tzinfo=timezone.utc)
     project_id = f"r6b-performance-project-{suffix}"
     profile_id = f"r6b-performance-profile-{suffix}"
@@ -36,8 +42,8 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
         text(
             "INSERT INTO organizations "
             "(id, tenant_id, organization_code, display_name, timezone_name, "
-            "base_currency, is_enabled, version) "
-            "VALUES (:id, :tenant, :code, :name, 'UTC', 'USD', true, 1)"
+            "base_currency, status, version) "
+            "VALUES (:id, :tenant, :code, :name, 'UTC', 'USD', 'active', 1)"
         ),
         {
             "id": organization_id,
@@ -196,7 +202,10 @@ def test_performance_reader_is_bounded_through_runtime_rls_role(
             ),
         )
 
-        assert statement_count == 6
+        # Project/Forecast/baseline authority plus Actual, phaseable Forecast,
+        # unphased Forecast, phaseable Commitment, and unphased Commitment
+        # aggregates. It must not grow with source row counts.
+        assert statement_count == 8
         assert facts is not None
         assert facts.currency_code == "USD"
         assert facts.approved_forecast_id == "r6b-performance-forecast-a"
@@ -228,24 +237,33 @@ def test_performance_reader_and_child_tables_deny_cross_scope_access(
             ),
         )
         assert foreign is None
-        assert session.scalar(
-            text(
-                "SELECT count(*) FROM project_finance_profiles "
-                "WHERE id = 'r6b-performance-profile-b'"
+        assert (
+            session.scalar(
+                text(
+                    "SELECT count(*) FROM project_finance_profiles "
+                    "WHERE id = 'r6b-performance-profile-b'"
+                )
             )
-        ) == 0
-        assert session.scalar(
-            text(
-                "SELECT count(*) FROM project_finance_forecasts "
-                "WHERE id = 'r6b-performance-forecast-b'"
+            == 0
+        )
+        assert (
+            session.scalar(
+                text(
+                    "SELECT count(*) FROM project_finance_forecasts "
+                    "WHERE id = 'r6b-performance-forecast-b'"
+                )
             )
-        ) == 0
-        assert session.scalar(
-            text(
-                "SELECT count(*) FROM project_finance_forecast_lines "
-                "WHERE id = 'r6b-performance-forecast-line-b'"
+            == 0
+        )
+        assert (
+            session.scalar(
+                text(
+                    "SELECT count(*) FROM project_finance_forecast_lines "
+                    "WHERE id = 'r6b-performance-forecast-line-b'"
+                )
             )
-        ) == 0
+            == 0
+        )
     finally:
         session.close()
 
@@ -258,40 +276,44 @@ def test_performance_reader_postgresql_plans_are_inspected(
         organization_id=ORG_A,
     )
     try:
-        params = {
-            "tenant": TENANT_A,
-            "organization": ORG_A,
-            "project": PROJECT_A,
-            "forecast": "r6b-performance-forecast-a",
-            "date_from": date(2026, 7, 1),
-            "date_to": date(2026, 9, 30),
-        }
         statements = {
-            "project": (
-                "SELECT p.id, fp.currency_code FROM projects p "
-                "JOIN project_finance_profiles fp ON fp.project_id = p.id "
-                "AND fp.tenant_id = p.tenant_id "
-                "AND fp.organization_id = p.organization_id "
-                "WHERE p.tenant_id = :tenant AND p.organization_id = :organization "
-                "AND p.id = :project"
+            "actual": actual_cost_phasing_statement(
+                tenant_id=TENANT_A,
+                organization_id=ORG_A,
+                project_id=PROJECT_A,
+                date_from=date(2026, 7, 1),
+                date_to=date(2026, 9, 30),
+                project_currency="USD",
             ),
-            "cost_phasing": (
-                "SELECT l.id, l.period_start, l.amount, l.currency_code "
-                "FROM project_finance_forecast_lines l "
-                "JOIN project_finance_forecasts f ON f.id = l.forecast_id "
-                "WHERE l.tenant_id = :tenant AND l.organization_id = :organization "
-                "AND l.project_id = :project AND l.forecast_id = :forecast "
-                "AND (l.period_end IS NULL OR l.period_end >= :date_from) "
-                "AND (l.period_start IS NULL OR l.period_start <= :date_to) "
-                "ORDER BY l.period_start, l.id"
+            "forecast": forecast_cost_phasing_statement(
+                tenant_id=TENANT_A,
+                organization_id=ORG_A,
+                project_id=PROJECT_A,
+                forecast_id="r6b-performance-forecast-a",
+                date_from=date(2026, 7, 1),
+                date_to=date(2026, 9, 30),
+                project_currency="USD",
+            ),
+            "commitment": commitment_cost_phasing_statement(
+                tenant_id=TENANT_A,
+                organization_id=ORG_A,
+                project_id=PROJECT_A,
+                as_of=date(2026, 9, 13),
+                date_from=date(2026, 7, 1),
+                date_to=date(2026, 11, 30),
+                project_currency="USD",
             ),
         }
         plans = {}
         for name, statement in statements.items():
-            plan = session.scalar(
-                text(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {statement}"),
-                params,
-            )[0]
+            compiled = statement.compile(
+                dialect=session.get_bind().dialect,
+                compile_kwargs={"render_postcompile": True},
+            )
+            plan = session.connection().exec_driver_sql(
+                f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {compiled}",
+                compiled.params,
+            ).scalar()[0]
             plans[name] = plan
             assert float(plan.get("Execution Time", -1)) >= 0
             assert plan.get("Plan") is not None

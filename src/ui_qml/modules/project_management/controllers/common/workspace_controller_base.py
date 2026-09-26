@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import QCoreApplication, Property, QObject, QTimer, Signal, Slot
+from PySide6.QtCore import Property, QCoreApplication, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.infra.platform.app_settings import AppSettingsStore
@@ -99,7 +99,7 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         )
 
     @Slot(str, "QVariantMap")
-    def saveTableColumnState(self, table_id: str, state: "dict[str, object]") -> None:
+    def saveTableColumnState(self, table_id: str, state: dict[str, object]) -> None:
         self._app_settings.save_table_column_state(
             table_id,
             state,

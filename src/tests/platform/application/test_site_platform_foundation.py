@@ -19,7 +19,7 @@ def test_site_service_scopes_site_master_data_by_active_organization(services):
     assert created.organization_id == default_organization.id
     assert created.city == "Lagos"
     assert created.country == "Nigeria"
-    assert created.status == "ACTIVE"
+    assert created.status == "active"
     assert created.default_calendar_id == "default"
     assert created.created_at is not None
     assert created.updated_at is not None
@@ -30,9 +30,7 @@ def test_site_service_scopes_site_master_data_by_active_organization(services):
         display_name="Operations Hub",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_enabled=False,
     )
-    organization_service.enable_organization(second_organization.id)
     services["tenant_context_service"].set_active_organization(second_organization.id)
 
     assert site_service.get_context_organization().display_name == "Operations Hub"
@@ -42,7 +40,6 @@ def test_site_service_scopes_site_master_data_by_active_organization(services):
     assert plant.organization_id == second_organization.id
     assert [site.site_code for site in site_service.list_sites()] == ["PLANT1"]
 
-    organization_service.enable_organization(default_organization.id)
     services["tenant_context_service"].set_active_organization(default_organization.id)
     assert site_service.get_context_organization().display_name == "Default Organization"
     assert [site.site_code for site in site_service.list_sites()] == ["HQ"]
@@ -71,7 +68,6 @@ def test_site_service_updates_site_metadata(services):
         city="Berlin",
         country="Germany",
         site_type="WAREHOUSE",
-        is_active=False,
         expected_version=created.version,
     )
 
@@ -79,8 +75,10 @@ def test_site_service_updates_site_metadata(services):
     assert updated.city == "Berlin"
     assert updated.country == "Germany"
     assert updated.site_type == "WAREHOUSE"
-    assert updated.status == "INACTIVE"
-    assert updated.closed_at is not None
-    assert updated.is_active is False
+    assert updated.status == "active"
+
+    deactivated = site_service.deactivate_site(updated.id)
+    assert deactivated.status == "inactive"
+    assert deactivated.is_active is False
     assert [site.name for site in site_service.list_sites(active_only=False)] == ["North Yard"]
 

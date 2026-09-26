@@ -3,7 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from src.core.platform.domain.security.identity.service_principal import ApiKeyCredential, ServicePrincipal
+from src.core.platform.domain.security.identity.service_principal import (
+    ApiKeyCredential,
+    ServicePrincipal,
+)
 
 
 class ServicePrincipalRepository(ABC):
@@ -22,6 +25,9 @@ class ServicePrincipalRepository(ABC):
         principal_id: str,
         tenant_id: str,
     ) -> ServicePrincipal | None: ...
+
+    @abstractmethod
+    def get_by_name(self, name: str) -> ServicePrincipal | None: ...
 
     @abstractmethod
     def list_all(self) -> list[ServicePrincipal]: ...

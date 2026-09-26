@@ -19,15 +19,15 @@ from src.core.modules.project_management.application.dashboard.services.dashboar
 )
 
 __all__ = [
-    "DashboardService",
+    "PORTFOLIO_SCOPE_ID",
+    "BurndownPoint",
+    "CriticalPathRow",
     "DashboardData",
     "DashboardEVM",
-    "UpcomingTask",
-    "BurndownPoint",
-    "MilestoneHealthRow",
-    "CriticalPathRow",
-    "PORTFOLIO_SCOPE_ID",
     "DashboardPortfolio",
+    "DashboardService",
+    "MilestoneHealthRow",
     "PortfolioProjectRow",
     "PortfolioStatusRollupRow",
+    "UpcomingTask",
 ]

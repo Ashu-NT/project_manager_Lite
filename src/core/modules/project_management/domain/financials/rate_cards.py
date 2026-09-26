@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Mapping
 
 from pydantic import field_validator, model_validator
 
@@ -17,8 +17,8 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.finance.money.currency import CurrencyCode
-from src.core.platform.finance.money.quantity import MonetaryRate, normalize_unit
+from src.core.platform.domain.finance.money.currency import CurrencyCode
+from src.core.platform.domain.finance.money.quantity import MonetaryRate, normalize_unit
 
 
 class RateType(str, Enum):
@@ -62,7 +62,13 @@ class RateSelectionSnapshot:
     effective_date: date
     modifier_applied: RateModifier | None = None
     modifier_multiplier: Decimal | None = None
+    base_monetary_rate: MonetaryRate | None = None
     resolved_at: datetime = field(default_factory=_snapshot_utc_now)
+
+    @property
+    def selected_base_rate(self) -> MonetaryRate:
+        """Return the configured line rate before any approved modifier."""
+        return self.base_monetary_rate or self.monetary_rate
 
     @property
     def modifiers_applied(self) -> Mapping[str, Decimal]:
@@ -173,7 +179,7 @@ class ProjectRateCard:
         organization_id: str,
         name: str,
         **values,
-    ) -> "ProjectRateCard":
+    ) -> ProjectRateCard:
         return ProjectRateCard(
             id=generate_id(),
             tenant_id=tenant_id,
@@ -327,7 +333,7 @@ class RateCardLine:
         )
 
     @model_validator(mode="after")
-    def _validate_selection_key_shape(self) -> "RateCardLine":
+    def _validate_selection_key_shape(self) -> RateCardLine:
         if bool(self.customer_party_id) != bool(self.contract_reference):
             raise ValidationError(
                 "Customer and contract reference must be supplied together.",
@@ -385,7 +391,7 @@ class RateCardLine:
         rate_amount: Decimal,
         rate_currency: str,
         **values,
-    ) -> "RateCardLine":
+    ) -> RateCardLine:
         return RateCardLine(
             id=generate_id(),
             tenant_id=tenant_id,

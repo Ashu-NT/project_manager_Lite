@@ -7,13 +7,18 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.contract.repositories.finance import FinancialPeriodRepository
-from src.core.platform.finance.periods import FinancialPeriod, FinancialPeriodStatus
+from src.core.platform.domain.finance.periods import (
+    FinancialPeriod,
+    FinancialPeriodStatus,
+)
 from src.core.platform.infrastructure.persistence.mappers.finance import (
     financial_period_from_orm,
     financial_period_to_orm,
 )
 from src.core.platform.infrastructure.persistence.orm.finance import FinancialPeriodORM
-from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+    OrganizationORM,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )

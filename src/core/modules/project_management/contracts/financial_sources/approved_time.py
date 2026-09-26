@@ -14,7 +14,7 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
     _FinancialSourceContract,
     _required_text,
 )
-from src.core.platform.finance.money.serialization import DecimalQuantityPayload
+from src.core.platform.domain.finance.money.serialization import DecimalQuantityPayload
 
 
 class ApprovedTimeFinancialSource(_FinancialSourceContract):
@@ -57,7 +57,7 @@ class ApprovedTimeFinancialSource(_FinancialSourceContract):
         return value.astimezone(timezone.utc)
 
     @model_validator(mode="after")
-    def _validate_time_source(self) -> "ApprovedTimeFinancialSource":
+    def _validate_time_source(self) -> ApprovedTimeFinancialSource:
         reference = self.reference
         if (
             reference.source_module != FinancialSourceModule.PLATFORM_TIME

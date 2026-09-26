@@ -1,7 +1,5 @@
 """Project management QML view models."""
 from src.ui_qml.modules.project_management.view_models.dashboard import (
-    ProjectDashboardActivityFeedViewModel,
-    ProjectDashboardActivityItemViewModel,
     ProjectDashboardHealthCardViewModel,
     ProjectDashboardMetricViewModel,
     ProjectDashboardOperationalTableViewModel,
@@ -41,16 +39,6 @@ from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectRecordViewModel,
     ProjectStatusOptionViewModel,
 )
-from src.ui_qml.modules.project_management.view_models.resources import (
-    ResourceCatalogMetricViewModel,
-    ResourceCatalogOverviewViewModel,
-    ResourceCatalogWorkspaceViewModel,
-    ResourceDetailFieldViewModel,
-    ResourceDetailViewModel,
-    ResourceEmployeeOptionViewModel,
-    ResourceRecordViewModel,
-    ResourceSelectorOptionViewModel,
-)
 from src.ui_qml.modules.project_management.view_models.register import (
     RegisterCollectionViewModel,
     RegisterDetailFieldViewModel,
@@ -60,6 +48,16 @@ from src.ui_qml.modules.project_management.view_models.register import (
     RegisterRecordViewModel,
     RegisterSelectorOptionViewModel,
     RegisterWorkspaceViewModel,
+)
+from src.ui_qml.modules.project_management.view_models.resources import (
+    ResourceCatalogMetricViewModel,
+    ResourceCatalogOverviewViewModel,
+    ResourceCatalogWorkspaceViewModel,
+    ResourceDetailFieldViewModel,
+    ResourceDetailViewModel,
+    ResourceEmployeeOptionViewModel,
+    ResourceRecordViewModel,
+    ResourceSelectorOptionViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingBaselineCompareViewModel,
@@ -115,12 +113,10 @@ __all__ = [
     "ProjectCatalogMetricViewModel",
     "ProjectCatalogOverviewViewModel",
     "ProjectCatalogWorkspaceViewModel",
-    "ProjectDashboardActivityFeedViewModel",
-    "ProjectDashboardActivityItemViewModel",
     "ProjectDashboardHealthCardViewModel",
     "ProjectDashboardMetricViewModel",
-    "ProjectDashboardOperationalTableViewModel",
     "ProjectDashboardOperationalTabViewModel",
+    "ProjectDashboardOperationalTableViewModel",
     "ProjectDashboardOverviewViewModel",
     "ProjectDashboardSelectorOptionViewModel",
     "ProjectDashboardTableColumnViewModel",

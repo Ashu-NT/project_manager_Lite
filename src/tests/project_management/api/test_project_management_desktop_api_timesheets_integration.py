@@ -8,7 +8,6 @@ from src.core.modules.project_management.domain.enums import (
     CostType,
     WorkerType,
 )
-
 from src.tests.project_management.api._timesheets_fakes_services import (
     _FakeProjectService,
     _FakeResourceService,

@@ -10,19 +10,18 @@ from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
 )
+from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
-from src.core.platform.domain.tenant.tenancy.tenant import Tenant
-from src.infra.composition.repositories import (
+from src.infra.composition.persistence.repositories import (
     RepositoryBundle,
     build_repository_bundle,
 )
-
 
 _PASSWORD = "StrongPass123!"
 
@@ -82,7 +81,9 @@ def _register_tenant_identity(services, username: str):
 def _build_bootstrap_auth(
     session,
 ) -> tuple[AuthService, RepositoryBundle]:
-    from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+    from src.infra.events.in_process_post_commit_event_bus import (
+        InProcessPostCommitEventBus,
+    )
     from src.infra.events.in_process_transactional_event_dispatcher import (
         InProcessTransactionalEventDispatcher,
     )

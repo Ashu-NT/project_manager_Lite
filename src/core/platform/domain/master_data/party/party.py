@@ -180,7 +180,7 @@ class Party:
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
         notes: str = "",
-    ) -> "Party":
+    ) -> Party:
         now = datetime.now(timezone.utc)
         return Party(
             id=generate_id(),

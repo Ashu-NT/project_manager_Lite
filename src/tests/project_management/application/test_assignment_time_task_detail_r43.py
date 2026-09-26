@@ -98,7 +98,7 @@ def test_task_assignment_desktop_dto_exposes_planned_hours_and_version(services)
     )
     ts.update_assignment_planned_hours(
         assignment.id,
-        allocated_planned_hours=Decimal("12"),
+        allocated_planned_hours=Decimal(12),
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,
     )
@@ -169,7 +169,7 @@ def test_build_assignment_snapshot_planned_and_remaining_are_page_independent(se
     )
     ts.update_assignment_planned_hours(
         assignment.id,
-        allocated_planned_hours=Decimal("10"),
+        allocated_planned_hours=Decimal(10),
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,
     )
@@ -247,10 +247,10 @@ def test_assign_project_resource_accepts_planned_hours_at_creation(services):
         task_id=task.id,
         project_resource_id=project_resource.id,
         allocation_percent=100.0,
-        allocated_planned_hours=Decimal("15"),
+        allocated_planned_hours=Decimal(15),
     )
 
-    assert assignment.allocated_planned_hours == Decimal("15")
+    assert assignment.allocated_planned_hours == Decimal(15)
 
 
 def test_assign_project_resource_rejects_planned_hours_beyond_envelope_at_creation(services):
@@ -265,7 +265,7 @@ def test_assign_project_resource_rejects_planned_hours_beyond_envelope_at_creati
             task_id=task.id,
             project_resource_id=project_resource.id,
             allocation_percent=100.0,
-            allocated_planned_hours=Decimal("11"),
+            allocated_planned_hours=Decimal(11),
         )
     assert exc.value.code == "PROJECT_RESOURCE_HOURS_OVERALLOCATED"
 
@@ -287,7 +287,7 @@ def test_desktop_create_assignment_forwards_planned_hours_and_exposes_project_re
             task_id=task.id,
             project_resource_id=project_resource.id,
             allocation_percent=100.0,
-            allocated_planned_hours=Decimal("8"),
+            allocated_planned_hours=Decimal(8),
         )
     )
 
@@ -311,7 +311,7 @@ def test_desktop_update_assignment_planned_hours_succeeds_with_correct_versions(
     dto = api.update_assignment_planned_hours(
         TaskAssignmentPlannedHoursCommand(
             assignment_id=assignment.id,
-            allocated_planned_hours=Decimal("20"),
+            allocated_planned_hours=Decimal(20),
             expected_assignment_version=assignment.version,
             expected_project_resource_version=project_resource.version,
         )
@@ -350,7 +350,7 @@ def test_desktop_update_assignment_planned_hours_stale_project_resource_version_
     api.update_assignment_planned_hours(
         TaskAssignmentPlannedHoursCommand(
             assignment_id=assignment_a.id,
-            allocated_planned_hours=Decimal("10"),
+            allocated_planned_hours=Decimal(10),
             expected_assignment_version=assignment_a.version,
             expected_project_resource_version=project_resource.version,
         )
@@ -361,7 +361,7 @@ def test_desktop_update_assignment_planned_hours_stale_project_resource_version_
         api.update_assignment_planned_hours(
             TaskAssignmentPlannedHoursCommand(
                 assignment_id=assignment_b.id,
-                allocated_planned_hours=Decimal("10"),
+                allocated_planned_hours=Decimal(10),
                 expected_assignment_version=assignment_b.version,
                 expected_project_resource_version=project_resource.version,  # now stale
             )

@@ -1,6 +1,7 @@
 """Cost type coercion utilities."""
 
 from __future__ import annotations
+
 from src.core.modules.project_management.domain.enums import CostType
 
 

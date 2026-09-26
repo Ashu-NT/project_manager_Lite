@@ -40,7 +40,7 @@ class IntegrationResolver:
         self,
         module_id: str,
         entity_type: str,
-        entity_id: str,  # noqa: ARG002 — reserved for future deep-link support
+        entity_id: str,
     ) -> str | None:
         return _ROUTE_TEMPLATES.get((module_id, entity_type))
 

@@ -2,7 +2,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
+
+
+@dataclass(frozen=True)
+class CountryDto:
+    code: str
+    name: str
+
+
+@dataclass(frozen=True)
+class TimezoneDto:
+    name: str
 
 
 @dataclass(frozen=True)

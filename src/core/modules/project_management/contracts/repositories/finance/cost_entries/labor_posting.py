@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 
-from src.core.modules.project_management.domain.financials.labor_posting import ApprovedTimeLaborPosting
+from src.core.modules.project_management.domain.financials.labor_posting import (
+    ApprovedTimeLaborPosting,
+)
 
 
 class ApprovedTimeLaborPostingRepository(ABC):

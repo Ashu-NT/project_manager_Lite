@@ -12,7 +12,9 @@ from src.core.platform.contract.repositories.master_data.employee.contracts impo
     EmployeeRepository,
     LinkedEmployeeResourceRepository,
 )
-from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import (
+    SiteRepository,
+)
 from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 

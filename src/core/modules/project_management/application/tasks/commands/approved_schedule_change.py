@@ -7,8 +7,8 @@ from src.core.modules.project_management.application.tasks.commands.schedule_syn
     emit_cascade_schedule_changed,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
-    TaskScheduleChangeType,
     TaskScheduleChanged,
+    TaskScheduleChangeType,
 )
 from src.core.modules.project_management.contracts.ports.schedule_change import (
     AppliedTaskScheduleChange,
@@ -16,12 +16,14 @@ from src.core.modules.project_management.contracts.ports.schedule_change import 
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
     ValidationError,
+)
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
@@ -79,7 +81,12 @@ class ApprovedScheduleChangeMixin:
                     entity_id=applied.id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="APPROVAL",
                     severity="low",
+                    changed_fields={
+                        "start_date": {"before": None, "after": applied.start_date.isoformat()},
+                        "end_date": {"before": None, "after": applied.end_date.isoformat()},
+                    },
                     metadata={
                         "action": "task.apply_financial_change_schedule",
                         "financial_change_impact_id": change.reference_id,

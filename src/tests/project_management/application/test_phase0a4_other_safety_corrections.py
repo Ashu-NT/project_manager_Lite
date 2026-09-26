@@ -18,7 +18,6 @@ import pytest
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
-
 # ---------------------------------------------------------------------------
 # 2. Portfolio dependency creation requires project-scoped authorization.
 # ---------------------------------------------------------------------------

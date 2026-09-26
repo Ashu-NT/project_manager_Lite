@@ -9,14 +9,13 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
 from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
     EnterpriseCalendarResolver,
     ResolvedCalendarContext,
 )
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
-)
-
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ class BoundProjectCalendar:
     without needing to know the project_id at every call site.
     """
 
-    def __init__(self, adapter: "ProjectCalendarAdapter", project_id: str) -> None:
+    def __init__(self, adapter: ProjectCalendarAdapter, project_id: str) -> None:
         self._adapter = adapter
         self._project_id = project_id
 
@@ -69,6 +68,24 @@ class ProjectCalendarAdapter:
 
     def _get_site_id_for_project(self, project_id: str) -> str | None:
         return None
+
+    def _has_calendar_chain(self, project_id: str, at_date: date) -> bool:
+        """Cheap, single existence check for whether this project has ANY
+        calendar assignment in its hierarchy (Project -> Site -> Department
+        -> Global) at this date. Callers that would otherwise walk day-by-day
+        (add_working_days, next_working_day) use this to fail fast instead of
+        re-running full calendar resolution (DB-backed chain/exception/
+        recurring-event lookups) for every day of what would otherwise be a
+        guaranteed-to-fail search -- previously observed walking up to
+        max_iter days (as far as ~40 years) for a single misconfigured
+        project, both flooding the log and burning real CPU/DB time on the
+        main thread."""
+        try:
+            return bool(self._resolver.get_source_chain(project_id=project_id, at_date=at_date))
+        except Exception:
+            # Don't let this fast-path optimization itself become a new
+            # failure mode -- fall through to the real (slower) resolution.
+            return True
 
     def get_context(
         self, project_id: str, target_date: date
@@ -113,6 +130,14 @@ class ProjectCalendarAdapter:
 
     def add_working_days(self, project_id: str, start: date, n: int) -> date:
         if n == 0:
+            return start
+        if not self._has_calendar_chain(project_id, start):
+            logger.warning(
+                "Project calendar has no calendar chain; add_working_days returning start unchanged project_id=%s start=%s working_days=%s",
+                project_id,
+                start,
+                n,
+            )
             return start
         # Small moves should fail fast if the calendar is misconfigured. Large
         # moves are still capped so bad data cannot scan decades indefinitely.
@@ -163,6 +188,13 @@ class ProjectCalendarAdapter:
         current = target_date
         if not include_today:
             current += timedelta(days=1)
+        if not self._has_calendar_chain(project_id, current):
+            logger.warning(
+                "Project calendar has no calendar chain; next_working_day returning date unchanged project_id=%s target_date=%s",
+                project_id,
+                current,
+            )
+            return current
         # Safety bound: 730 days (2 years) — if no working day found, return best guess
         for _ in range(730):
             if self.is_working_day(project_id, current):
@@ -173,7 +205,7 @@ class ProjectCalendarAdapter:
     def get_source_chain(self, project_id: str) -> list[str]:
         return self._resolver.get_source_chain(project_id=project_id)
 
-    def bind_for_project(self, project_id: str) -> "BoundProjectCalendar" | None:
+    def bind_for_project(self, project_id: str) -> BoundProjectCalendar | None:
         """
         Always returns a BoundProjectCalendar so the SchedulingEngine uses the enterprise
         calendar hierarchy for every project.

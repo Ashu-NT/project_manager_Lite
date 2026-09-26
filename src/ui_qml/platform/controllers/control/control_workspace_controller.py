@@ -3,12 +3,12 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
-
 from src.ui_qml.platform.presenters import (
     PlatformControlQueuePresenter,
     PlatformControlWorkspacePresenter,
 )
+from src.ui_qml.shared.models.activity_item import serialize_activity_items
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from ..common import (
     WORKSPACE_PERMISSIONS,
@@ -28,6 +28,7 @@ QML_IMPORT_MAJOR_VERSION = 1
 class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
     approvalQueueChanged = Signal()
     auditFeedChanged = Signal()
+    auditActivityPreviewChanged = Signal()
     approvalStatusFilterChanged = Signal()
     approvalEntityTypeFilterChanged = Signal()
     auditEntityTypeFilterChanged = Signal()
@@ -51,6 +52,7 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         self._audit_feed_table_model = DynamicTableModel(self)
         self._approval_queue: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._audit_feed: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._audit_activity_preview: list[dict[str, object]] = []
         self._approval_status_filter = ""
         self._approval_entity_type_filter = ""
         self._audit_entity_type_filter = ""
@@ -130,6 +132,10 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
     def auditFeed(self) -> dict[str, object]:
         return self._audit_feed
 
+    @Property("QVariantList", notify=auditActivityPreviewChanged)
+    def auditActivityPreview(self) -> list[dict[str, object]]:
+        return self._audit_activity_preview
+
     @Property(QObject, constant=True)
     def approvalQueueTableModel(self) -> DynamicTableModel:
         return self._approval_queue_table_model
@@ -149,6 +155,13 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
             operation=self._audit_operation_filter or None,
             severity=self._audit_severity_filter or None,
         )))
+        self._set_audit_activity_preview(serialize_activity_items(
+            self._queue_presenter.build_audit_activity_preview(
+                entity_type=self._audit_entity_type_filter or None,
+                operation=self._audit_operation_filter or None,
+                severity=self._audit_severity_filter or None,
+            )
+        ))
         has_items = bool(self._approval_queue.get("items") or self._audit_feed.get("items"))
         self._set_empty_state("" if has_items else str(self._approval_queue.get("emptyState") or self._audit_feed.get("emptyState") or ""))
         self._set_is_loading(False)
@@ -291,6 +304,12 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         self._audit_feed = audit_feed
         self._audit_feed_table_model.set_rows(audit_feed.get("items", []))
         self.auditFeedChanged.emit()
+
+    def _set_audit_activity_preview(self, items: list[dict[str, object]]) -> None:
+        if items == self._audit_activity_preview:
+            return
+        self._audit_activity_preview = items
+        self.auditActivityPreviewChanged.emit()
 
 
 __all__ = ["PlatformControlWorkspaceController"]

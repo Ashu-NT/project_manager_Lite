@@ -1,8 +1,15 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
-from src.core.platform.api.desktop.platform_runtime.models.runtime import ModuleEntitlementDto
-from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
+from src.core.platform.api.desktop.platform_runtime.models.runtime import (
+    ModuleEntitlementDto,
+)
+from src.core.platform.api.desktop.platform_runtime.runtime import (
+    PlatformRuntimeDesktopApi,
+)
 from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,
@@ -95,7 +102,7 @@ class PlatformSettingsCatalogPresenter:
                 empty_state="Platform runtime API is not connected in this QML preview.",
             )
 
-        result = self._runtime_api.list_organizations(enabled_only=None)
+        result = self._runtime_api.list_organizations(status=None)
         if not result.ok or result.data is None:
             message = result.error.message if result.error is not None else "Unable to load organization profiles."
             return PlatformWorkspaceActionListViewModel(
@@ -112,12 +119,12 @@ class PlatformSettingsCatalogPresenter:
                 PlatformWorkspaceActionItemViewModel(
                     id=org.id,
                     title=org.display_name,
-                    status_label="Enabled" if org.is_enabled else "Disabled",
+                    status_label=org.status.capitalize(),
                     subtitle=org.organization_code,
                     supporting_text=f"{org.timezone_name} | {org.base_currency}",
                     meta_text=f"Version {org.version}",
                     state={
-                        "isEnabled": org.is_enabled,
+                        "status": org.status,
                     },
                 )
                 for org in result.data

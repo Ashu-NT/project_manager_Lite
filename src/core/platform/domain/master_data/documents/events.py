@@ -63,8 +63,8 @@ class DocumentReferenceUnlinked:
 __all__ = [
     "DocumentCreated",
     "DocumentProfileUpdated",
-    "DocumentStructureCreated",
-    "DocumentStructureProfileUpdated",
     "DocumentReferenceLinked",
     "DocumentReferenceUnlinked",
+    "DocumentStructureCreated",
+    "DocumentStructureProfileUpdated",
 ]

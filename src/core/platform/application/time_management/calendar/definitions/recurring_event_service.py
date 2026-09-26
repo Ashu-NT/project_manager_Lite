@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import date, time
-from typing import Any, Callable
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarRecurringEventRepository,
     PlatformCalendarRepository,
@@ -16,12 +20,12 @@ from src.core.platform.contract.repositories.time_management.calendar.contracts 
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarRecurringEvent,
 )
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
 def _validate_rrule(rule_str: str) -> None:
     try:
         from datetime import datetime
+
         from dateutil.rrule import rrulestr
 
         rrulestr(rule_str, dtstart=datetime(2024, 1, 1))
@@ -168,6 +172,7 @@ class RecurringEventService:
             raise NotFoundError(f"Recurring event '{event_id}' not found.")
         try:
             from datetime import datetime
+
             from dateutil.rrule import rrulestr
 
             dtstart = datetime.combine(event.effective_from, event.start_time)

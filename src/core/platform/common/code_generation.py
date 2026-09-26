@@ -207,9 +207,9 @@ class CodeGenerator:
 
 
 __all__ = [
-    "CodeGenerator",
     "ENTITY_PREFIXES",
     "MAX_CODE_LENGTH",
+    "CodeGenerator",
     "assert_code_unique",
     "compose_code",
     "generate_unique_code",

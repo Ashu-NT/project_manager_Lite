@@ -9,8 +9,6 @@ finding is present (useful for CI / pre-migration gating).
 
 from __future__ import annotations
 
-import sys
-
 from src.core.modules.project_management.infrastructure.persistence.health import (
     run_pm_data_integrity_checks,
 )

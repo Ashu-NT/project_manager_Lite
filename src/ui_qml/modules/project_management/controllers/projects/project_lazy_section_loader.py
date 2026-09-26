@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.controllers.common import safe_error_message
+
 from .project_serializers import serialize_project_section
 
 
@@ -30,7 +32,9 @@ def load_project_tasks(controller) -> None:
         controller._set_project_tasks(_page_state("Tasks", {**state, **page}))
         controller._project_tasks_loaded_for_project_id = controller._selected_project_id
     except Exception as exc:
-        controller._set_section_error("tasks", str(exc))
+        controller._set_section_error(
+            "tasks", safe_error_message(exc, safe_message="Tasks could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 
@@ -53,7 +57,9 @@ def load_project_resources(controller) -> None:
         controller._set_project_resources(_page_state("Resources", {**state, **page}))
         controller._project_resources_loaded_for_project_id = controller._selected_project_id
     except Exception as exc:
-        controller._set_section_error("resources", str(exc))
+        controller._set_section_error(
+            "resources", safe_error_message(exc, safe_message="Resources could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 
@@ -72,7 +78,9 @@ def load_project_risks(controller) -> None:
         controller._set_project_risks(serialize_project_section(ws.project_risks))
         controller._project_risks_loaded_for_project_id = controller._selected_project_id
     except Exception as exc:
-        controller._set_section_error("risks", str(exc))
+        controller._set_section_error(
+            "risks", safe_error_message(exc, safe_message="Risks could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 
@@ -93,7 +101,9 @@ def load_project_activity(controller) -> None:
         controller._set_project_activity(_page_state("Activity", {**state, **page}))
         controller._project_activity_loaded_for_project_id = controller._selected_project_id
     except Exception as exc:
-        controller._set_section_error("activity", str(exc))
+        controller._set_section_error(
+            "activity", safe_error_message(exc, safe_message="Activity could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 

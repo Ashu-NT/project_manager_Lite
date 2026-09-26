@@ -8,14 +8,18 @@ from src.core.modules.project_management.domain.enums import CostType, WorkerTyp
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
     ResourceORM,
 )
-from src.core.platform.infrastructure.persistence.orm.approval.approval import ApprovalRequestORM
-from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
+from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
+    AuditEntryORM,
+)
 from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
     TimeEntryORM,
     TimesheetPeriodORM,
 )
-from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
 def _seed_time_governance_scope_rows(services) -> dict[str, str]:
@@ -27,7 +31,6 @@ def _seed_time_governance_scope_rows(services) -> dict[str, str]:
         display_name="Operations Hub",
         timezone_name="UTC",
         base_currency="USD",
-        is_enabled=False,
     )
     assert default_org is not None
     assert other_org is not None
@@ -143,7 +146,7 @@ def _seed_time_governance_scope_rows(services) -> dict[str, str]:
         module="platform",
         source="api",
         severity="low",
-        compliance_tag="none",
+        category="COMPLIANCE",
         metadata_json="{}",
     )
     other_audit = AuditEntryORM(
@@ -157,7 +160,7 @@ def _seed_time_governance_scope_rows(services) -> dict[str, str]:
         module="platform",
         source="api",
         severity="low",
-        compliance_tag="none",
+        category="COMPLIANCE",
         metadata_json="{}",
     )
 
@@ -211,7 +214,18 @@ def test_time_and_governance_repositories_scope_cross_organization_data(
     }
 
     assert approval_repo.list_by_status_for_organization(seeded["other_org_id"], limit=200) == []
-    assert audit_repo.list_recent_for_organization(seeded["other_org_id"], limit=200) == []
+    # list_recent_for_organization intentionally supports ANY organization in
+    # the caller's tenant, not just the active one (Organization Detail may
+    # be viewing an organization it hasn't switched into) -- so this must
+    # return other_org's OWN entries (its manually-seeded one, plus the real
+    # "organization.create" entry from creating other_org itself), not be
+    # empty; the isolation being tested is that it does NOT also return
+    # current_org's entry.
+    other_org_audit_ids = {
+        row.id for row in audit_repo.list_recent_for_organization(seeded["other_org_id"], limit=200)
+    }
+    assert seeded["audit_other"] in other_org_audit_ids
+    assert seeded["audit_current"] not in other_org_audit_ids
     assert time_entry_repo.list_for_organization(seeded["other_org_id"]) == []
     assert seeded["approval_current"] in approval_ids
     assert seeded["approval_other"] not in approval_ids

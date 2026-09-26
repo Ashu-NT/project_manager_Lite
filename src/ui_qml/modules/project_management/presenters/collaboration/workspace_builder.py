@@ -103,7 +103,7 @@ def build_workspace_state(
         CollaborationPanelTabViewModel("inbox", "Inbox", inbox.total_count),
         CollaborationPanelTabViewModel("mentions", "Mentions", mentions.total_count),
         CollaborationPanelTabViewModel("approvals", "Approvals", len(approvals.items)),
-        CollaborationPanelTabViewModel("activity", "Activity", len(activity_feed.items)),
+        CollaborationPanelTabViewModel("activity", "Activity", len(activity_feed["items"])),
     )
     return CollaborationWorkspaceViewModel(
         overview=build_overview(

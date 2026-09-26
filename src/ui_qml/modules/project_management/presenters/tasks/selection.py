@@ -6,6 +6,7 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskSelectorOptionViewModel,
 )
 
+
 def resolve_project_id(
     project_id: str | None,
     project_options: tuple[TaskSelectorOptionViewModel, ...],

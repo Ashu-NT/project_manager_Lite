@@ -16,7 +16,6 @@ from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry 
     AuditEntryORM,
 )
 
-
 _PASSWORD = "StrongPass123!"
 
 
@@ -365,7 +364,8 @@ def test_session_administration_audit_is_scoped_and_idempotent(services) -> None
     assert len(revoke_events) == 1
     revoke_row, revoke_metadata = revoke_events[0]
     assert revoke_row.tenant_id is not None
-    assert revoke_row.field == "revoked_at"
+    revoke_changed_fields = json.loads(revoke_row.changed_fields_json or "{}")
+    assert "revoked_at" in revoke_changed_fields
     assert revoke_metadata["scope"] == "single"
     assert revoke_metadata["note"] == "Retired device"
 
@@ -377,9 +377,10 @@ def test_session_administration_audit_is_scoped_and_idempotent(services) -> None
     assert len(policy_events) == 1
     policy_row, policy_metadata = policy_events[0]
     assert policy_row.tenant_id == revoke_row.tenant_id
-    assert policy_row.field == "session_timeout_minutes_override"
-    assert policy_row.old_value is None
-    assert policy_row.new_value == "45"
+    policy_changed_fields = json.loads(policy_row.changed_fields_json or "{}")
+    timeout_change = policy_changed_fields["session_timeout_minutes_override"]
+    assert timeout_change["before"] is None
+    assert timeout_change["after"] == "45"
     assert policy_metadata["session_revision"] > (
         policy_metadata["previous_session_revision"]
     )

@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
-from src.core.platform.application.data_operations.exporting import ExportDefinitionRegistry, ExportRuntime, ensure_output_path
-from src.core.platform.application.data_operations.importing import CsvImportRuntime, ImportDefinitionRegistry
+from src.core.platform.application.data_operations.exporting import (
+    ExportDefinitionRegistry,
+    ExportRuntime,
+    ensure_output_path,
+)
+from src.core.platform.application.data_operations.importing import (
+    CsvImportRuntime,
+    ImportDefinitionRegistry,
+)
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.domain.data_operations.importing import (
     ImportFieldSpec,
     ImportPreview,
@@ -14,9 +24,13 @@ from src.core.platform.domain.data_operations.importing import (
     ImportSourceRow,
     ImportSummary,
 )
-from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.domain.master_data.party import PartyType
+from src.core.platform.domain.master_data.site import (
+    SITE_STATUS_ACTIVE,
+    SITE_STATUS_ARCHIVED,
+    SITE_STATUS_INACTIVE,
+    normalize_site_status,
+)
 
 if TYPE_CHECKING:
     from src.core.platform.domain.security.auth.session import UserSessionContext
@@ -35,10 +49,12 @@ _SITE_FIELDS: tuple[ImportFieldSpec, ...] = (
     ImportFieldSpec(key="timezone", label="Timezone"),
     ImportFieldSpec(key="currency_code", label="Currency Code"),
     ImportFieldSpec(key="site_type", label="Site Type"),
+    # Status is the ONE lifecycle column -- active/inactive/archived (see
+    # SITE_STATUS_* / normalize_site_status). No separate is_active column;
+    # a site's activation state is fully implied by status.
     ImportFieldSpec(key="status", label="Status"),
     ImportFieldSpec(key="default_calendar_id", label="Default Calendar"),
     ImportFieldSpec(key="default_language", label="Default Language"),
-    ImportFieldSpec(key="is_active", label="Is Active"),
     ImportFieldSpec(key="notes", label="Notes"),
 )
 
@@ -301,13 +317,15 @@ class MasterDataExchangeService:
                 continue
             try:
                 payload = self._parse_site_payload(row.values, require_name=True)
+                requested_status = _optional_text(row.values.get("status"))
                 existing = self._site_service.find_site_by_code(code)
                 if existing is None:
-                    self._site_service.create_site(site_code=code, **payload)
+                    site = self._site_service.create_site(site_code=code, **payload)
                     summary.created_count += 1
                 else:
-                    self._site_service.update_site(existing.id, expected_version=existing.version, **payload)
+                    site = self._site_service.update_site(existing.id, expected_version=existing.version, **payload)
                     summary.updated_count += 1
+                self._reconcile_site_status(site, requested_status)
             except Exception as exc:
                 summary.add_row_error(line_no=row.line_no, message=str(exc))
         return summary
@@ -360,7 +378,6 @@ class MasterDataExchangeService:
                         "status": site.status,
                         "default_calendar_id": site.default_calendar_id,
                         "default_language": site.default_language,
-                        "is_active": str(bool(site.is_active)).lower(),
                         "notes": site.notes,
                     }
                 )
@@ -407,11 +424,13 @@ class MasterDataExchangeService:
         )
 
     def _parse_site_payload(self, values: dict[str, str], *, require_name: bool) -> dict[str, object]:
+        """Pure profile fields only -- lifecycle (status) is never part of
+        create_site/update_site's payload; see _reconcile_site_status, which
+        applies the CSV's status column afterward through the guarded
+        activate_site/deactivate_site/archive_site transitions."""
         payload: dict[str, object] = {}
         name = _text(values.get("name"))
-        if require_name:
-            payload["name"] = name
-        elif name:
+        if require_name or name:
             payload["name"] = name
         for key in (
             "description",
@@ -422,7 +441,6 @@ class MasterDataExchangeService:
             "address_line_2",
             "postal_code",
             "site_type",
-            "status",
             "default_calendar_id",
             "default_language",
             "notes",
@@ -436,17 +454,25 @@ class MasterDataExchangeService:
         currency_code = _optional_text(values.get("currency_code"))
         if currency_code is not None:
             payload["currency_code"] = currency_code
-        is_active = _parse_optional_bool(values.get("is_active"))
-        if is_active is not None:
-            payload["is_active"] = is_active
         return payload
+
+    def _reconcile_site_status(self, site, requested_status: str | None) -> None:
+        if not requested_status:
+            return
+        target = normalize_site_status(requested_status)
+        if target == site.status:
+            return
+        if target == SITE_STATUS_ACTIVE:
+            self._site_service.activate_site(site.id)
+        elif target == SITE_STATUS_INACTIVE:
+            self._site_service.deactivate_site(site.id)
+        elif target == SITE_STATUS_ARCHIVED:
+            self._site_service.archive_site(site.id)
 
     def _parse_party_payload(self, values: dict[str, str], *, require_name: bool) -> dict[str, object]:
         payload: dict[str, object] = {}
         party_name = _text(values.get("party_name"))
-        if require_name:
-            payload["party_name"] = party_name
-        elif party_name:
+        if require_name or party_name:
             payload["party_name"] = party_name
         party_type = _parse_optional_party_type(values.get("party_type"))
         if party_type is not None:

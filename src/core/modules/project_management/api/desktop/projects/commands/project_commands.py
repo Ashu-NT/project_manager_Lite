@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import date
+
 from src.core.modules.project_management.domain.enums import ProjectStatus
 
 

@@ -23,7 +23,7 @@ def _line(**overrides) -> RateCardLine:
         rate_card_id="card-1",
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("50"),
+        rate_amount=Decimal(50),
         rate_currency="USD",
         resource_id="resource-1",
     )
@@ -70,7 +70,7 @@ def test_rate_card_line_domain_validation() -> None:
         )
 
     with pytest.raises(ValidationError, match="cannot be negative"):
-        _line(resource_id="resource-1", rate_amount=Decimal("-1"))
+        _line(resource_id="resource-1", rate_amount=Decimal(-1))
 
     with pytest.raises(ValidationError):
         _line(resource_id="resource-1", rate_type="invalid")
@@ -140,7 +140,7 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
         org_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("40"),
+        rate_amount=Decimal(40),
         rate_currency="USD",
         resource_id=resource_id,
     )
@@ -154,14 +154,14 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
         unit="HOUR",
     )
     assert org_snapshot.precedence_level == 4
-    assert org_snapshot.monetary_rate.money.amount == Decimal("40")
+    assert org_snapshot.monetary_rate.money.amount == Decimal(40)
 
     project_card = rate_card_service.create_rate_card(name="Project Rates", project_id=project_id)
     rate_card_service.create_line(
         project_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("65"),
+        rate_amount=Decimal(65),
         rate_currency="USD",
         resource_id=resource_id,
     )
@@ -175,7 +175,7 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
         unit="HOUR",
     )
     assert project_snapshot.precedence_level == 2
-    assert project_snapshot.monetary_rate.money.amount == Decimal("65")
+    assert project_snapshot.monetary_rate.money.amount == Decimal(65)
 
     # Organization-wide line is still what a DIFFERENT project sees.
     other_project_id, _ = _create_project_and_resource(services, name="other-project")
@@ -202,7 +202,7 @@ def test_resolver_never_crosses_cost_and_billing_rate_types(services) -> None:
         card.id,
         rate_type=RateType.BILLING,
         unit="HOUR",
-        rate_amount=Decimal("120"),
+        rate_amount=Decimal(120),
         rate_currency="USD",
         resource_id=resource_id,
     )
@@ -225,7 +225,7 @@ def test_resolver_never_crosses_cost_and_billing_rate_types(services) -> None:
         as_of=date.today(),
         unit="HOUR",
     )
-    assert billing_snapshot.monetary_rate.money.amount == Decimal("120")
+    assert billing_snapshot.monetary_rate.money.amount == Decimal(120)
 
 
 def test_reject_overlap_catches_cross_card_duplicates_in_the_same_scope(services) -> None:
@@ -241,7 +241,7 @@ def test_reject_overlap_catches_cross_card_duplicates_in_the_same_scope(services
         first_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("55"),
+        rate_amount=Decimal(55),
         rate_currency="USD",
         role="engineer",
     )
@@ -251,7 +251,7 @@ def test_reject_overlap_catches_cross_card_duplicates_in_the_same_scope(services
             second_card.id,
             rate_type=RateType.COST,
             unit="HOUR",
-            rate_amount=Decimal("60"),
+            rate_amount=Decimal(60),
             rate_currency="USD",
             role="engineer",
         )
@@ -274,7 +274,7 @@ def test_resolver_raises_on_ambiguous_equal_specificity_different_dimensions(ser
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("55"),
+        rate_amount=Decimal(55),
         rate_currency="USD",
         role="engineer",
     )
@@ -282,7 +282,7 @@ def test_resolver_raises_on_ambiguous_equal_specificity_different_dimensions(ser
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("60"),
+        rate_amount=Decimal(60),
         rate_currency="USD",
         skill_code="python",
     )
@@ -307,7 +307,7 @@ def test_overlapping_same_selection_key_lines_are_rejected(services) -> None:
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("50"),
+        rate_amount=Decimal(50),
         rate_currency="USD",
         resource_id=resource_id,
     )
@@ -316,7 +316,7 @@ def test_overlapping_same_selection_key_lines_are_rejected(services) -> None:
             card.id,
             rate_type=RateType.COST,
             unit="HOUR",
-            rate_amount=Decimal("70"),
+            rate_amount=Decimal(70),
             rate_currency="USD",
             resource_id=resource_id,
         )
@@ -350,7 +350,7 @@ def test_resolver_raises_when_requested_modifier_not_configured(services) -> Non
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("50"),
+        rate_amount=Decimal(50),
         rate_currency="USD",
         resource_id=resource_id,
     )
@@ -378,7 +378,7 @@ def test_resolver_applies_a_single_modifier_and_snapshot_is_immutable(services) 
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("50"),
+        rate_amount=Decimal(50),
         rate_currency="USD",
         resource_id=resource_id,
         overtime_multiplier=Decimal("1.5"),
@@ -396,7 +396,7 @@ def test_resolver_applies_a_single_modifier_and_snapshot_is_immutable(services) 
     assert snapshot.monetary_rate.money.amount == Decimal("75.0")
     assert snapshot.modifiers_applied == {"overtime": Decimal("1.5")}
     with pytest.raises(TypeError):
-        snapshot.modifiers_applied["overtime"] = Decimal("2")
+        snapshot.modifiers_applied["overtime"] = Decimal(2)
     with pytest.raises(Exception):
         snapshot.modifier_applied = None
 
@@ -419,7 +419,7 @@ def test_resource_rate_metadata_does_not_manufacture_finance_rate_lines(services
         code=resource.code,
         kind=resource.kind,
         role=resource.role,
-        hourly_rate=Decimal("95"),
+        hourly_rate=Decimal(95),
         cost_type=resource.cost_type,
         currency_code="USD",
         capacity_percent=resource.capacity_percent,

@@ -9,13 +9,13 @@ from pydantic import field_validator
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
-from src.core.platform.domain.approval.approval_state import ApprovalStatus
 from src.core.platform.common.pydantic import (
     normalize_optional_identifier,
     normalize_optional_text,
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.domain.approval.approval_state import ApprovalStatus
 
 
 def _normalize_optional_datetime(value: object, *, code: str) -> datetime | None:
@@ -178,7 +178,7 @@ class ApprovalRequest:
         payload: dict[str, Any] | None = None,
         requested_by_user_id: str | None = None,
         requested_by_username: str | None = None,
-    ) -> "ApprovalRequest":
+    ) -> ApprovalRequest:
         return ApprovalRequest(
             id=generate_id(),
             tenant_id=tenant_id,

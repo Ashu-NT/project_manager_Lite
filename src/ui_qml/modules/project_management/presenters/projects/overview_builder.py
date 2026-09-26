@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
-
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogMetricViewModel,
     ProjectCatalogOverviewViewModel,
 )
+
 
 def build_overview(
     *,

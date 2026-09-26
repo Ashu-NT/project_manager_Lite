@@ -7,12 +7,29 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
-from src.core.platform.domain.history.audit import AuditEntry
+from src.core.platform.application.security.auth.unit_of_work import auth_unit_of_work
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     record_authorization_denial,
     require_permission,
+)
+from src.core.platform.application.security.authorization.roles.role_binding_mutation_participant import (
+    revoke_role_binding_using,
+)
+from src.core.platform.application.security.authorization.roles.role_scope_policy import (
+    is_platform_role,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.platform.contract.repositories.history.audit.contracts import (
+    AuditRepository,
 )
 from src.core.platform.contract.repositories.security.auth import (
     AuthSessionRepository,
@@ -21,41 +38,32 @@ from src.core.platform.contract.repositories.security.auth import (
     RolePermissionRepository,
     RoleRepository,
 )
+from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
+    TenantRepository,
+    UserTenantMembershipRepository,
+)
+from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.domain.security.auth import (
     Permission,
     Role,
     RolePermissionBinding,
     UserSessionContext,
 )
-from src.core.platform.domain.security.authorization.roles import ROLE_SCOPE_TENANT
-from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
-    DEFAULT_ROLE_PERMISSIONS,
-)
-from src.core.platform.domain.security.authorization.roles import RoleBindingTenantScope
-from src.core.platform.domain.security.authorization.enforcement.sod import SeparationOfDutiesPolicy
-from src.core.platform.common.exceptions import (
-    BusinessRuleError,
-    ConcurrencyError,
-    NotFoundError,
-    ValidationError,
-)
-from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
-    TenantRepository,
-    UserTenantMembershipRepository,
-)
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.domain.security.auth.events import (
     CustomRoleCreated,
     CustomRoleRetired,
     CustomRoleUpdated,
 )
-from src.core.platform.application.security.auth.unit_of_work import auth_unit_of_work
-from src.core.platform.application.security.authorization.roles.role_binding_mutation_participant import (
-    revoke_role_binding_using,
+from src.core.platform.domain.security.authorization.enforcement.sod import (
+    SeparationOfDutiesPolicy,
 )
-
-from src.core.platform.application.security.authorization.roles.role_scope_policy import is_platform_role
-
+from src.core.platform.domain.security.authorization.roles import (
+    ROLE_SCOPE_TENANT,
+    RoleBindingTenantScope,
+)
+from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
+    DEFAULT_ROLE_PERMISSIONS,
+)
 
 ROLE_MANAGE_PERMISSION = "auth.manage"
 ROLE_ASSIGN_PERMISSION = "auth.role.assign"
@@ -675,7 +683,7 @@ class TenantRoleAdministrationService:
                 actor_username=actor.username,
                 tenant_id=tenant_id,
                 severity="high",
-                compliance_tag="SOC2",
+                category="SECURITY",
                 metadata={
                     "action": action,
                     "role_name": role.name,

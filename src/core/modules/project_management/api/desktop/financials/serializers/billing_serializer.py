@@ -113,10 +113,7 @@ def serialize_commercial_projection(
             if projection.contract_value is not None
             else ""
         ),
-        billable_amount=format(projection.billable_amount, "f"),
-        externally_invoiced_amount=format(projection.externally_invoiced_amount, "f"),
-        externally_paid_amount=format(projection.externally_paid_amount, "f"),
-        external_accounting_data_available=projection.external_accounting_data_available,
+        approved_preparation_amount=format(projection.approved_preparation_amount, "f"),
         forecast_revenue_at_completion=(
             format(projection.forecast_revenue_at_completion, "f")
             if projection.forecast_revenue_at_completion is not None
@@ -134,6 +131,13 @@ def serialize_commercial_projection(
             else ""
         ),
         profitability_detail_included=projection.profitability_detail_included,
+        as_of_date=projection.as_of_date.isoformat() if projection.as_of_date else "",
+        revenue_availability=projection.revenue_availability,
+        margin_availability=projection.margin_availability,
+        percent_availability=projection.percent_availability,
+        revenue_reason=projection.revenue_reason,
+        margin_reason=projection.margin_reason,
+        percent_reason=projection.percent_reason,
     )
 
 

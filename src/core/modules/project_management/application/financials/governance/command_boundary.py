@@ -8,14 +8,11 @@ from typing import Any, TypeVar
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
-from src.core.modules.project_management.application.financials.commitments.commitment_service import (
-    ProjectCommitmentService,
+from src.core.modules.project_management.application.financials.configuration_service import (
+    FinancialConfigurationService,
 )
 from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
     ProjectCostEntryService,
-)
-from src.core.modules.project_management.application.financials.configuration_service import (
-    FinancialConfigurationService,
 )
 from src.core.modules.project_management.application.financials.financial_changes.service import (
     FinancialChangeService,
@@ -45,7 +42,6 @@ from src.core.modules.project_management.contracts.uow.finance.finance_governanc
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
 
-
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
@@ -61,7 +57,6 @@ class FinanceGovernanceOperations:
     financial_setup: FinancialConfigurationService
     rate_cards: ProjectRateCardService
     planned_costs: PlannedCostService
-    commitments: ProjectCommitmentService
     cost_entries: ProjectCostEntryService
     billing_profiles: ProjectBillingProfileService
     billing_preparations: ProjectBillingPreparationService
@@ -120,14 +115,6 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.planned_costs),
-        )
-
-    def commitment(
-        self,
-        command: Callable[[ProjectCommitmentService], T],
-    ) -> T:
-        return self._execute(
-            lambda operations: command(operations.commitments),
         )
 
     def cost_entry(

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 import pytest
 
@@ -11,14 +11,18 @@ from src.core.modules.project_management.application.risk.event_handlers.view_in
     build_register_view_invalidation_handler,
 )
 from src.core.modules.project_management.application.risk.register_events import (
-    RegisterEntryChangeType,
     RegisterEntryChanged,
+    RegisterEntryChangeType,
 )
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 # ---------------------------------------------------------------------------

@@ -58,7 +58,6 @@ from src.core.modules.project_management.api.desktop.tasks.models.validation imp
     AssignmentValidationDesktopDto,
 )
 
-
 __all__ = [
     "AssignmentPreviewDesktopDto",
     "AssignmentValidationDesktopDto",

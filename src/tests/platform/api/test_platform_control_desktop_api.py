@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+from src.application.runtime import build_desktop_api_registry
 from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
 from src.core.platform.api.desktop.access.models.access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
 )
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.approval.models.approval import ApprovalDecisionCommand
+from src.core.platform.api.desktop.approval.models.approval import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.domain.approval import ApprovalStatus
-from src.application.runtime import build_desktop_api_registry
 from src.tests.ui_runtime_helpers import login_as
 
 
@@ -129,7 +131,7 @@ def test_build_desktop_api_registry_exposes_platform_control_adapters(services):
 def test_build_desktop_api_registry_exposes_organization_as_an_access_scope_type(services):
     organization_service = services["organization_service"]
     other_org = organization_service.create_organization(
-        organization_code="DESKTOP-ORG-B", display_name="Desktop Access Org B", is_enabled=True,
+        organization_code="DESKTOP-ORG-B", display_name="Desktop Access Org B",
     )
     registry = build_desktop_api_registry(services)
 

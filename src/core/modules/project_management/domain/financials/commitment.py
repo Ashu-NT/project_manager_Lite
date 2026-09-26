@@ -11,11 +11,10 @@ from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.common.pydantic import (
     normalize_optional_identifier,
-    normalize_optional_text,
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.finance import (
+from src.core.platform.domain.finance import (
     EXCHANGE_RATE_STORAGE,
     MONEY_STORAGE,
     QUANTITY_STORAGE,
@@ -36,6 +35,36 @@ class ProjectCommitmentLineState(str, Enum):
 class ProjectCommitmentMatchKind(str, Enum):
     MATCH = "match"
     REVERSAL = "reversal"
+
+
+def open_commitment_amount(
+    *,
+    state: ProjectCommitmentLineState | str,
+    amount: Decimal,
+    matched_amount: Decimal,
+    currency_code: str,
+    base_amount: Decimal,
+    base_currency_code: str,
+    exchange_rate: Decimal,
+    target_currency: str,
+    currency_mismatch_code: str = "PROJECT_COMMITMENT_CURRENCY_MISMATCH",
+) -> Decimal:
+    """Current financial exposure, never historical gross or posted Actual."""
+    status = state.value if isinstance(state, ProjectCommitmentLineState) else str(state)
+    if status in {"closed", "cancelled"}:
+        return Decimal(0)
+    currency = target_currency.strip().upper()
+    matched = Decimal(matched_amount or 0)
+    if currency_code.strip().upper() == currency:
+        remaining = Decimal(amount or 0) - matched
+    elif base_currency_code.strip().upper() == currency:
+        remaining = Decimal(base_amount or 0) - matched * Decimal(exchange_rate)
+    else:
+        raise BusinessRuleError(
+            "Commitment currency cannot be reconciled to the target currency.",
+            code=currency_mismatch_code,
+        )
+    return max(Decimal(0), remaining)
 
 
 _ALLOWED_STATE_TRANSITIONS = {
@@ -180,7 +209,7 @@ class ProjectCommitmentLine:
     source_revision: int
     source_content_hash: str
     source_idempotency_key: str
-    matched_amount: Decimal = Decimal("0")
+    matched_amount: Decimal = Decimal(0)
     task_id: str | None = None
     order_date: date | None = None
     expected_delivery_date: date | None = None
@@ -298,7 +327,7 @@ class ProjectCommitmentLine:
                 code="PROJECT_COMMITMENT_OVERMATCHED",
             )
         if self.currency_code == self.base_currency_code and (
-            self.exchange_rate != Decimal("1") or self.base_amount != self.amount
+            self.exchange_rate != Decimal(1) or self.base_amount != self.amount
         ):
             raise ValidationError(
                 "Identity-currency commitment snapshots must preserve amount at rate 1.",
@@ -316,12 +345,19 @@ class ProjectCommitmentLine:
 
     @property
     def remaining_money(self) -> Money:
-        if self.state in {
-            ProjectCommitmentLineState.CLOSED,
-            ProjectCommitmentLineState.CANCELLED,
-        }:
-            return Money.zero(self.currency_code)
-        return Money.of(self.amount - self.matched_amount, self.currency_code)
+        return Money.of(
+            open_commitment_amount(
+                state=self.state,
+                amount=self.amount,
+                matched_amount=self.matched_amount,
+                currency_code=self.currency_code,
+                base_amount=self.base_amount,
+                base_currency_code=self.base_currency_code,
+                exchange_rate=self.exchange_rate,
+                target_currency=self.currency_code,
+            ),
+            self.currency_code,
+        )
 
     def apply_source_revision(
         self,
@@ -410,21 +446,6 @@ class ProjectCommitmentLine:
                 code="PROJECT_COMMITMENT_OVERMATCHED",
             )
         self.matched_amount += amount.amount
-        self.updated_by = _required(actor_id, field_name="updated_by")
-        self.updated_at = _aware_utc(occurred_at, field_name="updated_at")
-
-    def reverse_match(self, amount: Money, *, actor_id: str, occurred_at: datetime) -> None:
-        if amount.currency.code != self.currency_code or amount.amount <= 0:
-            raise ValidationError(
-                "Match reversals require a positive amount in the commitment currency.",
-                code="PROJECT_COMMITMENT_MATCH_REVERSAL_MONEY_INVALID",
-            )
-        if amount.amount > self.matched_amount:
-            raise BusinessRuleError(
-                "Match reversal cannot exceed the currently matched amount.",
-                code="PROJECT_COMMITMENT_MATCH_REVERSAL_EXCESS",
-            )
-        self.matched_amount -= amount.amount
         self.updated_by = _required(actor_id, field_name="updated_by")
         self.updated_at = _aware_utc(occurred_at, field_name="updated_at")
 

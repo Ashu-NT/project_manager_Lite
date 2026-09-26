@@ -3,8 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, Signal
 
 from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidation import (
-    TENANT_MEMBERSHIPS_SCOPE_CODE,
     TENANT_MEMBERSHIP_CATEGORY,
+    TENANT_MEMBERSHIPS_SCOPE_CODE,
 )
 from src.core.shared.events.view_invalidation import (
     TenantWide,

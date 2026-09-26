@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.platform.contract.repositories.tenant.modules.contracts import ModuleEntitlementRepository
 from src.core.platform.contract.read.tenant.modules.module_entitlement_reader import (
     ModuleEntitlementReader,
     ModuleEntitlementSnapshot,
+)
+from src.core.platform.contract.repositories.tenant.modules.contracts import (
+    ModuleEntitlementRepository,
 )
 
 if TYPE_CHECKING:
@@ -83,7 +85,7 @@ class ModuleCatalogContextMixin:
         if snapshot is None:
             snapshot = self._fetch_snapshot()
         records = list(snapshot.records) if snapshot is not None else self._entitlement_repo.list_all()
-        if records:
+        if records or self._read_only:
             return records
         changed = False
         for module in self._modules:
@@ -105,6 +107,8 @@ class ModuleCatalogContextMixin:
 
     def _codes_from_records(self, records: list[ModuleEntitlementRecord]) -> tuple[set[str], set[str]]:
         if not records:
+            if self._read_only:
+                return set(), set()
             if self._entitlement_repo is not None and not self._has_active_organization_context():
                 return set(), set()
             return set(self._licensed_codes), set(self._enabled_codes)

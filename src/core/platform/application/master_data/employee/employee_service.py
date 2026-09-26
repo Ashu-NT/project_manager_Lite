@@ -1,25 +1,28 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.contract.uow.employee_unit_of_work import EmployeeUnitOfWorkFactory
-from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
 from src.core.platform.application.master_data.employee.employee_support import (
-    build_employee_audit_details,
     resolve_employee_department_reference,
     resolve_employee_site_reference,
     sync_linked_employee_resources,
 )
-from src.core.platform.contract.repositories.master_data.employee.contracts import (
-    EmployeeRepository,
-    LinkedEmployeeResourceRepository,
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.interface.master_data.employee.contracts import (
     ResourceMasterEventFactory,
 )
@@ -29,22 +32,50 @@ from src.core.platform.contract.read.master_data.employee.employee_headcount_rea
     EmployeeHeadcountSummary,
     EmployeeSiteBreakdownRow,
 )
-from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.repositories.master_data.department.contracts import (
+    DepartmentRepository,
+)
+from src.core.platform.contract.repositories.master_data.employee.contracts import (
+    EmployeeRepository,
+    LinkedEmployeeResourceRepository,
+)
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.repositories.master_data.site.contracts import (
+    SiteRepository,
+)
+from src.core.platform.contract.uow.employee_unit_of_work import (
+    EmployeeUnitOfWorkFactory,
+)
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
 from src.core.platform.domain.master_data.employee.events import (
     EmployeeCreated,
     EmployeeProfileUpdated,
 )
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
-from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
     from src.core.platform.domain.security.auth.session import UserSessionContext
+
+
+_DEFAULT_EMPLOYEE_PAGE_SIZE = 25
+EMPLOYEE_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
+
+
+@dataclass(frozen=True)
+class EmployeePage:
+    items: list[Employee] = field(default_factory=list)
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = _DEFAULT_EMPLOYEE_PAGE_SIZE
 
 
 class EmployeeService:
@@ -143,10 +174,24 @@ class EmployeeService:
                     entity_type="employee",
                     entity_id=employee.id,
                     module="platform",
+                    organization_id=organization_id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={"action": "employee.create", **build_employee_audit_details(employee)},
+                    after_data={"employee_code": employee.employee_code, "full_name": employee.full_name},
+                    metadata={"action": "employee.create"},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="employee.create",
+                    entity_type="employee",
+                    entity_id=employee.id,
+                    module="platform",
+                    organization_id=organization_id,
+                    message=f"Employee assigned — {employee.full_name}",
+                    icon="employee",
+                    commit=False,
                 )
                 uow.record_event(
                     EmployeeCreated(
@@ -231,7 +276,7 @@ class EmployeeService:
                 is_active=bool(is_active) if is_active is not None else employee.is_active,
                 user_id=user_id if user_id is not None else employee.user_id,
             )
-            profile_changed = (
+            other_fields_changed = (
                 candidate.employee_code != employee.employee_code
                 or candidate.full_name != employee.full_name
                 or candidate.department_id != employee.department_id
@@ -242,9 +287,10 @@ class EmployeeService:
                 or candidate.employment_type != employee.employment_type
                 or candidate.email != employee.email
                 or candidate.phone != employee.phone
-                or candidate.is_active != employee.is_active
                 or candidate.user_id != employee.user_id
             )
+            active_state_changed = candidate.is_active != employee.is_active
+            profile_changed = other_fields_changed or active_state_changed
             if not profile_changed:
                 return employee
             if employee_code is not None:
@@ -258,16 +304,43 @@ class EmployeeService:
             try:
                 uow.employees.update(candidate)
                 touched_resources = sync_linked_employee_resources(candidate, uow.resources)
+                # A pure active-state transition (no other field changed) gets its
+                # own distinct action so the curated Organization Activity feed can
+                # tell "removed" (deactivated) apart from an ordinary profile edit.
+                if active_state_changed and not other_fields_changed:
+                    audit_action = "employee.activate" if candidate.is_active else "employee.deactivate"
+                else:
+                    audit_action = "employee.update"
                 record_audit_entry(
                     uow,
                     operation="update",
                     entity_type="employee",
                     entity_id=candidate.id,
                     module="platform",
+                    organization_id=organization_id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={"action": "employee.update", **build_employee_audit_details(candidate)},
+                    metadata={"action": audit_action},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action=audit_action,
+                    entity_type="employee",
+                    entity_id=candidate.id,
+                    module="platform",
+                    organization_id=organization_id,
+                    message=(
+                        f"Employee removed — {candidate.full_name}"
+                        if audit_action == "employee.deactivate"
+                        else f"Employee reinstated — {candidate.full_name}"
+                        if audit_action == "employee.activate"
+                        else f"Employee updated — {candidate.full_name}"
+                    ),
+                    icon="employee",
+                    type="warning" if audit_action == "employee.deactivate" else "info",
+                    commit=False,
                 )
                 uow.record_event(
                     EmployeeProfileUpdated(
@@ -303,6 +376,71 @@ class EmployeeService:
             active_only=active_only,
             department_id=department_id,
             site_id=site_id,
+        )
+
+    def list_employees_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = _DEFAULT_EMPLOYEE_PAGE_SIZE,
+        search: str = "",
+        active_only: bool | None = None,
+        department_id: str | None = None,
+        site_id: str | None = None,
+    ) -> EmployeePage:
+        """Tenant-scoped read for ANY organization in the caller's tenant --
+        unlike list_employees(), not limited to the session's active
+        organization. For Organization Detail's Employees tab, where an
+        admin may be viewing an organization they haven't switched into.
+
+        Read-only: never used by create/update/delete, which keep using
+        self._active_organization_id() (the existing, unchanged domain
+        rule). Never gates on the organization's own lifecycle status --
+        inactive and archived organizations' employee history remains
+        readable here. Mirrors list_employees()'s own permission check
+        (plain employee.read, no scope-row filtering -- Employee has none
+        today, unlike Site/Department).
+        """
+        require_permission(
+            self._user_session, "employee.read", operation_label="list employees for organization"
+        )
+        if self._tenant_context_service is None:
+            raise ValidationError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        if self._organization_repo is None:
+            raise RuntimeError("Organization repository is not configured.")
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="list employees for organization"
+        )
+        target_organization = self._organization_repo.get_for_tenant(organization_id, tenant_id)
+        if target_organization is None:
+            raise NotFoundError(
+                "Organization not found in the current tenant.",
+                code="ORGANIZATION_NOT_FOUND",
+            )
+        normalized_page = max(1, page)
+        normalized_page_size = (
+            page_size if page_size in EMPLOYEE_PAGE_SIZE_OPTIONS else _DEFAULT_EMPLOYEE_PAGE_SIZE
+        )
+        items, total, filtered_total = self._employee_repo.list_page_for_organization_in_tenant(
+            organization_id,
+            tenant_id,
+            page=normalized_page,
+            page_size=normalized_page_size,
+            search=search,
+            active_only=active_only,
+            department_id=department_id,
+            site_id=site_id,
+        )
+        return EmployeePage(
+            items=items,
+            total=total,
+            filtered_total=filtered_total,
+            page=normalized_page,
+            page_size=normalized_page_size,
         )
 
     def get_headcount_summary(self) -> EmployeeHeadcountSummary:
@@ -387,4 +525,4 @@ class EmployeeService:
         )
 
 
-__all__ = ["EmployeeService"]
+__all__ = ["EMPLOYEE_PAGE_SIZE_OPTIONS", "EmployeePage", "EmployeeService"]

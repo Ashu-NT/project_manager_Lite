@@ -5,7 +5,6 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import ProjectManagement.PortfolioSections 1.0 as Sections
 
 Flickable {
     id: root
@@ -13,6 +12,15 @@ Flickable {
     property ProjectManagementControllers.ProjectManagementPortfolioWorkspaceController workspaceController
     property var scenariosModel: ({ "title": "Scenario Library", "subtitle": "", "emptyState": "", "items": [] })
     property var templatesModel: ({ "title": "Scoring Templates", "subtitle": "", "emptyState": "", "items": [] })
+    // Injected by PortfolioWorkspacePage (owns "sections" at its directory level) so this tab
+    // never has to reach across sibling directories with a parent-relative import.
+    property Component governanceToolbarComponent: null
+
+    // Template statusLabel is a closed 2-value set ("Active" | "Available")
+    // -- mapped explicitly, not inferred from text.
+    function _templateStatusTone(label) {
+        return String(label || "").toLowerCase() === "active" ? "success" : "neutral"
+    }
 
     contentWidth: width
     contentHeight: _col.implicitHeight + Theme.AppTheme.marginMd * 2
@@ -27,20 +35,26 @@ Flickable {
         anchors.margins: Theme.AppTheme.marginMd
         spacing: Theme.AppTheme.spacingLg
 
-        Sections.PortfolioGovernanceToolbar {
+        Loader {
             Layout.fillWidth: true
-            scenarioOptions: root.workspaceController ? (root.workspaceController.scenarioOptions || []) : []
-            selectedScenarioId: root.workspaceController ? root.workspaceController.selectedScenarioId : ""
-            selectedBaseScenarioId: root.workspaceController ? root.workspaceController.selectedBaseScenarioId : ""
-            selectedCompareScenarioId: root.workspaceController ? root.workspaceController.selectedCompareScenarioId : ""
-            evaluationModel: root.workspaceController ? root.workspaceController.evaluation : ({ "fields": [] })
-            comparisonModel: root.workspaceController ? root.workspaceController.comparison : ({ "fields": [] })
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+            active: root.governanceToolbarComponent !== null
+            visible: active
+            sourceComponent: root.governanceToolbarComponent
 
-            onScenarioSelected: function(id) { if (root.workspaceController !== null) root.workspaceController.selectScenario(id) }
-            onCompareBaseSelected: function(id) { if (root.workspaceController !== null) root.workspaceController.selectCompareBase(id) }
-            onCompareScenarioSelected: function(id) { if (root.workspaceController !== null) root.workspaceController.selectCompareScenario(id) }
-            onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
+            onLoaded: {
+                item.scenarioOptions = Qt.binding(function() { return root.workspaceController ? (root.workspaceController.scenarioOptions || []) : [] })
+                item.selectedScenarioId = Qt.binding(function() { return root.workspaceController ? root.workspaceController.selectedScenarioId : "" })
+                item.selectedBaseScenarioId = Qt.binding(function() { return root.workspaceController ? root.workspaceController.selectedBaseScenarioId : "" })
+                item.selectedCompareScenarioId = Qt.binding(function() { return root.workspaceController ? root.workspaceController.selectedCompareScenarioId : "" })
+                item.evaluationModel = Qt.binding(function() { return root.workspaceController ? root.workspaceController.evaluation : ({ "fields": [] }) })
+                item.comparisonModel = Qt.binding(function() { return root.workspaceController ? root.workspaceController.comparison : ({ "fields": [] }) })
+                item.isBusy = Qt.binding(function() { return root.workspaceController ? root.workspaceController.isBusy : false })
+
+                item.scenarioSelected.connect(function(id) { if (root.workspaceController !== null) root.workspaceController.selectScenario(id) })
+                item.compareBaseSelected.connect(function(id) { if (root.workspaceController !== null) root.workspaceController.selectCompareBase(id) })
+                item.compareScenarioSelected.connect(function(id) { if (root.workspaceController !== null) root.workspaceController.selectCompareScenario(id) })
+                item.refreshRequested.connect(function() { if (root.workspaceController !== null) root.workspaceController.refresh() })
+            }
         }
 
         ColumnLayout {
@@ -204,6 +218,7 @@ Flickable {
 
                         AppWidgets.StatusChip {
                             status: String(_tplRow.modelData.statusLabel || "")
+                            tone:   root._templateStatusTone(_tplRow.modelData.statusLabel || "")
                         }
 
                         AppControls.SecondaryButton {

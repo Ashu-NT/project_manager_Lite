@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+
 def format_date(value: date | None) -> str:
     return value.isoformat() if value else "-"
 
@@ -37,9 +38,9 @@ def constraint_label_for_activity(item: Any) -> str:
     return "Open"
 
 __all__ = [
+    "constraint_label_for_activity",
     "format_date",
     "int_label",
-    "shift_label",
     "label_for_option",
-    "constraint_label_for_activity",
+    "shift_label",
 ]

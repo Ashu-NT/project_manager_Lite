@@ -9,7 +9,7 @@ class TaskAssignmentCreateCommand:
     task_id: str
     project_resource_id: str
     allocation_percent: float = 100.0
-    allocated_planned_hours: Decimal = Decimal("0")
+    allocated_planned_hours: Decimal = Decimal(0)
 
 
 @dataclass(frozen=True)

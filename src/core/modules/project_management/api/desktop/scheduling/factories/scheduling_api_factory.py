@@ -1,6 +1,8 @@
 """Factory for building the scheduling desktop API."""
 
-from src.core.modules.project_management.api.desktop.scheduling.api import ProjectManagementSchedulingDesktopApi
+from src.core.modules.project_management.api.desktop.scheduling.api import (
+    ProjectManagementSchedulingDesktopApi,
+)
 
 
 def build_project_management_scheduling_desktop_api(

@@ -1,28 +1,42 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.common.ids import generate_id
-from src.core.platform.contract.uow.approval_unit_of_work import PlatformUnitOfWorkFactory
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.approval.approval_mutation_participant import (
     build_request_audit_details,
     request_approval_using,
 )
-from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
-from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
-from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
-from src.core.platform.domain.approval import ApprovalApproved, ApprovalRejected
-from src.core.platform.domain.security.authorization.roles.role_binding import ROLE_PRINCIPAL_USER
-from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+    require_permission,
+)
 from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
+from src.core.platform.contract.repositories.approval.contracts import (
+    ApprovalRepository,
+)
+from src.core.platform.contract.uow.approval_unit_of_work import (
+    PlatformUnitOfWorkFactory,
+)
+from src.core.platform.domain.approval import (
+    ApprovalApproved,
+    ApprovalRejected,
+    ApprovalRequest,
+    ApprovalStatus,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.domain.security.authorization.roles.role_binding import (
+    ROLE_PRINCIPAL_USER,
+)
+from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.notifications import safe_dispatch_notification
 from src.core.shared.time.clock import Clock
 
@@ -182,6 +196,22 @@ class ApprovalService:
     def list_pending(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:
         return self.list_requests(status=ApprovalStatus.PENDING, limit=limit, project_id=project_id)
 
+    def count_pending(self, *, project_id: str | None = None) -> int:
+        """Exact count, independent of any list/preview limit -- callers
+        that only need "how many" must use this instead of `len()` on a
+        possibly-truncated `list_requests`/`list_pending` result."""
+        require_any_permission(
+            self._user_session,
+            ("approval.request", "approval.decide"),
+            operation_label="view governance requests",
+        )
+        return self._count_approval_rows(
+            status=ApprovalStatus.PENDING,
+            project_id=project_id,
+            entity_type=None,
+            entity_id=None,
+        )
+
     def list_recent(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:
         return self.list_requests(status=None, limit=limit, project_id=project_id)
 
@@ -228,6 +258,7 @@ class ApprovalService:
                 entity_type="approval_request",
                 entity_id=request.id,
                 module="platform",
+                category="APPROVAL",
                 severity="high",
                 metadata={"action": "governance.reject", **build_request_audit_details(request, decision_note=request.decision_note)},
                 commit=False,
@@ -285,6 +316,7 @@ class ApprovalService:
                 entity_type="approval_request",
                 entity_id=request.id,
                 module="platform",
+                category="APPROVAL",
                 severity="high",
                 metadata={"action": "governance.approve", **build_request_audit_details(request, decision_note=request.decision_note)},
                 commit=False,
@@ -462,6 +494,50 @@ class ApprovalService:
             entity_id=entity_id,
         )
 
+    def _count_approval_rows(
+        self,
+        *,
+        status: ApprovalStatus | None,
+        project_id: str | None,
+        entity_type: str | list[str] | None,
+        entity_id: str | None,
+    ) -> int:
+        """Read-only path using the service's own long-lived repository,
+        mirroring `_list_approval_rows`'s org-scoping choice exactly so the
+        exact count and the preview list always share the same criteria."""
+        return self._count_approval_rows_using(
+            self._approval_repo,
+            status=status,
+            project_id=project_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+        )
+
+    def _count_approval_rows_using(
+        self,
+        approval_repo,
+        *,
+        status: ApprovalStatus | None,
+        project_id: str | None,
+        entity_type: str | list[str] | None,
+        entity_id: str | None,
+    ) -> int:
+        organization_id = self._active_organization_id(operation_label="view governance requests")
+        if organization_id and hasattr(approval_repo, "count_by_status_for_organization"):
+            return approval_repo.count_by_status_for_organization(
+                organization_id,
+                status,
+                project_id=project_id,
+                entity_type=entity_type,
+                entity_id=entity_id,
+            )
+        return approval_repo.count_by_status(
+            status,
+            project_id=project_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+        )
+
     def _assert_project_in_active_organization_using(
         self,
         approval_repo,
@@ -476,4 +552,4 @@ class ApprovalService:
             raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
 
 
-__all__ = ["ApplyHandler", "DependenciesFactory", "ApprovalService"]
+__all__ = ["ApplyHandler", "ApprovalService", "DependenciesFactory"]

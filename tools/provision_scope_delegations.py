@@ -92,14 +92,18 @@ def main(argv: list[str] | None = None) -> int:
     ):
         parser.error(f"artifact already exists: {args.output}")
 
+    from src.core.platform.tenancy import (
+        TenantContextService,
+        build_tenant_context_policy,
+    )
+
     from src.core.platform.application.security.auth import AuthService
     from src.core.platform.application.security.authorization.roles import (
-    RoleGovernanceService,
-    ScopeDelegationProvisioningService,
-)
+        RoleGovernanceService,
+        ScopeDelegationProvisioningService,
+    )
     from src.core.platform.domain.security.auth import UserSessionContext
-    from src.core.platform.tenancy import TenantContextService, build_tenant_context_policy
-    from src.infra.composition.repositories import build_repository_bundle
+    from src.infra.composition.persistence.repositories import build_repository_bundle
     from src.infra.persistence.db.session_factory import SessionLocal
     from src.infra.platform.logging_config import setup_logging
     from src.infra.platform.security_config import load_runtime_security_configuration

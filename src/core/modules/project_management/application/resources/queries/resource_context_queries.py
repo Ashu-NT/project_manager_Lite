@@ -8,8 +8,8 @@ from src.core.modules.project_management.application.common.pagination import (
 )
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.resources import (
-    ResourceActivityReadPage,
     ResourceActivityReader,
+    ResourceActivityReadPage,
     ResourceAssignmentReadPage,
     ResourceAssignmentsReader,
     ResourceProjectReadPage,

@@ -10,9 +10,16 @@ from src.ui_qml.modules.project_management.view_models.register import (
     RegisterWorkspaceViewModel,
 )
 
-from .command_handler import create_entry, delete_entry, suggest_code, update_entry
-from .workspace_mode import WorkspaceMode
+from .command_handler import (
+    bulk_set_entry_status,
+    create_entry,
+    delete_entry,
+    suggest_code,
+    update_entry,
+)
 from .workspace_builder import build_workspace_state
+from .workspace_mode import WorkspaceMode
+
 
 class ProjectRegisterWorkspacePresenter:
     def __init__(
@@ -64,5 +71,8 @@ class ProjectRegisterWorkspacePresenter:
 
     def delete_entry(self, entry_id: str) -> None:
         delete_entry(self._desktop_api, entry_id)
+
+    def bulk_set_entry_status(self, entry_ids: list[str], status: str) -> None:
+        bulk_set_entry_status(self._desktop_api, entry_ids, status)
 
 __all__ = ["ProjectRegisterWorkspacePresenter"]

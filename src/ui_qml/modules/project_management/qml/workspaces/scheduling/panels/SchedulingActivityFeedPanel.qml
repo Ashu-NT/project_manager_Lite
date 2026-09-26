@@ -53,8 +53,8 @@ Item {
                             const item = sourceItems[i]
                             const haystack = (
                                 String(item.title || "") + " " +
-                                String(item.metaText || "") + " " +
-                                String(item.statusLabel || "")
+                                String(item.subjectDisplay || "") + " " +
+                                String(item.badgeLabel || "")
                             ).toLowerCase()
                             if (haystack.indexOf(term) >= 0) filtered.push(item)
                         }

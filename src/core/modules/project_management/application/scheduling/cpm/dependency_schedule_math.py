@@ -34,13 +34,24 @@ constant that happens to interact with an inclusive/exclusive counting quirk.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
 
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
-from src.core.modules.project_management.domain.enums import DependencyType
+
+logger = logging.getLogger(__name__)
+
+# Safety bound for shift_working_days' day-by-day search (2 years, matching
+# ProjectCalendarAdapter.next_working_day's own bound): a calendar with no
+# working rules at all (e.g. an organization missing its default calendar)
+# would otherwise search forever, since is_working_day() never returns True
+# for any date -- observed in production as an OverflowError crash when the
+# walk ran past date.min/date.max instead of ever finding one.
+_MAX_WORKING_DAY_SEARCH_ITERATIONS = 730
 
 # Zero-lag boundary offset (in working days, per shift_working_days) from the
 # relationship's anchor date to the constrained successor/predecessor date.
@@ -100,17 +111,33 @@ def shift_working_days(calendar: CalendarProtocol, anchor: date, signed_offset: 
     if signed_offset > 0:
         current = anchor
         remaining = signed_offset
-        while remaining > 0:
+        iterations = 0
+        while remaining > 0 and iterations < _MAX_WORKING_DAY_SEARCH_ITERATIONS:
             current += timedelta(days=1)
             if calendar.is_working_day(current):
                 remaining -= 1
+            iterations += 1
+        if remaining > 0:
+            logger.warning(
+                "shift_working_days exhausted forward search anchor=%s signed_offset=%s "
+                "remaining=%s iterations=%s -- calendar may have no working rules",
+                anchor, signed_offset, remaining, iterations,
+            )
         return current
     current = anchor
     remaining = -signed_offset
-    while remaining > 0:
+    iterations = 0
+    while remaining > 0 and iterations < _MAX_WORKING_DAY_SEARCH_ITERATIONS:
         current -= timedelta(days=1)
         if calendar.is_working_day(current):
             remaining -= 1
+        iterations += 1
+    if remaining > 0:
+        logger.warning(
+            "shift_working_days exhausted backward search anchor=%s signed_offset=%s "
+            "remaining=%s iterations=%s -- calendar may have no working rules",
+            anchor, signed_offset, remaining, iterations,
+        )
     return current
 
 
@@ -258,14 +285,14 @@ def predecessor_late_boundary(
 
 
 __all__ = [
-    "UnsupportedDependencyTypeError",
-    "SuccessorBoundary",
     "PredecessorLateBoundary",
+    "SuccessorBoundary",
+    "UnsupportedDependencyTypeError",
     "normalize_forward",
-    "shift_working_days",
+    "predecessor_late_boundary",
     "relationship_anchor_is_predecessor_finish",
     "relationship_constrains_successor_start",
+    "shift_working_days",
     "successor_boundary",
     "successor_earliest_start_from_boundary",
-    "predecessor_late_boundary",
 ]

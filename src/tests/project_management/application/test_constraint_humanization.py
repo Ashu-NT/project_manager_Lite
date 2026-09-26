@@ -46,9 +46,6 @@ def test_desktop_serializer_re_derives_the_canonical_label_from_the_raw_driver_v
     from src.core.modules.project_management.application.scheduling.forecasting.task_schedule_overview import (
         ScheduleDriver,
     )
-    from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
-        TaskScheduleImpactOverviewDesktopDto,
-    )
 
     driver = ScheduleDriver(kind="constraint", label="must_start_on", detail="2026-09-18")
     canonical = constraint_presentation(ConstraintType.MUST_START_ON).label

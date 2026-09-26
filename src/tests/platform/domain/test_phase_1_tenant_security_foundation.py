@@ -14,13 +14,13 @@ from datetime import datetime
 
 import pytest
 
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
-from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import SqlAlchemyUserRepository
-from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import SqlAlchemyTenantRepository
-from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
-    SqlAlchemyUserTenantMembershipRepository,
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
 )
 from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
@@ -28,8 +28,18 @@ from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
     MEMBERSHIP_STATUS_SUSPENDED,
     UserTenantMembership,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+    TenantORM,
+)
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
+    SqlAlchemyUserRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
+    SqlAlchemyTenantRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
+    SqlAlchemyUserTenantMembershipRepository,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -109,8 +119,11 @@ def test_user_tenant_membership_dto_validates_required_fields_and_datetimes():
 
 def test_user_tenant_repo_add_and_get(session):
     _add_tenant_row(session, "t-repo-1", "TR1")
-    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
     from datetime import datetime, timezone
+
+    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+        UserORM,
+    )
     now = datetime.now(timezone.utc)
     session.add(UserORM(
         id="u-repo-1", username="repo_user1", password_hash="x",
@@ -134,8 +147,11 @@ def test_user_tenant_repo_add_and_get(session):
 
 def test_user_tenant_repo_rejects_duplicate_membership_add(session):
     _add_tenant_row(session, "t-idem-1", "IDEM1")
-    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
     from datetime import datetime, timezone
+
+    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+        UserORM,
+    )
     now = datetime.now(timezone.utc)
     session.add(UserORM(
         id="u-idem-1", username="idem_user1", password_hash="x",
@@ -160,8 +176,11 @@ def test_user_tenant_repo_rejects_duplicate_membership_add(session):
 
 def test_user_tenant_repo_is_active_member(session):
     _add_tenant_row(session, "t-active-1", "ACT1")
-    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
     from datetime import datetime, timezone
+
+    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+        UserORM,
+    )
     now = datetime.now(timezone.utc)
     session.add(UserORM(
         id="u-active-1", username="active_user1", password_hash="x",
@@ -182,8 +201,11 @@ def test_user_tenant_repo_is_active_member(session):
 
 def test_user_tenant_repo_deactivate(session):
     _add_tenant_row(session, "t-deact-1", "DEACT1")
-    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
     from datetime import datetime, timezone
+
+    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+        UserORM,
+    )
     now = datetime.now(timezone.utc)
     session.add(UserORM(
         id="u-deact-1", username="deact_user1", password_hash="x",
@@ -211,8 +233,11 @@ def test_user_tenant_repo_deactivate(session):
 def test_user_tenant_repo_list_tenant_ids_for_user(session):
     _add_tenant_row(session, "t-list-1", "LST1")
     _add_tenant_row(session, "t-list-2", "LST2")
-    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
     from datetime import datetime, timezone
+
+    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+        UserORM,
+    )
     now = datetime.now(timezone.utc)
     session.add(UserORM(
         id="u-list-1", username="list_user1", password_hash="x",

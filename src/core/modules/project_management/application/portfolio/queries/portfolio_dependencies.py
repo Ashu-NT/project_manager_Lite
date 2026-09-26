@@ -2,13 +2,20 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.common.pagination import PaginatedResult
-from src.core.modules.project_management.contracts.reads.sorting import ReadSort, ReadSortDirection
+from src.core.modules.project_management.application.common.pagination import (
+    PaginatedResult,
+)
+from src.core.modules.project_management.contracts.reads.sorting import (
+    ReadSort,
+    ReadSortDirection,
+)
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,
     PortfolioProjectDependencyView,
 )
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 
 _DEPENDENCY_BROWSE_SORT_KEYS = {
     "predecessorProjectName",

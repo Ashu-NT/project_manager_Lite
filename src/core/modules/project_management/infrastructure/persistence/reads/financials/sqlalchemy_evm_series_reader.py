@@ -9,6 +9,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     EvmBaselineTaskFact,
     EvmSeriesFacts,
 )
+
 from .sqlalchemy_finance_snapshot_reader import SqlAlchemyFinanceSnapshotReader
 from .statements.finance_snapshot_statements import (
     evm_baseline_statement,

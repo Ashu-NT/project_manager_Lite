@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
 def test_platform_runtime_application_service_tracks_active_organization_context(services):
@@ -19,9 +19,7 @@ def test_platform_runtime_application_service_tracks_active_organization_context
         display_name="North Division",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_enabled=False,
     )
-    organization_service.enable_organization(second.id)
     tenant_context_service.set_active_organization(second.id)
 
     assert app_service.current_context_label() == "North Division"
@@ -41,12 +39,10 @@ def test_platform_runtime_application_service_switches_module_mix_by_organizatio
         display_name="South Division",
         timezone_name="Africa/Lagos",
         base_currency="USD",
-        is_enabled=False,
     )
 
     assert app_service.is_enabled("project_management") is True
 
-    organization_service.enable_organization(second.id)
     tenant_context_service.set_active_organization(second.id)
     app_service.disable_module("project_management")
     assert app_service.is_enabled("project_management") is False
@@ -71,9 +67,10 @@ def test_platform_runtime_application_service_exposes_lifecycle_status_changes(s
 
 
 def test_platform_runtime_application_service_provisions_organization_with_initial_module_mix(services):
+    """New organizations are always created ACTIVE, and provisioning always switches the caller's
+    session into the just-created organization -- there is no longer a "provision quietly, stay
+    on the current organization" path."""
     app_service = services["platform_runtime_application_service"]
-    organization_service = services["organization_service"]
-    tenant_context_service = services["tenant_context_service"]
 
     default_organization = app_service.get_active_organization()
     assert default_organization is not None
@@ -84,22 +81,17 @@ def test_platform_runtime_application_service_provisions_organization_with_initi
         display_name="Operations Hub",
         timezone_name="Africa/Lagos",
         base_currency="USD",
-        is_enabled=False,
         initial_module_codes=[],
     )
 
     assert provisioned.organization_code == "OPS"
     assert app_service.get_active_organization() is not None
-    assert app_service.get_active_organization().organization_code == "DEFAULT"
-    assert app_service.is_enabled("project_management") is True
-
-    organization_service.enable_organization(provisioned.id)
-    tenant_context_service.set_active_organization(provisioned.id)
+    assert app_service.get_active_organization().organization_code == "OPS"
     assert app_service.current_context_label() == "Operations Hub"
     assert app_service.is_enabled("project_management") is False
 
 
-def test_provision_organization_with_is_enabled_true_activates_in_one_transaction(services):
+def test_provision_organization_activates_in_one_transaction(services):
     app_service = services["platform_runtime_application_service"]
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
@@ -112,16 +104,15 @@ def test_provision_organization_with_is_enabled_true_activates_in_one_transactio
         display_name="East Division",
         timezone_name="Asia/Dubai",
         base_currency="AED",
-        is_enabled=True,
         initial_module_codes=["project_management"],
     )
 
-    # Organization persisted enabled -- re-read the full list from the
+    # Organization persisted ACTIVE -- re-read the full list from the
     # repository, not the in-memory return value, so this actually confirms
     # the commit landed.
-    all_orgs_by_id = {o.id: o for o in organization_service.list_organizations(enabled_only=None)}
+    all_orgs_by_id = {o.id: o for o in organization_service.list_organizations(status=None)}
     persisted = all_orgs_by_id[provisioned.id]
-    assert persisted.is_enabled is True
+    assert persisted.status == "active"
     assert persisted.organization_code == "EAST"
 
     # Entitlements provisioned for the new organization.
@@ -134,9 +125,9 @@ def test_provision_organization_with_is_enabled_true_activates_in_one_transactio
     assert app_service.get_active_organization().id == provisioned.id
     assert app_service.current_context_label() == "East Division"
 
-    all_orgs_by_id = {o.id: o for o in organization_service.list_organizations(enabled_only=None)}
+    all_orgs_by_id = {o.id: o for o in organization_service.list_organizations(status=None)}
     still_there = all_orgs_by_id[default_organization.id]
-    assert still_there.is_enabled is True
+    assert still_there.status == "active"
 
 
 def test_switching_context_does_not_require_settings_manage(services):
@@ -186,8 +177,8 @@ def test_switching_context_does_not_require_settings_manage(services):
 
 
 def test_switching_to_a_disabled_organization_is_denied(services):
-    """The switch-time gate checks `is_enabled` -- an organization the caller is otherwise
-    authorized for still cannot be selected while disabled."""
+    """The switch-time gate checks `status == ACTIVE` -- an organization the caller is otherwise
+    authorized for still cannot be selected while inactive."""
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     user_session = services["user_session"]
@@ -199,8 +190,8 @@ def test_switching_to_a_disabled_organization_is_denied(services):
         display_name="Disabled Context Org",
         timezone_name="America/Chicago",
         base_currency="USD",
-        is_enabled=False,
     )
+    second = organization_service.deactivate_organization(second.id)
 
     user_session.set_principal(
         UserSessionPrincipal(

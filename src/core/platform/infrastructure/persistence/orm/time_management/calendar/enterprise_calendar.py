@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time
-from typing import Optional
 
 from sqlalchemy import (
     Boolean,
@@ -30,7 +29,7 @@ class PlatformCalendarORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
@@ -42,36 +41,36 @@ class PlatformCalendarORM(Base):
     )
     code: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     calendar_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    base_calendar_id: Mapped[Optional[str]] = mapped_column(
+    base_calendar_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("platform_calendars.id", ondelete="SET NULL"),
         nullable=True,
     )
-    scope_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    scope_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    scope_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    scope_id: Mapped[str | None] = mapped_column(String, nullable=True)
     timezone: Mapped[str] = mapped_column(
         String(128), nullable=False, default="UTC", server_default="UTC"
     )
-    locale: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    locale: Mapped[str | None] = mapped_column(String(32), nullable=True)
     is_default: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )
-    effective_from: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    effective_to: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     priority: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
     version: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default="1"
     )
-    created_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    updated_by: Mapped[str | None] = mapped_column(String, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
@@ -106,17 +105,17 @@ class CalendarWorkingRuleORM(Base):
     is_working_day: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )
-    start_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
-    end_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
-    break_start_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
-    break_end_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
+    start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    end_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    break_start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    break_end_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     break_minutes: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
-    hours_override: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    shift_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    effective_from: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    effective_to: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    hours_override: Mapped[float | None] = mapped_column(Float, nullable=True)
+    shift_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     priority: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
@@ -134,15 +133,15 @@ class CalendarExceptionORM(Base):
         ForeignKey("platform_calendars.id", ondelete="CASCADE"),
         nullable=False,
     )
-    scope_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    scope_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    scope_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    scope_id: Mapped[str | None] = mapped_column(String, nullable=True)
     exception_date: Mapped[date] = mapped_column(Date, nullable=False)
     exception_type: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    start_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
-    end_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
-    hours_override: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    end_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    hours_override: Mapped[float | None] = mapped_column(Float, nullable=True)
     impact_type: Mapped[str] = mapped_column(String(64), nullable=False)
     priority: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
@@ -150,10 +149,10 @@ class CalendarExceptionORM(Base):
     approval_status: Mapped[str] = mapped_column(
         String(32), nullable=False, default="APPROVED", server_default="APPROVED"
     )
-    approved_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    created_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    updated_by: Mapped[str | None] = mapped_column(String, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
@@ -180,17 +179,17 @@ class CalendarRecurringEventORM(Base):
         ForeignKey("platform_calendars.id", ondelete="CASCADE"),
         nullable=False,
     )
-    scope_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    scope_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    scope_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    scope_id: Mapped[str | None] = mapped_column(String, nullable=True)
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
     recurrence_rule: Mapped[str] = mapped_column(String(512), nullable=False)
     start_time: Mapped[time] = mapped_column(Time, nullable=False)
     end_time: Mapped[time] = mapped_column(Time, nullable=False)
     impact_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    capacity_impact_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    capacity_impact_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
     effective_from: Mapped[date] = mapped_column(Date, nullable=False)
-    effective_to: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )
@@ -215,7 +214,7 @@ class ShiftPatternORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
@@ -227,10 +226,10 @@ class ShiftPatternORM(Base):
     )
     code: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     pattern_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    rotation_cycle_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    anchor_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    rotation_cycle_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    anchor_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     timezone: Mapped[str] = mapped_column(
         String(128), nullable=False, default="UTC", server_default="UTC"
     )
@@ -262,13 +261,13 @@ class ShiftPatternDayORM(Base):
     is_working_day: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )
-    start_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
-    end_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
+    start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    end_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     break_minutes: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
-    hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    shift_label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    shift_label: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 Index("idx_shift_pattern_days_pattern", ShiftPatternDayORM.shift_pattern_id)
@@ -293,8 +292,8 @@ class SiteCalendarAssignmentORM(Base):
         ForeignKey("platform_calendars.id", ondelete="CASCADE"),
         nullable=False,
     )
-    effective_from: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    effective_to: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_default: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
@@ -321,8 +320,8 @@ class DepartmentCalendarAssignmentORM(Base):
         ForeignKey("platform_calendars.id", ondelete="CASCADE"),
         nullable=False,
     )
-    effective_from: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    effective_to: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_default: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
@@ -349,8 +348,8 @@ class EmployeeCalendarAssignmentORM(Base):
         ForeignKey("platform_calendars.id", ondelete="CASCADE"),
         nullable=False,
     )
-    effective_from: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    effective_to: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_default: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )

@@ -104,9 +104,7 @@ def test_resource_inspector_and_summary_fail_closed_after_organization_switch(se
         organization_code="R5B-OTHER",
         display_name="R5B Other Organization",
         base_currency="EUR",
-        is_enabled=False,
     )
-    organization_service.enable_organization(other.id)
     services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError):
@@ -114,7 +112,6 @@ def test_resource_inspector_and_summary_fail_closed_after_organization_switch(se
         with pytest.raises(NotFoundError):
             services["resource_service"].get_resource_summary(resource.id)
     finally:
-        organization_service.enable_organization(original.id)
         services["tenant_context_service"].set_active_organization(original.id)
 
 

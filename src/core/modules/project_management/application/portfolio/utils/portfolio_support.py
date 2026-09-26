@@ -5,17 +5,20 @@ from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.modules.project_management.access.scope_permissions import filter_project_rows
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.modules.project_management.access.scope_permissions import (
+    filter_project_rows,
+)
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioScoringTemplateChanged,
+    PortfolioScoringTemplateChangeType,
+)
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioScenarioComparison,
     PortfolioScoringTemplate,
 )
-from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioScoringTemplateChangeType,
-    PortfolioScoringTemplateChanged,
-)
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
@@ -173,13 +176,21 @@ class PortfolioSupportMixin:
                     entity_id=templates[0].id,
                     module="project_management",
                     organization_id=organization_id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={
-                        "action": "portfolio.scoring_template.bootstrap_reactivate",
-                        "name": templates[0].name,
-                    },
+                    metadata={"action": "portfolio.scoring_template.bootstrap_reactivate"},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="portfolio.scoring_template.bootstrap_reactivate",
+                    entity_type="portfolio_scoring_template",
+                    entity_id=templates[0].id,
+                    module="project_management",
+                    organization_id=organization_id,
+                    details={"name": templates[0].name},
+                    commit=False,
                 )
                 events.append(
                     self._scoring_template_event(
@@ -206,13 +217,22 @@ class PortfolioSupportMixin:
             entity_id=default_template.id,
             module="project_management",
             organization_id=organization_id,
+            category="MASTER_DATA",
             severity="low",
-            metadata={
-                "action": "portfolio.scoring_template.bootstrap_create",
-                "name": default_template.name,
-            },
+            after_data={"name": default_template.name},
+            metadata={"action": "portfolio.scoring_template.bootstrap_create"},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            uow,
+            action="portfolio.scoring_template.bootstrap_create",
+            entity_type="portfolio_scoring_template",
+            entity_id=default_template.id,
+            module="project_management",
+            organization_id=organization_id,
+            details={"name": default_template.name},
+            commit=False,
         )
         events.append(
             self._scoring_template_event(default_template, PortfolioScoringTemplateChangeType.CREATED)
@@ -295,10 +315,21 @@ class PortfolioSupportMixin:
                 entity_id=template.id,
                 module="project_management",
                 organization_id=organization_id,
+                category="MASTER_DATA",
                 severity="low",
-                metadata={"action": "portfolio.scoring_template.deactivate", "name": template.name},
+                metadata={"action": "portfolio.scoring_template.deactivate"},
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="portfolio.scoring_template.deactivate",
+                entity_type="portfolio_scoring_template",
+                entity_id=template.id,
+                module="project_management",
+                organization_id=organization_id,
+                details={"name": template.name},
+                commit=False,
             )
             events.append(
                 self._scoring_template_event(template, PortfolioScoringTemplateChangeType.DEACTIVATED)

@@ -10,16 +10,18 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    BillingPreparationStatusChanged,
+    BillingPreparationStatusChangeType,
+)
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillingPreparationStatus,
 )
-from src.core.modules.project_management.domain.financials.configuration import BillingMethod
+from src.core.modules.project_management.domain.financials.configuration import (
+    BillingMethod,
+)
 from src.core.modules.project_management.infrastructure.approval.billing_preparation_apply_participant import (
     BillingPreparationApprovalParticipant,
-)
-from src.core.modules.project_management.application.financials.invoicing.billing_events import (
-    BillingPreparationStatusChangeType,
-    BillingPreparationStatusChanged,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.infra.composition.approval_apply_dependencies.billing_preparation import (
@@ -33,6 +35,14 @@ def _login(services, username: str, password: str) -> None:
     user_session = services["user_session"]
     user = auth.authenticate(username, password)
     user_session.set_principal(auth.build_principal(user))
+
+
+def _login_independent_reviewer(services, suffix: str) -> None:
+    username = f"billing-independent-reviewer-{suffix}"
+    services["auth_service"].register_user(
+        username, "StrongPass123", role_names=["approver"]
+    )
+    _login(services, username, "StrongPass123")
 
 
 def _setup_billable_project(services, *, suffix: str):
@@ -69,14 +79,14 @@ def _submitted_preparation(services, session, *, suffix: str):
     profile = billing_profile_service.create_profile(
         project.id,
         contract_reference=f"CONTRACT-{suffix}",
-        contract_value=Decimal("50000"),
+        contract_value=Decimal(50000),
         customer_party_id="party-1",
     )
     profile = billing_profile_service.activate_profile(
         project.id, expected_row_version=profile.row_version
     )
     line = billing_profile_service.add_schedule_line(
-        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+        project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     )
     line = billing_profile_service.mark_schedule_line_ready(
         line.id, expected_row_version=line.row_version
@@ -122,14 +132,14 @@ def test_submit_preparation_uses_a_fresh_uow_session_shared_by_the_approval_requ
     profile = billing_profile_service.create_profile(
         project.id,
         contract_reference="CONTRACT-UOW",
-        contract_value=Decimal("50000"),
+        contract_value=Decimal(50000),
         customer_party_id="party-1",
     )
     profile = billing_profile_service.activate_profile(
         project.id, expected_row_version=profile.row_version
     )
     line = billing_profile_service.add_schedule_line(
-        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+        project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     )
     line = billing_profile_service.mark_schedule_line_ready(
         line.id, expected_row_version=line.row_version
@@ -183,14 +193,14 @@ def test_submit_preparation_audit_failure_rolls_back_preparation_and_approval_re
     profile = billing_profile_service.create_profile(
         project.id,
         contract_reference="CONTRACT-AUDITFAIL",
-        contract_value=Decimal("50000"),
+        contract_value=Decimal(50000),
         customer_party_id="party-1",
     )
     profile = billing_profile_service.activate_profile(
         project.id, expected_row_version=profile.row_version
     )
     line = billing_profile_service.add_schedule_line(
-        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+        project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     )
     line = billing_profile_service.mark_schedule_line_ready(
         line.id, expected_row_version=line.row_version
@@ -237,6 +247,7 @@ def test_submit_preparation_audit_failure_rolls_back_preparation_and_approval_re
 def test_participant_apply_approves_preparation_on_the_supplied_session(services, session):
     _login(services, "admin", "ChangeMe123!")
     project, preparation, request = _submitted_preparation(services, session, suffix="A")
+    _login_independent_reviewer(services, "A")
 
     deps = _deps(services, session)
     result = BillingPreparationApprovalParticipant().apply(request, deps)
@@ -282,6 +293,7 @@ def test_participant_never_calls_commit_or_rollback(services, session, monkeypat
     """The participant stages only; the caller owns transaction completion."""
     _login(services, "admin", "ChangeMe123!")
     _, _preparation, request = _submitted_preparation(services, session, suffix="C")
+    _login_independent_reviewer(services, "C")
     deps = _deps(services, session)
 
     def _forbidden(*_args, **_kwargs):

@@ -11,10 +11,28 @@ Item {
 
     property bool open: false
     property string title: ""
+    // Opt-in entity lifecycle badge + secondary identity line, rendered next
+    // to/below the title -- e.g. an "Active"/"Inactive"/"Archived" StatusChip
+    // and a "CODE · Country" line. Every existing caller leaves these empty
+    // and the header renders exactly as before (see Organization Detail for
+    // the reference consumer of this pattern).
+    property string statusLabel: ""
+    property string statusTone: ""
+    property string subtitleLine: ""
+    // Opt-in "Actions" overflow menu, rendered after showEdit/showDelete's
+    // buttons. Empty (the default) renders nothing -- see ActionsMenuButton
+    // for the {id,label,icon,danger,enabled,separator} item shape.
+    property var menuActions: []
+    property string menuTriggerLabel: "Actions"
     property bool isBusy: false
     property bool showHeader: true
     property bool showEdit: true
     property bool showDelete: true
+    // [workspace, group?, destination, objectTitle] -- rendered as a small
+    // line directly above the back/title row. Empty on callers that don't
+    // set one.
+    property var breadcrumb: []
+    readonly property string _breadcrumbText: (root.breadcrumb || []).join("  >  ")
     property var sections: []
     property bool sectionGroupsCollapsedByDefault: true
     property real contentBottomPadding: Theme.AppTheme.pagePadding
@@ -25,6 +43,7 @@ Item {
     signal backRequested()
     signal editRequested()
     signal deleteRequested()
+    signal menuActionTriggered(string id)
     signal sectionChanged(int index)
 
     default property alias content: contentColumn.data
@@ -82,7 +101,11 @@ Item {
         }
     }
 
-    Component.onCompleted: Qt.callLater(root._syncPinnedContent)
+    Component.onCompleted: {
+        Qt.callLater(root._syncPinnedContent)
+        DetailViewTracker.open()
+    }
+    Component.onDestruction: DetailViewTracker.close()
 
     Rectangle {
         anchors.fill: parent
@@ -94,7 +117,9 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: root.showHeader ? Theme.AppTheme.panelHeaderHeight : 0
+                Layout.preferredHeight: root.showHeader
+                    ? Math.max(Theme.AppTheme.panelHeaderHeight, _headerColumn.implicitHeight + Theme.AppTheme.spacingXs * 2)
+                    : 0
                 visible: root.showHeader
                 color: Theme.AppTheme.surfaceRaised
 
@@ -106,10 +131,27 @@ Item {
                     color: Theme.AppTheme.divider
                 }
 
-                RowLayout {
-                    anchors.fill: parent
+                ColumnLayout {
+                    id: _headerColumn
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
                     anchors.leftMargin: Theme.AppTheme.pagePadding
                     anchors.rightMargin: Theme.AppTheme.pagePadding
+                    spacing: 1
+
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        visible: root._breadcrumbText.length > 0
+                        text: root._breadcrumbText
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        elide: Text.ElideRight
+                    }
+
+                RowLayout {
+                    Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingSm
 
                     Item {
@@ -172,6 +214,12 @@ Item {
                         elide: Text.ElideRight
                     }
 
+                    StatusChip {
+                        visible: root.statusLabel.length > 0
+                        status: root.statusLabel
+                        tone: root.statusTone
+                    }
+
                     BusyIndicator {
                         visible: root.isBusy
                         running: root.isBusy
@@ -197,6 +245,25 @@ Item {
                         implicitWidth: 80
                         onClicked: root.deleteRequested()
                     }
+
+                    ActionsMenuButton {
+                        visible: root.menuActions.length > 0
+                        enabled: !root.isBusy
+                        items: root.menuActions
+                        triggerLabel: root.menuTriggerLabel
+                        onActionSelected: function(id) { root.menuActionTriggered(id) }
+                    }
+                }
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    visible: root.subtitleLine.length > 0
+                    text: root.subtitleLine
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    elide: Text.ElideRight
+                }
                 }
             }
 

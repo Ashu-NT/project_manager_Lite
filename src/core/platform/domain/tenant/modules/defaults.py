@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.tenant.modules.module_codes import normalize_module_code
-from src.core.platform.domain.tenant.modules.module_definition import EnterpriseModule, PlatformCapability
+from src.core.platform.domain.tenant.modules.module_definition import (
+    EnterpriseModule,
+    PlatformCapability,
+)
 
 MODULE_LIFECYCLE_INACTIVE = "inactive"
 MODULE_LIFECYCLE_ACTIVE = "active"
@@ -71,6 +74,14 @@ DEFAULT_PLATFORM_CAPABILITIES: tuple[PlatformCapability, ...] = (
 
 
 DEFAULT_ENTERPRISE_MODULES: tuple[EnterpriseModule, ...] = (
+    EnterpriseModule(
+        code="accounting_integration",
+        label="Accounting Integration",
+        description="Optional delivery of approved evidence to external Accounting.",
+        default_enabled=False,
+        stage="enabled",
+        primary_capabilities=("accounting.handoff",),
+    ),
     EnterpriseModule(
         code="project_management",
         label="Project Management",

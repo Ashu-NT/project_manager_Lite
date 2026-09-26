@@ -11,7 +11,9 @@ import inspect
 from pathlib import Path
 
 import src.core.platform.access.application.access_control_service as access_control_service_module
-from src.core.platform.access.application.access_control_service import AccessControlService
+from src.core.platform.access.application.access_control_service import (
+    AccessControlService,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _FORBIDDEN_MODEL_NAMES = frozenset({"OrganizationUser", "UserOrganization", "OrganizationMembership"})
@@ -69,11 +71,11 @@ def test_access_workspace_presenter_and_controller_do_not_import_repositories_or
     with no scope-type-specific repository/ORM code."""
     presenter_path = (
         _REPO_ROOT
-        / "src/ui_qml/platform/presenters/identity_access/access/access_workspace_presenter.py"
+        / "src/ui_qml/platform/presenters/access/access_workspace_presenter.py"
     )
     controller_path = (
         _REPO_ROOT
-        / "src/ui_qml/platform/controllers/identity_access/access/access_workspace_controller.py"
+        / "src/ui_qml/platform/controllers/access/access_workspace_controller.py"
     )
     for path in (presenter_path, controller_path):
         source = path.read_text(encoding="utf-8-sig")
@@ -89,12 +91,12 @@ def test_organization_access_policy_role_choices_map_to_pre_existing_system_role
     """`ORGANIZATION_SCOPE_ROLE_CANONICAL_NAMES` must resolve to the pre-existing `org_admin`/
     `org_viewer`/`org_member` system roles (see `role_scope_policy.py`'s
     `_ORGANIZATION_SCOPE_ROLE_NAMES`) -- no new organization role names may be invented."""
+    from src.core.platform.application.security.authorization.roles.role_scope_policy import (
+        _ORGANIZATION_SCOPE_ROLE_NAMES,
+    )
     from src.core.platform.domain.master_data.org.access_policy import (
         ORGANIZATION_SCOPE_ROLE_CANONICAL_NAMES,
         ORGANIZATION_SCOPE_ROLE_CHOICES,
-    )
-    from src.core.platform.application.security.authorization.roles.role_scope_policy import (
-        _ORGANIZATION_SCOPE_ROLE_NAMES,
     )
 
     assert set(ORGANIZATION_SCOPE_ROLE_CANONICAL_NAMES.keys()) == set(ORGANIZATION_SCOPE_ROLE_CHOICES)

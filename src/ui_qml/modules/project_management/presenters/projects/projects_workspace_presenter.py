@@ -3,11 +3,6 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
-from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
-from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
-from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
     build_project_management_projects_desktop_api,
@@ -20,13 +15,26 @@ from src.core.modules.project_management.api.desktop.tasks import (
     ProjectManagementTasksDesktopApi,
     build_project_management_tasks_desktop_api,
 )
+from src.core.platform.api.desktop.master_data.department.department import (
+    PlatformDepartmentDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
+    project_resources_page,
+    project_tasks_page,
+)
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogWorkspaceViewModel,
 )
 
-from .activity_builder import build_project_activity_state
+from .activity_builder import build_project_activity_page
 from .import_handler import execute_import, preview_import
 from .project_command_handler import (
+    bulk_set_project_status,
     create_project,
     delete_project,
     set_project_status,
@@ -39,15 +47,14 @@ from .resource_handler import (
     remove_project_resource,
     update_project_resource,
 )
-from .resources_builder import build_assignable_resource_options, build_project_resources_state
+from .resources_builder import (
+    build_assignable_resource_options,
+    build_project_resources_state,
+)
 from .risks_builder import build_project_risks_state
 from .tasks_builder import build_project_tasks_state
 from .workspace_builder import build_project_detail_state, build_workspace_state
-from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
-    activity_page,
-    project_resources_page,
-    project_tasks_page,
-)
+
 
 class ProjectProjectsWorkspacePresenter:
     def __init__(
@@ -60,7 +67,6 @@ class ProjectProjectsWorkspacePresenter:
         department_api: PlatformDepartmentDesktopApi | None = None,
         user_api: PlatformUserDesktopApi | None = None,
         employee_api: PlatformEmployeeDesktopApi | None = None,
-        activity_api: PlatformActivityDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_projects_desktop_api()
         self._tasks_desktop_api = tasks_desktop_api or build_project_management_tasks_desktop_api()
@@ -69,7 +75,6 @@ class ProjectProjectsWorkspacePresenter:
         self._department_api = department_api
         self._user_api = user_api
         self._employee_api = employee_api
-        self._activity_api = activity_api
         self._import_sessions: dict[str, object] = {}
 
     def build_workspace_state(
@@ -231,22 +236,18 @@ class ProjectProjectsWorkspacePresenter:
     def build_project_risks_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
         return build_project_risks_state(self._register_desktop_api, project_id=project_id)
 
-    def build_project_activity_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
-        return build_project_activity_state(
-            self._activity_api,
-            project_id=project_id,
+    def build_project_activity_page(self, *, project_id: str, search_text: str = "",
+                                    category: str = "all", page: int = 1,
+                                    page_size: int = 25) -> dict[str, object]:
+        return build_project_activity_page(
+            self._desktop_api.list_project_activity_page(
+                project_id, search_text=search_text, category=category,
+                page=page, page_size=page_size),
             site_api=self._site_api,
             department_api=self._department_api,
             user_api=self._user_api,
             employee_api=self._employee_api,
         )
-
-    def build_project_activity_page(self, *, project_id: str, search_text: str = "",
-                                    category: str = "all", page: int = 1,
-                                    page_size: int = 25) -> dict[str, object]:
-        return activity_page(self._desktop_api.list_project_activity_page(
-            project_id, search_text=search_text, category=category,
-            page=page, page_size=page_size))
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
         return suggest_code(self._desktop_api, payload)
@@ -296,6 +297,9 @@ class ProjectProjectsWorkspacePresenter:
 
     def set_project_status(self, project_id: str, status: str) -> None:
         set_project_status(self._desktop_api, project_id, status)
+
+    def bulk_set_project_status(self, project_ids: list[str], status: str) -> None:
+        bulk_set_project_status(self._desktop_api, project_ids, status)
 
     def delete_project(self, project_id: str) -> None:
         delete_project(self._desktop_api, project_id)

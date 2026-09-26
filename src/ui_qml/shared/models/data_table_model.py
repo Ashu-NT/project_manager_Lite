@@ -12,11 +12,11 @@ from time import monotonic
 from typing import Any
 
 from PySide6.QtCore import (
+    Property,
     QAbstractTableModel,
     QByteArray,
     QModelIndex,
     Qt,
-    Property,
     Signal,
     Slot,
 )
@@ -222,7 +222,13 @@ class DynamicTableModel(QAbstractTableModel):
     rowCountValue = Property(int, lambda self: len(self._rows), notify=rowCountChanged)
 
     # ── Public controller API ─────────────────────────────────────────
+    # Also a `@Slot`, not just a plain Python method: a QML page with no
+    # Python controller in between (e.g. an organization-scoped child table
+    # querying its own paginated backend method directly) can push rows
+    # here too. Assigning the `rows` property directly instead would skip
+    # `_unsorted_rows` bookkeeping and desync any active column sort.
 
+    @Slot("QVariantList")
     def set_rows(self, rows: list[dict]) -> None:
         """Push a new row dataset from Python without crossing the QML bridge."""
         self._unsorted_rows = list(rows) if rows is not None else []
@@ -368,6 +374,11 @@ class DynamicTableModel(QAbstractTableModel):
                 return _safe_str(raw.get("label", ""))
             val = _safe_float(raw)
             return f"{val * 100:.0f}%"
+        if col_type == "status" and isinstance(raw, dict):
+            # Callers that need a semantic StatusChip tone pass
+            # {"label": ..., "tone": ...} instead of a plain string --
+            # DataTable itself never infers tone from status text.
+            return _safe_str(raw.get("label", ""))
         if isinstance(raw, bool):
             return "Yes" if raw else "No"
         return _safe_str(raw)

@@ -1,45 +1,76 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.projects.project import (
-    ProjectRepository,
-    ProjectResourceRepository,
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
 )
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    AssignmentRepository,
-    TaskRepository,
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.scheduling.baseline import BaselineRepository
+from src.core.modules.project_management.application.scheduling.services.scheduling_engine import (
+    SchedulingEngine,
+)
+from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
+    EvmSeriesReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_billing_reader import (
+    FinanceBillingReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
+    FinanceSnapshotReader,
+)
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
     ProjectBillingRepository,
 )
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
 )
-from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
-    EvmSeriesReader,
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+    ProjectResourceRepository,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
-    FinanceSnapshotReader,
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
+from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
+    BaselineRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+    TaskRepository,
+)
+from src.core.modules.project_management.infrastructure.reporting.builders.baseline_compare import (
+    ReportingBaselineCompareMixin,
+)
+from src.core.modules.project_management.infrastructure.reporting.builders.cost_breakdown import (
+    ReportingCostBreakdownMixin,
+)
+from src.core.modules.project_management.infrastructure.reporting.builders.evm import (
+    ReportingEvmMixin,
+)
+from src.core.modules.project_management.infrastructure.reporting.builders.kpi import (
+    ReportingKpiMixin,
+)
+from src.core.modules.project_management.infrastructure.reporting.builders.labor import (
+    ReportingLaborMixin,
+)
+from src.core.modules.project_management.infrastructure.reporting.builders.profitability import (
+    ReportingProfitabilityMixin,
+)
+from src.core.modules.project_management.infrastructure.reporting.builders.variance import (
+    ReportingVarianceMixin,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.service_base import ServiceBase
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
-
-from src.core.modules.project_management.infrastructure.reporting.builders.baseline_compare import ReportingBaselineCompareMixin
-from src.core.modules.project_management.infrastructure.reporting.builders.cost_breakdown import ReportingCostBreakdownMixin
-from src.core.modules.project_management.infrastructure.reporting.builders.evm import ReportingEvmMixin
-from src.core.modules.project_management.infrastructure.reporting.builders.kpi import ReportingKpiMixin
-from src.core.modules.project_management.infrastructure.reporting.builders.labor import ReportingLaborMixin
-from src.core.modules.project_management.infrastructure.reporting.builders.profitability import ReportingProfitabilityMixin
-from src.core.modules.project_management.infrastructure.reporting.builders.variance import ReportingVarianceMixin
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 class ReportingService(
@@ -70,6 +101,7 @@ class ReportingService(
         finance_snapshot_reader: FinanceSnapshotReader,
         financial_profile_repo,
         billing_repo: ProjectBillingRepository,
+        billing_reader: FinanceBillingReader,
         user_session=None,
         module_catalog_service=None,
     ):
@@ -88,6 +120,7 @@ class ReportingService(
         self._finance_snapshot_reader: FinanceSnapshotReader = finance_snapshot_reader
         self._financial_profile_repo = financial_profile_repo
         self._billing_repo: ProjectBillingRepository = billing_repo
+        self._billing_reader: FinanceBillingReader = billing_reader
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
@@ -136,10 +169,7 @@ class ReportingService(
         )
 
     def _has_profitability_view(self, project_id: str) -> bool:
-        """Non-raising finance.read_profitability check for the commercial
-        projection, which mixes ordinary billing-progress figures with
-        commercial margin and must redact only the margin family rather
-        than deny the whole call."""
+        """Redact commercial margin independently of ordinary billing progress."""
         return bool(
             self._user_session is not None
             and self._user_session.has_project_permission(

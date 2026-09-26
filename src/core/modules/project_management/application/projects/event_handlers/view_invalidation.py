@@ -113,10 +113,10 @@ def build_project_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_project_view_invalidation_handler",
     "PROJECT_CATEGORY",
-    "PROJECT_LIST_SCOPE_CODE",
     "PROJECT_DETAIL_SCOPE_CODE",
-    "PROJECT_MODULE_CODE",
     "PROJECT_ENTITY_TYPE",
+    "PROJECT_LIST_SCOPE_CODE",
+    "PROJECT_MODULE_CODE",
+    "build_project_view_invalidation_handler",
 ]

@@ -2,8 +2,8 @@ from datetime import date
 
 import pytest
 
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def _login_as(services, username: str, password: str) -> None:

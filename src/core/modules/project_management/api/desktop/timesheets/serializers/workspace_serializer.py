@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.api.desktop.timesheets.formatters.datetime_formatter import format_datetime
-from src.core.modules.project_management.api.desktop.timesheets.formatters.time_formatter import format_hours
+from src.core.modules.project_management.api.desktop.timesheets.formatters.datetime_formatter import (
+    format_datetime,
+)
+from src.core.modules.project_management.api.desktop.timesheets.formatters.time_formatter import (
+    format_hours,
+)
 from src.core.modules.project_management.api.desktop.timesheets.models.workspace import (
     ResourceTimesheetEntryDesktopDto,
     ResourceTimesheetPeriodDesktopDto,
@@ -15,7 +19,6 @@ from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetWorkspaceAccessFact,
 )
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
-
 
 _STATUS_LABELS = {
     TimesheetPeriodStatus.OPEN: "Open",

@@ -9,38 +9,50 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
-from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.application.security.auth import AuthService
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.repositories.security.auth import UserRepository
-from src.core.platform.domain.security.auth import (
-    ACCOUNT_TYPE_SERVICE,
-    UserSessionContext,
-    UserSessionPrincipal,
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.security.identity.execution_principal import (
+    resolve_execution_principal,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.contract.repositories.history.audit.contracts import (
+    AuditRepository,
+)
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.repositories.security.auth import UserRepository
 from src.core.platform.contract.repositories.security.identity.contracts import (
     ApiKeyCredentialRepository,
     ServicePrincipalRepository,
 )
-from src.core.platform.domain.security.identity.service_principal import (
-    ApiKeyCredential,
-    IssuedApiKey,
-    SERVICE_PRINCIPAL_STATUS_ACTIVE,
-    SERVICE_PRINCIPAL_STATUS_DISABLED,
-    ServicePrincipal,
-)
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.domain.history.audit import AuditEntry
+from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
+from src.core.platform.domain.security.auth import (
+    ACCOUNT_TYPE_SERVICE,
+    UserSessionContext,
+    UserSessionPrincipal,
+)
+from src.core.platform.domain.security.identity.service_principal import (
+    SERVICE_PRINCIPAL_STATUS_ACTIVE,
+    SERVICE_PRINCIPAL_STATUS_DISABLED,
+    ApiKeyCredential,
+    IssuedApiKey,
+    ServicePrincipal,
+)
 
 _TOKEN_PATTERN = re.compile(
     r"^pmk_([A-Za-z0-9-]{1,64})_([A-Za-z0-9]{12})_([A-Za-z0-9_-]{32,})$"
@@ -126,6 +138,21 @@ class ServicePrincipalService:
     def list_service_principals(self) -> list[ServicePrincipal]:
         self._require_admin("list service principals")
         return self._principal_repo.list_all()
+
+    def resolve_execution_principal(self, *, name: str) -> ServicePrincipal:
+        """Resolve a configured non-human principal without interactive RBAC.
+
+        This is an internal worker trust boundary, not an operator command. It
+        validates the durable principal, owning organization, and service
+        account while leaving transaction ownership with the caller.
+        """
+        ctx = self._tenant_context_service.require_active_scope_ids(
+            operation_label="resolve integration worker identity"
+        )
+        return resolve_execution_principal(
+            name=name, scope=ctx, principal_repository=self._principal_repo,
+            user_repository=self._user_repo,
+        )
 
     def disable_service_principal(self, principal_id: str) -> ServicePrincipal:
         self._require_admin("disable a service principal")
@@ -303,7 +330,7 @@ class ServicePrincipalService:
             principal_record.organization_id,
             principal_record.tenant_id,
         )
-        if organization is None or not organization.is_enabled:
+        if organization is None or organization.status != ORGANIZATION_STATUS_ACTIVE:
             raise ValidationError("Organization is inactive.", code="ORGANIZATION_INACTIVE")
         user = self._user_repo.get(principal_record.user_id)
         if (
@@ -470,7 +497,7 @@ class ServicePrincipalService:
             organization_id=principal.organization_id,
             source="identity",
             severity="high",
-            compliance_tag="SOC2",
+            category="SECURITY",
             metadata={"action": action, **metadata},
         )
         self._audit_repo.add_for_tenant(entry, principal.tenant_id)

@@ -60,6 +60,12 @@ AppControls.CenteredDialog {
     // Hosts should set this to the invoking control before open() so keyboard
     // focus returns to a stable location after accept, reject, or Escape.
     property Item focusReturnTarget: null
+    // Used when the invoking control disappears during a context or selection
+    // change. Keep this bound to a stable, visible workspace control.
+    property Item focusFallbackTarget: null
+    // Dialogs should point this at their first meaningful business field. The
+    // safe default is Cancel, never a destructive or mutating action.
+    property Item initialFocusTarget: null
 
     // ── Primary action ────────────────────────────────────────────────────────
     property string primaryText:    "Save"
@@ -98,6 +104,8 @@ AppControls.CenteredDialog {
     // Largest height the dialog may occupy: window height minus top+bottom margin.
     readonly property real maxDialogHeight:
         (parent ? parent.height : 760) - Theme.AppTheme.dialogPadding * 2
+    readonly property var hostWindow:
+        root.parent ? root.parent.Window.window : null
 
     // Natural height = content body + pinned header/footer + paddings. Capped to
     // the window so the dialog is never cut off; when capped, the body scrolls.
@@ -109,17 +117,49 @@ AppControls.CenteredDialog {
         maxDialogHeight
     )
 
+    function _isValidFocusTarget(target) {
+        if (!target) return false
+        try {
+            return target.visible
+                && target.enabled
+                && target.Window.window === root.hostWindow
+        } catch (error) {
+            return false
+        }
+    }
+
+    function _applyInitialFocus() {
+        const target = root._isValidFocusTarget(root.initialFocusTarget)
+            ? root.initialFocusTarget : _cancelButton
+        if (root._isValidFocusTarget(target))
+            target.forceActiveFocus()
+    }
+
+    function _restoreFocus(preferred, fallback) {
+        const target = root._isValidFocusTarget(preferred) ? preferred : fallback
+        if (root._isValidFocusTarget(target))
+            target.forceActiveFocus()
+    }
+
+    function _invokeSubmit(target) {
+        if (typeof target.submitDialog === "function")
+            target.submitDialog()
+        else
+            target.accept()
+    }
+
     onAboutToShow: {
-        const window = root.Window.window
+        const window = root.hostWindow
         if (!root.focusReturnTarget)
             root.focusReturnTarget = window ? window.activeFocusItem : null
+        Qt.callLater(root._applyInitialFocus)
     }
 
     onClosed: {
         const target = root.focusReturnTarget
+        const fallback = root.focusFallbackTarget
         root.focusReturnTarget = null
-        if (target && target.visible && target.enabled)
-            Qt.callLater(target.forceActiveFocus)
+        Qt.callLater(function() { root._restoreFocus(target, fallback) })
     }
 
     // ── Content item ──────────────────────────────────────────────────────────
@@ -212,6 +252,7 @@ AppControls.CenteredDialog {
 
     // ── Footer ────────────────────────────────────────────────────────────────
     footer: AppControls.DialogActionFooter {
+        objectName: "dialogActionFooter"
 
         // Destructive action (left-aligned, separated)
         AppControls.SecondaryButton {
@@ -235,6 +276,7 @@ AppControls.CenteredDialog {
 
         // Cancel
         AppControls.SecondaryButton {
+            id: _cancelButton
             objectName: "dialogCancelButton"
             visible:  root.showSecondary
             text:     root.secondaryText
@@ -253,13 +295,8 @@ AppControls.CenteredDialog {
             // If the dialog defines submitDialog(), call it directly so it can
             // validate and keep the dialog OPEN on failure (closing is then
             // owned by the host's _handleResult on success). Dialogs without a
-            // submitDialog() fall back to accept() → onAccepted (legacy path).
-            onClicked: {
-                if (typeof root.submitDialog === "function")
-                    root.submitDialog()
-                else
-                    root.accept()
-            }
+            // submitDialog() use the standard accept() -> onAccepted path.
+            onClicked: root._invokeSubmit(root)
         }
     }
 }

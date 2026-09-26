@@ -1,21 +1,26 @@
 """Section builders — alerts, milestones, critical path, upcoming tasks, register, reports."""
 
 from __future__ import annotations
+
 from typing import Any
 
-from src.core.modules.project_management.domain.risk.register import (
-    as_register_entry_severity,
-    as_register_entry_status,
-    as_register_entry_type,
+from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
+    fmt_date,
+)
+from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
+    fmt_float,
+    fmt_int,
+    fmt_percent,
 )
 from src.core.modules.project_management.api.desktop.dashboard.models.sections import (
     ProjectDashboardSectionDescriptor,
     ProjectDashboardSectionItemDescriptor,
 )
-from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
-    fmt_float, fmt_int, fmt_percent,
+from src.core.modules.project_management.domain.risk.register import (
+    as_register_entry_severity,
+    as_register_entry_status,
+    as_register_entry_type,
 )
-from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import fmt_date
 
 
 def build_sections_from_dashboard_data(

@@ -39,6 +39,10 @@ def bulk_delete_entries(controller, entry_ids: list) -> dict[str, object]:
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_validation_message="Review the highlighted register fields and try again.",
+        safe_validation_code="REGISTER_INPUT_INVALID",
+        safe_failure_message="The register change could not be completed. Try again or refresh the workspace.",
+        safe_failure_code="REGISTER_MUTATION_FAILED",
     )
 
 
@@ -47,16 +51,22 @@ def apply_bulk_entry_status(controller, payload: dict[str, object]) -> dict[str,
     status = str(payload.get("value") or payload.get("status") or "")
     if not ids or not status:
         return {"ok": False, "message": "No entries or status selected."}
+    # One backend transaction for the whole selection (RegisterService.
+    # bulk_set_entry_status()) instead of one per entry. This also replaces
+    # a call that was silently broken: update_entry() requires entryId/
+    # projectId/title and would raise on the {"id", "status"} payload this
+    # used to send.
     return run_mutation(
-        operation=lambda: [
-            controller._register_workspace_presenter.update_entry({"id": i, "status": status})
-            for i in ids
-        ],
+        operation=lambda: controller._register_workspace_presenter.bulk_set_entry_status(ids, status),
         success_message=f"Status updated for {len(ids)} entry/entries.",
         on_success=controller._request_domain_refresh,
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_validation_message="Review the highlighted register fields and try again.",
+        safe_validation_code="REGISTER_INPUT_INVALID",
+        safe_failure_message="The register change could not be completed. Try again or refresh the workspace.",
+        safe_failure_code="REGISTER_MUTATION_FAILED",
     )
 
 

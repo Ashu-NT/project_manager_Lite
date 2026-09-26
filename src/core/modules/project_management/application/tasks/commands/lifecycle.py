@@ -7,25 +7,32 @@ from datetime import date, datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskCreated,
     TaskProfileUpdated,
     TaskStatusChanged,
 )
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
+from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
     ValidationError,
 )
-from src.core.modules.project_management.domain.enums import TaskStatus
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
+from src.core.shared.activity import record_activity
 
 logger = logging.getLogger(__name__)
 
@@ -96,18 +103,6 @@ class TaskLifecycleMixin:
             task = self._resequence_for_new_task(task)
             with self._task_uow() as uow:
                 uow.tasks.add(task)
-                record_audit_entry(
-                    uow,
-                    operation="create",
-                    entity_type="task",
-                    entity_id=task.id,
-                    module="project_management",
-                    organization_id=scope.organization_id,
-                    severity="low",
-                    metadata={"action": "task.create", "name": task.name},
-                    commit=False,
-                    fail_closed=True,
-                )
                 record_activity(
                     uow,
                     action="task.create",
@@ -235,18 +230,6 @@ class TaskLifecycleMixin:
         try:
             with self._task_uow() as uow:
                 uow.tasks.update(candidate)
-                record_audit_entry(
-                    uow,
-                    operation="update",
-                    entity_type="task",
-                    entity_id=candidate.id,
-                    module="project_management",
-                    organization_id=scope.organization_id,
-                    severity="low",
-                    metadata={"action": "task.update", "name": candidate.name},
-                    commit=False,
-                    fail_closed=True,
-                )
                 record_activity(
                     uow,
                     action="task.update",

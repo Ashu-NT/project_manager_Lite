@@ -9,13 +9,11 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
     TimesheetAssignmentContext,
 )
-from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskAssignmentORM, TaskDependencyORM, TaskORM
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
-from src.infra.persistence.db.optimistic import delete_with_version_check, update_with_version_check
+from src.core.modules.project_management.domain.tasks.task import (
+    Task,
+    TaskAssignment,
+    TaskDependency,
+)
 from src.core.modules.project_management.infrastructure.persistence.mappers.task import (
     assignment_from_orm,
     assignment_to_orm,
@@ -23,6 +21,26 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.task
     dependency_to_orm,
     task_from_orm,
     task_to_orm,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskAssignmentORM,
+    TaskDependencyORM,
+    TaskORM,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.infra.persistence.db.optimistic import (
+    delete_with_version_check,
+    update_with_version_check,
 )
 
 
@@ -630,7 +648,7 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
 
 
 __all__ = [
-    "SqlAlchemyTaskRepository",
     "SqlAlchemyAssignmentRepository",
     "SqlAlchemyDependencyRepository",
+    "SqlAlchemyTaskRepository",
 ]

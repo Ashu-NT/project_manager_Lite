@@ -1,29 +1,3 @@
-from src.ui_qml.modules.project_management.controllers.register.register_workspace_controller import (
-    ProjectManagementRegisterWorkspaceController,
-)
-from src.ui_qml.modules.project_management.controllers.register.register_state import (
-    default_entries,
-    default_overview,
-    default_selected_entry,
-    default_urgent_entries,
-)
-from src.ui_qml.modules.project_management.controllers.register.register_table_models import (
-    RegisterTableModels,
-    create_register_table_models,
-)
-from src.ui_qml.modules.project_management.controllers.register.register_state_setters import (
-    RegisterStateSettersMixin,
-)
-from src.ui_qml.modules.project_management.controllers.register.register_selection_handler import (
-    select_entry,
-    select_project,
-    set_entry_page,
-    set_entry_page_size,
-    set_search_text,
-    set_severity_filter,
-    set_status_filter,
-    set_type_filter,
-)
 from src.ui_qml.modules.project_management.controllers.register.register_bulk_handler import (
     apply_bulk_entry_status,
     bulk_delete_entries,
@@ -36,6 +10,32 @@ from src.ui_qml.modules.project_management.controllers.register.register_mutatio
     delete_entry,
     generate_entity_code,
     update_entry,
+)
+from src.ui_qml.modules.project_management.controllers.register.register_selection_handler import (
+    select_entry,
+    select_project,
+    set_entry_page,
+    set_entry_page_size,
+    set_search_text,
+    set_severity_filter,
+    set_status_filter,
+    set_type_filter,
+)
+from src.ui_qml.modules.project_management.controllers.register.register_state import (
+    default_entries,
+    default_overview,
+    default_selected_entry,
+    default_urgent_entries,
+)
+from src.ui_qml.modules.project_management.controllers.register.register_state_setters import (
+    RegisterStateSettersMixin,
+)
+from src.ui_qml.modules.project_management.controllers.register.register_table_models import (
+    RegisterTableModels,
+    create_register_table_models,
+)
+from src.ui_qml.modules.project_management.controllers.register.register_workspace_controller import (
+    ProjectManagementRegisterWorkspaceController,
 )
 
 __all__ = [

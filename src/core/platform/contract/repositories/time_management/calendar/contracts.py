@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from datetime import date
+
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarException,
     CalendarRecurringEvent,

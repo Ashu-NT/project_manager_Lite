@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
+from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
-from sqlalchemy import event, text
+from sqlalchemy import MetaData, Table, event, insert, select, text, update
+from sqlalchemy.exc import DBAPIError
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
     AccountingStatusQuery,
@@ -17,8 +20,50 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
 )
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 
-
 pytestmark = pytest.mark.postgresql_integration
+
+
+def test_commercial_query_uses_runtime_rls_and_rejects_scope_spoofing(postgres_test_environment):
+    from src.core.modules.project_management.application.financials.revenue.commercial_projection_query import (
+        CommercialProjectionQuery,
+    )
+    from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+        CommercialMetricAvailability,
+    )
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.configuration.financial_configuration import (
+        SqlAlchemyProjectFinancialProfileRepository,
+    )
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.invoicing.billing import (
+        SqlAlchemyProjectBillingRepository,
+    )
+    from src.core.platform.common.exceptions import NotFoundError
+
+    with postgres_test_environment.runtime_session(tenant_id=TENANT_A, organization_id=ORG_A) as session:
+        validate_postgresql_execution_role(session)
+        context = SimpleNamespace(require_active_scope_ids=lambda **_: SimpleNamespace(tenant_id=TENANT_A, organization_id=ORG_A))
+        billing = SqlAlchemyProjectBillingRepository(session)
+        financial = SqlAlchemyProjectFinancialProfileRepository(session)
+        billing._tenant_context_service = financial._tenant_context_service = context
+
+        def forbidden_cost(*_):
+            raise AssertionError("Restricted commercial request must not read EAC")
+
+        query = CommercialProjectionQuery(
+            billing_repo=billing, financial_profile_repo=financial,
+            billing_reader=SqlAlchemyFinanceBillingReader(session=session), cost_totals=forbidden_cost,
+        )
+        request = dict(tenant_id=TENANT_A, organization_id=ORG_A, project_id=PROJECT_A,
+                       as_of_date=date(2026, 8, 31), include_profitability=False)
+        visible = query.read(**request)
+        assert visible.contract_value == Decimal("125000.25")
+        assert visible.revenue_availability is CommercialMetricAvailability.RESTRICTED
+        assert visible.projected_margin_amount is None
+        for foreign_project in (PROJECT_B, "r6b-billing-project-c"):
+            hidden = query.read(**dict(request, project_id=foreign_project))
+            assert hidden.contract_value is None
+            assert hidden.approved_preparation_amount == Decimal(0)
+        with pytest.raises(NotFoundError):
+            query.read(**dict(request, tenant_id=TENANT_B, organization_id=ORG_B))
 
 TENANT_A = "r6b-billing-tenant-a"
 TENANT_B = "r6b-billing-tenant-b"
@@ -36,8 +81,8 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
     preparation_id = f"r6b-billing-preparation-{suffix}"
     line_id = f"r6b-billing-line-{suffix}"
     connection.execute(text(
-        "INSERT INTO organizations (id, tenant_id, organization_code, display_name, timezone_name, base_currency, is_enabled, version) "
-        "VALUES (:id, :tenant, :code, :name, 'UTC', 'USD', true, 1)"
+        "INSERT INTO organizations (id, tenant_id, organization_code, display_name, timezone_name, base_currency, status, version) "
+        "VALUES (:id, :tenant, :code, :name, 'UTC', 'USD', 'active', 1)"
     ), {"id": organization_id, "tenant": tenant_id, "code": f"R6B-BILL-{suffix.upper()}", "name": f"R6B Billing {suffix.upper()}"})
     connection.execute(text(
         "INSERT INTO projects (id, tenant_id, project_code, name, description, status, organization_id, version) "
@@ -62,12 +107,12 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
         "INSERT INTO project_billing_preparation_lines "
         "(id, tenant_id, organization_id, project_id, preparation_id, source_type, source_id, source_revision, source_content_hash, description, source_date, quantity, unit, unit_rate, net_amount, currency_code, source_amount, created_at) "
         "VALUES (:id, :tenant, :organization, :project, :preparation, 'schedule_line', :source, '1', :hash, :description, '2026-09-01', 1, 'milestone', 5000.25, 5000.25, 'USD', 5000.25, :now)"
-    ), {"id": line_id, "tenant": tenant_id, "organization": organization_id, "project": project_id, "preparation": preparation_id, "source": schedule_id, "hash": suffix * 64, "description": f"Accepted milestone {suffix.upper()}", "now": now})
+    ), {"id": line_id, "tenant": tenant_id, "organization": organization_id, "project": project_id, "preparation": preparation_id, "source": schedule_id, "hash": (suffix * 64)[:64], "description": f"Accepted milestone {suffix.upper()}", "now": now})
     connection.execute(text(
         "INSERT INTO project_billing_source_locks "
         "(id, tenant_id, organization_id, project_id, source_type, source_id, source_revision, source_content_hash, preparation_id, preparation_line_id, status, reserved_at, finalized_at) "
         "VALUES (:id, :tenant, :organization, :project, 'schedule_line', :source, '1', :hash, :preparation, :line, 'finalized', :now, :now)"
-    ), {"id": f"r6b-billing-lock-{suffix}", "tenant": tenant_id, "organization": organization_id, "project": project_id, "source": schedule_id, "hash": suffix * 64, "preparation": preparation_id, "line": line_id, "now": now})
+    ), {"id": f"r6b-billing-lock-{suffix}", "tenant": tenant_id, "organization": organization_id, "project": project_id, "source": schedule_id, "hash": (suffix * 64)[:64], "preparation": preparation_id, "line": line_id, "now": now})
     connection.execute(text(
         "INSERT INTO project_billing_external_events "
         "(id, tenant_id, organization_id, project_id, preparation_id, event_type, external_system, external_status, idempotency_key, occurred_at, external_invoice_reference, message, recorded_at) "
@@ -85,6 +130,7 @@ def seeded_billing_scopes(postgres_test_environment):
             ), {"id": tenant_id, "code": code})
         _seed_scope(connection, suffix="a", tenant_id=TENANT_A, organization_id=ORG_A)
         _seed_scope(connection, suffix="b", tenant_id=TENANT_B, organization_id=ORG_B)
+        _seed_scope(connection, suffix="c", tenant_id=TENANT_A, organization_id="r6b-billing-org-c")
         connection.execute(text("ANALYZE"))
 
 
@@ -187,3 +233,62 @@ def test_billing_postgresql_material_plans_are_bounded(postgres_test_environment
             assert "Execution Time" in plan
     finally:
         session.close()
+
+
+_BILLING_TABLES = (
+    "project_billing_profiles", "project_billing_schedule_lines",
+    "project_billing_preparations", "project_billing_preparation_lines",
+    "project_billing_source_locks", "project_billing_external_events",
+)
+
+
+@pytest.mark.parametrize("table_name", _BILLING_TABLES)
+@pytest.mark.parametrize("suffix", ["b", "c"])
+def test_runtime_denies_foreign_billing_crud(postgres_test_environment, table_name, suffix):
+    environment = postgres_test_environment
+    table = Table(table_name, MetaData(), autoload_with=environment.admin_engine)
+    with environment.admin_engine.connect() as connection:
+        foreign = dict(connection.execute(select(table).where(
+            table.c.project_id == f"r6b-billing-project-{suffix}"
+        )).mappings().one())
+    with environment.runtime_session(tenant_id=TENANT_A, organization_id=ORG_A) as session:
+        validate_postgresql_execution_role(session)
+        assert session.execute(select(table).where(table.c.id == foreign["id"])).first() is None
+        assert session.execute(update(table).where(table.c.id == foreign["id"]).values(
+            project_id=foreign["project_id"]
+        )).rowcount == 0
+        assert session.execute(table.delete().where(table.c.id == foreign["id"])).rowcount == 0
+        session.rollback()
+        foreign["id"] = str(uuid4())
+        with pytest.raises(DBAPIError) as error:
+            session.execute(insert(table).values(**foreign))
+        assert error.value.orig.sqlstate == "42501"
+        session.rollback()
+
+
+@pytest.mark.parametrize("table_name,parent_column,parent_prefix", [
+    ("project_billing_profiles", "project_id", "project"),
+    ("project_billing_schedule_lines", "billing_profile_id", "profile"),
+    ("project_billing_preparations", "billing_profile_id", "profile"),
+    ("project_billing_preparations", "correction_of_preparation_id", "preparation"),
+    ("project_billing_preparation_lines", "preparation_id", "preparation"),
+    ("project_billing_source_locks", "preparation_id", "preparation"),
+    ("project_billing_source_locks", "preparation_line_id", "line"),
+    ("project_billing_external_events", "preparation_id", "preparation"),
+])
+@pytest.mark.parametrize("suffix", ["b", "c"])
+def test_local_billing_child_cannot_attach_foreign_parent(
+    postgres_test_environment, table_name, parent_column, parent_prefix, suffix,
+):
+    environment = postgres_test_environment
+    table = Table(table_name, MetaData(), autoload_with=environment.admin_engine)
+    with environment.admin_engine.connect() as connection:
+        row_id = connection.scalar(select(table.c.id).where(table.c.project_id == PROJECT_A))
+    with environment.runtime_session(tenant_id=TENANT_A, organization_id=ORG_A) as session:
+        validate_postgresql_execution_role(session)
+        with pytest.raises(DBAPIError) as error:
+            session.execute(update(table).where(table.c.id == row_id).values({
+                parent_column: f"r6b-billing-{parent_prefix}-{suffix}",
+            }))
+        assert error.value.orig.sqlstate == "23503"
+        session.rollback()

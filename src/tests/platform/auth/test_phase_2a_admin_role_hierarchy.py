@@ -15,8 +15,6 @@ Covers:
 """
 from __future__ import annotations
 
-import pytest
-
 from src.core.platform.domain.security.authorization.roles import RoleBinding
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
@@ -316,10 +314,10 @@ def test_user_assigned_org_member_gets_correct_permissions(services):
 
 
 def test_org_admin_is_effective_only_in_its_canonical_organization(services):
+    from src.core.platform.domain.master_data.org.organization import Organization
     from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
         SqlAlchemyOrganizationRepository,
     )
-    from src.core.platform.domain.master_data.org.organization import Organization
 
     auth = services["auth_service"]
     session = services["session"]
@@ -328,7 +326,6 @@ def test_org_admin_is_effective_only_in_its_canonical_organization(services):
         "ORG-SCOPE-OTHER",
         "Other Scope Organization",
         tenant_id=tenant_id,
-        is_enabled=True,
     )
     SqlAlchemyOrganizationRepository(session).add(other)
     session.flush()
@@ -412,9 +409,13 @@ def test_org_admin_binding_supports_organization_scope(services):
     """Canonical bindings support the same role in multiple organizations."""
     from sqlalchemy import select
 
-    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import RoleBindingORM
-    from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import SqlAlchemyOrganizationRepository
     from src.core.platform.domain.master_data.org.organization import Organization
+    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+        RoleBindingORM,
+    )
+    from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
+        SqlAlchemyOrganizationRepository,
+    )
 
     session = services["session"]
     auth = services["auth_service"]
@@ -422,8 +423,8 @@ def test_org_admin_binding_supports_organization_scope(services):
     active_tenant_id = tenant_context.get_active_tenant_id()
 
     org_repo = SqlAlchemyOrganizationRepository(session)
-    org_a = Organization.create("SCOPE-A", "Scope Org A", tenant_id=active_tenant_id, is_enabled=True)
-    org_b = Organization.create("SCOPE-B", "Scope Org B", tenant_id=active_tenant_id, is_enabled=False)
+    org_a = Organization.create("SCOPE-A", "Scope Org A", tenant_id=active_tenant_id)
+    org_b = Organization.create("SCOPE-B", "Scope Org B", tenant_id=active_tenant_id)
     org_repo.add(org_a)
     org_repo.add(org_b)
     session.flush()

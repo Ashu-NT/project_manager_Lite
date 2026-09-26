@@ -38,6 +38,12 @@ Item {
     property bool   showFilter:     false
     property bool   loading:        false
     property string emptyText:      "No records"
+    // Optional single resolution action rendered inside the empty state
+    // (e.g. "Create organization" for a true-empty dataset, "Clear
+    // filters" for a search/filter that matched nothing). Empty by
+    // default -- most tables remain purely informational when empty.
+    property string emptyActionLabel: ""
+    signal emptyActionRequested()
     property bool   alwaysShowVerticalScrollBar: false
     property bool   multiSelect:    false
     property var    selectedRowIds: []
@@ -45,17 +51,10 @@ Item {
     property Item   columnCustomizerAnchorItem: null
     property alias  filterButtonItem: _filterButton
     property string tableId: ""
-    // Optional Python-owned DynamicTableModel.  When set the rows: path is
-    // bypassed entirely — the Python model is used directly as the TableView
-    // model and row-count comes from model.rowCountValue.  The rows: property
-    // continues to work unchanged when sourceModel is null.
+    property string accessibleName: ""
+
     property var sourceModel: null
 
-    // Exposed for tests only (real QML-engine verification of per-cell
-    // geometry, e.g. confirming the last column's row background/divider
-    // reach the viewport edge after a resize) -- plain `var`, not `alias`:
-    // PySide6 can't marshal TableView's anonymous delegate items back to
-    // Python through a strictly-typed alias.
     property var _mainViewRef: _mainView
 
     signal rowSelected(string rowId)
@@ -70,13 +69,7 @@ Item {
     // ── Private helpers ───────────────────────────────────────────────
     property int    _hoveredRow:        -1
     property int    _currentRow:        -1
-    // Manual same-row double-click tracking: TableView's `reuseItems: true`
-    // recycles delegate Items across different rows, so each delegate's own
-    // built-in onDoubleClicked fires whenever the SAME visual Item receives
-    // two quick clicks -- even if the model row underneath changed in
-    // between (i.e. clicking row A then quickly clicking row B). Tracking
-    // the last-clicked row id/time at the table level instead makes double-
-    // click detection correctly require the SAME logical row twice.
+
     property string _lastClickRowId:    ""
     property double _lastClickTimeMs:   0
     readonly property string _effectiveSortingMode: {
@@ -312,6 +305,13 @@ Item {
         return Math.round(Math.max(minW, minW + (root._extraFlexSpace * flex) / root._flexTotal))
     }
 
+    function _rowIdAt(row) {
+        if (row < 0 || row >= root._rowCount) return ""
+        if (root.sourceModel) return root.sourceModel.rowId(row)
+        const rd = root._displayRows[row]
+        return rd ? String(rd.id !== undefined ? rd.id : row) : ""
+    }
+
     function _rowFillWidthFor(cellWidth, cellX) {
         return Math.max(cellWidth, (_mainView.contentX + _mainView.width) - cellX)
     }
@@ -411,7 +411,7 @@ Item {
                         Text {
                             anchors.centerIn: parent
                             text: _selectAllHeaderCell._checkState === 1 ? "—" : "✓"
-                            color: "white"
+                            color: Theme.AppTheme.textOnAccent
                             font.pixelSize: 9; font.bold: true
                             visible: _selectAllHeaderCell._checkState !== 0
                         }
@@ -550,6 +550,7 @@ Item {
 
         Rectangle {
             id: _filterButton
+            objectName: "dataTableFilterButton"
             visible: root.showFilter
             anchors.right: _header.right
             anchors.rightMargin: Theme.AppTheme.spacingSm
@@ -560,7 +561,20 @@ Item {
             color: _filterHover.containsMouse
                 ? Theme.AppTheme.hoverSurface
                 : Theme.AppTheme.surfaceRaised
+            border.width: _filterButton.activeFocus ? 2 : 0
+            border.color: Theme.AppTheme.focusBorder
             z: 3
+
+            activeFocusOnTab: root.showFilter
+            Accessible.role: Accessible.Button
+            Accessible.name: "Filters"
+            Accessible.onPressAction: root.filterClicked()
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    root.filterClicked()
+                    event.accepted = true
+                }
+            }
 
             Row {
                 id: _filterRow
@@ -681,7 +695,7 @@ Item {
                     border.width: 1
                     Text {
                         anchors.centerIn: parent
-                        text: "✓"; color: "white"
+                        text: "✓"; color: Theme.AppTheme.textOnAccent
                         font.pixelSize: 9; font.bold: true
                         visible: _cbCell._chk
                     }
@@ -719,6 +733,10 @@ Item {
         anchors.bottom: _hScrollBar.top
         clip:           true
         focus:          true
+        activeFocusOnTab: true
+
+        Accessible.role: Accessible.Table
+        Accessible.name: root.accessibleName.length > 0 ? root.accessibleName : "Data table"
 
         model:          root.sourceModel || _tableModel
         reuseItems:     true
@@ -754,27 +772,30 @@ Item {
         }
 
         // ── Keyboard navigation ───────────────────────────────────────
-        Keys.onUpPressed: {
-            if (root._currentRow > 0) {
-                root._currentRow--
-                _mainView.positionViewAtRow(root._currentRow, TableView.Contain)
-            }
+        // Up/Down/Home/End move focus AND select (mirroring a mouse click),
+        // so a keyboard-only user reaches the exact same "row selected"
+        // state a mouse user does -- no interaction here is mouse-only.
+        function _moveCurrentRowTo(row) {
+            if (row < 0 || row >= root._rowCount || row === root._currentRow) return
+            root._currentRow = row
+            _mainView.positionViewAtRow(row, TableView.Contain)
+            const rid = root._rowIdAt(row)
+            if (rid.length > 0) root.rowSelected(rid)
         }
-        Keys.onDownPressed: {
-            if (root._currentRow < root._rowCount - 1) {
-                root._currentRow++
-                _mainView.positionViewAtRow(root._currentRow, TableView.Contain)
+        Keys.onUpPressed: _mainView._moveCurrentRowTo(root._currentRow > 0 ? root._currentRow - 1 : 0)
+        Keys.onDownPressed: _mainView._moveCurrentRowTo(root._currentRow >= 0 ? root._currentRow + 1 : 0)
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Home) {
+                _mainView._moveCurrentRowTo(0)
+                event.accepted = true
+            } else if (event.key === Qt.Key_End) {
+                _mainView._moveCurrentRowTo(root._rowCount - 1)
+                event.accepted = true
             }
         }
         Keys.onReturnPressed: {
-            if (root._currentRow >= 0 && root._currentRow < root._rowCount) {
-                if (root.sourceModel) {
-                    root.rowActivated(root.sourceModel.rowId(root._currentRow))
-                } else {
-                    const rd = root._displayRows[root._currentRow]
-                    if (rd) root.rowActivated(String(rd.id !== undefined ? rd.id : ""))
-                }
-            }
+            const rid = root._rowIdAt(root._currentRow)
+            if (rid.length > 0) root.rowActivated(rid)
         }
 
         // ── Cell delegate ─────────────────────────────────────────────
@@ -791,6 +812,10 @@ Item {
             readonly property bool _sel: root.selectedRowId === _cell.rowId
             readonly property bool _chk: root.multiSelect && root._isRowChecked(_cell.rowId)
             readonly property bool _hi:  _sel || _chk
+
+            Accessible.role: Accessible.Cell
+            Accessible.name: _cell.display
+            Accessible.selected: _cell._sel
 
             readonly property bool _isSt: _cell.columnType === "status"
             readonly property bool _isPr: _cell.columnType === "progress"
@@ -839,12 +864,20 @@ Item {
             }
 
             // ── Status chip ───────────────────────────────────────────
+            // DataTable renders "status" columns for every module's tables
+            // (Projects, Tasks, Register, Financials, Platform admin lists, ...) 
+            readonly property string _stTone: (_cell._isSt && typeof _cell.rawValue === "object"
+                    && _cell.rawValue !== null)
+                ? String(_cell.rawValue.tone || "")
+                : ""
+
             StatusChip {
                 anchors.verticalCenter: _cell.verticalCenter
                 anchors.left:           _cell.left
                 anchors.leftMargin:     Theme.AppTheme.spacingMd
                 visible: _cell._isSt && _cell.display.length > 0
                 status:  _cell.display
+                tone:    _cell._stTone
             }
 
             // ── Progress bar + label ──────────────────────────────────
@@ -949,6 +982,22 @@ Item {
             }
             onClicked: root.rowSelected("")
         }
+
+        // Visible keyboard-focus indicator for the current row -- one
+        // outline spanning the full row width, positioned from the row
+        // index rather than per-cell (TableView has no native row Item).
+        Rectangle {
+            parent: _mainView
+            z: 4
+            visible: _mainView.activeFocus && root._currentRow >= 0
+            x: 0
+            y: root._currentRow * Theme.AppTheme.compactRowHeight - _mainView.contentY
+            width: _mainView.width
+            height: Theme.AppTheme.compactRowHeight
+            color: "transparent"
+            border.width: 2
+            border.color: Theme.AppTheme.focusBorder
+        }
     }
 
     // ── Column-resize live guide line ─────────────────────────────────
@@ -979,6 +1028,8 @@ Item {
         width:   Math.min(_mainView.width, 320)
         visible: root._rowCount === 0 && !root.loading
         title:   root.emptyText
+        actionLabel: root.emptyActionLabel
+        onActionRequested: root.emptyActionRequested()
     }
 
     // ── Loading overlay ───────────────────────────────────────────────

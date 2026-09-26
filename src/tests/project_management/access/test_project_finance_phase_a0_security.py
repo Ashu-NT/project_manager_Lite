@@ -1,21 +1,20 @@
 from __future__ import annotations
 
-import json
 from datetime import date
 from decimal import Decimal
 
 import pytest
 
+from src.core.modules.project_management.access.policy import (
+    PROJECT_SCOPE_ROLE_PERMISSIONS,
+)
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
     DEFAULT_ROLE_PERMISSIONS,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.modules.project_management.access.policy import (
-    PROJECT_SCOPE_ROLE_PERMISSIONS,
-)
-from src.core.modules.project_management.domain.financials.rate_cards import RateType
 
 
 def _login(services, username: str, password: str) -> None:
@@ -50,7 +49,7 @@ def _seed_labor_finance_project(services) -> str:
         rate_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("125"),
+        rate_amount=Decimal(125),
         rate_currency="EUR",
         resource_id=resource.id,
         effective_from=date(2026, 1, 5),
@@ -79,7 +78,7 @@ def _seed_labor_finance_project(services) -> str:
     )
     services["task_service"].update_assignment_planned_hours(
         assignment.id,
-        allocated_planned_hours=Decimal("16"),
+        allocated_planned_hours=Decimal(16),
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,
     )
@@ -233,13 +232,13 @@ def test_cost_entry_mutation_records_scoped_enterprise_audit(services):
         operation="project_cost_entry.create",
     )
     audit = next(candidate for candidate in entries if candidate.entity_id == entry.id)
-    payload = json.loads(audit.new_value)
+    payload = audit.after_data
 
     assert audit.tenant_id
     assert audit.organization_id
     assert audit.entity_parent_id == project.id
-    assert audit.compliance_tag == "financial"
-    assert audit.old_value is None
+    assert audit.category == "FINANCIAL"
+    assert audit.before_data is None
     assert Decimal(payload["amount"]) == Decimal("25.00")
     assert payload["currency_code"] == entry.currency_code
 
@@ -544,15 +543,12 @@ def test_finance_reporting_isolated_across_organizations(services):
         organization_code="F0-REPORTING-ISOLATION",
         display_name="F0 Reporting Isolation Org",
         base_currency="USD",
-        is_enabled=False,
     )
-    organization_service.enable_organization(other_organization.id)
     services["tenant_context_service"].set_active_organization(other_organization.id)
     try:
         with pytest.raises(NotFoundError, match="not found"):
             services["reporting_service"].get_cost_breakdown(project_id)
     finally:
-        organization_service.enable_organization(original_organization.id)
         services["tenant_context_service"].set_active_organization(original_organization.id)
 
     # Visibility (and finance authorization) returns once back in-scope.

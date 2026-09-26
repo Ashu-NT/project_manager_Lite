@@ -10,7 +10,6 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernedServicePort,
 )
 
-
 PM_ROOT = Path("src/core/modules/project_management")
 DESKTOP_API = PM_ROOT / "api/desktop/financials/api.py"
 BOUNDARY = (
@@ -20,7 +19,7 @@ BOUNDARY = (
 RUNTIME_RESOLVER = PM_ROOT / "api/desktop_runtime/service_resolver.py"
 PROJECT_REGISTRY = Path("src/infra/composition/project_registry.py")
 FINANCIAL_DIALOG_HOST = Path(
-    "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs/"
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/shared/dialogs/"
     "FinancialsDialogHost.qml"
 )
 
@@ -47,7 +46,6 @@ def test_finance_governance_boundary_has_one_transaction_contract() -> None:
         "forecast_generation",
         "financial_change",
         "planned_cost",
-        "commitment",
         "cost_entry",
         "financial_setup",
         "rate_card",

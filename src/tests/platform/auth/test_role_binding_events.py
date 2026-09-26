@@ -8,13 +8,16 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.domain.security.authorization.roles.events import (
     RoleBindingAssigned,
     RoleBindingRevoked,
 )
 from src.core.platform.domain.security.authorization.roles.role_binding_scope import (
-    RoleBindingPlatformScope,
     RoleBindingResourceScope,
     RoleBindingTenantScope,
 )
@@ -177,7 +180,9 @@ def _imported_module_names(module) -> set[str]:
 
 
 def test_role_binding_events_module_has_no_ui_or_infrastructure_vocabulary():
-    from src.core.platform.domain.security.authorization.roles import events as events_module
+    from src.core.platform.domain.security.authorization.roles import (
+        events as events_module,
+    )
 
     imports = _imported_module_names(events_module)
     for forbidden in (
@@ -188,7 +193,9 @@ def test_role_binding_events_module_has_no_ui_or_infrastructure_vocabulary():
 
 
 def test_role_binding_scope_module_has_no_ui_or_infrastructure_vocabulary():
-    from src.core.platform.domain.security.authorization.roles import role_binding_scope as scope_module
+    from src.core.platform.domain.security.authorization.roles import (
+        role_binding_scope as scope_module,
+    )
 
     imports = _imported_module_names(scope_module)
     for forbidden in (
@@ -378,7 +385,7 @@ def test_resource_scope_assignment_in_a_non_active_organization_carries_the_auth
     )
     org_a1_id = site_a1.organization_id
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C2-A2"), display_name="P5C-2 Org A2", is_enabled=True
+        organization_code=_unique_code("P5C2-A2"), display_name="P5C-2 Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
 
@@ -414,7 +421,7 @@ def test_resource_scope_revocation_preserves_the_same_authoritative_binding_scop
     )
     org_a1_id = site_a1.organization_id
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C2-REV-A2"), display_name="P5C-2 Revoke Org A2", is_enabled=True
+        organization_code=_unique_code("P5C2-REV-A2"), display_name="P5C-2 Revoke Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
 
@@ -504,9 +511,15 @@ def test_site_scope_event_carries_the_authoritative_organization_from_the_correc
 
 
 def test_cross_tenant_site_assignment_attempt_emits_zero_events(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
-    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+        SiteORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+        TenantORM,
+    )
 
     session = services["session"]
     now = datetime.now(timezone.utc)
@@ -519,13 +532,13 @@ def test_cross_tenant_site_assignment_attempt_emits_zero_events(services, monkey
     foreign_org_id = _unique_code("p5c2-foreign-org")
     session.add(OrganizationORM(
         id=foreign_org_id, tenant_id=foreign_tenant_id, organization_code=_unique_code("P5C2FORG"),
-        display_name="Foreign Org", is_enabled=True, version=1,
+        display_name="Foreign Org", version=1,
     ))
     session.commit()
     foreign_site_id = _unique_code("p5c2-foreign-site")
     session.add(SiteORM(
         id=foreign_site_id, tenant_id=foreign_tenant_id, organization_id=foreign_org_id,
-        site_code=_unique_code("P5C2FSITE"), name="Foreign Site", is_active=True,
+        site_code=_unique_code("P5C2FSITE"), name="Foreign Site", status="active",
         created_at=now, updated_at=now, version=1,
     ))
     session.commit()

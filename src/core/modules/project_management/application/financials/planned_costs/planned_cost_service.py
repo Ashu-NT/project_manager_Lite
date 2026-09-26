@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -9,10 +8,15 @@ from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.financials.planned_costs.planned_cost_events import (
+    PlannedCostSnapshotCalculated,
 )
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
@@ -21,12 +25,12 @@ from src.core.modules.project_management.contracts.repositories.finance.configur
 from src.core.modules.project_management.contracts.repositories.finance.planned_costs.planned_cost import (
     ProjectPlannedCostVersionRepository,
 )
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
+    LaborRateResolver,
+)
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
     ProjectResourceRepository,
-)
-from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
-    LaborRateResolver,
 )
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
@@ -42,9 +46,6 @@ from src.core.modules.project_management.domain.financials.planned_cost import (
     ResourceAllocationDiagnostic,
 )
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
-from src.core.modules.project_management.application.financials.planned_costs.planned_cost_events import (
-    PlannedCostSnapshotCalculated,
-)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -57,6 +58,7 @@ from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 _REVISION_CONSTRAINT = "uq_pf_planned_cost_versions_project_revision"
@@ -162,13 +164,13 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
     def get_totals_by_cost_code(self, version_id: str) -> dict[str, Decimal]:
         totals: dict[str, Decimal] = {}
         for line in self.list_lines(version_id):
-            totals[line.cost_code_id] = totals.get(line.cost_code_id, Decimal("0")) + line.amount
+            totals[line.cost_code_id] = totals.get(line.cost_code_id, Decimal(0)) + line.amount
         return totals
 
     def get_totals_by_task(self, version_id: str) -> dict[str, Decimal]:
         totals: dict[str, Decimal] = {}
         for line in self.list_lines(version_id):
-            totals[line.task_id] = totals.get(line.task_id, Decimal("0")) + line.amount
+            totals[line.task_id] = totals.get(line.task_id, Decimal(0)) + line.amount
         return totals
 
     # -- Calculation ------------------------------------------------------
@@ -229,14 +231,14 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
 
         for resource_id, envelope in envelope_by_resource.items():
             own = assignments_by_resource.get(resource_id, [])
-            allocated_total = sum((a.allocated_planned_hours for a in own), Decimal("0"))
+            allocated_total = sum((a.allocated_planned_hours for a in own), Decimal(0))
             envelope_hours = Decimal(str(envelope.planned_hours))
             if allocated_total > envelope_hours:
                 reason = PLANNED_HOURS_OVERALLOCATED
-                unallocated = Decimal("0")
+                unallocated = Decimal(0)
             elif allocated_total == envelope_hours:
                 reason = PLANNED_HOURS_FULLY_ALLOCATED
-                unallocated = Decimal("0")
+                unallocated = Decimal(0)
             else:
                 reason = PLANNED_HOURS_PARTIALLY_ALLOCATED
                 unallocated = envelope_hours - allocated_total
@@ -258,7 +260,7 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
         for resource_id, own in assignments_by_resource.items():
             if resource_id in envelope_by_resource:
                 continue
-            allocated_total = sum((a.allocated_planned_hours for a in own), Decimal("0"))
+            allocated_total = sum((a.allocated_planned_hours for a in own), Decimal(0))
             if allocated_total <= 0:
                 continue
             # Allocated hours exist but no ProjectResource envelope covers
@@ -268,9 +270,9 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
                 ResourceAllocationDiagnostic(
                     project_resource_id="",
                     resource_id=resource_id,
-                    envelope_hours=Decimal("0"),
+                    envelope_hours=Decimal(0),
                     allocated_hours=allocated_total,
-                    unallocated_hours=Decimal("0"),
+                    unallocated_hours=Decimal(0),
                     reason_code=PROJECT_RESOURCE_ENVELOPE_MISSING,
                 )
             )
@@ -421,37 +423,46 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
         version: ProjectPlannedCostVersion,
         diagnostics: list[ResourceAllocationDiagnostic],
     ) -> None:
+        full_operation = f"project_planned_cost_version.{operation}"
+        snapshot = {
+            "revision": version.revision,
+            "status": version.status.value,
+            "currency_code": version.currency_code,
+            "as_of": version.as_of.isoformat(),
+            "rates_complete": version.rates_complete,
+            "allocations_complete": version.allocations_complete,
+            "cost_codes_complete": version.cost_codes_complete,
+            "unresolved_rate_count": version.unresolved_rate_count,
+            "partially_allocated_resource_count": version.partially_allocated_resource_count,
+            "unclassified_line_count": version.unclassified_line_count,
+            "diagnostic_reason_codes": [d.reason_code for d in diagnostics],
+        }
         record_audit_entry(
             self,
-            operation=f"project_planned_cost_version.{operation}",
+            operation=full_operation,
             entity_type="project_planned_cost_version",
             entity_id=version.id,
             entity_parent_id=version.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "revision": version.revision,
-                    "status": version.status.value,
-                    "currency_code": version.currency_code,
-                    "as_of": version.as_of.isoformat(),
-                    "rates_complete": version.rates_complete,
-                    "allocations_complete": version.allocations_complete,
-                    "cost_codes_complete": version.cost_codes_complete,
-                    "unresolved_rate_count": version.unresolved_rate_count,
-                    "partially_allocated_resource_count": version.partially_allocated_resource_count,
-                    "unclassified_line_count": version.unclassified_line_count,
-                    "diagnostic_reason_codes": [d.reason_code for d in diagnostics],
-                },
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data=snapshot,
             workspace_id=version.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_planned_cost_version",
+            entity_id=version.id,
+            parent_entity_id=version.project_id,
+            module="project_management",
+            workspace_id=version.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
 

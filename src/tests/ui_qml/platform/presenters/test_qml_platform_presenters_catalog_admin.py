@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from src.tests.ui_qml.platform.presenters._platform_test_helpers import (
+    build_connected_platform_registry,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
-from src.tests.ui_qml.platform.presenters._platform_test_helpers import build_connected_platform_registry
 
 
 def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
@@ -74,11 +76,10 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
             "displayName": "QML Labs",
             "timezoneName": "Europe/Berlin",
             "baseCurrency": "EUR",
-            "isEnabled": False,
             "initialModuleCodes": ["project_management"],
         }
     )
-    activate_result = catalog.adminWorkspace.enableOrganization("org-2")
+    activate_result = catalog.adminWorkspace.activateOrganization("org-2")
     site_result = catalog.adminWorkspace.createSite(
         {
             "siteCode": "HAM",
@@ -94,7 +95,7 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
             "isActive": True,
         }
     )
-    department_result = catalog.adminWorkspace.toggleDepartmentActive("dep-2")
+    department_result = catalog.adminWorkspace.activateDepartment("dep-2")
     employee_result = catalog.adminWorkspace.createEmployee(
         {
             "employeeCode": "E-003",
@@ -151,9 +152,9 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
     )
 
     assert organization_result == {"ok": True, "category": "", "code": "", "message": "Organization created."}
-    assert activate_result == {"ok": True, "category": "", "code": "", "message": "Organization enabled."}
+    assert activate_result == {"ok": True, "category": "", "code": "", "message": "Organization activated."}
     assert site_result == {"ok": True, "category": "", "code": "", "message": "Site created."}
-    assert department_result == {"ok": True, "category": "", "code": "", "message": "Department active state updated."}
+    assert department_result == {"ok": True, "category": "", "code": "", "message": "Department activated."}
     assert employee_result == {"ok": True, "category": "", "code": "", "message": "Employee created."}
     assert user_result == {"ok": True, "category": "", "code": "", "message": "User created."}
     assert party_result == {"ok": True, "category": "", "code": "", "message": "Party created."}
@@ -168,10 +169,10 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
     department_by_id = {item["id"]: item for item in catalog.adminWorkspace.departments["items"]}
 
     assert "QML Labs" in organization_titles
-    assert catalog.adminWorkspace.organizations["items"][1]["statusLabel"] == "Enabled"
+    assert catalog.adminWorkspace.organizations["items"][1]["statusLabel"] == {"label": "Active", "tone": "success"}
     assert "Hamburg Hub" in site_titles
     assert catalog.adminWorkspace.sites["items"][-1]["organizationName"] == "TechAsh"
-    assert department_by_id["dep-2"]["statusLabel"] == "Active"
+    assert department_by_id["dep-2"]["statusLabel"] == {"label": "Active", "tone": "success"}
     assert "Katherine Johnson" in employee_titles
     assert "Katherine Johnson" in user_titles
     created_user = next(

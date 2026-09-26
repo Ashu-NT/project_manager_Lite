@@ -1,0 +1,3 @@
+module workspaces.financials.forecasts.dialogs
+ForecastGenerationDialog 1.0 ForecastGenerationDialog.qml
+ForecastLifecycleDialog 1.0 ForecastLifecycleDialog.qml

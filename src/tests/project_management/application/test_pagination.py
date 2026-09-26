@@ -1,8 +1,6 @@
 """Unit tests for PageRequest and PaginatedResult."""
 from __future__ import annotations
 
-import pytest
-
 from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     PaginatedResult,

@@ -1,19 +1,25 @@
 module App.Widgets
+ActionCenterList 1.0 ActionCenterList.qml
+ActionCenterRow 1.0 ActionCenterRow.qml
+ActionTile 1.0 ActionTile.qml
 ActivityFeed 1.0 ActivityFeed.qml
 AnchoredPopup 1.0 AnchoredPopup.qml
 AppDivider 1.0 AppDivider.qml
 BulkActionBar 1.0 BulkActionBar.qml
 BulkChangePropertyPopup 1.0 BulkChangePropertyPopup.qml
+BulkModuleAssignmentPopup 1.0 BulkModuleAssignmentPopup.qml
 CodeFieldRow 1.0 CodeFieldRow.qml
 ContextBar 1.0 ContextBar.qml
 ContextualActionToolbar 1.0 ContextualActionToolbar.qml
 DataTable 1.0 DataTable.qml
 DetailTabBar 1.0 DetailTabBar.qml
+singleton DetailViewTracker 1.0 DetailViewTracker.qml
 EmptyState 1.0 EmptyState.qml
 EntityDialog 1.0 EntityDialog.qml
 FilterBar 1.0 FilterBar.qml
 FormField 1.0 FormField.qml
 GroupedNavigationRail 1.0 GroupedNavigationRail.qml
+NavigationTree 1.0 NavigationTree.qml
 InlineMessage 1.0 InlineMessage.qml
 InspectorPanel 1.0 InspectorPanel.qml
 InfoTip 1.0 InfoTip.qml
@@ -23,7 +29,9 @@ LazySectionLoader 1.0 LazySectionLoader.qml
 LazyObjectLoader 1.0 LazyObjectLoader.qml
 LoadingOverlay 1.0 LoadingOverlay.qml
 MetricCard 1.0 MetricCard.qml
+ModuleCard 1.0 ModuleCard.qml
 NavOverflowMenu 1.0 NavOverflowMenu.qml
+OverviewMetricTile 1.0 OverviewMetricTile.qml
 OverviewSectionCard 1.0 OverviewSectionCard.qml
 PageHeader 1.0 PageHeader.qml
 PermissionState 1.0 PermissionState.qml

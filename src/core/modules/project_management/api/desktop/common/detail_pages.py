@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 
 @dataclass(frozen=True, slots=True)
 class DetailActivityDesktopDto:
     id: str
-    occurred_at: str
+    occurred_at: datetime
     actor_id: str | None
     action: str
     entity_type: str

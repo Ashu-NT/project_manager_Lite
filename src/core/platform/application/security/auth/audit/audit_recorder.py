@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.history.audit import AuditEntry
 
 if TYPE_CHECKING:
     from src.core.platform.application.security.auth.auth_service import AuthService
@@ -51,7 +51,7 @@ def add_atomic_auth_event(
         organization_id=normalized_organization_id,
         source="auth",
         severity=_severity_for_action(action),
-        compliance_tag="SOC2",
+        category="SECURITY",
         metadata={
             **dict(details),
             "action": action,

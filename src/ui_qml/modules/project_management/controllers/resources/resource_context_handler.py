@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_resource_employee_option_view_models,
 )
 
@@ -50,7 +51,9 @@ def load_resource_projects(controller, *, force: bool = False) -> None:
             _apply_projects_page(controller, result, resource_id)
     except Exception as exc:
         if request_id == controller._resource_projects_request_id:
-            controller._set_section_error("projects", str(exc))
+            controller._set_section_error(
+                "projects", safe_error_message(exc, safe_message="Projects could not be loaded.")
+            )
     finally:
         if request_id == controller._resource_projects_request_id:
             controller._resource_projects_loading = False
@@ -102,7 +105,9 @@ def load_resource_assignments(controller, *, force: bool = False) -> None:
             _apply_assignments_page(controller, result, resource_id)
     except Exception as exc:
         if request_id == controller._resource_assignments_request_id:
-            controller._set_section_error("assignments", str(exc))
+            controller._set_section_error(
+                "assignments", safe_error_message(exc, safe_message="Assignments could not be loaded.")
+            )
     finally:
         if request_id == controller._resource_assignments_request_id:
             controller._resource_assignments_loading = False
@@ -143,7 +148,9 @@ def load_resource_activity(controller, *, force: bool = False) -> None:
             _apply_activity_page(controller, result, resource_id)
     except Exception as exc:
         if request_id == controller._resource_activity_request_id:
-            controller._set_section_error("activity", str(exc))
+            controller._set_section_error(
+                "activity", safe_error_message(exc, safe_message="Activity could not be loaded.")
+            )
     finally:
         if request_id == controller._resource_activity_request_id:
             controller._resource_activity_loading = False

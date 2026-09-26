@@ -3,8 +3,15 @@ from __future__ import annotations
 from datetime import date, datetime, time, timezone
 
 from src.core.platform.domain.master_data.employee import EmploymentType
-from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
-from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
 from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
     CalendarExceptionORM,
     CalendarRecurringEventORM,
@@ -16,7 +23,6 @@ from src.core.platform.infrastructure.persistence.orm.time_management.calendar.e
     ShiftPatternORM,
     SiteCalendarAssignmentORM,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 
 
 def _seed_calendar_scope_rows(services) -> dict[str, str]:
@@ -25,8 +31,7 @@ def _seed_calendar_scope_rows(services) -> dict[str, str]:
     cur_org = services["tenant_context_service"].get_active_organization()
     oth_org = org_svc.create_organization(
         organization_code="OPS", display_name="Operations Hub",
-        timezone_name="UTC", base_currency="USD", is_enabled=False,
-    )
+        timezone_name="UTC", base_currency="USD",    )
     assert cur_org is not None and oth_org is not None
     ct = getattr(cur_org, "tenant_id", None)
     ot = getattr(oth_org, "tenant_id", None) or ct
@@ -34,10 +39,10 @@ def _seed_calendar_scope_rows(services) -> dict[str, str]:
     today = date.today()
 
     cur_site = SiteORM(id="site-current", tenant_id=ct, organization_id=cur_org.id,
-        site_code="SITE-CUR", name="Current Site", is_active=True,
+        site_code="SITE-CUR", name="Current Site", status="active",
         created_at=now, updated_at=now, version=1)
     oth_site = SiteORM(id="site-other", tenant_id=ot, organization_id=oth_org.id,
-        site_code="SITE-OTH", name="Other Site", is_active=True,
+        site_code="SITE-OTH", name="Other Site", status="active",
         created_at=now, updated_at=now, version=1)
     cur_dept = DepartmentORM(id="department-current", tenant_id=ct, organization_id=cur_org.id,
         department_code="DEPT-CUR", name="Current Department", is_active=True,

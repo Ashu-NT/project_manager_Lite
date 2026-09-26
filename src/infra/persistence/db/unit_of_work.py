@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import threading
 from collections.abc import Callable
+from contextlib import AbstractContextManager, nullcontext
 from typing import Self
 
 from sqlalchemy.orm import Session
@@ -24,6 +26,56 @@ logger = logging.getLogger(__name__)
 
 MAX_DISPATCH_ROUNDS = 20
 
+# SQLite permits only one writer at a time per database file.
+#
+# Each UnitOfWork owns an independent SQLAlchemy Session/connection. Concurrent
+# write transactions within this process can therefore contend for SQLite's
+# Serializing transactional dispatch and commit processing reduces
+# in-process commit-time contention.
+#
+# This lock does not cover writes that may occur earlier through an explicit
+# flush or SQLAlchemy autoflush, and it is process-local, so busy_timeout
+# remains necessary for those cases and for writers in other processes.
+#
+# This lock is process-local; it does not serialize writers from other
+# processes.
+#
+# Transactional event handlers must use the UnitOfWork supplied to them rather
+# than opening an independent nested write UnitOfWork. A nested Session would
+# still contend with the outer SQLite transaction at the database level.
+#
+# PostgreSQL supports concurrent writers and therefore bypasses this lock.
+_SQLITE_WRITE_LOCK = threading.RLock()
+
+
+_NO_OP_WRITE_LOCK = nullcontext()
+
+
+def sqlite_write_lock(session: Session) -> AbstractContextManager:
+    """The lock to hold while committing `session`'s pending writes.
+
+    Returns the one process-wide lock for a SQLite-bound session -- serializing
+    it against every other write this process makes through
+    `SqlAlchemyUnitOfWorkBase.commit()`, and, via the composition root's
+    wrapping of its one long-lived shared Session (see `app.py`), against
+    direct commits made by services bound to that session outside any
+    UnitOfWork (auth context switching, notifications, calendars, ...).
+    Returns a shared no-op context manager for non-SQLite backends, which
+    support concurrent writers natively.
+
+    Returns the lock/context-manager itself (not a wrapper around it) so
+    callers can cache and reuse it, or compare it by identity, across many
+    commits on the same or different sessions."""
+    try:
+        is_sqlite = session.get_bind().dialect.name == "sqlite"
+    except Exception:
+        is_sqlite = False
+
+    return _SQLITE_WRITE_LOCK if is_sqlite else _NO_OP_WRITE_LOCK
+
+
+# Back-compat alias for this module's own prior-private name.
+_write_lock_for = sqlite_write_lock
 
 class SqlAlchemyUnitOfWorkBase(UnitOfWork):
     def __init__(
@@ -49,21 +101,19 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._closed:
+            return
+
         if exc_type is not None:
-            if not self._committed:
-                self._rollback_and_close()
-            return None  # never suppress the exception
-        if not self._committed:
-
-            logger.warning(
-                "UnitOfWork exited its 'with' block without commit() ever being called; "
-                "closing without committing."
-            )
             self._rollback_and_close()
-        # else: commit() already ran to completion and closed everything -- do nothing
-        # further, per ADR-005 §9 ("on a clean exit it does nothing further").
-        return None
+            return
 
+        logger.warning(
+            "UnitOfWork exited its 'with' block without commit() ever being called; "
+            "closing without committing."
+        )
+        self._rollback_and_close()
+        return
     # -- aggregate tracking -------------------------------------------------------------
 
     def register_touched(self, aggregate: RecordsDomainEvents) -> None:
@@ -72,11 +122,11 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
 
     def tracked_aggregates(self) -> tuple[RecordsDomainEvents, ...]:
         # Deliberately not closed-checked -- pending events may remain available for
-        # inspection after a rollback (ADR-005 §9's rollback-safety rule).
+        # inspection after a rollback
         return tuple(self._tracked_aggregates.values())
 
     def record_event(self, event: DomainEvent) -> None:
-        """ADR-005 §6's orchestration escape hatch -- reserved for a fact with no natural
+        """ orchestration escape hatch -- reserved for a fact with no natural
         aggregate owner. Never a substitute for an aggregate recording its own event."""
         self._check_not_closed()
         self._manually_recorded_events.append(event)
@@ -85,13 +135,31 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
 
     def commit(self) -> None:
         self._check_not_closed()
-        collected_events = self._drain_and_dispatch()
-        self._session.commit()
-        self._committed = True
-        self._session.close()
-        self._closed = True
+
+        collected_events: list[DomainEvent] = []
+
+        try:
+            with sqlite_write_lock(self._session):
+                collected_events = self._drain_and_dispatch()
+                self._session.commit()
+                self._committed = True
+
+        except Exception:
+            try:
+                self._session.rollback()
+            except Exception:
+                logger.exception(
+                    "Rollback failed while handling UnitOfWork commit failure."
+                )
+            raise
+
+        finally:
+            self._session.close()
+            self._closed = True
+
         for aggregate in self._tracked_aggregates.values():
             aggregate.clear_domain_events()
+
         for event in collected_events:
             self._post_commit_bus.publish(event, self.context)
 
@@ -166,7 +234,8 @@ class SqlAlchemyUnitOfWorkFactoryBase(UnitOfWorkFactory):
 
 
 __all__ = [
+    "MAX_DISPATCH_ROUNDS",
     "SqlAlchemyUnitOfWorkBase",
     "SqlAlchemyUnitOfWorkFactoryBase",
-    "MAX_DISPATCH_ROUNDS",
+    "sqlite_write_lock",
 ]

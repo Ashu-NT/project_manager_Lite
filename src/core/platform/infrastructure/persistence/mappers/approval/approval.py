@@ -4,7 +4,9 @@ import json
 from typing import Any
 
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
-from src.core.platform.infrastructure.persistence.orm.approval.approval import ApprovalRequestORM
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
 
 
 def _to_json(payload: dict[str, Any]) -> str:
@@ -63,4 +65,4 @@ def approval_from_orm(obj: ApprovalRequestORM) -> ApprovalRequest:
     )
 
 
-__all__ = ["approval_to_orm", "approval_from_orm"]
+__all__ = ["approval_from_orm", "approval_to_orm"]

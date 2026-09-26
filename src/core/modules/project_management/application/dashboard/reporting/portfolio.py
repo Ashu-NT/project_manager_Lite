@@ -3,20 +3,26 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
-from src.core.modules.project_management.access.scope_permissions import filter_project_rows
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.modules.project_management.application.dashboard.models.dashboard_models import DashboardData
+from src.core.modules.project_management.access.scope_permissions import (
+    filter_project_rows,
+)
+from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
+    DashboardData,
+)
 from src.core.modules.project_management.application.dashboard.models.portfolio_models import (
     PORTFOLIO_SCOPE_ID,
     DashboardPortfolio,
     PortfolioProjectRow,
     PortfolioStatusRollupRow,
 )
+from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.infrastructure.reporting import (
     ProjectKPI,
     ResourceLoadRow,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
 )
 
 
@@ -62,11 +68,11 @@ class DashboardPortfolioMixin:
             "late_tasks": 0,
         }
         cost_totals = {
-            "total_planned_cost": Decimal("0"),
-            "total_actual_cost": Decimal("0"),
-            "total_committed_cost": Decimal("0"),
-            "cost_variance": Decimal("0"),
-            "committment_variance": Decimal("0"),
+            "total_planned_cost": Decimal(0),
+            "total_actual_cost": Decimal(0),
+            "total_committed_cost": Decimal(0),
+            "cost_variance": Decimal(0),
+            "committment_variance": Decimal(0),
         }
         earliest_start: date | None = None
         latest_end: date | None = None
@@ -218,11 +224,11 @@ class DashboardPortfolioMixin:
         critical_tasks: int = 0,
         late_tasks: int = 0,
         financial_detail_included: bool = True,
-        total_planned_cost: Decimal = Decimal("0"),
-        total_actual_cost: Decimal = Decimal("0"),
-        total_committed_cost: Decimal = Decimal("0"),
-        cost_variance: Decimal = Decimal("0"),
-        committment_variance: Decimal = Decimal("0"),
+        total_planned_cost: Decimal = Decimal(0),
+        total_actual_cost: Decimal = Decimal(0),
+        total_committed_cost: Decimal = Decimal(0),
+        cost_variance: Decimal = Decimal(0),
+        committment_variance: Decimal = Decimal(0),
     ) -> ProjectKPI:
         duration_working_days = None
         if start_date is not None and end_date is not None:

@@ -10,6 +10,7 @@ from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetDetailViewModel,
 )
 
+
 @dataclass(frozen=True)
 class TaskCatalogMetricViewModel:
     label: str

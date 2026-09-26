@@ -12,7 +12,11 @@ from src.core.modules.project_management.api.desktop.resources.factories.resourc
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceWorkloadDemandFact,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
@@ -129,9 +133,7 @@ def test_resource_workload_fails_closed_after_organization_switch(services) -> N
         organization_code="R5D-OTHER",
         display_name="R5D Other Organization",
         base_currency="EUR",
-        is_enabled=False,
     )
-    organization_service.enable_organization(other.id)
     services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError):
@@ -141,7 +143,6 @@ def test_resource_workload_fails_closed_after_organization_switch(services) -> N
                 end_date=date.today() + timedelta(days=6),
             )
     finally:
-        organization_service.enable_organization(original.id)
         services["tenant_context_service"].set_active_organization(original.id)
 
 

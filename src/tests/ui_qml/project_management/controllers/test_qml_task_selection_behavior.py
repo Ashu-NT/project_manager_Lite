@@ -1,4 +1,6 @@
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 
 def test_task_bulk_selection_methods_do_not_refresh_workspace(monkeypatch) -> None:

@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from .baseline_variance import BaselineVarianceRecordDto
-from .baseline_variance import FinancialBaselineVersionDto
+from .baseline_variance import BaselineVarianceRecordDto, FinancialBaselineVersionDto
 from .snapshots import FinancialPeriodRowDto
 
 
@@ -30,7 +29,7 @@ class FinancialEvmDto:
     forecast_revision: int | None = None
     forecast_as_of: date | None = None
     currency_code: str = ""
-    calculation_precision: str = "binary_float_r6e_debt"
+    calculation_precision: str = "decimal"
     metrics: tuple[FinancialPerformanceMetricDto, ...] = field(default_factory=tuple)
     notes: str = ""
 
@@ -64,6 +63,7 @@ class FinancialCostPhasingDto:
     approved_forecast_id: str = ""
     approved_forecast_revision: int | None = None
     approved_forecast_as_of: date | None = None
+    series_availability: tuple[tuple[str, str, str, str | None, str | None], ...] = field(default_factory=tuple)
     periods: tuple[FinancialPeriodRowDto, ...] = field(default_factory=tuple)
 
 

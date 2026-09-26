@@ -8,18 +8,10 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
     property var activityModel: ({"items":[]})
-    property var activityTableModel: null
     property var workspaceController: null
     property string errorText: ""
     property bool isBusy: false
     property real availableHeight: 0
-    readonly property var _items: root.activityModel.items || []
-    readonly property int _tableHeight: Math.max(
-        120,
-        Theme.AppTheme.normalRowHeight
-            + Math.max(root._items.length, 1) * Theme.AppTheme.compactRowHeight
-            + 1
-    )
     implicitHeight: Math.max(content.implicitHeight, root.availableHeight)
     ColumnLayout {
         id: content
@@ -30,7 +22,7 @@ Item {
             Layout.fillWidth: true; showFilter: false; showRefresh: true; isBusy: root.isBusy
             searchText: String(root.activityModel.searchText || ""); searchPlaceholder: "Search event or summary..."
             onSearchChanged: function(text) { root.workspaceController.setTaskActivitySearch(text) }
-            onRefreshRequested: root.workspaceController.loadSelectedTaskActivity()
+            onRefreshRequested: { root.workspaceController.clearMessages(); root.workspaceController.loadSelectedTaskActivity() }
             AppControls.ComboBox {
                 implicitWidth: 145; textRole: "label"
                 model: [{"value":"all","label":"All activity"},{"value":"task","label":"Task changes"},
@@ -42,15 +34,11 @@ Item {
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.preferredHeight: root._tableHeight + pagination.implicitHeight
-            AppWidgets.DataTable {
+            Layout.preferredHeight: Math.max(160, activityFeed.implicitHeight) + pagination.implicitHeight
+            AppWidgets.ActivityFeed {
+                id: activityFeed
                 anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: pagination.top
-                columns: [{key:"occurredAt",label:"When",minWidth:115,flex:0},
-                          {key:"actorLabel",label:"Actor",minWidth:130,flex:1},
-                          {key:"eventLabel",label:"Event",minWidth:150,flex:1.2},
-                          {key:"sourceLabel",label:"Source",minWidth:110,flex:0,type:"status"},
-                          {key:"summary",label:"Summary",minWidth:240,flex:2.5}]
-                sourceModel: root.activityTableModel; sortingMode: "none"; loading: root.isBusy
+                items: root.activityModel.items || []
                 emptyText: root.activityModel.emptyState || "No activity recorded."
             }
             AppWidgets.TablePaginationBar {

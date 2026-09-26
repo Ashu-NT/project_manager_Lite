@@ -24,7 +24,7 @@ class FinanceProjectFact:
 class TaskFact:
     task_id: str
     name: str
-    percent_complete: float
+    percent_complete: Decimal
     start_date: date | None
     end_date: date | None
     actual_start: date | None
@@ -94,7 +94,13 @@ class FinanceControlFact:
         return self.posted_actual + self.forecast_etc
 
     @property
-    def variance_at_completion(self) -> Decimal | None:
+    def budget_headroom(self) -> Decimal | None:
+        """Approved budget remaining after the governed forecast EAC.
+
+        This is a Finance control projection, not EVM VAC.  EVM VAC uses the
+        approved cost-loaded baseline BAC and is produced only by the canonical
+        earned-value authority.
+        """
         eac = self.estimate_at_completion
         return None if eac is None else self.approved_budget - eac
 
@@ -105,8 +111,8 @@ class FinanceControlFact:
     @property
     def commitment_rate_percent(self) -> Decimal:
         if self.approved_budget <= 0:
-            return Decimal("0")
-        return (self.open_commitment / self.approved_budget) * Decimal("100")
+            return Decimal(0)
+        return (self.open_commitment / self.approved_budget) * Decimal(100)
 
 
 @dataclass(frozen=True, slots=True)

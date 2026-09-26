@@ -1,28 +1,36 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Iterable
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
+from src.core.modules.project_management.application.collaboration.collaboration_events import (
+    TaskCommentChanged,
+    TaskCommentChangeType,
+    TaskCommentReactionChanged,
+    TaskCommentReactionChangeType,
+    TaskCommentReadStateChanged,
+)
 from src.core.modules.project_management.domain.collaboration import (
     TaskComment,
     normalize_task_comment_body,
     resolve_mentions,
 )
-from src.core.modules.project_management.infrastructure.collaboration_attachments import store_task_comment_attachments
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.modules.project_management.application.collaboration.collaboration_events import (
-    TaskCommentChangeType,
-    TaskCommentChanged,
-    TaskCommentReactionChangeType,
-    TaskCommentReactionChanged,
-    TaskCommentReadStateChanged,
+from src.core.modules.project_management.infrastructure.collaboration_attachments import (
+    store_task_comment_attachments,
 )
-from src.core.platform.application.master_data.documents.document_context import active_organization
+from src.core.platform.application.master_data.documents.document_context import (
+    active_organization,
+)
 from src.core.platform.application.master_data.documents.document_integration_service import (
     link_existing_document_in_uow,
     register_entity_attachments_in_uow,
 )
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -31,6 +39,7 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.common.pydantic import normalize_optional_text
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.notifications import safe_dispatch_notification
 from src.infra.time.system_clock import SystemClock
@@ -112,10 +121,24 @@ class CollaborationCommentCommandMixin:
                 entity_id=comment.id,
                 module="project_management",
                 organization_id=scope.organization_id,
+                category="MASTER_DATA",
                 severity="low",
+                workspace_id=task.project_id,
+                entity_parent_id=task_id,
                 metadata={"action": "collaboration.comment.create", "task_id": task_id},
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="collaboration.comment.create",
+                entity_type="task_comment",
+                entity_id=comment.id,
+                module="project_management",
+                workspace_id=task.project_id,
+                parent_entity_id=task_id,
+                details={"task_id": task_id},
+                commit=False,
             )
             uow.record_event(
                 TaskCommentChanged(
@@ -218,7 +241,10 @@ class CollaborationCommentCommandMixin:
                     entity_id=comment.id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="MASTER_DATA",
                     severity="low",
+                    workspace_id=task.project_id,
+                    entity_parent_id=task_id,
                     metadata={"action": "collaboration.comment.mark_read", "task_id": task_id},
                     commit=False,
                     fail_closed=True,
@@ -289,10 +315,24 @@ class CollaborationCommentCommandMixin:
                 entity_id=comment.id,
                 module="project_management",
                 organization_id=scope.organization_id,
+                category="MASTER_DATA",
                 severity="low",
+                workspace_id=task.project_id,
+                entity_parent_id=task.id,
                 metadata={"action": "collaboration.comment.edit", "task_id": task.id},
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="collaboration.comment.edit",
+                entity_type="task_comment",
+                entity_id=comment.id,
+                module="project_management",
+                workspace_id=task.project_id,
+                parent_entity_id=task.id,
+                details={"task_id": task.id},
+                commit=False,
             )
             uow.record_event(
                 TaskCommentChanged(
@@ -344,10 +384,24 @@ class CollaborationCommentCommandMixin:
                     entity_id=comment.id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="MASTER_DATA",
                     severity="low",
+                    workspace_id=task.project_id,
+                    entity_parent_id=task.id,
                     metadata={"action": "collaboration.comment.delete", "task_id": task.id},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="collaboration.comment.delete",
+                    entity_type="task_comment",
+                    entity_id=comment.id,
+                    module="project_management",
+                    workspace_id=task.project_id,
+                    parent_entity_id=task.id,
+                    details={"task_id": task.id},
+                    commit=False,
                 )
                 uow.record_event(
                     TaskCommentChanged(
@@ -407,18 +461,6 @@ class CollaborationCommentCommandMixin:
         )
         with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
             uow.comments.update(comment)
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_comment",
-                entity_id=comment.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "collaboration.comment.react", "task_id": task.id},
-                commit=False,
-                fail_closed=True,
-            )
             uow.record_event(
                 TaskCommentReactionChanged(
                     tenant_id=scope.tenant_id,
@@ -452,18 +494,6 @@ class CollaborationCommentCommandMixin:
         )
         with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
             uow.comments.update(comment)
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_comment",
-                entity_id=comment.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "collaboration.comment.unreact", "task_id": task.id},
-                commit=False,
-                fail_closed=True,
-            )
             uow.record_event(
                 TaskCommentReactionChanged(
                     tenant_id=scope.tenant_id,

@@ -1,7 +1,14 @@
-"""`update_organization`/`enable_organization`/`disable_organization` record
-`OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled` before commit, on the
-same `OrganizationUnitOfWork` `create_organization` uses for `OrganizationCreated` -- same
-lifecycle, same `uow.record_event(...)` application-authored pattern, no aggregate refactor.
+"""`update_organization`/`activate_organization`/`deactivate_organization`/`archive_organization`
+record `OrganizationProfileUpdated`/`OrganizationActivated`/`OrganizationDeactivated`/
+`OrganizationArchived` before commit, on the same `OrganizationUnitOfWork` `create_organization`
+uses for `OrganizationCreated` -- same lifecycle, same `uow.record_event(...)`
+application-authored pattern, no aggregate refactor.
+
+`update_organization` is a pure profile-only mutation -- it no longer carries a lifecycle-status
+field, so a "mixed profile + availability" update through it is not a real code path any more.
+Lifecycle transitions (`activate_organization`/`deactivate_organization`/`archive_organization`)
+are their own single-purpose, `BusinessRuleError`-guarded operations that reject a same-state
+transition outright rather than silently no-op'ing.
 
 Every event maps onto the existing `organization_list` ViewInvalidation target (TenantScope) --
 never `organization_details`, which has no real consumer -- via a single shared handler
@@ -9,19 +16,19 @@ never `organization_details`, which has no real consumer -- via a single shared 
 
 These tests subscribe directly to `organization_service._uow_factory._post_commit_bus` (the real
 composition-owned bus) to observe exact typed-event counts and types, not merely the resulting
-ViewInvalidation hint (which, by design, doesn't distinguish which of the three event types
-produced it).
+ViewInvalidation hint (which, by design, doesn't distinguish which of the event types produced it).
 """
 
 from __future__ import annotations
 
 import pytest
 
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.domain.master_data.org.events import (
+    OrganizationActivated,
+    OrganizationArchived,
     OrganizationCreated,
-    OrganizationDisabled,
-    OrganizationEnabled,
+    OrganizationDeactivated,
     OrganizationProfileUpdated,
 )
 
@@ -52,7 +59,7 @@ def test_profile_only_update_produces_exactly_one_organization_profile_updated(s
         organization_code=_unique_code("P10D-PROFILE"), display_name="Before"
     )
     profile_calls = _spy(services, OrganizationProfileUpdated)
-    availability_calls = _spy(services, OrganizationEnabled)
+    activated_calls = _spy(services, OrganizationActivated)
 
     updated = organization_service.update_organization(
         organization.id, expected_version=organization.version, display_name="After"
@@ -61,7 +68,7 @@ def test_profile_only_update_produces_exactly_one_organization_profile_updated(s
     assert len(profile_calls) == 1
     assert profile_calls[0].organization_id == updated.id
     assert profile_calls[0].tenant_id == updated.tenant_id
-    assert availability_calls == []
+    assert activated_calls == []
 
 
 def test_profile_no_op_update_produces_zero_events(services):
@@ -83,121 +90,120 @@ def test_profile_no_op_update_produces_zero_events(services):
 
 
 # ----------------------------------------------------------------------
-# Enable / disable
+# Activate / deactivate / archive
 # ----------------------------------------------------------------------
 
 
-def test_enable_false_to_true_produces_exactly_one_organization_enabled(services):
+def test_deactivate_active_organization_produces_exactly_one_organization_deactivated(services):
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("P10D-ENABLE"), display_name="Enable Me", is_enabled=False
+        organization_code=_unique_code("P10D-DEACTIVATE"), display_name="Deactivate Me"
     )
-    enabled_calls = _spy(services, OrganizationEnabled)
-    disabled_calls = _spy(services, OrganizationDisabled)
+    deactivated_calls = _spy(services, OrganizationDeactivated)
+    activated_calls = _spy(services, OrganizationActivated)
 
-    result = organization_service.enable_organization(organization.id)
+    result = organization_service.deactivate_organization(organization.id)
 
-    assert result.is_enabled is True
-    assert len(enabled_calls) == 1
-    assert enabled_calls[0].organization_id == result.id
-    assert disabled_calls == []
+    assert result.status == "inactive"
+    assert len(deactivated_calls) == 1
+    assert deactivated_calls[0].organization_id == result.id
+    assert activated_calls == []
 
 
-def test_enable_true_to_true_produces_zero_events(services):
+def test_activate_inactive_organization_produces_exactly_one_organization_activated(services):
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("P10D-ENABLE-NOOP"), display_name="Already Enabled"
+        organization_code=_unique_code("P10D-ACTIVATE"), display_name="Activate Me"
     )
-    assert organization.is_enabled is True
-    enabled_calls = _spy(services, OrganizationEnabled)
+    organization_service.deactivate_organization(organization.id)
+    activated_calls = _spy(services, OrganizationActivated)
+    deactivated_calls = _spy(services, OrganizationDeactivated)
 
-    result = organization_service.enable_organization(organization.id)
+    result = organization_service.activate_organization(organization.id)
 
-    assert result.version == organization.version
-    assert enabled_calls == []
+    assert result.status == "active"
+    assert len(activated_calls) == 1
+    assert activated_calls[0].organization_id == result.id
+    assert deactivated_calls == []
 
 
-def test_disable_true_to_false_produces_exactly_one_organization_disabled(services):
+def test_archive_organization_produces_exactly_one_organization_archived(services):
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("P10D-DISABLE"), display_name="Disable Me"
+        organization_code=_unique_code("P10D-ARCHIVE"), display_name="Archive Me"
     )
-    disabled_calls = _spy(services, OrganizationDisabled)
-    enabled_calls = _spy(services, OrganizationEnabled)
+    archived_calls = _spy(services, OrganizationArchived)
 
-    result = organization_service.disable_organization(organization.id)
+    result = organization_service.archive_organization(organization.id)
 
-    assert result.is_enabled is False
-    assert len(disabled_calls) == 1
-    assert disabled_calls[0].organization_id == result.id
-    assert enabled_calls == []
+    assert result.status == "archived"
+    assert len(archived_calls) == 1
+    assert archived_calls[0].organization_id == result.id
 
 
-def test_disable_false_to_false_produces_zero_events(services):
+def test_activate_an_already_active_organization_is_rejected_with_zero_observable_event(services):
+    """Same-state lifecycle transitions are not a silent no-op -- they're explicitly rejected by
+    `BusinessRuleError`, distinct from `update_organization`'s no-op-tolerant profile semantics."""
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("P10D-DISABLE-NOOP"), display_name="Already Disabled", is_enabled=False
+        organization_code=_unique_code("P10D-ACTIVATE-NOOP"), display_name="Already Active"
     )
-    assert organization.is_enabled is False
-    disabled_calls = _spy(services, OrganizationDisabled)
+    assert organization.status == "active"
+    activated_calls = _spy(services, OrganizationActivated)
 
-    result = organization_service.disable_organization(organization.id)
+    with pytest.raises(BusinessRuleError, match="already active"):
+        organization_service.activate_organization(organization.id)
 
-    assert result.version == organization.version
-    assert disabled_calls == []
+    assert activated_calls == []
+
+
+def test_deactivate_an_already_inactive_organization_is_rejected_with_zero_observable_event(services):
+    organization_service = services["organization_service"]
+    organization = organization_service.create_organization(
+        organization_code=_unique_code("P10D-DEACTIVATE-NOOP"), display_name="Already Inactive"
+    )
+    organization_service.deactivate_organization(organization.id)
+    deactivated_calls = _spy(services, OrganizationDeactivated)
+
+    with pytest.raises(BusinessRuleError, match="already inactive"):
+        organization_service.deactivate_organization(organization.id)
+
+    assert deactivated_calls == []
+
+
+def test_archived_organization_cannot_be_reactivated_or_deactivated(services):
+    organization_service = services["organization_service"]
+    organization = organization_service.create_organization(
+        organization_code=_unique_code("P10D-ARCHIVED-TERMINAL"), display_name="Archived Terminal"
+    )
+    organization_service.archive_organization(organization.id)
+    activated_calls = _spy(services, OrganizationActivated)
+    deactivated_calls = _spy(services, OrganizationDeactivated)
+
+    with pytest.raises(BusinessRuleError, match="[Aa]rchived"):
+        organization_service.activate_organization(organization.id)
+    with pytest.raises(BusinessRuleError, match="[Aa]rchived"):
+        organization_service.deactivate_organization(organization.id)
+
+    assert activated_calls == []
+    assert deactivated_calls == []
 
 
 # ----------------------------------------------------------------------
-# Mixed profile + availability via update_organization
+# update_organization no longer carries a lifecycle-status field
 # ----------------------------------------------------------------------
 
 
-def test_mixed_profile_and_availability_update_produces_both_events_exactly_once(services):
-    organization_service = services["organization_service"]
-    organization = organization_service.create_organization(
-        organization_code=_unique_code("P10D-MIXED"), display_name="Mixed Before", is_enabled=True
-    )
-    profile_calls = _spy(services, OrganizationProfileUpdated)
-    disabled_calls = _spy(services, OrganizationDisabled)
-    enabled_calls = _spy(services, OrganizationEnabled)
+def test_update_organization_has_no_lifecycle_status_parameter():
+    """`update_organization` is a pure profile-only mutation -- lifecycle transitions are their
+    own dedicated operations, never a side channel through the profile-update payload."""
+    import inspect
 
-    updated = organization_service.update_organization(
-        organization.id,
-        expected_version=organization.version,
-        display_name="Mixed After",
-        is_enabled=False,
-    )
+    import src.core.platform.application.master_data.org.organization_service as org_service_module
 
-    assert updated.display_name == "Mixed After"
-    assert updated.is_enabled is False
-    assert len(profile_calls) == 1
-    assert len(disabled_calls) == 1
-    assert enabled_calls == []
-    assert profile_calls[0].organization_id == updated.id
-    assert disabled_calls[0].organization_id == updated.id
-
-
-def test_mixed_update_with_only_availability_change_produces_only_the_availability_event(services):
-    """Deterministic sequencing check the other direction: if `update_organization` is called
-    with an availability change but every profile field left at its current value, exactly one
-    event fires, not two."""
-    organization_service = services["organization_service"]
-    organization = organization_service.create_organization(
-        organization_code=_unique_code("P10D-MIXED-AVAIL-ONLY"), display_name="Same Name", is_enabled=True
-    )
-    profile_calls = _spy(services, OrganizationProfileUpdated)
-    disabled_calls = _spy(services, OrganizationDisabled)
-
-    updated = organization_service.update_organization(
-        organization.id,
-        expected_version=organization.version,
-        display_name="Same Name",
-        is_enabled=False,
-    )
-
-    assert updated.is_enabled is False
-    assert profile_calls == []
-    assert len(disabled_calls) == 1
+    signature = inspect.signature(org_service_module.OrganizationService.update_organization)
+    assert "is_enabled" not in signature.parameters
+    assert "status" not in signature.parameters
 
 
 # ----------------------------------------------------------------------
@@ -206,7 +212,9 @@ def test_mixed_update_with_only_availability_change_produces_only_the_availabili
 
 
 def test_update_organization_audit_failure_rolls_back_with_zero_observable_event(services, monkeypatch):
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
 
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
@@ -230,27 +238,29 @@ def test_update_organization_audit_failure_rolls_back_with_zero_observable_event
     assert profile_calls == []
 
 
-def test_enable_organization_audit_failure_rolls_back_with_zero_observable_event(services, monkeypatch):
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+def test_deactivate_organization_audit_failure_rolls_back_with_zero_observable_event(services, monkeypatch):
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
 
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("P10D-ENABLE-AUDIT-FAIL"), display_name="Enable Audit Fail", is_enabled=False
+        organization_code=_unique_code("P10D-DEACTIVATE-AUDIT-FAIL"), display_name="Deactivate Audit Fail"
     )
-    enabled_calls = _spy(services, OrganizationEnabled)
+    deactivated_calls = _spy(services, OrganizationDeactivated)
 
     def _fail_record(self, **kwargs):
-        raise RuntimeError("simulated enable_organization audit failure")
+        raise RuntimeError("simulated deactivate_organization audit failure")
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
 
-    with pytest.raises(RuntimeError, match="simulated enable_organization audit failure"):
-        organization_service.enable_organization(organization.id)
+    with pytest.raises(RuntimeError, match="simulated deactivate_organization audit failure"):
+        organization_service.deactivate_organization(organization.id)
 
     monkeypatch.undo()
     reloaded = organization_service._organization_repo.get(organization.id)
-    assert reloaded.is_enabled is False
-    assert enabled_calls == []
+    assert reloaded.status == "active"
+    assert deactivated_calls == []
 
 
 def test_update_organization_commit_failure_produces_zero_observable_event(services, monkeypatch):
@@ -326,10 +336,7 @@ def test_organization_list_invalidation_fires_exactly_once_for_a_committed_profi
     assert list_hints[0].entity_id is None, "the list-level hint stays collection-scoped, not entity-specific"
 
 
-def test_organization_list_invalidation_fires_exactly_once_for_a_mixed_update_not_twice(services):
-    """A mixed profile+availability update records TWO typed events in one transaction, but both
-    map onto the identical `organization_list` target -- the real UI consumers (admin console,
-    settings) must not refresh twice for one committed change."""
+def test_organization_list_invalidation_fires_exactly_once_for_a_lifecycle_transition(services):
     from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
         ORGANIZATION_LIST_SCOPE_CODE,
     )
@@ -337,26 +344,17 @@ def test_organization_list_invalidation_fires_exactly_once_for_a_mixed_update_no
     organization_service = services["organization_service"]
     channel = services["platform_view_invalidation_channel"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("P10D-LIST-MIXED"), display_name="Mixed List Before", is_enabled=True
+        organization_code=_unique_code("P10D-LIST-LIFECYCLE"), display_name="List Lifecycle"
     )
     hints = []
     from src.core.shared.events.view_invalidation import AllTenants
 
     channel.subscribe(AllTenants(), lambda hint: hints.append(hint))
 
-    organization_service.update_organization(
-        organization.id,
-        expected_version=organization.version,
-        display_name="Mixed List After",
-        is_enabled=False,
-    )
+    organization_service.deactivate_organization(organization.id)
 
     list_hints = [h for h in hints if h.scope_code == ORGANIZATION_LIST_SCOPE_CODE]
-    assert len(list_hints) == 2, (
-        "two distinct committed business facts (profile change + availability change) legitimately "
-        "produce two invalidation hints for the same target -- real UI consumers coalesce duplicate "
-        "hints on their own read side, this is not the producer's concern to deduplicate"
-    )
+    assert len(list_hints) == 1
 
 
 # ----------------------------------------------------------------------
@@ -392,16 +390,16 @@ def test_session_organization_switch_produces_no_business_event(services):
         organization_code=_unique_code("P10D-SWITCH-NO-EVENT"), display_name="Switch Target"
     )
     profile_calls = _spy(services, OrganizationProfileUpdated)
-    enabled_calls = _spy(services, OrganizationEnabled)
-    disabled_calls = _spy(services, OrganizationDisabled)
+    activated_calls = _spy(services, OrganizationActivated)
+    deactivated_calls = _spy(services, OrganizationDeactivated)
     created_calls = _spy(services, OrganizationCreated)
 
     tenant_context_service.set_active_organization(organization.id)
 
     assert tenant_context_service.get_active_organization_id() == organization.id
     assert profile_calls == []
-    assert enabled_calls == []
-    assert disabled_calls == []
+    assert activated_calls == []
+    assert deactivated_calls == []
     assert created_calls == []
 
 
@@ -427,17 +425,17 @@ def test_organizations_changed_field_and_producers_are_fully_gone():
 
 def test_no_forbidden_blanket_or_session_selection_event_names_exist_anywhere():
     """None of the explicitly-forbidden names (a generic OrganizationChanged/OrganizationUpdated
-    blanket event, or any session-selection event -- OrganizationSelected/OrganizationActivated/
+    blanket event, or any session-selection event -- OrganizationSelected/
     TenantActiveOrganizationChanged) were introduced, in the Organization events module or
-    anywhere else in production source."""
+    anywhere else in production source. `OrganizationActivated`/`OrganizationDeactivated` are
+    legitimate lifecycle-status events (not session-selection events) and are intentionally
+    excluded from this guard."""
     import glob
     import re
 
     forbidden = (
         "OrganizationChanged",
         "OrganizationUpdated",
-        "OrganizationActivated",
-        "OrganizationDeactivated",
         "TenantActiveOrganizationChanged",
         "OrganizationSelected",
     )
@@ -459,23 +457,24 @@ def test_no_forbidden_blanket_or_session_selection_event_names_exist_anywhere():
     assert hits == [], hits
 
 
-def test_organization_events_module_exports_exactly_the_four_expected_events():
+def test_organization_events_module_exports_exactly_the_five_expected_events():
     import src.core.platform.domain.master_data.org.events as events_module
 
     assert set(events_module.__all__) == {
         "OrganizationCreated",
         "OrganizationProfileUpdated",
-        "OrganizationEnabled",
-        "OrganizationDisabled",
+        "OrganizationActivated",
+        "OrganizationDeactivated",
+        "OrganizationArchived",
     }
 
 
 def test_no_generic_compatibility_bridge_was_introduced():
     import inspect
 
-    import src.core.platform.application.master_data.org.organization_service as org_service_module
     import src.core.platform.application.master_data.org.event_handlers.view_invalidation as vi_module
-    import src.infra.composition.platform_registry as registry_module
+    import src.core.platform.application.master_data.org.organization_service as org_service_module
+    import src.infra.composition.modules.platform_registry as registry_module
 
     for module in (org_service_module, vi_module, registry_module):
         source = inspect.getsource(module)
@@ -492,6 +491,9 @@ def test_new_events_use_the_canonical_organization_uow_record_event_pattern():
     import src.core.platform.application.master_data.org.organization_service as org_service_module
 
     update_source = inspect.getsource(org_service_module.OrganizationService.update_organization)
-    set_enabled_source = inspect.getsource(org_service_module.OrganizationService._set_organization_enabled)
+    # `_transition_organization_status` is the single unit of work shared by the
+    # single-record and bulk activate/deactivate/archive paths -- that's where the
+    # lifecycle event recording actually lives, not in each thin public wrapper.
+    apply_status_source = inspect.getsource(org_service_module.OrganizationService._apply_organization_status)
     assert "uow.record_event(" in update_source
-    assert "uow.record_event(" in set_enabled_source
+    assert "uow.record_event(" in apply_status_source

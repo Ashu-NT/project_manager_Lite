@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+
 @dataclass(frozen=True)
 class FinancialsMetricViewModel:
     label: str
@@ -99,7 +100,13 @@ class FinancialsWorkspaceViewModel:
     variance_metrics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     report_definitions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     ledger: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
-    activity: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    posting_failures: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    posting_failure_sort_key: str = "metaText"
+    posting_failure_sort_direction: str = "desc"
+    posting_failure_status: str = ""
+    activity: dict[str, object] = field(
+        default_factory=lambda: {"title": "", "subtitle": "", "emptyState": "", "items": []}
+    )
     actual_sort_key: str = "metaText"
     actual_sort_direction: str = "desc"
     can_create_manual_actual: bool = False
@@ -227,8 +234,8 @@ __all__ = [
     "FinancialsCommitmentSummaryViewModel",
     "FinancialsDetailFieldViewModel",
     "FinancialsDetailViewModel",
-    "FinancialsMetricViewModel",
     "FinancialsManualActualDefaultsViewModel",
+    "FinancialsMetricViewModel",
     "FinancialsOverviewViewModel",
     "FinancialsRecordViewModel",
     "FinancialsSelectorOptionViewModel",

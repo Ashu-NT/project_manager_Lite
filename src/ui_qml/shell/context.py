@@ -6,12 +6,19 @@ from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.infra.platform.app_settings import AppSettingsStore
+from src.ui_qml.shell.global_navigation import build_global_navigation_tree
 from src.ui_qml.shell.navigation import NavigationItemViewModel
 
 QML_IMPORT_NAME = "Shell.Context"
 QML_IMPORT_MAJOR_VERSION = 1
 
 logger = logging.getLogger(__name__)
+
+# The one route ShellContext always falls back to when the current route
+# becomes inaccessible (e.g. after a scope change hides the module the user
+# was in) -- Overview is a core shell route, never filtered by module
+# accessibility (see navigation.py), so it is always a safe landing spot.
+_HOME_ROUTE_ID = "shell.home"
 
 
 @QmlElement
@@ -21,9 +28,16 @@ class ShellContext(QObject):
     currentRouteIdChanged = Signal()
     currentRouteSourceChanged = Signal()
     navigationItemsChanged = Signal()
+    globalNavigationChanged = Signal()
     densityModeChanged = Signal()
     themeModeChanged = Signal()
     userDisplayNameChanged = Signal()
+    # Shell-wide tenant/organization scope invalidation signal (no args --
+    # subscribers re-read authoritative scope through their own Desktop API
+    # rather than trust any locally-cached tenant/org id). Nothing emits this
+    # yet: firing it on an actual tenant/organization switch is Organization
+    # Switcher/Shell Header wiring, not implemented here.
+    scopeChanged = Signal()
 
     def __init__(
         self,
@@ -81,6 +95,15 @@ class ShellContext(QObject):
             }
             for item in self._navigation_items
         ]
+
+    @Property("QVariantList", notify=globalNavigationChanged)
+    def globalNavigation(self) -> list[dict[str, object]]:
+        return build_global_navigation_tree(self._navigation_items).to_qml_groups()
+
+    @Property(str, notify=currentRouteIdChanged)
+    def currentModuleCode(self) -> str:
+        item = self._navigation_item_by_route_id.get(self._current_route_id)
+        return item.module_code if item is not None else ""
 
     @Property(str, notify=themeModeChanged)
     def themeMode(self) -> str:
@@ -155,6 +178,29 @@ class ShellContext(QObject):
         self._current_route_source = resolved_route_source
         self.currentRouteSourceChanged.emit()
 
+    def setNavigationItems(self, items: list[NavigationItemViewModel]) -> None:
+        """Replace the navigation item set (e.g. after a scope change resolves a new
+        accessible-module list) -- called from Python only, never from QML: the drawer
+        must consume an already-filtered list, never compute accessibility itself."""
+        self._navigation_items = items
+        self._navigation_item_by_route_id = {
+            item.route_id: item
+            for item in items
+        }
+        self.navigationItemsChanged.emit()
+        self.globalNavigationChanged.emit()
+        if self._current_route_id and self._current_route_id not in self._navigation_item_by_route_id:
+            # The route the user was on is no longer accessible -- return to
+            # the always-available Overview route rather than leave an
+            # inaccessible page on screen or guess at another module.
+            logger.info(
+                "Current route no longer accessible after navigation refresh; "
+                "redirecting to home route_id=%s",
+                self._current_route_id,
+            )
+            self._current_route_id = ""
+            self.selectRoute(_HOME_ROUTE_ID)
+
     def _route_source_for(self, route_id: str) -> str:
         item = self._navigation_item_by_route_id.get(route_id)
         if item is None:
@@ -181,20 +227,20 @@ def update_shell_runtime_state(
     if theme_mode is not None:
         normalized_theme = (theme_mode or "light").strip().lower()
         normalized_theme = "dark" if normalized_theme == "dark" else "light"
-        if normalized_theme != shell_context._theme_mode:  # noqa: SLF001
-            shell_context._theme_mode = normalized_theme  # noqa: SLF001
+        if normalized_theme != shell_context._theme_mode:
+            shell_context._theme_mode = normalized_theme
             shell_context.themeModeChanged.emit()
     if density_mode is not None:
         normalized_density = (density_mode or "compact").strip().lower()
         if normalized_density not in {"compact", "comfortable", "spacious"}:
             normalized_density = "compact"
-        if normalized_density != shell_context._density_mode:  # noqa: SLF001
-            shell_context._density_mode = normalized_density  # noqa: SLF001
+        if normalized_density != shell_context._density_mode:
+            shell_context._density_mode = normalized_density
             shell_context.densityModeChanged.emit()
     if user_display_name is not None:
         normalized_name = (user_display_name or "").strip()
-        if normalized_name != shell_context._user_display_name:  # noqa: SLF001
-            shell_context._user_display_name = normalized_name  # noqa: SLF001
+        if normalized_name != shell_context._user_display_name:
+            shell_context._user_display_name = normalized_name
             shell_context.userDisplayNameChanged.emit()
 
 

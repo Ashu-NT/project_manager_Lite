@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
 from decimal import Decimal
-import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,10 +10,10 @@ from PySide6.QtCore import Qt
 
 from src.core.modules.project_management.api.desktop.financials import (
     FinancialCreateCostCodeCommand,
-    FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
+    FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
     ProjectManagementFinancialsDesktopApi,
 )
@@ -21,15 +21,18 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.ui_qml.modules.project_management.controllers.financials.financials_workspace_controller import (
     ProjectManagementFinancialsWorkspaceController,
 )
-from src.ui_qml.modules.project_management.presenters.financials.command_handler import (
+from src.ui_qml.modules.project_management.presenters.financials.cost.commands import (
     approve_actual,
-    create_cost_code,
+    delete_actual_draft,
     post_actual,
     reject_actual,
     reverse_actual,
     submit_actual,
+    update_actual_draft,
 )
-
+from src.ui_qml.modules.project_management.presenters.financials.governance.commands import (
+    create_cost_code,
+)
 
 # ---------------------------------------------------------------------------
 # Presenter / command_handler layer — payload -> desktop-API command mapping.
@@ -42,6 +45,12 @@ class _RecordingDesktopApi:
 
     def submit_actual(self, command):
         self.calls.append(("submit_actual", command))
+
+    def update_actual_draft(self, command):
+        self.calls.append(("update_actual_draft", command))
+
+    def delete_actual_draft(self, command):
+        self.calls.append(("delete_actual_draft", command))
 
     def approve_actual(self, command):
         self.calls.append(("approve_actual", command))
@@ -122,6 +131,49 @@ def test_submit_actual_builds_versioned_command():
     name, command = api.calls[0]
     assert name == "submit_actual"
     assert command == FinancialVersionedActualCommand(entry_id="entry-1", expected_version=3)
+
+
+def test_update_actual_draft_builds_typed_command():
+    api = _RecordingDesktopApi()
+    update_actual_draft(
+        api,
+        {
+            "entryId": "entry-1",
+            "rowVersion": 3,
+            "description": "Corrected travel",
+            "amount": "125.40",
+            "currency": "USD",
+            "transactionDate": "2026-09-09",
+            "costCodeId": "cost-1",
+            "taskId": "task-1",
+            "resourceId": "resource-1",
+        },
+    )
+
+    name, command = api.calls[0]
+    assert name == "update_actual_draft"
+    assert command == FinancialUpdateActualDraftCommand(
+        entry_id="entry-1",
+        expected_version=3,
+        description="Corrected travel",
+        amount=Decimal("125.40"),
+        currency_code="USD",
+        transaction_date=date(2026, 9, 9),
+        cost_code_id="cost-1",
+        task_id="task-1",
+        resource_id="resource-1",
+    )
+
+
+def test_delete_actual_draft_builds_versioned_command():
+    api = _RecordingDesktopApi()
+    delete_actual_draft(api, {"entryId": "entry-1", "rowVersion": 3})
+
+    name, command = api.calls[0]
+    assert name == "delete_actual_draft"
+    assert command == FinancialVersionedActualCommand(
+        entry_id="entry-1", expected_version=3
+    )
 
 
 def test_approve_actual_defaults_notes_to_empty_string():
@@ -232,6 +284,12 @@ class _FakeFinancialsWorkspacePresenter:
     def submit_actual(self, payload):
         self._record("submit_actual", payload)
 
+    def update_actual_draft(self, payload):
+        self._record("update_actual_draft", payload)
+
+    def delete_actual_draft(self, payload):
+        self._record("delete_actual_draft", payload)
+
     def approve_actual(self, payload):
         self._record("approve_actual", payload)
 
@@ -276,6 +334,58 @@ def test_submit_actual_slot_delegates_and_reports_success(controller):
         ("submit_actual", {"entryId": "entry-1", "rowVersion": 1})
     ]
     controller._invalidate_destinations.assert_called_once_with("costs", "controls")
+
+
+@pytest.mark.parametrize(
+    ("slot", "presenter_method", "message"),
+    (
+        ("updateActualDraft", "update_actual_draft", "Manual actual draft updated."),
+        ("deleteActualDraft", "delete_actual_draft", "Manual actual draft deleted."),
+    ),
+)
+def test_actual_draft_slots_delegate_and_refresh_costs_only(
+    controller, slot, presenter_method, message
+):
+    controller._invalidate_destinations = MagicMock()
+    payload = {"entryId": "entry-1", "rowVersion": 1}
+
+    result = getattr(controller, slot)(payload)
+
+    assert result == {"ok": True, "message": message}
+    assert controller._fake_presenter.calls == [(presenter_method, payload)]
+    controller._invalidate_destinations.assert_called_once_with("costs")
+
+
+def test_actual_filters_reset_page_and_refresh_authoritative_query(controller):
+    controller.refresh = MagicMock()
+    controller._actual_page = 4
+
+    controller.setActualFilters("submitted", "platform_time")
+
+    assert controller.actualStatus == "submitted"
+    assert controller.actualSource == "platform_time"
+    assert controller._actual_page == 1
+    controller.refresh.assert_called_once_with()
+
+
+def test_posting_failure_query_changes_reset_page_and_refresh(controller):
+    controller.refresh = MagicMock()
+    controller._posting_failure_page = 4
+
+    controller.setPostingFailureSort("title", Qt.AscendingOrder.value)
+
+    assert controller.postingFailureSortKey == "title"
+    assert controller.postingFailureSortDirection == Qt.AscendingOrder.value
+    assert controller._posting_failure_page == 1
+    controller.refresh.assert_called_once_with()
+
+    controller.refresh.reset_mock()
+    controller._posting_failure_page = 3
+    controller.setPostingFailureStatus("quarantined")
+
+    assert controller.postingFailureStatus == "quarantined"
+    assert controller._posting_failure_page == 1
+    controller.refresh.assert_called_once_with()
 
 
 def test_create_cost_code_slot_delegates_and_invalidates_destinations(controller):
@@ -463,7 +573,10 @@ def test_governance_refresh_resets_privileged_state_before_authority_load(
         )
         controller.refresh()
 
-        assert controller.errorMessage == "authority unavailable"
+        # Raw exception text must never reach the UI-facing property (Phase H
+        # error-boundary hardening) -- only the safe, sanitized message.
+        assert controller.errorMessage == "Financials could not be loaded."
+        assert "authority unavailable" not in controller.errorMessage
 
 
 def test_budget_parent_switch_clears_previous_line_capabilities(controller) -> None:
@@ -782,6 +895,40 @@ def test_billing_refresh_rejects_stale_a_b_c_selection_responses(controller) -> 
     )
 
 
+@pytest.mark.parametrize("switch", ["project", "subsection"])
+def test_commercial_projection_discards_results_after_context_switch(controller, switch) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "commercial"
+    controller._active_subsection = "profitability"
+    controller._set_selected_project_id("project-a")
+    stale, current = object(), object()
+    requests = []
+
+    def build_destination_state(**kwargs):
+        requests.append(kwargs)
+        if len(requests) == 1:
+            if switch == "project":
+                controller._set_selected_project_id("project-b")
+            else:
+                controller._active_subsection = "billing"
+            controller.refresh()
+            return stale
+        return current
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.refresh()
+
+    assert len(requests) == 2
+    assert controller.selectedProjectId == ("project-b" if switch == "project" else "project-a")
+    controller._apply_destination_state.assert_called_once_with(
+        "commercial", "profitability" if switch == "project" else "billing", current
+    )
+
+
 def test_billing_project_switch_clears_master_detail_and_lines(controller) -> None:
     controller.refresh = MagicMock()
     controller._set_selected_project_id("project-a")
@@ -845,11 +992,14 @@ def test_financials_refresh_logs_exception_context(controller, caplog) -> None:
 
     with caplog.at_level(
         logging.INFO,
-        logger="src.ui_qml.modules.project_management.controllers.financials.financials_refresh_mixin",
+        logger="src.ui_qml.modules.project_management.controllers.financials.shared.financials_refresh_mixin",
     ):
         controller.refresh()
 
-    assert controller.errorMessage == "overview read failed"
+    # The raw exception text must never reach the UI-facing property (Phase H
+    # error-boundary hardening) -- only the full technical detail, logged.
+    assert controller.errorMessage == "Financials could not be loaded."
+    assert "overview read failed" not in controller.errorMessage
     assert "PM financials refresh failed" in caplog.text
     assert "project='project-a' destination=overview subsection=summary" in caplog.text
     assert "RuntimeError: overview read failed" in caplog.text

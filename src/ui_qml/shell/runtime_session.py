@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Sequence
 
-from PySide6.QtCore import QObject, QTimer, Qt, Signal, Slot
+from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
 from src.core.platform.domain.security.auth import UserSessionContext

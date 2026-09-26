@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from functools import wraps
 
-from src.core.platform.application.tenant.modules.authorization import require_module_enabled
+from src.core.platform.application.tenant.modules.authorization import (
+    require_module_enabled,
+)
 
 
 def _humanize_method_name(name: str) -> str:

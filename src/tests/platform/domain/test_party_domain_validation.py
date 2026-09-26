@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.domain.master_data.party import Party, PartyType
 from src.infra.time.system_clock import SystemClock
 
@@ -34,11 +34,11 @@ class _FakeEnterpriseAuditService:
 
 
 class _FakePartyUnitOfWork:
-    def __init__(self, party_repo: "_FakePartyRepo", enterprise_audit_service) -> None:
+    def __init__(self, party_repo: _FakePartyRepo, enterprise_audit_service) -> None:
         self.parties = party_repo
         self._enterprise_audit_service = enterprise_audit_service
 
-    def __enter__(self) -> "_FakePartyUnitOfWork":
+    def __enter__(self) -> _FakePartyUnitOfWork:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -52,7 +52,7 @@ class _FakePartyUnitOfWork:
 
 
 class _FakePartyUnitOfWorkFactory:
-    def __init__(self, party_repo: "_FakePartyRepo", enterprise_audit_service) -> None:
+    def __init__(self, party_repo: _FakePartyRepo, enterprise_audit_service) -> None:
         self._party_repo = party_repo
         self._enterprise_audit_service = enterprise_audit_service
 

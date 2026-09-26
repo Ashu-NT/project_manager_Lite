@@ -1,20 +1,27 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from collections import deque
 from dataclasses import dataclass, replace
 from datetime import date
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
+from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
+    run_cpm,
+)
+from src.core.modules.project_management.application.scheduling.models.cpm import (
+    CPMTaskInfo,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     DependencyRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import run_cpm
-from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
+from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 @dataclass

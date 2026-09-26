@@ -85,9 +85,9 @@ class LevelingProposal:
 
 
 __all__ = [
+    "LevelingProposal",
+    "ProposedTaskMove",
     "ResourceConflict",
     "ResourceConflictEntry",
-    "ProposedTaskMove",
     "UnresolvedConflict",
-    "LevelingProposal",
 ]

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 
 import pytest
-from sqlalchemy import inspect, select, text
+from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
 
 from src.core.platform.common.exceptions import ConcurrencyError
@@ -16,7 +16,6 @@ from src.infra.persistence.migrations.helpers.rls_classification import (
     PARENT_SCOPED_RLS_TABLES,
     TENANT_AND_ORGANIZATION_TABLES,
 )
-
 
 pytestmark = pytest.mark.postgresql_integration
 
@@ -174,8 +173,8 @@ def seeded_security_scopes(postgres_test_environment):
             connection.execute(
                 text(
                     "INSERT INTO organizations "
-                    "(id, tenant_id, organization_code, display_name, timezone_name, base_currency, is_active, version) "
-                    "VALUES (:id, :tenant, :code, :name, 'UTC', 'XAF', true, 1)"
+                    "(id, tenant_id, organization_code, display_name, timezone_name, base_currency, status, version) "
+                    "VALUES (:id, :tenant, :code, :name, 'UTC', 'XAF', 'active', 1)"
                 ),
                 {
                     "id": organization_id,

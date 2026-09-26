@@ -1,0 +1,5 @@
+module workspaces.financials.governance.dialogs
+CostCodeEditorDialog 1.0 CostCodeEditorDialog.qml
+CostCodeRestrictionDialog 1.0 CostCodeRestrictionDialog.qml
+FinancialProfileEditorDialog 1.0 FinancialProfileEditorDialog.qml
+FinancialSetupLifecycleDialog 1.0 FinancialSetupLifecycleDialog.qml

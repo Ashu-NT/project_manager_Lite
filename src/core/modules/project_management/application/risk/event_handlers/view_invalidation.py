@@ -88,10 +88,10 @@ def build_register_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_register_view_invalidation_handler",
     "REGISTER_CATEGORY",
-    "REGISTER_WORKSPACE_SCOPE_CODE",
-    "REGISTER_PROJECT_SCOPE_CODE",
     "REGISTER_MODULE_CODE",
     "REGISTER_PROJECT_ENTITY_TYPE",
+    "REGISTER_PROJECT_SCOPE_CODE",
+    "REGISTER_WORKSPACE_SCOPE_CODE",
+    "build_register_view_invalidation_handler",
 ]

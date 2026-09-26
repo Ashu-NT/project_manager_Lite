@@ -1,33 +1,49 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     BillingProfileActivated,
     BillingProfileCreated,
     BillingScheduleLineAdded,
     BillingScheduleLineMarkedReady,
 )
-from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import ProjectBillingRepository
-from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import ProjectFinancialProfileRepository
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
+    ProjectFinancialProfileRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
+    ProjectBillingRepository,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
 from src.core.modules.project_management.domain.financials.billing_profile import (
     BillingProfileStatus,
     ProjectBillingProfile,
     ProjectBillingScheduleLine,
 )
-from src.core.modules.project_management.domain.financials.configuration import BillingMethod
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.modules.project_management.domain.financials.configuration import (
+    BillingMethod,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
@@ -76,7 +92,7 @@ class ProjectBillingProfileService(ProjectManagementModuleGuardMixin):
         customer_party_id: str | None = None,
         external_customer_reference: str | None = None,
         purchase_order_reference: str | None = None,
-        cost_plus_markup_percent: Decimal = Decimal("0"),
+        cost_plus_markup_percent: Decimal = Decimal(0),
         payment_terms_days: int = 30,
         retention_years: int = 7,
     ) -> ProjectBillingProfile:
@@ -265,22 +281,33 @@ class ProjectBillingProfileService(ProjectManagementModuleGuardMixin):
     def _persist(self, operation: str, entity, write, event: object):
         write()
         self._billing_repo.flush()
+        full_operation = f"project_billing.{operation}"
         record_audit_entry(
             self,
-            operation=f"project_billing.{operation}",
+            operation=full_operation,
             entity_type=type(entity).__name__,
             entity_id=entity.id,
             entity_parent_id=entity.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps({"project_id": entity.project_id}, sort_keys=True),
+            category="FINANCIAL",
+            after_data={"project_id": entity.project_id},
             workspace_id=entity.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type=type(entity).__name__,
+            entity_id=entity.id,
+            parent_entity_id=entity.project_id,
+            module="project_management",
+            workspace_id=entity.project_id,
+            details={"action": operation},
+            commit=False,
         )
         if self._record_event is not None:
             self._record_event(event)

@@ -1,7 +1,7 @@
 """Finance Forecast ViewInvalidation: `ForecastVersionChanged`/`ForecastLineChanged`/
 `ForecastDraftGenerated` -> `forecast_planning`/`forecast_approved_basis` at project scope
 (`ResourceScope(module_code="project_management", entity_type="project")`), deduped by
-(transaction correlation_id, target identity), no-op semantics on `update_line`, the
+(committed-operation context identity, target identity), no-op semantics on `update_line`, the
 financial-change-apply forecast-successor path reporting the same `ForecastVersionChanged(APPROVED)`
 vocabulary via `ApprovalHandlerResult.domain_events`, and the FinancialsWorkspaceController's
 narrow per-target destination invalidation.
@@ -23,10 +23,10 @@ from src.core.modules.project_management.application.financials.forecasts.event_
 )
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastDraftGenerated,
-    ForecastLineChangeType,
     ForecastLineChanged,
-    ForecastVersionChangeType,
+    ForecastLineChangeType,
     ForecastVersionChanged,
+    ForecastVersionChangeType,
 )
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpactType,
@@ -39,7 +39,9 @@ from src.core.modules.project_management.domain.financials.forecast import (
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ResourceScope
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 _COUNTER = {"n": 0}
 
@@ -176,19 +178,20 @@ def test_dedupe_by_target_within_one_transaction_not_by_raw_event_fields():
     channel = _fake_channel()
     handler = build_forecast_view_invalidation_handler(channel)
     now = datetime.now(timezone.utc)
+    context = _context("same-tx")
     handler(
         ForecastLineChanged(
             tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1", line_id="l1",
             change_type=ForecastLineChangeType.ADDED, occurred_at=now,
         ),
-        _context("same-tx"),
+        context,
     )
     handler(
         ForecastLineChanged(
             tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1", line_id="l2",
             change_type=ForecastLineChangeType.ADDED, occurred_at=now,
         ),
-        _context("same-tx"),
+        context,
     )
     assert len(channel.notified) == 1, "same project target within one transaction coalesces"
 
@@ -197,7 +200,7 @@ def test_dedupe_by_target_within_one_transaction_not_by_raw_event_fields():
             tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1",
             change_type=ForecastVersionChangeType.APPROVED, occurred_at=now,
         ),
-        _context("same-tx"),
+        context,
     )
     assert len(channel.notified) == 2, "a distinct target within the same transaction is separate"
 
@@ -223,17 +226,18 @@ def test_approved_events_two_targets_never_coalesce_but_repeats_of_each_do():
         change_type=ForecastVersionChangeType.APPROVED, occurred_at=now,
     )
 
-    handler(event, _context("tx-a"))
+    context = _context("tx-a")
+    handler(event, context)
     assert len(channel.notified) == 2
     assert {h.scope_code for h in channel.notified} == {
         FORECAST_PLANNING_SCOPE_CODE, FORECAST_APPROVED_BASIS_SCOPE_CODE,
     }
 
-    handler(event, _context("tx-a"))
+    handler(event, context)
     assert len(channel.notified) == 2, "same two targets repeated in one transaction coalesce"
 
-    handler(event, _context("tx-b"))
-    assert len(channel.notified) == 4, "a new transaction re-notifies both targets"
+    handler(event, _context("tx-a"))
+    assert len(channel.notified) == 4, "a separate commit with the same trace re-notifies both targets"
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +269,7 @@ def test_update_line_true_no_op_produces_zero_hints(services):
         generation_mode=ForecastGenerationMode.MANUAL, created_by="admin",
     )
     line = forecasts.add_line(
-        forecast.id, cost_code_id=code.id, description="ETC", amount=Decimal("50"),
+        forecast.id, cost_code_id=code.id, description="ETC", amount=Decimal(50),
         source_kind=ForecastLineSourceKind.MANUAL, source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin", expected_forecast_version=forecast.row_version,
     )
@@ -274,7 +278,7 @@ def test_update_line_true_no_op_produces_zero_hints(services):
 
     unchanged = forecasts.update_line(
         line.id, expected_line_version=line.row_version, expected_forecast_version=forecast.row_version,
-        amount=Decimal("50"),
+        amount=Decimal(50),
     )
 
     assert unchanged.row_version == line.row_version, "true no-op: no synthetic version bump"
@@ -283,7 +287,7 @@ def test_update_line_true_no_op_produces_zero_hints(services):
     changed = forecasts.update_line(
         line.id, expected_line_version=unchanged.row_version,
         expected_forecast_version=forecasts.get_forecast(forecast.id).row_version,
-        amount=Decimal("75"),
+        amount=Decimal(75),
     )
     assert changed.row_version != unchanged.row_version
     assert len(_forecast_hints(hints)) == 1
@@ -297,7 +301,7 @@ def test_approve_forecast_produces_exactly_one_planning_and_one_approved_basis_h
         generation_mode=ForecastGenerationMode.MANUAL, created_by="admin",
     )
     forecasts.add_line(
-        forecast.id, cost_code_id=code.id, description="ETC", amount=Decimal("50"),
+        forecast.id, cost_code_id=code.id, description="ETC", amount=Decimal(50),
         source_kind=ForecastLineSourceKind.MANUAL, source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin", expected_forecast_version=forecast.row_version,
     )
@@ -344,8 +348,8 @@ def _seed_approved_finance_for_change(services):
     project, code = _seed_project_and_cost_code(services)
     budgets = services["budget_service"]
     budget = budgets.create_budget(project.id, "Approved control budget")
-    budget_line = budgets.add_line(
-        budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal("100"),
+    budgets.add_line(
+        budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal(100),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
@@ -358,7 +362,7 @@ def _seed_approved_finance_for_change(services):
         generation_mode=ForecastGenerationMode.MANUAL, created_by="admin",
     )
     forecast_line = forecasts.add_line(
-        forecast.id, cost_code_id=code.id, description="Approved ETC", amount=Decimal("80"),
+        forecast.id, cost_code_id=code.id, description="Approved ETC", amount=Decimal(80),
         source_kind=ForecastLineSourceKind.MANUAL, source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin", expected_forecast_version=forecast.row_version,
     )
@@ -383,7 +387,7 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
     )
     changes.add_impact(
         change.id, impact_type=FinancialChangeImpactType.FORECAST, description="Reduce remaining ETC",
-        amount=Decimal("-15"), cost_code_id=code.id, target_line_id=forecast_line.id,
+        amount=Decimal(-15), cost_code_id=code.id, target_line_id=forecast_line.id,
         expected_change_version=change.row_version,
     )
     change = changes.get_change(change.id)

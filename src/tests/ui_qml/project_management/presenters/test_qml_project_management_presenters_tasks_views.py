@@ -1,9 +1,9 @@
 from pathlib import Path
 
 from src.tests.ui_qml.project_management.presenters._task_presenters_test_helpers import (
+    _build_tasks_catalog,
     _FakeCollaborationService,
     _FakeTaskTimesheetsDesktopApi,
-    _build_tasks_catalog,
     _make_task_service,
 )
 

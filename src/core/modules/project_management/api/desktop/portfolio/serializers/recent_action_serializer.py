@@ -1,5 +1,9 @@
-from src.core.modules.project_management.api.desktop.portfolio.models.recent_actions import PortfolioRecentActionDesktopDto
-from src.core.modules.project_management.api.desktop.portfolio.formatters.date_formatter import format_datetime
+from src.core.modules.project_management.api.desktop.portfolio.formatters.date_formatter import (
+    format_datetime,
+)
+from src.core.modules.project_management.api.desktop.portfolio.models.recent_actions import (
+    PortfolioRecentActionDesktopDto,
+)
 
 
 def serialize_recent_action(row) -> PortfolioRecentActionDesktopDto:

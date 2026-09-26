@@ -1,16 +1,25 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation, serialize_organization
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
-from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentCreateCommand,
     DepartmentDto,
+    DepartmentPageDto,
     DepartmentRollupSummaryDto,
     DepartmentUpdateCommand,
 )
-from src.core.platform.application.master_data.department.department_service import DepartmentService
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.support._support import (
+    execute_desktop_operation,
+    serialize_organization,
+)
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
 from src.core.platform.domain.master_data.department import Department
+
 
 class PlatformDepartmentDesktopApi:
     """Desktop-facing adapter for platform department master data."""
@@ -27,11 +36,14 @@ class PlatformDepartmentDesktopApi:
         self,
         *,
         active_only: bool | None = None,
+        site_id: str | None = None,
     ) -> DesktopApiResult[tuple[DepartmentDto, ...]]:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_department(department)
-                for department in self._department_service.list_departments(active_only=active_only)
+                for department in self._department_service.list_departments(
+                    active_only=active_only, site_id=site_id
+                )
             )
         )
 
@@ -39,6 +51,29 @@ class PlatformDepartmentDesktopApi:
         return execute_desktop_operation(
             lambda: self._serialize_rollup_summary(
                 self._department_service.get_department_rollup_summary()
+            )
+        )
+
+    def list_departments_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+        site_id: str | None = None,
+    ) -> DesktopApiResult[DepartmentPageDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_department_page(
+                self._department_service.list_departments_page_for_organization(
+                    organization_id,
+                    page=page,
+                    page_size=page_size,
+                    search=search,
+                    active_only=active_only,
+                    site_id=site_id,
+                )
             )
         )
 
@@ -53,8 +88,7 @@ class PlatformDepartmentDesktopApi:
                     parent_department_id=command.parent_department_id,
                     department_type=command.department_type,
                     cost_center_code=command.cost_center_code,
-                    manager_employee_id=command.manager_employee_id,
-                    is_active=command.is_active,
+                    head_of_department_employee_id=command.head_of_department_employee_id,
                     notes=command.notes,
                 )
             )
@@ -72,12 +106,30 @@ class PlatformDepartmentDesktopApi:
                     parent_department_id=command.parent_department_id,
                     department_type=command.department_type,
                     cost_center_code=command.cost_center_code,
-                    manager_employee_id=command.manager_employee_id,
-                    is_active=command.is_active,
+                    head_of_department_employee_id=command.head_of_department_employee_id,
                     notes=command.notes,
                     expected_version=command.expected_version,
                 )
             )
+        )
+
+    def activate_department(self, department_id: str) -> DesktopApiResult[DepartmentDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_department(self._department_service.activate_department(department_id))
+        )
+
+    def deactivate_department(self, department_id: str) -> DesktopApiResult[DepartmentDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_department(self._department_service.deactivate_department(department_id))
+        )
+
+    def _serialize_department_page(self, page) -> DepartmentPageDto:
+        return DepartmentPageDto(
+            items=tuple(self._serialize_department(department) for department in page.items),
+            total=page.total,
+            filtered_total=page.filtered_total,
+            page=page.page,
+            page_size=page.page_size,
         )
 
     @staticmethod
@@ -96,10 +148,12 @@ class PlatformDepartmentDesktopApi:
             parent_department_id=department.parent_department_id,
             department_type=department.department_type,
             cost_center_code=department.cost_center_code,
-            manager_employee_id=department.manager_employee_id,
+            head_of_department_employee_id=department.head_of_department_employee_id,
             is_active=department.is_active,
             notes=department.notes,
             version=department.version,
+            created_at=department.created_at,
+            updated_at=department.updated_at,
         )
 
 __all__ = ["PlatformDepartmentDesktopApi"]

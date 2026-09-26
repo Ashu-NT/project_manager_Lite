@@ -15,7 +15,7 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
     _FinancialSourceContract,
     _required_text,
 )
-from src.core.platform.finance.money.serialization import (
+from src.core.platform.domain.finance.money.serialization import (
     DecimalQuantityPayload,
     MonetaryRatePayload,
 )
@@ -64,7 +64,7 @@ class ProcurementCommitmentFinancialSource(_FinancialSourceContract):
         return normalized or None
 
     @model_validator(mode="after")
-    def _validate_commitment_source(self) -> "ProcurementCommitmentFinancialSource":
+    def _validate_commitment_source(self) -> ProcurementCommitmentFinancialSource:
         reference = self.reference
         if (
             reference.source_module != FinancialSourceModule.INVENTORY_PROCUREMENT
@@ -124,7 +124,7 @@ class ProcurementReceiptAccrualFinancialSource(_FinancialSourceContract):
         return value.astimezone(timezone.utc)
 
     @model_validator(mode="after")
-    def _validate_receipt_source(self) -> "ProcurementReceiptAccrualFinancialSource":
+    def _validate_receipt_source(self) -> ProcurementReceiptAccrualFinancialSource:
         reference = self.reference
         if (
             reference.source_module != FinancialSourceModule.INVENTORY_PROCUREMENT

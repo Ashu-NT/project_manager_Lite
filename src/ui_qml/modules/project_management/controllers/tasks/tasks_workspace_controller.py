@@ -7,7 +7,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
-    serialize_task_collection_view_model,
+    safe_error_message,
 )
 from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
     PMAssignmentController,
@@ -28,7 +28,6 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
     ProjectTasksWorkspacePresenter,
 )
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from . import task_bulk_selection_actions as _bulk
 from . import task_filter_actions as _filter
@@ -46,7 +45,6 @@ from .task_domain_event_binder import (
 from .task_export_handler import export_tasks
 from .task_lazy_section_loader import (
     load_selected_task_activity,
-    update_task_activity_query,
     load_selected_task_assignments,
     load_selected_task_collaboration,
     load_selected_task_dependencies,
@@ -55,6 +53,7 @@ from .task_lazy_section_loader import (
     load_selected_task_time,
     load_task_assignments_and_dependencies,
     refresh_time_entries_only,
+    update_task_activity_query,
 )
 from .task_selection_handler import (
     activate_task,
@@ -178,7 +177,6 @@ class ProjectManagementTasksWorkspaceController(
             "items": [], "searchText": "", "category": "all", "page": 1,
             "pageSize": 25, "total": 0, "sortKey": "occurredAt", "sortDirection": "desc",
         }
-        self._task_activity_table_model = DynamicTableModel(self)
         # ── Sub-controllers ────────────────────────────────────────────
         create_subcontrollers(self)
         self.refresh()
@@ -460,10 +458,6 @@ class ProjectManagementTasksWorkspaceController(
     def taskActivity(self) -> dict[str, object]:
         return self._task_activity
 
-    @Property(QObject, constant=True)
-    def taskActivityTableModel(self) -> QObject:
-        return self._task_activity_table_model
-
     @Property(bool, notify=taskActivitySectionLoadedChanged)
     def isTaskActivitySectionLoaded(self) -> bool:
         return (
@@ -592,7 +586,10 @@ class ProjectManagementTasksWorkspaceController(
                 self._selected_project_id,
                 delay_working_days,
             )
-            self._set_section_error("scheduleImpact", str(exc))
+            self._set_section_error(
+                "scheduleImpact",
+                safe_error_message(exc, safe_message="Schedule impact could not be calculated."),
+            )
             preview = {}
         else:
             logger.debug(

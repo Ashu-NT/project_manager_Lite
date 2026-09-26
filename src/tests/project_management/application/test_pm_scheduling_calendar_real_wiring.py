@@ -10,7 +10,36 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.infra.persistence.orm import Base
+from src.core.modules.project_management.api.desktop.scheduling.api import (
+    ProjectManagementSchedulingDesktopApi,
+)
+from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import (
+    EnterpriseCalendarDesktopApi,
+)
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
+    EnterpriseCalendarResolver,
+)
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
+    WorkingTimeCalculator,
+)
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
+    CalendarExceptionService,
+)
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
+    RecurringEventService,
+)
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
+    ShiftPatternService,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -19,26 +48,7 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
-)
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
-)
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import RecurringEventService
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
-)
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
-)
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
-from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import EnterpriseCalendarDesktopApi
-from src.core.modules.project_management.api.desktop.scheduling.api import (
-    ProjectManagementSchedulingDesktopApi,
-)
+from src.infra.persistence.orm import Base
 
 
 @pytest.fixture
@@ -60,8 +70,8 @@ def org_id():
 
 @pytest.fixture
 def tenant_context(org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     @dataclass
     class FakeOrg:
@@ -94,8 +104,8 @@ def mock_user_session():
 
 @pytest.fixture
 def mock_org_repo(org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     @dataclass
     class FakeOrg:

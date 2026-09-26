@@ -12,8 +12,12 @@ from src.core.modules.project_management.api.desktop.timesheets.formatters.time_
 from src.core.modules.project_management.api.desktop.timesheets.models.periods import (
     TimesheetPeriodSummaryDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.timesheets.models.review import TimesheetReviewDetailDesktopDto
-from src.core.modules.project_management.api.desktop.timesheets.services.project_lookup_service import project_names_from_ids
+from src.core.modules.project_management.api.desktop.timesheets.models.review import (
+    TimesheetReviewDetailDesktopDto,
+)
+from src.core.modules.project_management.api.desktop.timesheets.services.project_lookup_service import (
+    project_names_from_ids,
+)
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetReviewInspectorFact,
 )

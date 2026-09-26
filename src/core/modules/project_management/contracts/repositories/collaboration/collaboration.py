@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from src.core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
+from src.core.modules.project_management.domain.collaboration import (
+    TaskComment,
+    TaskPresence,
+)
 
 
 class TaskCommentRepository(ABC):

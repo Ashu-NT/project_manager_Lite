@@ -70,7 +70,10 @@ Item {
                 if (root.workspaceController) root.workspaceController.setResourceSkillsSearch(text)
             }
             onRefreshRequested: {
-                if (root.workspaceController) root.workspaceController.refreshResourceSkills()
+                if (root.workspaceController) {
+                    root.workspaceController.clearMessages()
+                    root.workspaceController.refreshResourceSkills()
+                }
             }
 
             AppControls.ComboBox {

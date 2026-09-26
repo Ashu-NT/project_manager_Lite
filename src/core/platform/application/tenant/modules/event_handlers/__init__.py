@@ -5,7 +5,7 @@ from src.core.platform.application.tenant.modules.event_handlers.view_invalidati
 )
 
 __all__ = [
-    "MODULE_ENTITLEMENT_CATEGORY",
     "MODULE_ENTITLEMENTS_SCOPE_CODE",
+    "MODULE_ENTITLEMENT_CATEGORY",
     "build_module_entitlement_view_invalidation_handler",
 ]

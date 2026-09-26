@@ -11,11 +11,11 @@ from datetime import date
 
 import pytest
 
-from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.modules.project_management.application.scheduling.leveling.resource_leveling_planner import (
     ResourceLevelingPlanner,
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.platform.common.exceptions import ConcurrencyError
 
 
 def _snapshot(ts, project_id):

@@ -11,6 +11,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.baseline
     ProjectBaselineORM,
 )
 
+
 def baseline_from_orm(obj: ProjectBaselineORM) -> ProjectBaseline:
     return ProjectBaseline(
         id=obj.id,
@@ -103,9 +104,9 @@ def variance_record_to_orm(record: BaselineVarianceRecord) -> BaselineVarianceRe
 
 __all__ = [
     "baseline_from_orm",
-    "baseline_to_orm",
     "baseline_task_from_orm",
     "baseline_task_to_orm",
+    "baseline_to_orm",
     "variance_record_from_orm",
     "variance_record_to_orm",
 ]

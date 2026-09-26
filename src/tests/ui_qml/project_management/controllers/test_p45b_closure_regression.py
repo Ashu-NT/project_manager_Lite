@@ -15,7 +15,9 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskAssignmentChanged,
 )
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 
 def _pm_catalog(services) -> ProjectManagementWorkspaceCatalog:

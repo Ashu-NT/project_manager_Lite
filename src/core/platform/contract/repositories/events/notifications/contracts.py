@@ -25,5 +25,11 @@ class NotificationRepository(ABC):
     @abstractmethod
     def mark_read(self, notification_id: str, *, read_at: datetime) -> None: ...
 
+    @abstractmethod
+    def count_unread_for_user(self, user_id: str) -> int: ...
+
+    @abstractmethod
+    def mark_all_read_for_user(self, user_id: str, *, read_at: datetime) -> int: ...
+
 
 __all__ = ["NotificationRepository"]

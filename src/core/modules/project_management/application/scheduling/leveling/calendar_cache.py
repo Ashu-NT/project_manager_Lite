@@ -29,9 +29,9 @@ index/cache over the SAME authoritative source, not a second
 calendar engine and not a change to CPM math or scheduling semantics.
 """
 from __future__ import annotations
-import logging
 
 import bisect
+import logging
 from datetime import date, timedelta
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (

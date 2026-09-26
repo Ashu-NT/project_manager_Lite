@@ -5,7 +5,6 @@ import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as PMControllers
 import Platform.Controllers 1.0 as PlatformControllers
 import Shell.Context 1.0 as ShellContexts
-import "components" as Components
 
 
 Item {
@@ -14,6 +13,7 @@ Item {
     property PMControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property ShellContexts.ShellContext shellModel
+    property var breadcrumb: []
 
     readonly property var _nav: root.pmCatalog ? root.pmCatalog.pmNavigation : null
     readonly property string _activeWorkspaceKey: root._nav ? root._nav.workspaceKey : "dashboard"
@@ -56,22 +56,6 @@ Item {
             Layout.fillHeight: true
             spacing: 0
 
-            Components.PmWorkspaceNavigation {
-                objectName: "pmWorkspaceNavigation"
-                Layout.fillHeight: true
-                navigationItems: root._nav ? root._nav.navigationItems : []
-                selectedWorkspaceKey: root._activeWorkspaceKey
-                onWorkspaceSelected: function(workspaceKey) {
-                    if (root._nav) root._nav.selectWorkspace(workspaceKey)
-                }
-            }
-
-            Rectangle {
-                Layout.preferredWidth: Theme.AppTheme.borderWidthThin
-                Layout.fillHeight: true
-                color: Theme.AppTheme.divider
-            }
-
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -83,9 +67,9 @@ Item {
                         { key: "projects", file: "../workspaces/projects/ProjectsWorkspacePage.qml" },
                         { key: "tasks", file: "../workspaces/tasks/TasksWorkspacePage.qml" },
                         { key: "scheduling", file: "../workspaces/scheduling/SchedulingWorkspacePage.qml" },
-                        { key: "timesheets", file: "../workspaces/resource_timesheets/ResourceTimesheetsPage.qml" },
+                        { key: "timesheets", file: "../workspaces/timesheets/ResourceTimesheetsPage.qml" },
                         { key: "resources", file: "../workspaces/resources/ResourcesWorkspacePage.qml" },
-                        { key: "review_queue", file: "../workspaces/timesheets/TimesheetsWorkspacePage.qml" },
+                        { key: "review_queue", file: "../workspaces/review_queue/TimesheetsWorkspacePage.qml" },
                         { key: "financials", file: "../workspaces/financials/FinancialsWorkspacePage.qml" },
                         { key: "register", file: "../workspaces/register/RegisterWorkspacePage.qml" },
                         { key: "collaboration", file: "../workspaces/collaboration/CollaborationWorkspacePage.qml" },
@@ -112,6 +96,11 @@ Item {
                                 if ("shellModel" in _capabilityLoader.item) {
                                     _capabilityLoader.item.shellModel = Qt.binding(function() {
                                         return root.shellModel
+                                    })
+                                }
+                                if ("breadcrumb" in _capabilityLoader.item) {
+                                    _capabilityLoader.item.breadcrumb = Qt.binding(function() {
+                                        return root.breadcrumb
                                     })
                                 }
                             }

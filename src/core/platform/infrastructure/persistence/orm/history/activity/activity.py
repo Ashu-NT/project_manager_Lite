@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -16,16 +15,16 @@ class ActivityEntryORM(Base):
     action: Mapped[str] = mapped_column(String(128), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
     entity_id: Mapped[str] = mapped_column(String, nullable=False)
-    actor_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    actor_role: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    actor_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    actor_role: Mapped[str | None] = mapped_column(String(64), nullable=True)
     module: Mapped[str] = mapped_column(String(64), nullable=False, default="platform", server_default="platform")
-    workspace_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    workspace_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
     )
-    organization_id: Mapped[Optional[str]] = mapped_column(
+    organization_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="RESTRICT"),
         nullable=True,
@@ -35,11 +34,11 @@ class ActivityEntryORM(Base):
     human_message: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     details_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
     context_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
-    parent_entity_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    related_entity_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    related_entity_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    icon: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    color: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    parent_entity_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    related_entity_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    related_entity_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    icon: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    color: Mapped[str | None] = mapped_column(String(32), nullable=True)
     visibility: Mapped[str] = mapped_column(String(32), nullable=False, default="workspace", server_default="workspace")
 
 

@@ -182,6 +182,14 @@ class ProjectManagementRegisterDesktopApi:
     def delete_entry(self, entry_id: str) -> None:
         self._require_register_service().delete_entry(entry_id)
 
+    def bulk_set_entry_status(
+        self, entry_ids: tuple[str, ...], status: str
+    ) -> tuple[RegisterEntryDesktopDto, ...]:
+        service = self._require_register_service()
+        entries = service.bulk_set_entry_status(entry_ids, coerce_entry_status(status))
+        project_name_by_id = self._project_name_by_id()
+        return tuple(serialize_entry(entry, project_name_by_id=project_name_by_id) for entry in entries)
+
     def _project_name_by_id(self) -> dict[str, str]:
         return {
             option.value: option.label

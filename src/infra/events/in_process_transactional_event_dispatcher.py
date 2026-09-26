@@ -23,7 +23,7 @@ class InProcessTransactionalEventDispatcher(TransactionalEventDispatcher, Transa
             self._handlers.setdefault(event_type, []).append(handler)
         return _TransactionalSubscription(self, event_type, handler)
 
-    def dispatch(self, event: DomainEvent, uow) -> None:  # noqa: ANN001 -- uow: UnitOfWork (P3, forward reference only)
+    def dispatch(self, event: DomainEvent, uow) -> None:
         with self._lock:
             handlers = tuple(self._handlers.get(type(event), ()))
         for handler in handlers:

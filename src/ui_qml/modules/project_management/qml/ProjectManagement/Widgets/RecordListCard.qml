@@ -89,12 +89,32 @@ Item {
 
                     readonly property bool isSelected: root.selectedItemId === String(rowDelegate.modelData.id || "")
                     readonly property string statusText: String(rowDelegate.modelData.statusLabel || "")
+                    readonly property string statusTone: String(rowDelegate.modelData.tone || "")
                     readonly property string subtitleText: String(rowDelegate.modelData.subtitle || "")
                     readonly property string supportingTextValue: String(rowDelegate.modelData.supportingText || "")
                     readonly property string metaText: String(rowDelegate.modelData.metaText || "")
                     readonly property bool hasActions: root.primaryActionLabel.length > 0
                         || root.secondaryActionLabel.length > 0
                         || root.tertiaryActionLabel.length > 0
+                    readonly property string _title: String(rowDelegate.modelData.title || "")
+
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.Button
+                    Accessible.name: rowDelegate._title
+                    Accessible.selected: rowDelegate.isSelected
+                    Accessible.onPressAction: {
+                        const itemId = String(rowDelegate.modelData.id || "")
+                        root.selectedItemId = itemId
+                        root.itemSelected(itemId)
+                    }
+                    Keys.onPressed: (event) => {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            const itemId = String(rowDelegate.modelData.id || "")
+                            root.selectedItemId = itemId
+                            root.itemSelected(itemId)
+                            event.accepted = true
+                        }
+                    }
 
                     Rectangle {
                         anchors.fill: parent
@@ -103,6 +123,8 @@ Item {
                             : rowHoverArea.containsMouse
                                 ? Theme.AppTheme.hoverSurface
                                 : "transparent"
+                        border.width: rowDelegate.activeFocus ? 2 : 0
+                        border.color: Theme.AppTheme.focusBorder
 
                         Rectangle {
                             anchors.left: parent.left
@@ -144,6 +166,7 @@ Item {
                             AppWidgets.StatusChip {
                                 visible: rowDelegate.statusText.length > 0
                                 status: rowDelegate.statusText
+                                tone:   rowDelegate.statusTone
                             }
                         }
 

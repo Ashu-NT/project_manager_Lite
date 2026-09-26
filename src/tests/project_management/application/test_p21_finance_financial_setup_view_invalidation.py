@@ -1,7 +1,7 @@
 """Finance Financial Setup ViewInvalidation: `ProjectFinancialProfileUpdated`/
 `ProjectFinancialProfileTransitioned` -> `financial_profile` (project-scoped `ResourceScope`);
 organization-scoped cost-code catalog and project-scoped restriction invalidation; no-op
-semantics on `configure_profile`/`update_cost_code`; deduped by (transaction correlation_id,
+semantics on `configure_profile`/`update_cost_code`; deduped by (transaction context identity,
 target identity); and the FinancialsWorkspaceController's narrow "controls"-only destination
 invalidation.
 """
@@ -138,18 +138,19 @@ def test_profile_dedupe_by_project_target_within_one_transaction():
     channel = _fake_channel()
     handler = build_financial_profile_view_invalidation_handler(channel)
     now = datetime.now(timezone.utc)
+    context = _context("same-tx")
 
     handler(
         ProjectFinancialProfileUpdated(
             tenant_id="t1", organization_id="o1", project_id="p1", occurred_at=now,
         ),
-        _context("same-tx"),
+        context,
     )
     handler(
         ProjectFinancialProfileTransitioned(
             tenant_id="t1", organization_id="o1", project_id="p1", status="ACTIVE", occurred_at=now,
         ),
-        _context("same-tx"),
+        context,
     )
     assert len(channel.notified) == 1, "same project target within one transaction coalesces"
 
@@ -157,7 +158,7 @@ def test_profile_dedupe_by_project_target_within_one_transaction():
         ProjectFinancialProfileUpdated(
             tenant_id="t1", organization_id="o1", project_id="p2", occurred_at=now,
         ),
-        _context("same-tx"),
+        context,
     )
     assert len(channel.notified) == 2, "a distinct project within the same transaction is separate"
 
@@ -165,7 +166,7 @@ def test_profile_dedupe_by_project_target_within_one_transaction():
         ProjectFinancialProfileUpdated(
             tenant_id="t1", organization_id="o1", project_id="p1", occurred_at=now,
         ),
-        _context("next-tx"),
+        _context("same-tx"),
     )
     assert len(channel.notified) == 3, "a new transaction is never coalesced with the previous one"
 
@@ -331,7 +332,9 @@ def test_add_and_remove_project_cost_code_restriction_invalidate_project_setup(s
 
 def test_financials_controller_financial_profile_stale_invalidates_only_controls(services):
     from src.application.runtime import build_desktop_api_registry
-    from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+    from src.ui_qml.modules.project_management.context import (
+        ProjectManagementWorkspaceCatalog,
+    )
 
     registry = build_desktop_api_registry(services)
     catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
@@ -341,9 +344,9 @@ def test_financials_controller_financial_profile_stale_invalidates_only_controls
     controller._request_domain_refresh = lambda: None
 
     controller.onFinancialProfileStale("proj-a")
-    assert controller._invalidated_destinations == {"controls"}, (
-        "narrower than the legacy {planning, costs, controls} -- no cached cost-code or "
-        "planning/costs projection actually depends on Financial Setup facts"
+    assert controller._invalidated_destinations == {"controls", "commercial"}, (
+        "Billing method and currency are Finance Profile facts consumed by the commercial "
+        "projection; Planning and Costs remain independent."
     )
 
     controller._invalidated_destinations.clear()

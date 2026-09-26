@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.domain.enums import CostType
 
 from .models import ResourceCatalogReadPage
-from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 
 
 class ResourceCatalogReader(Protocol):

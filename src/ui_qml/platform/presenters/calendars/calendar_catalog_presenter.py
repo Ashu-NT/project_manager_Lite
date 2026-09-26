@@ -4,14 +4,18 @@ from typing import Any
 
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.time_management.calendar.models.calendar import (
-    WorkingDayCalculationCommand,
     WorkingDayCalculationDto,
 )
-from src.ui_qml.platform.presenters.common.presenter_support_helpers import int_value, preview_error_result, string_value
+from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
+    int_value,
+    preview_error_result,
+    string_value,
+)
 from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,
 )
+
 
 class PlatformCalendarCatalogPresenter:
     """
@@ -107,7 +111,9 @@ class PlatformCalendarCatalogPresenter:
                 ok=False,
                 error=DesktopApiError(code="validation", message="Working days must be >= 0.", category="validation"),
             )
-        from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import WorkingDaysCommand
+        from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+            WorkingDaysCommand,
+        )
         return self._enterprise_calendar_api.calculate_working_days(
             WorkingDaysCommand(start_date=start_date_str, working_days=working_days)
         )

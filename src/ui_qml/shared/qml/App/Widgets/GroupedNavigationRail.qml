@@ -43,6 +43,7 @@ Rectangle {
     }
 
     Accessible.role: Accessible.Pane
+    Accessible.name: root.railTitle
 
     // -- Grouping (data-driven, no hardcoded group list) ---------------
     readonly property bool _hasGroups: {
@@ -161,8 +162,43 @@ Rectangle {
         root.itemActivated(visible[nextPos])
     }
 
+    function _groupKeyForItem(itemIndex) {
+        const groups = root._groups
+        for (let g = 0; g < groups.length; g += 1) {
+            const group = groups[g]
+            for (let i = 0; i < group.items.length; i += 1) {
+                if (group.items[i].itemIndex === itemIndex) {
+                    return group.key
+                }
+            }
+        }
+        return ""
+    }
+
+    function _expandActiveGroup() {
+        const key = root._groupKeyForItem(root.activeIndex)
+        if (key.length > 0) {
+            root._setExpanded(key, true)
+        }
+    }
+
+    function _collapseActiveGroup() {
+        const key = root._groupKeyForItem(root.activeIndex)
+        if (key.length > 0) {
+            root._setExpanded(key, false)
+        }
+    }
+
     Keys.onDownPressed: root._moveSelection(1)
     Keys.onUpPressed: root._moveSelection(-1)
+    Keys.onRightPressed: root._expandActiveGroup()
+    Keys.onLeftPressed: root._collapseActiveGroup()
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            root.itemActivated(root.activeIndex)
+            event.accepted = true
+        }
+    }
     focus: true
     activeFocusOnTab: true
 
@@ -267,6 +303,11 @@ Rectangle {
                         height: navGroup.hasHeader ? Theme.AppTheme.sidebarRowHeight : 0
                         visible: navGroup.hasHeader
 
+                        Accessible.role: Accessible.Button
+                        Accessible.name: String(navGroup.modelData.label || "")
+                            + (navGroup.expanded ? ", expanded" : ", collapsed")
+                        Accessible.onPressAction: root._toggleGroup(String(navGroup.modelData.key || ""))
+
                         Rectangle {
                             anchors.fill: parent
                             radius: Theme.AppTheme.radiusSm
@@ -328,6 +369,7 @@ Rectangle {
 
                                 required property var modelData
 
+                                objectName: "navRailItem_" + parseInt(navItem.modelData.itemIndex)
                                 width: navGroup.width
                                 height: Theme.AppTheme.sidebarRowHeight
 
@@ -337,6 +379,11 @@ Rectangle {
                                 readonly property string itemLabel: root._itemLabel(navItem.entry)
                                 readonly property int itemCount: root._itemCount(navItem.entry)
                                 readonly property string itemIcon: root._itemIcon(navItem.entry)
+
+                                Accessible.role: Accessible.ListItem
+                                Accessible.name: navItem.itemLabel
+                                Accessible.selected: navItem.isActive
+                                Accessible.onPressAction: root.itemActivated(navItem.itemIndex)
 
                                 Rectangle {
                                     anchors.fill: parent
@@ -348,6 +395,8 @@ Rectangle {
                                         : navHover.containsMouse
                                             ? Theme.AppTheme.hoverSurface
                                             : "transparent"
+                                    border.width: navItem.isActive && root.activeFocus ? 2 : 0
+                                    border.color: Theme.AppTheme.focusBorder
                                 }
 
                                 Rectangle {

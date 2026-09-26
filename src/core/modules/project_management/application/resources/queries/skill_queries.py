@@ -14,7 +14,6 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCertificationReadPage,
     ResourceSkillReadPage,
 )
-
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )

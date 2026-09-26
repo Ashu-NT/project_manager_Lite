@@ -12,6 +12,7 @@ from src.core.modules.project_management.infrastructure.importers.models.import_
     ImportRow,
 )
 
+
 class CsvImportParser(ImportParser):
     """
     CSV parser — wraps the CSV import path as an ImportParser subclass.

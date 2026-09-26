@@ -6,8 +6,10 @@ import time
 
 import pytest
 
-from src.tests.project_management._sql_measurement_helpers import count_calls, measure_sql
-
+from src.tests.project_management._sql_measurement_helpers import (
+    count_calls,
+    measure_sql,
+)
 
 _SIZES = {"small": 1, "medium": 5, "large": 12}
 

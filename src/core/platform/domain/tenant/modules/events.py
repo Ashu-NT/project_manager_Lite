@@ -54,9 +54,9 @@ class ModuleLifecycleTransitioned:
 
 
 __all__ = [
-    "ModuleLicensed",
-    "ModuleLicenseRevoked",
-    "ModuleEnabled",
     "ModuleDisabled",
+    "ModuleEnabled",
+    "ModuleLicenseRevoked",
+    "ModuleLicensed",
     "ModuleLifecycleTransitioned",
 ]

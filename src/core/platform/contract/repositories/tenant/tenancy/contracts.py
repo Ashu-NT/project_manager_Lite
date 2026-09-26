@@ -3,7 +3,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from src.core.platform.domain.tenant.tenancy.tenant import Tenant
-from src.core.platform.domain.tenant.tenancy.user_tenant_membership import UserTenantMembership
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
+    UserTenantMembership,
+)
 
 
 class TenantRepository(ABC):

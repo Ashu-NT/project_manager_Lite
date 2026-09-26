@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from enum import Enum
-from typing import Collection
 
 
 class ReadSortDirection(str, Enum):
@@ -10,7 +10,7 @@ class ReadSortDirection(str, Enum):
     DESCENDING = "desc"
 
     @classmethod
-    def coerce(cls, value: object) -> "ReadSortDirection":
+    def coerce(cls, value: object) -> ReadSortDirection:
         normalized = str(getattr(value, "value", value) or "").strip().lower()
         if normalized in {"desc", "descending", "1"}:
             return cls.DESCENDING
@@ -31,7 +31,7 @@ class ReadSort:
         allowed_keys: Collection[str],
         default_key: str,
         default_direction: ReadSortDirection = ReadSortDirection.ASCENDING,
-    ) -> "ReadSort":
+    ) -> ReadSort:
         normalized_key = str(key or "").strip()
         resolved_key = normalized_key if normalized_key in allowed_keys else default_key
         resolved_direction = (

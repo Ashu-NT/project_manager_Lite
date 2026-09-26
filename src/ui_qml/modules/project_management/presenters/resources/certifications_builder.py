@@ -8,6 +8,7 @@ from src.core.modules.project_management.api.desktop import (
     ResourceRemoveCertificationCommand,
     ResourceUpdateCertificationCommand,
 )
+
 from .validation import optional_text, require_text
 
 

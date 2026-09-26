@@ -15,9 +15,11 @@ from src.core.modules.project_management.application.resources.event_handlers.vi
 )
 from src.core.modules.project_management.domain.enums import WorkerType
 from src.core.shared.events.view_invalidation import OrganizationScope, ResourceScope
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.modules.project_management.adapters.resources.resource_view_invalidation_adapter import (
     ResourceViewInvalidationAdapter,
+)
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
 )
 
 _COUNTER = {"n": 0}
@@ -148,7 +150,9 @@ def test_no_op_update_produces_zero_hints(services):
 
 
 def test_failed_mutation_produces_zero_hints(services, monkeypatch):
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
 
     hints = _spy_hints(services)
 

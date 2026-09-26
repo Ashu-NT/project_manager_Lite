@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
+from src.application.runtime import build_desktop_api_registry
 from src.core.platform.api.desktop.security.identity.models.identity import (
     ApiKeyIssueCommand,
     ServicePrincipalCreateCommand,
 )
-from src.application.runtime import build_desktop_api_registry
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
 
@@ -69,6 +69,24 @@ def test_service_account_cannot_use_human_password_login(services):
     with pytest.raises(ValidationError) as exc_info:
         auth.authenticate(user.username, "KnownServicePassword123!")
     assert exc_info.value.code == "AUTH_FAILED"
+
+
+def test_worker_resolution_returns_only_active_scoped_service_identity(services):
+    identity = services["service_principal_service"]
+    principal = identity.create_service_principal(
+        name="Approved Time Worker",
+        initial_role_name="viewer",
+    )
+
+    resolved = identity.resolve_execution_principal(name="Approved Time Worker")
+
+    assert resolved.id == principal.id
+    assert services["auth_service"]._user_repo.get(resolved.user_id).account_type == "service"
+
+    identity.disable_service_principal(principal.id)
+    with pytest.raises(BusinessRuleError) as exc_info:
+        identity.resolve_execution_principal(name="Approved Time Worker")
+    assert exc_info.value.code == "INTEGRATION_SERVICE_PRINCIPAL_DISABLED"
 
 
 def test_api_key_permissions_cannot_exceed_service_principal(services):

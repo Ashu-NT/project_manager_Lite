@@ -49,7 +49,7 @@ class SchedulingLevelingProposalDto:
 
 
 __all__ = [
+    "SchedulingLevelingProposalDto",
     "SchedulingProposedTaskMoveDto",
     "SchedulingUnresolvedConflictDto",
-    "SchedulingLevelingProposalDto",
 ]

@@ -10,66 +10,100 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financials_mutation_mixin import FinancialsMutationMixin
-from src.ui_qml.modules.project_management.controllers.financials.financials_lookup_mixin import FinancialsLookupMixin
-from src.ui_qml.modules.project_management.controllers.financials.financials_refresh_mixin import FinancialsRefreshMixin
-from src.ui_qml.modules.project_management.controllers.financials.forecast_domain_event_binder import (
-    on_forecast_approved_basis_stale,
-    on_forecast_planning_stale,
+from src.ui_qml.modules.project_management.controllers.financials.budgets.budget_domain_event_binder import (
+    on_budget_planning_stale,
 )
-from src.ui_qml.modules.project_management.controllers.financials.commitment_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.budgets.mutation_mixin import (
+    FinancialsBudgetsMutationMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.commitments.commitment_domain_event_binder import (
     on_commitment_stale,
 )
-from src.ui_qml.modules.project_management.controllers.financials.cost_entry_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.cost.cost_entry_domain_event_binder import (
     on_cost_entry_actuals_stale,
     on_cost_entry_list_stale,
 )
-from src.ui_qml.modules.project_management.controllers.financials.budget_domain_event_binder import (
-    on_budget_planning_stale,
+from src.ui_qml.modules.project_management.controllers.financials.cost.mutation_mixin import (
+    FinancialsCostMutationMixin,
 )
-from src.ui_qml.modules.project_management.controllers.financials.billing_domain_event_binder import (
-    on_billing_commercial_stale,
-)
-from src.ui_qml.modules.project_management.controllers.financials.financial_change_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.financial_changes.financial_change_domain_event_binder import (
     on_financial_change_budget_stale,
     on_financial_change_forecast_stale,
     on_financial_change_schedule_stale,
     on_financial_change_workspace_stale,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financial_setup_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.financial_changes.mutation_mixin import (
+    FinancialsFinancialChangesMutationMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.forecasts.forecast_domain_event_binder import (
+    on_forecast_approved_basis_stale,
+    on_forecast_planning_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.forecasts.mutation_mixin import (
+    FinancialsForecastsMutationMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.governance.financial_setup_domain_event_binder import (
     on_financial_profile_stale,
 )
-from src.ui_qml.modules.project_management.controllers.financials.planned_cost_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.governance.mutation_mixin import (
+    FinancialsGovernanceMutationMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.invoicing.billing_domain_event_binder import (
+    on_billing_commercial_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.invoicing.mutation_mixin import (
+    FinancialsInvoicingMutationMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.planned_costs.planned_cost_domain_event_binder import (
     on_planned_cost_snapshot_stale,
 )
-from src.ui_qml.modules.project_management.controllers.financials.rate_card_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.rate_cards.mutation_mixin import (
+    FinancialsRateCardsMutationMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.rate_cards.rate_card_domain_event_binder import (
     on_rate_card_detail_stale,
     on_rate_card_list_stale,
     on_rate_card_list_stale_for_project,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financials_selection_mixin import FinancialsSelectionMixin
-from src.ui_qml.modules.project_management.controllers.financials.financials_state_mixin import FinancialsStateMixin
-from src.ui_qml.modules.project_management.controllers.financials.financials_types import (
+from src.ui_qml.modules.project_management.controllers.financials.reporting.mutation_mixin import (
+    FinancialsReportingMutationMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_lookup_mixin import (
+    FinancialsLookupMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_mutation_mixin import (
+    FinancialsMutationMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_refresh_mixin import (
+    FinancialsRefreshMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_selection_mixin import (
+    FinancialsSelectionMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_state_mixin import (
+    FinancialsStateMixin,
+)
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_types import (
     FinancialsMap,
     FinancialsObjectList,
     default_collection,
     default_commitment_summary,
-    default_overview,
     default_detail,
+    default_overview,
 )
 from src.ui_qml.modules.project_management.presenters import (
     ProjectFinancialsWorkspacePresenter,
     ProjectManagementWorkspacePresenter,
 )
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+from src.ui_qml.modules.project_management.presenters.financials.shared.destination_builder import (
+    FINANCE_DESTINATIONS,
+    FINANCE_SUBSECTIONS,
+)
 from src.ui_qml.shared.models.currency_options import (
     CURRENCY_OPTIONS,
     DEFAULT_CURRENCY_CODE,
 )
-from src.ui_qml.modules.project_management.presenters.financials.destination_builder import (
-    FINANCE_DESTINATIONS,
-    FINANCE_SUBSECTIONS,
-)
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -82,6 +116,14 @@ class ProjectManagementFinancialsWorkspaceController(
     FinancialsRefreshMixin,
     FinancialsSelectionMixin,
     FinancialsMutationMixin,
+    FinancialsBudgetsMutationMixin,
+    FinancialsCostMutationMixin,
+    FinancialsFinancialChangesMutationMixin,
+    FinancialsForecastsMutationMixin,
+    FinancialsGovernanceMutationMixin,
+    FinancialsInvoicingMutationMixin,
+    FinancialsRateCardsMutationMixin,
+    FinancialsReportingMutationMixin,
     FinancialsLookupMixin,
     FinancialsStateMixin,
 ):
@@ -97,6 +139,8 @@ class ProjectManagementFinancialsWorkspaceController(
     reportDefinitionsChanged = Signal()
     performanceQueryStateChanged = Signal()
     ledgerChanged = Signal()
+    postingFailuresChanged = Signal()
+    postingFailureQueryStateChanged = Signal()
     activityChanged = Signal()
     actualSortKeyChanged = Signal()
     actualSortDirectionChanged = Signal()
@@ -126,6 +170,7 @@ class ProjectManagementFinancialsWorkspaceController(
     commitmentsChanged = Signal()
     commitmentSortKeyChanged = Signal()
     commitmentSortDirectionChanged = Signal()
+    commitmentExposureChanged = Signal()
     baselineVarianceChanged = Signal()
     selectedBaselineIdChanged = Signal()
     baselineVersionsChanged = Signal()
@@ -206,6 +251,12 @@ class ProjectManagementFinancialsWorkspaceController(
         self._cost_phasing_date_to = today
         self._cost_phasing_granularity = "month"
         self._ledger = default_collection()
+        self._posting_failures = default_collection()
+        self._posting_failures_table_model = DynamicTableModel(self)
+        self._posting_failure_page = 1
+        self._posting_failure_sort_key = "metaText"
+        self._posting_failure_sort_direction = Qt.DescendingOrder.value
+        self._posting_failure_status = ""
         self._activity = default_collection()
         self._actual_page = 1
         self._actual_sort_key = "metaText"
@@ -258,6 +309,7 @@ class ProjectManagementFinancialsWorkspaceController(
         self._commitment_page = 1
         self._commitment_sort_key = "metaText"
         self._commitment_sort_direction = Qt.DescendingOrder.value
+        self._commitment_exposure = ""
         self._transaction_page_size = 50
         self._commitments_table_model = DynamicTableModel(self)
         self._baseline_variance: FinancialsObjectList = []
@@ -427,6 +479,23 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property(QObject, constant=True)
     def ledgerTableModel(self) -> DynamicTableModel: return self._ledger_table_model
 
+    @Property("QVariantMap", notify=postingFailuresChanged)
+    def postingFailures(self) -> FinancialsMap: return self._posting_failures
+
+    @Property(QObject, constant=True)
+    def postingFailuresTableModel(self) -> DynamicTableModel:
+        return self._posting_failures_table_model
+
+    @Property(str, notify=postingFailureQueryStateChanged)
+    def postingFailureSortKey(self) -> str: return self._posting_failure_sort_key
+
+    @Property(int, notify=postingFailureQueryStateChanged)
+    def postingFailureSortDirection(self) -> int:
+        return self._posting_failure_sort_direction
+
+    @Property(str, notify=postingFailureQueryStateChanged)
+    def postingFailureStatus(self) -> str: return self._posting_failure_status
+
     @Property(str, notify=actualSortKeyChanged)
     def actualSortKey(self) -> str: return self._actual_sort_key
 
@@ -572,6 +641,9 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property(int, notify=commitmentSortDirectionChanged)
     def commitmentSortDirection(self) -> int: return self._commitment_sort_direction
+
+    @Property(str, notify=commitmentExposureChanged)
+    def commitmentExposure(self) -> str: return self._commitment_exposure
 
     @Property("QVariantList", notify=baselineVarianceChanged)
     def baselineVariance(self) -> FinancialsObjectList: return self._baseline_variance
@@ -893,6 +965,16 @@ class ProjectManagementFinancialsWorkspaceController(
     def onBillingCommercialStale(self, project_id: str) -> None:
         on_billing_commercial_stale(self, project_id)
 
+    def onBillingTransportStale(self, project_id: str) -> None:
+        if project_id != self._selected_project_id:
+            return
+        self._loaded_destination_keys = {
+            key for key in self._loaded_destination_keys
+            if not (key[0] == project_id and key[1] == "commercial" and key[2] in {"billing", "accounting"})
+        }
+        if self._active_destination == "commercial" and self._active_subsection in {"billing", "accounting"}:
+            self._request_domain_refresh()
+
     def onRateCardListStale(self, rate_card_id: str) -> None:
         on_rate_card_list_stale(self, rate_card_id)
 
@@ -1116,6 +1198,50 @@ class ProjectManagementFinancialsWorkspaceController(
         self._set_billing_line_filters(search, source_type, source_state)
 
     @Slot("QVariantMap", result="QVariantMap")
+    def createBillingProfile(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._create_billing_profile(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def activateBillingProfile(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._activate_billing_profile(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addBillingScheduleLine(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._add_billing_schedule_line(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def markBillingScheduleLineReady(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._mark_billing_schedule_line_ready(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createBillingPreparation(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._create_billing_preparation(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addBillingSource(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._add_billing_source(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def removeBillingLine(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._remove_billing_line(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def cancelBillingPreparation(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._cancel_billing_preparation(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def submitBillingPreparation(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._submit_billing_preparation(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def requestBillingDelivery(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._request_billing_delivery(payload)
+
+    @Slot(str, bool, str, result="QVariantMap")
+    def decideBillingApproval(self, request_id: str, approve: bool, note: str = "") -> FinancialsMap:
+        return self._decide_billing_approval(request_id, approve, note)
+
+    @Slot("QVariantMap", result="QVariantMap")
     def createManualActual(self, payload: FinancialsMap) -> FinancialsMap: return self._create_manual_actual(payload)
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -1127,6 +1253,14 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, int, int, result="QVariantMap")
     def searchFinanceProjects(self, search: str, page: int, page_size: int) -> FinancialsMap:
         return self._search_finance_projects(search, page, page_size)
+
+    @Slot(str, str, str, int, int, result="QVariantMap")
+    def searchEligibleBillingSources(
+        self, project_id: str, preparation_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_eligible_billing_sources(
+            project_id, preparation_id, search, page, page_size
+        )
 
     @Slot(str, str, int, int, result="QVariantMap")
     def searchRateResources(
@@ -1494,6 +1628,22 @@ class ProjectManagementFinancialsWorkspaceController(
         self._set_actual_filters(status, source)
 
     @Slot(int)
+    def setPostingFailurePage(self, page: int) -> None:
+        self._set_posting_failure_page(page)
+
+    @Slot(int)
+    def setPostingFailurePageSize(self, page_size: int) -> None:
+        self._set_posting_failure_page_size(page_size)
+
+    @Slot(str, int)
+    def setPostingFailureSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_posting_failure_sort(sort_key, sort_direction)
+
+    @Slot(str)
+    def setPostingFailureStatus(self, status: str) -> None:
+        self._set_posting_failure_status(status)
+
+    @Slot(int)
     def setCommitmentPage(self, page: int) -> None: self._set_commitment_page(page)
 
     @Slot(int)
@@ -1503,6 +1653,10 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, int)
     def setCommitmentSort(self, sort_key: str, sort_direction: int) -> None:
         self._set_commitment_sort(sort_key, sort_direction)
+
+    @Slot(str)
+    def setCommitmentExposure(self, exposure: str) -> None:
+        self._set_commitment_exposure(exposure)
 
 
 __all__ = ["ProjectManagementFinancialsWorkspaceController"]

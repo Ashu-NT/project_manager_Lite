@@ -26,7 +26,7 @@ from src.core.platform.domain.approval import ApprovalRequest
 def _as_dependency_type(value: Any) -> DependencyType:
     if isinstance(value, DependencyType):
         return value
-    return DependencyType((value or DependencyType.FINISH_TO_START.value))
+    return DependencyType(value or DependencyType.FINISH_TO_START.value)
 
 
 def _as_optional_date(value: Any) -> date | None:

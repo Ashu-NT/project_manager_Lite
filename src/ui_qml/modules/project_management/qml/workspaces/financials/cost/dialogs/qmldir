@@ -1,0 +1,3 @@
+module workspaces.financials.cost.dialogs
+ActualLifecycleDialog 1.0 ActualLifecycleDialog.qml
+ManualActualEditorDialog 1.0 ManualActualEditorDialog.qml

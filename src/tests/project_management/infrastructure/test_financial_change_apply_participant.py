@@ -15,17 +15,17 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.modules.project_management.domain.financials.financial_change import (
-    FinancialChangeImpactType,
-    FinancialChangeStatus,
-)
 from src.core.modules.project_management.application.financials.budgets.budget_events import (
-    BudgetStatusChangeType,
     BudgetStatusChanged,
+    BudgetStatusChangeType,
 )
 from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
     FinancialChangeChanged,
     FinancialChangeEventType,
+)
+from src.core.modules.project_management.domain.financials.financial_change import (
+    FinancialChangeImpactType,
+    FinancialChangeStatus,
 )
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalParticipant,
@@ -57,7 +57,7 @@ def _seed_approved_budget(services):
         budget.id,
         cost_code_id=code.id,
         description="Approved scope",
-        amount=Decimal("100"),
+        amount=Decimal(100),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
@@ -86,7 +86,7 @@ def _submitted_change(services, session):
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Increase approved scope",
-        amount=Decimal("25"),
+        amount=Decimal(25),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,

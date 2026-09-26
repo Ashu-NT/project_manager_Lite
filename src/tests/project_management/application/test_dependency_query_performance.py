@@ -8,7 +8,6 @@ from src.core.modules.project_management.domain.enums import DependencyType
 from src.tests.project_management._sql_measurement_helpers import count_calls
 
 
-
 def test_list_project_dependencies_is_one_query_not_per_task_loop(services):
     ps = services["project_service"]
     ts = services["task_service"]

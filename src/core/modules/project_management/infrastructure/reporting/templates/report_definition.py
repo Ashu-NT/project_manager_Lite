@@ -7,6 +7,7 @@ from typing import Any
 
 from src.core.modules.project_management.domain.identifiers import generate_id
 
+
 class ColumnDataType(str, Enum):
     TEXT = "text"
     NUMBER = "number"
@@ -77,7 +78,7 @@ class ReportColumn:
         display_label: str,
         data_type: ColumnDataType = ColumnDataType.TEXT,
         **kwargs: Any,
-    ) -> "ReportColumn":
+    ) -> ReportColumn:
         return ReportColumn(id=generate_id(), field_key=field_key, display_label=display_label, data_type=data_type, **kwargs)
 
 @dataclass
@@ -101,7 +102,7 @@ class ReportFilter:
         operator: FilterOperator,
         value: Any = None,
         **kwargs: Any,
-    ) -> "ReportFilter":
+    ) -> ReportFilter:
         return ReportFilter(id=generate_id(), field_key=field_key, operator=operator, value=value, **kwargs)
 
 @dataclass
@@ -119,7 +120,7 @@ class ReportGrouping:
     subtotal_row: bool = True
 
     @staticmethod
-    def create(field_key: str, display_label: str, **kwargs: Any) -> "ReportGrouping":
+    def create(field_key: str, display_label: str, **kwargs: Any) -> ReportGrouping:
         return ReportGrouping(id=generate_id(), field_key=field_key, display_label=display_label, **kwargs)
 
 @dataclass
@@ -162,7 +163,7 @@ class ReportDefinition:
         permission_code: str = "report.view",
         visibility: ReportVisibility = ReportVisibility.PRIVATE,
         owner_id: str | None = None,
-    ) -> "ReportDefinition":
+    ) -> ReportDefinition:
         now = datetime.now(timezone.utc)
         return ReportDefinition(
             id=generate_id(),
@@ -177,15 +178,15 @@ class ReportDefinition:
             updated_at=now,
         )
 
-    def add_column(self, column: ReportColumn) -> "ReportDefinition":
+    def add_column(self, column: ReportColumn) -> ReportDefinition:
         self.columns.append(column)
         return self
 
-    def add_filter(self, report_filter: ReportFilter) -> "ReportDefinition":
+    def add_filter(self, report_filter: ReportFilter) -> ReportDefinition:
         self.filters.append(report_filter)
         return self
 
-    def add_grouping(self, grouping: ReportGrouping) -> "ReportDefinition":
+    def add_grouping(self, grouping: ReportGrouping) -> ReportDefinition:
         self.groupings.append(grouping)
         return self
 
@@ -223,7 +224,7 @@ class SavedReportView:
         name: str,
         owner_id: str,
         visibility: ReportVisibility = ReportVisibility.PRIVATE,
-    ) -> "SavedReportView":
+    ) -> SavedReportView:
         now = datetime.now(timezone.utc)
         return SavedReportView(
             id=generate_id(),

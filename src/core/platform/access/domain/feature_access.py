@@ -5,7 +5,6 @@ from dataclasses import dataclass
 
 from src.core.platform.common.exceptions import ValidationError
 
-
 RoleNormalizer = Callable[[str], str]
 PermissionResolver = Callable[[str], Iterable[str]]
 

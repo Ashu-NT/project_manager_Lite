@@ -7,6 +7,7 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogOverviewViewModel,
 )
 
+
 def build_empty_overview() -> TaskCatalogOverviewViewModel:
     return TaskCatalogOverviewViewModel(
         title="Tasks",

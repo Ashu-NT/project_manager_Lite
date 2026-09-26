@@ -1,11 +1,10 @@
 from decimal import Decimal
 from types import SimpleNamespace
 
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.core.modules.project_management.api.desktop import (
     build_project_management_resources_desktop_api,
 )
-from src.core.modules.project_management.domain.enums import CostType, WorkerType
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReadItem,
     ResourceCatalogReadPage,
@@ -13,7 +12,10 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceInspectorFact,
     ResourceSummaryFact,
 )
-from src.core.modules.project_management.contracts.reads import ReadSort
+from src.core.modules.project_management.domain.enums import CostType, WorkerType
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 
 class _FakeResourceService:
@@ -187,7 +189,7 @@ def test_project_management_workspace_catalog_exposes_typed_resources_controller
                     id="res-1",
                     name="Electrical Crew",
                     role="Lead Technician",
-                    hourly_rate=Decimal("95"),
+                    hourly_rate=Decimal(95),
                     is_active=True,
                     cost_type=CostType.LABOR,
                     currency_code="EUR",
@@ -202,7 +204,7 @@ def test_project_management_workspace_catalog_exposes_typed_resources_controller
                     id="res-2",
                     name="Alex Taylor",
                     role="Planner",
-                    hourly_rate=Decimal("80"),
+                    hourly_rate=Decimal(80),
                     is_active=False,
                     cost_type=CostType.LABOR,
                     currency_code="USD",

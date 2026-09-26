@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Protocol
 
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.domain.enums import ProjectStatus
 
 from .models import (
@@ -11,7 +12,6 @@ from .models import (
     ProjectCatalogReadPage,
     ProjectResourceDetailPage,
 )
-from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 
 
 class ProjectCatalogReader(Protocol):

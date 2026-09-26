@@ -31,7 +31,6 @@ from src.core.platform.domain.security.authorization.roles.role_permission_catal
 )
 
 __all__ = [
-    "AuthPolicyReconciliation",
     "DEFAULT_PERMISSIONS",
     "DEFAULT_ROLE_PERMISSIONS",
     "RESOURCE_ROLE_SCOPE_TYPES",
@@ -39,6 +38,9 @@ __all__ = [
     "ROLE_SCOPE_PLATFORM",
     "ROLE_SCOPE_TENANT",
     "ROLE_SCOPE_TYPES",
+    "SYSTEM_ROLE_POLICY_NAME",
+    "SYSTEM_ROLE_POLICY_VERSION",
+    "AuthPolicyReconciliation",
     "RoleBinding",
     "RoleBindingAssigned",
     "RoleBindingPlatformScope",
@@ -47,7 +49,5 @@ __all__ = [
     "RoleBindingScope",
     "RoleBindingTenantScope",
     "RoleDelegationPolicy",
-    "SYSTEM_ROLE_POLICY_NAME",
-    "SYSTEM_ROLE_POLICY_VERSION",
     "normalize_role_scope_type",
 ]

@@ -34,7 +34,7 @@ def build_party_list_view_invalidation_handler(channel: ViewInvalidationChannel)
 
 
 __all__ = [
-    "build_party_list_view_invalidation_handler",
     "PARTY_CATEGORY",
     "PARTY_LIST_SCOPE_CODE",
+    "build_party_list_view_invalidation_handler",
 ]

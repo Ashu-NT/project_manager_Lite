@@ -2,22 +2,32 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.register.register import RegisterEntryRepository
-from src.core.modules.project_management.contracts.reads.register import RegisterCatalogReader
-from src.core.modules.project_management.contracts.uow.register.register_unit_of_work import (
-    RegisterUnitOfWorkFactory,
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
 )
-from src.core.platform.application.history.activity.activity_service import ActivityService
-from src.core.platform.common.ids import generate_id
-from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleMixin,
 )
 from src.core.modules.project_management.application.risk.queries.register_query import (
     RegisterQueryMixin,
 )
+from src.core.modules.project_management.contracts.reads.register import (
+    RegisterCatalogReader,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.register.register import (
+    RegisterEntryRepository,
+)
+from src.core.modules.project_management.contracts.uow.register.register_unit_of_work import (
+    RegisterUnitOfWorkFactory,
+)
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
+from src.core.platform.common.ids import generate_id
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 

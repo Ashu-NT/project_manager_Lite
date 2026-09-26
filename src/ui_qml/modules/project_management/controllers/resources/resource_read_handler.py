@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_resource_detail_view_model,
     serialize_resource_inspector_view_model,
 )
@@ -47,7 +48,9 @@ def load_resource_inspector(controller, resource_id: str) -> None:
             and normalized_id == controller._selected_resource_id
         ):
             controller._set_resource_inspector(default_resource_inspector())
-            controller._set_inspector_error(str(exc))
+            controller._set_inspector_error(
+                safe_error_message(exc, safe_message="Resource details could not be loaded.")
+            )
     finally:
         if request_id == controller._inspector_request_id:
             controller._set_inspector_loading(False)
@@ -75,7 +78,9 @@ def load_resource_detail(controller, resource_id: str) -> bool:
     except Exception as exc:
         if request_id == controller._detail_request_id:
             controller._set_selected_resource(default_selected_resource())
-            controller._set_detail_error(str(exc))
+            controller._set_detail_error(
+                safe_error_message(exc, safe_message="Resource details could not be loaded.")
+            )
         return False
     finally:
         if request_id == controller._detail_request_id:

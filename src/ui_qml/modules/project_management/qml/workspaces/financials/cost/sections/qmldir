@@ -1,0 +1,3 @@
+module workspaces.financials.cost.sections
+FinancialsActualsSection 1.0 FinancialsActualsSection.qml
+FinancialsPostingFailuresSection 1.0 FinancialsPostingFailuresSection.qml

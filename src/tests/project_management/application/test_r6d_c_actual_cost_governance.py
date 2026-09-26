@@ -24,7 +24,7 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryStatus,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.finance import Money
+from src.core.platform.domain.finance import Money
 
 
 def _setup(services):
@@ -178,7 +178,7 @@ def test_actual_filters_are_server_owned_and_invalid_sources_fail_closed(service
 
     rows, total = service.list_for_project(
         project.id,
-        source_module=FinancialSourceModule.PROCUREMENT,
+        source_module=FinancialSourceModule.INVENTORY_PROCUREMENT,
     )
     assert rows == []
     assert total == 0

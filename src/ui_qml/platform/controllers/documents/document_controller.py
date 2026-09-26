@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
-from src.ui_qml.platform.presenters.documents.document_catalog_presenter import PlatformDocumentCatalogPresenter
+from src.ui_qml.platform.presenters.documents.document_catalog_presenter import (
+    PlatformDocumentCatalogPresenter,
+)
 from src.ui_qml.platform.presenters.documents.document_management_presenter import (
     PlatformDocumentManagementPresenter,
 )
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
-from ..common import run_mutation, serialize_action_list
+from ..common import run_mutation, safe_exception_message, serialize_action_list
 
 
 class PlatformDocumentController(QObject):
@@ -116,6 +118,32 @@ class PlatformDocumentController(QObject):
         self._refresh_documents()
         self._refresh_document_focus()
 
+    @Slot(str, int, int, str, str, result="QVariantMap")
+    def organizationDocumentsPage(
+        self,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+    ) -> dict[str, object]:
+        """Stateless query for Organization Detail's Documents tab -- unlike
+        `documents`/`refresh()` above (this controller's own shared,
+        session-active-organization-scoped catalog), every call here is
+        explicitly scoped to `organization_id`, regardless of which
+        organization is active in the caller's session. The Documents tab
+        owns its own page/pageSize/search/status state and calls this
+        directly; no pagination state is stored on this controller."""
+        return serialize_action_list(
+            self._presenter.build_catalog_page_for_organization(
+                organization_id,
+                page=page,
+                page_size=page_size,
+                search=search,
+                status=status,
+            )
+        )
+
     @Slot("QVariantMap", result=str)
     def generateCode(self, payload: dict[str, object]) -> str:
         try:
@@ -123,7 +151,7 @@ class PlatformDocumentController(QObject):
         except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
             setter = getattr(self, "_set_error_message", None)
             if setter is not None:
-                setter(str(exc))
+                setter(safe_exception_message(exc))
             return ""
 
     @Slot("QVariantMap", result="QVariantMap")

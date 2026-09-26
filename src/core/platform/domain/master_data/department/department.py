@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime
+from datetime import timezone as dt_timezone
 
 from pydantic import field_validator
 
@@ -25,7 +26,7 @@ class Department:
     parent_department_id: str | None = None
     department_type: str = ""
     cost_center_code: str = ""
-    manager_employee_id: str | None = None
+    head_of_department_employee_id: str | None = None
     is_active: bool = True
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -62,7 +63,7 @@ class Department:
     @field_validator(
         "site_id",
         "parent_department_id",
-        "manager_employee_id",
+        "head_of_department_employee_id",
         mode="before",
     )
     @classmethod
@@ -122,12 +123,12 @@ class Department:
         parent_department_id: str | None = None,
         department_type: str = "",
         cost_center_code: str = "",
-        manager_employee_id: str | None = None,
+        head_of_department_employee_id: str | None = None,
         is_active: bool = True,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
         notes: str = "",
-    ) -> "Department":
+    ) -> Department:
         now = datetime.now(dt_timezone.utc)
         return Department(
             id=generate_id(),
@@ -139,7 +140,7 @@ class Department:
             parent_department_id=parent_department_id,
             department_type=department_type,
             cost_center_code=cost_center_code,
-            manager_employee_id=manager_employee_id,
+            head_of_department_employee_id=head_of_department_employee_id,
             is_active=is_active,
             created_at=created_at or now,
             updated_at=updated_at or now,

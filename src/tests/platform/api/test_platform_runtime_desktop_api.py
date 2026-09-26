@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationProvisionCommand
-from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationProvisionCommand,
+)
+from src.core.platform.api.desktop.platform_runtime.runtime import (
+    PlatformRuntimeDesktopApi,
+)
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
@@ -27,6 +31,9 @@ def test_platform_runtime_desktop_api_returns_runtime_context_dto(services):
 
 
 def test_platform_runtime_desktop_api_provisions_organization_with_initial_module_mix(services):
+    """New organizations are always created ACTIVE, and `provision_organization` always switches
+    the caller's session into the just-created organization -- there is no longer a separate
+    "provision quietly, activate and switch later" path."""
     api = PlatformRuntimeDesktopApi(
         platform_runtime_application_service=services["platform_runtime_application_service"]
     )
@@ -37,7 +44,6 @@ def test_platform_runtime_desktop_api_provisions_organization_with_initial_modul
             display_name="Operations Hub",
             timezone_name="Africa/Lagos",
             base_currency="USD",
-            is_enabled=False,
             initial_module_codes=(),
         )
     )
@@ -45,11 +51,6 @@ def test_platform_runtime_desktop_api_provisions_organization_with_initial_modul
     assert result.ok is True
     assert result.data is not None
     assert result.data.organization_code == "OPS"
-    assert services["module_catalog_service"].current_context_label() == "Default Organization"
-    assert services["module_catalog_service"].is_enabled("project_management") is True
-
-    services["organization_service"].enable_organization(result.data.id)
-    services["tenant_context_service"].set_active_organization(result.data.id)
     assert services["module_catalog_service"].current_context_label() == "Operations Hub"
     assert services["module_catalog_service"].is_enabled("project_management") is False
 
@@ -68,8 +69,8 @@ def test_platform_runtime_desktop_api_maps_validation_errors(services):
     assert result.error.code == "MODULE_NOT_AVAILABLE"
 
 
-def test_platform_runtime_desktop_api_maps_permission_denied_enable_organization(services):
-    """`enable_organization` is the desktop API's organization-scoped write, gated by
+def test_platform_runtime_desktop_api_maps_permission_denied_activate_organization(services):
+    """`activate_organization` is the desktop API's organization-scoped write, gated by
     `settings.manage` -- proves that gate's desktop-API error mapping."""
     api = PlatformRuntimeDesktopApi(
         platform_runtime_application_service=services["platform_runtime_application_service"]
@@ -84,7 +85,6 @@ def test_platform_runtime_desktop_api_maps_permission_denied_enable_organization
         display_name="East Division",
         timezone_name="Asia/Dubai",
         base_currency="AED",
-        is_enabled=False,
     )
     user_session.set_principal(
         UserSessionPrincipal(
@@ -104,7 +104,7 @@ def test_platform_runtime_desktop_api_maps_permission_denied_enable_organization
     )
     user_session.set_active_organization_id(default_organization.id)
 
-    result = api.enable_organization(second.id)
+    result = api.activate_organization(second.id)
 
     assert result.ok is False
     assert result.data is None
@@ -143,4 +143,44 @@ def test_build_desktop_api_registry_exposes_platform_runtime_adapter(services):
     assert result.ok is True
     assert result.data is not None
     assert any(module.code == "project_management" for module in result.data)
+
+
+def test_list_accessible_modules_returns_enabled_and_permitted_modules(services):
+    """Same authoritative source shell navigation (Phase 6G), Global Overview's
+    module cards, and Quick Actions all read -- see module_access_policy.py."""
+    api = PlatformRuntimeDesktopApi(
+        platform_runtime_application_service=services["platform_runtime_application_service"]
+    )
+
+    result = api.list_accessible_modules()
+
+    assert result.ok is True
+    assert result.data is not None
+    assert any(module.code == "project_management" for module in result.data)
+
+
+def test_list_accessible_modules_excludes_modules_the_principal_lacks_permission_for(services):
+    api = PlatformRuntimeDesktopApi(
+        platform_runtime_application_service=services["platform_runtime_application_service"]
+    )
+    user_session = services["user_session"]
+    original_principal = user_session.principal
+    user_session.set_principal(
+        UserSessionPrincipal(
+            user_id=original_principal.user_id,
+            username=original_principal.username,
+            display_name=original_principal.display_name,
+            role_names=frozenset(),
+            permissions=frozenset(),
+            active_tenant_id=original_principal.active_tenant_id,
+            active_organization_id=original_principal.active_organization_id,
+        )
+    )
+    try:
+        result = api.list_accessible_modules()
+
+        assert result.ok is True
+        assert result.data == ()
+    finally:
+        user_session.set_principal(original_principal)
 

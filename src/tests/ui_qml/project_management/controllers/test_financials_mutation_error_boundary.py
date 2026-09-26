@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.exc import OperationalError
 
-from src.ui_qml.modules.project_management.controllers.financials.financials_mutation_mixin import (
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_mutation_mixin import (
     FinancialsMutationMixin,
 )
 

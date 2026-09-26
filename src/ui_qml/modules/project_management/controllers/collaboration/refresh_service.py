@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_collaboration_collection_view_model,
     serialize_collaboration_context_view_model,
     serialize_collaboration_overview_view_model,
@@ -51,14 +52,14 @@ def refresh_collaboration_workspace(controller) -> None:
         controller._set_approvals(
             serialize_collaboration_collection_view_model(ws.approvals)
         )
-        controller._set_activity_feed(
-            serialize_collaboration_collection_view_model(ws.activity_feed)
-        )
+        controller._set_activity_feed(dict(ws.activity_feed))
         rebuild_panel_item_index(controller)
         controller._set_empty_state(ws.empty_state)
     except Exception as exc:  # pragma: no cover - defensive fallback
         logger.exception("Failed to refresh project management collaboration workspace.")
-        controller._set_error_message(str(exc))
+        controller._set_error_message(
+            safe_error_message(exc, safe_message="Collaboration could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 

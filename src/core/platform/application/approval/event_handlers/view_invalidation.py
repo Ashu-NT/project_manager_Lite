@@ -39,7 +39,7 @@ def build_approval_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_approval_view_invalidation_handler",
     "APPROVAL_CATEGORY",
     "APPROVAL_REQUESTS_SCOPE_CODE",
+    "build_approval_view_invalidation_handler",
 ]

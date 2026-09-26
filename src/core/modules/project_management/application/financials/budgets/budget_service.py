@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
@@ -18,12 +20,12 @@ from src.core.modules.project_management.application.financials.budgets.approval
     BudgetApprovalResult,
 )
 from src.core.modules.project_management.application.financials.budgets.budget_events import (
-    BudgetLineChangeType,
     BudgetLineChanged,
+    BudgetLineChangeType,
     BudgetProfileUpdated,
     BudgetRemoved,
-    BudgetStatusChangeType,
     BudgetStatusChanged,
+    BudgetStatusChangeType,
     BudgetVersionCreated,
 )
 from src.core.modules.project_management.application.financials.successor_models import (
@@ -37,14 +39,20 @@ from src.core.modules.project_management.contracts.repositories.finance.configur
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.financials.budget import (
     BudgetLine,
     BudgetStatus,
     ProjectBudget,
 )
-from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
+from src.core.modules.project_management.domain.financials.configuration import (
+    CostCodePolicy,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -58,6 +66,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
 )
 from src.core.platform.domain.approval.policy import is_governance_required
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 _UNSET = object()
@@ -155,14 +164,14 @@ class BudgetService(ProjectManagementModuleGuardMixin):
     def get_totals_by_cost_code(self, budget_id: str) -> dict[str, Decimal]:
         totals: dict[str, Decimal] = {}
         for line in self.list_lines(budget_id):
-            totals[line.cost_code_id] = totals.get(line.cost_code_id, Decimal("0")) + line.amount
+            totals[line.cost_code_id] = totals.get(line.cost_code_id, Decimal(0)) + line.amount
         return totals
 
     def get_totals_by_task(self, budget_id: str) -> dict[str, Decimal]:
         totals: dict[str, Decimal] = {}
         for line in self.list_lines(budget_id):
             key = line.task_id or ""
-            totals[key] = totals.get(key, Decimal("0")) + line.amount
+            totals[key] = totals.get(key, Decimal(0)) + line.amount
         return totals
 
     # -- Lifecycle ----------------------------------------------------------
@@ -851,7 +860,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         references: list[tuple[str, str]] = []
         for source in self._budget_repo.list_lines(base.id):
             adjustment = by_target.get(source.id)
-            amount = source.amount + (adjustment.amount if adjustment else Decimal("0"))
+            amount = source.amount + (adjustment.amount if adjustment else Decimal(0))
             if amount < 0:
                 raise BusinessRuleError(
                     "Budget change would make a successor line negative.",
@@ -1042,67 +1051,83 @@ class BudgetService(ProjectManagementModuleGuardMixin):
             )
 
     def _record_budget_audit(self, *, operation: str, budget: ProjectBudget) -> None:
+        full_operation = f"project_budget.{operation}"
         record_audit_entry(
             self,
-            operation=f"project_budget.{operation}",
+            operation=full_operation,
             entity_type="project_budget",
             entity_id=budget.id,
             entity_parent_id=budget.project_id,
             module="project_management",
-            old_value=None,
-            new_value=self._budget_audit_value(budget),
+            category="FINANCIAL",
+            after_data=self._budget_audit_value(budget),
             workspace_id=budget.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
         )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_budget",
+            entity_id=budget.id,
+            parent_entity_id=budget.project_id,
+            module="project_management",
+            workspace_id=budget.project_id,
+            details={"action": operation},
+            commit=False,
+        )
 
     def _record_line_audit(self, *, operation: str, line: BudgetLine, budget: ProjectBudget) -> None:
+        full_operation = f"project_budget_line.{operation}"
         record_audit_entry(
             self,
-            operation=f"project_budget_line.{operation}",
+            operation=full_operation,
             entity_type="project_budget_line",
             entity_id=line.id,
             entity_parent_id=budget.id,
             module="project_management",
-            old_value=None,
-            new_value=self._line_audit_value(line),
+            category="FINANCIAL",
+            after_data=self._line_audit_value(line),
             workspace_id=budget.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
         )
-
-    @staticmethod
-    def _budget_audit_value(budget: ProjectBudget) -> str:
-        return json.dumps(
-            {
-                "name": budget.name,
-                "status": budget.status.value,
-                "revision": budget.revision,
-                "currency_code": budget.currency_code,
-                "row_version": budget.row_version,
-            },
-            sort_keys=True,
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_budget_line",
+            entity_id=line.id,
+            parent_entity_id=budget.id,
+            module="project_management",
+            workspace_id=budget.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     @staticmethod
-    def _line_audit_value(line: BudgetLine) -> str:
-        return json.dumps(
-            {
-                "cost_code_id": line.cost_code_id,
-                "task_id": line.task_id,
-                "amount": str(line.amount),
-                "currency_code": line.currency_code,
-                "row_version": line.row_version,
-            },
-            sort_keys=True,
-        )
+    def _budget_audit_value(budget: ProjectBudget) -> dict[str, Any]:
+        return {
+            "name": budget.name,
+            "status": budget.status.value,
+            "revision": budget.revision,
+            "currency_code": budget.currency_code,
+            "row_version": budget.row_version,
+        }
+
+    @staticmethod
+    def _line_audit_value(line: BudgetLine) -> dict[str, Any]:
+        return {
+            "cost_code_id": line.cost_code_id,
+            "task_id": line.task_id,
+            "amount": str(line.amount),
+            "currency_code": line.currency_code,
+            "row_version": line.row_version,
+        }
 
 __all__ = ["BudgetService"]

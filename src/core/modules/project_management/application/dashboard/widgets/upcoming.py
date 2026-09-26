@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from src.core.modules.project_management.application.dashboard.models.dashboard_models import UpcomingTask
+from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
+    UpcomingTask,
+)
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks

@@ -74,7 +74,7 @@ def _read_manifest_text(source: str) -> str:
         raise ValueError(f"Unsupported manifest source scheme: {parsed.scheme}")
 
     if parsed.scheme in {"http", "https"}:
-        with urlopen(raw, timeout=10) as response:  # noqa: S310
+        with urlopen(raw, timeout=10) as response:
             return response.read().decode("utf-8")
     if parsed.scheme == "file":
         path = _path_from_file_url(raw)

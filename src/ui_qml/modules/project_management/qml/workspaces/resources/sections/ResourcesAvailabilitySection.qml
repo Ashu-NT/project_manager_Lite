@@ -339,6 +339,9 @@ Item {
                                 status: !root._hasData ? "Not loaded"
                                     : (root._availability.overallocated === true
                                         ? "Over capacity" : "Within capacity")
+                                tone: !root._hasData ? "neutral"
+                                    : (root._availability.overallocated === true
+                                        ? "danger" : "success")
                             }
                             AppControls.Label {
                                 Layout.fillWidth: true

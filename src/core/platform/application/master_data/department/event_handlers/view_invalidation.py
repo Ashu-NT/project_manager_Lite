@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from src.core.platform.domain.master_data.department.events import (
+    DepartmentActivated,
     DepartmentCreated,
+    DepartmentDeactivated,
     DepartmentProfileUpdated,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -17,7 +19,7 @@ DEPARTMENT_LIST_SCOPE_CODE = "department_list"
 
 def build_department_list_view_invalidation_handler(channel: ViewInvalidationChannel):
     def handle_department_list_event(
-        event: DepartmentCreated | DepartmentProfileUpdated,
+        event: DepartmentCreated | DepartmentProfileUpdated | DepartmentActivated | DepartmentDeactivated,
         context: DomainEventContext,
     ) -> None:
         channel.notify(
@@ -34,7 +36,7 @@ def build_department_list_view_invalidation_handler(channel: ViewInvalidationCha
 
 
 __all__ = [
-    "build_department_list_view_invalidation_handler",
     "DEPARTMENT_CATEGORY",
     "DEPARTMENT_LIST_SCOPE_CODE",
+    "build_department_list_view_invalidation_handler",
 ]

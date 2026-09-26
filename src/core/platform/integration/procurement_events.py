@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    field_validator,
+    model_validator,
+)
 
-from src.core.platform.finance import DecimalQuantityPayload, MonetaryRatePayload
-
+from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload
 
 PROCUREMENT_COMMITMENT_EVENT_TYPE = (
     "inventory_procurement.purchase_order_line.financial_state.v1"

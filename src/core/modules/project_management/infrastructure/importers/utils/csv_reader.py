@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
-from typing import Any
 
 from src.core.platform.domain.data_operations.importing import ImportFieldSpec
 

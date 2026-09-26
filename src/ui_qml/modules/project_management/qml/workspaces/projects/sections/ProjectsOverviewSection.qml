@@ -15,6 +15,15 @@ Item {
 
     readonly property bool _hasProject: String(root.projectDetail.id || "").length > 0
 
+    // Backend-owned closed enum from ProjectStatus ("Planned" | "Active" |
+    // "On Hold" | "Completed") -- mapped explicitly, not inferred from text.
+    readonly property string _statusTone: {
+        const label = String(root.projectDetail.statusLabel || "").toLowerCase()
+        if (label === "active" || label === "completed") return "success"
+        if (label === "on hold") return "warning"
+        return "neutral"
+    }
+
     function _sv(key) {
         const s = root.projectDetail.state || {}
         return String(s[key] || "")
@@ -251,6 +260,7 @@ Item {
                         }
                         AppWidgets.StatusChip {
                             status: root.projectDetail.statusLabel || ""
+                            tone:   root._statusTone
                         }
                     }
 

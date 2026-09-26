@@ -18,6 +18,32 @@ Item {
     property var recentActionsModel: ({ "items": [], "emptyState": "" })
 
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
+
+    // Backend-owned closed vocabularies, mapped explicitly per value --
+    // never inferred from text pattern matching.
+    function _projectStatusTone(label) {
+        const s = String(label || "").toLowerCase()
+        if (s === "active" || s === "completed") return "success"
+        if (s === "on hold") return "warning"
+        return "neutral"
+    }
+    // Portfolio pressure classification (heatmap + dependency rows).
+    // "Needs Schedule" is included defensively even though current call
+    // sites never emit it (see _combine_dependency_pressure).
+    function _pressureTone(label) {
+        const s = String(label || "").toLowerCase()
+        if (s === "hot") return "danger"
+        if (s === "watch" || s === "needs schedule") return "warning"
+        if (s === "stable") return "success"
+        return "neutral"
+    }
+    function _intakeStatusTone(label) {
+        const s = String(label || "").toLowerCase()
+        if (s === "approved" || s === "converted") return "success"
+        if (s === "rejected") return "danger"
+        if (s === "review") return "info"
+        return "neutral"
+    }
     readonly property bool _hasItem: root.heatmapItem !== null
         && String(root.heatmapItem ? root.heatmapItem.id || "" : "").length > 0
     readonly property int _activeSectionH: {
@@ -80,10 +106,12 @@ Item {
 
                         AppWidgets.StatusChip {
                             status: String(root.heatmapItem ? root.heatmapItem.subtitle || "" : "")
+                            tone:   root._projectStatusTone(root.heatmapItem ? root.heatmapItem.subtitle || "" : "")
                         }
 
                         AppWidgets.StatusChip {
                             status: String(root.heatmapItem ? root.heatmapItem.statusLabel || "" : "")
+                            tone:   root._pressureTone(root.heatmapItem ? root.heatmapItem.statusLabel || "" : "")
                         }
                     }
 
@@ -250,7 +278,9 @@ Item {
                                     }
 
                                     AppWidgets.StatusChip {
+                                        // Always the literal "Scenario" label -- no severity meaning.
                                         status: String(_s1Row.modelData.statusLabel || "")
+                                        tone: "neutral"
                                     }
                                 }
 
@@ -370,6 +400,7 @@ Item {
 
                                     AppWidgets.StatusChip {
                                         status: String(_s2Row.modelData.statusLabel || "")
+                                        tone:   root._pressureTone(_s2Row.modelData.statusLabel || "")
                                     }
                                 }
 
@@ -492,6 +523,7 @@ Item {
 
                                     AppWidgets.StatusChip {
                                         status: String(_s3Row.modelData.statusLabel || "")
+                                        tone:   root._intakeStatusTone(_s3Row.modelData.statusLabel || "")
                                     }
                                 }
 
@@ -567,24 +599,10 @@ Item {
                                 ? String(root.heatmapItem.title || "")
                                 : ""
                             const all = root.recentActionsModel.items || []
-                            if (!projectName) return all.map(function(item) {
-                                return {
-                                    "title": String(item.title || ""),
-                                    "metaText": String(item.metaText || item.subtitle || ""),
-                                    "statusLabel": String(item.statusLabel || "")
-                                }
+                            if (!projectName) return all
+                            return all.filter(function(item) {
+                                return String(item.subjectDisplay || "") === projectName
                             })
-                            return all
-                                .filter(function(item) {
-                                    return String(item.statusLabel || "") === projectName
-                                })
-                                .map(function(item) {
-                                    return {
-                                        "title": String(item.title || ""),
-                                        "metaText": String(item.metaText || item.subtitle || ""),
-                                        "statusLabel": String(item.statusLabel || "")
-                                    }
-                                })
                         }
                         emptyText: "No recent activity found for this project."
                     }

@@ -14,8 +14,18 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.application.tenant.tenancy.tenant_admin_service import (
+    TenantAdminService,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
+    UserTenantMembership,
+)
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
 )
@@ -25,11 +35,6 @@ from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.te
 from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
     SqlAlchemyUserTenantMembershipRepository,
 )
-from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.application.tenant.tenancy.tenant_admin_service import TenantAdminService
-from src.core.platform.domain.tenant.tenancy.user_tenant_membership import UserTenantMembership
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-
 
 # ---------------------------------------------------------------------------
 # Helpers

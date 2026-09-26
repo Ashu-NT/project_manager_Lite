@@ -83,6 +83,7 @@ Rectangle {
                     AppWidgets.StatusChip {
                         visible: root._isDeleted
                         status: "Deleted"
+                        tone:   "danger"
                     }
                 }
 

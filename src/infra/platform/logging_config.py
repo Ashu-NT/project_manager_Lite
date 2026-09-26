@@ -1,5 +1,6 @@
 # src/infra/platform/logging_config.py
 from __future__ import annotations
+
 import logging
 import os
 from logging.handlers import RotatingFileHandler
@@ -7,12 +8,12 @@ from pathlib import Path
 
 from PySide6.QtCore import QtMsgType, qInstallMessageHandler
 
-from src.infra.platform.path import user_data_dir
 from src.infra.platform.operational_support import (
     TraceIdLogFilter,
     get_operational_support,
     install_global_exception_hooks,
 )
+from src.infra.platform.path import user_data_dir
 
 _LOGGING_CONFIGURED = False
 _QT_MESSAGE_HANDLER_INSTALLED = False

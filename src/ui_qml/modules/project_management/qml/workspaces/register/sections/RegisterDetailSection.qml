@@ -16,6 +16,18 @@ Item {
     signal editRequested()
     signal deleteRequested()
 
+    // Backend-owned closed enum from RegisterEntryStatus ("Open" | "In
+    // Progress" | "Mitigated" | "Approved" | "Rejected" | "Closed") --
+    // mapped explicitly, not inferred from text.
+    readonly property string _statusTone: {
+        const label = String(root.entryDetail.statusLabel || "").toLowerCase()
+        if (label === "rejected") return "danger"
+        if (label === "open") return "warning"
+        if (label === "in progress") return "info"
+        if (label === "mitigated" || label === "approved" || label === "closed") return "success"
+        return "neutral"
+    }
+
     implicitHeight: contentColumn.implicitHeight
 
     ColumnLayout {
@@ -55,6 +67,7 @@ Item {
             AppWidgets.StatusChip {
                 visible: String(root.entryDetail.statusLabel || "").length > 0
                 status: root.entryDetail.statusLabel || ""
+                tone:   root._statusTone
             }
         }
 

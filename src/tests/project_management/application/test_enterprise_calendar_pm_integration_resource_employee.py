@@ -13,13 +13,48 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
+    EnterpriseResourceAvailabilityService,
+)
 from src.core.modules.project_management.domain.enums import (
     CostType,
-    ProjectStatus,
     WorkerType,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.calendar_assignment import (
+    SqlAlchemyProjectCalendarAssignmentRepository,
+    SqlAlchemyResourceCalendarAssignmentRepository,
+)
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
+    EnterpriseCalendarResolver,
+)
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
+    WorkingTimeCalculator,
+)
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
+    CalendarExceptionService,
+)
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
+    RecurringEventService,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
+    CalendarType,
+    ExceptionType,
+    ImpactType,
+    RecurringEventType,
+)
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -28,42 +63,6 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyPlatformCalendarRepository,
 )
 from src.infra.persistence.orm import Base
-from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.calendar_assignment import (
-    SqlAlchemyProjectCalendarAssignmentRepository,
-    SqlAlchemyResourceCalendarAssignmentRepository,
-)
-from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
-    CalendarType,
-    ExceptionType,
-    ImpactType,
-    RecurringEventType,
-)
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
-)
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
-)
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import RecurringEventService
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
-)
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
-)
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
-from src.core.platform.common.exceptions import ValidationError
-from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
-)
-from src.core.modules.project_management.application.resources.resource_capacity_calculator import (
-    ResourceCapacityCalculator,
-)
-from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
-    ProjectCalendarAdapter,
-)
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -238,7 +237,9 @@ def global_cal(cal_service, org_id, rule_service):
 
 
 def _seed_employee(db_session, tenant_context, employee_id: str) -> None:
-    from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+        EmployeeORM,
+    )
 
     ctx = tenant_context.require_organization_context()
     if db_session.get(EmployeeORM, employee_id) is not None:
@@ -280,6 +281,7 @@ def _seed_resource(db_session, tenant_context, resource_id: str) -> None:
 def _make_resource_repo(resource_id, worker_type="EXTERNAL", employee_id=None):
     from dataclasses import dataclass
     from unittest.mock import MagicMock
+
     from src.core.modules.project_management.domain.enums import WorkerType
 
     @dataclass

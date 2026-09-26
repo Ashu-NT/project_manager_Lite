@@ -5,8 +5,16 @@ import pytest
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.domain.master_data.employee.events import EmployeeCreated, EmployeeProfileUpdated
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.platform.domain.master_data.employee.events import (
+    EmployeeCreated,
+    EmployeeProfileUpdated,
+)
 from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work import (
     SqlAlchemyEmployeeUnitOfWork,
 )

@@ -7,27 +7,17 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
-
-from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
-    ApprovalViewInvalidationAdapter,
+from src.ui_qml.modules.project_management.adapters.collaboration.task_comment_view_invalidation_adapter import (
+    TaskCommentViewInvalidationAdapter,
 )
-from src.ui_qml.modules.project_management.adapters.scheduling.baseline_view_invalidation_adapter import (
-    BaselineViewInvalidationAdapter,
+from src.ui_qml.modules.project_management.adapters.collaboration.task_presence_view_invalidation_adapter import (
+    TaskPresenceViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
-    EmployeeViewInvalidationAdapter,
+from src.ui_qml.modules.project_management.adapters.financials.billing_view_invalidation_adapter import (
+    BillingViewInvalidationAdapter,
 )
-from src.ui_qml.modules.project_management.adapters.financials.financial_profile_view_invalidation_adapter import (
-    FinancialProfileViewInvalidationAdapter,
-)
-from src.ui_qml.modules.project_management.adapters.financials.forecast_view_invalidation_adapter import (
-    ForecastViewInvalidationAdapter,
-)
-from src.ui_qml.modules.project_management.adapters.financials.financial_change_view_invalidation_adapter import (
-    FinancialChangeViewInvalidationAdapter,
-)
-from src.ui_qml.modules.project_management.adapters.financials.planned_cost_view_invalidation_adapter import (
-    PlannedCostViewInvalidationAdapter,
+from src.ui_qml.modules.project_management.adapters.financials.budget_view_invalidation_adapter import (
+    BudgetViewInvalidationAdapter,
 )
 from src.ui_qml.modules.project_management.adapters.financials.commitment_view_invalidation_adapter import (
     CommitmentViewInvalidationAdapter,
@@ -35,23 +25,20 @@ from src.ui_qml.modules.project_management.adapters.financials.commitment_view_i
 from src.ui_qml.modules.project_management.adapters.financials.cost_entry_view_invalidation_adapter import (
     CostEntryViewInvalidationAdapter,
 )
-from src.ui_qml.modules.project_management.adapters.financials.budget_view_invalidation_adapter import (
-    BudgetViewInvalidationAdapter,
+from src.ui_qml.modules.project_management.adapters.financials.financial_change_view_invalidation_adapter import (
+    FinancialChangeViewInvalidationAdapter,
 )
-from src.ui_qml.modules.project_management.adapters.financials.billing_view_invalidation_adapter import (
-    BillingViewInvalidationAdapter,
+from src.ui_qml.modules.project_management.adapters.financials.financial_profile_view_invalidation_adapter import (
+    FinancialProfileViewInvalidationAdapter,
+)
+from src.ui_qml.modules.project_management.adapters.financials.forecast_view_invalidation_adapter import (
+    ForecastViewInvalidationAdapter,
+)
+from src.ui_qml.modules.project_management.adapters.financials.planned_cost_view_invalidation_adapter import (
+    PlannedCostViewInvalidationAdapter,
 )
 from src.ui_qml.modules.project_management.adapters.financials.rate_card_view_invalidation_adapter import (
     RateCardViewInvalidationAdapter,
-)
-from src.ui_qml.modules.project_management.adapters.resources.resource_view_invalidation_adapter import (
-    ResourceViewInvalidationAdapter,
-)
-from src.ui_qml.modules.project_management.adapters.timesheets.timesheet_view_invalidation_adapter import (
-    TimesheetViewInvalidationAdapter,
-)
-from src.ui_qml.modules.project_management.adapters.register.register_view_invalidation_adapter import (
-    RegisterViewInvalidationAdapter,
 )
 from src.ui_qml.modules.project_management.adapters.portfolio.portfolio_view_invalidation_adapter import (
     PortfolioViewInvalidationAdapter,
@@ -59,27 +46,30 @@ from src.ui_qml.modules.project_management.adapters.portfolio.portfolio_view_inv
 from src.ui_qml.modules.project_management.adapters.projects.project_view_invalidation_adapter import (
     ProjectViewInvalidationAdapter,
 )
-from src.ui_qml.modules.project_management.adapters.collaboration.task_presence_view_invalidation_adapter import (
-    TaskPresenceViewInvalidationAdapter,
+from src.ui_qml.modules.project_management.adapters.register.register_view_invalidation_adapter import (
+    RegisterViewInvalidationAdapter,
 )
-from src.ui_qml.modules.project_management.adapters.collaboration.task_comment_view_invalidation_adapter import (
-    TaskCommentViewInvalidationAdapter,
+from src.ui_qml.modules.project_management.adapters.resources.resource_view_invalidation_adapter import (
+    ResourceViewInvalidationAdapter,
+)
+from src.ui_qml.modules.project_management.adapters.scheduling.baseline_view_invalidation_adapter import (
+    BaselineViewInvalidationAdapter,
 )
 from src.ui_qml.modules.project_management.adapters.tasks.task_view_invalidation_adapter import (
     TaskViewInvalidationAdapter,
 )
-from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
-    TenantSwitcherPresenter,
+from src.ui_qml.modules.project_management.adapters.timesheets.timesheet_view_invalidation_adapter import (
+    TimesheetViewInvalidationAdapter,
 )
 from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementCollaborationWorkspaceController,
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementFinancialsWorkspaceController,
     ProjectManagementPortfolioWorkspaceController,
-    ProjectManagementResourceTimesheetsController,
     ProjectManagementProjectsWorkspaceController,
     ProjectManagementRegisterWorkspaceController,
     ProjectManagementResourcesWorkspaceController,
+    ProjectManagementResourceTimesheetsController,
     ProjectManagementSchedulingWorkspaceController,
     ProjectManagementTasksWorkspaceController,
     ProjectManagementTimesheetsWorkspaceController,
@@ -106,8 +96,17 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectTimesheetsWorkspacePresenter,
     build_project_management_workspace_presenters,
 )
-from src.ui_qml.modules.project_management.presenters.resource_timesheets import (
+from src.ui_qml.modules.project_management.presenters.timesheets import (
     ResourceTimesheetsPresenter,
+)
+from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
+    ApprovalViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
+    EmployeeViewInvalidationAdapter,
+)
+from src.ui_qml.platform.presenters.tenant_management.tenant_switcher_presenter import (
+    TenantSwitcherPresenter,
 )
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
@@ -326,7 +325,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     department_api=getattr(self._desktop_api_registry, "platform_department", None),
                     user_api=getattr(self._desktop_api_registry, "platform_user", None),
                     employee_api=getattr(self._desktop_api_registry, "platform_employee", None),
-                    activity_api=getattr(self._desktop_api_registry, "platform_activity", None),
                 ),
                 parent=self,
             )
@@ -349,7 +347,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
         if self._resources_workspace is None:
             self._resources_workspace = ProjectManagementResourcesWorkspaceController(
                 resources_workspace_presenter=ProjectResourcesWorkspacePresenter(
-                    desktop_api=self._resources_api
+                    desktop_api=self._resources_api,
+                    user_api=getattr(self._desktop_api_registry, "platform_user", None),
+                    employee_api=getattr(self._desktop_api_registry, "platform_employee", None),
                 ),
                 parent=self,
             )
@@ -536,6 +536,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._billing_view_invalidation_adapter.billingCommercialStale.connect(
                 self._financials_workspace.onBillingCommercialStale
             )
+            self._billing_view_invalidation_adapter.billingTransportStale.connect(
+                self._financials_workspace.onBillingTransportStale
+            )
 
             self._financial_profile_view_invalidation_adapter = FinancialProfileViewInvalidationAdapter(
                 channel=self._view_invalidation_channel,
@@ -688,7 +691,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     timesheets_desktop_api=self._timesheets_api,
                     user_api=getattr(self._desktop_api_registry, "platform_user", None),
                     employee_api=getattr(self._desktop_api_registry, "platform_employee", None),
-                    activity_api=getattr(self._desktop_api_registry, "platform_activity", None),
                     projects_desktop_api=self._projects_api,
                 ),
                 parent=self,

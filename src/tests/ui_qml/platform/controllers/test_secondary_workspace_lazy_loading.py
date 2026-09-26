@@ -9,17 +9,17 @@ from __future__ import annotations
 from src.application.runtime import build_desktop_api_registry
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
-from src.ui_qml.platform.presenters.identity_access.access.access_workspace_presenter import (
+from src.ui_qml.platform.presenters.access.access_workspace_presenter import (
     PlatformAccessWorkspacePresenter,
-)
-from src.ui_qml.platform.presenters.support.support_workspace_presenter import (
-    PlatformSupportWorkspacePresenter,
 )
 from src.ui_qml.platform.presenters.control.control_queue_presenter import (
     PlatformControlQueuePresenter,
 )
 from src.ui_qml.platform.presenters.settings.settings_catalog_presenter import (
     PlatformSettingsCatalogPresenter,
+)
+from src.ui_qml.platform.presenters.support.support_workspace_presenter import (
+    PlatformSupportWorkspacePresenter,
 )
 
 
@@ -215,7 +215,7 @@ def test_secondary_workspace_controllers_fail_open_without_runtime_api():
     in isolation, outside the catalog) must keep loading on first use --
     permission suppression never applies when permission data itself
     can't be determined."""
-    from src.ui_qml.platform.controllers.identity_access.access.access_workspace_controller import (
+    from src.ui_qml.platform.controllers.access.access_workspace_controller import (
         PlatformAdminAccessWorkspaceController,
     )
     from src.ui_qml.platform.controllers.control.control_workspace_controller import (
@@ -224,7 +224,7 @@ def test_secondary_workspace_controllers_fail_open_without_runtime_api():
     from src.ui_qml.platform.controllers.settings.settings_workspace_controller import (
         PlatformSettingsWorkspaceController,
     )
-    from src.ui_qml.platform.presenters.identity_access.access.access_workspace_presenter import (
+    from src.ui_qml.platform.presenters.access.access_workspace_presenter import (
         PlatformAccessWorkspacePresenter,
     )
     from src.ui_qml.platform.presenters.control.control_presenter import (

@@ -8,6 +8,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
+    safe_error_message,
     serialize_portfolio_collection_view_model,
     serialize_portfolio_overview_view_model,
     serialize_portfolio_summary_view_model,
@@ -22,10 +23,10 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from .collection_page_state import PortfolioCollectionPageState
 from .domain_event_binder import on_task_metrics_stale, portfolio_request_domain_refresh
+from .filter_normalization import normalize_intake_status
 from .mutation_handler import PortfolioMutationHandler
 from .state import default_collection, default_overview, default_summary
 from .table_models import create_portfolio_table_models
-from .filter_normalization import normalize_intake_status
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -380,9 +381,7 @@ class ProjectManagementPortfolioWorkspaceController(
             )
             self._dependency_page.page = ws.dependencies.page
             self._dependency_page.total_count = ws.dependencies.total
-            self._set_recent_actions(
-                serialize_portfolio_collection_view_model(ws.recent_actions)
-            )
+            self._set_recent_actions(dict(ws.recent_actions))
             self._set_capacity_pool(
                 serialize_portfolio_collection_view_model(ws.capacity_pool)
             )
@@ -396,7 +395,9 @@ class ProjectManagementPortfolioWorkspaceController(
             success = True
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.exception("PM portfolio refresh failed")
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(exc, safe_message="Portfolio could not be loaded.")
+            )
         finally:
             duration_ms = (perf_counter() - started) * 1000
             log_method = logger.warning if duration_ms > 500 else logger.info

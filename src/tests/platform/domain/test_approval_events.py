@@ -7,6 +7,18 @@ from decimal import Decimal
 
 import pytest
 
+from src.core.modules.project_management.application.financials.budgets.budget_events import (
+    BudgetStatusChanged,
+    BudgetStatusChangeType,
+)
+from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
+    FinancialChangeChanged,
+    FinancialChangeEventType,
+)
+from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    BillingPreparationStatusChanged,
+    BillingPreparationStatusChangeType,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.domain.approval import (
     ApprovalApproved,
@@ -16,18 +28,6 @@ from src.core.platform.domain.approval import (
     ApprovalStatus,
 )
 from src.core.shared.events.domain_event import DomainEvent
-from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
-    FinancialChangeChanged,
-    FinancialChangeEventType,
-)
-from src.core.modules.project_management.application.financials.invoicing.billing_events import (
-    BillingPreparationStatusChangeType,
-    BillingPreparationStatusChanged,
-)
-from src.core.modules.project_management.application.financials.budgets.budget_events import (
-    BudgetStatusChangeType,
-    BudgetStatusChanged,
-)
 
 _COUNTER = {"n": 0}
 
@@ -315,7 +315,7 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
     budgets = services["budget_service"]
     budget = budgets.create_budget(project.id, "Events approved budget")
     budget_line = budgets.add_line(
-        budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal("100"),
+        budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal(100),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
@@ -329,7 +329,7 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
     )
     changes.add_impact(
         change.id, impact_type=FinancialChangeImpactType.BUDGET, description="Increase scope",
-        amount=Decimal("10"), cost_code_id=code.id, target_line_id=budget_line.id,
+        amount=Decimal(10), cost_code_id=code.id, target_line_id=budget_line.id,
         expected_change_version=change.row_version,
     )
     change = changes.get_change(change.id)
@@ -357,7 +357,9 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
 
 
 def test_submit_preparation_records_exactly_one_approval_requested(services, monkeypatch):
-    from src.core.modules.project_management.domain.financials.configuration import BillingMethod
+    from src.core.modules.project_management.domain.financials.configuration import (
+        BillingMethod,
+    )
 
     _login(services, "admin", "ChangeMe123!")
     organization = services["tenant_context_service"].get_active_organization()
@@ -378,12 +380,12 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
     )
     billing_profile_service = services["billing_profile_service"]
     bp_profile = billing_profile_service.create_profile(
-        project.id, contract_reference=_unique("EVT-CONTRACT"), contract_value=Decimal("50000"),
+        project.id, contract_reference=_unique("EVT-CONTRACT"), contract_value=Decimal(50000),
         customer_party_id="party-1",
     )
     billing_profile_service.activate_profile(project.id, expected_row_version=bp_profile.row_version)
     line = billing_profile_service.add_schedule_line(
-        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+        project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     )
     line = billing_profile_service.mark_schedule_line_ready(line.id, expected_row_version=line.row_version)
 
@@ -693,7 +695,7 @@ def test_cross_org_decision_denial_emits_zero_approval_approved_or_rejected(serv
     organization_service = services["organization_service"]
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique("EVT-XORG-A2"), display_name="Events Org A2", is_enabled=False
+        organization_code=_unique("EVT-XORG-A2"), display_name="Events Org A2"
     )
 
     _, budget = _submitted_budget(services, services["session"])
@@ -702,7 +704,6 @@ def test_cross_org_decision_denial_emits_zero_approval_approved_or_rejected(serv
 
     approver_username = _unique("evt-xorg-approver")
     services["auth_service"].register_user(approver_username, "StrongPass123", role_names=["approver"])
-    organization_service.enable_organization(org_a2.id)
     services["tenant_context_service"].set_active_organization(org_a2.id)
 
     _login(services, approver_username, "StrongPass123")
@@ -730,14 +731,19 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     from sqlalchemy.orm import sessionmaker
 
     from src.core.platform.application.approval.approval_service import ApprovalService
-    from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
+    from src.core.platform.domain.security.auth.session import (
+        UserSessionContext,
+        UserSessionPrincipal,
+    )
     from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
         SqlAlchemyApprovalRepository,
     )
     from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWorkFactory,
     )
-    from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+    from src.infra.events.in_process_post_commit_event_bus import (
+        InProcessPostCommitEventBus,
+    )
     from src.infra.events.in_process_transactional_event_dispatcher import (
         InProcessTransactionalEventDispatcher,
     )
@@ -749,7 +755,9 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
             self._organization_id = organization_id
 
         def require_active_scope_ids(self, *, operation_label):
-            from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+            from src.core.platform.application.tenant.tenancy.tenant_context import (
+                ActiveScopeIds,
+            )
 
             return ActiveScopeIds(tenant_id=self._tenant_id, organization_id=self._organization_id)
 

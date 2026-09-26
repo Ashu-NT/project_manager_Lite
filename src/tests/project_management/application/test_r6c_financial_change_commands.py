@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
-from types import SimpleNamespace
 from textwrap import dedent
+from types import SimpleNamespace
 
 import pytest
 from PySide6.QtCore import QObject
@@ -33,10 +33,10 @@ from src.core.modules.project_management.domain.financials.financial_change impo
     FinancialChangeStatus,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.ui_qml.shell.qml_engine import create_qml_engine
-from src.ui_qml.modules.project_management.presenters.financials.command_handler import (
+from src.ui_qml.modules.project_management.presenters.financials.financial_changes.commands import (
     _impact_fields,
 )
+from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
 def _change(version: int = 1):
@@ -208,9 +208,17 @@ def test_financial_change_event_invalidation_is_typed_and_effect_specific() -> N
         applied_effects=("budget",),
     )
 
-    handler(event, DomainEventContext(correlation_id="command-1"))
+    context = DomainEventContext(correlation_id="command-1")
+    handler(event, context)
 
     assert [hint.scope_code for hint in channel.hints] == [
+        FINANCIAL_CHANGE_WORKSPACE_SCOPE_CODE,
+        FINANCIAL_CHANGE_BUDGET_SCOPE_CODE,
+    ]
+    handler(event, context)
+    assert len(channel.hints) == 2
+    handler(event, DomainEventContext(correlation_id="command-1"))
+    assert [hint.scope_code for hint in channel.hints[2:]] == [
         FINANCIAL_CHANGE_WORKSPACE_SCOPE_CODE,
         FINANCIAL_CHANGE_BUDGET_SCOPE_CODE,
     ]
@@ -222,7 +230,7 @@ def test_qml_financial_change_commands_use_central_dialog_host_and_typed_slots()
         "financials_workspace_controller.py"
     ).read_text(encoding="utf-8")
     host = Path(
-        "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs/"
+        "src/ui_qml/modules/project_management/qml/workspaces/financials/shared/dialogs/"
         "FinancialsDialogHost.qml"
     ).read_text(encoding="utf-8")
 
@@ -261,7 +269,7 @@ def test_financial_change_dialogs_fit_supported_viewports(
     component = QQmlComponent(engine)
     dialog_url = (
         Path(
-            "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
+            "src/ui_qml/modules/project_management/qml/workspaces/financials/financial_changes/dialogs"
         ).resolve()
         / f"{dialog_type}.qml"
     ).as_uri()

@@ -1,12 +1,33 @@
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import time
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.infra.persistence.orm import Base
+from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import (
+    EnterpriseCalendarDesktopApi,
+)
+from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+    WorkingDaysCommand,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
+    EnterpriseCalendarResolver,
+)
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
+    WorkingTimeCalculator,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -15,20 +36,7 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
-)
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
-)
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
-)
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
-from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import EnterpriseCalendarDesktopApi
-from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import WorkingDaysCommand
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.infra.persistence.orm import Base
 
 
 @pytest.fixture
@@ -59,8 +67,8 @@ def mock_user_session():
 
 @pytest.fixture
 def tenant_context(org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     @dataclass
     class FakeOrg:
@@ -86,8 +94,8 @@ def tenant_context(org_id):
 
 @pytest.fixture
 def mock_org_repo(org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     @dataclass
     class FakeOrg:

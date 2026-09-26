@@ -3,14 +3,17 @@ from __future__ import annotations
 from dataclasses import replace
 from decimal import Decimal
 
-from src.core.modules.project_management.domain.portfolio import PortfolioScenario
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import NotFoundError
-from src.core.shared.audit import record_audit_entry
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioScenarioChangeType,
     PortfolioScenarioChanged,
+    PortfolioScenarioChangeType,
 )
+from src.core.modules.project_management.domain.portfolio import PortfolioScenario
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import NotFoundError
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 
 
 class PortfolioScenarioCommandMixin:
@@ -50,10 +53,22 @@ class PortfolioScenarioCommandMixin:
                 entity_id=scenario.id,
                 module="project_management",
                 organization_id=scope.organization_id,
+                category="MASTER_DATA",
                 severity="low",
-                metadata={"action": "portfolio.scenario.create", "name": scenario.name},
+                after_data={"name": scenario.name},
+                metadata={"action": "portfolio.scenario.create"},
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="portfolio.scenario.create",
+                entity_type="portfolio_scenario",
+                entity_id=scenario.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                details={"name": scenario.name},
+                commit=False,
             )
             uow.record_event(
                 PortfolioScenarioChanged(
@@ -115,10 +130,21 @@ class PortfolioScenarioCommandMixin:
                 entity_id=candidate.id,
                 module="project_management",
                 organization_id=scope.organization_id,
+                category="MASTER_DATA",
                 severity="low",
-                metadata={"action": "portfolio.scenario.update", "name": candidate.name},
+                metadata={"action": "portfolio.scenario.update"},
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="portfolio.scenario.update",
+                entity_type="portfolio_scenario",
+                entity_id=candidate.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                details={"name": candidate.name},
+                commit=False,
             )
             uow.record_event(
                 PortfolioScenarioChanged(

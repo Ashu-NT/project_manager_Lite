@@ -1,4 +1,2 @@
-module ProjectManagement.Financials
-FinancialsWorkspace 1.0 FinancialsWorkspace.qml
+module workspaces.financials
 FinancialsWorkspacePage 1.0 FinancialsWorkspacePage.qml
-FinancialsColumnConfig 1.0 FinancialsColumnConfig.js

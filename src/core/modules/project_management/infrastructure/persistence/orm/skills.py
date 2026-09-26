@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy import Date, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,7 +25,7 @@ class ResourceSkillORM(Base):
         default="intermediate",
         server_default="intermediate",
     )
-    notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
     __table_args__ = (
@@ -50,11 +48,11 @@ class ResourceCertificationORM(Base):
     )
     certification_code: Mapped[str] = mapped_column(String, nullable=False)
     certification_name: Mapped[str] = mapped_column(String, nullable=False)
-    issued_date: Mapped[Optional[object]] = mapped_column(Date, nullable=True)
-    expiry_date: Mapped[Optional[object]] = mapped_column(Date, nullable=True)
-    issuer: Mapped[Optional[str]] = mapped_column("issuing_authority", String, nullable=True)
-    certificate_number: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    issued_date: Mapped[object | None] = mapped_column(Date, nullable=True)
+    expiry_date: Mapped[object | None] = mapped_column(Date, nullable=True)
+    issuer: Mapped[str | None] = mapped_column("issuing_authority", String, nullable=True)
+    certificate_number: Mapped[str | None] = mapped_column(String, nullable=True)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
@@ -72,16 +70,16 @@ class TaskSkillRequirementORM(Base):
         ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=False,
     )
-    skill_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    certification_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    required_proficiency: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    skill_code: Mapped[str | None] = mapped_column(String, nullable=True)
+    certification_code: Mapped[str | None] = mapped_column(String, nullable=True)
+    required_proficiency: Mapped[str | None] = mapped_column(String(20), nullable=True)
     validation_mode: Mapped[str] = mapped_column(
         String(10),
         nullable=False,
         default="warn",
         server_default="warn",
     )
-    notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 

@@ -12,6 +12,7 @@ from src.ui_qml.modules.project_management.view_models.dashboard import (
 
 from .overview_mapper import to_overview_view_model
 
+
 class ProjectDashboardPresenter:
     def __init__(
         self,

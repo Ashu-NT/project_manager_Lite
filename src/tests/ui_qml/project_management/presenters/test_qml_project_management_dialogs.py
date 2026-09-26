@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import Property, Q_ARG, QObject, QMetaObject
+from PySide6.QtCore import Q_ARG, Property, QMetaObject, QObject
 from PySide6.QtGui import QGuiApplication
 
 from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml

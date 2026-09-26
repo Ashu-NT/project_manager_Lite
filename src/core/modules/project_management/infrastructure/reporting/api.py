@@ -6,27 +6,44 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    GanttTaskBar,
+)
+from src.core.modules.project_management.application.financials import FinanceService
+from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.evm import (
+    EvmCurveRenderer,
+)
+from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.excel import (
+    ExcelReportRenderer,
+)
+from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.gantt import (
+    GanttPngRenderer,
+)
+from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.pdf import (
+    PdfReportRenderer,
+)
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
     ExcelReportContext,
     FinanceLedgerExportPage,
     PdfReportContext,
 )
-from src.core.modules.project_management.infrastructure.reporting.templates.definitions import register_project_management_report_definitions
-from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.evm import EvmCurveRenderer
-from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.excel import ExcelReportRenderer
-from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.gantt import GanttPngRenderer
-from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.pdf import PdfReportRenderer
-from src.core.modules.project_management.application.financials import FinanceService
-from src.core.modules.project_management.infrastructure.reporting.services.reporting_service import ReportingService
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import GanttTaskBar
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.modules.project_management.infrastructure.reporting.services.reporting_service import (
+    ReportingService,
+)
+from src.core.modules.project_management.infrastructure.reporting.templates.definitions import (
+    register_project_management_report_definitions,
+)
 from src.core.platform.application.data_operations.exporting import (
     cleanup_temp_artifact,
     ensure_output_path,
     finalize_artifact,
 )
+from src.core.platform.application.data_operations.report_runtime import (
+    ReportDefinitionRegistry,
+    ReportRuntime,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.data_operations.exporting import ExportArtifact
-from src.core.platform.application.data_operations.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 
 @dataclass(frozen=True)
@@ -89,6 +106,10 @@ def _optional_report_call(func, *args, **kwargs):
         if getattr(exc, "code", None) in _OPTIONAL_REPORT_CALL_CODES:
             return None
         raise
+
+
+def _available_evm(value):
+    return None if getattr(value, "availability", "available") == "baseline_unavailable" else value
 
 
 def _resolved_as_of(value: date | None) -> date:
@@ -154,15 +175,16 @@ def _build_excel_context(request: ExcelReportRequest) -> ExcelReportContext:
         request,
         as_of=as_of,
     )
+    evm = (
+        _optional_report_call(get_evm, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
+        if callable(get_evm)
+        else None
+    )
     return ExcelReportContext(
         kpi=reporting_service.get_project_kpis(request.project_id),
         gantt=reporting_service.get_gantt_data(request.project_id),
         resources=reporting_service.get_resource_load_summary(request.project_id),
-        evm=(
-            _optional_report_call(get_evm, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
-            if callable(get_evm)
-            else None
-        ),
+        evm=_available_evm(evm),
         evm_series=(
             _optional_report_call(get_series, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
             if callable(get_series)
@@ -200,15 +222,16 @@ def _build_pdf_context(request: PdfReportRequest, gantt_path: Path | None) -> Pd
         request,
         as_of=as_of,
     )
+    evm = (
+        _optional_report_call(get_evm, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
+        if callable(get_evm)
+        else None
+    )
     return PdfReportContext(
         kpi=reporting_service.get_project_kpis(request.project_id),
         gantt_png_path=str(gantt_path) if gantt_path else "",
         resources=reporting_service.get_resource_load_summary(request.project_id),
-        evm=(
-            _optional_report_call(get_evm, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
-            if callable(get_evm)
-            else None
-        ),
+        evm=_available_evm(evm),
         evm_series=(
             _optional_report_call(get_series, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
             if callable(get_series)

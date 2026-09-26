@@ -10,7 +10,7 @@ from src.core.platform.application.approval.event_handlers.view_invalidation imp
     APPROVAL_REQUESTS_SCOPE_CODE,
     build_approval_view_invalidation_handler,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.approval import (
     ApprovalApproved,
     ApprovalRejected,
@@ -24,7 +24,9 @@ from src.core.shared.events.view_invalidation import (
     OrganizationScope,
     TenantWide,
 )
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
     ApprovalViewInvalidationAdapter,
 )
@@ -264,7 +266,7 @@ def test_host_workflow_submit_change_refreshes_control_workspace_exactly_once(se
     budgets = services["budget_service"]
     budget = budgets.create_budget(project.id, "VI approved budget")
     budget_line = budgets.add_line(
-        budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal("100"),
+        budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal(100),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
@@ -279,7 +281,7 @@ def test_host_workflow_submit_change_refreshes_control_workspace_exactly_once(se
     )
     changes.add_impact(
         change.id, impact_type=FinancialChangeImpactType.BUDGET, description="Increase scope",
-        amount=Decimal("10"), cost_code_id=code.id, target_line_id=budget_line.id,
+        amount=Decimal(10), cost_code_id=code.id, target_line_id=budget_line.id,
         expected_change_version=change.row_version,
     )
     change = changes.get_change(change.id)
@@ -432,7 +434,7 @@ def test_adapter_only_reacts_to_its_exact_active_organization(services, session)
     tenant_id = _active_tenant(services)
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique("VI-SCOPE-A2"), display_name="View Invalidation Org A2", is_enabled=False
+        organization_code=_unique("VI-SCOPE-A2"), display_name="View Invalidation Org A2"
     )
 
     adapter = ApprovalViewInvalidationAdapter(channel=channel, tenant_id=tenant_id, organization_id=org_a1.id)
@@ -445,7 +447,6 @@ def test_adapter_only_reacts_to_its_exact_active_organization(services, session)
     assert signal_calls == ["stale"], "the active org's own Approval request must be observed"
 
     signal_calls.clear()
-    organization_service.enable_organization(org_a2.id)
     services["tenant_context_service"].set_active_organization(org_a2.id)
     _, budget2 = _submitted_budget(services, session)
     request2 = _request_budget_approval_as_a_different_user(services, budget2)
@@ -509,7 +510,7 @@ def test_adapter_follows_an_organization_switch_with_no_stale_or_duplicate_subsc
     tenant_id = _active_tenant(services)
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique("VI-SWITCH-A2"), display_name="Switch Org A2", is_enabled=False
+        organization_code=_unique("VI-SWITCH-A2"), display_name="Switch Org A2"
     )
 
     adapter = ApprovalViewInvalidationAdapter(channel=channel, tenant_id=tenant_id, organization_id=org_a1.id)
@@ -521,7 +522,6 @@ def test_adapter_follows_an_organization_switch_with_no_stale_or_duplicate_subsc
     _request_budget_approval_as_a_different_user(services, budget_a1)
     assert signal_calls == ["stale"]
 
-    organization_service.enable_organization(org_a2.id)
     services["tenant_context_service"].set_active_organization(org_a2.id)
     adapter.set_active_scope(tenant_id=tenant_id, organization_id=org_a2.id)
     assert len(channel._subscriptions) == subscription_count_before, (
@@ -547,7 +547,7 @@ def test_full_switch_sequence_a1_a2_b1_a1_ends_with_exactly_one_live_subscriptio
     tenant_a = _active_tenant(services)
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique("VI-SEQ-A2"), display_name="Sequence Org A2", is_enabled=False
+        organization_code=_unique("VI-SEQ-A2"), display_name="Sequence Org A2"
     )
     tenant_b = tenant_admin.create_tenant(_unique("VI-SEQ-TENANT-B"), "Sequence Tenant B")
 
@@ -591,7 +591,7 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
 
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique("VI-REALSWITCH-A2"), display_name="Real Switch Org A2", is_enabled=False
+        organization_code=_unique("VI-REALSWITCH-A2"), display_name="Real Switch Org A2"
     )
 
     def _current_filters():
@@ -599,7 +599,6 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
 
     assert any(f.organization_id == org_a1.id for f in _current_filters())
 
-    organization_service.enable_organization(org_a2.id)
     services["tenant_context_service"].set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
 
@@ -651,7 +650,7 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
     organization_service = services["organization_service"]
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique("VI-XORG-A2"), display_name="View Invalidation Cross-Org A2", is_enabled=False
+        organization_code=_unique("VI-XORG-A2"), display_name="View Invalidation Cross-Org A2"
     )
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
@@ -659,7 +658,6 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
 
     approver_username = _unique("vi-xorg-approver")
     services["auth_service"].register_user(approver_username, "StrongPass123", role_names=["approver"])
-    organization_service.enable_organization(org_a2.id)
     services["tenant_context_service"].set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
     refresh_calls.clear()
@@ -672,7 +670,6 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
     assert refresh_calls == []
 
     _login(services, "admin", "ChangeMe123!")
-    organization_service.enable_organization(org_a1.id)
     services["tenant_context_service"].set_active_organization(org_a1.id)
     catalog.refreshCurrentPermissions()
     _login(services, approver_username, "StrongPass123")
@@ -690,14 +687,19 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
     from sqlalchemy.orm import sessionmaker
 
     from src.core.platform.application.approval.approval_service import ApprovalService
-    from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
+    from src.core.platform.domain.security.auth.session import (
+        UserSessionContext,
+        UserSessionPrincipal,
+    )
     from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
         SqlAlchemyApprovalRepository,
     )
     from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWorkFactory,
     )
-    from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+    from src.infra.events.in_process_post_commit_event_bus import (
+        InProcessPostCommitEventBus,
+    )
     from src.infra.events.in_process_transactional_event_dispatcher import (
         InProcessTransactionalEventDispatcher,
     )
@@ -715,7 +717,9 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
             self._organization_id = organization_id
 
         def require_active_scope_ids(self, *, operation_label):
-            from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+            from src.core.platform.application.tenant.tenancy.tenant_context import (
+                ActiveScopeIds,
+            )
 
             return ActiveScopeIds(tenant_id=self._tenant_id, organization_id=self._organization_id)
 

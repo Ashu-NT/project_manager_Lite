@@ -5,13 +5,17 @@ from __future__ import annotations
 from decimal import Decimal
 
 from src.core.modules.project_management.domain.enums import CostType
-from src.core.platform.domain.data_operations.importing import ImportPreview, ImportPreviewRow, ImportSummary
 from src.core.modules.project_management.infrastructure.importers.utils.coercion import (
     optional_bool,
     optional_cost_type,
     optional_decimal,
     optional_float,
     required,
+)
+from src.core.platform.domain.data_operations.importing import (
+    ImportPreview,
+    ImportPreviewRow,
+    ImportSummary,
 )
 
 
@@ -69,7 +73,7 @@ def import_resources(
                 "name": required(row, "name"),
                 "code": row.get("code", ""),
                 "role": row.get("role", ""),
-                "hourly_rate": optional_decimal(row.get("hourly_rate")) or Decimal("0"),
+                "hourly_rate": optional_decimal(row.get("hourly_rate")) or Decimal(0),
                 "cost_type": optional_cost_type(row.get("cost_type")) or CostType.LABOR,
                 "currency_code": row.get("currency_code") or None,
                 "capacity_percent": optional_float(row.get("capacity_percent")) or 100.0,

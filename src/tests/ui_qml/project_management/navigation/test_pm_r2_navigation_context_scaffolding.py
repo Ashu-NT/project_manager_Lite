@@ -4,6 +4,9 @@ without deliberately deciding to change it."""
 
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.controllers.common.pm_workspace_navigation_controller import (
+    PMWorkspaceNavigationController,
+)
 from src.ui_qml.modules.project_management.navigation import (
     PM_CANONICAL_ROUTE_ID,
     PM_COMPATIBILITY_ROUTE_IDS,
@@ -11,9 +14,6 @@ from src.ui_qml.modules.project_management.navigation import (
     PMWorkspaceIntent,
     compatibility_route_intent,
     workspace_intent,
-)
-from src.ui_qml.modules.project_management.controllers.common.pm_workspace_navigation_controller import (
-    PMWorkspaceNavigationController,
 )
 
 
@@ -51,11 +51,9 @@ def test_pm_workspace_keys_cover_the_eleven_current_capabilities():
 
 def test_pm_compatibility_route_ids_are_prefixed_workspace_keys():
     assert set(PM_COMPATIBILITY_ROUTE_IDS) == {
-        f"project_management.{key}"
-        for key in PM_WORKSPACE_KEYS
-        if key != "review_queue"
+        f"project_management.{key}" for key in PM_WORKSPACE_KEYS
     }
-    assert "project_management.review_queue" not in PM_COMPATIBILITY_ROUTE_IDS
+    assert "project_management.review_queue" in PM_COMPATIBILITY_ROUTE_IDS
     assert PM_CANONICAL_ROUTE_ID not in PM_COMPATIBILITY_ROUTE_IDS
 
 
@@ -117,32 +115,31 @@ def test_navigation_default_destination_is_dashboard_overview():
     assert controller.secondaryId == ""
 
 
-def test_navigation_items_cover_all_eleven_workspaces_in_six_groups():
+def test_navigation_items_cover_all_eleven_workspaces_in_five_groups():
     controller = PMWorkspaceNavigationController()
-    items = controller.navigationItems
+    tree_groups = controller.contextNavigation
 
+    items = [item for group in tree_groups for item in group["items"]]
     assert len(items) == 11
     ids = {item["id"] for item in items}
     assert ids == set(PM_WORKSPACE_KEYS)
 
-    groups: dict[str, list[str]] = {}
-    for item in items:
-        groups.setdefault(item["group"], []).append(item["id"])
+    groups: dict[str, list[str]] = {
+        group["id"]: [item["id"] for item in group["items"]] for group in tree_groups
+    }
 
     assert set(groups) == {
-        "Overview",
-        "Portfolio",
-        "Work",
-        "Workload Management",
-        "Finance",
-        "Governance",
+        "",
+        "work",
+        "workload_management",
+        "finance",
+        "governance",
     }
-    assert sorted(groups["Overview"]) == ["dashboard"]
-    assert sorted(groups["Portfolio"]) == ["portfolio"]
-    assert sorted(groups["Work"]) == ["projects", "scheduling", "tasks", "timesheets"]
-    assert sorted(groups["Workload Management"]) == ["resources", "review_queue"]
-    assert sorted(groups["Finance"]) == ["financials"]
-    assert sorted(groups["Governance"]) == ["collaboration", "register"]
+    assert sorted(groups[""]) == ["dashboard", "portfolio"]
+    assert sorted(groups["work"]) == ["projects", "scheduling", "tasks", "timesheets"]
+    assert sorted(groups["workload_management"]) == ["resources", "review_queue"]
+    assert sorted(groups["finance"]) == ["financials"]
+    assert sorted(groups["governance"]) == ["collaboration", "register"]
 
 
 def test_select_workspace_valid_key_updates_selection_and_emits():
@@ -243,10 +240,14 @@ def test_apply_route_unknown_route_is_rejected():
 
 
 def test_all_current_destinations_are_always_present_in_navigation_items():
-    """`navigationItems` is deliberately never filtered by capability -- no
+    """`contextNavigation` is deliberately never filtered by capability -- no
     destination->capability mapping exists as a product decision, so every
     workspace is always present regardless of the caller's permissions."""
     controller = PMWorkspaceNavigationController()
 
-    ids = {item["id"] for item in controller.navigationItems}
+    ids = {
+        item["id"]
+        for group in controller.contextNavigation
+        for item in group["items"]
+    }
     assert ids == set(PM_WORKSPACE_KEYS)

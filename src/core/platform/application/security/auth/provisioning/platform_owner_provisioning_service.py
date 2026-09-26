@@ -5,15 +5,18 @@ from typing import TYPE_CHECKING, Protocol
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.domain.security.auth import (
     RolePermissionBinding,
     UserAccount,
     normalize_auth_username,
 )
-from src.core.platform.domain.security.authorization.roles import ROLE_SCOPE_PLATFORM, RoleBinding
 from src.core.platform.domain.security.auth.credentials.passwords import hash_password
-from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.domain.security.authorization.roles import (
+    ROLE_SCOPE_PLATFORM,
+    RoleBinding,
+)
 
 from .default_seed_service import ensure_auth_policy_definitions
 
@@ -157,7 +160,7 @@ def provision_platform_owner(
                         actor_username=normalized_actor,
                         source="provisioning_cli",
                         severity="critical",
-                        compliance_tag="SOC2",
+                        category="SECURITY",
                         metadata={
                             "username": owner.username,
                             "role_name": PLATFORM_OWNER_ROLE,
@@ -185,8 +188,8 @@ def provision_platform_owner(
 
 
 __all__ = [
-    "PLATFORM_OWNER_ROLE",
     "PLATFORM_OWNER_BOOTSTRAP_PERMISSION",
+    "PLATFORM_OWNER_ROLE",
     "PlatformAuditWriter",
     "PlatformOwnerProvisioningResult",
     "provision_platform_owner",

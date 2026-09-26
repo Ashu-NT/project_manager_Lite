@@ -4,7 +4,10 @@ from mimetypes import guess_type
 from pathlib import Path
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.domain.master_data.documents import DocumentStorageKind, DocumentType
+from src.core.platform.domain.master_data.documents import (
+    DocumentStorageKind,
+    DocumentType,
+)
 
 
 def normalize_optional_text(value: str | None) -> str:

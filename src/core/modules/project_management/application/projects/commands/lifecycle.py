@@ -1,29 +1,16 @@
 from __future__ import annotations
 
 import logging
-import json
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import date, datetime, timezone
+from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    AssignmentRepository,
-    DependencyRepository,
-    TaskRepository,
-)
-from src.core.modules.project_management.contracts.uow.projects.project_unit_of_work import (
-    ProjectUnitOfWorkFactory,
-)
-from src.core.modules.project_management.domain.projects.project import Project
-from src.core.modules.project_management.domain.tasks.hierarchy import (
-    order_tasks_children_first,
-    select_leaf_tasks,
-)
-from src.core.modules.project_management.domain.financials.configuration import (
-    ProjectFinancialProfile,
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
 )
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
@@ -37,17 +24,48 @@ from src.core.modules.project_management.application.projects.project_events imp
     ProjectRemoved,
     ProjectStatusChanged,
 )
-from src.core.modules.project_management.application.tasks.task_events import TaskRemoved
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskRemoved,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+    DependencyRepository,
+    TaskRepository,
+)
+from src.core.modules.project_management.contracts.uow.projects.project_unit_of_work import (
+    ProjectUnitOfWorkFactory,
+)
+from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.financials.configuration import (
+    ProjectFinancialProfile,
+)
+from src.core.modules.project_management.domain.projects.project import Project
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    order_tasks_children_first,
+    select_leaf_tasks,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.platform.contract.repositories.time_management.time.contracts import (
+    TimeEntryRepository,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
-from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 logger = logging.getLogger(__name__)
 
@@ -278,8 +296,11 @@ class ProjectLifecycleMixin:
                     entity_id=project.id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={"action": "project.create", "name": project.name},
+                    after_data={"name": project.name, "status": project.status.value},
+                    workspace_id=project.id,
+                    metadata={"action": "project.create"},
                     commit=False,
                     fail_closed=True,
                 )
@@ -314,6 +335,31 @@ class ProjectLifecycleMixin:
     def set_status(
         self, project_id: str, status: ProjectStatus, *, expected_version: int | None = None
     ) -> Project:
+        with self._require_project_uow_factory().create(context=self._new_context()) as uow:
+            project = self._apply_project_status(
+                uow, project_id, status, expected_version=expected_version
+            )
+            uow.commit()
+        return project
+
+    def bulk_set_status(self, project_ids: Sequence[str], status: ProjectStatus) -> list[Project]:
+        """Same per-project work as set_status() (its own permission check,
+        audit entry, activity entry, and ProjectStatusChanged event -- that's
+        the audit trail's real granularity), but every selected project's
+        change lands in ONE UnitOfWork/commit instead of one per project."""
+        results: list[Project] = []
+        with self._require_project_uow_factory().create(context=self._new_context()) as uow:
+            for project_id in project_ids:
+                results.append(self._apply_project_status(uow, project_id, status, expected_version=None))
+            uow.commit()
+        return results
+
+    def _apply_project_status(
+        self, uow, project_id: str, status: ProjectStatus, *, expected_version: int | None
+    ) -> Project:
+        """Mutates one project's status inside an already-open uow (no
+        commit) -- the single unit of work shared by set_status() and
+        bulk_set_status() above."""
         require_permission(self._user_session, "project.manage", operation_label="set project status")
         project = self._project_repo.get(project_id)
         if not project:
@@ -335,57 +381,56 @@ class ProjectLifecycleMixin:
 
         old_status = project.status
         project.status = status
-        with self._require_project_uow_factory().create(context=self._new_context()) as uow:
-            uow.projects.update(project)
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="project",
-                entity_id=project.id,
-                module="project_management",
+        uow.projects.update(project)
+        record_audit_entry(
+            uow,
+            operation="update",
+            entity_type="project",
+            entity_id=project.id,
+            module="project_management",
+            organization_id=scope.organization_id,
+            category="MASTER_DATA",
+            severity="low",
+            changed_fields={
+                "status": {"before": old_status.value, "after": project.status.value},
+            },
+            workspace_id=project.id,
+            metadata={"action": "project.set_status"},
+            commit=False,
+            fail_closed=True,
+        )
+        record_activity(
+            uow,
+            action="project.set_status",
+            entity_type="project",
+            entity_id=project.id,
+            module="project_management",
+            workspace_id=project.id,
+            message=(
+                f"Changed project status from "
+                f"{old_status.value.replace('_', ' ').title()} to "
+                f"{project.status.value.replace('_', ' ').title()}"
+            ),
+            details={
+                "status": project.status.value,
+                "changes": {
+                    "status": {
+                        "from": old_status.value,
+                        "to": project.status.value,
+                    }
+                },
+            },
+            commit=False,
+        )
+        uow.record_event(
+            ProjectStatusChanged(
+                tenant_id=scope.tenant_id,
                 organization_id=scope.organization_id,
-                severity="low",
-                metadata={
-                    "action": "project.set_status",
-                    "status": project.status.value,
-                    "from": old_status.value,
-                },
-                commit=False,
-                fail_closed=True,
+                project_id=project.id,
+                status=project.status,
+                occurred_at=datetime.now(timezone.utc),
             )
-            record_activity(
-                uow,
-                action="project.set_status",
-                entity_type="project",
-                entity_id=project.id,
-                module="project_management",
-                workspace_id=project.id,
-                message=(
-                    f"Changed project status from "
-                    f"{old_status.value.replace('_', ' ').title()} to "
-                    f"{project.status.value.replace('_', ' ').title()}"
-                ),
-                details={
-                    "status": project.status.value,
-                    "changes": {
-                        "status": {
-                            "from": old_status.value,
-                            "to": project.status.value,
-                        }
-                    },
-                },
-                commit=False,
-            )
-            uow.record_event(
-                ProjectStatusChanged(
-                    tenant_id=scope.tenant_id,
-                    organization_id=scope.organization_id,
-                    project_id=project.id,
-                    status=project.status,
-                    occurred_at=datetime.now(timezone.utc),
-                )
-            )
-            uow.commit()
+        )
         return project
 
     def update_dates_from_tasks(self, project_id: str) -> None:
@@ -485,6 +530,7 @@ class ProjectLifecycleMixin:
                         project_repo=uow.projects,
                     )
                 uow.projects.update(candidate)
+                field_diff = _diff_project_fields(original_project, candidate)
                 record_audit_entry(
                     uow,
                     operation="update",
@@ -492,8 +538,14 @@ class ProjectLifecycleMixin:
                     entity_id=candidate.id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={"action": "project.update", "name": candidate.name},
+                    changed_fields={
+                        field_name: {"before": diff["from"], "after": diff["to"]}
+                        for field_name, diff in field_diff.items()
+                    },
+                    workspace_id=candidate.id,
+                    metadata={"action": "project.update"},
                     commit=False,
                     fail_closed=True,
                 )
@@ -508,7 +560,7 @@ class ProjectLifecycleMixin:
                     details={
                         "name": candidate.name,
                         "status": candidate.status.value,
-                        "changes": _diff_project_fields(original_project, candidate),
+                        "changes": field_diff,
                     },
                     commit=False,
                 )
@@ -546,20 +598,27 @@ class ProjectLifecycleMixin:
         *,
         old: ProjectFinancialProfile | None = None,
     ) -> None:
-        def _value(item: ProjectFinancialProfile | None) -> str | None:
+        def _snapshot(item: ProjectFinancialProfile | None) -> dict[str, Any] | None:
             if item is None:
                 return None
-            return json.dumps(
-                {
-                    "billing_method": item.billing_method.value,
-                    "budget_control_mode": item.budget_control_mode.value,
-                    "cost_code_policy": item.cost_code_policy.value,
-                    "currency_code": item.currency_code,
-                    "status": item.status.value,
-                    "version": item.version,
-                },
-                sort_keys=True,
-            )
+            return {
+                "billing_method": item.billing_method.value,
+                "budget_control_mode": item.budget_control_mode.value,
+                "cost_code_policy": item.cost_code_policy.value,
+                "currency_code": item.currency_code,
+                "status": item.status.value,
+                "version": item.version,
+            }
+
+        before = _snapshot(old)
+        after = _snapshot(profile)
+        changed_fields = None
+        if before is not None and after is not None:
+            changed_fields = {
+                key: {"before": before[key], "after": after[key]}
+                for key in after
+                if before.get(key) != after[key]
+            }
 
         record_audit_entry(
             owner,
@@ -568,12 +627,13 @@ class ProjectLifecycleMixin:
             entity_id=profile.id,
             entity_parent_id=profile.project_id,
             module="project_management",
-            old_value=_value(old),
-            new_value=_value(profile),
+            category="FINANCIAL",
+            before_data=before,
+            after_data=after,
+            changed_fields=changed_fields,
             workspace_id=profile.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": f"financial_profile.{operation}"},
             commit=False,
             fail_closed=True,
@@ -631,8 +691,11 @@ class ProjectLifecycleMixin:
                 entity_id=project.id,
                 module="project_management",
                 organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "project.delete", "name": project.name},
+                category="MASTER_DATA",
+                severity="medium",
+                before_data={"name": project.name, "status": project.status.value},
+                workspace_id=project.id,
+                metadata={"action": "project.delete"},
                 commit=False,
                 fail_closed=True,
             )

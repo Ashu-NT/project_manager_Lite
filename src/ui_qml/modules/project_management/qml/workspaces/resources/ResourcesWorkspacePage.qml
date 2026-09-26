@@ -189,7 +189,10 @@ AppLayouts.WorkspaceFrame {
                 }
                 onFilterClicked: filterPopup.open()
                 onRefreshRequested: {
-                    if (root.workspaceController !== null) root.workspaceController.refresh()
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.clearMessages()
+                        root.workspaceController.refresh()
+                    }
                 }
                 onExportRequested: _exportDialog.open()
                 onCreateRequested: dialogHostLoader.invoke("openCreateDialog")

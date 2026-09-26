@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Iterator
 
 from sqlalchemy import event, text
 from sqlalchemy.orm import Session
 
-from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 @dataclass(frozen=True)

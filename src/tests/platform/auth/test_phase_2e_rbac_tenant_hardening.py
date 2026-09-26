@@ -13,27 +13,33 @@ Covers:
 """
 from __future__ import annotations
 
-from contextlib import contextmanager
-
 import pytest
 
-from src.core.platform.domain.security.authorization.roles import RoleBinding
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.application.tenant.tenancy.tenant_admin_service import (
+    TenantAdminService,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
-    SqlAlchemyTenantRepository,
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
+from src.core.platform.domain.security.authorization.roles import RoleBinding
+from src.core.platform.domain.tenant.tenancy.tenant import Tenant
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
+    UserTenantMembership,
 )
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
 )
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
+    SqlAlchemyTenantRepository,
+)
 from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
     SqlAlchemyUserTenantMembershipRepository,
 )
-from src.core.platform.application.tenant.tenancy.tenant_admin_service import TenantAdminService
-from src.core.platform.domain.tenant.tenancy.tenant import Tenant
-from src.core.platform.domain.tenant.tenancy.user_tenant_membership import UserTenantMembership
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -415,7 +421,10 @@ class TestPrincipalBuilderOrgClearing:
     def test_local_principal_establishes_default_context_when_session_has_none(self, services):
         """Local mode establishes its explicit default context during rebuild."""
         from unittest.mock import MagicMock, patch
-        from src.core.platform.application.security.auth.session.principal_builder import build_principal
+
+        from src.core.platform.application.security.auth.session.principal_builder import (
+            build_principal,
+        )
 
         auth = services["auth_service"]
         if auth._auth_session_repo is None:
@@ -439,7 +448,10 @@ class TestPrincipalBuilderOrgClearing:
     def test_principal_rejects_unknown_saved_tenant(self, services):
         """Unknown saved tenant IDs are not restored as authorization context."""
         from unittest.mock import MagicMock, patch
-        from src.core.platform.application.security.auth.session.principal_builder import build_principal
+
+        from src.core.platform.application.security.auth.session.principal_builder import (
+            build_principal,
+        )
 
         auth = services["auth_service"]
         if auth._auth_session_repo is None:
@@ -523,7 +535,9 @@ class TestActiveOrganizationIdTenantGuard:
 # ---------------------------------------------------------------------------
 
 def test_organization_orm_tenant_id_is_not_nullable():
-    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
+    )
 
     col = OrganizationORM.__table__.c["tenant_id"]
     assert col.nullable is False

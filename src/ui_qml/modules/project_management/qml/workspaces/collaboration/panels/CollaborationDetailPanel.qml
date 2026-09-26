@@ -27,6 +27,18 @@ Item {
     signal activityItemActivated(var itemData)
 
     readonly property bool _hasDetail: String(root.detailModel.id || "").length > 0
+
+    // detailModel.statusLabel is a union across the 4 collaboration panel
+    // types that can populate it (inbox/mentions: Unread/Read; approvals:
+    // Pending/Approved/Rejected; activity: Mention/Comment) -- mapped
+    // explicitly per value, not inferred from the text.
+    readonly property string _statusTone: {
+        const label = String(root.detailModel.statusLabel || "").toLowerCase()
+        if (label === "approved") return "success"
+        if (label === "rejected") return "danger"
+        if (label === "pending" || label === "unread" || label === "mention") return "info"
+        return "neutral"
+    }
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
 
     implicitHeight: (_summaryStrip.visible ? _summaryStrip.height : 0)
@@ -74,6 +86,7 @@ Item {
             AppWidgets.StatusChip {
                 visible: String(root.detailModel.statusLabel || "").length > 0
                 status: root.detailModel.statusLabel || ""
+                tone:   root._statusTone
             }
 
             AppControls.Label {

@@ -11,15 +11,17 @@ from src.core.platform.application.security.authorization.enforcement.permission
     authorization_denied,
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.context_policy import (
+    SaaSTenantContextPolicy,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
-from src.core.platform.application.tenant.tenancy.context_policy import SaaSTenantContextPolicy
 from src.infra.platform.operational_support import bind_trace_id
 
 
@@ -96,13 +98,12 @@ def test_denial_audit_failure_never_changes_denial_to_allow(
     user_session = UserSessionContext(security_denial_listener=_fail)
     user_session.set_principal(_principal())
 
-    with caplog.at_level(logging.CRITICAL):
-        with pytest.raises(BusinessRuleError) as exc:
-            require_permission(
-                user_session,
-                "security.manage",
-                operation_label="change security policy",
-            )
+    with caplog.at_level(logging.CRITICAL), pytest.raises(BusinessRuleError) as exc:
+        require_permission(
+            user_session,
+            "security.manage",
+            operation_label="change security policy",
+        )
 
     assert exc.value.code == "PERMISSION_DENIED"
     assert "Security denial audit persistence failed" in caplog.text
@@ -224,10 +225,10 @@ def test_tenant_switch_success_is_audited_and_idempotent(services) -> None:
     assert len(rows) == 1
     row = rows[0]
     metadata = json.loads(row.metadata_json)
+    changed_fields = json.loads(row.changed_fields_json)
     assert row.tenant_id == target.id
-    assert row.field == "tenant_id"
-    assert row.old_value == old_tenant_id
-    assert row.new_value == target.id
+    assert changed_fields["tenant_id"]["before"] == old_tenant_id
+    assert changed_fields["tenant_id"]["after"] == target.id
     assert metadata["outcome"] == "success"
 
     tenant_context.switch_to_tenant(target.id)
@@ -251,7 +252,6 @@ def test_organization_switch_success_is_tenant_scoped(services) -> None:
     target = organization_service.create_organization(
         organization_code="AUDIT-ORG",
         display_name="Audited Organization",
-        is_enabled=True,
     )
 
     tenant_context.set_active_organization(target.id)
@@ -265,11 +265,11 @@ def test_organization_switch_success_is_tenant_scoped(services) -> None:
     assert len(rows) == 1
     row = rows[0]
     metadata = json.loads(row.metadata_json)
+    changed_fields = json.loads(row.changed_fields_json)
     assert row.tenant_id == user_session.active_tenant_id()
     assert row.organization_id == target.id
-    assert row.field == "organization_id"
-    assert row.old_value == old_organization_id
-    assert row.new_value == target.id
+    assert changed_fields["organization_id"]["before"] == old_organization_id
+    assert changed_fields["organization_id"]["after"] == target.id
     assert metadata["switch_type"] == "organization"
     assert metadata["outcome"] == "success"
 

@@ -1,19 +1,26 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from PySide6.QtCore import Property, QCoreApplication, QObject, Signal, Slot
 
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
+    safe_error_message,
     serialize_collaboration_collection_view_model,
     serialize_selector_options,
+)
+
+_SAFE_KWARGS = dict(
+    safe_validation_message="Review the highlighted fields and try again.",
+    safe_validation_code="TASK_COLLABORATION_INPUT_INVALID",
+    safe_failure_message="This update could not be completed. Try again or refresh the task.",
+    safe_failure_code="TASK_COLLABORATION_MUTATION_FAILED",
 )
 from src.ui_qml.modules.project_management.presenters import (
     ProjectTasksWorkspacePresenter,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -131,8 +138,9 @@ class PMCollaborationController(QObject):
             return {"ok": True, "message": ""}
         except Exception as exc:  # pragma: no cover
             self._presence_override_task_id = previous_override
-            self._set_error_message(str(exc))
-            return {"ok": False, "message": str(exc)}
+            message = safe_error_message(exc, safe_message="Presence could not be updated.")
+            self._set_error_message(message)
+            return {"ok": False, "message": message}
 
     @Slot(str, result="QVariantMap")
     def endTaskPresence(self, task_id: str) -> dict[str, object]:
@@ -147,8 +155,9 @@ class PMCollaborationController(QObject):
             self.sync_review_presence(restore_task_id)
             return {"ok": True, "message": ""}
         except Exception as exc:  # pragma: no cover
-            self._set_error_message(str(exc))
-            return {"ok": False, "message": str(exc)}
+            message = safe_error_message(exc, safe_message="Presence could not be updated.")
+            self._set_error_message(message)
+            return {"ok": False, "message": message}
 
     @Slot("QVariantMap", result="QVariantMap")
     def postTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
@@ -159,6 +168,7 @@ class PMCollaborationController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            **_SAFE_KWARGS,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -170,6 +180,7 @@ class PMCollaborationController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            **_SAFE_KWARGS,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -181,6 +192,7 @@ class PMCollaborationController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            **_SAFE_KWARGS,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -192,6 +204,7 @@ class PMCollaborationController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            **_SAFE_KWARGS,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -203,6 +216,7 @@ class PMCollaborationController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            **_SAFE_KWARGS,
         )
 
     @Slot(str, result="QVariantMap")
@@ -214,6 +228,7 @@ class PMCollaborationController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            **_SAFE_KWARGS,
         )
 
     def _set_task_presence(self, task_id: str, activity: str) -> None:

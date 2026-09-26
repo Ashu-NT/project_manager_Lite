@@ -3,43 +3,42 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Optional
 
-from sqlalchemy import DateTime
 from sqlalchemy import (
-    Boolean,
     Date,
-    Enum as SAEnum,
+    DateTime,
     Float,
     ForeignKey,
     Index,
     Integer,
     String,
     Text,
-    UniqueConstraint,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.platform.domain.master_data.employee import EmploymentType
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.infra.persistence.orm.base import Base
+
 
 class TimeEntryORM(Base):
     __tablename__ = "time_entries"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
     )
-    organization_id: Mapped[Optional[str]] = mapped_column(
+    organization_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="SET NULL"),
         nullable=True,
     )
     work_allocation_id: Mapped[str] = mapped_column(String, nullable=False)
-    assignment_id: Mapped[Optional[str]] = mapped_column(
+    assignment_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("task_assignments.id", ondelete="CASCADE"),
         nullable=True,
@@ -48,29 +47,29 @@ class TimeEntryORM(Base):
     hours: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     note: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     owner_type: Mapped[str] = mapped_column(String(64), nullable=False, default="work_allocation", server_default="work_allocation")
-    owner_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    owner_label: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    scope_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    scope_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    employee_id: Mapped[Optional[str]] = mapped_column(
+    owner_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    owner_label: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    scope_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    scope_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    employee_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("employees.id", ondelete="SET NULL"),
         nullable=True,
     )
-    department_id: Mapped[Optional[str]] = mapped_column(
+    department_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("departments.id", ondelete="SET NULL"),
         nullable=True,
     )
-    department_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    site_id: Mapped[Optional[str]] = mapped_column(
+    department_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    site_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("sites.id", ondelete="SET NULL"),
         nullable=True,
     )
-    site_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    author_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    author_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    site_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    author_user_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    author_username: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
@@ -92,12 +91,12 @@ class TimesheetPeriodORM(Base):
     __tablename__ = "timesheet_periods"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
     )
-    organization_id: Mapped[Optional[str]] = mapped_column(
+    organization_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="SET NULL"),
         nullable=True,
@@ -115,14 +114,14 @@ class TimesheetPeriodORM(Base):
         default=TimesheetPeriodStatus.OPEN,
         server_default=TimesheetPeriodStatus.OPEN.value,
     )
-    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    submitted_by_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    submitted_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    decided_by_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    decided_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    decision_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    locked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    submitted_by_user_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    submitted_by_username: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    decided_by_user_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    decided_by_username: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    decision_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 

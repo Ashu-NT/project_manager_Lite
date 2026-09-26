@@ -5,19 +5,19 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.domain.security.authorization.roles import (
-    ROLE_SCOPE_PLATFORM,
-    ROLE_SCOPE_TENANT,
-    RoleBinding,
-)
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.security.auth import (
     Role,
     UserAccount,
 )
 from src.core.platform.domain.security.auth.credentials.passwords import hash_password
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.domain.security.authorization.roles import (
+    ROLE_SCOPE_PLATFORM,
+    ROLE_SCOPE_TENANT,
+    RoleBinding,
+)
 from src.core.platform.domain.tenant.tenancy import Tenant
-from src.infra.composition.repositories import build_repository_bundle
+from src.infra.composition.persistence.repositories import build_repository_bundle
 
 
 @pytest.mark.parametrize(

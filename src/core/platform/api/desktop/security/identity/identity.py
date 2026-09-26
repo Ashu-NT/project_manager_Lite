@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.security.identity.models.identity import (
     ApiKeyCredentialDto,
@@ -9,8 +8,13 @@ from src.core.platform.api.desktop.security.identity.models.identity import (
     ServicePrincipalCreateCommand,
     ServicePrincipalDto,
 )
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.application.security.identity import ServicePrincipalService
-from src.core.platform.domain.security.identity.service_principal import ApiKeyCredential, IssuedApiKey, ServicePrincipal
+from src.core.platform.domain.security.identity.service_principal import (
+    ApiKeyCredential,
+    IssuedApiKey,
+    ServicePrincipal,
+)
 
 
 class PlatformIdentityDesktopApi:

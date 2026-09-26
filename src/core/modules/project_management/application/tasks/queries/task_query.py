@@ -3,16 +3,9 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date
 
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    AssignmentRepository,
-    TaskRepository,
-    TimesheetAssignmentContext,
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
 )
-from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ValidationError
-from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
@@ -20,15 +13,28 @@ from src.core.modules.project_management.application.common.pagination import (
 from src.core.modules.project_management.application.tasks.workspace_filters import (
     build_task_workspace_criteria,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.tasks import (
     TaskActivityPage,
     TaskAssignmentReadPage,
     TaskDependencyReadPage,
-    TaskWorkspaceReadPage,
     TaskWorkspaceReader,
+    TaskWorkspaceReadPage,
 )
-from src.core.modules.project_management.contracts.reads import ReadSort
-from src.core.platform.application.security.authorization import get_authorization_engine
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+    TaskRepository,
+    TimesheetAssignmentContext,
+)
+from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
+from src.core.platform.application.security.authorization import (
+    get_authorization_engine,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import ValidationError
 
 
 class TaskQueryMixin:

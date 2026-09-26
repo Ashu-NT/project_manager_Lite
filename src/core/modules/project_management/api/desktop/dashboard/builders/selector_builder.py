@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from src.core.modules.project_management.application.dashboard import PORTFOLIO_SCOPE_ID
 from src.core.modules.project_management.api.desktop.dashboard.models.snapshot import (
     ProjectDashboardSelectorOptionDescriptor,
 )
+from src.core.modules.project_management.application.dashboard import PORTFOLIO_SCOPE_ID
 
 
 def build_project_options(project_service=None) -> tuple[ProjectDashboardSelectorOptionDescriptor, ...]:

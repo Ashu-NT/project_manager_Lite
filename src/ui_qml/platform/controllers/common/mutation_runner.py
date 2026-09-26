@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
+from .error_sanitizer import DEFAULT_SAFE_FAILURE_MESSAGE, safe_exception_message
 from .serializers import serialize_operation_result
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ def run_mutation(
     set_operation_result,
     set_feedback_message,
     success_result_handler: Callable[[object], None] | None = None,
+    safe_failure_message: str = DEFAULT_SAFE_FAILURE_MESSAGE,
 ) -> dict[str, object]:
     set_is_busy(True)
     set_error_message("")
@@ -35,10 +37,11 @@ def run_mutation(
             logger.warning("Platform workspace mutation returned failure message=%s", payload["message"])
     except Exception as exc:
         logger.exception("Platform workspace mutation failed.")
-        payload = {"ok": False, "category": "error", "code": "exception", "message": str(exc)}
+        message = safe_exception_message(exc, fallback=safe_failure_message)
+        payload = {"ok": False, "category": "error", "code": "exception", "message": message}
         set_operation_result(payload)
         set_feedback_message("")
-        set_error_message(str(exc))
+        set_error_message(message)
     finally:
         set_is_busy(False)
     return dict(payload)

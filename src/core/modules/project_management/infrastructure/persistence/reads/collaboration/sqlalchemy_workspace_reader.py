@@ -7,8 +7,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.reads.collaboration.models.workspace_facts import (
-    CollaborationCommentFact,
     CollaborationCommentCriteria,
+    CollaborationCommentFact,
     CollaborationCommentReadPage,
     CollaborationPresenceFact,
 )
@@ -16,8 +16,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.collabor
     TaskCommentORM,
     TaskPresenceORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskORM,
+)
 
 
 def _utc(value: datetime) -> datetime:

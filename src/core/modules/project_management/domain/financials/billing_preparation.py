@@ -7,7 +7,9 @@ from enum import Enum
 
 from pydantic import field_validator, model_validator
 
-from src.core.modules.project_management.domain.financials.configuration import BillingMethod
+from src.core.modules.project_management.domain.financials.configuration import (
+    BillingMethod,
+)
 from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.common.pydantic import (
@@ -16,7 +18,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.finance import (
+from src.core.platform.domain.finance import (
     MONEY_STORAGE,
     PERCENTAGE_STORAGE,
     QUANTITY_STORAGE,
@@ -93,7 +95,7 @@ class ProjectBillingPreparation:
     created_by: str
     status: BillingPreparationStatus = BillingPreparationStatus.DRAFT
     line_count: int = 0
-    total_amount: Decimal = Decimal("0")
+    total_amount: Decimal = Decimal(0)
     correction_of_preparation_id: str | None = None
     approval_request_id: str | None = None
     submitted_by: str | None = None
@@ -182,7 +184,7 @@ class ProjectBillingPreparation:
         return _timestamp(value, code=f"BILLING_PREPARATION_{info.field_name.upper()}_INVALID")
 
     @model_validator(mode="after")
-    def _period_and_correction_shape(self) -> "ProjectBillingPreparation":
+    def _period_and_correction_shape(self) -> ProjectBillingPreparation:
         if self.period_end < self.period_start:
             raise ValidationError(
                 "Billing preparation period end cannot precede its start.",
@@ -234,6 +236,11 @@ class ProjectBillingPreparation:
             raise BusinessRuleError(
                 "Only a submitted billing preparation can be approved.",
                 code="BILLING_PREPARATION_APPROVAL_INVALID",
+            )
+        if approved_by == self.created_by:
+            raise BusinessRuleError(
+                "The preparation creator cannot approve their own billing preparation.",
+                code="BILLING_PREPARATION_CREATOR_SELF_APPROVAL",
             )
         self.status = BillingPreparationStatus.APPROVED
         self.approved_by = approved_by
@@ -316,7 +323,7 @@ class ProjectBillingPreparation:
         created_by: str,
         created_at: datetime | None = None,
         **values,
-    ) -> "ProjectBillingPreparation":
+    ) -> ProjectBillingPreparation:
         now = created_at or _utc_now()
         return ProjectBillingPreparation(
             id=generate_id(),
@@ -480,7 +487,7 @@ class ProjectBillingPreparationLine:
         return _timestamp(value, code="BILLING_LINE_CREATED_AT_INVALID")
 
     @model_validator(mode="after")
-    def _source_shape(self) -> "ProjectBillingPreparationLine":
+    def _source_shape(self) -> ProjectBillingPreparationLine:
         rate_fields = (self.rate_card_id, self.rate_line_id, self.rate_card_version)
         if any(value is not None for value in rate_fields) and not all(
             value is not None for value in rate_fields
@@ -508,7 +515,7 @@ class ProjectBillingPreparationLine:
         return self
 
     @staticmethod
-    def create(**values) -> "ProjectBillingPreparationLine":
+    def create(**values) -> ProjectBillingPreparationLine:
         return ProjectBillingPreparationLine(id=generate_id(), **values)
 
 
@@ -579,7 +586,7 @@ class ProjectBillingSourceLock:
         self.released_at = occurred_at
 
     @staticmethod
-    def create(**values) -> "ProjectBillingSourceLock":
+    def create(**values) -> ProjectBillingSourceLock:
         return ProjectBillingSourceLock(id=generate_id(), **values)
 
 
@@ -627,7 +634,7 @@ class ProjectBillingExternalEvent:
         return _timestamp(value, code=f"BILLING_EXTERNAL_EVENT_{info.field_name.upper()}_INVALID")
 
     @model_validator(mode="after")
-    def _reconciliation_shape(self) -> "ProjectBillingExternalEvent":
+    def _reconciliation_shape(self) -> ProjectBillingExternalEvent:
         if (
             self.event_type is BillingExternalEventType.RECONCILED
             and not self.reconciliation_reference
@@ -639,7 +646,7 @@ class ProjectBillingExternalEvent:
         return self
 
     @staticmethod
-    def create(**values) -> "ProjectBillingExternalEvent":
+    def create(**values) -> ProjectBillingExternalEvent:
         return ProjectBillingExternalEvent(id=generate_id(), **values)
 
 

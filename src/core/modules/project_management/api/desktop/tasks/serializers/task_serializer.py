@@ -3,7 +3,9 @@ from __future__ import annotations
 from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
     constraint_presentation,
 )
-from src.core.modules.project_management.api.desktop.tasks.models.task import TaskDesktopDto
+from src.core.modules.project_management.api.desktop.tasks.models.task import (
+    TaskDesktopDto,
+)
 
 
 def serialize_task(task, *, project_name: str, hierarchy_node=None, rollup=None) -> TaskDesktopDto:

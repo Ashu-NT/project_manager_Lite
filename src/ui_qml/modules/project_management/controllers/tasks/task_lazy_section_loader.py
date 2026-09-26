@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from src.ui_qml.modules.project_management.controllers.common import (
-    serialize_task_collection_view_model,
+    safe_error_message,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,9 @@ def load_selected_task_assignments(controller, *, force: bool = False) -> None:
                 )
                 controller._set_selected_assignment_id(str(first_id or ""))
     except Exception as exc:
-        controller._set_section_error("assignments", str(exc))
+        controller._set_section_error(
+            "assignments", safe_error_message(exc, safe_message="Assignments could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 
@@ -63,7 +65,9 @@ def load_selected_task_dependencies(controller) -> None:
         controller._dependencies_ctrl._update(ws)
         controller._dependencies_section_loaded_for_task_id = controller._selected_task_id
     except Exception as exc:
-        controller._set_section_error("dependencies", str(exc))
+        controller._set_section_error(
+            "dependencies", safe_error_message(exc, safe_message="Dependencies could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 
@@ -84,7 +88,9 @@ def load_selected_task_time(controller) -> None:
         controller._set_selected_time_entry_id(ws.selected_time_entry_id)
         controller._set_time_section_loaded_for_task_id(controller._selected_task_id)
     except Exception as exc:
-        controller._set_section_error("time", str(exc))
+        controller._set_section_error(
+            "time", safe_error_message(exc, safe_message="Time entries could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 
@@ -106,7 +112,9 @@ def load_selected_task_collaboration(controller) -> None:
         controller._collab_ctrl._update(ws)
         controller._set_collaboration_section_loaded_for_task_id(controller._selected_task_id)
     except Exception as exc:
-        controller._set_section_error("discussion", str(exc))
+        controller._set_section_error(
+            "discussion", safe_error_message(exc, safe_message="Discussion could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 
@@ -125,7 +133,9 @@ def load_selected_task_skill_requirements(controller) -> None:
         controller._assignments_ctrl._update_skill_requirements(ws)
         controller._skill_requirements_section_loaded_for_task_id = controller._selected_task_id
     except Exception as exc:
-        controller._set_section_error("skills", str(exc))
+        controller._set_section_error(
+            "skills", safe_error_message(exc, safe_message="Skill requirements could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 
@@ -219,7 +229,10 @@ def load_selected_task_schedule_impact(controller) -> None:
         logger.debug("load_selected_task_schedule_impact: loaded overview=%r", overview)
     except Exception as exc:
         logger.exception("load_selected_task_schedule_impact failed")
-        controller._set_section_error("scheduleImpact", str(exc))
+        controller._set_section_error(
+            "scheduleImpact",
+            safe_error_message(exc, safe_message="Schedule impact could not be calculated."),
+        )
     finally:
         controller._set_is_loading(False)
 
@@ -244,7 +257,9 @@ def load_selected_task_activity(controller) -> None:
                                        **state, **page})
         controller._task_activity_section_loaded_for_task_id = controller._selected_task_id
     except Exception as exc:
-        controller._set_section_error("activity", str(exc))
+        controller._set_section_error(
+            "activity", safe_error_message(exc, safe_message="Activity could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 

@@ -30,7 +30,6 @@ Item {
     property var projectActivityModel: ({
         "title": "Activity", "subtitle": "", "emptyState": "Open this section to load project activity.", "items": []
     })
-    property var projectActivityTableModel: null
     property var assignableResourceOptions: []
     property string selectedProjectResourceId: ""
 
@@ -152,7 +151,6 @@ Item {
                 availableHeight: root.availableHeight
                 sectionErrors: root.sectionErrors
                 projectActivityModel: root.projectActivityModel
-                projectActivityTableModel: root.projectActivityTableModel
                 workspaceController: root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
                 isBusy: root.isBusy
             }

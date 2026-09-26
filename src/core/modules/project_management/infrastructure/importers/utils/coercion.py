@@ -5,7 +5,11 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from src.core.modules.project_management.domain.enums import CostType, ProjectStatus, TaskStatus
+from src.core.modules.project_management.domain.enums import (
+    CostType,
+    ProjectStatus,
+    TaskStatus,
+)
 
 
 def required(row: dict[str, str], key: str) -> str:

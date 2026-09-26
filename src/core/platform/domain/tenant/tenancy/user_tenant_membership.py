@@ -1,21 +1,20 @@
 from __future__ import annotations
 
+import re
 from dataclasses import replace
 from datetime import datetime, timezone
-import re
 
 from pydantic import field_validator, model_validator
 
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import (
     normalize_optional_identifier,
     normalize_optional_text,
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.common.ids import generate_id
-
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 
 MEMBERSHIP_STATUS_INVITED = "invited"
 MEMBERSHIP_STATUS_ACTIVE = "active"
@@ -205,7 +204,7 @@ class UserTenantMembership:
         return normalized
 
     @model_validator(mode="after")
-    def _validate_lifecycle_state(self) -> "UserTenantMembership":
+    def _validate_lifecycle_state(self) -> UserTenantMembership:
         if self.status == MEMBERSHIP_STATUS_INVITED:
             if (
                 self.invited_by_user_id is None
@@ -281,7 +280,7 @@ class UserTenantMembership:
     def create(
         user_id: str,
         tenant_id: str,
-    ) -> "UserTenantMembership":
+    ) -> UserTenantMembership:
         now = datetime.now(timezone.utc)
         return UserTenantMembership(
             id=generate_id(),
@@ -311,7 +310,7 @@ class UserTenantMembership:
         expires_at: datetime,
         invitation_token_hash: str,
         invited_at: datetime | None = None,
-    ) -> "UserTenantMembership":
+    ) -> UserTenantMembership:
         now = invited_at or datetime.now(timezone.utc)
         return UserTenantMembership(
             id=generate_id(),
@@ -342,7 +341,7 @@ class UserTenantMembership:
         self,
         *,
         accepted_at: datetime | None = None,
-    ) -> "UserTenantMembership":
+    ) -> UserTenantMembership:
         if self.status != MEMBERSHIP_STATUS_INVITED:
             raise BusinessRuleError(
                 "Only invited memberships can be accepted.",
@@ -370,7 +369,7 @@ class UserTenantMembership:
         self,
         *,
         suspended_at: datetime | None = None,
-    ) -> "UserTenantMembership":
+    ) -> UserTenantMembership:
         if self.status != MEMBERSHIP_STATUS_ACTIVE:
             raise BusinessRuleError(
                 "Only active memberships can be suspended.",
@@ -388,7 +387,7 @@ class UserTenantMembership:
         self,
         *,
         reactivated_at: datetime | None = None,
-    ) -> "UserTenantMembership":
+    ) -> UserTenantMembership:
         if self.status != MEMBERSHIP_STATUS_SUSPENDED:
             raise BusinessRuleError(
                 "Only suspended memberships can be reactivated.",
@@ -406,7 +405,7 @@ class UserTenantMembership:
         self,
         *,
         revoked_at: datetime | None = None,
-    ) -> "UserTenantMembership":
+    ) -> UserTenantMembership:
         if self.status != MEMBERSHIP_STATUS_INVITED:
             raise BusinessRuleError(
                 "Only invited memberships can be revoked.",
@@ -426,7 +425,7 @@ class UserTenantMembership:
         self,
         *,
         removed_at: datetime | None = None,
-    ) -> "UserTenantMembership":
+    ) -> UserTenantMembership:
         if self.status not in {
             MEMBERSHIP_STATUS_ACTIVE,
             MEMBERSHIP_STATUS_SUSPENDED,
@@ -451,7 +450,7 @@ class UserTenantMembership:
         expires_at: datetime,
         invitation_token_hash: str,
         invited_at: datetime | None = None,
-    ) -> "UserTenantMembership":
+    ) -> UserTenantMembership:
         if self.status not in {
             MEMBERSHIP_STATUS_INVITED,
             MEMBERSHIP_STATUS_REMOVED,
@@ -484,9 +483,9 @@ __all__ = [
     "MEMBERSHIP_STATUS_REMOVED",
     "MEMBERSHIP_STATUS_SUSPENDED",
     "UserTenantMembership",
+    "normalize_membership_invitation_token_hash",
     "normalize_user_tenant_membership_datetime",
     "normalize_user_tenant_membership_id",
-    "normalize_membership_invitation_token_hash",
     "normalize_user_tenant_membership_status",
     "normalize_user_tenant_membership_tenant_id",
     "normalize_user_tenant_membership_user_id",

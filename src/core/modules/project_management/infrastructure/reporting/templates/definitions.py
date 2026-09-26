@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Callable, Mapping
 
-from src.core.platform.application.data_operations.report_runtime import ReportDefinitionRegistry
+from src.core.platform.application.data_operations.report_runtime import (
+    ReportDefinitionRegistry,
+)
 from src.core.platform.domain.data_operations.report_runtime import ReportFormat
-
 
 RenderHandler = Callable[[object], object]
 

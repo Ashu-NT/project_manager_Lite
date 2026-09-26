@@ -27,12 +27,9 @@ class PageRequest:
     MAX_PAGE_SIZE: int = field(default=500, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        if self.page < 1:
-            self.page = 1
-        if self.page_size < 1:
-            self.page_size = 1
-        if self.page_size > self.MAX_PAGE_SIZE:
-            self.page_size = self.MAX_PAGE_SIZE
+        self.page = max(self.page, 1)
+        self.page_size = max(self.page_size, 1)
+        self.page_size = min(self.page_size, self.MAX_PAGE_SIZE)
 
     @property
     def offset(self) -> int:
@@ -44,7 +41,7 @@ class PageRequest:
         return self.page_size
 
     @staticmethod
-    def first(page_size: int = 50) -> "PageRequest":
+    def first(page_size: int = 50) -> PageRequest:
         return PageRequest(page=1, page_size=page_size)
 
 
@@ -78,7 +75,7 @@ class PaginatedResult(Generic[T]):
         return max(1, -(-self.total // self.page_size))  # ceiling division
 
     @staticmethod
-    def single_page(items: list[T]) -> "PaginatedResult[T]":
+    def single_page(items: list[T]) -> PaginatedResult[T]:
         """Convenience wrapper when pagination is not required."""
         return PaginatedResult(items=items, page=1, page_size=len(items), total=len(items))
 

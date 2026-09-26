@@ -1,17 +1,18 @@
 """Overview and headline metric builders."""
 
 from __future__ import annotations
+
 from typing import Any
 
-from src.core.modules.project_management.api.desktop.dashboard.models.overview import (
-    ProjectDashboardMetricDescriptor,
-    ProjectDashboardOverviewDescriptor,
-)
 from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
     fmt_float,
     fmt_int,
     fmt_percent,
     fmt_ratio,
+)
+from src.core.modules.project_management.api.desktop.dashboard.models.overview import (
+    ProjectDashboardMetricDescriptor,
+    ProjectDashboardOverviewDescriptor,
 )
 
 _PORTFOLIO_SUBTITLES = {
@@ -193,7 +194,7 @@ def _build_project_overview(
         "spi": ProjectDashboardMetricDescriptor("SPI", fmt_ratio(getattr(evm, "SPI", None)), "Schedule performance index"),
         "cpi": ProjectDashboardMetricDescriptor("CPI", fmt_ratio(getattr(evm, "CPI", None)), "Cost performance index"),
         "budget_variance": ProjectDashboardMetricDescriptor("Budget Var.", fmt_float(getattr(kpi, "cost_variance", 0.0), 0), "Actual minus planned cost"),
-        "forecast_variance": ProjectDashboardMetricDescriptor("Forecast Var.", fmt_float(getattr(evm, "VAC", 0.0), 0), "Variance at completion"),
+        "forecast_variance": ProjectDashboardMetricDescriptor("EVM VAC", fmt_float(getattr(evm, "VAC", 0.0), 0), "BAC minus EAC; positive is favorable"),
         "high_risks": ProjectDashboardMetricDescriptor("High Risks", fmt_int(getattr(summary, "critical_items", 0) or 0), "Critical register exposure"),
         "open_tasks": ProjectDashboardMetricDescriptor("Open Tasks", fmt_int(open_tasks), "Tasks not yet complete"),
         "utilization": ProjectDashboardMetricDescriptor(

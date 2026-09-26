@@ -62,7 +62,7 @@ class FinancialRateMutationDto:
 
 __all__ = [
     "FinancialRateCardDetailDto",
-    "FinancialRateTableRecordDto",
     "FinancialRateMutationDto",
+    "FinancialRateTableRecordDto",
     "FinancialRateWorkspaceDto",
 ]

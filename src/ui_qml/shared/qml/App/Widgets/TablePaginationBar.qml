@@ -90,12 +90,27 @@ Rectangle {
 
             Rectangle {
                 id: _prevBtn
+                objectName: "paginationPrevButton"
                 implicitWidth:  64
                 implicitHeight: 26
                 radius:         Theme.AppTheme.radiusSm
                 readonly property bool _disabled: root.busy || root.currentPage <= 1
                 color: _prevHover.containsMouse && !_prevBtn._disabled
                     ? Theme.AppTheme.hoverSurface : Theme.AppTheme.surfaceOverlay
+                border.width: _prevBtn.activeFocus ? 2 : 0
+                border.color: Theme.AppTheme.focusBorder
+
+                activeFocusOnTab: !_prevBtn._disabled
+                Accessible.role: Accessible.Button
+                Accessible.name: "Previous page"
+                Accessible.onPressAction: root.pageRequested(root.currentPage - 1)
+                Keys.onPressed: (event) => {
+                    if (!_prevBtn._disabled
+                            && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space)) {
+                        root.pageRequested(root.currentPage - 1)
+                        event.accepted = true
+                    }
+                }
 
                 AppControls.Label {
                     anchors.centerIn: parent
@@ -118,16 +133,31 @@ Rectangle {
 
             Rectangle {
                 id: _nextBtn
+                objectName: "paginationNextButton"
                 implicitWidth:  64
                 implicitHeight: 26
                 radius:         Theme.AppTheme.radiusSm
                 readonly property bool _disabled: root.busy || root.currentPage >= root._totalPages
                 color: _nextHover.containsMouse && !_nextBtn._disabled
                     ? Theme.AppTheme.hoverSurface : Theme.AppTheme.surfaceOverlay
+                border.width: _nextBtn.activeFocus ? 2 : 0
+                border.color: Theme.AppTheme.focusBorder
+
+                activeFocusOnTab: !_nextBtn._disabled
+                Accessible.role: Accessible.Button
+                Accessible.name: "Next page"
+                Accessible.onPressAction: root.pageRequested(root.currentPage + 1)
+                Keys.onPressed: (event) => {
+                    if (!_nextBtn._disabled
+                            && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space)) {
+                        root.pageRequested(root.currentPage + 1)
+                        event.accepted = true
+                    }
+                }
 
                 AppControls.Label {
                     anchors.centerIn: parent
-                    text:           "Next ›"
+                    text:           "Next >"
                     color:          _nextBtn._disabled
                         ? Theme.AppTheme.textMuted : Theme.AppTheme.textSecondary
                     font.family:    Theme.AppTheme.fontFamily

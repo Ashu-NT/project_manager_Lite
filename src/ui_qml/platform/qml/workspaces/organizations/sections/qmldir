@@ -1,0 +1,8 @@
+module workspaces.organizations.sections
+OrganizationOverviewSection 1.0 OrganizationOverviewSection.qml
+OrganizationSitesSection 1.0 OrganizationSitesSection.qml
+OrganizationDepartmentsSection 1.0 OrganizationDepartmentsSection.qml
+OrganizationEmployeesSection 1.0 OrganizationEmployeesSection.qml
+OrganizationDocumentsSection 1.0 OrganizationDocumentsSection.qml
+OrganizationSimpleListSection 1.0 OrganizationSimpleListSection.qml
+OrganizationActivitySection 1.0 OrganizationActivitySection.qml

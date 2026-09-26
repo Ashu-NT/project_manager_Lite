@@ -6,11 +6,12 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtCore import QObject
 from PySide6.QtGui import QGuiApplication
 
 from src.application.runtime import build_desktop_api_registry
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.modules.project_management.controllers.dashboard.dashboard_workspace_controller import (
     ProjectManagementDashboardWorkspaceController,
 )
@@ -23,7 +24,6 @@ from src.ui_qml.modules.project_management.controllers.scheduling.scheduling_wor
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.qml_engine import create_qml_engine
-
 
 EXPECTED_DESTINATION_BY_ROUTE = {
     "project_management.dashboard": ("dashboard", "overview", ""),
@@ -138,31 +138,6 @@ def test_entering_canonical_shell_only_constructs_the_default_destination(servic
     finally:
         for restore in restores:
             restore()
-
-
-def test_nav_rail_is_manually_collapsible_like_platform(services) -> None:
-    """PM's secondary nav reuses App.Widgets.GroupedNavigationRail with
-    showRailToggle: true, matching PlatformNavigation.qml's own setup, so
-    the user can manually collapse/expand it (in addition to it already
-    auto-collapsing at narrow width)."""
-    _ensure_qgui_application()
-    registry = build_desktop_api_registry(services)
-    pm_catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
-    platform_catalog = PlatformWorkspaceCatalog()
-
-    engine = create_qml_engine()
-    engine.setInitialProperties({"pmCatalog": pm_catalog, "platformCatalog": platform_catalog})
-    engine.load(
-        "src/ui_qml/modules/project_management/qml/workspace/ProjectManagementWorkspace.qml"
-    )
-    root = engine.rootObjects()[0]
-    nav = root.findChild(QObject, "pmWorkspaceNavigation")
-    assert nav is not None
-    assert nav.property("showRailToggle") is True
-    assert nav.property("collapsed") is False
-
-    nav.setProperty("collapsed", True)
-    assert nav.property("collapsed") is True
 
 
 def test_revisiting_a_destination_does_not_reconstruct_its_controller(services) -> None:

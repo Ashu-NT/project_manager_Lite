@@ -5,13 +5,31 @@ resolution paths."""
 
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import date
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.infra.persistence.orm import Base
+from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
+    EnterpriseCalendarResolver,
+)
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
+    WorkingTimeCalculator,
+)
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
+    ShiftPatternService,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
+    PatternType,
+)
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -20,17 +38,7 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
-)
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
-)
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
-from src.core.platform.domain.time_management.calendar.enterprise_calendar import PatternType
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.infra.persistence.orm import Base
 
 
 @pytest.fixture
@@ -52,8 +60,8 @@ def org_id():
 
 @pytest.fixture
 def tenant_context(org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     @dataclass
     class FakeOrg:
@@ -88,8 +96,8 @@ def mock_user_session():
 
 @pytest.fixture
 def mock_org_repo(org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     @dataclass
     class FakeOrg:
@@ -225,13 +233,13 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
     db_session, repos, mock_org_repo, mock_user_session, tenant_context, shift_pattern_service
 ):
     from unittest.mock import MagicMock
-    from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import EnterpriseCalendarDesktopApi
+
+    from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import (
+        EnterpriseCalendarDesktopApi,
+    )
     from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
         ShiftPatternCreateCommand,
         ShiftPatternDaySetCommand,
-    )
-    from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-        EnterpriseCalendarService,
     )
     from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
         CalendarAssignmentService,
@@ -241,6 +249,9 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
     )
     from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
         WorkingTimeCalculator,
+    )
+    from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+        EnterpriseCalendarService,
     )
 
     cal_service = EnterpriseCalendarService(

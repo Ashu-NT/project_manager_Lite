@@ -7,7 +7,16 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.auth.session.session_utils import (
+    rotate_session_revision,
+)
+from src.core.platform.application.security.auth.unit_of_work import auth_unit_of_work
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.ids import generate_id
+from src.core.platform.common.pydantic import validated_dataclass
 from src.core.platform.contract.repositories.security.auth import (
     AuthPolicyReconciliationRepository,
     AuthSessionRepository,
@@ -17,24 +26,20 @@ from src.core.platform.contract.repositories.security.auth import (
     RoleRepository,
     UserRepository,
 )
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.domain.security.auth import (
     RolePermissionBinding,
     UserSessionContext,
 )
-from src.core.platform.domain.security.authorization.roles import AuthPolicyReconciliation
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.auth.events import RolePolicyReconciled
+from src.core.platform.domain.security.authorization.roles import (
+    AuthPolicyReconciliation,
+)
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_ROLE_PERMISSIONS,
     SYSTEM_ROLE_POLICY_NAME,
     SYSTEM_ROLE_POLICY_VERSION,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.common.ids import generate_id
-from src.core.platform.common.pydantic import validated_dataclass
-
-from src.core.platform.application.security.auth.session.session_utils import rotate_session_revision
-from src.core.platform.domain.security.auth.events import RolePolicyReconciled
-from src.core.platform.application.security.auth.unit_of_work import auth_unit_of_work
 
 
 @validated_dataclass(frozen=True)

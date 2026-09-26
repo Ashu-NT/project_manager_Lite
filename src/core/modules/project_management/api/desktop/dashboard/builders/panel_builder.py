@@ -1,17 +1,25 @@
 """Panel builders — EVM, register, cost sources, baseline variance, resources, reports."""
 
 from __future__ import annotations
+
 from typing import Any
 
-from src.core.modules.project_management.api.desktop.dashboard.models.overview import ProjectDashboardMetricDescriptor
+from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
+    fmt_date,
+)
+from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
+    fmt_float,
+    fmt_int,
+    fmt_percent,
+    fmt_ratio,
+)
+from src.core.modules.project_management.api.desktop.dashboard.models.overview import (
+    ProjectDashboardMetricDescriptor,
+)
 from src.core.modules.project_management.api.desktop.dashboard.models.panels import (
     ProjectDashboardPanelDescriptor,
     ProjectDashboardPanelRowDescriptor,
 )
-from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
-    fmt_float, fmt_int, fmt_percent, fmt_ratio,
-)
-from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import fmt_date
 
 _PREVIEW_MSG = "Project-management dashboard desktop API is not connected in this QML preview."
 

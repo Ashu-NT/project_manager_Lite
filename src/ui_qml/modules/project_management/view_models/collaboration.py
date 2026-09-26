@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+
 @dataclass(frozen=True)
 class CollaborationMetricViewModel:
     label: str
@@ -70,8 +71,8 @@ class CollaborationDetailViewModel:
     description: str
     state: dict[str, Any] = field(default_factory=dict)
     fields: tuple[CollaborationDetailFieldViewModel, ...] = field(default_factory=tuple)
-    activity: CollaborationCollectionViewModel = field(
-        default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
+    activity: dict[str, object] = field(
+        default_factory=lambda: {"title": "", "subtitle": "", "emptyState": "", "items": []}
     )
     related_items: CollaborationCollectionViewModel = field(
         default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
@@ -94,8 +95,8 @@ class CollaborationWorkspaceViewModel:
     approvals: CollaborationCollectionViewModel = field(
         default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
     )
-    activity_feed: CollaborationCollectionViewModel = field(
-        default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
+    activity_feed: dict[str, object] = field(
+        default_factory=lambda: {"title": "", "subtitle": "", "emptyState": "", "items": []}
     )
     empty_state: str = ""
 

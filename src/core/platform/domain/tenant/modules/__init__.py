@@ -19,7 +19,10 @@ from src.core.platform.domain.tenant.modules.module_codes import (
     module_storage_codes,
     normalize_module_code,
 )
-from src.core.platform.domain.tenant.modules.module_definition import EnterpriseModule, PlatformCapability
+from src.core.platform.domain.tenant.modules.module_definition import (
+    EnterpriseModule,
+    PlatformCapability,
+)
 from src.core.platform.domain.tenant.modules.module_entitlement import (
     ModuleCatalogSnapshot,
     ModuleEntitlement,
@@ -29,11 +32,7 @@ from src.core.platform.domain.tenant.modules.subscription import ModuleEntitleme
 __all__ = [
     "DEFAULT_ENTERPRISE_MODULES",
     "DEFAULT_PLATFORM_CAPABILITIES",
-    "EnterpriseModule",
     "LEGACY_MODULE_CODE_ALIASES",
-    "ModuleCatalogSnapshot",
-    "ModuleEntitlement",
-    "ModuleEntitlementRecord",
     "MODULE_LIFECYCLE_ACTIVE",
     "MODULE_LIFECYCLE_EXPIRED",
     "MODULE_LIFECYCLE_INACTIVE",
@@ -41,6 +40,10 @@ __all__ = [
     "MODULE_LIFECYCLE_SUSPENDED",
     "MODULE_LIFECYCLE_TRIAL",
     "MODULE_RUNTIME_ACCESS_STATUSES",
+    "EnterpriseModule",
+    "ModuleCatalogSnapshot",
+    "ModuleEntitlement",
+    "ModuleEntitlementRecord",
     "PlatformCapability",
     "default_lifecycle_status",
     "module_storage_codes",

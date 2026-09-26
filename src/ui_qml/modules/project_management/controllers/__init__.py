@@ -1,9 +1,9 @@
+from src.ui_qml.modules.project_management.controllers.collaboration import (
+    ProjectManagementCollaborationWorkspaceController,
+)
 from src.ui_qml.modules.project_management.controllers.common import (
     PMCapabilityController,
     ProjectManagementWorkspaceControllerBase,
-)
-from src.ui_qml.modules.project_management.controllers.collaboration import (
-    ProjectManagementCollaborationWorkspaceController,
 )
 from src.ui_qml.modules.project_management.controllers.dashboard import (
     ProjectManagementDashboardWorkspaceController,
@@ -23,6 +23,9 @@ from src.ui_qml.modules.project_management.controllers.register import (
 from src.ui_qml.modules.project_management.controllers.resources import (
     ProjectManagementResourcesWorkspaceController,
 )
+from src.ui_qml.modules.project_management.controllers.review_queue import (
+    ProjectManagementTimesheetsWorkspaceController,
+)
 from src.ui_qml.modules.project_management.controllers.scheduling import (
     ProjectManagementSchedulingWorkspaceController,
 )
@@ -30,9 +33,6 @@ from src.ui_qml.modules.project_management.controllers.tasks import (
     ProjectManagementTasksWorkspaceController,
 )
 from src.ui_qml.modules.project_management.controllers.timesheets import (
-    ProjectManagementTimesheetsWorkspaceController,
-)
-from src.ui_qml.modules.project_management.controllers.resource_timesheets import (
     ProjectManagementResourceTimesheetsController,
 )
 
@@ -41,10 +41,10 @@ __all__ = [
     "ProjectManagementCollaborationWorkspaceController",
     "ProjectManagementDashboardWorkspaceController",
     "ProjectManagementFinancialsWorkspaceController",
-    "ProjectManagementResourceTimesheetsController",
     "ProjectManagementPortfolioWorkspaceController",
     "ProjectManagementProjectsWorkspaceController",
     "ProjectManagementRegisterWorkspaceController",
+    "ProjectManagementResourceTimesheetsController",
     "ProjectManagementResourcesWorkspaceController",
     "ProjectManagementSchedulingWorkspaceController",
     "ProjectManagementTasksWorkspaceController",

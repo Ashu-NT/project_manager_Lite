@@ -94,10 +94,10 @@ def build_authorization_context_view_invalidation_handler(channel: ViewInvalidat
 
 
 __all__ = [
-    "build_authorization_context_view_invalidation_handler",
-    "build_role_binding_view_invalidation_handler",
     "AUTHORIZATION_CONTEXT_CATEGORY",
     "AUTHORIZATION_CONTEXT_SCOPE_CODE",
-    "ROLE_BINDING_CATEGORY",
     "ROLE_BINDING_ASSIGNMENTS_SCOPE_CODE",
+    "ROLE_BINDING_CATEGORY",
+    "build_authorization_context_view_invalidation_handler",
+    "build_role_binding_view_invalidation_handler",
 ]

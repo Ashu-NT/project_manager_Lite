@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
+from src.application.runtime import build_desktop_api_registry
+from src.core.platform.api.desktop.master_data.department.department import (
+    PlatformDepartmentDesktopApi,
+)
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
 from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
@@ -15,7 +20,6 @@ from src.core.platform.api.desktop.master_data.site.models.site import (
     SiteUpdateCommand,
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
-from src.application.runtime import build_desktop_api_registry
 
 
 def _build_site_api(services) -> PlatformSiteDesktopApi:
@@ -57,7 +61,6 @@ def test_platform_site_desktop_api_manages_site_dtos(services):
         SiteUpdateCommand(
             site_id=create_result.data.id,
             name="Operations Hub",
-            is_active=False,
             expected_version=create_result.data.version,
         )
     )
@@ -65,8 +68,12 @@ def test_platform_site_desktop_api_manages_site_dtos(services):
     assert update_result.ok is True
     assert update_result.data is not None
     assert update_result.data.name == "Operations Hub"
-    assert update_result.data.is_active is False
-    assert update_result.data.status == "INACTIVE"
+
+    deactivate_result = api.deactivate_site(update_result.data.id)
+    assert deactivate_result.ok is True
+    assert deactivate_result.data is not None
+    assert deactivate_result.data.is_active is False
+    assert deactivate_result.data.status == "inactive"
 
     list_result = api.list_sites(active_only=None)
 
@@ -109,14 +116,17 @@ def test_platform_department_desktop_api_manages_department_dtos(services):
         DepartmentUpdateCommand(
             department_id=create_result.data.id,
             name="Operations Team",
-            is_active=False,
             expected_version=create_result.data.version,
         )
     )
     assert update_result.ok is True
     assert update_result.data is not None
     assert update_result.data.name == "Operations Team"
-    assert update_result.data.is_active is False
+
+    deactivate_result = api.deactivate_department(update_result.data.id)
+    assert deactivate_result.ok is True
+    assert deactivate_result.data is not None
+    assert deactivate_result.data.is_active is False
 
 
 def test_platform_employee_desktop_api_manages_employee_dtos(services):

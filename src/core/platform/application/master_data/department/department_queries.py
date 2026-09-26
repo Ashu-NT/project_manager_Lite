@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.master_data.department import Department
 from src.core.platform.domain.master_data.org import Organization
@@ -16,10 +18,14 @@ if TYPE_CHECKING:
     from .department_service import DepartmentService
 
 
-def list_departments(service: DepartmentService, *, active_only: bool | None = None) -> list[Department]:
+def list_departments(
+    service: DepartmentService, *, active_only: bool | None = None, site_id: str | None = None
+) -> list[Department]:
     require_department_read_access(service, "list departments")
     organization = active_organization(service)
-    return service._department_repo.list_for_organization(organization.id, active_only=active_only)
+    return service._department_repo.list_for_organization(
+        organization.id, active_only=active_only, site_id=site_id
+    )
 
 
 def search_departments(

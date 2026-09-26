@@ -13,7 +13,6 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.infra.persistence.db.postgresql_rls import configure_session_rls_context
 from src.infra.persistence.migrations.runner import run_migrations
 
-
 pytestmark = pytest.mark.postgresql_integration
 
 _EXPECTED_DATABASE = "project_manager_r5h"

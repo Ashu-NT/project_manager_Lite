@@ -25,7 +25,6 @@ from src.core.platform.infrastructure.persistence.orm.time_management.calendar.e
     SiteCalendarAssignmentORM,
 )
 
-
 # ---------------------------------------------------------------------------
 # PlatformCalendar
 # ---------------------------------------------------------------------------

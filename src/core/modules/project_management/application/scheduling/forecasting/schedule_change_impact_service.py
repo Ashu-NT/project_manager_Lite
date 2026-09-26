@@ -1,30 +1,19 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Protocol
 
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    DependencyRepository,
-    TaskRepository,
-)
-from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.modules.project_management.domain.tasks.hierarchy import (
-    select_leaf_dependencies,
-    select_leaf_tasks,
-)
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintValidator,
     DependencyConstraintConflict,
 )
+from src.core.modules.project_management.application.scheduling.cpm.dependency_actual_variance import (
+    find_dependency_actual_variances,
+)
 from src.core.modules.project_management.application.scheduling.cpm.dependency_schedule_math import (
     normalize_forward,
     shift_working_days,
-)
-from src.core.modules.project_management.application.scheduling.cpm.dependency_actual_variance import (
-    find_dependency_actual_variances,
 )
 from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
     CPMResult,
@@ -36,6 +25,18 @@ from src.core.modules.project_management.application.scheduling.forecasting.task
     build_successors_by_task_id,
     compute_downstream_exposure,
     compute_free_float_days,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    DependencyRepository,
+    TaskRepository,
+)
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    select_leaf_dependencies,
+    select_leaf_tasks,
+)
+from src.core.modules.project_management.domain.tasks.task import Task
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
 )
 
 
@@ -426,7 +427,7 @@ class ScheduleChangeImpactService:
 
 __all__ = [
     "ApprovedBaselineLookup",
-    "ScheduleChangeImpactService",
     "ScheduleChangeImpactReport",
+    "ScheduleChangeImpactService",
     "TaskImpact",
 ]

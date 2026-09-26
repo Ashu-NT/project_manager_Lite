@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
+
 
 def preview_error_result(message: str) -> DesktopApiResult[object]:
     return DesktopApiResult(

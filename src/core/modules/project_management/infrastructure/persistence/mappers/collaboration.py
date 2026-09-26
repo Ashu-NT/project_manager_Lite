@@ -3,8 +3,14 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from src.core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
-from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import TaskCommentORM, TaskPresenceORM
+from src.core.modules.project_management.domain.collaboration import (
+    TaskComment,
+    TaskPresence,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
+    TaskCommentORM,
+    TaskPresenceORM,
+)
 
 
 def _coerce_utc_datetime(value: datetime) -> datetime:

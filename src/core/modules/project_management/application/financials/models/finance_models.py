@@ -4,12 +4,19 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+    CommercialMetricAvailability,
+    CommercialMetricUnavailableReason,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
+    CostPhasingSeriesAvailabilityFact,
+)
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     UnresolvedLaborRate,
 )
 
-
 # ── Finance snapshot DTOs ─────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class FinanceLedgerRow:
@@ -89,10 +96,7 @@ class FinanceReconciliation:
             self.posted_actual_delta == 0
             and self.open_commitment_delta == 0
             and (
-                (
-                    self.forecast_etc_control is None
-                    and self.forecast_etc_ledger is None
-                )
+                (self.forecast_etc_control is None and self.forecast_etc_ledger is None)
                 or self.forecast_etc_delta == 0
             )
         )
@@ -108,7 +112,7 @@ class FinanceSnapshot:
     actual: Decimal
     forecast_etc: Decimal | None
     estimate_at_completion: Decimal | None
-    variance_at_completion: Decimal | None
+    budget_headroom: Decimal | None
     exposure: Decimal
     available: Decimal | None
     as_of: date
@@ -123,6 +127,7 @@ class FinanceSnapshot:
     reconciliation: FinanceReconciliation
     ledger: list[FinanceLedgerRow]
     cost_phasing: list[FinancePeriodRow]
+    cost_phasing_availability: tuple[CostPhasingSeriesAvailabilityFact, ...]
     by_source: list[FinanceAnalyticsRow]
     by_cost_type: list[FinanceAnalyticsRow]
     by_resource: list[FinanceAnalyticsRow]
@@ -133,11 +138,12 @@ class FinanceSnapshot:
     @property
     def commitment_rate_percent(self) -> Decimal:
         if self.budget <= 0:
-            return Decimal("0")
-        return (self.committed / self.budget) * Decimal("100")
+            return Decimal(0)
+        return (self.committed / self.budget) * Decimal(100)
 
 
 # ── Cost DTOs ─────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class CostSourceRow:
@@ -170,29 +176,37 @@ class CostBreakdownRow:
 
 # ── Commercial / profitability DTOs ───────────────────────────────
 
+
 @dataclass(frozen=True)
 class ProjectCommercialProjection:
-    """contract_value/billable_amount/externally_invoiced_amount/
-    externally_paid_amount are ordinary Project Finance authority data
-    (finance.read); forecast_revenue_at_completion/revenue_basis/
+    """Contract and approved preparation amounts are managerial PM facts.
+
+    forecast_revenue_at_completion/revenue_basis/
     projected_margin_* are further redacted without finance.read_profitability
     (profitability_detail_included is False, all four are None/"")."""
 
     project_id: str
     project_currency: str | None
     contract_value: Decimal | None
-    billable_amount: Decimal
-    externally_invoiced_amount: Decimal
-    externally_paid_amount: Decimal
-    external_accounting_data_available: bool
+    approved_preparation_amount: Decimal
     forecast_revenue_at_completion: Decimal | None
     revenue_basis: str
     projected_margin_amount: Decimal | None
     projected_margin_percent: Decimal | None
+    revenue_availability: CommercialMetricAvailability
+    margin_availability: CommercialMetricAvailability
+    percent_availability: CommercialMetricAvailability
+    revenue_reason: CommercialMetricUnavailableReason | None
+    margin_reason: CommercialMetricUnavailableReason | None
+    percent_reason: CommercialMetricUnavailableReason | None
+    tenant_id: str
+    organization_id: str
+    as_of_date: date
     profitability_detail_included: bool = True
 
 
 # ── Labor DTOs ────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class LaborAssignmentRow:
@@ -248,34 +262,40 @@ class LaborDetailsResult:
 
 # ── Earned Value DTOs ─────────────────────────────────────────────────────────
 
-@dataclass
+
+@dataclass(frozen=True, slots=True)
 class EvmSeriesPoint:
     period_end: date
-    PV: float
-    EV: float
-    AC: float
-    BAC: float
-    CPI: float
-    SPI: float
+    PV: Decimal | None
+    EV: Decimal | None
+    AC: Decimal | None
+    BAC: Decimal | None
+    CPI: Decimal | None
+    SPI: Decimal | None
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class EarnedValueMetrics:
     as_of: date
-    baseline_id: str
+    baseline_id: str | None
+    currency_code: str
+    availability: str
+    unavailable_reason: str | None
 
-    BAC: float
-    PV: float
-    EV: float
-    AC: float
+    BAC: Decimal | None
+    PV: Decimal | None
+    EV: Decimal | None
+    AC: Decimal | None
 
-    CPI: float | None
-    SPI: float | None
-    EAC: float | None
-    ETC: float | None
-    VAC: float | None
-    TCPI_to_BAC: float | None = None
-    TCPI_to_EAC: float | None = None
+    CV: Decimal | None
+    SV: Decimal | None
+    CPI: Decimal | None
+    SPI: Decimal | None
+    EAC: Decimal | None
+    ETC: Decimal | None
+    VAC: Decimal | None
+    TCPI_to_BAC: Decimal | None = None
+    TCPI_to_EAC: Decimal | None = None
     notes: str | None = None
 
 

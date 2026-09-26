@@ -74,10 +74,10 @@ class PortfolioProjectDependencyChanged:
 __all__ = [
     "PortfolioIntakeItemChangeType",
     "PortfolioIntakeItemChanged",
+    "PortfolioProjectDependencyChangeType",
+    "PortfolioProjectDependencyChanged",
     "PortfolioScenarioChangeType",
     "PortfolioScenarioChanged",
     "PortfolioScoringTemplateChangeType",
     "PortfolioScoringTemplateChanged",
-    "PortfolioProjectDependencyChangeType",
-    "PortfolioProjectDependencyChanged",
 ]

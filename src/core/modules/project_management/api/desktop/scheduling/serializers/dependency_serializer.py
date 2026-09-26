@@ -1,9 +1,11 @@
 """Dependency serializers."""
 
-from src.core.modules.project_management.api.desktop.scheduling.models.dependencies import SchedulingDependencyDto
 from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
     dependency_direction,
     dependency_type_label,
+)
+from src.core.modules.project_management.api.desktop.scheduling.models.dependencies import (
+    SchedulingDependencyDto,
 )
 
 

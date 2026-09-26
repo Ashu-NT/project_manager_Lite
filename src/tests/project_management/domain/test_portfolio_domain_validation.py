@@ -6,14 +6,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
-
-from src.core.modules.project_management.application.portfolio.commands.portfolio_intake import (
-    PortfolioIntakeCommandMixin,
-)
 from src.core.modules.project_management.application.portfolio.commands.portfolio_dependencies import (
     PortfolioDependencyCommandMixin,
+)
+from src.core.modules.project_management.application.portfolio.commands.portfolio_intake import (
+    PortfolioIntakeCommandMixin,
 )
 from src.core.modules.project_management.application.portfolio.commands.portfolio_scenarios import (
     PortfolioScenarioCommandMixin,
@@ -24,6 +21,7 @@ from src.core.modules.project_management.application.portfolio.commands.portfoli
 from src.core.modules.project_management.application.portfolio.utils.portfolio_support import (
     PortfolioSupportMixin,
 )
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
@@ -31,8 +29,9 @@ from src.core.modules.project_management.domain.portfolio import (
     PortfolioScenario,
     PortfolioScoringTemplate,
 )
-from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 
 class _FakeSession:

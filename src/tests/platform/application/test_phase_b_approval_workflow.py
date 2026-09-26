@@ -39,7 +39,7 @@ def _submitted_cost_entry(services, name: str):
         project_id=project.id,
         command_id=f"{name}-command",
         description="Travel",
-        amount=Decimal("100"),
+        amount=Decimal(100),
         currency_code=organization.base_currency,
         transaction_date=date(2026, 1, 10),
         cost_code_id=cost_code.id,

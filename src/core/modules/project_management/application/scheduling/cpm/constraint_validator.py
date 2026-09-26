@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from dataclasses import dataclass, field
 from datetime import date
 
+from src.core.modules.project_management.application.scheduling.models.cpm import (
+    CPMTaskInfo,
+)
 from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
-
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 @dataclass
@@ -272,8 +274,8 @@ class ConstraintValidator:
 
 __all__ = [
     "ConstraintType",
-    "ConstraintViolation",
     "ConstraintValidationResult",
     "ConstraintValidator",
+    "ConstraintViolation",
     "DependencyConstraintConflict",
 ]

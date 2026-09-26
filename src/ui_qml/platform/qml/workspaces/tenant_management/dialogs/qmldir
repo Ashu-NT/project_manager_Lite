@@ -1,0 +1,2 @@
+module workspaces.tenant_management.dialogs
+TenantCreateDialog 1.0 TenantCreateDialog.qml

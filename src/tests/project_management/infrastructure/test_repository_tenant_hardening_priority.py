@@ -4,42 +4,22 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from src.core.modules.project_management.domain.calendar.assignment import (
-    ProjectCalendarAssignment,
-    ResourceCalendarAssignment,
-)
 from src.core.modules.project_management.domain.collaboration import TaskComment
 from src.core.modules.project_management.domain.enums import (
-    CostType,
     DependencyType,
-    ProjectStatus,
-    TaskStatus,
-    WorkerType,
 )
-from src.core.modules.project_management.domain.portfolio import (
-    PortfolioIntakeItem,
-    PortfolioProjectDependency,
-    PortfolioScoringTemplate,
-    PortfolioScenario,
-)
-from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
-    RegisterEntrySeverity,
-    RegisterEntryStatus,
     RegisterEntryType,
 )
-from src.core.modules.project_management.domain.resources.skills import (
-    ResourceCertification,
-    ResourceSkill,
-    SkillProficiencyLevel,
-    TaskSkillRequirement,
-)
 from src.core.modules.project_management.domain.scheduling.baseline import (
-    BaselineStatus,
     ProjectBaseline,
 )
-from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
+from src.core.modules.project_management.domain.tasks.task import (
+    Task,
+    TaskAssignment,
+    TaskDependency,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
     SqlAlchemyTaskPresenceRepository,
 )
@@ -55,7 +35,6 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 def test_priority_pm_repositories_hide_other_organization_rows(services):
     seeded = _seed_priority_pm_rows(services)
     organization_service = services["organization_service"]
-    organization_service.enable_organization(seeded["default_org"].id)
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
     task_repo = services["task_service"]._task_repo
@@ -106,7 +85,6 @@ def test_priority_pm_repositories_hide_other_organization_rows(services):
 def test_priority_pm_repositories_scope_mutations_to_active_organization(services):
     seeded = _seed_priority_pm_rows(services)
     organization_service = services["organization_service"]
-    organization_service.enable_organization(seeded["default_org"].id)
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
     task_repo = services["task_service"]._task_repo
@@ -131,7 +109,6 @@ def test_priority_pm_repositories_scope_mutations_to_active_organization(service
     task_repo.delete(seeded["task_b1"])
     services["session"].commit()
 
-    organization_service.enable_organization(seeded["other_org"].id)
     services["tenant_context_service"].set_active_organization(seeded["other_org"].id)
 
     assert task_repo.get(seeded["task_b1"]) is not None
@@ -145,7 +122,6 @@ def test_priority_pm_repositories_scope_mutations_to_active_organization(service
 def test_priority_pm_repositories_reject_cross_organization_updates(services):
     seeded = _seed_priority_pm_rows(services)
     organization_service = services["organization_service"]
-    organization_service.enable_organization(seeded["default_org"].id)
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
     task_repo = services["task_service"]._task_repo

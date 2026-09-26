@@ -1,9 +1,15 @@
 from __future__ import annotations
 
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -46,6 +52,6 @@ def serialize_organization(organization: Organization) -> OrganizationDto:
         display_name=organization.display_name,
         timezone_name=organization.timezone_name,
         base_currency=organization.base_currency,
-        is_enabled=organization.is_enabled,
+        status=organization.status,
         version=organization.version,
     )

@@ -6,25 +6,43 @@ import inspect
 from dataclasses import is_dataclass
 from pathlib import Path
 
-from src.core.modules.project_management.application.financials.services.finance_service import (
-    FinanceService,
+from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
+    CollaborationInboxQueryMixin,
+)
+from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
+    CollaborationPresenceQueryMixin,
+)
+from src.core.modules.project_management.application.collaboration.utils.support import (
+    CollaborationSupportMixin,
 )
 from src.core.modules.project_management.application.financials.budgets import (
     BudgetApprovalOutcome,
     BudgetApprovalResult,
     BudgetService,
 )
-from src.core.modules.project_management.application.financials.earned_value.evm_series import (
-    EarnedValueSeriesCalculator,
-)
-from src.core.modules.project_management.application.financials.earned_value.evm_calculator import (
-    EarnedValueCalculator,
-)
 from src.core.modules.project_management.application.financials.cost.engines.cost_breakdown_engine import (
     CostBreakdownEngine,
 )
 from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostPolicyEngine,
+)
+from src.core.modules.project_management.application.financials.earned_value.canonical import (
+    CanonicalEarnedValueCalculator,
+)
+from src.core.modules.project_management.application.financials.earned_value.evm_series import (
+    EarnedValueSeriesCalculator,
+)
+from src.core.modules.project_management.application.financials.services.finance_service import (
+    FinanceService,
+)
+from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
+    PortfolioExecutiveQueryMixin,
+)
+from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import (
+    PortfolioScenarioQueryMixin,
+)
+from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
+    PortfolioResourcePoolService,
 )
 from src.core.modules.project_management.infrastructure.reporting.builders.cost_breakdown import (
     ReportingCostBreakdownMixin,
@@ -38,29 +56,10 @@ from src.core.modules.project_management.infrastructure.reporting.builders.evm_c
 from src.core.modules.project_management.infrastructure.reporting.builders.evm_series import (
     ReportingEvmSeriesMixin,
 )
-from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
-    PortfolioResourcePoolService,
-)
-from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import (
-    PortfolioScenarioQueryMixin,
-)
-from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
-    PortfolioExecutiveQueryMixin,
-)
-from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
-    CollaborationInboxQueryMixin,
-)
-from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
-    CollaborationPresenceQueryMixin,
-)
-from src.core.modules.project_management.application.collaboration.utils.support import (
-    CollaborationSupportMixin,
-)
 from src.core.modules.project_management.infrastructure.reporting.builders.kpi import (
     ReportingKpiMixin,
 )
 from src.tests.path_rewrites import REPO_ROOT
-
 
 PM_ROOT = REPO_ROOT / "src/core/modules/project_management"
 CONTRACT_READS = PM_ROOT / "contracts/reads"
@@ -68,7 +67,7 @@ FINANCE_READS = PM_ROOT / "infrastructure/persistence/reads/financials"
 FINANCE_STATEMENTS = FINANCE_READS / "statements/finance_snapshot_statements.py"
 FINANCE_READER = FINANCE_READS / "sqlalchemy_finance_snapshot_reader.py"
 FINANCE_POLICY = PM_ROOT / "application/financials/cost/engines/cost_policy_engine.py"
-PROJECT_REGISTRY = REPO_ROOT / "src/infra/composition/project_registry.py"
+PROJECT_REGISTRY = REPO_ROOT / "src/infra/composition/modules/project_registry.py"
 PORTFOLIO_POOL_READER = (
     PM_ROOT
     / "infrastructure/persistence/reads/portfolio/sqlalchemy_resource_pool_reader.py"
@@ -330,14 +329,15 @@ def test_runtime_composition_and_desktop_proof_remain_present() -> None:
     assert "self._finance_snapshot_reader.read_facts(" in service_source
 
 
-def test_evm_series_keeps_bounded_reader_and_policy_ownership() -> None:
+def test_evm_series_keeps_one_scoped_reader_without_rate_revaluation() -> None:
     source = inspect.getsource(EarnedValueSeriesCalculator.build_series)
 
     assert source.count("self._reader.read_facts(") == 1
-    assert source.count("calculate_project_labor_series(") == 1
-    assert source.count("prepare_working_days(") == 1
-    assert source.count("compose_from_facts_at(") == 1
-    assert "prepared_facts=facts" in source
+    assert source.count("self._prepare_working_days(") == 1
+    assert source.count("CanonicalEarnedValueCalculator") == 0
+    assert "EvmCalculationInput(" in source
+    assert "calculate_project_labor_series(" not in source
+    assert "compose_from_facts_at(" not in source
     for forbidden in (
         "_project_repo",
         "_baseline_repo",
@@ -359,9 +359,9 @@ def test_evm_series_runtime_reader_proof_remains_present() -> None:
     assert "reader=self._evm_series_reader" in source
 
 
-def test_reporting_financial_reads_use_one_facts_policy_composition() -> None:
+def test_reporting_financial_reads_keep_evm_rate_independent() -> None:
     finance_source = inspect.getsource(ReportingCostPolicyMixin._compose_finance_policy)
-    evm_source = inspect.getsource(ReportingCostPolicyMixin._compose_evm_policy)
+    evm_source = inspect.getsource(ReportingCostPolicyMixin._read_evm_facts)
     totals_source = inspect.getsource(ReportingCostPolicyMixin.get_project_cost_control_totals)
     sources_source = inspect.getsource(ReportingCostPolicyMixin.get_project_cost_source_breakdown)
     breakdown_source = inspect.getsource(ReportingCostBreakdownMixin.get_cost_breakdown)
@@ -369,11 +369,14 @@ def test_reporting_financial_reads_use_one_facts_policy_composition() -> None:
 
     assert finance_source.count("self._finance_snapshot_reader.read_facts(") == 1
     assert evm_source.count("self._evm_series_reader.read_facts(") == 1
+    assert finance_source.count("calculate_project_labor_details(") == 1
+    assert finance_source.count("compose_from_facts(") == 1
+    assert "LaborCostEngine.for_facts(" in finance_source
+    assert "CostPolicyEngine.for_facts(" in finance_source
+    assert "calculate_project_labor_details(" not in evm_source
+    assert "LaborCostEngine.for_facts(" not in evm_source
+    assert "CostPolicyEngine.for_facts(" not in evm_source
     for source in (finance_source, evm_source):
-        assert source.count("calculate_project_labor_details(") == 1
-        assert source.count("compose_from_facts(") == 1
-        assert "LaborCostEngine.for_facts(" in source
-        assert "CostPolicyEngine.for_facts(" in source
         for forbidden in (
             "_project_repo",
             "_baseline_repo",
@@ -389,11 +392,11 @@ def test_reporting_financial_reads_use_one_facts_policy_composition() -> None:
 
     assert "_compose_finance_policy(" in totals_source
     assert "_compose_finance_policy(" in sources_source
-    assert "_compose_evm_policy(" in breakdown_source
+    assert "_read_evm_facts(" in breakdown_source
     assert "build_breakdown_from_snapshot(" in breakdown_source
-    assert "_compose_evm_policy(" in earned_value_source
-    assert "prepared_facts=facts" in earned_value_source
-    assert "ACTUAL_COST_INCOMPLETE" in earned_value_source
+    assert "_read_evm_facts(" in earned_value_source
+    assert "EvmCalculationInput(" in earned_value_source
+    assert "ACTUAL_COST_INCOMPLETE" not in earned_value_source
 
 
 def test_reporting_financial_runtime_reader_proof_remains_present() -> None:
@@ -413,7 +416,7 @@ def test_phase3b_removed_repository_backed_financial_transition_paths() -> None:
         assert not hasattr(CostPolicyEngine, removed)
     assert not hasattr(CostBreakdownEngine, "build_breakdown")
 
-    evm_source = inspect.getsource(EarnedValueCalculator)
+    evm_source = inspect.getsource(CanonicalEarnedValueCalculator)
     for forbidden in (
         "ProjectRepository",
         "TaskRepository",
@@ -435,8 +438,9 @@ def test_phase6_reporting_uses_canonical_finance_composition() -> None:
 
     assert "_build_cost_policy_snapshot(" in kpi_source
     assert "_compose_finance_policy(" in snapshot_source
-    assert "LaborCostEngine.for_facts(" in series_factory_source
-    assert "CostPolicyEngine.for_facts(" in series_factory_source
+    assert "calendar=self._calendar" in series_factory_source
+    assert "LaborCostEngine.for_facts(" not in series_factory_source
+    assert "CostPolicyEngine.for_facts(" not in series_factory_source
     assert "_make_labor_engine(" not in series_factory_source
     assert "_make_cost_policy_engine(" not in series_factory_source
 

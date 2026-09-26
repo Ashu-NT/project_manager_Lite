@@ -31,9 +31,7 @@ def test_department_service_scopes_department_master_data_by_active_organization
         display_name="North Division",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_enabled=False,
     )
-    organization_service.enable_organization(second_organization.id)
     services["tenant_context_service"].set_active_organization(second_organization.id)
 
     assert department_service.get_context_organization().display_name == "North Division"
@@ -43,7 +41,6 @@ def test_department_service_scopes_department_master_data_by_active_organization
     assert workshop.organization_id == second_organization.id
     assert [department.department_code for department in department_service.list_departments()] == ["ENG"]
 
-    organization_service.enable_organization(default_organization.id)
     services["tenant_context_service"].set_active_organization(default_organization.id)
     assert department_service.get_context_organization().display_name == "Default Organization"
     assert [department.department_code for department in department_service.list_departments()] == ["OPS"]
@@ -74,7 +71,6 @@ def test_department_service_updates_department_metadata(services):
         site_id=site.id,
         department_type="QUALITY",
         cost_center_code="QA-200",
-        is_active=False,
         expected_version=created.version,
     )
 
@@ -82,7 +78,9 @@ def test_department_service_updates_department_metadata(services):
     assert updated.site_id == site.id
     assert updated.department_type == "QUALITY"
     assert updated.cost_center_code == "QA-200"
-    assert updated.is_active is False
+
+    deactivated = department_service.deactivate_department(updated.id)
+    assert deactivated.is_active is False
     assert [department.name for department in department_service.list_departments(active_only=False)] == [
         "Quality Assurance"
     ]

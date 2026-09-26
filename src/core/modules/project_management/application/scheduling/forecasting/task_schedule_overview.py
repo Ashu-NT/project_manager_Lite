@@ -12,21 +12,23 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
-    CalendarProtocol,
-)
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     DependencyConstraintConflict,
+)
+from src.core.modules.project_management.application.scheduling.cpm.dependency_actual_variance import (
+    DependencyActualVariance,
 )
 from src.core.modules.project_management.application.scheduling.cpm.dependency_schedule_math import (
     successor_boundary,
     successor_earliest_start_from_boundary,
 )
-from src.core.modules.project_management.application.scheduling.cpm.dependency_actual_variance import (
-    DependencyActualVariance,
+from src.core.modules.project_management.application.scheduling.models.cpm import (
+    CPMTaskInfo,
 )
-from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 @dataclass(frozen=True, slots=True)

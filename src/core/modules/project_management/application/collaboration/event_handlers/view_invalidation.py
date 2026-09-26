@@ -141,15 +141,15 @@ def build_task_comment_view_invalidation_handler(channel: ViewInvalidationChanne
 
 
 __all__ = [
-    "notify_task_presence_stale",
-    "TASK_PRESENCE_CATEGORY",
-    "TASK_PRESENCE_SCOPE_CODE",
-    "TASK_PRESENCE_MODULE_CODE",
-    "TASK_PRESENCE_ENTITY_TYPE",
-    "build_task_comment_view_invalidation_handler",
-    "TASK_COMMENT_CATEGORY",
-    "TASK_COMMENT_SCOPE_CODE",
-    "COLLABORATION_WORKSPACE_SCOPE_CODE",
     "COLLABORATION_MODULE_CODE",
+    "COLLABORATION_WORKSPACE_SCOPE_CODE",
+    "TASK_COMMENT_CATEGORY",
     "TASK_COMMENT_ENTITY_TYPE",
+    "TASK_COMMENT_SCOPE_CODE",
+    "TASK_PRESENCE_CATEGORY",
+    "TASK_PRESENCE_ENTITY_TYPE",
+    "TASK_PRESENCE_MODULE_CODE",
+    "TASK_PRESENCE_SCOPE_CODE",
+    "build_task_comment_view_invalidation_handler",
+    "notify_task_presence_stale",
 ]

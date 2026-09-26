@@ -1,24 +1,10 @@
-from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
-from src.core.platform.common.service_base import ServiceBase as LegacyServiceBase
-from src.core.platform.access import AccessControlService
-from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.security.auth import AuthService
-from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
-from src.core.platform.application.master_data.documents.document_service import DocumentService
-from src.core.platform.application.master_data.department.department_service import DepartmentService
-from src.core.platform.application.master_data.employee.employee_service import EmployeeService
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.tenant.modules import ModuleCatalogService
-from src.core.platform.application.time_management.time import TimeService
-from src.tests.path_rewrites import REPO_ROOT
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+import ast
+from pathlib import Path
+
+from src.core.modules.project_management.application.collaboration import (
+    CollaborationService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
-from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -28,17 +14,49 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
-    CPMTaskInfo,
     CalendarProtocol,
-    GlobalCalendarShim,
     SchedulingEngine,
 )
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.collaboration import CollaborationService
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
+    BaselineService,
+)
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
+from src.core.modules.project_management.infrastructure.importers import (
+    DataImportService,
+)
+from src.core.modules.project_management.infrastructure.reporting import (
+    ReportingService,
+)
+from src.core.platform.access import AccessControlService
+from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.master_data.data_exchange import (
+    MasterDataExchangeService,
+)
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.documents.document_service import (
+    DocumentService,
+)
+from src.core.platform.application.master_data.employee.employee_service import (
+    EmployeeService,
+)
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationService,
+)
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.platform_runtime import (
+    PlatformRuntimeApplicationService,
+)
+from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.time_management.time import TimeService
+from src.core.platform.common.service_base import ServiceBase as LegacyServiceBase
 from src.infra.composition.app_container import ServiceGraph, build_service_graph
-from pathlib import Path
+from src.tests.path_rewrites import REPO_ROOT
 
 
 def test_service_graph_builder_wires_all_services(session):
@@ -151,8 +169,13 @@ def test_services_module_delegates_to_modular_registration_builders():
         errors="ignore",
     )
 
-    assert "from src.infra.composition.platform_registry import build_platform_service_bundle" in text
-    assert "from src.infra.composition.repositories import build_repository_bundle" in text
+    assert any(
+        isinstance(node, ast.ImportFrom)
+        and node.module == "src.infra.composition.modules.platform_registry"
+        and any(alias.name == "build_platform_service_bundle" for alias in node.names)
+        for node in ast.walk(ast.parse(text))
+    )
+    assert "from src.infra.composition.persistence.repositories import build_repository_bundle" in text
     assert "build_repository_bundle(session)" in text
     assert "build_platform_service_bundle(session, repositories)" in text
     assert "build_project_management_service_bundle(" in text
@@ -162,7 +185,7 @@ def test_service_registration_package_is_split_by_platform_and_module():
     root = REPO_ROOT / "src" / "infra" / "composition"
 
     assert (root / "__init__.py").exists()
-    assert (root / "repositories.py").exists()
-    assert (root / "platform_registry.py").exists()
-    assert (root / "project_registry.py").exists()
+    assert (root / "persistence" / "repositories.py").exists()
+    assert (root / "modules" / "platform_registry.py").exists()
+    assert (root / "modules" / "project_registry.py").exists()
 

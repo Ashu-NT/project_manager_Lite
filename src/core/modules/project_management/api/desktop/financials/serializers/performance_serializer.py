@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from src.core.modules.project_management.api.desktop.common.financial_formatting import format_money
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_money,
+)
 from src.core.modules.project_management.api.desktop.financials.models.performance import (
     FinancialCostPhasingDto,
     FinancialEvmDto,
@@ -11,21 +13,22 @@ from src.core.modules.project_management.api.desktop.financials.models.performan
     FinancialReportsDto,
     FinancialVarianceWorkspaceDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.snapshots import FinancialPeriodRowDto
+from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
+    FinancialPeriodRowDto,
+)
 from src.core.modules.project_management.api.desktop.financials.serializers.baseline_variance_serializer import (
     serialize_baseline_version,
     serialize_variance_record,
 )
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
-def _evm_float_text(value: float | None) -> str | None:
-    # Presentation-only adaptation of the pre-existing EVM float authority.
-    return None if value is None else canonical_decimal_text(Decimal(str(value)))
+def _evm_decimal_text(value: Decimal | None) -> str | None:
+    return None if value is None else canonical_decimal_text(value)
 
 
 def _evm_money_metric(code, label, value, currency, supporting_text):
-    text = _evm_float_text(value)
+    text = _evm_decimal_text(value)
     return FinancialPerformanceMetricDto(
         code=code,
         label=label,
@@ -37,7 +40,7 @@ def _evm_money_metric(code, label, value, currency, supporting_text):
 
 
 def _evm_ratio_metric(code, label, value, supporting_text):
-    text = _evm_float_text(value)
+    text = _evm_decimal_text(value)
     return FinancialPerformanceMetricDto(
         code=code,
         label=label,
@@ -70,7 +73,7 @@ def serialize_performance_evm(fact) -> FinancialEvmDto:
             _evm_ratio_metric("spi", "Schedule Performance Index (SPI)", fact.spi, "EV / PV; unavailable when PV is zero."),
             _evm_money_metric("etc", "Estimate to Complete (ETC)", fact.etc, currency, "Approved Forecast ETC authority."),
             _evm_money_metric("eac", "Estimate at Completion (EAC)", fact.eac, currency, "Existing authority: AC + approved Forecast ETC."),
-            _evm_money_metric("vac", "Variance at Completion (VAC)", fact.vac, currency, "Existing authority: BAC - EAC; positive is favorable."),
+            _evm_money_metric("vac", "Variance at Completion (VAC)", fact.vac, currency, "Canonical EVM: BAC - EAC; positive is favorable."),
             _evm_ratio_metric("tcpi_bac", "TCPI to BAC", fact.tcpi_bac, "Required cost efficiency to meet BAC."),
             _evm_ratio_metric("tcpi_eac", "TCPI to EAC", fact.tcpi_eac, "Required cost efficiency to meet EAC."),
         ),
@@ -85,13 +88,14 @@ def serialize_performance_variance(facts) -> FinancialVarianceWorkspaceDto:
             label=item.display_name,
             value=None if item.value is None else canonical_decimal_text(item.value),
             value_label="Not available" if item.value is None else format_money(item.value, item.currency_code),
-            supporting_text=" | ".join(part for part in (item.sign_convention, item.source_revision, item.unavailable_reason) if part),
+            supporting_text=" | ".join(part for part in (item.semantic_tooltip, item.sign_convention, item.source_revision, item.unavailable_reason) if part),
             availability=item.availability,
-            tone=(
-                "danger" if item.metric_code == "budget_pressure" and (item.value or 0) > 0
-                else "success" if item.metric_code == "vac" and (item.value or 0) > 0
-                else "default"
-            ),
+            tone={
+                "favorable": "success",
+                "unfavorable": "danger",
+                "on_target": "default",
+                "unavailable": "default",
+            }.get(item.favorability, "default"),
         )
         for item in facts.metrics
     )
@@ -124,6 +128,16 @@ def serialize_cost_phasing(facts) -> FinancialCostPhasingDto:
         approved_forecast_id=facts.approved_forecast_id or "",
         approved_forecast_revision=facts.approved_forecast_revision,
         approved_forecast_as_of=facts.approved_forecast_as_of,
+        series_availability=tuple(
+            (
+                item.series_code,
+                item.availability,
+                item.unavailable_reason,
+                _evm_decimal_text(item.phased_amount),
+                _evm_decimal_text(item.unphased_amount),
+            )
+            for item in facts.series_availability
+        ),
         periods=tuple(
             FinancialPeriodRowDto(
                 period_key=item.period_key,

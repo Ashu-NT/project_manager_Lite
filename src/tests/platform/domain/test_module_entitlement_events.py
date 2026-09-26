@@ -13,15 +13,15 @@ from datetime import datetime, timezone
 
 import pytest
 
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.tenant.modules import events as module_events_module
 from src.core.platform.domain.tenant.modules.events import (
     ModuleDisabled,
     ModuleEnabled,
-    ModuleLicenseRevoked,
     ModuleLicensed,
+    ModuleLicenseRevoked,
     ModuleLifecycleTransitioned,
 )
-from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWork,
 )
@@ -384,7 +384,7 @@ def test_events_carry_the_commanded_organization_not_the_active_one(services, mo
     catalog = services["module_catalog_service"]
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("SEMEVT"), display_name="Semantic Event Org", is_enabled=False
+        organization_code=_unique_code("SEMEVT"), display_name="Semantic Event Org"
     )
     assert services["tenant_context_service"].get_active_organization().id == org_a1.id
     recorded = _spy_recorded_events(catalog, monkeypatch)
@@ -399,8 +399,12 @@ def test_events_carry_the_commanded_organization_not_the_active_one(services, mo
 
 def test_command_against_a_foreign_tenant_organization_is_rejected_with_no_event(services, monkeypatch):
     from src.core.platform.common.exceptions import NotFoundError
-    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+        TenantORM,
+    )
 
     catalog = services["module_catalog_service"]
     session = services["session"]
@@ -420,7 +424,6 @@ def test_command_against_a_foreign_tenant_organization_is_rejected_with_no_event
             tenant_id=foreign_tenant_id,
             organization_code=_unique_code("FOREIGN"),
             display_name="Foreign Org",
-            is_enabled=True,
             version=1,
         )
     )
@@ -447,7 +450,6 @@ def test_provisioning_new_organization_records_zero_module_events(services, monk
         display_name="Provisioned No-Event Org",
         timezone_name="UTC",
         base_currency="EUR",
-        is_enabled=False,
         initial_module_codes=["project_management"],
     )
 
@@ -458,11 +460,10 @@ def test_read_time_default_seeding_records_zero_module_events(services, monkeypa
     organization_service = services["organization_service"]
     catalog = services["module_catalog_service"]
     new_org = organization_service.create_organization(
-        organization_code=_unique_code("SEED-NOEVT"), display_name="Seed No-Event Org", is_enabled=False
+        organization_code=_unique_code("SEED-NOEVT"), display_name="Seed No-Event Org"
     )
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
-    organization_service.enable_organization(new_org.id)
     services["tenant_context_service"].set_active_organization(new_org.id)
     catalog.list_entitlements()  # triggers _ensure_context_defaults' first-read row seeding
 

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import time
 import functools
+import time
 from collections import Counter
 from contextlib import contextmanager
 from datetime import date, timedelta

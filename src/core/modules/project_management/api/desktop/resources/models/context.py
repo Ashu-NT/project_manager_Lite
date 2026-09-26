@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,10 +68,10 @@ class ResourceAssignmentsPageDesktopDto:
 class ResourceActivityDesktopDto:
     id: str
     resource_id: str
-    occurred_at: str
+    occurred_at: datetime
     event_type: str
     category: str
-    actor_label: str
+    actor_id: str | None
     summary: str
     source_type: str
     source_id: str | None

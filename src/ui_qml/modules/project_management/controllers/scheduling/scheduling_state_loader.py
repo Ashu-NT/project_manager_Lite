@@ -4,19 +4,19 @@ import logging
 from time import perf_counter
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_scheduling_overview_view_model,
     serialize_selector_options,
     serialize_workspace_view_model,
 )
 
-from .panel_hydrator import hydrate_visible_panel_models, serialize_workspace_panels
-from .gantt_selection import set_gantt_selection
 from .gantt_baseline_actions import (
     clear_gantt_baseline,
     restore_gantt_baseline_after_workspace,
 )
+from .gantt_selection import set_gantt_selection
 from .gantt_view_state import refresh_local_gantt_view
-from .state import default_schedule_impact
+from .panel_hydrator import hydrate_visible_panel_models, serialize_workspace_panels
 from .scheduling_property_updates import (
     set_activity_sort_direction,
     set_activity_sort_key,
@@ -33,6 +33,7 @@ from .scheduling_property_updates import (
     set_show_delayed_only,
     set_status_options,
 )
+from .state import default_schedule_impact
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,9 @@ def load_workspace_state(controller) -> None:
         success = True
     except Exception as exc:  # pragma: no cover - defensive fallback
         logger.exception("PM scheduling refresh failed")
-        controller._set_error_message(str(exc))
+        controller._set_error_message(
+            safe_error_message(exc, safe_message="Scheduling data could not be loaded.")
+        )
     finally:
         duration_ms = (perf_counter() - started) * 1000
         log_method = logger.warning if duration_ms > 500 else logger.info

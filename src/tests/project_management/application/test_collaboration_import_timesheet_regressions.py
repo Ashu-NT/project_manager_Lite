@@ -6,7 +6,9 @@ from pathlib import Path
 import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.infrastructure.persistence.orm.time_management.time.time import TimeEntryORM
+from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
+    TimeEntryORM,
+)
 from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 

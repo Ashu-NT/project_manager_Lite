@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 from pydantic import field_validator, model_validator
 
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import (
@@ -12,6 +11,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 
 ROLE_SCOPE_PLATFORM = "platform"
 ROLE_SCOPE_TENANT = "tenant"
@@ -163,7 +163,7 @@ class RoleBinding:
         return normalized
 
     @model_validator(mode="after")
-    def _validate_scope_shape(self) -> "RoleBinding":
+    def _validate_scope_shape(self) -> RoleBinding:
         if self.actual_scope_type == ROLE_SCOPE_PLATFORM:
             if self.tenant_id is not None or self.actual_scope_id is not None:
                 raise ValidationError(
@@ -210,7 +210,7 @@ class RoleBinding:
         actual_scope_id: str | None = None,
         assigned_by: str | None = None,
         expires_at: datetime | None = None,
-    ) -> "RoleBinding":
+    ) -> RoleBinding:
         return RoleBinding(
             id=generate_id(),
             principal_type=ROLE_PRINCIPAL_USER,

@@ -14,24 +14,25 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     RateLineFact,
     RateLineRequest,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
-    ProjectRateCardORM,
-    RateCardLineORM,
-)
 from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
     ProjectBillingPreparationLineORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import (
     ApprovedTimeLaborPostingORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
+    ProjectRateCardORM,
+    RateCardLineORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.statements.planned_cost_rows import (
     PlannedCostLineRow,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
-
 
 _CARD_LINE_COUNT = (
     select(func.count(RateCardLineORM.id))

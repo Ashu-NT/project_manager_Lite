@@ -20,7 +20,7 @@ from src.infra.composition.approval_apply_dependencies._shared import (
     build_activity_service,
     wire_tenant_context_service,
 )
-from src.infra.composition.repositories import build_repository_bundle
+from src.infra.composition.persistence.repositories import build_repository_bundle
 
 
 def build_baseline_approval_deps(

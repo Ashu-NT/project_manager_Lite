@@ -48,8 +48,17 @@ Item {
                 }
 
                 AppWidgets.SectionCard {
+                    // No explicit implicitHeight override -- SectionCard
+                    // already computes its own content-area height from its
+                    // child's childrenRect (see SectionCard.qml) precisely
+                    // so anchored content is never clipped. Overriding it
+                    // here with notesColumn.implicitHeight + spacingMd*2
+                    // omitted SectionCard's own title-bar height, silently
+                    // clipping the last note whenever there was more than
+                    // one (confirmed via visual QA on Site's Documents/
+                    // Projects bridge cards, both consumers of this shared
+                    // component).
                     Layout.fillWidth: true
-                    implicitHeight: notesColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
                     title: root.cardTitle
                     outlined: true
 

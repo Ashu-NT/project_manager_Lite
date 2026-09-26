@@ -78,7 +78,7 @@ def test_dashboard_does_not_present_bounded_approval_rows_as_a_global_total() ->
             task_blocked=0,
             critical_tasks=1,
             late_tasks=1,
-            cost_variance=Decimal("0"),
+            cost_variance=Decimal(0),
         ),
         register_summary=None,
         resource_load=[],
@@ -150,7 +150,7 @@ def test_portfolio_financial_aggregate_is_complete_and_decimal_exact(
             self._reporting = Reporting()
             self._calendar = SimpleNamespace(working_days_between=lambda _start, _end: 0)
             self._user_session = object()
-            self._resources = SimpleNamespace(list_resources=lambda: [])
+            self._resources = SimpleNamespace(list_resources=list)
             self._tasks = SimpleNamespace(
                 list_tasks_for_project=lambda _project_id: [],
                 list_assignments_for_tasks=lambda _task_ids: [],

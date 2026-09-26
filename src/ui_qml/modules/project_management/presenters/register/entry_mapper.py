@@ -9,6 +9,7 @@ from src.ui_qml.modules.project_management.view_models.register import (
 from .formatting import preview_text
 from .workspace_mode import WorkspaceMode
 
+
 def build_entry_state(entry: Any) -> dict[str, object]:
     return {
         "entryId": entry.id,

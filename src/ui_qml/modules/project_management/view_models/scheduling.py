@@ -7,6 +7,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     GanttProjectionDto,
 )
 
+
 @dataclass(frozen=True)
 class SchedulingMetricViewModel:
     label: str
@@ -135,11 +136,13 @@ class SchedulingWorkspaceViewModel:
             subtitle="",
         )
     )
-    activity_feed: SchedulingCollectionViewModel = field(
-        default_factory=lambda: SchedulingCollectionViewModel(
-            title="Planning Activity",
-            subtitle="",
-        )
+    activity_feed: dict[str, object] = field(
+        default_factory=lambda: {
+            "title": "Planning Activity",
+            "subtitle": "",
+            "emptyState": "",
+            "items": [],
+        }
     )
 __all__ = [
     "SchedulingBaselineCompareViewModel",

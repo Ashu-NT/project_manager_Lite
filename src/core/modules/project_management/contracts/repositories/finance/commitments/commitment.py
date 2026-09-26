@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitment,
     ProjectCommitmentLine,
     ProjectCommitmentMatch,
     ProjectCommitmentSourceRevision,
 )
-from src.core.modules.project_management.contracts.reads import ReadSort
 
 
 class ProjectCommitmentRepository(ABC):
+    @abstractmethod
+    def lock_purchase_order(self, purchase_order_id: str) -> None: ...
+
     @abstractmethod
     def add(self, commitment: ProjectCommitment) -> None: ...
 
@@ -42,6 +45,7 @@ class ProjectCommitmentRepository(ABC):
         offset: int = 0,
         limit: int = 50,
         sort: ReadSort | None = None,
+        exposure: str = "",
     ) -> tuple[list[ProjectCommitmentLine], int]: ...
 
     @abstractmethod
@@ -59,9 +63,6 @@ class ProjectCommitmentRepository(ABC):
     def add_match(self, match: ProjectCommitmentMatch) -> None: ...
 
     @abstractmethod
-    def get_match(self, match_id: str) -> ProjectCommitmentMatch | None: ...
-
-    @abstractmethod
     def get_match_by_idempotency_key(
         self, idempotency_key: str
     ) -> ProjectCommitmentMatch | None: ...
@@ -70,12 +71,6 @@ class ProjectCommitmentRepository(ABC):
     def get_original_match_for_cost_entry(
         self, cost_entry_id: str
     ) -> ProjectCommitmentMatch | None: ...
-
-    @abstractmethod
-    def has_reversal_for_match(self, match_id: str) -> bool: ...
-
-    @abstractmethod
-    def list_matches_for_line(self, line_id: str) -> list[ProjectCommitmentMatch]: ...
 
     @abstractmethod
     def flush(self) -> None: ...

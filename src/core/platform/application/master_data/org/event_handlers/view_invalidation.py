@@ -9,9 +9,10 @@ Transport-independent: no Qt, no QML. Routing is delegated to `ScopeFilter.match
 from __future__ import annotations
 
 from src.core.platform.domain.master_data.org.events import (
+    OrganizationActivated,
+    OrganizationArchived,
     OrganizationCreated,
-    OrganizationDisabled,
-    OrganizationEnabled,
+    OrganizationDeactivated,
     OrganizationProfileUpdated,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -57,7 +58,7 @@ def build_organization_created_view_invalidation_handler(channel: ViewInvalidati
 def build_organization_profile_view_invalidation_handler(channel: ViewInvalidationChannel):
 
     def handle_organization_profile_event(
-        event: OrganizationProfileUpdated | OrganizationEnabled | OrganizationDisabled,
+        event: OrganizationProfileUpdated | OrganizationActivated | OrganizationDeactivated | OrganizationArchived,
         context: DomainEventContext,
     ) -> None:
         channel.notify(
@@ -74,9 +75,9 @@ def build_organization_profile_view_invalidation_handler(channel: ViewInvalidati
 
 
 __all__ = [
+    "ORGANIZATION_CATEGORY",
+    "ORGANIZATION_DETAILS_SCOPE_CODE",
+    "ORGANIZATION_LIST_SCOPE_CODE",
     "build_organization_created_view_invalidation_handler",
     "build_organization_profile_view_invalidation_handler",
-    "ORGANIZATION_CATEGORY",
-    "ORGANIZATION_LIST_SCOPE_CODE",
-    "ORGANIZATION_DETAILS_SCOPE_CODE",
 ]

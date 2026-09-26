@@ -6,26 +6,38 @@ from uuid import uuid4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.shared.audit import record_audit_entry
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.repositories.master_data.documents.contracts import (
     DocumentLinkRepository,
     DocumentRepository,
     DocumentStructureRepository,
 )
-from src.core.platform.contract.uow.document_unit_of_work import DocumentUnitOfWorkFactory
-from src.core.platform.domain.master_data.documents import Document, DocumentLink, DocumentType
-from src.core.platform.domain.master_data.documents.events import (
-    DocumentCreated,
-    DocumentReferenceLinked,
-    DocumentReferenceUnlinked,
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.uow.document_unit_of_work import (
+    DocumentUnitOfWorkFactory,
+)
+from src.core.platform.domain.master_data.documents import (
+    Document,
+    DocumentLink,
+    DocumentType,
 )
 from src.core.platform.domain.master_data.documents.document_link import (
     normalize_document_entity_id,
     normalize_document_entity_type,
     normalize_document_link_role,
     normalize_document_module_code,
+)
+from src.core.platform.domain.master_data.documents.events import (
+    DocumentCreated,
+    DocumentReferenceLinked,
+    DocumentReferenceUnlinked,
 )
 from src.core.platform.domain.master_data.documents.support import (
     coerce_document_type,
@@ -35,10 +47,9 @@ from src.core.platform.domain.master_data.documents.support import (
     infer_title,
     normalize_optional_text,
 )
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.application.tenant.tenancy import TenantContextService
-from src.core.platform.common.ids import generate_id
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
 
@@ -119,20 +130,35 @@ def register_entity_attachments_in_uow(
             operation="create",
             entity_type="document",
             entity_id=document.id,
-            module="platform",
+            module=normalized_module,
+            organization_id=organization.id,
+            category="MASTER_DATA",
             severity="low",
-            metadata={
-                "action": "document.linked_attachment.create",
-                "module_code": normalized_module,
+            after_data={
                 "entity_type": normalized_entity_type,
                 "entity_id": normalized_entity_id,
                 "link_role": normalized_role,
                 "storage_kind": document.storage_kind.value,
-                "storage_uri": document.storage_uri,
-                "document_structure_id": document.document_structure_id,
             },
+            metadata={"action": "document.linked_attachment.create"},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            uow,
+            action="document.linked_attachment.create",
+            entity_type="document",
+            entity_id=document.id,
+            module=normalized_module,
+            organization_id=organization.id,
+            parent_entity_id=normalized_entity_id,
+            details={
+                "entity_type": normalized_entity_type,
+                "entity_id": normalized_entity_id,
+                "link_role": normalized_role,
+                "storage_kind": document.storage_kind.value,
+            },
+            commit=False,
         )
         uow.record_event(
             DocumentCreated(
@@ -202,17 +228,33 @@ def link_existing_document_in_uow(
         operation="update",
         entity_type="document",
         entity_id=document.id,
-        module="platform",
+        module=normalized_module,
+        organization_id=organization.id,
+        category="MASTER_DATA",
         severity="low",
-        metadata={
-            "action": "document.link_existing",
-            "module_code": normalized_module,
+        after_data={
+            "entity_type": normalized_entity_type,
+            "entity_id": normalized_entity_id,
+            "link_role": normalized_role,
+        },
+        metadata={"action": "document.link_existing"},
+        commit=False,
+        fail_closed=True,
+    )
+    record_activity(
+        uow,
+        action="document.link_existing",
+        entity_type="document",
+        entity_id=document.id,
+        module=normalized_module,
+        organization_id=organization.id,
+        parent_entity_id=normalized_entity_id,
+        details={
             "entity_type": normalized_entity_type,
             "entity_id": normalized_entity_id,
             "link_role": normalized_role,
         },
         commit=False,
-        fail_closed=True,
     )
     uow.record_event(
         DocumentReferenceLinked(
@@ -406,22 +448,20 @@ class DocumentIntegrationService:
             if existing is None:
                 raise NotFoundError("Document link not found.", code="DOCUMENT_LINK_NOT_FOUND")
             uow.links.delete(existing.id)
-            record_audit_entry(
+            record_activity(
                 uow,
-                operation="delete",
+                action="document.unlink_existing",
                 entity_type="document",
                 entity_id=document.id,
-                module="platform",
-                severity="low",
-                metadata={
-                    "action": "document.unlink_existing",
-                    "module_code": normalized_module,
+                module=normalized_module,
+                organization_id=organization.id,
+                parent_entity_id=normalized_entity_id,
+                details={
                     "entity_type": normalized_entity_type,
                     "entity_id": normalized_entity_id,
                     "link_role": normalized_role,
                 },
                 commit=False,
-                fail_closed=True,
             )
             uow.record_event(
                 DocumentReferenceUnlinked(

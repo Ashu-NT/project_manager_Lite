@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
 from decimal import Decimal, InvalidOperation
+from typing import Any
+
 
 def require_text(payload: dict[str, Any], key: str, message: str) -> str:
     value = str(payload.get(key, "") or "").strip()

@@ -5,7 +5,11 @@ from datetime import date
 import pytest
 
 from src.core.modules.project_management.domain.enums import ConstraintType
-from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
+from src.core.modules.project_management.domain.tasks.task import (
+    Task,
+    TaskAssignment,
+    TaskDependency,
+)
 from src.core.platform.common.exceptions import ValidationError
 
 

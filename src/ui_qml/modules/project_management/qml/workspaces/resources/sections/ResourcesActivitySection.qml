@@ -6,7 +6,6 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import ProjectManagement.Widgets 1.0 as PMWidgets
 
 Item {
     id: root
@@ -34,20 +33,12 @@ Item {
     }
 
     function _openSource(item) {
-        const state = item ? (item.state || {}) : {}
-        if (state.canOpenSource !== true || !root.pmCatalog) return
-        const taskId = String(state.taskId || "")
-        const projectId = String(state.projectId || "")
+        const activation = item ? (item.activationState || null) : null
+        if (!activation || !root.pmCatalog) return
+        const taskId = String(activation.taskId || "")
+        const projectId = String(activation.projectId || "")
         if (taskId.length) root.pmCatalog.pmNavigation.openEntity("tasks", taskId, "activity")
         else if (projectId.length) root.pmCatalog.pmNavigation.openEntity("projects", projectId, "activity")
-    }
-
-    function _activityById(itemId) {
-        const items = root._page.items || []
-        for (let index = 0; index < items.length; index += 1) {
-            if (String(items[index].id || "") === String(itemId || "")) return items[index]
-        }
-        return null
     }
 
     implicitHeight: Math.max(content.implicitHeight, root.availableHeight)
@@ -74,7 +65,10 @@ Item {
             showRefresh: true
             isBusy: root.workspaceController ? root.workspaceController.resourceActivityLoading : false
             onRefreshRequested: {
-                if (root.workspaceController) root.workspaceController.refreshResourceActivity()
+                if (root.workspaceController) {
+                    root.workspaceController.clearMessages()
+                    root.workspaceController.refreshResourceActivity()
+                }
             }
 
             AppControls.ComboBox {
@@ -124,24 +118,16 @@ Item {
             modal: false
         }
 
-        PMWidgets.ActivityLogSection {
+        AppWidgets.ActivityFeed {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumHeight: 120
-            showHeading: false
-            showInlineError: false
-            showSearch: false
-            clientSideSearch: false
-            selectedItemId: root.selectedActivityId
-            activityModel: ({
-                "title": "",
-                "subtitle": "",
-                "emptyState": "No recorded activity matches these filters.",
-                "items": root._page.items || []
-            })
-            onItemSelected: function(itemId) {
+            items: root._page.items || []
+            emptyText: "No recorded activity matches these filters."
+            onItemActivated: function(item) {
+                const itemId = String(item.id || "")
                 root.selectedActivityId = itemId
-                root._openSource(root._activityById(itemId))
+                root._openSource(item)
             }
         }
 

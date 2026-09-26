@@ -6,8 +6,8 @@ from src.core.shared.persistence.unit_of_work import (
 )
 
 __all__ = [
-    "UnitOfWork",
-    "UnitOfWorkFactory",
-    "UnitOfWorkClosedError",
     "MaxDispatchRoundsExceededError",
+    "UnitOfWork",
+    "UnitOfWorkClosedError",
+    "UnitOfWorkFactory",
 ]

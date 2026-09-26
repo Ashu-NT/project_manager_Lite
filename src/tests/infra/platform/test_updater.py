@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import src.infra.platform.updater as updater
+from src.infra.platform import updater
 
 
 def test_download_update_installer_from_file_url(tmp_path):

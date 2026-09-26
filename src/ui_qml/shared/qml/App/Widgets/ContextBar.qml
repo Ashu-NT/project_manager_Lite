@@ -36,6 +36,7 @@ Rectangle {
 
         ContextChip {
             id: _tenantChip
+            objectName: "contextBarTenantChip"
             visible: root.tenantSwitcherVisible
             label: "Tenant"
             value: root.tenantName
@@ -47,6 +48,7 @@ Rectangle {
 
         ContextChip {
             id: _organizationChip
+            objectName: "contextBarOrganizationChip"
             label: "Organization"
             value: root.organizationName
             options: root.organizationOptions
@@ -71,6 +73,26 @@ Rectangle {
 
         Layout.preferredWidth: _row.implicitWidth
         Layout.fillHeight: true
+
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: chip.label + ": " + (chip.value.length > 0 ? chip.value : "none selected")
+        Accessible.onPressAction: _popup.open()
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                _popup.open()
+                event.accepted = true
+            }
+        }
+
+        Rectangle {
+            anchors.fill: _row
+            anchors.margins: -4
+            radius: Theme.AppTheme.radiusSm
+            color: "transparent"
+            border.width: chip.activeFocus ? 2 : 0
+            border.color: Theme.AppTheme.focusBorder
+        }
 
         RowLayout {
             id: _row
@@ -123,6 +145,29 @@ Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: Theme.AppTheme.sidebarRowHeight
 
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.MenuItem
+                        Accessible.name: String(optionDelegate.modelData.label || "")
+                        Accessible.onPressAction: {
+                            chip.optionSelected(String(optionDelegate.modelData.id || ""))
+                            _popup.close()
+                        }
+                        Keys.onPressed: (event) => {
+                            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                                chip.optionSelected(String(optionDelegate.modelData.id || ""))
+                                _popup.close()
+                                event.accepted = true
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.fill: parent
+                            visible: optionDelegate.activeFocus
+                            color: Theme.AppTheme.hoverSurface
+                            border.width: 2
+                            border.color: Theme.AppTheme.focusBorder
+                        }
+
                         AppControls.Label {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
@@ -153,6 +198,29 @@ Rectangle {
                 Item {
                     Layout.fillWidth: true
                     implicitHeight: Theme.AppTheme.sidebarRowHeight
+
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.MenuItem
+                    Accessible.name: chip.manageLabel
+                    Accessible.onPressAction: {
+                        chip.manageRequested()
+                        _popup.close()
+                    }
+                    Keys.onPressed: (event) => {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            chip.manageRequested()
+                            _popup.close()
+                            event.accepted = true
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: parent.activeFocus
+                        color: Theme.AppTheme.hoverSurface
+                        border.width: 2
+                        border.color: Theme.AppTheme.focusBorder
+                    }
 
                     AppControls.Label {
                         anchors.verticalCenter: parent.verticalCenter

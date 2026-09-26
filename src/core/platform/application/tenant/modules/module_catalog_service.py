@@ -1,27 +1,31 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Iterable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.tenant.modules.module_catalog_context import (
     ModuleCatalogContextMixin,
 )
 from src.core.platform.application.tenant.modules.module_catalog_mutation import (
     ModuleCatalogMutationMixin,
 )
-from src.core.platform.application.tenant.modules.module_catalog_query import ModuleCatalogQueryMixin
+from src.core.platform.application.tenant.modules.module_catalog_query import (
+    ModuleCatalogQueryMixin,
+)
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.read.tenant.modules.module_entitlement_reader import (
+    ModuleEntitlementReader,
+)
+from src.core.platform.contract.repositories.tenant.modules.contracts import (
+    ModuleEntitlementRepository,
+)
 from src.core.platform.contract.uow.module_entitlement_unit_of_work import (
     ModuleEntitlementUnitOfWorkFactory,
 )
-from src.core.platform.contract.repositories.tenant.modules.contracts import ModuleEntitlementRepository
-from src.core.platform.contract.read.tenant.modules.module_entitlement_reader import ModuleEntitlementReader
-from src.core.platform.common.ids import generate_id
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.view_invalidation import ViewInvalidationChannel
-from src.core.shared.time.clock import Clock
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.tenant.modules import (
     DEFAULT_ENTERPRISE_MODULES,
     DEFAULT_PLATFORM_CAPABILITIES,
@@ -41,6 +45,9 @@ from src.core.platform.domain.tenant.modules import (
     parse_module_codes,
 )
 from src.core.platform.domain.tenant.modules.module_codes import normalize_module_code
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.events.view_invalidation import ViewInvalidationChannel
+from src.core.shared.time.clock import Clock
 
 
 class ModuleCatalogService(
@@ -64,6 +71,7 @@ class ModuleCatalogService(
         uow_factory: ModuleEntitlementUnitOfWorkFactory | None = None,
         clock: Clock | None = None,
         view_invalidation_channel: ViewInvalidationChannel | None = None,
+        read_only: bool = False,
     ) -> None:
         known_modules = tuple(modules)
         known_codes = {module.code for module in known_modules}
@@ -83,6 +91,7 @@ class ModuleCatalogService(
             else set(licensed)
         )
         self._modules = known_modules
+        self._read_only = read_only
         self._platform_capabilities = tuple(platform_capabilities or DEFAULT_PLATFORM_CAPABILITIES)
         self._licensed_codes = set(code for code in licensed if code in known_codes)
         self._enabled_codes = set(code for code in enabled if code in self._licensed_codes)
@@ -133,13 +142,8 @@ ModuleCatalogEntry = EnterpriseModule
 
 
 __all__ = [
-    "DEFAULT_PLATFORM_CAPABILITIES",
     "DEFAULT_ENTERPRISE_MODULES",
-    "EnterpriseModule",
-    "ModuleCatalogEntry",
-    "ModuleCatalogService",
-    "ModuleCatalogSnapshot",
-    "ModuleEntitlement",
+    "DEFAULT_PLATFORM_CAPABILITIES",
     "MODULE_LIFECYCLE_ACTIVE",
     "MODULE_LIFECYCLE_EXPIRED",
     "MODULE_LIFECYCLE_INACTIVE",
@@ -147,6 +151,11 @@ __all__ = [
     "MODULE_LIFECYCLE_SUSPENDED",
     "MODULE_LIFECYCLE_TRIAL",
     "MODULE_RUNTIME_ACCESS_STATUSES",
+    "EnterpriseModule",
+    "ModuleCatalogEntry",
+    "ModuleCatalogService",
+    "ModuleCatalogSnapshot",
+    "ModuleEntitlement",
     "PlatformCapability",
     "build_default_module_catalog",
     "normalize_module_code",

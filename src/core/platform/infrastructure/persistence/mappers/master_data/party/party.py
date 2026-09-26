@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from src.core.platform.domain.master_data.party import Party, PartyType
-from src.core.platform.infrastructure.persistence.orm.master_data.party.party import PartyORM
+from src.core.platform.infrastructure.persistence.orm.master_data.party.party import (
+    PartyORM,
+)
 
 
 def party_to_orm(party: Party) -> PartyORM:

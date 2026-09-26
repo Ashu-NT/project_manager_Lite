@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.domain.financials.rate_cards import RateCardLine
+from src.core.modules.project_management.domain.financials.rate_cards import (
+    RateCardLine,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 
 

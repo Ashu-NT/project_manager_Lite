@@ -2,8 +2,12 @@ from datetime import date
 
 import pytest
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
 
 
 def test_task_name_validation_rules(services):
@@ -142,10 +146,11 @@ def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services
     baseline = bs.create_baseline(pid, "BL-Budget", rate_as_of=date.today())
 
     evm = rp.get_earned_value(project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30))
-    assert evm.BAC == pytest.approx(0.0)
+    assert evm.availability == "baseline_unavailable"
+    assert evm.BAC is None
 
 
-def test_reporting_earned_value_requires_baseline(services):
+def test_reporting_earned_value_reports_unavailable_without_baseline(services):
     ps = services["project_service"]
     ts = services["task_service"]
     rp = services["reporting_service"]
@@ -154,9 +159,9 @@ def test_reporting_earned_value_requires_baseline(services):
     pid = project.id
     ts.create_task(pid, "Any Task", start_date=date(2023, 11, 6), duration_days=1)
 
-    with pytest.raises(BusinessRuleError) as exc:
-        rp.get_earned_value(pid)
-    assert exc.value.code == "NO_BASELINE"
+    evm = rp.get_earned_value(pid)
+    assert evm.availability == "baseline_unavailable"
+    assert evm.BAC is None
 
 
 def test_dashboard_returns_none_evm_without_baseline(services):

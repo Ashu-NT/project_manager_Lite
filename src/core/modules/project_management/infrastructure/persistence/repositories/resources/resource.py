@@ -7,12 +7,18 @@ from src.core.modules.project_management.contracts.repositories.resources.resour
     ResourceReferenceSummary,
     ResourceRepository,
 )
+from src.core.modules.project_management.domain.resources.resource import Resource
+from src.core.modules.project_management.infrastructure.persistence.mappers.resource import (
+    resource_from_orm,
+    resource_to_orm,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
     ProjectResourceORM,
 )
-from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.skills import (
     ResourceCertificationORM,
     ResourceSkillORM,
@@ -21,11 +27,15 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskAssignmentORM,
     TaskORM,
 )
-from src.core.platform.infrastructure.persistence.orm.time_management.time.time import TimeEntryORM
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
+from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
+    TimeEntryORM,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
-from src.core.modules.project_management.infrastructure.persistence.mappers.resource import resource_from_orm, resource_to_orm
 
 
 class SqlAlchemyResourceRepository(ResourceRepository):

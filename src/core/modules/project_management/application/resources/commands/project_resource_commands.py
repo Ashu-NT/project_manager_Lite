@@ -4,8 +4,14 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common import (
     project_resource_envelope_policy as envelope_policy,
+)
+from src.core.modules.project_management.application.common.currency_policy import (
+    resolve_pm_currency,
 )
 from src.core.modules.project_management.application.resources.project_resource_events import (
     ProjectResourceAssignmentChanged,
@@ -14,19 +20,19 @@ from src.core.modules.project_management.contracts.repositories.projects.project
     ProjectRepository,
     ProjectResourceRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )
 from src.core.modules.project_management.domain.projects.project import ProjectResource
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.shared.activity import record_activity
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.modules.project_management.application.common.currency_policy import (
-    resolve_pm_currency,
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
 )
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.shared.activity import record_activity
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 # Fields diffed for the project_resource.update/set_active activity entries,
@@ -109,7 +115,7 @@ class ProjectResourceCommandMixin:
 
     def _allocated_planned_hours_total(self, project_id: str, resource_id: str) -> Decimal:
         if self._task_repo is None or self._assignment_repo is None:
-            return Decimal("0")
+            return Decimal(0)
         return envelope_policy.allocated_to_tasks_hours(
             task_repo=self._task_repo,
             assignment_repo=self._assignment_repo,
@@ -123,7 +129,7 @@ class ProjectResourceCommandMixin:
         resource_id: str,
         hourly_rate: Decimal | int | str | None = None,
         currency_code: str | None = None,
-        planned_hours: Decimal | int | str = Decimal("0"),
+        planned_hours: Decimal | int | str = Decimal(0),
         is_active: bool = True,
     ) -> ProjectResource:
         require_permission(

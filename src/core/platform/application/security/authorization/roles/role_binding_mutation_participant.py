@@ -4,7 +4,6 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.roles.role_binding_scope import (
@@ -94,7 +93,7 @@ def record_role_binding_audit_entry(
         actor_username=actor.username,
         tenant_id=tenant_id,
         severity="high",
-        compliance_tag="SOC2",
+        category="SECURITY",
         metadata={"action": action, **metadata},
     )
     if tenant_id is None:
@@ -262,9 +261,9 @@ def revoke_role_binding_using(
 
 __all__ = [
     "OrganizationOwnerResolver",
-    "resolved_scope_to_domain_scope",
-    "resolve_domain_scope_for_binding",
-    "record_role_binding_audit_entry",
     "create_role_binding_using",
+    "record_role_binding_audit_entry",
+    "resolve_domain_scope_for_binding",
+    "resolved_scope_to_domain_scope",
     "revoke_role_binding_using",
 ]

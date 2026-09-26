@@ -1,18 +1,39 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime
+from datetime import timezone as dt_timezone
 
 from pydantic import field_validator, model_validator
 
-from src.core.platform.common.ids import generate_id
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import (
     normalize_optional_text,
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.domain.finance.money.currency import CurrencyCode
 from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.finance.money.currency import CurrencyCode
+
+SITE_STATUS_ACTIVE = "active"
+SITE_STATUS_INACTIVE = "inactive"
+SITE_STATUS_ARCHIVED = "archived"
+
+VALID_SITE_STATUSES: frozenset[str] = frozenset({
+    SITE_STATUS_ACTIVE,
+    SITE_STATUS_INACTIVE,
+    SITE_STATUS_ARCHIVED,
+})
+
+
+def normalize_site_status(value: object) -> str:
+    normalized = str(value or "").strip().lower() or SITE_STATUS_ACTIVE
+    if normalized not in VALID_SITE_STATUSES:
+        raise ValidationError(
+            "Site status is invalid.",
+            code="SITE_STATUS_INVALID",
+        )
+    return normalized
 
 
 def _validate_optional_datetime(value: object, *, code: str) -> datetime | None:
@@ -46,10 +67,9 @@ class Site:
     timezone: str = ""
     currency_code: str = ""
     site_type: str = ""
-    status: str = "ACTIVE"
+    status: str = SITE_STATUS_ACTIVE
     default_calendar_id: str = ""
     default_language: str = ""
-    is_active: bool = True
     opened_at: datetime | None = None
     closed_at: datetime | None = None
     created_at: datetime | None = None
@@ -94,7 +114,6 @@ class Site:
         "postal_code",
         "timezone",
         "site_type",
-        "status",
         "default_calendar_id",
         "default_language",
         "notes",
@@ -103,6 +122,11 @@ class Site:
     @classmethod
     def _normalize_text_fields(cls, value: object) -> str:
         return normalize_optional_text(value)
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _validate_status(cls, value: object) -> str:
+        return normalize_site_status(value)
 
     @field_validator("currency_code", mode="before")
     @classmethod
@@ -142,17 +166,18 @@ class Site:
         return resolved
 
     @model_validator(mode="after")
-    def _validate_site_state(self) -> "Site":
-        if not self.status:
-            object.__setattr__(self, "status", "ACTIVE" if self.is_active else "INACTIVE")
-        else:
-            object.__setattr__(self, "status", self.status.upper())
+    def _validate_site_state(self) -> Site:
         if self.opened_at and self.closed_at and self.closed_at < self.opened_at:
             raise ValidationError(
                 "Site closed date cannot be before opened date.",
                 code="SITE_DATE_RANGE_INVALID",
             )
         return self
+
+    @property
+    def is_active(self) -> bool:
+        """Computed from status -- never a second persisted source of truth."""
+        return self.status == SITE_STATUS_ACTIVE
 
     @staticmethod
     def create(
@@ -170,16 +195,15 @@ class Site:
         timezone: str = "",
         currency_code: str = "",
         site_type: str = "",
-        status: str = "ACTIVE",
+        status: str = SITE_STATUS_ACTIVE,
         default_calendar_id: str = "",
         default_language: str = "",
-        is_active: bool = True,
         opened_at: datetime | None = None,
         closed_at: datetime | None = None,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
         notes: str = "",
-    ) -> "Site":
+    ) -> Site:
         now = datetime.now(dt_timezone.utc)
         return Site(
             id=generate_id(),
@@ -199,7 +223,6 @@ class Site:
             status=status,
             default_calendar_id=default_calendar_id,
             default_language=default_language,
-            is_active=is_active,
             opened_at=opened_at,
             closed_at=closed_at,
             created_at=created_at or now,

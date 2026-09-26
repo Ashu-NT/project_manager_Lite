@@ -11,7 +11,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.modules.project_management.domain.financials.cost_entry import ProjectCostEntryStatus
+from src.core.modules.project_management.domain.financials.cost_entry import (
+    ProjectCostEntryStatus,
+)
 from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
     ProjectCostApprovalParticipant,
 )
@@ -56,7 +58,7 @@ def _submitted_entry(services, session):
         project_id=project.id,
         command_id=f"{project.id}-command",
         description="Travel",
-        amount=Decimal("100"),
+        amount=Decimal(100),
         currency_code=organization.base_currency,
         transaction_date=date(2026, 1, 10),
         cost_code_id=cost_code.id,

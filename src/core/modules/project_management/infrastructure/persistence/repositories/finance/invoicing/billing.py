@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
@@ -39,7 +39,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.billing 
     ProjectBillingScheduleLineORM,
     ProjectBillingSourceLockORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     ActiveScopeIds,
     TenantContextService,
@@ -91,15 +93,16 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
         self._require_project(profile.project_id, context)
         self.session.add(billing_profile_to_orm(profile))
 
-    def get_profile(self, project_id: str) -> ProjectBillingProfile | None:
+    def get_profile(self, project_id: str, *, for_update: bool = False) -> ProjectBillingProfile | None:
         context = self._context(operation_label="access project billing profile")
-        row = self.session.execute(
-            select(ProjectBillingProfileORM).where(
+        statement = select(ProjectBillingProfileORM).where(
                 ProjectBillingProfileORM.project_id == project_id,
                 ProjectBillingProfileORM.tenant_id == context.tenant_id,
                 ProjectBillingProfileORM.organization_id == context.organization_id,
-            )
-        ).scalar_one_or_none()
+            ).execution_options(populate_existing=True)
+        if for_update:
+            statement = statement.with_for_update()
+        row = self.session.execute(statement).scalar_one_or_none()
         return billing_profile_from_orm(row) if row else None
 
     def update_profile(
@@ -217,15 +220,16 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
             )
         self.session.add(preparation_to_orm(preparation))
 
-    def get_preparation(self, preparation_id: str) -> ProjectBillingPreparation | None:
+    def get_preparation(self, preparation_id: str, *, for_update: bool = False) -> ProjectBillingPreparation | None:
         context = self._context(operation_label="access billing preparation")
-        row = self.session.execute(
-            select(ProjectBillingPreparationORM).where(
+        statement = select(ProjectBillingPreparationORM).where(
                 ProjectBillingPreparationORM.id == preparation_id,
                 ProjectBillingPreparationORM.tenant_id == context.tenant_id,
                 ProjectBillingPreparationORM.organization_id == context.organization_id,
-            )
-        ).scalar_one_or_none()
+            ).execution_options(populate_existing=True)
+        if for_update:
+            statement = statement.with_for_update()
+        row = self.session.execute(statement).scalar_one_or_none()
         return preparation_from_orm(row) if row else None
 
     def get_preparation_by_idempotency_key(
@@ -347,6 +351,37 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
         ).scalars().all()
         return [preparation_line_from_orm(row) for row in rows]
 
+    def remove_draft_line(self, preparation_id: str, line_id: str) -> None:
+        context = self._context(operation_label="remove draft billing source")
+        preparation = self._preparation_row(preparation_id, context)
+        if preparation.status != "draft":
+            raise BusinessRuleError(
+                "Only draft billing sources can be removed.",
+                code="BILLING_PREPARATION_IMMUTABLE",
+            )
+        filters = (
+            ProjectBillingPreparationLineORM.id == line_id,
+            ProjectBillingPreparationLineORM.preparation_id == preparation_id,
+            ProjectBillingPreparationLineORM.project_id == preparation.project_id,
+            ProjectBillingPreparationLineORM.tenant_id == context.tenant_id,
+            ProjectBillingPreparationLineORM.organization_id == context.organization_id,
+        )
+        lock_filters = (
+            ProjectBillingSourceLockORM.preparation_line_id == line_id,
+            ProjectBillingSourceLockORM.preparation_id == preparation_id,
+            ProjectBillingSourceLockORM.project_id == preparation.project_id,
+            ProjectBillingSourceLockORM.tenant_id == context.tenant_id,
+            ProjectBillingSourceLockORM.organization_id == context.organization_id,
+            ProjectBillingSourceLockORM.status == "reserved",
+        )
+        if self.session.execute(delete(ProjectBillingSourceLockORM).where(*lock_filters)).rowcount != 1:
+            raise BusinessRuleError(
+                "The draft source reservation is unavailable.",
+                code="BILLING_SOURCE_RESERVATION_MISSING",
+            )
+        if self.session.execute(delete(ProjectBillingPreparationLineORM).where(*filters)).rowcount != 1:
+            raise NotFoundError("Billing preparation line not found.", code="BILLING_LINE_NOT_FOUND")
+
     def get_source_lock(
         self, *, source_type: BillableSourceType, source_id: str
     ) -> ProjectBillingSourceLock | None:
@@ -357,6 +392,7 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
                 ProjectBillingSourceLockORM.source_id == source_id,
                 ProjectBillingSourceLockORM.tenant_id == context.tenant_id,
                 ProjectBillingSourceLockORM.organization_id == context.organization_id,
+                ProjectBillingSourceLockORM.status != "released",
             )
         ).scalar_one_or_none()
         return source_lock_from_orm(row) if row else None
@@ -401,19 +437,6 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
         self._preparation_row(event.preparation_id, context)
         self.session.add(external_event_to_orm(event))
 
-    def get_external_event_by_idempotency_key(
-        self, *, external_system: str, idempotency_key: str
-    ) -> ProjectBillingExternalEvent | None:
-        context = self._context(operation_label="resolve external billing retry")
-        row = self.session.execute(
-            select(ProjectBillingExternalEventORM).where(
-                ProjectBillingExternalEventORM.external_system == external_system,
-                ProjectBillingExternalEventORM.idempotency_key == idempotency_key,
-                ProjectBillingExternalEventORM.tenant_id == context.tenant_id,
-                ProjectBillingExternalEventORM.organization_id == context.organization_id,
-            )
-        ).scalar_one_or_none()
-        return external_event_from_orm(row) if row else None
 
     def list_external_events(
         self, preparation_id: str

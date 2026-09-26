@@ -15,6 +15,10 @@ def mark_task_read(controller, task_id: str) -> dict[str, object]:
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_validation_message="Review the highlighted details and try again.",
+        safe_validation_code="COLLABORATION_INPUT_INVALID",
+        safe_failure_message="This request could not be completed. Try again or refresh the workspace.",
+        safe_failure_code="COLLABORATION_MUTATION_FAILED",
     )
 
 
@@ -39,6 +43,10 @@ def approve_request(controller, request_id: str) -> dict[str, object]:
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_validation_message="Review the highlighted details and try again.",
+        safe_validation_code="COLLABORATION_INPUT_INVALID",
+        safe_failure_message="This request could not be completed. Try again or refresh the workspace.",
+        safe_failure_code="COLLABORATION_MUTATION_FAILED",
     )
 
 
@@ -52,6 +60,10 @@ def reject_request(controller, request_id: str) -> dict[str, object]:
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_validation_message="Review the highlighted details and try again.",
+        safe_validation_code="COLLABORATION_INPUT_INVALID",
+        safe_failure_message="This request could not be completed. Try again or refresh the workspace.",
+        safe_failure_code="COLLABORATION_MUTATION_FAILED",
     )
 
 

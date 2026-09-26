@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioProjectDependencyChanged,
+    PortfolioProjectDependencyChangeType,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.domain.portfolio import PortfolioProjectDependency
+from src.core.modules.project_management.domain.portfolio import (
+    PortfolioProjectDependency,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioProjectDependencyChangeType,
-    PortfolioProjectDependencyChanged,
-)
 
 
 class PortfolioDependencyCommandMixin:
@@ -57,6 +63,24 @@ class PortfolioDependencyCommandMixin:
                         code="PORTFOLIO_DEPENDENCY_DUPLICATE",
                     )
             uow.dependencies.add(dependency)
+            record_audit_entry(
+                uow,
+                operation="create",
+                entity_type="portfolio_project_dependency",
+                entity_id=dependency.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                category="MASTER_DATA",
+                severity="low",
+                after_data={
+                    "predecessor_project_id": predecessor.id,
+                    "successor_project_id": successor.id,
+                },
+                workspace_id=successor.id,
+                metadata={"action": "portfolio.project_dependency.add"},
+                commit=False,
+                fail_closed=True,
+            )
             record_activity(
                 uow,
                 action="portfolio.project_dependency.add",
@@ -73,22 +97,6 @@ class PortfolioDependencyCommandMixin:
                     "summary": dependency.summary,
                 },
                 commit=False,
-            )
-            record_audit_entry(
-                uow,
-                operation="create",
-                entity_type="portfolio_project_dependency",
-                entity_id=dependency.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={
-                    "action": "portfolio.project_dependency.add",
-                    "predecessor_project_id": predecessor.id,
-                    "successor_project_id": successor.id,
-                },
-                commit=False,
-                fail_closed=True,
             )
             uow.record_event(
                 PortfolioProjectDependencyChanged(
@@ -126,6 +134,24 @@ class PortfolioDependencyCommandMixin:
             )
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             uow.dependencies.delete(dependency_id)
+            record_audit_entry(
+                uow,
+                operation="delete",
+                entity_type="portfolio_project_dependency",
+                entity_id=dependency.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                category="MASTER_DATA",
+                severity="low",
+                before_data={
+                    "predecessor_project_id": predecessor.id,
+                    "successor_project_id": successor.id,
+                },
+                workspace_id=successor.id,
+                metadata={"action": "portfolio.project_dependency.remove"},
+                commit=False,
+                fail_closed=True,
+            )
             record_activity(
                 uow,
                 action="portfolio.project_dependency.remove",
@@ -142,22 +168,6 @@ class PortfolioDependencyCommandMixin:
                     "summary": dependency.summary,
                 },
                 commit=False,
-            )
-            record_audit_entry(
-                uow,
-                operation="delete",
-                entity_type="portfolio_project_dependency",
-                entity_id=dependency.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={
-                    "action": "portfolio.project_dependency.remove",
-                    "predecessor_project_id": predecessor.id,
-                    "successor_project_id": successor.id,
-                },
-                commit=False,
-                fail_closed=True,
             )
             uow.record_event(
                 PortfolioProjectDependencyChanged(

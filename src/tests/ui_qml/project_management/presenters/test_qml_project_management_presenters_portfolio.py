@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 
 def _page(items, *, page, page_size, sort_key, sort_direction, search_text):

@@ -1,30 +1,51 @@
 """Dashboard orchestration service — assembles all dashboard sections."""
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
-from src.core.modules.project_management.application.dashboard.alerts.alerts_mixin import DashboardAlertsMixin
-from src.core.modules.project_management.application.dashboard.analytics.burndown import DashboardBurndownMixin
-from src.core.modules.project_management.application.dashboard.analytics.evm import DashboardEvmMixin
-from src.core.modules.project_management.application.dashboard.widgets.register import DashboardRegisterMixin
-from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
-    BurndownPoint,
-    DashboardData,
-    DashboardEVM,
-    UpcomingTask,
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
 )
-from src.core.modules.project_management.application.dashboard.reporting.portfolio import DashboardPortfolioMixin
-from src.core.modules.project_management.application.dashboard.widgets.professional import DashboardProfessionalMixin
-from src.core.modules.project_management.application.dashboard.widgets.upcoming import DashboardUpcomingMixin
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.dashboard.alerts.alerts_mixin import (
+    DashboardAlertsMixin,
+)
+from src.core.modules.project_management.application.dashboard.analytics.burndown import (
+    DashboardBurndownMixin,
+)
+from src.core.modules.project_management.application.dashboard.analytics.evm import (
+    DashboardEvmMixin,
+)
+from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
+    DashboardData,
+)
+from src.core.modules.project_management.application.dashboard.reporting.portfolio import (
+    DashboardPortfolioMixin,
+)
+from src.core.modules.project_management.application.dashboard.widgets.professional import (
+    DashboardProfessionalMixin,
+)
+from src.core.modules.project_management.application.dashboard.widgets.register import (
+    DashboardRegisterMixin,
+)
+from src.core.modules.project_management.application.dashboard.widgets.upcoming import (
+    DashboardUpcomingMixin,
+)
+from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.risk import RegisterService
-from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.modules.project_management.infrastructure.reporting import (
+    ReportingService,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 class DashboardService(

@@ -26,7 +26,7 @@ def test_financial_period_table_has_direct_scope_rls_and_catalog_constraints() -
 
 
 def test_platform_period_domain_is_business_module_and_operational_calendar_independent() -> None:
-    root = Path("src/core/platform/finance/periods")
+    root = Path("src/core/platform/domain/finance/periods")
     source = "\n".join(path.read_text(encoding="utf-8") for path in root.rglob("*.py"))
 
     assert "src.core.modules" not in source
@@ -36,7 +36,7 @@ def test_platform_period_domain_is_business_module_and_operational_calendar_inde
 
 def test_financial_period_foundation_contains_no_reopen_transition_code() -> None:
     roots = (
-        Path("src/core/platform/finance/periods"),
+        Path("src/core/platform/domain/finance/periods"),
         Path("src/core/platform/application/finance"),
         Path("src/core/platform/api/desktop/finance"),
     )

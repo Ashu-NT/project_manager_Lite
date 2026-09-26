@@ -10,8 +10,12 @@ from src.core.modules.project_management.contracts.reads.portfolio.models.resour
     PortfolioResourceFact,
     PortfolioResourcePoolFacts,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskAssignmentORM,
     TaskORM,

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from PySide6.QtCore import QMetaObject, QObject
 from PySide6.QtGui import QGuiApplication
 
 from src.tests.path_rewrites import REPO_ROOT
 from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
-
 
 ROOT_COMPONENT = (
     REPO_ROOT
@@ -193,6 +191,7 @@ def test_flexible_state_renders_flexible_status_chip() -> None:
     chip = _find(root, "scheduleStatusChip")
 
     assert str(chip.property("status")) == "Flexible"
+    assert str(chip.property("tone")) == "success"
 
 
 def test_critical_state_renders_critical_status_chip() -> None:
@@ -200,6 +199,7 @@ def test_critical_state_renders_critical_status_chip() -> None:
     chip = _find(root, "scheduleStatusChip")
 
     assert str(chip.property("status")) == "Critical"
+    assert str(chip.property("tone")) == "warning"
 
 
 def test_infeasible_state_renders_infeasible_status_chip() -> None:
@@ -207,6 +207,7 @@ def test_infeasible_state_renders_infeasible_status_chip() -> None:
     chip = _find(root, "scheduleStatusChip")
 
     assert str(chip.property("status")) == "Infeasible"
+    assert str(chip.property("tone")) == "danger"
 
 
 def test_infeasible_takes_display_precedence_over_critical() -> None:
@@ -220,6 +221,7 @@ def test_infeasible_takes_display_precedence_over_critical() -> None:
 
     assert str(chip.property("status")) == "Infeasible"
     assert str(chip.property("status")) != "Critical"
+    assert str(chip.property("tone")) == "danger"
 
 
 def test_negative_float_renders_with_sign() -> None:

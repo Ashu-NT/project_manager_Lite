@@ -15,6 +15,7 @@ from .validation import (
     require_text,
 )
 
+
 def suggest_code(
     desktop_api: ProjectManagementProjectsDesktopApi,
     payload: dict[str, Any],
@@ -84,6 +85,19 @@ def set_project_status(
     if not normalized_status:
         raise ValueError("Choose a project status before saving.")
     desktop_api.set_project_status(normalized_project_id, normalized_status)
+
+def bulk_set_project_status(
+    desktop_api: ProjectManagementProjectsDesktopApi,
+    project_ids: list[str],
+    status: str,
+) -> None:
+    normalized_ids = tuple(str(pid).strip() for pid in project_ids if str(pid or "").strip())
+    normalized_status = (status or "").strip()
+    if not normalized_ids:
+        raise ValueError("At least one project is required to change status.")
+    if not normalized_status:
+        raise ValueError("Choose a project status before saving.")
+    desktop_api.bulk_set_project_status(normalized_ids, normalized_status)
 
 def delete_project(
     desktop_api: ProjectManagementProjectsDesktopApi,

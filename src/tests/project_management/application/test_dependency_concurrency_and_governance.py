@@ -7,7 +7,11 @@ from datetime import date
 import pytest
 
 from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+)
 
 
 def _login(services, username: str, password: str):

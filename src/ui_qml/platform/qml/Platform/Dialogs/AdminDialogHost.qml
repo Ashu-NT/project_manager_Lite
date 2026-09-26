@@ -2,14 +2,14 @@ import QtQuick
 import QtQuick.Controls
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Dialogs 1.0 as PlatformDialogs
-import organization.organizations.dialogs 1.0 as OrganizationDialogs
-import organization.sites.dialogs 1.0 as SiteDialogs
-import organization.departments.dialogs 1.0 as DepartmentDialogs
-import organization.employees.dialogs 1.0 as EmployeeDialogs
-import organization.parties.dialogs 1.0 as PartyDialogs
-import identity_access.users.dialogs 1.0 as UserDialogs
-import documents.dialogs 1.0 as DocumentDialogs
-import calendars.dialogs 1.0 as CalendarDialogs
+import workspaces.organizations.dialogs 1.0 as OrganizationDialogs
+import workspaces.sites.dialogs 1.0 as SiteDialogs
+import workspaces.departments.dialogs 1.0 as DepartmentDialogs
+import workspaces.employees.dialogs 1.0 as EmployeeDialogs
+import workspaces.parties.dialogs 1.0 as PartyDialogs
+import workspaces.users.dialogs 1.0 as UserDialogs
+import workspaces.documents.dialogs 1.0 as DocumentDialogs
+import workspaces.calendars.dialogs 1.0 as CalendarDialogs
 
 Item {
     id: root
@@ -37,9 +37,17 @@ Item {
     // Keeps the dialog open and shows the backend error inside it on failure;
     // clears and closes only on success. Mirrors the dialog-result handling in
     // the other modules' dialog hosts.
+    //
+    // The mutation already wrote this same failure text into the workspace
+    // controller's shared errorMessage -- the same property the list/detail
+    // InlineMessage behind this dialog reads. Once it's copied into the
+    // dialog's own local errorMessage above, clear it on the controller so
+    // it doesn't also show behind the modal, and doesn't linger there and
+    // leak onto the page after the user cancels out of this dialog.
     function _handleResult(dialog, result) {
         if (!result || result.ok === false) {
             dialog.errorMessage = String((result && result.message) || "Operation failed. Please try again.")
+            if (root.workspaceController) root.workspaceController.clearMessages()
         } else {
             dialog.errorMessage = ""
             dialog.close()
@@ -79,11 +87,12 @@ Item {
         if (root.workspaceController === null) {
             return
         }
-        organizationDialog.openForCreate(root.workspaceController.organizationEditorOptions.moduleOptions || [])
+        organizationDialog.openForCreate(root.workspaceController.organizationEditorOptions || {})
     }
 
     function openOrganizationEdit(state) {
-        organizationDialog.openForEdit(state || {})
+        const options = root.workspaceController !== null ? root.workspaceController.organizationEditorOptions : {}
+        organizationDialog.openForEdit(state || {}, options)
     }
 
     function openSiteCreate() {

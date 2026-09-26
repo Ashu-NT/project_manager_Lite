@@ -1,1 +1,0 @@
-"""QHSE registry target module."""

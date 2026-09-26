@@ -6,7 +6,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.modules.project_management.application.risk.register_service import RegisterService
+from src.core.modules.project_management.application.risk.register_service import (
+    RegisterService,
+)
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
     RegisterEntrySeverity,
@@ -318,7 +320,7 @@ def test_register_service_applies_one_triage_policy_to_lists_and_summary(
 ):
     class _FixedDate(date):
         @classmethod
-        def today(cls) -> "_FixedDate":
+        def today(cls) -> _FixedDate:
             return cls(2026, 6, 10)
 
     monkeypatch.setattr(

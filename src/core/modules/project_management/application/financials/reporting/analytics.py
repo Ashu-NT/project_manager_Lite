@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
 from decimal import Decimal
+from typing import Any
 
 from src.core.modules.project_management.application.financials.models.finance_models import (
     FinanceAnalyticsRow,
@@ -45,10 +45,10 @@ def build_dimension_analytics(
             bucket = {
                 "key": key,
                 "label": label,
-                "planned": Decimal("0"),
-                "committed": Decimal("0"),
-                "actual": Decimal("0"),
-                "forecast": Decimal("0"),
+                "planned": Decimal(0),
+                "committed": Decimal(0),
+                "actual": Decimal(0),
+                "forecast": Decimal(0),
             }
             buckets[key] = bucket
         if row.stage in {"planned", "committed", "actual", "forecast"}:
@@ -91,4 +91,4 @@ def dimension_key_label(*, row: FinanceLedgerRow, dimension: str) -> tuple[str, 
     raise ValueError(f"Unsupported finance analytics dimension: {dimension}")
 
 
-__all__ = ["build_source_analytics", "build_dimension_analytics"]
+__all__ = ["build_dimension_analytics", "build_source_analytics"]

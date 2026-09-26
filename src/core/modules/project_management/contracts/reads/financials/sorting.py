@@ -5,7 +5,6 @@ from src.core.modules.project_management.contracts.reads.sorting import (
     ReadSortDirection,
 )
 
-
 COST_ENTRY_SORT_KEYS = frozenset({"title", "statusLabel", "metaText"})
 COMMITMENT_SORT_KEYS = frozenset({"title", "statusLabel", "metaText"})
 

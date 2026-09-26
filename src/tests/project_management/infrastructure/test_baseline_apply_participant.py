@@ -6,14 +6,15 @@ from __future__ import annotations
 
 from datetime import date
 
-import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
     ProjectBaselineCreated,
 )
-from src.core.modules.project_management.domain.scheduling.baseline import BaselineStatus
+from src.core.modules.project_management.domain.scheduling.baseline import (
+    BaselineStatus,
+)
 from src.core.modules.project_management.infrastructure.approval.baseline_apply_participant import (
     BaselineApprovalParticipant,
 )

@@ -37,7 +37,7 @@ RoleBindingScope = RoleBindingPlatformScope | RoleBindingTenantScope | RoleBindi
 
 __all__ = [
     "RoleBindingPlatformScope",
-    "RoleBindingTenantScope",
     "RoleBindingResourceScope",
     "RoleBindingScope",
+    "RoleBindingTenantScope",
 ]

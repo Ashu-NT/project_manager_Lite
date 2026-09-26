@@ -115,7 +115,7 @@ def serialize_collaboration_detail_view_model(
             }
             for field in view_model.fields
         ],
-        "activity": serialize_collaboration_collection_view_model(view_model.activity),
+        "activity": dict(view_model.activity),
         "relatedItems": serialize_collaboration_collection_view_model(
             view_model.related_items
         ),

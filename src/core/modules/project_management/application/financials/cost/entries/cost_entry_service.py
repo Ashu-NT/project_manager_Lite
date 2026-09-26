@@ -3,22 +3,17 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
-)
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
-    CostEntryRecorded,
-    CostEntryRemoved,
-    CostEntryReversed,
-    CostEntryStatusChangeType,
-    CostEntryStatusChanged,
-    CostEntryUpdated,
 )
 from src.core.modules.project_management.application.financials.cost.entries.approval_result import (
     CostEntryApprovalOutcome,
@@ -33,6 +28,24 @@ from src.core.modules.project_management.application.financials.cost.entries.cap
     can_create_manual_actual,
     is_manual_actual_entry,
 )
+from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
+    CostEntryRecorded,
+    CostEntryRemoved,
+    CostEntryReversed,
+    CostEntryStatusChanged,
+    CostEntryStatusChangeType,
+    CostEntryUpdated,
+)
+from src.core.modules.project_management.application.financials.cost.entries.manual_source import (
+    build_manual_content,
+    build_manual_source,
+)
+from src.core.modules.project_management.application.financials.cost.entries.procurement_receipt import (
+    apply_procurement_receipt_source,
+)
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
+    RateCardResolver,
+)
 from src.core.modules.project_management.contracts.financial_sources.approved_time import (
     ApprovedTimeFinancialSource,
 )
@@ -40,15 +53,9 @@ from src.core.modules.project_management.contracts.financial_sources.procurement
     ProcurementReceiptAccrualFinancialSource,
 )
 from src.core.modules.project_management.contracts.financial_sources.reference import (
-    FinancialPostingPurpose,
     FinancialSourceModule,
     FinancialSourceReference,
-    FinancialSourceType,
     financial_source_content_hash,
-)
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import ApprovedTimeLaborPostingRepository
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
-    ProjectCostEntryRepository,
 )
 from src.core.modules.project_management.contracts.reads.financials.sorting import (
     normalize_cost_entry_sort,
@@ -57,9 +64,21 @@ from src.core.modules.project_management.contracts.repositories.finance.configur
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
+    ProjectCostEntryRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import (
+    ApprovedTimeLaborPostingRepository,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.financials.configuration import (
     CostCodePolicy,
     FinancialProfileStatus,
@@ -69,15 +88,20 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryKind,
     ProjectCostEntryStatus,
 )
-from src.core.modules.project_management.domain.financials.labor_posting import ApprovedTimeLaborPosting
+from src.core.modules.project_management.domain.financials.labor_posting import (
+    ApprovedTimeLaborPosting,
+)
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import RateCardResolver
 from src.core.modules.project_management.domain.identifiers import generate_id
-from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
+from src.core.platform.application.finance.financial_period_service import (
+    FinancialPeriodService,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -85,7 +109,15 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.domain.approval.policy import is_governance_required
-from src.core.platform.finance import EXCHANGE_RATE_STORAGE, Money, MoneyPayload
+from src.core.platform.domain.finance import EXCHANGE_RATE_STORAGE, Money
+
+if TYPE_CHECKING:
+    from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
+        ApprovedTimeExecutionContext,
+    )
+    from src.core.modules.project_management.application.financials.procurement_consumer import (
+        ProcurementExecutionContext,
+    )
 
 
 class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
@@ -131,7 +163,10 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         self._record_event = record_event
 
     def apply_approved_time_source(
-        self, source: ApprovedTimeFinancialSource
+        self,
+        source: ApprovedTimeFinancialSource,
+        *,
+        execution: ApprovedTimeExecutionContext,
     ) -> tuple[object, ...]:
         """Apply one trusted inbox delivery without committing the consumer transaction.
         Returns the real typed Cost Entry DomainEvent(s) produced -- a true replay (identical
@@ -145,8 +180,17 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             )
         context = self._require_full_context("post approved time labor cost")
         reference = source.reference
+        principal = execution.service_principal
         if reference.tenant_id != context.tenant_id or reference.organization_id != context.organization_id:
             raise BusinessRuleError("Approved Time source is outside the active scope.", code="APPROVED_TIME_SCOPE_MISMATCH")
+        if (
+            principal.tenant_id != reference.tenant_id
+            or principal.organization_id != reference.organization_id
+        ):
+            raise BusinessRuleError(
+                "Approved Time worker principal is outside the source scope.",
+                code="APPROVED_TIME_WORKER_SCOPE_MISMATCH",
+            )
         self._require_project(reference.project_id)
         profile = self._require_active_profile(reference.project_id)
         if not profile.default_cost_code_id:
@@ -162,8 +206,16 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 if existing is None:
                     raise BusinessRuleError("Approved labor posting lost its ledger entry.", code="APPROVED_TIME_LEDGER_INTEGRITY_FAILED")
                 return ()
-            if revision <= latest.source_revision:
-                raise BusinessRuleError("Approved Time revision is stale or conflicting.", code="APPROVED_TIME_REVISION_CONFLICT")
+            if revision == latest.source_revision:
+                raise BusinessRuleError(
+                    "Approved Time revision was reused with different content.",
+                    code="APPROVED_TIME_SOURCE_HASH_CONFLICT",
+                )
+            if revision < latest.source_revision:
+                raise BusinessRuleError(
+                    "Approved Time revision is older than the posted financial truth.",
+                    code="APPROVED_TIME_STALE_REVISION",
+                )
             if source.correction_of_revision != str(latest.source_revision):
                 raise BusinessRuleError("Approved Time correction does not reference the latest posting.", code="APPROVED_TIME_CORRECTION_CHAIN_INVALID")
         elif revision != 1 or source.correction_of_revision is not None:
@@ -177,7 +229,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             resource_id=source.resource_id,
             organization_id=context.organization_id,
         )
-        snapshot = self._rate_resolver.resolve(
+        snapshot = self._rate_resolver.resolve_for_posting(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
             project_id=reference.project_id,
@@ -199,7 +251,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         period = self._financial_period_service.require_open_period_for_integration(
             source.work_date
         )
-        actor_id = "integration:project_finance"
+        actor_id = principal.id
         now = self._clock.now()
         reversal = None
         if latest is not None:
@@ -257,7 +309,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             posting_date=source.work_date,
             financial_period_id=period.id,
             base_money=money,
-            exchange_rate=Decimal("1"),
+            exchange_rate=Decimal(1),
             exchange_rate_date=source.work_date,
             exchange_rate_source="identity",
             exchange_rate_captured_at=now,
@@ -278,16 +330,28 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             rate_line_version=snapshot.rate_line_version,
             rate_modifier=(snapshot.modifier_applied.value if snapshot.modifier_applied else None),
             rate_modifier_multiplier=snapshot.modifier_multiplier,
+            rate_base_amount=snapshot.selected_base_rate.money.amount,
+            rate_origin=snapshot.origin.value,
+            rate_provenance_complete=True,
             rate_precedence_level=snapshot.precedence_level,
             rate_effective_date=snapshot.effective_date, rate_resolved_at=snapshot.resolved_at,
             approved_at=source.approved_at, resource_id=source.resource_id,
             task_id=source.task_id, employee_id=source.employee_id, created_at=now,
+            worker_service_principal_id=principal.id,
+            source_event_id=execution.source_event_id,
+            correlation_id=execution.correlation_id,
+            causation_id=execution.causation_id,
         ))
         self._entry_repo.flush()
         self._labor_posting_repo.flush()
         events: list[object] = []
         if reversal is not None:
-            self._record_audit("create_approved_time_reversal", reversal)
+            self._record_approved_time_audit(
+                "create_approved_time_reversal",
+                reversal,
+                execution=execution,
+                prior_revision=latest.source_revision,
+            )
             reversal_event = CostEntryReversed(
                 tenant_id=original.tenant_id,
                 organization_id=original.organization_id,
@@ -299,7 +363,12 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             if self._record_event is not None:
                 self._record_event(reversal_event)
             events.append(reversal_event)
-        self._record_audit("post_approved_time", entry)
+        self._record_approved_time_audit(
+            "post_approved_time",
+            entry,
+            execution=execution,
+            prior_revision=latest.source_revision if latest is not None else None,
+        )
         recorded_event = CostEntryRecorded(
             tenant_id=entry.tenant_id,
             organization_id=entry.organization_id,
@@ -314,101 +383,12 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         return tuple(events)
 
     def apply_procurement_receipt_source(
-        self, source: ProcurementReceiptAccrualFinancialSource
+        self,
+        source: ProcurementReceiptAccrualFinancialSource,
+        *,
+        execution: ProcurementExecutionContext,
     ) -> tuple[ProjectCostEntry, tuple[object, ...]]:
-        """Post one trusted Procurement receipt fact without committing the inbox transaction.
-        Returns the entry (its id is needed by the caller to match it to a Commitment line) and
-        the real typed Cost Entry DomainEvent(s) produced -- a true replay returns an empty
-        event tuple."""
-        context = self._require_full_context("post Procurement receipt accrual")
-        reference = source.reference
-        if (
-            reference.tenant_id != context.tenant_id
-            or reference.organization_id != context.organization_id
-        ):
-            raise BusinessRuleError(
-                "Procurement receipt source is outside the active scope.",
-                code="PROCUREMENT_RECEIPT_SCOPE_MISMATCH",
-            )
-        self._require_project(reference.project_id)
-        profile = self._require_active_profile(reference.project_id)
-        if not profile.default_cost_code_id:
-            raise BusinessRuleError(
-                "Project requires a default cost code before receipt accruals can post.",
-                code="PROCUREMENT_RECEIPT_DEFAULT_COST_CODE_REQUIRED",
-            )
-        posting_date = source.posted_at.date()
-        self._require_dimensions(
-            project_id=reference.project_id,
-            cost_code_id=profile.default_cost_code_id,
-            transaction_date=posting_date,
-            task_id=source.task_id,
-            resource_id=None,
-            organization_id=context.organization_id,
-        )
-        quantity = source.accepted_quantity.to_domain()
-        rate = source.unit_cost.to_domain()
-        money = rate.apply(quantity).rounded()
-        if money.currency.code != context.organization.base_currency:
-            raise BusinessRuleError(
-                "Cross-currency receipt accruals require an enterprise FX provider.",
-                code="PROCUREMENT_RECEIPT_FX_PROVIDER_REQUIRED",
-            )
-        if money.amount <= 0:
-            raise BusinessRuleError(
-                "Procurement receipt accrual must be positive.",
-                code="PROCUREMENT_RECEIPT_AMOUNT_INVALID",
-            )
-        existing = self._entry_repo.get_by_idempotency_key(reference.idempotency_key)
-        if existing is not None:
-            return self._resolve_replay(existing, reference), ()
-        period = self._financial_period_service.require_open_period_for_integration(
-            posting_date
-        )
-        actor_id = "integration:project_finance"
-        now = self._clock.now()
-        entry = ProjectCostEntry.create_draft(
-            tenant_id=reference.tenant_id,
-            organization_id=reference.organization_id,
-            project_id=reference.project_id,
-            description=f"Receipt accrual {source.receipt_number}",
-            kind=ProjectCostEntryKind.ACTUAL,
-            money=money,
-            transaction_date=posting_date,
-            cost_code_id=profile.default_cost_code_id,
-            task_id=source.task_id,
-            resource_id=None,
-            source=reference,
-            actor_id=actor_id,
-            occurred_at=now,
-        )
-        entry.submit(actor_id=actor_id, occurred_at=now)
-        entry.approve(actor_id=actor_id, occurred_at=now)
-        entry.post(
-            actor_id=actor_id,
-            occurred_at=now,
-            posting_date=posting_date,
-            financial_period_id=period.id,
-            base_money=money,
-            exchange_rate=Decimal("1"),
-            exchange_rate_date=posting_date,
-            exchange_rate_source="identity",
-            exchange_rate_captured_at=now,
-        )
-        self._entry_repo.add(entry)
-        self._entry_repo.flush()
-        self._record_audit("post_procurement_receipt", entry)
-        event = CostEntryRecorded(
-            tenant_id=entry.tenant_id,
-            organization_id=entry.organization_id,
-            project_id=entry.project_id,
-            cost_entry_id=entry.id,
-            status=entry.status,
-            occurred_at=now,
-        )
-        if self._record_event is not None:
-            self._record_event(event)
-        return entry, (event,)
+        return apply_procurement_receipt_source(self, source, execution=execution)
 
     def get_entry(self, entry_id: str) -> ProjectCostEntry:
         require_permission(self._user_session, "finance.read", operation_label="view project cost entry")
@@ -496,12 +476,12 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             resource_id=resource_id,
             organization_id=context.organization_id,
         )
-        source = self._manual_source(
+        source = build_manual_source(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
             project_id=project_id,
             command_id=command_id,
-            content=self._manual_content(
+            content=build_manual_content(
                 description=description,
                 kind=kind,
                 money=money,
@@ -589,7 +569,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             organization_id=context.organization_id,
         )
         content_hash = financial_source_content_hash(
-            self._manual_content(
+            build_manual_content(
                 description=description,
                 kind=entry.entry_kind,
                 money=money,
@@ -819,7 +799,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         entry = self._require_entry(entry_id, for_update=True)
         self._require_manual_interactive_entry(entry, operation="reverse")
         self._require_command_permission(entry.project_id, "project_cost.reverse", "reverse project cost entry")
-        source = self._manual_source(
+        source = build_manual_source(
             tenant_id=entry.tenant_id,
             organization_id=entry.organization_id,
             project_id=entry.project_id,
@@ -1010,12 +990,12 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         exchange_rate_captured_at: datetime | None,
     ) -> tuple[Decimal, date, str, datetime]:
         if entry.currency_code == base_currency:
-            if exchange_rate not in (None, Decimal("1"), 1, "1"):
+            if exchange_rate not in (None, Decimal(1), 1, "1"):
                 raise ValidationError(
                     "Identity-currency postings must use an exchange rate of 1.",
                     code="PROJECT_COST_ENTRY_IDENTITY_RATE_INVALID",
                 )
-            return Decimal("1"), posting_date, "identity", self._clock.now()
+            return Decimal(1), posting_date, "identity", self._clock.now()
         if (
             exchange_rate is None
             or exchange_rate_date is None
@@ -1038,49 +1018,6 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 code="PROJECT_COST_ENTRY_FX_CAPTURE_TIME_INVALID",
             )
         return rate, exchange_rate_date, str(exchange_rate_source).strip(), exchange_rate_captured_at
-
-    @staticmethod
-    def _manual_content(
-        *,
-        description: str,
-        kind: ProjectCostEntryKind,
-        money: Money,
-        transaction_date: date,
-        cost_code_id: str,
-        task_id: str | None,
-        resource_id: str | None,
-    ) -> dict[str, object]:
-        return {
-            "description": str(description or "").strip(),
-            "entry_kind": kind.value,
-            "amount": MoneyPayload.from_domain(money).amount,
-            "currency_code": money.currency.code,
-            "transaction_date": transaction_date.isoformat(),
-            "cost_code_id": str(cost_code_id or "").strip(),
-            "task_id": str(task_id or "").strip() or None,
-            "resource_id": str(resource_id or "").strip() or None,
-        }
-
-    @staticmethod
-    def _manual_source(
-        *,
-        tenant_id: str,
-        organization_id: str,
-        project_id: str,
-        command_id: str,
-        content: dict[str, object],
-    ) -> FinancialSourceReference:
-        return FinancialSourceReference(
-            tenant_id=tenant_id,
-            organization_id=organization_id,
-            project_id=project_id,
-            source_module=FinancialSourceModule.PROJECT_MANAGEMENT,
-            source_type=FinancialSourceType.MANUAL_COMMAND,
-            source_id=command_id,
-            source_revision="1",
-            content_hash=financial_source_content_hash(content),
-            posting_purpose=FinancialPostingPurpose.MANUAL_ACTUAL,
-        )
 
     @staticmethod
     def _resolve_draft_kind(value: ProjectCostEntryKind | str) -> ProjectCostEntryKind:
@@ -1202,6 +1139,62 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
 
     def _record_audit(self, operation: str, entry: ProjectCostEntry) -> None:
         record_project_cost_entry_audit(self, operation=operation, entry=entry)
+
+    def _record_approved_time_audit(
+        self,
+        operation: str,
+        entry: ProjectCostEntry,
+        *,
+        execution: ApprovedTimeExecutionContext,
+        prior_revision: int | None,
+    ) -> None:
+        principal = execution.service_principal
+        record_project_cost_entry_audit(
+            self,
+            operation=operation,
+            entry=entry,
+            actor_id=principal.id,
+            actor_type="service_principal",
+            actor_username=principal.name,
+            request_id=execution.correlation_id,
+            metadata={
+                "consumer_name": execution.consumer_name,
+                "service_account_user_id": principal.user_id,
+                "source_event_id": execution.source_event_id,
+                "source_revision": entry.source_revision,
+                "prior_source_revision": prior_revision,
+                "correlation_id": execution.correlation_id,
+                "causation_id": execution.causation_id,
+            },
+        )
+
+    def _record_procurement_audit(
+        self,
+        operation: str,
+        entry: ProjectCostEntry,
+        *,
+        execution: ProcurementExecutionContext,
+    ) -> None:
+        principal = execution.service_principal
+        record_project_cost_entry_audit(
+            self,
+            operation=operation,
+            entry=entry,
+            actor_id=principal.id,
+            actor_type="service_principal",
+            actor_username=principal.name,
+            request_id=execution.correlation_id or execution.source_event_id,
+            metadata={
+                "consumer_name": execution.consumer_name,
+                "service_account_user_id": principal.user_id,
+                "source_event_id": execution.source_event_id,
+                "source_event_type": execution.source_event_type,
+                "source_aggregate_id": execution.source_aggregate_id,
+                "source_revision": execution.source_revision,
+                "correlation_id": execution.correlation_id,
+                "causation_id": execution.causation_id,
+            },
+        )
 
 
 __all__ = ["ProjectCostEntryService"]

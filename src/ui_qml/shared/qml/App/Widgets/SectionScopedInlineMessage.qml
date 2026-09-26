@@ -46,8 +46,16 @@ InlineMessage {
             : page.activeSectionIndex
     }
 
+    // -2 marks a message as "consumed": it was shown for its own section and
+    // the user has since navigated away, so it must never reappear just
+    // because they come back to that same section later -- only a genuinely
+    // new message (a real onMessageChanged, see below) may show again.
+    readonly property bool _consumed: root._messageSectionIndex === -2
+
     visible: {
         if (!root.requestedVisible || String(root.message || "").length === 0)
+            return false
+        if (root._consumed)
             return false
         const page = root._activeDetailPage
         if (!page || root._messageSectionIndex < 0)
@@ -62,6 +70,18 @@ InlineMessage {
         if (root.detailPage === null)
             root._resolvedDetailPage = root._resolveDetailPage()
         root._rememberCurrentSection()
+    }
+
+    Connections {
+        target: root._activeDetailPage
+        ignoreUnknownSignals: true
+
+        function onActiveSectionIndexChanged() {
+            if (!target || root._messageSectionIndex < 0)
+                return
+            if (target.activeSectionIndex !== root._messageSectionIndex)
+                root._messageSectionIndex = -2
+        }
     }
 
     Connections {

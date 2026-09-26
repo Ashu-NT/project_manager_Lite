@@ -8,6 +8,7 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingRecordViewModel,
 )
 
+
 def build_calendar_view_model(calendar_snapshot: Any) -> SchedulingCalendarViewModel:
     calendar_name = str(getattr(calendar_snapshot, "calendar_name", "") or "Default Calendar")
     holidays = tuple(

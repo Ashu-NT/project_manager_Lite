@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Optional
 
-from sqlalchemy import Date, DateTime, Enum as SAEnum, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.modules.project_management.domain.risk.register import (
@@ -25,7 +25,7 @@ class RegisterEntryORM(Base):
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
     )
-    entry_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    entry_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     entry_type: Mapped[RegisterEntryType] = mapped_column(
         SAEnum(RegisterEntryType),
         nullable=False,
@@ -44,8 +44,8 @@ class RegisterEntryORM(Base):
         default=RegisterEntryStatus.OPEN,
         server_default=RegisterEntryStatus.OPEN.value,
     )
-    owner_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    due_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    owner_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     impact_summary: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     response_plan: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

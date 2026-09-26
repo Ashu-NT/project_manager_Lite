@@ -108,17 +108,17 @@ def test_audit_entries_have_entity_id_set(services):
         assert str(entry.entity_id).strip() != ""
 
 
-def test_audit_entries_compliance_tag_for_user_create(services):
+def test_audit_entries_category_for_user_create(services):
     _login_admin(services)
     auth = services["auth_service"]
     eas = services["enterprise_audit_service"]
-    auth.register_user("compliance_tag_user", "TestPass123!")
+    auth.register_user("category_user", "TestPass123!")
     entries = eas.list_recent(limit=50)
     create_user_entries = [
         e for e in entries
         if e.operation == "create" and e.entity_type == "user"
     ]
     assert any(
-        getattr(e, "compliance_tag", None) == "SOC2"
+        getattr(e, "category", None) == "SECURITY"
         for e in create_user_entries
     )

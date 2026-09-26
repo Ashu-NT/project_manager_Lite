@@ -63,8 +63,8 @@ def build_portfolio_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_portfolio_view_invalidation_handler",
     "PORTFOLIO_CATEGORY",
-    "PORTFOLIO_WORKSPACE_SCOPE_CODE",
     "PORTFOLIO_ENTITY_TYPE",
+    "PORTFOLIO_WORKSPACE_SCOPE_CODE",
+    "build_portfolio_view_invalidation_handler",
 ]

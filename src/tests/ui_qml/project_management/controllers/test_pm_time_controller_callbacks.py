@@ -5,8 +5,9 @@ canonical Timesheets or Review Queue workspace for that instead.
 """
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 _HAS_QT = False
 try:

@@ -7,7 +7,6 @@ from src.core.modules.project_management.api.desktop import (
 )
 from src.core.platform.domain.master_data.documents import DocumentStorageKind
 
-
 EXPECTED_PM_WORKSPACE_KEYS = [
     "projects",
     "tasks",

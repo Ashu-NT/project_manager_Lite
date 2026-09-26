@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.controllers.common import safe_error_message
+
 
 def preview_import(controller, file_path: str, source_format: str) -> dict[str, object]:
     controller._set_import_busy(True)
@@ -12,8 +14,9 @@ def preview_import(controller, file_path: str, source_format: str) -> dict[str, 
         controller._set_import_preview(preview)
         return {"ok": True}
     except Exception as exc:
-        controller._set_import_error(str(exc))
-        return {"ok": False, "error": str(exc)}
+        message = safe_error_message(exc, safe_message="The import file could not be previewed.")
+        controller._set_import_error(message)
+        return {"ok": False, "error": message}
     finally:
         controller._set_import_busy(False)
 
@@ -29,8 +32,9 @@ def execute_import(controller, session_id: str) -> dict[str, object]:
         controller._set_import_preview({})
         return result
     except Exception as exc:
-        controller._set_import_error(str(exc))
-        return {"ok": False, "error": str(exc)}
+        message = safe_error_message(exc, safe_message="The import could not be completed.")
+        controller._set_import_error(message)
+        return {"ok": False, "error": message}
     finally:
         controller._set_import_busy(False)
 

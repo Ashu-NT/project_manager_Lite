@@ -6,32 +6,37 @@ from __future__ import annotations
 from datetime import date
 from typing import TYPE_CHECKING
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.modules.project_management.contracts.repositories.projects.project import (
-    ProjectRepository,
-    ProjectResourceRepository,
-)
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    AssignmentRepository,
-    TaskRepository,
-)
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import ProjectFinancialProfileRepository
-from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
-    LaborRateResolver,
-    RateResolutionBatch,
-    UnresolvedLaborRate,
-)
-from src.core.modules.project_management.domain.financials.rate_cards import RateType
-from src.core.modules.project_management.domain.tasks.task import TaskAssignment
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-
 from src.core.modules.project_management.application.financials.models.finance_models import (
     LaborAssignmentRow,
     LaborDetailsResult,
     LaborResourceRow,
     PlannedLaborResourceRow,
 )
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
+    ProjectFinancialProfileRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
+    LaborRateResolver,
+    RateResolutionBatch,
+    UnresolvedLaborRate,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+    ProjectResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+    TaskRepository,
+)
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.modules.project_management.domain.tasks.task import TaskAssignment
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 if TYPE_CHECKING:
     from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
@@ -73,7 +78,7 @@ class LaborCostEngine:
         *,
         rate_resolver: LaborRateResolver,
         tenant_context_service: TenantContextService,
-    ) -> "LaborCostEngine":
+    ) -> LaborCostEngine:
         """Build the engine for immutable Reader facts without repository fallbacks."""
         return cls(
             project_repo=None,  # type: ignore[arg-type]

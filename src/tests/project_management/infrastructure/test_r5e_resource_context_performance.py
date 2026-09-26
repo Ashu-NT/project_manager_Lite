@@ -70,7 +70,7 @@ def test_r5e_bounded_pages_at_long_lived_resource_scale(services) -> None:
                 "id": f"r5e-perf-project-resource-{index:04d}",
                 "project_id": f"r5e-perf-project-{index:04d}",
                 "resource_id": resource.id,
-                "planned_hours": Decimal("100"),
+                "planned_hours": Decimal(100),
                 "is_active": True,
                 "version": 1,
             }
@@ -108,8 +108,8 @@ def test_r5e_bounded_pages_at_long_lived_resource_scale(services) -> None:
                 "task_id": f"r5e-perf-task-{index:05d}",
                 "resource_id": resource.id,
                 "allocation_percent": 50,
-                "hours_logged": Decimal("0"),
-                "allocated_planned_hours": Decimal("8"),
+                "hours_logged": Decimal(0),
+                "allocated_planned_hours": Decimal(8),
                 "version": 1,
                 "project_resource_id": (
                     f"r5e-perf-project-resource-{index % project_count:04d}"

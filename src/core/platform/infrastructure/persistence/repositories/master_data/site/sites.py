@@ -1,16 +1,33 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from src.core.platform.infrastructure.persistence.mappers.master_data.site.sites import site_from_orm, site_to_orm
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
+from src.core.platform.contract.repositories.master_data.site.contracts import (
+    SiteRepository,
+)
+from src.core.platform.domain.master_data.site import SITE_STATUS_ACTIVE, Site
+from src.core.platform.infrastructure.persistence.mappers.master_data.site.sites import (
+    site_from_orm,
+    site_to_orm,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
-from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
-from src.core.platform.domain.master_data.site import Site
 from src.infra.persistence.db.optimistic import update_with_version_check
+
+
+def _active_only_condition(active_only: bool):
+    # active_only has no separate physical column to filter on -- status is
+    # the only lifecycle source of truth (see Site.is_active, a computed
+    # property, never a stored duplicate). False means "not active",
+    # matching the historic boolean semantics (lumps inactive + archived).
+    if active_only:
+        return SiteORM.status == SITE_STATUS_ACTIVE
+    return SiteORM.status != SITE_STATUS_ACTIVE
 
 
 class SqlAlchemySiteRepository(TenantScopedRepositorySupport, SiteRepository):
@@ -51,7 +68,6 @@ class SqlAlchemySiteRepository(TenantScopedRepositorySupport, SiteRepository):
                 "status": site.status or None,
                 "default_calendar_id": site.default_calendar_id or None,
                 "default_language": site.default_language or None,
-                "is_active": site.is_active,
                 "opened_at": site.opened_at,
                 "closed_at": site.closed_at,
                 "created_at": site.created_at,
@@ -110,9 +126,57 @@ class SqlAlchemySiteRepository(TenantScopedRepositorySupport, SiteRepository):
             SiteORM.tenant_id == ctx.tenant_id,
         )
         if active_only is not None:
-            stmt = stmt.where(SiteORM.is_active == bool(active_only))
+            stmt = stmt.where(_active_only_condition(active_only))
         rows = self.session.execute(stmt.order_by(SiteORM.name.asc())).scalars().all()
         return [site_from_orm(row) for row in rows]
+
+    def list_page_for_organization_in_tenant(
+        self,
+        organization_id: str,
+        tenant_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        active_only: bool | None = None,
+    ) -> tuple[list[Site], int, int]:
+        # Deliberately bypasses self._context()/_organization_in_scope() --
+        # both organization_id and tenant_id are caller-supplied and trusted
+        # (the service layer verifies the organization actually belongs to
+        # this tenant before calling here), not the session's ambient active
+        # organization. See get_for_tenant() for the same pattern.
+        base_condition = (
+            SiteORM.organization_id == organization_id,
+            SiteORM.tenant_id == tenant_id,
+        )
+        total = self.session.execute(
+            select(func.count()).select_from(SiteORM).where(*base_condition)
+        ).scalar_one()
+
+        filtered_stmt = select(SiteORM).where(*base_condition)
+        filtered_count_stmt = select(func.count()).select_from(SiteORM).where(*base_condition)
+        if active_only is not None:
+            condition = _active_only_condition(active_only)
+            filtered_stmt = filtered_stmt.where(condition)
+            filtered_count_stmt = filtered_count_stmt.where(condition)
+        normalized_search = (search or "").strip()
+        if normalized_search:
+            pattern = f"%{normalized_search}%"
+            condition = or_(
+                SiteORM.name.ilike(pattern),
+                SiteORM.site_code.ilike(pattern),
+                SiteORM.city.ilike(pattern),
+                SiteORM.country.ilike(pattern),
+            )
+            filtered_stmt = filtered_stmt.where(condition)
+            filtered_count_stmt = filtered_count_stmt.where(condition)
+
+        filtered_total = self.session.execute(filtered_count_stmt).scalar_one()
+        offset = max(0, (page - 1) * page_size)
+        rows = self.session.execute(
+            filtered_stmt.order_by(SiteORM.name.asc()).offset(offset).limit(page_size)
+        ).scalars().all()
+        return [site_from_orm(row) for row in rows], total, filtered_total
 
 
 __all__ = [

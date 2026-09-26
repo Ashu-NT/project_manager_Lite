@@ -32,7 +32,7 @@ def _seed_intake_rows(services, count: int, *, title_prefix: str = "Intake") -> 
             title=f"{title_prefix} {index:05d}",
             sponsor_name="PMO",
             summary="",
-            requested_budget=Decimal("1000"),
+            requested_budget=Decimal(1000),
             requested_capacity_percent=10.0,
             target_start_date=None,
             strategic_score=3,
@@ -131,7 +131,9 @@ def test_intake_sort_is_stable_with_id_tiebreaker(services) -> None:
 
 
 def test_intake_tenant_scope_is_enforced(services, session) -> None:
-    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
+    )
 
     scope = _active_scope(services)
     other_org = OrganizationORM(

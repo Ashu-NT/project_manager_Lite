@@ -1,7 +1,13 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.domain.projects.project import Project, ProjectResource
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM, ProjectResourceORM
+from src.core.modules.project_management.domain.projects.project import (
+    Project,
+    ProjectResource,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+    ProjectResourceORM,
+)
 
 
 def project_to_orm(project: Project) -> ProjectORM:
@@ -71,8 +77,8 @@ def project_resource_to_orm(resource: ProjectResource) -> ProjectResourceORM:
 
 
 __all__ = [
-    "project_to_orm",
     "project_from_orm",
     "project_resource_from_orm",
     "project_resource_to_orm",
+    "project_to_orm",
 ]

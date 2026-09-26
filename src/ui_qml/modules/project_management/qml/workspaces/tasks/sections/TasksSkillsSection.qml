@@ -88,8 +88,10 @@ Item {
                     }
 
                     AppWidgets.StatusChip {
+
                         visible: String(_reqItem.modelData.statusLabel || "").length > 0
                         status: String(_reqItem.modelData.statusLabel || "")
+                        tone: "neutral"
                     }
                 }
 

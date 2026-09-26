@@ -199,8 +199,8 @@ def test_legacy_combined_write_adapters_and_import_contract_are_deleted() -> Non
     root = Path(__file__).resolve().parents[3]
     production_files = (
         root / "core/modules/project_management/api/desktop/financials/api.py",
-        root / "ui_qml/modules/project_management/presenters/financials/command_handler.py",
-        root / "ui_qml/modules/project_management/controllers/financials/financials_mutation_mixin.py",
+        *(root / "ui_qml/modules/project_management/presenters/financials").rglob("*.py"),
+        *(root / "ui_qml/modules/project_management/controllers/financials").rglob("*.py"),
         root / "ui_qml/modules/project_management/qml/workspaces/financials/FinancialsWorkspacePage.qml",
     )
     forbidden = (

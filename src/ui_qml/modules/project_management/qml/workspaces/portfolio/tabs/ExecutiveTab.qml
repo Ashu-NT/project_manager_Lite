@@ -12,6 +12,16 @@ Flickable {
     property var topAtRiskModel: ({ "title": "Top At-Risk Projects", "subtitle": "", "emptyState": "", "items": [] })
     property var recentActionsModel: ({ "title": "Recent Actions", "emptyState": "", "items": [] })
 
+    // Same portfolio-pressure vocabulary as the heatmap ("Hot" | "Watch" |
+    // "Stable") -- mapped explicitly, not inferred from text.
+    function _pressureTone(label) {
+        const s = String(label || "").toLowerCase()
+        if (s === "hot") return "danger"
+        if (s === "watch") return "warning"
+        if (s === "stable") return "success"
+        return "neutral"
+    }
+
     contentWidth: width
     contentHeight: _col.implicitHeight + Theme.AppTheme.marginMd * 2
     boundsBehavior: Flickable.StopAtBounds
@@ -104,6 +114,7 @@ Flickable {
 
                         AppWidgets.StatusChip {
                             status: String(_riskRow.modelData.statusLabel || "")
+                            tone:   root._pressureTone(_riskRow.modelData.statusLabel || "")
                         }
                     }
                 }

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_decimal_amount,
+)
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskRecordViewModel,
     TaskSelectorOptionViewModel,
-)
-from src.core.modules.project_management.api.desktop.common.financial_formatting import (
-    format_decimal_amount,
 )
 
 
@@ -98,7 +98,7 @@ def _decimal(value: object) -> Decimal:
     try:
         return Decimal(str(value))
     except Exception:
-        return Decimal("0")
+        return Decimal(0)
 
 
 def build_assignment_options(

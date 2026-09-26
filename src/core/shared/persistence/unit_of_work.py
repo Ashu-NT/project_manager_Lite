@@ -38,8 +38,8 @@ class UnitOfWorkFactory(Protocol):
 
 
 __all__ = [
-    "UnitOfWork",
-    "UnitOfWorkFactory",
-    "UnitOfWorkClosedError",
     "MaxDispatchRoundsExceededError",
+    "UnitOfWork",
+    "UnitOfWorkClosedError",
+    "UnitOfWorkFactory",
 ]

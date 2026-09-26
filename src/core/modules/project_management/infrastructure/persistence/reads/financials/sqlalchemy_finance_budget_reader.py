@@ -19,11 +19,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.budget i
 from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
     ProjectCostCodeORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskORM,
+)
 from src.core.platform.infrastructure.persistence.orm.approval.approval import (
     ApprovalRequestORM,
 )
-
 
 _VERSION_SORTS = {
     "title": ProjectBudgetORM.name,

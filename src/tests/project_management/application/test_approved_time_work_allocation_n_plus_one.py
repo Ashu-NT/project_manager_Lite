@@ -77,7 +77,7 @@ def _approve_n_entries(services, session, *, entry_count: int, suffix: str):
         services["task_service"].add_time_entry(
             assignment.id,
             entry_date=date(2026, 5, 1 + (day % 28)),
-            hours=Decimal("1"),
+            hours=Decimal(1),
             note=f"entry-{day}",
         )
 

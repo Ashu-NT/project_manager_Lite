@@ -6,16 +6,21 @@ import pytest
 from sqlalchemy import func, select
 
 from src.core.platform.application.security.auth import AuthService
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.domain.security.auth import UserAccount
+from src.core.platform.domain.security.auth.credentials.passwords import hash_password
 from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     RoleBinding,
 )
-from src.core.platform.domain.security.auth import UserAccount
-from src.core.platform.domain.security.auth.credentials.passwords import hash_password
-from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
+    AuditEntryORM,
+)
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
-from src.infra.composition.repositories import RepositoryBundle, build_repository_bundle
+from src.infra.composition.persistence.repositories import (
+    RepositoryBundle,
+    build_repository_bundle,
+)
 
 
 class _FailingPlatformAuditWriter:
@@ -24,7 +29,9 @@ class _FailingPlatformAuditWriter:
 
 
 def _build_auth_service(session) -> tuple[AuthService, RepositoryBundle]:
-    from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+    from src.infra.events.in_process_post_commit_event_bus import (
+        InProcessPostCommitEventBus,
+    )
     from src.infra.events.in_process_transactional_event_dispatcher import (
         InProcessTransactionalEventDispatcher,
     )

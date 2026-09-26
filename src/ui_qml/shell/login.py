@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.application.security.auth import AuthService
-from src.core.platform.domain.security.auth import UserSessionContext
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.domain.security.auth import UserSessionContext
 
 QML_IMPORT_NAME = "Shell.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -105,8 +108,9 @@ class ShellLoginController(QObject):
             self._set_error_message(str(exc))
             self._set_is_busy(False)
             return
-        except Exception as exc:  # noqa: BLE001
-            self._set_error_message(str(exc))
+        except Exception:
+            logger.exception("Sign in failed.")
+            self._set_error_message("Sign in failed. Please try again.")
             self._set_is_busy(False)
             return
 

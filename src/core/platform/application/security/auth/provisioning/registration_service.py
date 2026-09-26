@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Callable, Iterable
+from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
@@ -9,33 +10,42 @@ from src.core.platform.application.security.authorization.enforcement.permission
     authorization_denied,
     require_permission,
 )
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.domain.security.auth import UserAccount, normalize_auth_username
-from src.core.platform.domain.security.auth.events import TenantMembershipProvisioned, UserAccountCreated
+from src.core.platform.domain.security.auth.credentials.passwords import hash_password
+from src.core.platform.domain.security.auth.events import (
+    TenantMembershipProvisioned,
+    UserAccountCreated,
+)
 from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
     RoleBindingPlatformScope,
     RoleBindingTenantScope,
 )
-from src.core.platform.domain.security.auth.credentials.passwords import hash_password
-from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.domain.tenant.tenancy.user_tenant_membership import UserTenantMembership
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
+    UserTenantMembership,
+)
 
 if TYPE_CHECKING:
     from src.core.platform.application.security.auth.auth_service import AuthService
     from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
+from src.core.platform.application.security.auth.audit.security_audit import (
+    add_atomic_security_audit,
+    add_atomic_system_security_audit,
+)
 from src.core.platform.application.security.auth.credentials.federated_identity_service import (
     normalize_federated_subject,
     normalize_identity_provider,
     validate_federated_identity,
 )
-from src.core.platform.application.security.auth.audit.security_audit import (
-    add_atomic_security_audit,
-    add_atomic_system_security_audit,
+from src.core.platform.application.security.authorization.enforcement.sod_enforcer import (
+    enforce_separation_of_duties,
 )
-from src.core.platform.application.security.authorization.enforcement.sod_enforcer import enforce_separation_of_duties
-from src.core.platform.application.security.authorization.enforcement.target_user_authorization import require_actor_active_tenant
+from src.core.platform.application.security.authorization.enforcement.target_user_authorization import (
+    require_actor_active_tenant,
+)
 from src.core.platform.application.security.authorization.roles.role_binding_mutation_participant import (
     create_role_binding_using,
 )
@@ -155,7 +165,7 @@ def _create_user(
     audit_action: str = "user.register",
     system_audit_actor: str | None = None,
     account_type: str = "human",
-    uow: "SqlAlchemyUnitOfWorkBase | None" = None,
+    uow: SqlAlchemyUnitOfWorkBase | None = None,
 ) -> UserAccount:
     normalized = normalize_auth_username(username)
     normalized_email = service._normalize_email(email)
@@ -430,7 +440,7 @@ def _register_bootstrap_user(
     role_names: Iterable[str] | None = None,
     must_change_password: bool = True,
     commit: bool = False,
-    uow: "SqlAlchemyUnitOfWorkBase | None" = None,
+    uow: SqlAlchemyUnitOfWorkBase | None = None,
 ) -> UserAccount:
     return _create_user(
         service,

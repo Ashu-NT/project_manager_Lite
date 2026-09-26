@@ -11,19 +11,23 @@ from datetime import date
 import pytest
 
 from src.core.modules.project_management.application.resources.resource_capability_events import (
-    ResourceCapabilityChangeType,
     ResourceCapabilityChanged,
+    ResourceCapabilityChangeType,
 )
 from src.core.modules.project_management.application.resources.resource_master_events import (
-    ResourceMasterChangeType,
     ResourceMasterChanged,
+    ResourceMasterChangeType,
 )
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.uow.resources.resource_unit_of_work import (
     SqlAlchemyResourceUnitOfWork,
 )
-from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+from src.core.platform.application.history.audit.enterprise_audit_service import (
+    EnterpriseAuditService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -224,7 +228,7 @@ def test_cross_org_resource_is_not_visible_or_mutable_from_another_organization(
     default_org = services["tenant_context_service"].get_active_organization()
     other_org = organization_service.create_organization(
         organization_code=_unique("OTHERORG"), display_name="Other Org",
-        timezone_name="UTC", base_currency="USD", is_enabled=False,
+        timezone_name="UTC", base_currency="USD",
     )
     other_tenant_id = getattr(other_org, "tenant_id", None) or default_org.tenant_id
     other_resource = ResourceORM(
@@ -328,7 +332,7 @@ def test_skill_belongs_to_cross_org_resource_is_not_mutable(services):
     default_org = services["tenant_context_service"].get_active_organization()
     other_org = organization_service.create_organization(
         organization_code=_unique("SKILLORG"), display_name="Skill Other Org",
-        timezone_name="UTC", base_currency="USD", is_enabled=False,
+        timezone_name="UTC", base_currency="USD",
     )
     other_tenant_id = getattr(other_org, "tenant_id", None) or default_org.tenant_id
     other_resource = ResourceORM(

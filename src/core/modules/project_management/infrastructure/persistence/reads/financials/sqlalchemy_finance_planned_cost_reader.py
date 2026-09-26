@@ -16,15 +16,16 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
     ProjectCostCodeORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.statements.planned_cost_rows import (
     PlannedCostLineRow,
     PlannedCostVersionRow,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
-    ResourceORM,
-)
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
-
 
 _VERSION_SORTS = {
     "title": PlannedCostVersionRow.revision,

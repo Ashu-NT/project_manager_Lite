@@ -7,7 +7,9 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.repositories._tenant_scope import TenantScopedRepositorySupport
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
 from src.core.platform.integration import (
     InboxProcessingStatus,
     IntegrationEventEnvelope,
@@ -61,7 +63,11 @@ class SqlAlchemyIntegrationOutboxRepository(TenantScopedRepositorySupport):
             published_at=record.published_at, last_error_code=record.last_error_code,
             last_error_message=record.last_error_message, created_at=record.created_at,
             updated_at=record.updated_at, version=record.row_version,
+            **self._additional_insert_values(record),
         ))
+
+    def _additional_insert_values(self, record: IntegrationOutboxRecord) -> dict[str, Any]:
+        return {}
 
     def get(self, record_id: str) -> IntegrationOutboxRecord | None:
         row = self._get_in_scope(self._orm_type, record_id, operation_label="access integration outbox")
@@ -103,18 +109,34 @@ class SqlAlchemyIntegrationOutboxRepository(TenantScopedRepositorySupport):
                 self._orm_type.tenant_id == ctx.tenant_id,
                 self._orm_type.organization_id == ctx.organization_id,
                 eligible,
+                *self._claim_scope_filters(),
             ).order_by(self._orm_type.aggregate_type, self._orm_type.aggregate_id, self._orm_type.aggregate_version, self._orm_type.occurred_at, self._orm_type.id)
             .limit(limit).with_for_update(skip_locked=True)
         ).scalars().all()
+        claimed = []
         for row in rows:
+            if row.attempt_count >= row.max_attempts:
+                # Expired final leases are exhausted, not a new delivery attempt.
+                row.status = OutboxDeliveryStatus.DEAD_LETTER.value
+                row.lease_token = None
+                row.lease_expires_at = None
+                row.last_error_code = "DELIVERY_ATTEMPTS_EXHAUSTED"
+                row.last_error_message = "Delivery attempts exhausted; reconciliation may be required."
+                row.updated_at = now
+                row.version += 1
+                continue
             row.status = OutboxDeliveryStatus.CLAIMED.value
             row.attempt_count += 1
             row.lease_token = lease_token
             row.lease_expires_at = lease_expires_at
             row.updated_at = now
             row.version += 1
+            claimed.append(row)
         self.session.flush()
-        return [self._from_row(row) for row in rows]
+        return [self._from_row(row) for row in claimed]
+
+    def _claim_scope_filters(self) -> tuple:
+        return ()
 
     def update(self, record: IntegrationOutboxRecord, *, expected_row_version: int) -> None:
         ctx = self._context(operation_label="update integration outbox")
@@ -158,7 +180,7 @@ class SqlAlchemyIntegrationInboxRepository(TenantScopedRepositorySupport):
         ctx = self._context(operation_label="record integration delivery")
         self._require_scope(receipt, ctx)
         envelope = receipt.envelope
-        self.session.add(self._orm_type(
+        values = dict(
             id=receipt.id, tenant_id=receipt.tenant_id, organization_id=receipt.organization_id,
             event_id=envelope.event_id, event_type=envelope.event_type,
             aggregate_type=envelope.aggregate_type, aggregate_id=envelope.aggregate_id,
@@ -174,7 +196,14 @@ class SqlAlchemyIntegrationInboxRepository(TenantScopedRepositorySupport):
             conflict_detected_at=receipt.conflict_detected_at,
             last_error_code=receipt.last_error_code, last_error_message=receipt.last_error_message,
             created_at=receipt.created_at, updated_at=receipt.updated_at, version=receipt.row_version,
-        ))
+        )
+        values.update(self._additional_insert_values(receipt))
+        self.session.add(self._orm_type(**values))
+
+    def _additional_insert_values(
+        self, receipt: IntegrationInboxReceipt
+    ) -> dict[str, Any]:
+        return {}
 
     def get(self, receipt_id: str) -> IntegrationInboxReceipt | None:
         row = self._get_in_scope(self._orm_type, receipt_id, operation_label="access integration inbox")

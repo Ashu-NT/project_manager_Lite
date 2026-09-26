@@ -3,7 +3,9 @@
 from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
     constraint_presentation,
 )
-from src.core.modules.project_management.api.desktop.scheduling.models.constraints import SchedulingConstraintViolationDto
+from src.core.modules.project_management.api.desktop.scheduling.models.constraints import (
+    SchedulingConstraintViolationDto,
+)
 
 
 def serialize_constraint_violation(v, *, hard_pairs: set) -> SchedulingConstraintViolationDto:

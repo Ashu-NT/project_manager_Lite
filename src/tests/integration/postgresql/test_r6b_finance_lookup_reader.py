@@ -14,7 +14,6 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
 )
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 
-
 pytestmark = pytest.mark.postgresql_integration
 
 TENANT_A = "r6b-lookup-tenant-a"
@@ -32,8 +31,8 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
     connection.execute(
         text(
             "INSERT INTO organizations "
-            "(id, tenant_id, organization_code, display_name, timezone_name, base_currency, is_enabled, version) "
-            "VALUES (:id, :tenant, :code, :name, 'UTC', 'XAF', true, 1)"
+            "(id, tenant_id, organization_code, display_name, timezone_name, base_currency, status, version) "
+            "VALUES (:id, :tenant, :code, :name, 'UTC', 'XAF', 'active', 1)"
         ),
         {
             "id": organization_id,

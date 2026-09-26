@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Iterable
 
 
 class ResourceUtilizationBand(str, Enum):

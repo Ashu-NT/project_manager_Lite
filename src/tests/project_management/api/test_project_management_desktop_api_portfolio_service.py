@@ -1,31 +1,21 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
-from types import SimpleNamespace
 
-from src.core.modules.project_management.api.desktop import (
-    build_project_management_portfolio_desktop_api,
-)
 from src.core.modules.project_management.domain.enums import (
     DependencyType,
     ProjectStatus,
-    TaskStatus,
 )
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,
-    PortfolioIntakeItem,
-    PortfolioIntakeStatus,
     PortfolioProjectDependency,
     PortfolioProjectDependencyView,
     PortfolioRecentAction,
     PortfolioScenario,
     PortfolioScenarioComparison,
     PortfolioScenarioEvaluation,
-    PortfolioScoringTemplate,
 )
-from src.core.modules.project_management.domain.projects.project import Project
 from src.tests.project_management.api.test_project_management_desktop_api_portfolio_fakes import (
     _FakePortfolioServiceBase,
-    _FakeProjectService,
 )
 
 
@@ -72,7 +62,7 @@ class _FakePortfolioService(_FakePortfolioServiceBase):
         ]
         intake_budget = sum(
             (item.requested_budget for item in selected_items),
-            Decimal("0"),
+            Decimal(0),
         )
         total_budget = intake_budget
         total_capacity = sum(float(item.requested_capacity_percent or 0.0) for item in selected_items)
@@ -153,9 +143,9 @@ class _FakePortfolioService(_FakePortfolioServiceBase):
                     critical_tasks=1,
                     peak_utilization_percent=118.0 if pressure_label == "Hot" else 92.0,
                     cost_variance=(
-                        Decimal("-8500")
+                        Decimal(-8500)
                         if pressure_label == "Hot"
-                        else Decimal("2500")
+                        else Decimal(2500)
                     ),
                     pressure_score=90 if pressure_label == "Hot" else 40,
                     pressure_label=pressure_label,

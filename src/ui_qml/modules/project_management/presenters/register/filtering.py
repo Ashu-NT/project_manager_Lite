@@ -6,6 +6,7 @@ from src.core.modules.project_management.domain.risk.register import RegisterEnt
 
 from .workspace_mode import WorkspaceMode
 
+
 def normalize_filter(value: str, options: Any, *, default_value: str) -> str:
     normalized_value = (value or default_value).strip().lower()
     available_values = {

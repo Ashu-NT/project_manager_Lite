@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
+from src.core.modules.project_management.domain.projects.project import Project
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,11 +107,11 @@ class ProjectActivityPage:
 
 
 __all__ = [
+    "ProjectActivityFact",
+    "ProjectActivityPage",
     "ProjectCatalogReadItem",
     "ProjectCatalogReadPage",
     "ProjectCatalogSummary",
-    "ProjectActivityFact",
-    "ProjectActivityPage",
     "ProjectResourceDetailFact",
     "ProjectResourceDetailPage",
     "ProjectResourceUsageFact",

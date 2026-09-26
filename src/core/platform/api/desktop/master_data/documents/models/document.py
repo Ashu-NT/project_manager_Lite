@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from src.core.platform.domain.master_data.documents import DocumentStorageKind, DocumentType
+from src.core.platform.domain.master_data.documents import (
+    DocumentStorageKind,
+    DocumentType,
+)
 
 
 @dataclass(frozen=True)
@@ -29,6 +32,15 @@ class DocumentDto:
     notes: str
     is_active: bool
     version: int
+
+
+@dataclass(frozen=True)
+class DocumentPageDto:
+    items: tuple[DocumentDto, ...] = ()
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
 
 
 @dataclass(frozen=True)

@@ -10,36 +10,38 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
-from src.core.platform.application.data_operations.importing import CsvImportRuntime, ImportDefinitionRegistry
-
 from src.core.modules.project_management.infrastructure.importers.models import (
     ImportFieldSpec,
     ImportPreview,
     ImportSummary,
 )
-from src.core.modules.project_management.infrastructure.importers.projects.models.project_import_schema import (
-    PROJECT_IMPORT_SCHEMA,
-)
-from src.core.modules.project_management.infrastructure.importers.tasks.models.task_import_schema import (
-    TASK_IMPORT_SCHEMA,
-)
-from src.core.modules.project_management.infrastructure.importers.resources.models.resource_import_schema import (
-    RESOURCE_IMPORT_SCHEMA,
-)
 from src.core.modules.project_management.infrastructure.importers.projects.csv.project_csv_importer import (
     import_projects,
     preview_projects,
 )
-from src.core.modules.project_management.infrastructure.importers.tasks.csv.task_csv_importer import (
-    import_tasks,
-    preview_tasks,
+from src.core.modules.project_management.infrastructure.importers.projects.models.project_import_schema import (
+    PROJECT_IMPORT_SCHEMA,
 )
 from src.core.modules.project_management.infrastructure.importers.resources.csv.resource_csv_importer import (
     import_resources,
     preview_resources,
 )
+from src.core.modules.project_management.infrastructure.importers.resources.models.resource_import_schema import (
+    RESOURCE_IMPORT_SCHEMA,
+)
 from src.core.modules.project_management.infrastructure.importers.services.import_definitions import (
     register_project_management_import_definitions,
+)
+from src.core.modules.project_management.infrastructure.importers.tasks.csv.task_csv_importer import (
+    import_tasks,
+    preview_tasks,
+)
+from src.core.modules.project_management.infrastructure.importers.tasks.models.task_import_schema import (
+    TASK_IMPORT_SCHEMA,
+)
+from src.core.platform.application.data_operations.importing import (
+    CsvImportRuntime,
+    ImportDefinitionRegistry,
 )
 
 IMPORT_SCHEMAS: dict[str, tuple[ImportFieldSpec, ...]] = {
@@ -139,4 +141,4 @@ class DataImportService(ProjectManagementModuleGuardMixin):
         )
 
 
-__all__ = ["DataImportService", "IMPORT_SCHEMAS"]
+__all__ = ["IMPORT_SCHEMAS", "DataImportService"]

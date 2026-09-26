@@ -2,8 +2,21 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.reads.projects import ProjectCatalogReader
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.projects.commands.lifecycle import (
+    ProjectLifecycleMixin,
+)
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryMixin,
+)
+from src.core.modules.project_management.contracts.reads.projects import (
+    ProjectCatalogReader,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
@@ -12,19 +25,18 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 from src.core.modules.project_management.contracts.uow.projects.project_unit_of_work import (
     ProjectUnitOfWorkFactory,
 )
-from src.core.modules.project_management.application.projects.commands.lifecycle import (
-    ProjectLifecycleMixin,
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
 )
-from src.core.modules.project_management.application.projects.queries.project_query import (
-    ProjectQueryMixin,
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
-from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.repositories.time_management.time.contracts import (
+    TimeEntryRepository,
+)
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, ProjectQueryMixin):

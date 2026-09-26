@@ -25,9 +25,14 @@ from src.core.modules.project_management.infrastructure.persistence.orm.financia
     ProjectCostCodeRestrictionORM,
     ProjectFinancialProfileORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from .serializers import serialize_operation_result
+
 
 def run_admin_action(
     controller,

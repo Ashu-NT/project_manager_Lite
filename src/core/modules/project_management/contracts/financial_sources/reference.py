@@ -105,7 +105,7 @@ class FinancialSourceReference(_FinancialSourceContract):
         return normalized
 
     @model_validator(mode="after")
-    def _validate_source_combination(self) -> "FinancialSourceReference":
+    def _validate_source_combination(self) -> FinancialSourceReference:
         combination = (self.source_module, self.source_type, self.posting_purpose)
         if combination not in _ALLOWED_SOURCE_COMBINATIONS:
             raise ValueError("Source module, type, and posting purpose are incompatible")

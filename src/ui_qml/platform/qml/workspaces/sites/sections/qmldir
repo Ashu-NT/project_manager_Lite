@@ -1,0 +1,8 @@
+module workspaces.sites.sections
+SiteOverviewSection 1.0 SiteOverviewSection.qml
+SiteDepartmentsSection 1.0 SiteDepartmentsSection.qml
+SiteEmployeesSection 1.0 SiteEmployeesSection.qml
+SiteProjectsSection 1.0 SiteProjectsSection.qml
+SiteCalendarSection 1.0 SiteCalendarSection.qml
+SiteDocumentsSection 1.0 SiteDocumentsSection.qml
+SiteActivitySection 1.0 SiteActivitySection.qml

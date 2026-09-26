@@ -7,34 +7,20 @@ Rectangle {
     id: chip
 
     property string status: ""
+    // Caller-supplied semantic tone -- "neutral" | "info" | "success" |
+    // "warning" | "danger". StatusChip is domain-neutral: it never infers
+    // meaning from `status` text, which is display text only. The caller
+    // owns the mapping from its own business/domain status to a semantic
+    // tone; an unrecognized or empty tone fails safe to "neutral".
+    property string tone: "neutral"
+
+    readonly property var _validTones: ["neutral", "info", "success", "warning", "danger"]
 
     implicitHeight: 22
     implicitWidth: chipLabel.implicitWidth + 16
     radius: implicitHeight / 2
 
-    readonly property string _normalized: status.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_")
-
-    readonly property var _variant: {
-        const s = chip._normalized
-        if (s === "active" || s === "approved" || s === "closed" || s === "completed"
-                || s === "verified" || s === "issued" || s === "fully_received" || s === "accepted"
-                || s === "within_capacity" || s === "available" || s === "flexible")
-            return "success"
-        if (s === "progress" || s === "in_progress" || s === "pending" || s === "submitted"
-                || s === "planned" || s === "scheduled" || s === "released"
-                || s === "partial" || s === "partially_received" || s === "sent"
-                || s === "low")
-            return "info"
-        if (s === "waiting" || s === "blocked" || s === "paused" || s === "deferred"
-                || s === "on_hold" || s === "medium" || s === "near_capacity")
-            return "warning"
-        if (s === "rejected" || s === "cancelled" || s === "overdue" || s === "failed"
-                || s === "error" || s === "expired" || s === "danger" || s === "high"
-                || s === "critical" || s === "declined" || s === "over_capacity"
-                || s === "infeasible")
-            return "danger"
-        return "neutral"
-    }
+    readonly property var _variant: chip._validTones.indexOf(chip.tone) >= 0 ? chip.tone : "neutral"
 
     color: {
         switch (chip._variant) {

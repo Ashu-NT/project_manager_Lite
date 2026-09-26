@@ -3,10 +3,10 @@ from __future__ import annotations
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
     RateCardCreated,
     RateCardDeactivated,
-    RateCardUpdated,
     RateCardLineAdded,
     RateCardLineDeactivated,
     RateCardLineUpdated,
+    RateCardUpdated,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import (
@@ -44,7 +44,7 @@ def _detail_scope_target(scope_code: str, scope: ResourceScope) -> _DetailTarget
 
 def build_rate_card_view_invalidation_handler(channel: ViewInvalidationChannel):
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_org_targets: set[_OrgTarget] = set()
     notified_detail_targets: set[_DetailTarget] = set()
 
@@ -116,8 +116,10 @@ def build_rate_card_view_invalidation_handler(channel: ViewInvalidationChannel):
         ),
         context: DomainEventContext,
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        # Correlation is a trace ID, not a transaction ID: independent commits
+        # may carry the same correlation and must each invalidate their views.
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_org_targets.clear()
             notified_detail_targets.clear()
 
@@ -151,11 +153,11 @@ def build_rate_card_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_rate_card_view_invalidation_handler",
     "RATE_CARD_CATEGORY",
-    "RATE_CARD_LIST_SCOPE_CODE",
     "RATE_CARD_DETAIL_SCOPE_CODE",
-    "RATE_CARD_MODULE_CODE",
     "RATE_CARD_ENTITY_TYPE",
+    "RATE_CARD_LIST_SCOPE_CODE",
+    "RATE_CARD_MODULE_CODE",
     "RATE_CARD_PROJECT_ENTITY_TYPE",
+    "build_rate_card_view_invalidation_handler",
 ]

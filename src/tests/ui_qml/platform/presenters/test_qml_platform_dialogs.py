@@ -3,17 +3,16 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import Q_ARG, QObject, QMetaObject
+from PySide6.QtCore import Q_ARG, QMetaObject, QObject
 from PySide6.QtGui import QGuiApplication
 
 from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
 
-
 APPROVAL_DECISION_DIALOG = Path(
-    "src/ui_qml/platform/qml/control/dialogs/ApprovalDecisionDialog.qml"
+    "src/ui_qml/platform/qml/workspaces/control/dialogs/ApprovalDecisionDialog.qml"
 )
 ORGANIZATION_EDITOR_DIALOG = Path(
-    "src/ui_qml/platform/qml/organization/organizations/dialogs/OrganizationEditorDialog.qml"
+    "src/ui_qml/platform/qml/workspaces/organizations/dialogs/OrganizationEditorDialog.qml"
 )
 
 # Module-level reference prevents premature GC of the Qt application instance.
@@ -95,7 +94,15 @@ def test_organization_editor_dialog_submit_button_emits_save_requested() -> None
         "isActive": True,
         "initialModuleCodes": ["pm"],
     }
-    assert QMetaObject.invokeMethod(root, "openForEdit", Q_ARG("QVariant", draft))
+    options = {
+        "moduleOptions": [{"value": "pm", "label": "Project Management"}],
+        "countryOptions": [],
+        "timezoneOptions": [{"value": "UTC", "label": "UTC"}],
+        "currencyOptions": [{"value": "EUR", "label": "EUR"}],
+    }
+    assert QMetaObject.invokeMethod(
+        root, "openForEdit", Q_ARG("QVariant", draft), Q_ARG("QVariant", options)
+    )
     _find_child(root, "dialogCancelButton")
     submit_button = _find_child(root, "dialogSubmitButton")
     assert QMetaObject.invokeMethod(submit_button, "click")

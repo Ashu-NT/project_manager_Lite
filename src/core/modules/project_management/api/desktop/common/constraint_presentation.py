@@ -148,8 +148,8 @@ __all__ = [
     "CATEGORY_DATE_BOUNDARY",
     "CATEGORY_FIXED_DATE",
     "CATEGORY_FLEXIBLE",
-    "ConstraintPresentation",
     "EDITABLE_CONSTRAINT_OPTIONS",
+    "ConstraintPresentation",
     "coerce_constraint_type",
     "constraint_presentation",
 ]

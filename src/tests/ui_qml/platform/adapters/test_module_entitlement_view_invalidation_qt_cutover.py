@@ -23,14 +23,17 @@ from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.tenant.modules.events import (
     ModuleDisabled,
     ModuleEnabled,
-    ModuleLicenseRevoked,
     ModuleLicensed,
+    ModuleLicenseRevoked,
     ModuleLifecycleTransitioned,
 )
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.view_invalidation import ExactOrganization, OrganizationScope
 from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWork,
+)
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.events.view_invalidation import (
+    ExactOrganization,
+    OrganizationScope,
 )
 from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter import (
     ModuleEntitlementViewInvalidationAdapter,
@@ -207,7 +210,7 @@ def test_non_active_organization_mutation_does_not_refresh_active_org_ui(service
     catalog.settingsWorkspace.refresh()
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("QTCUT-A2"), display_name="Qt Cutover Org A2", is_enabled=False
+        organization_code=_unique_code("QTCUT-A2"), display_name="Qt Cutover Org A2"
     )
     refresh_calls = []
     catalog.settingsWorkspace.refresh_module_entitlements = lambda: refresh_calls.append("refresh") or None
@@ -220,8 +223,12 @@ def test_non_active_organization_mutation_does_not_refresh_active_org_ui(service
 
 def test_command_against_a_foreign_tenant_organization_produces_no_invalidation(services):
     from src.core.platform.common.exceptions import NotFoundError
-    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+        TenantORM,
+    )
 
     channel = services["platform_view_invalidation_channel"]
     tenant_a = _active_tenant(services)
@@ -238,7 +245,7 @@ def test_command_against_a_foreign_tenant_organization_produces_no_invalidation(
     session.add(
         OrganizationORM(
             id=foreign_org_id, tenant_id=foreign_tenant_id, organization_code=_unique_code("QTFOREIGN"),
-            display_name="Foreign Org", is_enabled=True, version=1,
+            display_name="Foreign Org", version=1,
         )
     )
     session.commit()
@@ -260,7 +267,7 @@ def test_adapter_only_reacts_to_its_exact_active_organization(services):
     tenant_id = _active_tenant(services)
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("QTCUT-SCOPE-A2"), display_name="Scope Org A2", is_enabled=False
+        organization_code=_unique_code("QTCUT-SCOPE-A2"), display_name="Scope Org A2"
     )
 
     adapter = ModuleEntitlementViewInvalidationAdapter(channel=channel, tenant_id=tenant_id, organization_id=org_a1.id)
@@ -303,7 +310,7 @@ def test_adapter_follows_an_organization_switch_with_no_stale_or_duplicate_subsc
     tenant_id = _active_tenant(services)
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("QTCUT-SWITCH-A2"), display_name="Switch Org A2", is_enabled=False
+        organization_code=_unique_code("QTCUT-SWITCH-A2"), display_name="Switch Org A2"
     )
 
     adapter = ModuleEntitlementViewInvalidationAdapter(channel=channel, tenant_id=tenant_id, organization_id=org_a1.id)
@@ -314,7 +321,6 @@ def test_adapter_follows_an_organization_switch_with_no_stale_or_duplicate_subsc
     services["module_catalog_service"].disable_module(org_a1.id, "project_management")
     assert signal_calls == ["stale"]
 
-    organization_service.enable_organization(org_a2.id)
     services["tenant_context_service"].set_active_organization(org_a2.id)
     adapter.set_active_scope(tenant_id=tenant_id, organization_id=org_a2.id)
     assert len(channel._subscriptions) == subscription_count_before, (
@@ -344,7 +350,7 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
 
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("QTCUT-REALSWITCH-A2"), display_name="Real Switch Org A2", is_enabled=False
+        organization_code=_unique_code("QTCUT-REALSWITCH-A2"), display_name="Real Switch Org A2"
     )
 
     def _current_filters():
@@ -352,7 +358,6 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
 
     assert any(f.organization_id == org_a1.id for f in _current_filters())
 
-    organization_service.enable_organization(org_a2.id)
     services["tenant_context_service"].set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
 
@@ -391,53 +396,17 @@ def test_adapter_follows_a_tenant_switch_via_refresh_current_permissions(service
 
 
 # ---------------------------------------------------------------------------
-# Provisioning: direct ViewInvalidation when it targets the active organization, none otherwise
+# Provisioning: direct ViewInvalidation targeting the newly-activated organization
 # ---------------------------------------------------------------------------
 
 
-def test_provisioning_a_non_active_organization_produces_no_invalidation_and_no_events(services, monkeypatch):
-    from src.core.shared.events.view_invalidation import AnyOrganizationInTenant
-
-    app_service = services["platform_runtime_application_service"]
-    catalog = services["module_catalog_service"]
-    channel = services["platform_view_invalidation_channel"]
-    tenant_id = _active_tenant(services)
-    hints = []
-    channel.subscribe(AnyOrganizationInTenant(tenant_id), lambda hint: hints.append(hint))
-
-    recorded = []
-    original_create = type(catalog._uow_factory).create
-
-    def _spy_create(self, *, context):
-        uow = original_create(self, context=context)
-        original_record_event = uow.record_event
-        uow.record_event = lambda event: (recorded.append(event), original_record_event(event))[1]
-        return uow
-
-    monkeypatch.setattr(type(catalog._uow_factory), "create", _spy_create)
-
-    app_service.provision_organization(
-        organization_code=_unique_code("QTCUT-PROV-INACTIVE"),
-        display_name="Provisioned Inactive Org",
-        timezone_name="UTC",
-        base_currency="EUR",
-        is_enabled=False,
-        initial_module_codes=["project_management"],
-    )
-
-    assert recorded == []
-    # `AnyOrganizationInTenant` also observes `OrganizationCreated`'s own unconditional
-    # `organization_list`/`organization_details` hints (category="organization") -- filter to
-    # this capability's own category, the thing this test actually verifies.
-    assert [h for h in hints if h.category == MODULE_ENTITLEMENT_CATEGORY] == []
-
-
 def test_provisioning_the_active_organization_produces_direct_invalidation_and_no_events(services, monkeypatch):
-    """`provision_organization(is_enabled=True)` both creates AND activates the new organization
-    in one call -- the module entitlement collection any open UI is showing just became stale
-    (a different organization's rows are now the authoritative ones), so this legitimately
-    produces direct ViewInvalidation, never a DomainEvent. Verified at the channel level with a
-    broad, test-only
+    """`provision_organization` both creates AND activates the new organization in one call --
+    organizations are always created ACTIVE and the caller's session always switches into them,
+    there is no longer a "provision quietly, stay inactive" path. The module entitlement
+    collection any open UI is showing just became stale (a different organization's rows are now
+    the authoritative ones), so this legitimately produces direct ViewInvalidation, never a
+    DomainEvent. Verified at the channel level with a broad, test-only
     `AnyOrganizationInTenant` subscription -- the provisioned organization's id does not exist
     until after this single call returns, so it cannot be known in advance the way
     `ExactOrganization` would require."""
@@ -468,7 +437,6 @@ def test_provisioning_the_active_organization_produces_direct_invalidation_and_n
         display_name="Provisioned Active Org",
         timezone_name="UTC",
         base_currency="EUR",
-        is_enabled=True,
         initial_module_codes=["project_management"],
     )
 
@@ -485,12 +453,11 @@ def test_read_time_default_seeding_produces_no_invalidation_and_no_events(servic
     channel = services["platform_view_invalidation_channel"]
     tenant_id = _active_tenant(services)
     new_org = organization_service.create_organization(
-        organization_code=_unique_code("QTCUT-SEED"), display_name="Qt Cutover Seed Org", is_enabled=False
+        organization_code=_unique_code("QTCUT-SEED"), display_name="Qt Cutover Seed Org"
     )
     hints = []
     channel.subscribe(ExactOrganization(tenant_id, new_org.id), lambda hint: hints.append(hint))
 
-    organization_service.enable_organization(new_org.id)
     services["tenant_context_service"].set_active_organization(new_org.id)
     catalog.list_entitlements()  # triggers _ensure_context_default_rows' first-read row seeding
 

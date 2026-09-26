@@ -11,6 +11,10 @@ from alembic.config import Config
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
+from src.core.modules.project_management.application.financials.procurement_consumer import (
+    PROCUREMENT_FINANCE_PRINCIPAL_NAME,
+    ProcurementExecutionContext,
+)
 from src.core.modules.project_management.contracts.financial_sources.procurement import (
     ProcurementCommitmentFinancialSource,
     ProcurementCommitmentState,
@@ -29,11 +33,27 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
     ProjectCostEntryKind,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
+    ProjectCommitmentLineORM,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.finance import DecimalQuantityPayload, MonetaryRatePayload, Money
+from src.core.platform.domain.finance import (
+    DecimalQuantityPayload,
+    MonetaryRatePayload,
+    Money,
+)
 
 
 def _setup(services):
+    if not any(
+        principal.name == PROCUREMENT_FINANCE_PRINCIPAL_NAME
+        for principal in services["service_principal_service"].list_service_principals()
+    ):
+        services["service_principal_service"].create_service_principal(
+            name=PROCUREMENT_FINANCE_PRINCIPAL_NAME,
+            description="Projects Procurement facts into PM Finance.",
+            initial_role_name="viewer",
+        )
     organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Commitment project", financial_currency_code=organization.base_currency
@@ -51,7 +71,41 @@ def _setup(services):
         code="COMMIT-2026-08", name="August 2026", fiscal_year=2026, period_number=8,
         start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
     )
+    profile = services["financial_configuration_service"].get_profile(project.id)
+    services["financial_configuration_service"].configure_profile(
+        project.id,
+        expected_version=profile.version,
+        default_cost_code_id=cost_code.id,
+    )
     return organization, project, cost_code, site, supplier, period
+
+
+def _execution(services, source, *, event_id: str | None = None):
+    principal = services["service_principal_service"].resolve_execution_principal(
+        name=PROCUREMENT_FINANCE_PRINCIPAL_NAME
+    )
+    reference = source.reference
+    return ProcurementExecutionContext(
+        service_principal=principal,
+        source_event_id=event_id or f"event-{reference.idempotency_key}",
+        source_event_type="inventory_procurement.purchase_order_line.financial_state.v1",
+        source_aggregate_id=reference.source_line_id or reference.source_id,
+        source_revision=int(reference.source_revision),
+        correlation_id=f"correlation-{reference.idempotency_key}",
+        causation_id=None,
+    )
+
+
+def _apply_source(services, source):
+    services["commitment_service"].apply_procurement_source(
+        source,
+        execution=_execution(services, source),
+    )
+    services["session"].commit()
+    return services["commitment_service"]._commitment_repo.get_line_by_source(
+        source.purchase_order_id,
+        source.purchase_order_line_id,
+    )
 
 
 def _commitment_source(
@@ -139,7 +193,7 @@ def _posted_receipt_entry(
         posting_date=date(2026, 8, 10),
         financial_period_id=period.id,
         base_money=Money.of(amount, organization.base_currency),
-        exchange_rate=Decimal("1"),
+        exchange_rate=Decimal(1),
         exchange_rate_date=date(2026, 8, 10),
         exchange_rate_source="identity",
         exchange_rate_captured_at=now,
@@ -156,87 +210,85 @@ def test_commitment_domain_releases_only_closed_or_cancelled_exposure() -> None:
         project_id="project-1", commitment_id="commitment-1",
         purchase_order_line_id="po-line-1", cost_code_id="code-1",
         state=ProjectCommitmentLineState.FULLY_RECEIVED,
-        ordered_quantity=Decimal("10"), quantity_unit="EA", unit_price=Decimal("10"),
-        amount=Decimal("100"), currency_code="EUR", base_amount=Decimal("100"),
-        base_currency_code="EUR", exchange_rate=Decimal("1"),
+        ordered_quantity=Decimal(10), quantity_unit="EA", unit_price=Decimal(10),
+        amount=Decimal(100), currency_code="EUR", base_amount=Decimal(100),
+        base_currency_code="EUR", exchange_rate=Decimal(1),
         exchange_rate_date=date(2026, 8, 3), exchange_rate_source="identity",
         exchange_rate_captured_at=now, source_revision=1,
         source_content_hash="a" * 64, source_idempotency_key="source-1",
         created_by="actor-1", created_at=now, updated_by="actor-1", updated_at=now,
     )
     line.apply_match(Money.of("40", "EUR"), actor_id="actor-1", occurred_at=now)
-    assert line.remaining_money.amount == Decimal("60")
+    assert line.remaining_money.amount == Decimal(60)
     line.state = ProjectCommitmentLineState.CLOSED
-    assert line.remaining_money.amount == Decimal("0")
+    assert line.remaining_money.amount == Decimal(0)
     with pytest.raises(BusinessRuleError):
         line.apply_match(Money.of("70", "EUR"), actor_id="actor-1", occurred_at=now)
 
 
 def test_source_ingestion_is_versioned_idempotent_and_lifecycle_aware(services) -> None:
-    organization, project, cost_code, site, supplier, _period = _setup(services)
-    service = services["commitment_service"]
+    organization, project, _cost_code, site, supplier, _period = _setup(services)
     first_source = _commitment_source(
         organization=organization, project=project, site=site, supplier=supplier, revision=1
     )
-    first = service.ingest_procurement_source(first_source, cost_code_id=cost_code.id)
+    first = _apply_source(services, first_source)
     assert first.amount == Decimal("100.00")
     assert first.remaining_money.amount == Decimal("100.00")
 
-    replay = service.ingest_procurement_source(first_source, cost_code_id=cost_code.id)
+    replay = _apply_source(services, first_source)
     assert replay.id == first.id
 
-    changed = service.ingest_procurement_source(
+    changed = _apply_source(
+        services,
         _commitment_source(
             organization=organization, project=project, site=site, supplier=supplier,
             revision=3, state=ProcurementCommitmentState.PARTIALLY_RECEIVED, quantity="12",
         ),
-        cost_code_id=cost_code.id,
     )
     assert changed.id == first.id
     assert changed.source_revision == 3
     assert changed.amount == Decimal("120.00")
 
-    historical_replay = service.ingest_procurement_source(
-        first_source, cost_code_id=cost_code.id
-    )
+    historical_replay = _apply_source(services, first_source)
     assert historical_replay.source_revision == 3
     with pytest.raises(BusinessRuleError) as out_of_order:
-        service.ingest_procurement_source(
+        _apply_source(
+            services,
             _commitment_source(
                 organization=organization, project=project, site=site, supplier=supplier,
                 revision=2, state=ProcurementCommitmentState.PARTIALLY_RECEIVED,
                 quantity="11",
             ),
-            cost_code_id=cost_code.id,
         )
     assert out_of_order.value.code == "PROJECT_COMMITMENT_SOURCE_OUT_OF_ORDER"
     with pytest.raises(BusinessRuleError) as conflict:
-        service.ingest_procurement_source(
+        _apply_source(
+            services,
             _commitment_source(
                 organization=organization, project=project, site=site, supplier=supplier,
                 revision=1, content_hash="f" * 64,
             ),
-            cost_code_id=cost_code.id,
         )
     assert conflict.value.code == "PROJECT_COMMITMENT_SOURCE_REPLAY_CONFLICT"
 
-    cancelled = service.ingest_procurement_source(
+    cancelled = _apply_source(
+        services,
         _commitment_source(
             organization=organization, project=project, site=site, supplier=supplier,
             revision=4, state=ProcurementCommitmentState.CANCELLED, quantity="12",
         ),
-        cost_code_id=cost_code.id,
     )
-    assert cancelled.remaining_money.amount == Decimal("0")
+    assert cancelled.remaining_money.amount == Decimal(0)
 
 
 def test_commitment_query_pages_and_sorts_before_the_former_fifty_row_cap(
     services,
 ) -> None:
-    organization, project, cost_code, site, supplier, _period = _setup(services)
+    organization, project, _cost_code, site, supplier, _period = _setup(services)
     service = services["commitment_service"]
     for index in range(1, 56):
-        service.ingest_procurement_source(
+        _apply_source(
+            services,
             _commitment_source(
                 organization=organization,
                 project=project,
@@ -245,7 +297,6 @@ def test_commitment_query_pages_and_sorts_before_the_former_fifty_row_cap(
                 revision=1,
                 source_index=index,
             ),
-            cost_code_id=cost_code.id,
         )
 
     first_page, first_total = service.list_for_project(
@@ -299,50 +350,119 @@ def test_commitment_query_pages_and_sorts_before_the_former_fifty_row_cap(
 def test_posted_receipt_actual_matches_once_and_reduces_remaining(services) -> None:
     organization, project, cost_code, site, supplier, period = _setup(services)
     service = services["commitment_service"]
-    line = service.ingest_procurement_source(
-        _commitment_source(
-            organization=organization, project=project, site=site, supplier=supplier, revision=1
-        ),
-        cost_code_id=cost_code.id,
+    source = _commitment_source(
+        organization=organization, project=project, site=site, supplier=supplier, revision=1
+    )
+    line = _apply_source(
+        services,
+        source,
     )
     entry = _posted_receipt_entry(
         services, organization=organization, project=project,
-        cost_code=cost_code, period=period,
+        cost_code=cost_code, period=period, amount="30",
     )
-    match = service.match_cost_entry(line_id=line.id, cost_entry_id=entry.id)
-    replay = service.match_cost_entry(line_id=line.id, cost_entry_id=entry.id)
-    assert replay.id == match.id
+    event = service.apply_procurement_receipt_match(
+        purchase_order_id=source.purchase_order_id,
+        purchase_order_line_id=source.purchase_order_line_id,
+        cost_entry_id=entry.id,
+        supplier_party_id=supplier.id,
+        site_id=site.id,
+        execution=_execution(services, source, event_id="receipt-match-1"),
+    )
+    services["session"].commit()
+    assert event is not None
+    replay = service.apply_procurement_receipt_match(
+        purchase_order_id=source.purchase_order_id,
+        purchase_order_line_id=source.purchase_order_line_id,
+        cost_entry_id=entry.id,
+        supplier_party_id=supplier.id,
+        site_id=site.id,
+        execution=_execution(services, source, event_id="receipt-match-1"),
+    )
+    assert replay is None
     refreshed = service.get_line(line.id)
-    assert refreshed.matched_amount == Decimal("40.00")
-    assert refreshed.remaining_money.amount == Decimal("60.00")
+    assert refreshed.matched_amount == Decimal("30.00")
+    assert refreshed.remaining_money.amount == Decimal("70.00")
     snapshot = services["finance_service"].get_finance_snapshot(
         project.id, as_of=date(2026, 8, 31)
     )
-    assert snapshot.committed == Decimal("60.00")
-    assert snapshot.actual == Decimal("40.00")
+    assert snapshot.committed == Decimal("70.00")
+    assert snapshot.actual == Decimal("30.00")
     assert snapshot.exposure == Decimal("100.00")
+    phasing = services["finance_performance_query"].get_cost_phasing(
+        project.id,
+        date_from=date(2026, 8, 1),
+        date_to=date(2026, 8, 31),
+    )
+    assert len(phasing.periods) == 1
+    assert phasing.periods[0].posted_actual == Decimal("30.00")
+    assert phasing.periods[0].open_commitment == Decimal("70.00")
+
+
+def test_future_commitment_uses_delivery_month_and_missing_date_stays_unphased(services) -> None:
+    organization, project, _code, site, supplier, _period = _setup(services)
+    source = _commitment_source(
+        organization=organization, project=project, site=site, supplier=supplier,
+        revision=1, source_index=11,
+    ).model_copy(update={"expected_delivery_date": date(2026, 11, 15)})
+    future_line = _apply_source(services, source)
+    undated = _commitment_source(
+        organization=organization, project=project, site=site, supplier=supplier,
+        revision=1, source_index=12,
+    ).model_copy(update={"expected_delivery_date": None})
+    undated_line = _apply_source(services, undated)
+    cancelled = _commitment_source(
+        organization=organization, project=project, site=site, supplier=supplier,
+        revision=1, source_index=13, state=ProcurementCommitmentState.CANCELLED,
+    ).model_copy(update={"expected_delivery_date": date(2026, 11, 15)})
+    _apply_source(services, cancelled)
+
+    facts = services["finance_performance_query"].get_cost_phasing(
+        project.id,
+        date_from=date(2026, 9, 1),
+        date_to=date(2026, 12, 31),
+        as_of_date=date(2026, 9, 13),
+    )
+    assert [(row.period_key, row.open_commitment) for row in facts.periods] == [
+        ("2026-11", Decimal(100))
+    ]
+    commitment = next(item for item in facts.series_availability if item.series_code == "commitment")
+    assert commitment.phased_amount == Decimal(100)
+    assert commitment.unphased_amount == Decimal(100)
+    assert commitment.phased_amount + commitment.unphased_amount == Decimal(200)
+
+    services["session"].get(ProjectCommitmentLineORM, future_line.id).matched_amount = Decimal(100)
+    services["session"].get(ProjectCommitmentLineORM, undated_line.id).state = "closed"
+    services["session"].commit()
+    after = services["finance_performance_query"].get_cost_phasing(
+        project.id,
+        date_from=date(2026, 9, 1),
+        date_to=date(2026, 12, 31),
+        as_of_date=date(2026, 9, 13),
+    )
+    assert sum((row.open_commitment for row in after.periods), Decimal(0)) == 0
+    final_commitment = next(item for item in after.series_availability if item.series_code == "commitment")
+    assert final_commitment.phased_amount == 0
+    assert final_commitment.unphased_amount == 0
 
 
 def test_commitment_repository_isolates_active_organization(services) -> None:
-    organization, project, cost_code, site, supplier, _period = _setup(services)
-    line = services["commitment_service"].ingest_procurement_source(
+    organization, project, _cost_code, site, supplier, _period = _setup(services)
+    line = _apply_source(
+        services,
         _commitment_source(
             organization=organization, project=project, site=site, supplier=supplier, revision=1
         ),
-        cost_code_id=cost_code.id,
     )
     organization_service = services["organization_service"]
     other = organization_service.create_organization(
         organization_code="COMMIT2", display_name="Second commitment organization",
-        timezone_name="UTC", base_currency="EUR", is_enabled=True,
-    )
-    organization_service.enable_organization(other.id)
+        timezone_name="UTC", base_currency="EUR",    )
     services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError):
             services["commitment_service"].get_line(line.id)
     finally:
-        organization_service.enable_organization(organization.id)
         services["tenant_context_service"].set_active_organization(organization.id)
     assert services["commitment_service"].get_line(line.id).id == line.id
 

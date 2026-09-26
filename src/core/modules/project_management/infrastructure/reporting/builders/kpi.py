@@ -1,34 +1,42 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from datetime import date, timedelta
 from decimal import Decimal
 
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    GanttTaskBar,
+    ProjectKPI,
+    ResourceLoadRow,
+)
+from src.core.modules.project_management.application.resources.resource_load_engine import (
+    ResourceLoadEngine,
+)
+from src.core.modules.project_management.application.scheduling.models.cpm import (
+    CPMTaskInfo,
+)
+from src.core.modules.project_management.application.scheduling.services.scheduling_engine import (
+    SchedulingEngine,
+)
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
     ProjectResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
 )
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
-from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
-from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
-from src.core.modules.project_management.application.resources.resource_load_engine import (
-    ResourceLoadEngine,
-)
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
 )
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
-    GanttTaskBar,
-    ProjectKPI,
-    ResourceLoadRow,
+from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
 )
+
 
 class ReportingKpiMixin(ReportingCostPolicyMixin):
     _project_repo: ProjectRepository

@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
-from src.core.platform.infrastructure.persistence.orm.history.activity.activity import ActivityEntryORM
+from src.core.platform.infrastructure.persistence.orm.history.activity.activity import (
+    ActivityEntryORM,
+)
 
 
 def _to_json(payload: dict[str, Any]) -> str:

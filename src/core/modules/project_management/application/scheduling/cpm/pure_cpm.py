@@ -19,9 +19,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
-    CalendarProtocol,
-)
 from src.core.modules.project_management.application.scheduling.cpm.date_compute import (
     compute_task_dates_common,
 )
@@ -42,11 +39,16 @@ from src.core.modules.project_management.application.scheduling.cpm.task_date_ma
     compute_duration_dates,
     compute_milestone_dates,
 )
-from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.models.cpm import (
+    CPMTaskInfo,
+)
 from src.core.modules.project_management.application.scheduling.utils.task_priority import (
     get_task_priority_value,
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 @dataclass
@@ -137,4 +139,4 @@ def run_cpm(
     )
 
 
-__all__ = ["run_cpm", "CPMResult"]
+__all__ = ["CPMResult", "run_cpm"]

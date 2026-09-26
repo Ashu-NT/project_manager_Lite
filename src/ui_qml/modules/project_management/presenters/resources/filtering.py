@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 def normalize_active_filter(active_filter: str) -> str:
     normalized_value = (active_filter or "all").strip().lower()
     if normalized_value in {"all", "active", "inactive"}:

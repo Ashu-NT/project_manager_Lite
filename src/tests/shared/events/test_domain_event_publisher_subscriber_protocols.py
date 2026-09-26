@@ -32,7 +32,7 @@ def test_a_plain_function_matching_the_transactional_handler_shape_satisfies_it_
     """A transactional handler receives (event, uow) -- no context parameter, since it
     already has the current UnitOfWork to read tracing metadata from (ADR-005 §5)."""
 
-    def handle(event, uow) -> None:  # noqa: ANN001 -- structural shape check only
+    def handle(event, uow) -> None:
         pass
 
     # TransactionalEventHandler is a Protocol[E]; a plain two-parameter callable structurally
@@ -46,7 +46,7 @@ def test_a_plain_function_matching_the_post_commit_handler_shape_satisfies_it_st
     """A post-commit handler receives (event, context) -- never uow, since the transaction is
     already closed by the time it runs (ADR-005 §5, §8)."""
 
-    def handle(event, context: DomainEventContext) -> None:  # noqa: ANN001
+    def handle(event, context: DomainEventContext) -> None:
         pass
 
     handle(object(), DomainEventContext(correlation_id="corr-1"))

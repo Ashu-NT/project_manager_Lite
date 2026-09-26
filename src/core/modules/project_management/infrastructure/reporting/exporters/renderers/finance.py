@@ -24,6 +24,13 @@ def finance_metadata_rows(ctx: ReportExportContext) -> tuple[tuple[str, object],
     )
     page_start = page.offset + 1 if page.rows else 0
     page_end = page.offset + len(page.rows)
+    availability_rows = tuple(
+        (
+            f"Cost phasing {item.series_code}",
+            _cost_phasing_availability_label(item),
+        )
+        for item in snapshot.cost_phasing_availability
+    )
     return (
         ("Generated at (UTC)", ctx.generated_at.isoformat()),
         ("Snapshot as of", snapshot.as_of.isoformat()),
@@ -47,10 +54,12 @@ def finance_metadata_rows(ctx: ReportExportContext) -> tuple[tuple[str, object],
         ("Ledger page", f"Rows {page_start}-{page_end} of {page.total}"),
         ("Ledger page limit", page.limit),
         ("More ledger rows available", "Yes" if page.has_more else "No"),
-    )
+    ) + availability_rows
 
 
-def finance_summary_rows(ctx: ReportExportContext) -> tuple[tuple[str, Decimal | None], ...]:
+def finance_summary_rows(
+    ctx: ReportExportContext,
+) -> tuple[tuple[str, Decimal | None], ...]:
     snapshot = ctx.finance_snapshot
     if snapshot is None:
         return ()
@@ -61,7 +70,7 @@ def finance_summary_rows(ctx: ReportExportContext) -> tuple[tuple[str, Decimal |
         ("Posted actual", snapshot.actual),
         ("Approved forecast ETC", snapshot.forecast_etc),
         ("Estimate at completion", snapshot.estimate_at_completion),
-        ("Variance at completion", snapshot.variance_at_completion),
+        ("Budget headroom after forecast", snapshot.budget_headroom),
         ("Current exposure", snapshot.exposure),
         ("Available after actuals and commitments", snapshot.available),
     )
@@ -147,6 +156,17 @@ def _version_label(identifier: str | None, revision: int | None) -> str:
         return "Not approved"
     revision_label = "?" if revision is None else str(revision)
     return f"{identifier} / revision {revision_label}"
+
+
+def _cost_phasing_availability_label(item) -> str:
+    amounts = []
+    if item.phased_amount is not None:
+        amounts.append(f"phased={item.phased_amount}")
+    if item.unphased_amount is not None:
+        amounts.append(f"unphased={item.unphased_amount}")
+    detail = f" ({', '.join(amounts)})" if amounts else ""
+    reason = f": {item.unavailable_reason}" if item.unavailable_reason else ""
+    return f"{item.availability}{detail}{reason}"
 
 
 __all__ = [

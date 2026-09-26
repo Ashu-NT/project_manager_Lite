@@ -3,11 +3,19 @@ from datetime import timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import ApprovedTimeLaborPostingRepository
-from src.core.modules.project_management.domain.financials.labor_posting import ApprovedTimeLaborPosting
-from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import ApprovedTimeLaborPostingORM
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import (
+    ApprovedTimeLaborPostingRepository,
+)
+from src.core.modules.project_management.domain.financials.labor_posting import (
+    ApprovedTimeLaborPosting,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import (
+    ApprovedTimeLaborPostingORM,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.repositories._tenant_scope import TenantScopedRepositorySupport
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
 
 
 def _aware(value):

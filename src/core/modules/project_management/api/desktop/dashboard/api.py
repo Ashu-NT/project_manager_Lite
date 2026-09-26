@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
+    build_empty_overview,
+    build_overview_from_dashboard_data,
+)
+from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
+    fmt_date,
+)
 from src.core.modules.project_management.api.desktop.dashboard.models.overview import (
     ProjectDashboardOverviewDescriptor,
 )
@@ -13,11 +20,6 @@ from src.core.modules.project_management.api.desktop.dashboard.models.tables imp
     ProjectDashboardTableColumnDescriptor,
     ProjectDashboardTableRowDescriptor,
 )
-from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
-    build_empty_overview,
-    build_overview_from_dashboard_data,
-)
-from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import fmt_date
 from src.core.modules.project_management.api.desktop.dashboard.services.dashboard_snapshot_service import (
     DashboardSnapshotService,
 )

@@ -5,13 +5,17 @@ from collections.abc import Sequence
 from sqlalchemy import false, or_, select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
+from src.core.platform.contract.repositories.history.audit.contracts import (
+    AuditRepository,
+)
 from src.core.platform.domain.history.audit.audit_entry import AuditEntry
 from src.core.platform.infrastructure.persistence.mappers.history.audit.audit_entry import (
     audit_entry_from_orm,
     audit_entry_to_orm,
 )
-from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
+    AuditEntryORM,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
@@ -52,7 +56,9 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
         entity_type: str | None = None,
         operation: str | None = None,
         severity: str | None = None,
-        compliance_tag: str | None = None,
+        category: str | None = None,
+        result: str | None = None,
+        project_id: str | None = None,
         module: str | None = None,
         workspace_id: str | None = None,
         operation_prefixes: Sequence[str] | None = None,
@@ -68,8 +74,12 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
             stmt = stmt.where(AuditEntryORM.operation == operation)
         if severity is not None:
             stmt = stmt.where(AuditEntryORM.severity == severity)
-        if compliance_tag is not None:
-            stmt = stmt.where(AuditEntryORM.compliance_tag == compliance_tag)
+        if category is not None:
+            stmt = stmt.where(AuditEntryORM.category == category)
+        if result is not None:
+            stmt = stmt.where(AuditEntryORM.result == result)
+        if project_id is not None:
+            stmt = stmt.where(AuditEntryORM.project_id == project_id)
         stmt = self._apply_projection_filters(
             stmt,
             module=module,
@@ -86,25 +96,43 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
         limit: int = 100,
         *,
         entity_type: str | None = None,
+        entity_types: Sequence[str] | None = None,
         operation: str | None = None,
         severity: str | None = None,
+        category: str | None = None,
+        result: str | None = None,
+        project_id: str | None = None,
         module: str | None = None,
         workspace_id: str | None = None,
         operation_prefixes: Sequence[str] | None = None,
     ) -> list[AuditEntry]:
         ctx = self._context(operation_label="list audit entries for organization")
-        if not self._organization_in_scope(ctx, organization_id):
-            return []
+        # NOT _organization_in_scope (that helper means "== the caller's
+        # active organization", which is wrong here on purpose): this method
+        # exists specifically so Organization Detail can read activity for
+        # an organization the caller hasn't switched their active context
+        # to. Authorization is the tenant_id predicate below, already
+        # enforced identically to every other tenant-scoped repository
+        # method, plus the service-layer audit.read permission check.
         stmt = select(AuditEntryORM).where(
             AuditEntryORM.organization_id == organization_id,
             AuditEntryORM.tenant_id == ctx.tenant_id,
         )
         if entity_type is not None:
             stmt = stmt.where(AuditEntryORM.entity_type == entity_type)
+        if entity_types is not None:
+            normalized_types = tuple(str(t).strip() for t in entity_types if str(t).strip())
+            stmt = stmt.where(AuditEntryORM.entity_type.in_(normalized_types)) if normalized_types else stmt.where(false())
         if operation is not None:
             stmt = stmt.where(AuditEntryORM.operation == operation)
         if severity is not None:
             stmt = stmt.where(AuditEntryORM.severity == severity)
+        if category is not None:
+            stmt = stmt.where(AuditEntryORM.category == category)
+        if result is not None:
+            stmt = stmt.where(AuditEntryORM.result == result)
+        if project_id is not None:
+            stmt = stmt.where(AuditEntryORM.project_id == project_id)
         stmt = self._apply_projection_filters(
             stmt,
             module=module,

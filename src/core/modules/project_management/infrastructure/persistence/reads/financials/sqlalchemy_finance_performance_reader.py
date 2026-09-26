@@ -10,23 +10,36 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     CostPhasingFacts,
     CostPhasingPeriodFact,
     CostPhasingQuery,
+    CostPhasingSeriesAvailabilityFact,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.statements.finance_snapshot_statements import (
-    actual_cost_facts_statement,
+    actual_cost_phasing_statement,
     approved_forecast_facts_statement,
-    approved_forecast_line_facts_statement,
-    commitment_facts_statement,
-    planned_cost_facts_statement,
+    commitment_cost_phasing_statement,
+    commitment_unphased_cost_statement,
+    evm_baseline_statement,
+    evm_baseline_task_facts_statement,
+    forecast_cost_phasing_statement,
+    forecast_unphased_cost_statement,
     project_fact_statement,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 class SqlAlchemyFinancePerformanceReader:
     """Read only the scoped cost-stage facts required by Performance."""
 
-    def __init__(self, *, session: Session) -> None:
+    def __init__(
+        self,
+        *,
+        session: Session,
+        calendar: CalendarProtocol | None = None,
+    ) -> None:
         self._session = session
+        self._calendar = calendar
 
     def read_cost_phasing(
         self,
@@ -47,20 +60,20 @@ class SqlAlchemyFinancePerformanceReader:
             return None
 
         currency = str(project.currency_code or "").strip().upper()
+        as_of_date = query.as_of_date or query.date_to
         forecast = self._session.execute(
             approved_forecast_facts_statement(
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 project_id=project_id,
-                as_of=query.date_to,
+                as_of=as_of_date,
             )
         ).one_or_none()
         buckets: dict[str, dict[str, object]] = {}
+        availability: dict[str, CostPhasingSeriesAvailabilityFact] = {}
 
         def add(stage: str, anchor: date | None, amount: Decimal) -> None:
             resolved_anchor = anchor or query.date_to
-            if resolved_anchor < query.date_from or resolved_anchor > query.date_to:
-                return
             key, starts_on, ends_on = self._period_bounds(
                 resolved_anchor,
                 query.granularity,
@@ -70,77 +83,199 @@ class SqlAlchemyFinancePerformanceReader:
                 {
                     "period_start": starts_on,
                     "period_end": ends_on,
-                    "planned": Decimal("0"),
-                    "committed": Decimal("0"),
-                    "actual": Decimal("0"),
-                    "forecast": Decimal("0"),
+                    "planned": Decimal(0),
+                    "committed": Decimal(0),
+                    "actual": Decimal(0),
+                    "forecast": Decimal(0),
                 },
             )
             bucket[stage] = Decimal(bucket[stage]) + amount
 
-        for row in self._session.execute(
-            planned_cost_facts_statement(
+        baseline_id = self._session.execute(
+            evm_baseline_statement(
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 project_id=project_id,
-                as_of=query.date_to,
-                date_from=query.date_from,
+                baseline_id=None,
             )
-        ):
-            add(
-                "planned",
-                row.as_of,
-                self._project_currency_amount(
-                    row.amount,
-                    row.currency_code,
-                    currency,
-                    "Planned cost",
+        ).scalar_one_or_none()
+        if baseline_id is None:
+            availability["planned"] = CostPhasingSeriesAvailabilityFact(
+                series_code="planned",
+                availability="baseline_unavailable",
+                unavailable_reason="No approved cost-loaded baseline is available for Cost Phasing.",
+            )
+        elif self._calendar is None:
+            availability["planned"] = CostPhasingSeriesAvailabilityFact(
+                series_code="planned",
+                availability="calendar_unavailable",
+                unavailable_reason="The enterprise calendar is unavailable for baseline cost distribution.",
+            )
+        else:
+            baseline_rows = tuple(
+                self._session.execute(
+                    evm_baseline_task_facts_statement(
+                        tenant_id=tenant_id,
+                        organization_id=organization_id,
+                        project_id=project_id,
+                        baseline_id=str(baseline_id),
+                    )
+                )
+            )
+            planned_available = self._add_baseline_phasing(
+                buckets=buckets,
+                rows=baseline_rows,
+                query=query,
+                add=add,
+            )
+            availability["planned"] = CostPhasingSeriesAvailabilityFact(
+                series_code="planned",
+                availability="available"
+                if planned_available
+                else "calendar_unavailable",
+                unavailable_reason=(
+                    "The enterprise calendar cannot expose working-day dates for baseline cost distribution."
+                    if not planned_available
+                    else ""
                 ),
             )
 
         if forecast is not None:
+            phased_forecast = Decimal(0)
             for row in self._session.execute(
-                approved_forecast_line_facts_statement(
+                forecast_cost_phasing_statement(
                     tenant_id=tenant_id,
                     organization_id=organization_id,
                     project_id=project_id,
                     forecast_id=str(forecast.id),
                     date_from=query.date_from,
                     date_to=query.date_to,
+                    project_currency=currency,
                 )
             ):
+                if int(row.currency_mismatch_count or 0) != 0:
+                    raise BusinessRuleError(
+                        "Approved forecast currency cannot be reconciled to project currency.",
+                        code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+                    )
+                amount = Decimal(row.total_amount or 0)
+                phased_forecast += amount
                 add(
                     "forecast",
-                    row.period_start or row.as_of_date,
-                    self._project_currency_amount(
-                        row.amount,
-                        row.currency_code,
-                        currency,
-                        "Approved forecast",
-                    ),
+                    date(int(row.period_year), int(row.period_month), 1),
+                    amount,
                 )
+            unphased_forecast_row = self._session.execute(
+                forecast_unphased_cost_statement(
+                    tenant_id=tenant_id,
+                    organization_id=organization_id,
+                    project_id=project_id,
+                    forecast_id=str(forecast.id),
+                    project_currency=currency,
+                )
+            ).one()
+            if int(unphased_forecast_row.currency_mismatch_count or 0) != 0:
+                raise BusinessRuleError(
+                    "Approved forecast currency cannot be reconciled to project currency.",
+                    code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+                )
+            unphased_forecast_amount = Decimal(unphased_forecast_row.total_amount or 0)
+            availability["forecast"] = CostPhasingSeriesAvailabilityFact(
+                series_code="forecast",
+                availability="partially_unphased"
+                if unphased_forecast_amount
+                else "available",
+                unavailable_reason=(
+                    "Some approved Forecast lines span multiple months or have no period evidence; they are not fabricated into monthly values."
+                    if unphased_forecast_amount
+                    else ""
+                ),
+                phased_amount=phased_forecast,
+                unphased_amount=unphased_forecast_amount,
+            )
+        else:
+            availability["forecast"] = CostPhasingSeriesAvailabilityFact(
+                series_code="forecast",
+                availability="forecast_unavailable",
+                unavailable_reason="No approved Forecast exists for this as-of date.",
+            )
 
+        phased_commitment = Decimal(0)
         for row in self._session.execute(
-            commitment_facts_statement(
+            commitment_cost_phasing_statement(
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 project_id=project_id,
-                as_of=query.date_to,
+                as_of=as_of_date,
                 date_from=query.date_from,
+                date_to=query.date_to,
+                project_currency=currency,
             )
         ):
-            add("committed", row.order_date, self._commitment_amount(row, currency))
-
-        for row in self._session.execute(
-            actual_cost_facts_statement(
+            if int(row.currency_mismatch_count or 0) != 0:
+                raise BusinessRuleError(
+                    "Open Commitment currency cannot be reconciled to project currency.",
+                    code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+                )
+            amount = Decimal(row.total_amount or 0)
+            phased_commitment += amount
+            add(
+                "committed",
+                date(int(row.period_year), int(row.period_month), 1),
+                amount,
+            )
+        unphased_commitment_row = self._session.execute(
+            commitment_unphased_cost_statement(
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 project_id=project_id,
-                as_of=query.date_to,
+                as_of=as_of_date,
+                project_currency=currency,
+            )
+        ).one()
+        if int(unphased_commitment_row.currency_mismatch_count or 0) != 0:
+            raise BusinessRuleError(
+                "Open Commitment currency cannot be reconciled to project currency.",
+                code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+            )
+        unphased_commitment_amount = Decimal(unphased_commitment_row.total_amount or 0)
+        availability["commitment"] = CostPhasingSeriesAvailabilityFact(
+            series_code="commitment",
+            availability="partially_unphased"
+            if unphased_commitment_amount
+            else "available",
+            unavailable_reason=(
+                "Some open Commitments have no expected delivery date and are excluded from period allocation."
+                if unphased_commitment_amount
+                else ""
+            ),
+            phased_amount=phased_commitment,
+            unphased_amount=unphased_commitment_amount,
+        )
+
+        for row in self._session.execute(
+            actual_cost_phasing_statement(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
                 date_from=query.date_from,
+                date_to=min(query.date_to, as_of_date),
+                project_currency=currency,
             )
         ):
-            add("actual", row.posting_date, self._actual_amount(row, currency))
+            if int(row.currency_mismatch_count or 0) != 0:
+                raise BusinessRuleError(
+                    "Posted actual currency cannot be reconciled to project currency.",
+                    code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+                )
+            add(
+                "actual",
+                date(int(row.period_year), int(row.period_month), 1),
+                Decimal(row.total_amount or 0),
+            )
+        availability["actual"] = CostPhasingSeriesAvailabilityFact(
+            series_code="actual", availability="available"
+        )
 
         periods = tuple(
             CostPhasingPeriodFact(
@@ -162,13 +297,15 @@ class SqlAlchemyFinancePerformanceReader:
             tenant_id=tenant_id,
             organization_id=organization_id,
             project_id=project_id,
-            as_of_date=query.date_to,
+            as_of_date=as_of_date,
             date_from=query.date_from,
             date_to=query.date_to,
             granularity=query.granularity,
             currency_code=currency,
             approved_budget_id=(
-                None if project.approved_budget_id is None else str(project.approved_budget_id)
+                None
+                if project.approved_budget_id is None
+                else str(project.approved_budget_id)
             ),
             approved_budget_revision=(
                 None
@@ -179,11 +316,53 @@ class SqlAlchemyFinancePerformanceReader:
             approved_forecast_revision=(
                 None if forecast is None else int(forecast.revision)
             ),
-            approved_forecast_as_of=(
-                None if forecast is None else forecast.as_of_date
+            approved_forecast_as_of=(None if forecast is None else forecast.as_of_date),
+            series_availability=tuple(
+                availability[key]
+                for key in ("planned", "actual", "forecast", "commitment")
             ),
             periods=periods,
         )
+
+    def _add_baseline_phasing(self, *, buckets, rows, query, add) -> bool:
+        """Allocate approved baseline task cost evenly across enterprise working days."""
+        loader = getattr(self._calendar, "working_day_dates_between", None)
+        if callable(loader):
+            starts = [
+                row.baseline_start for row in rows if row.baseline_start is not None
+            ]
+            ends = [
+                row.baseline_finish for row in rows if row.baseline_finish is not None
+            ]
+            if not starts or not ends:
+                return True
+            working_dates = tuple(loader(min(starts), max(ends)))
+        else:
+            # The legacy calendar contract can count days but cannot expose
+            # their identities, so it cannot truthfully allocate monthly cost.
+            return False
+        for row in rows:
+            if row.baseline_start is None or row.baseline_finish is None:
+                continue
+            days = tuple(
+                day
+                for day in working_dates
+                if row.baseline_start <= day <= row.baseline_finish
+            )
+            if not days:
+                continue
+            daily = Decimal(row.baseline_planned_cost or 0) / Decimal(len(days))
+            allocated = Decimal(0)
+            for index, day in enumerate(days):
+                amount = (
+                    Decimal(row.baseline_planned_cost or 0) - allocated
+                    if index == len(days) - 1
+                    else daily
+                )
+                allocated += amount
+                if query.date_from <= day <= query.date_to:
+                    add("planned", day, amount)
+        return True
 
     @staticmethod
     def _period_bounds(anchor: date, granularity: str) -> tuple[str, date, date]:
@@ -208,49 +387,6 @@ class SqlAlchemyFinancePerformanceReader:
                 anchor.month,
                 monthrange(anchor.year, anchor.month)[1],
             ),
-        )
-
-    @staticmethod
-    def _project_currency_amount(
-        amount: object,
-        currency_code: str | None,
-        project_currency: str,
-        source_label: str,
-    ) -> Decimal:
-        if str(currency_code or "").strip().upper() != project_currency:
-            raise BusinessRuleError(
-                f"{source_label} currency cannot be reconciled to project currency.",
-                code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
-            )
-        return Decimal(amount or 0)
-
-    @staticmethod
-    def _actual_amount(row: object, project_currency: str) -> Decimal:
-        if str(row.currency_code or "").strip().upper() == project_currency:
-            return Decimal(row.amount or 0)
-        if (
-            str(row.base_currency_code or "").strip().upper() == project_currency
-            and row.base_amount is not None
-        ):
-            return Decimal(row.base_amount)
-        raise BusinessRuleError(
-            "Posted actual currency cannot be reconciled to project currency.",
-            code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
-        )
-
-    @staticmethod
-    def _commitment_amount(row: object, project_currency: str) -> Decimal:
-        if str(row.state) in {"closed", "cancelled"}:
-            return Decimal("0")
-        matched = Decimal(row.matched_amount or 0)
-        if str(row.currency_code or "").strip().upper() == project_currency:
-            return max(Decimal("0"), Decimal(row.amount or 0) - matched)
-        if str(row.base_currency_code or "").strip().upper() == project_currency:
-            matched_base = matched * Decimal(row.exchange_rate or 0)
-            return max(Decimal("0"), Decimal(row.base_amount or 0) - matched_base)
-        raise BusinessRuleError(
-            "Commitment currency cannot be reconciled to project currency.",
-            code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
         )
 
 

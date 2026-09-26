@@ -3,11 +3,19 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.modules.project_management.context_navigation import (
+    build_pm_context_navigation,
+)
 from src.ui_qml.modules.project_management.navigation import (
     PM_CANONICAL_ROUTE_ID,
     PM_WORKSPACE_KEYS,
     compatibility_route_intent,
     workspace_intent,
+)
+from src.ui_qml.shell.context_navigation import (
+    filter_context_navigation,
+    resolve_breadcrumb,
+    resolve_safe_context_destination,
 )
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
@@ -52,20 +60,34 @@ class PMWorkspaceNavigationController(QObject):
         }
 
     @Property("QVariantList", constant=True)
-    def navigationItems(self) -> list[dict[str, str]]:
-        return [
-            {"id": "dashboard", "label": "Overview", "group": "Overview", "icon": "dashboard"},
-            {"id": "portfolio", "label": "Portfolio", "group": "Portfolio", "icon": "portfolio"},
-            {"id": "projects", "label": "Projects", "group": "Work", "icon": "project"},
-            {"id": "tasks", "label": "Tasks", "group": "Work", "icon": "tasks"},
-            {"id": "scheduling", "label": "Planning", "group": "Work", "icon": "calendar"},
-            {"id": "timesheets", "label": "Timesheets", "group": "Work", "icon": "time"},
-            {"id": "resources", "label": "Resources", "group": "Workload Management", "icon": "resources"},
-            {"id": "review_queue", "label": "Review Queue", "group": "Workload Management", "icon": "approve"},
-            {"id": "financials", "label": "Finance", "group": "Finance", "icon": "financials"},
-            {"id": "register", "label": "Register", "group": "Governance", "icon": "register"},
-            {"id": "collaboration", "label": "Collaboration", "group": "Governance", "icon": "collaboration"},
-        ]
+    def contextNavigation(self) -> list[dict[str, object]]:
+        return build_pm_context_navigation().to_qml_groups()
+
+    @Property("QVariantList", notify=selectionChanged)
+    def breadcrumb(self) -> list[str]:
+        return resolve_breadcrumb(
+            workspace_title="Project Management",
+            tree=build_pm_context_navigation(),
+            current_id=self._workspace_key,
+        )
+
+    @Slot("QVariantList")
+    def refreshContextAvailability(self, accessible_workspace_keys) -> None:
+        """Re-validate the current workspace selection against a filtered
+        set of accessible workspace keys, redirecting to a safe destination
+        when the current one is no longer present. PM's context navigation
+        is not filtered by permissions today, so nothing calls this yet --
+        it exists so a future Level-2 PM accessibility source can plug in
+        through the same redirect contract Platform already uses."""
+        accessible_ids = frozenset(str(key) for key in (accessible_workspace_keys or []))
+        if not accessible_ids:
+            return
+        filtered = filter_context_navigation(build_pm_context_navigation(), accessible_ids)
+        safe_key = resolve_safe_context_destination(
+            self._workspace_key, filtered, preferred_id="dashboard"
+        )
+        if safe_key != self._workspace_key:
+            self.selectWorkspace(safe_key)
 
     @Slot(str, result=bool)
     def applyRoute(self, route_id: str) -> bool:

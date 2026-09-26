@@ -12,7 +12,9 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import run_cpm
+from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
+    run_cpm,
+)
 from src.core.modules.project_management.application.scheduling.leveling.leveling import (
     build_resource_conflicts,
 )

@@ -28,41 +28,42 @@ from src.core.modules.project_management.application.financials.forecasts.genera
 from src.core.modules.project_management.application.financials.forecasts.version_service import (
     ForecastVersionService,
 )
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
-    ProjectRateCardService,
-)
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
     FinanceGovernanceOperations,
 )
-from src.core.modules.project_management.domain.financials.financial_change import (
-    FinancialChangeImpactType,
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
+    ProjectRateCardService,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinancePageRequest,
 )
-from src.core.platform.common.exceptions import ConcurrencyError
-from src.core.platform.domain.approval import ApprovalStatus
-from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
-    SqlAlchemyApprovalRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
-    SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
+from src.core.modules.project_management.domain.financials.financial_change import (
+    FinancialChangeImpactType,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_budget_reader import (
     SqlAlchemyFinanceBudgetReader,
 )
+from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
+    SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.core.platform.common.exceptions import ConcurrencyError
+from src.core.platform.domain.approval import ApprovalStatus
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,
 )
-from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
+    SqlAlchemyApprovalRepository,
+)
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
-
 
 pytestmark = pytest.mark.postgresql_integration
 TENANT_A = "r6c-command-tenant-a"
@@ -122,8 +123,8 @@ def seeded_r6c_scopes(postgres_test_environment):
                 text(
                     "INSERT INTO organizations "
                     "(id, tenant_id, organization_code, display_name, timezone_name, "
-                    "base_currency, is_enabled, version) "
-                    "VALUES (:org, :tenant, :code, :code, 'UTC', 'USD', true, 1)"
+                    "base_currency, status, version) "
+                    "VALUES (:org, :tenant, :code, :code, 'UTC', 'USD', 'active', 1)"
                 ),
                 {"org": org_id, "tenant": tenant_id, "code": f"R6C-ORG-{suffix}"},
             )
@@ -131,9 +132,9 @@ def seeded_r6c_scopes(postgres_test_environment):
             text(
                 "INSERT INTO organizations "
                 "(id, tenant_id, organization_code, display_name, timezone_name, "
-                "base_currency, is_enabled, version) "
+                "base_currency, status, version) "
                 "VALUES (:org, :tenant, 'R6C-ORG-A2', 'R6C Org A2', "
-                "'UTC', 'USD', true, 1)"
+                "'UTC', 'USD', 'active', 1)"
             ),
             {"org": ORG_A2, "tenant": TENANT_A},
         )
@@ -270,7 +271,6 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
                 record_event=uow.record_event,
             ),
             planned_costs=SimpleNamespace(),
-            commitments=SimpleNamespace(),
             cost_entries=SimpleNamespace(),
             billing_profiles=SimpleNamespace(),
             billing_preparations=SimpleNamespace(),

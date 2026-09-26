@@ -9,8 +9,8 @@ import logging
 import pytest
 from sqlalchemy import text
 
-from src.core.shared.persistence.unit_of_work import UnitOfWorkClosedError
 from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.persistence.unit_of_work import UnitOfWorkClosedError
 
 
 def _context(correlation_id: str = "corr-1") -> DomainEventContext:
@@ -116,9 +116,8 @@ def test_clean_exit_after_commit_does_nothing_further(uow_factory) -> None:
 
 
 def test_exception_before_commit_rolls_back_and_closes(uow_factory) -> None:
-    with pytest.raises(ValueError):
-        with uow_factory.create(context=_context()) as uow:
-            raise ValueError("something failed before commit was reached")
+    with pytest.raises(ValueError), uow_factory.create(context=_context()) as uow:
+        raise ValueError("something failed before commit was reached")
 
     assert uow._closed is True
     assert uow._committed is False
@@ -177,18 +176,15 @@ def test_using_unit_of_work_after_close_raises_unit_of_work_closed_error(uow_fac
 def test_tracked_aggregates_remains_readable_after_rollback_for_inspection(uow_factory) -> None:
     """ADR-005 Sec9's rollback-safety rule: pending events/aggregates may remain available
     for inspection after a rollback -- tracked_aggregates() is not closed-checked."""
-    from dataclasses import dataclass
-    from datetime import datetime, timezone
 
     from src.core.shared.events.aggregate_events import RecordsDomainEvents
 
     class _Agg(RecordsDomainEvents):
         pass
 
-    with pytest.raises(ValueError):
-        with uow_factory.create(context=_context()) as uow:
-            agg = _Agg()
-            uow.register_touched(agg)
-            raise ValueError("boom")
+    with pytest.raises(ValueError), uow_factory.create(context=_context()) as uow:
+        agg = _Agg()
+        uow.register_touched(agg)
+        raise ValueError("boom")
 
     assert len(uow.tracked_aggregates()) == 1  # still inspectable, not closed-checked

@@ -5,8 +5,8 @@ from src.core.modules.project_management.domain.collaboration.comments.comment i
     normalize_task_comment_body,
 )
 from src.core.modules.project_management.domain.collaboration.mentions.mention import (
-    CollaborationMentionCandidate,
     MENTION_RE,
+    CollaborationMentionCandidate,
     candidate_handles,
     extract_mention_tokens,
     resolve_mentions,
@@ -22,11 +22,11 @@ from src.core.modules.project_management.domain.collaboration.presence.presence 
 )
 
 __all__ = [
+    "MENTION_RE",
     "CollaborationContextOptions",
     "CollaborationInboxItem",
     "CollaborationInboxPage",
     "CollaborationMentionCandidate",
-    "MENTION_RE",
     "TaskComment",
     "TaskPresence",
     "TaskPresenceStatusItem",

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -13,6 +12,12 @@ class ServicePrincipalORM(Base):
     __tablename__ = "service_principals"
     __table_args__ = (
         UniqueConstraint("tenant_id", "name", name="ux_service_principals_tenant_name"),
+        UniqueConstraint(
+            "tenant_id",
+            "organization_id",
+            "id",
+            name="uq_service_principals_scoped_id",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -40,7 +45,7 @@ class ServicePrincipalORM(Base):
         default="active",
         server_default="active",
     )
-    created_by_user_id: Mapped[Optional[str]] = mapped_column(
+    created_by_user_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -72,9 +77,9 @@ class ApiKeyCredentialORM(Base):
     secret_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     permission_scopes_json: Mapped[str] = mapped_column(Text, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_by_user_id: Mapped[Optional[str]] = mapped_column(
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_by_user_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,

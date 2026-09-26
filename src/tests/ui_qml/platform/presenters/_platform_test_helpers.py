@@ -4,13 +4,13 @@ from dataclasses import replace
 from datetime import datetime
 from types import SimpleNamespace
 
-from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
 from src.core.platform.api.desktop.access.models.access import (
+    ScopedAccessGrantDto,
     ScopeTargetDto,
     ScopeTypeChoiceDto,
-    ScopedAccessGrantDto,
 )
 from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
+from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentDto,
     DepartmentRollupSummaryDto,
@@ -27,17 +27,35 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeHeadcountSummaryDto,
     EmployeeSiteBreakdownRowDto,
 )
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
-from src.core.platform.api.desktop.master_data.party.models.party import PartyDto, PartyRollupSummaryDto
-from src.core.platform.api.desktop.master_data.site.models.site import SiteDto, SiteRollupSummaryDto
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
+from src.core.platform.api.desktop.master_data.party.models.party import (
+    PartyDto,
+    PartyRollupSummaryDto,
+)
+from src.core.platform.api.desktop.master_data.site.models.site import (
+    SiteDto,
+    SitePageDto,
+    SiteRollupSummaryDto,
+)
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
 from src.core.platform.api.desktop.platform_runtime.models.runtime import (
+    CountryDto,
     ModuleDto,
     ModuleEntitlementDto,
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
+    TimezoneDto,
 )
-from src.core.platform.api.desktop.security.auth.models.user import RoleDto, UserDto, UserRollupSummaryDto
+from src.core.platform.api.desktop.security.auth.models.user import (
+    RoleDto,
+    UserDto,
+    UserRollupSummaryDto,
+)
 from src.core.platform.api.desktop.support.models.support import (
     SupportBundleDto,
     SupportEventDto,
@@ -47,6 +65,10 @@ from src.core.platform.api.desktop.support.models.support import (
     SupportUpdateStatusDto,
 )
 from src.core.platform.domain.approval import ApprovalStatus
+from src.core.platform.domain.master_data.org import (
+    ORGANIZATION_STATUS_ACTIVE,
+    ORGANIZATION_STATUS_INACTIVE,
+)
 
 
 def _organization(*, organization_id: str, code: str, display_name: str, is_active: bool = True) -> OrganizationDto:
@@ -56,7 +78,7 @@ def _organization(*, organization_id: str, code: str, display_name: str, is_acti
         display_name=display_name,
         timezone_name="UTC",
         base_currency="EUR",
-        is_enabled=is_active,
+        status=ORGANIZATION_STATUS_ACTIVE if is_active else ORGANIZATION_STATUS_INACTIVE,
         version=1,
     )
 
@@ -130,7 +152,9 @@ class FakePlatformRuntimeApi:
         self._rebuild_runtime_context()
 
     def _rebuild_runtime_context(self) -> None:
-        active_organization = next((row for row in self._organizations if row.is_enabled), None)
+        active_organization = next(
+            (row for row in self._organizations if row.status == ORGANIZATION_STATUS_ACTIVE), None
+        )
         self._runtime_context = PlatformRuntimeContextDto(
             context_label="Enterprise Runtime",
             shell_summary="2 modules licensed",
@@ -153,14 +177,68 @@ class FakePlatformRuntimeApi:
     def get_runtime_context(self) -> DesktopApiResult[PlatformRuntimeContextDto]:
         return DesktopApiResult(ok=True, data=self._runtime_context)
 
-    def list_organizations(self, *, enabled_only: bool | None = None) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+    def list_organizations(self, *, status: str | None = None) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         rows = self._organizations
-        if enabled_only is not None:
-            rows = [row for row in rows if row.is_enabled == enabled_only]
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
         return DesktopApiResult(ok=True, data=tuple(rows))
 
     def get_organization_count(self) -> DesktopApiResult[int]:
         return DesktopApiResult(ok=True, data=len(self._organizations))
+
+    def list_countries(self) -> DesktopApiResult[tuple[CountryDto, ...]]:
+        return DesktopApiResult(
+            ok=True,
+            data=(
+                CountryDto(code="US", name="United States of America"),
+                CountryDto(code="NL", name="Netherlands"),
+            ),
+        )
+
+    def list_timezones(self) -> DesktopApiResult[tuple[TimezoneDto, ...]]:
+        return DesktopApiResult(
+            ok=True,
+            data=(
+                TimezoneDto(name="UTC"),
+                TimezoneDto(name="Europe/Amsterdam"),
+            ),
+        )
+
+    def list_organizations_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str | None = None,
+        status: str | None = None,
+    ) -> DesktopApiResult[object]:
+        from src.core.platform.api.desktop.master_data.org.models.organization import (
+            OrganizationCatalogPageDto,
+        )
+
+        rows = self._organizations
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
+        total = len(self._organizations)
+        if search:
+            needle = search.strip().lower()
+            rows = [
+                row for row in rows
+                if needle in row.display_name.lower() or needle in row.organization_code.lower()
+            ]
+        filtered_total = len(rows)
+        offset = max(0, (page - 1) * page_size)
+        page_rows = rows[offset:offset + page_size]
+        return DesktopApiResult(
+            ok=True,
+            data=OrganizationCatalogPageDto(
+                items=tuple(page_rows),
+                total=total,
+                filtered_total=filtered_total,
+                page=page,
+                page_size=page_size,
+            ),
+        )
 
     def get_current_permissions(self) -> DesktopApiResult[tuple[str, ...]]:
         # This fake represents a fully-connected, admin-like caller in
@@ -200,16 +278,28 @@ class FakePlatformRuntimeApi:
                     category="conflict",
                 ),
             )
-        # No mutual-exclusion sibling deactivation -- multiple organizations may be
-        # is_enabled=True simultaneously.
+        # New organizations are always created ACTIVE -- lifecycle transitions
+        # happen via a separate activate/deactivate/archive call.
         organization = OrganizationDto(
             id=f"org-{len(self._organizations) + 1}",
             organization_code=command.organization_code,
             display_name=command.display_name,
             timezone_name=command.timezone_name,
             base_currency=command.base_currency,
-            is_enabled=command.is_enabled,
+            status=ORGANIZATION_STATUS_ACTIVE,
             version=1,
+            legal_name=command.legal_name,
+            registration_number=command.registration_number,
+            tax_id=command.tax_id,
+            address_line_1=command.address_line_1,
+            address_line_2=command.address_line_2,
+            postal_code=command.postal_code,
+            city=command.city,
+            state_region=command.state_region,
+            country_code=command.country_code,
+            email=command.email,
+            phone=command.phone,
+            website=command.website,
         )
         self._organizations.append(organization)
         self._rebuild_runtime_context()
@@ -225,8 +315,21 @@ class FakePlatformRuntimeApi:
                 display_name=command.display_name or row.display_name,
                 timezone_name=command.timezone_name or row.timezone_name,
                 base_currency=command.base_currency or row.base_currency,
-                is_enabled=row.is_enabled if command.is_enabled is None else command.is_enabled,
                 version=row.version + 1,
+                legal_name=row.legal_name if command.legal_name is None else command.legal_name,
+                registration_number=(
+                    row.registration_number if command.registration_number is None else command.registration_number
+                ),
+                tax_id=row.tax_id if command.tax_id is None else command.tax_id,
+                address_line_1=row.address_line_1 if command.address_line_1 is None else command.address_line_1,
+                address_line_2=row.address_line_2 if command.address_line_2 is None else command.address_line_2,
+                postal_code=row.postal_code if command.postal_code is None else command.postal_code,
+                city=row.city if command.city is None else command.city,
+                state_region=row.state_region if command.state_region is None else command.state_region,
+                country_code=row.country_code if command.country_code is None else command.country_code,
+                email=row.email if command.email is None else command.email,
+                phone=row.phone if command.phone is None else command.phone,
+                website=row.website if command.website is None else command.website,
             )
             self._organizations[index] = updated
             self._rebuild_runtime_context()
@@ -240,12 +343,21 @@ class FakePlatformRuntimeApi:
             ),
         )
 
-    def enable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
-        # Availability mutation only -- never touches any other organization row.
+    def activate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        # Lifecycle mutation only -- never touches any other organization row.
+        return self._transition_organization_status(organization_id, ORGANIZATION_STATUS_ACTIVE)
+
+    def deactivate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        return self._transition_organization_status(organization_id, ORGANIZATION_STATUS_INACTIVE)
+
+    def archive_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        return self._transition_organization_status(organization_id, "archived")
+
+    def _transition_organization_status(self, organization_id: str, status: str) -> DesktopApiResult[OrganizationDto]:
         for index, row in enumerate(self._organizations):
             if row.id != organization_id:
                 continue
-            updated = replace(row, is_enabled=True, version=row.version + 1)
+            updated = replace(row, status=status, version=row.version + 1)
             self._organizations[index] = updated
             self._rebuild_runtime_context()
             return DesktopApiResult(ok=True, data=updated)
@@ -258,10 +370,46 @@ class FakePlatformRuntimeApi:
             ),
         )
 
+    def bulk_activate_organizations(self, organization_ids) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return self._bulk_transition_organization_status(organization_ids, ORGANIZATION_STATUS_ACTIVE)
+
+    def bulk_deactivate_organizations(self, organization_ids) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return self._bulk_transition_organization_status(organization_ids, ORGANIZATION_STATUS_INACTIVE)
+
+    def bulk_archive_organizations(self, organization_ids) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return self._bulk_transition_organization_status(organization_ids, "archived")
+
+    def _bulk_transition_organization_status(
+        self, organization_ids, status: str
+    ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        updated_rows: list[OrganizationDto] = []
+        ids = set(organization_ids)
+        for index, row in enumerate(self._organizations):
+            if row.id not in ids:
+                continue
+            updated = replace(row, status=status, version=row.version + 1)
+            self._organizations[index] = updated
+            updated_rows.append(updated)
+        self._rebuild_runtime_context()
+        return DesktopApiResult(ok=True, data=tuple(updated_rows))
+
     def license_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._apply_module_transition(module_code, licensed=True)
 
     def revoke_module_license(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._apply_module_transition(module_code, licensed=False)
+
+    def license_module_for_organization(
+        self, organization_id: str, module_code: str
+    ) -> DesktopApiResult[ModuleEntitlementDto]:
+        # Organization-scoping isn't modeled in this fake's single shared
+        # entitlement list -- callers that need a real per-organization
+        # distinction should assert against the real service tests instead.
+        return self._apply_module_transition(module_code, licensed=True)
+
+    def revoke_module_license_for_organization(
+        self, organization_id: str, module_code: str
+    ) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._apply_module_transition(module_code, licensed=False)
 
     def enable_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
@@ -342,7 +490,38 @@ class FakePlatformSiteApi:
             ),
         )
 
+    def list_sites_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+    ) -> DesktopApiResult[SitePageDto]:
+        rows = [row for row in self._rows if row.organization_id == organization_id]
+        total = len(rows)
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        normalized_search = (search or "").strip().lower()
+        if normalized_search:
+            rows = [
+                row for row in rows
+                if normalized_search in row.name.lower() or normalized_search in row.site_code.lower()
+            ]
+        filtered_total = len(rows)
+        start = max(0, (page - 1) * page_size)
+        page_rows = rows[start:start + page_size]
+        return DesktopApiResult(
+            ok=True,
+            data=SitePageDto(
+                items=tuple(page_rows), total=total, filtered_total=filtered_total, page=page, page_size=page_size,
+            ),
+        )
+
     def create_site(self, command) -> DesktopApiResult[SiteDto]:
+        # Lifecycle is never settable through SiteCreateCommand -- every new
+        # site starts ACTIVE, matching the real create_site() contract.
         active_organization = self._runtime_api.get_runtime_context().data.active_organization
         site = SiteDto(
             id=f"site-{len(self._rows) + 1}",
@@ -359,10 +538,10 @@ class FakePlatformSiteApi:
             timezone=command.timezone_name,
             currency_code=command.currency_code,
             site_type=command.site_type,
-            status=command.status,
+            status="active",
             default_calendar_id="",
             default_language="en",
-            is_active=command.is_active,
+            is_active=True,
             notes=command.notes,
             version=1,
         )
@@ -370,6 +549,8 @@ class FakePlatformSiteApi:
         return DesktopApiResult(ok=True, data=site)
 
     def update_site(self, command) -> DesktopApiResult[SiteDto]:
+        # Pure profile update -- SiteUpdateCommand carries no status/is_active
+        # field; lifecycle changes only through activate_site/deactivate_site.
         for index, row in enumerate(self._rows):
             if row.id != command.site_id:
                 continue
@@ -383,9 +564,7 @@ class FakePlatformSiteApi:
                 timezone=row.timezone if command.timezone_name is None else command.timezone_name,
                 currency_code=row.currency_code if command.currency_code is None else command.currency_code,
                 site_type=row.site_type if command.site_type is None else command.site_type,
-                status=row.status if command.status is None else command.status,
                 notes=row.notes if command.notes is None else command.notes,
-                is_active=row.is_active if command.is_active is None else command.is_active,
                 version=row.version + 1,
             )
             self._rows[index] = updated
@@ -393,6 +572,27 @@ class FakePlatformSiteApi:
         return DesktopApiResult(
             ok=False,
             error=DesktopApiError(code="site_not_found", message=f"Site '{command.site_id}' was not found.", category="not_found"),
+        )
+
+    def activate_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
+        return self._transition_site_status(site_id, status="active", is_active=True)
+
+    def deactivate_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
+        return self._transition_site_status(site_id, status="inactive", is_active=False)
+
+    def archive_site(self, site_id: str) -> DesktopApiResult[SiteDto]:
+        return self._transition_site_status(site_id, status="archived", is_active=False)
+
+    def _transition_site_status(self, site_id: str, *, status: str, is_active: bool) -> DesktopApiResult[SiteDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != site_id:
+                continue
+            updated = replace(row, status=status, is_active=is_active, version=row.version + 1)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(code="site_not_found", message=f"Site '{site_id}' was not found.", category="not_found"),
         )
 
 
@@ -432,8 +632,8 @@ class FakePlatformDepartmentApi:
             parent_department_id=command.parent_department_id,
             department_type=command.department_type,
             cost_center_code=command.cost_center_code,
-            manager_employee_id=None,
-            is_active=command.is_active,
+            head_of_department_employee_id=command.head_of_department_employee_id or None,
+            is_active=True,
             notes=command.notes,
             version=1,
         )
@@ -453,7 +653,7 @@ class FakePlatformDepartmentApi:
                 parent_department_id=row.parent_department_id if command.parent_department_id is None else command.parent_department_id,
                 department_type=row.department_type if command.department_type is None else command.department_type,
                 cost_center_code=row.cost_center_code if command.cost_center_code is None else command.cost_center_code,
-                is_active=row.is_active if command.is_active is None else command.is_active,
+                head_of_department_employee_id=row.head_of_department_employee_id if command.head_of_department_employee_id is None else (command.head_of_department_employee_id or None),
                 notes=row.notes if command.notes is None else command.notes,
                 version=row.version + 1,
             )
@@ -462,6 +662,24 @@ class FakePlatformDepartmentApi:
         return DesktopApiResult(
             ok=False,
             error=DesktopApiError(code="department_not_found", message=f"Department '{command.department_id}' was not found.", category="not_found"),
+        )
+
+    def activate_department(self, department_id: str) -> DesktopApiResult[DepartmentDto]:
+        return self._transition_department_status(department_id, is_active=True)
+
+    def deactivate_department(self, department_id: str) -> DesktopApiResult[DepartmentDto]:
+        return self._transition_department_status(department_id, is_active=False)
+
+    def _transition_department_status(self, department_id: str, *, is_active: bool) -> DesktopApiResult[DepartmentDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != department_id:
+                continue
+            updated = replace(row, is_active=is_active, version=row.version + 1)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(code="department_not_found", message=f"Department '{department_id}' was not found.", category="not_found"),
         )
 
 
@@ -1075,8 +1293,8 @@ class FakePlatformEnterpriseAuditApi:
     def list_recent(self, *, limit: int = 25, **kwargs) -> DesktopApiResult[tuple[AuditEntryDto, ...]]:
         return DesktopApiResult(ok=True, data=self._rows[:limit])
 
-    def list_for_overview(self, *, limit: int = 50) -> list[dict]:
-        return []
+    def list_for_overview(self, *, limit: int = 50) -> tuple[AuditEntryDto, ...]:
+        return ()
 
 
 class FakePlatformSupportApi:
@@ -1204,8 +1422,8 @@ def build_connected_platform_registry() -> SimpleNamespace:
         SiteDto(id="site-2", organization_id="org-1", site_code="DXB", name="Dubai Yard", description="Secondary site", country="AE", region="Dubai", city="Dubai", address_line_1="Street 2", address_line_2="", postal_code="00000", timezone="Asia/Dubai", currency_code="AED", site_type="yard", status="inactive", default_calendar_id="cal-2", default_language="en", is_active=False, notes="", version=1),
     )
     department_rows = (
-        DepartmentDto(id="dep-1", organization_id="org-1", department_code="ENG", name="Engineering", description="Engineering", site_id="site-1", parent_department_id=None, department_type="functional", cost_center_code="CC-1", manager_employee_id=None, is_active=True, notes="", version=1),
-        DepartmentDto(id="dep-2", organization_id="org-1", department_code="OPS", name="Operations", description="Operations", site_id="site-2", parent_department_id=None, department_type="functional", cost_center_code="CC-2", manager_employee_id=None, is_active=False, notes="", version=1),
+        DepartmentDto(id="dep-1", organization_id="org-1", department_code="ENG", name="Engineering", description="Engineering", site_id="site-1", parent_department_id=None, department_type="functional", cost_center_code="CC-1", head_of_department_employee_id=None, is_active=True, notes="", version=1),
+        DepartmentDto(id="dep-2", organization_id="org-1", department_code="OPS", name="Operations", description="Operations", site_id="site-2", parent_department_id=None, department_type="functional", cost_center_code="CC-2", head_of_department_employee_id=None, is_active=False, notes="", version=1),
     )
     employee_rows = (
         EmployeeDto(id="emp-1", employee_code="E-001", full_name="Ada Lovelace", department_id="dep-1", department="Engineering", site_id="site-1", site_name="Berlin Campus", title="Engineer", employment_type="FULL_TIME", email="ada@example.com", phone=None, is_active=True, version=1),
@@ -1263,8 +1481,8 @@ def build_connected_platform_registry() -> SimpleNamespace:
         ApprovalRequestDto(id="approval-3", request_type="scope_change", entity_type="task", entity_id="task-1", project_id="project-1", status=ApprovalStatus.REJECTED, module_label="Project Management", context_label="Project Apollo", display_label="Scope Change", requested_by_username="grace", requested_at=datetime(2026, 4, 24, 8, 30, 0)),
     )
     audit_rows = (
-        AuditEntryDto(id="audit-1", timestamp=datetime(2026, 4, 24, 8, 0, 0), actor_id="user-1", actor_username="ada", actor_type="user", operation="approve", entity_type="project", entity_id="project-1", module="platform", source="api", severity="medium", compliance_tag="none"),
-        AuditEntryDto(id="audit-2", timestamp=datetime(2026, 4, 24, 9, 0, 0), actor_id="user-2", actor_username="grace", actor_type="user", operation="update", entity_type="task", entity_id="task-1", module="platform", source="api", severity="high", compliance_tag="none"),
+        AuditEntryDto(id="audit-1", timestamp=datetime(2026, 4, 24, 8, 0, 0), actor_id="user-1", actor_username="ada", actor_type="user", operation="approve", entity_type="project", entity_id="project-1", module="platform", source="api", severity="medium", category="COMPLIANCE", result="SUCCESS"),
+        AuditEntryDto(id="audit-2", timestamp=datetime(2026, 4, 24, 9, 0, 0), actor_id="user-2", actor_username="grace", actor_type="user", operation="update", entity_type="task", entity_id="task-1", module="platform", source="api", severity="high", category="COMPLIANCE", result="SUCCESS"),
     )
     return SimpleNamespace(
         platform_runtime=runtime_api,

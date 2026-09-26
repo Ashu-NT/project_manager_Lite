@@ -26,7 +26,6 @@ from src.infra.persistence.db.financial_numeric import (
 )
 from src.infra.persistence.orm.base import Base
 
-
 _SCOPE_INFO = {"info": {"rls_scope": "tenant_organization"}}
 
 
@@ -102,7 +101,7 @@ class ProjectBillingProfileORM(Base):
     cost_plus_markup_percent: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.PERCENTAGE),
         nullable=False,
-        default=Decimal("0"),
+        default=Decimal(0),
         info=financial_numeric_info(FinancialNumericKind.PERCENTAGE),
     )
     payment_terms_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
@@ -287,7 +286,7 @@ class ProjectBillingPreparationORM(Base):
     total_amount: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.MONEY),
         nullable=False,
-        default=Decimal("0"),
+        default=Decimal(0),
         info=financial_numeric_info(FinancialNumericKind.MONEY),
     )
     correction_of_preparation_id: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -316,11 +315,31 @@ Index(
     ProjectBillingPreparationORM.project_id,
 )
 Index("idx_billing_preparations_status", ProjectBillingPreparationORM.status)
+Index(
+    "uq_billing_preparations_active_correction",
+    ProjectBillingPreparationORM.tenant_id,
+    ProjectBillingPreparationORM.organization_id,
+    ProjectBillingPreparationORM.project_id,
+    ProjectBillingPreparationORM.correction_of_preparation_id,
+    unique=True,
+    postgresql_where=(
+        ProjectBillingPreparationORM.correction_of_preparation_id.is_not(None)
+        & ProjectBillingPreparationORM.status.not_in(("rejected", "cancelled"))
+    ),
+    sqlite_where=(
+        ProjectBillingPreparationORM.correction_of_preparation_id.is_not(None)
+        & ProjectBillingPreparationORM.status.not_in(("rejected", "cancelled"))
+    ),
+)
 
 
 class ProjectBillingPreparationLineORM(Base):
     __tablename__ = "project_billing_preparation_lines"
     __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "organization_id", "project_id", "preparation_id", "id",
+            name="uq_billing_lines_scoped_preparation_id",
+        ),
         ForeignKeyConstraint(
             ["tenant_id", "organization_id"],
             ["organizations.tenant_id", "organizations.id"],
@@ -459,17 +478,16 @@ class ProjectBillingSourceLockORM(Base):
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
-            ["preparation_line_id"],
-            ["project_billing_preparation_lines.id"],
-            name="fk_billing_locks_line",
+            ["tenant_id", "organization_id", "project_id", "preparation_id", "preparation_line_id"],
+            [
+                "project_billing_preparation_lines.tenant_id",
+                "project_billing_preparation_lines.organization_id",
+                "project_billing_preparation_lines.project_id",
+                "project_billing_preparation_lines.preparation_id",
+                "project_billing_preparation_lines.id",
+            ],
+            name="fk_billing_locks_scoped_line",
             ondelete="CASCADE",
-        ),
-        UniqueConstraint(
-            "tenant_id",
-            "organization_id",
-            "source_type",
-            "source_id",
-            name="uq_billing_locks_source",
         ),
         CheckConstraint(
             "status IN ('reserved', 'finalized', 'released')",
@@ -501,6 +519,16 @@ Index(
     ProjectBillingSourceLockORM.tenant_id,
     ProjectBillingSourceLockORM.organization_id,
     ProjectBillingSourceLockORM.preparation_id,
+)
+Index(
+    "uq_billing_locks_active_source",
+    ProjectBillingSourceLockORM.tenant_id,
+    ProjectBillingSourceLockORM.organization_id,
+    ProjectBillingSourceLockORM.source_type,
+    ProjectBillingSourceLockORM.source_id,
+    unique=True,
+    postgresql_where=ProjectBillingSourceLockORM.status != "released",
+    sqlite_where=ProjectBillingSourceLockORM.status != "released",
 )
 
 

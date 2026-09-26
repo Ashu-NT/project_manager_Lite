@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.core.modules.project_management.api.desktop.common.financial_formatting import format_money
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_money,
+)
 from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
     FinancialBillingDetailDto,
     FinancialBillingReadWorkspaceDto,
@@ -36,7 +38,7 @@ def serialize_finance_billing_workspace(
 ) -> FinancialBillingReadWorkspaceDto:
     selected = source.selected_preparation
     return FinancialBillingReadWorkspaceDto(
-        profile=_profile_detail(source.profile),
+        profile=_profile_detail(source.profile, can_create=source.can_manage_billing),
         selected_preparation_id=source.selected_preparation_id,
         selected_preparation=(
             _preparation_detail(selected) if selected else FinancialBillingDetailDto()
@@ -74,11 +76,14 @@ def serialize_finance_billing_workspace(
     )
 
 
-def _profile_detail(item: BillingProfileFact | None) -> FinancialBillingDetailDto:
+def _profile_detail(
+    item: BillingProfileFact | None, *, can_create: bool
+) -> FinancialBillingDetailDto:
     if item is None:
         return FinancialBillingDetailDto(
             title="Billing Profile",
             description="No PM commercial Billing Profile exists for this Project.",
+            state={"canCreate": can_create},
         )
     return FinancialBillingDetailDto(
         id=item.id,
@@ -95,7 +100,14 @@ def _profile_detail(item: BillingProfileFact | None) -> FinancialBillingDetailDt
             ("Retention", f"{item.retention_years} years", "Legal hold active" if item.legal_hold else "No legal hold"),
             ("Row version", str(item.row_version), item.currency_code),
         ),
-        state={"currency": item.currency_code, "version": item.row_version},
+        state={
+            "currency": item.currency_code,
+            "version": item.row_version,
+            "canActivate": item.can_activate,
+            "canAddScheduleLine": item.can_add_schedule_line,
+            "canCreatePreparation": item.can_create_preparation,
+            "canCreate": False,
+        },
     )
 
 
@@ -115,6 +127,7 @@ def _schedule_record(item: BillingScheduleFact) -> FinancialBillingTableRecordDt
             "acceptanceReference": item.acceptance_reference or "",
             "sourceState": item.source_state,
             "version": item.row_version,
+            "canMarkReady": item.can_mark_ready,
         },
     )
 
@@ -177,12 +190,27 @@ def _preparation_detail(item: BillingPreparationDetailFact) -> FinancialBillingD
             "latestExternalEventType": item.latest_external_event_type,
             "externalInvoiceReference": item.latest_external_invoice_reference,
             "reconciliationReference": item.latest_reconciliation_reference,
+            "canEditDraft": item.can_edit_draft,
+            "canAddSource": item.can_add_source,
+            "canRemoveSource": item.can_remove_source,
+            "canSubmit": item.can_submit,
+            "canApprove": item.can_approve,
+            "canReject": item.can_reject,
+            "canCancel": item.can_cancel,
+            "canCreateCorrection": item.can_create_correction,
+            "canRequestDelivery": item.can_request_delivery,
+            "handoffDenialReason": item.handoff_denial_reason,
+            "handoffDenialMessage": item.handoff_denial_message,
+            "canViewAccountingStatus": item.can_view_accounting_status,
         },
     )
 
 
 def _line_record(item: BillingPreparationLineFact) -> FinancialBillingTableRecordDto:
-    snapshot = f"{item.quantity} {item.unit} @ {item.unit_rate} {item.currency_code}"
+    snapshot = (
+        f"{item.quantity} {item.unit} @ {item.unit_rate} {item.currency_code}"
+        if item.unit_rate is not None else "Rate evidence restricted"
+    )
     source = f"{_label(item.source_type)} | {item.source_id} rev {item.source_revision}"
     return FinancialBillingTableRecordDto(
         id=item.id,
@@ -197,7 +225,7 @@ def _line_record(item: BillingPreparationLineFact) -> FinancialBillingTableRecor
             "sourceRevision": item.source_revision,
             "sourceState": item.source_state,
             "quantity": str(item.quantity),
-            "unitRate": str(item.unit_rate),
+            "unitRate": str(item.unit_rate) if item.unit_rate is not None else "",
             "netAmount": str(item.net_amount),
             "currency": item.currency_code,
             "taskId": item.task_id or "",

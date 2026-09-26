@@ -6,7 +6,6 @@ from typing import Any
 
 from pydantic import field_validator
 
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import (
@@ -14,6 +13,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 
 
 def _normalize_notification_datetime(
@@ -100,7 +100,7 @@ class Notification:
         body: str,
         tenant_id: str | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> "Notification":
+    ) -> Notification:
         return Notification(
             id=generate_id(),
             recipient_user_id=recipient_user_id,

@@ -4,11 +4,14 @@ import hashlib
 import json
 from dataclasses import dataclass
 
-from src.core.platform.contract.repositories.security.auth import RoleDelegationPolicyRepository, RoleRepository
+from src.core.platform.application.security.authorization.roles.role_governance_service import (
+    RoleGovernanceService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
-
-from src.core.platform.application.security.authorization.roles.role_governance_service import RoleGovernanceService
-
+from src.core.platform.contract.repositories.security.auth import (
+    RoleDelegationPolicyRepository,
+    RoleRepository,
+)
 
 DEFAULT_SCOPE_DELEGATIONS: tuple[tuple[str, str, str], ...] = (
     ("access_admin", "project_viewer", "project"),

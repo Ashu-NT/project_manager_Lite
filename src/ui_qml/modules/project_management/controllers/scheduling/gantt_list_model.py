@@ -7,10 +7,10 @@ from datetime import date
 from typing import Any
 
 from PySide6.QtCore import (
+    Property,
     QAbstractListModel,
     QByteArray,
     QModelIndex,
-    Property,
     Qt,
     Signal,
     Slot,

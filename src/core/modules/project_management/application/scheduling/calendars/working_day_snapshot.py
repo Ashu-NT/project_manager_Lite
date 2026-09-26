@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,20 +33,28 @@ class WorkingDaySnapshotCalendar:
     def add_working_days(self, start: date, working_days: int) -> date:
         if working_days == 0:
             return start
+        # Bounded the same as next_working_day above -- a fallback calendar
+        # with no working rules at all (e.g. an organization missing its
+        # default calendar) would otherwise never satisfy is_working_day(),
+        # searching forever until the date walk overflows date.min/date.max.
         if working_days > 0:
             current = self.next_working_day(start, include_today=True)
             remaining = working_days - 1
-            while remaining > 0:
+            iterations = 0
+            while remaining > 0 and iterations < 14_600:
                 current += timedelta(days=1)
                 if self.is_working_day(current):
                     remaining -= 1
+                iterations += 1
             return current
         current = start
         remaining = -working_days
-        while remaining > 0:
+        iterations = 0
+        while remaining > 0 and iterations < 14_600:
             current -= timedelta(days=1)
             if self.is_working_day(current):
                 remaining -= 1
+            iterations += 1
         return current
 
     def working_days_between(self, start: date, end: date) -> int:

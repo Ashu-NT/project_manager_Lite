@@ -1,25 +1,24 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from time import monotonic
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from pydantic import field_validator
 
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
+from src.core.platform.common.pydantic import (
+    normalize_optional_identifier,
+    normalize_required_text,
+    validated_dataclass,
+)
 from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.domain.security.auth.user import (
     normalize_auth_device_label,
     normalize_auth_session_revision,
-)
-from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.common.pydantic import (
-    normalize_optional_identifier,
-    normalize_optional_text,
-    normalize_required_text,
-    validated_dataclass,
 )
 
 if TYPE_CHECKING:
@@ -135,7 +134,7 @@ class AuthSession:
         device_label: str | None = None,
         last_active_tenant_id: str | None = None,
         last_active_organization_id: str | None = None,
-    ) -> "AuthSession":
+    ) -> AuthSession:
         now = datetime.now(timezone.utc)
         return AuthSession(
             id=generate_id(),
@@ -228,12 +227,12 @@ class UserSessionContext:
         principal_validator: (
             Callable[[UserSessionPrincipal], UserSessionPrincipal | None] | None
         ) = None,
-        context_listener: Callable[["UserSessionContext"], None] | None = None,
+        context_listener: Callable[[UserSessionContext], None] | None = None,
         security_denial_listener: (
-            Callable[["SecurityDenialEvent"], None] | None
+            Callable[[SecurityDenialEvent], None] | None
         ) = None,
-        principal_changed_listener: Callable[["UserSessionContext"], None] | None = None,
-        active_scope_changed_listener: Callable[["UserSessionContext"], None] | None = None,
+        principal_changed_listener: Callable[[UserSessionContext], None] | None = None,
+        active_scope_changed_listener: Callable[[UserSessionContext], None] | None = None,
         validation_interval_seconds: float = 30.0,
     ):
         self._principal: UserSessionPrincipal | None = None
@@ -256,13 +255,13 @@ class UserSessionContext:
 
     def set_principal_changed_listener(
         self,
-        listener: Callable[["UserSessionContext"], None] | None,
+        listener: Callable[[UserSessionContext], None] | None,
     ) -> None:
         self._principal_changed_listener = listener
 
     def set_active_scope_changed_listener(
         self,
-        listener: Callable[["UserSessionContext"], None] | None,
+        listener: Callable[[UserSessionContext], None] | None,
     ) -> None:
         self._active_scope_changed_listener = listener
 
@@ -283,17 +282,17 @@ class UserSessionContext:
 
     def set_context_listener(
         self,
-        listener: Callable[["UserSessionContext"], None] | None,
+        listener: Callable[[UserSessionContext], None] | None,
     ) -> None:
         self._context_listener = listener
 
     def set_security_denial_listener(
         self,
-        listener: Callable[["SecurityDenialEvent"], None] | None,
+        listener: Callable[[SecurityDenialEvent], None] | None,
     ) -> None:
         self._security_denial_listener = listener
 
-    def record_security_denial(self, event: "SecurityDenialEvent") -> bool:
+    def record_security_denial(self, event: SecurityDenialEvent) -> bool:
         listener = self._security_denial_listener
         if listener is None:
             return False

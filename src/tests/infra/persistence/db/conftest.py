@@ -15,7 +15,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )

@@ -87,7 +87,7 @@ def download_update_installer(
             progress(100, "Installer copied from local source.")
         return target
 
-    with urlopen(source, timeout=timeout_seconds) as response:  # noqa: S310
+    with urlopen(source, timeout=timeout_seconds) as response:
         total = int(response.headers.get("Content-Length", "0") or 0)
         read_bytes = 0
         with temp_target.open("wb") as handle:

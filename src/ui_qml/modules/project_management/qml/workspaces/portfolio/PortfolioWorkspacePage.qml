@@ -9,6 +9,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "panels" as Panels
+import "sections" as Sections
 import "tabs" as Tabs
 
 AppLayouts.WorkspaceFrame {
@@ -123,6 +124,7 @@ AppLayouts.WorkspaceFrame {
                         workspaceController: root.workspaceController
                         scenariosModel:      state.scenariosModel
                         templatesModel:      state.templatesModel
+                        governanceToolbarComponent: Component { Sections.PortfolioGovernanceToolbar {} }
                     }
 
                     Tabs.CapacityTab {

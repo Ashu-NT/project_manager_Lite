@@ -5,7 +5,10 @@ from src.core.platform.application.tenant.modules import ModuleGuardedServiceMix
 
 class ProjectManagementModuleGuardMixin(ModuleGuardedServiceMixin):
     _module_guard_code = "project_management"
-    _module_guard_exempt_methods = frozenset({"consume_last_overallocation_warning"})
+    _module_guard_exempt_methods = frozenset({
+        "consume_last_overallocation_warning",
+        "set_approved_time_dispatcher",
+    })
 
     @property
     def current_actor_user_id(self) -> str | None:

@@ -42,6 +42,6 @@ class ProjectRemoved:
 __all__ = [
     "ProjectCreated",
     "ProjectProfileUpdated",
-    "ProjectStatusChanged",
     "ProjectRemoved",
+    "ProjectStatusChanged",
 ]

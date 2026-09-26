@@ -3,10 +3,10 @@ from __future__ import annotations
 import ast
 import inspect
 
-import pytest
-
 from src.application.runtime import build_desktop_api_registry
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 
@@ -84,7 +84,9 @@ def test_register_create_causes_control_refresh_via_view_invalidation_only(servi
     refresh_calls: list[str] = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    from src.core.modules.project_management.domain.risk.register import RegisterEntryType
+    from src.core.modules.project_management.domain.risk.register import (
+        RegisterEntryType,
+    )
 
     services["register_service"].create_entry(
         project.id, entry_type=RegisterEntryType.RISK, title="P41-FIX risk"
@@ -97,7 +99,9 @@ def test_register_update_and_delete_also_cause_control_refresh(services):
     platform_catalog, _pm_catalog = _wire_catalogs(services)
     _, project = _setup(services)
 
-    from src.core.modules.project_management.domain.risk.register import RegisterEntryType
+    from src.core.modules.project_management.domain.risk.register import (
+        RegisterEntryType,
+    )
 
     entry = services["register_service"].create_entry(
         project.id, entry_type=RegisterEntryType.ISSUE, title="P41-FIX issue"
@@ -131,7 +135,9 @@ def test_control_does_not_refresh_from_an_unrelated_view_invalidation_category(s
         "Register-scoped cross-layer signal"
     )
 
-    from src.core.modules.project_management.domain.risk.register import RegisterEntryType
+    from src.core.modules.project_management.domain.risk.register import (
+        RegisterEntryType,
+    )
 
     services["register_service"].create_entry(
         project.id, entry_type=RegisterEntryType.RISK, title="P41-FIX category-proof risk"

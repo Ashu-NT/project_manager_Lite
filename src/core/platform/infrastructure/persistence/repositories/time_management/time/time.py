@@ -5,18 +5,28 @@ from datetime import date
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository, TimesheetPeriodRepository
-from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
-from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
-    TenantScopedRepositorySupport,
+from src.core.platform.contract.repositories.time_management.time.contracts import (
+    TimeEntryRepository,
+    TimesheetPeriodRepository,
 )
-from src.core.platform.infrastructure.persistence.orm.time_management.time.time import TimeEntryORM, TimesheetPeriodORM
+from src.core.platform.domain.time_management.time import (
+    TimeEntry,
+    TimesheetPeriod,
+    TimesheetPeriodStatus,
+)
 from src.core.platform.infrastructure.persistence.mappers.time_management.time.time import (
     time_entry_from_orm,
     time_entry_to_orm,
     timesheet_period_from_orm,
     timesheet_period_to_orm,
+)
+from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
+    TimeEntryORM,
+    TimesheetPeriodORM,
+)
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
 )
 from src.infra.persistence.db.optimistic import (
     delete_with_version_check,

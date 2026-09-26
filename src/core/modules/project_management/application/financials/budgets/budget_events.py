@@ -94,11 +94,11 @@ class BudgetRemoved:
 
 
 __all__ = [
-    "BudgetVersionCreated",
-    "BudgetProfileUpdated",
     "BudgetLineChangeType",
     "BudgetLineChanged",
+    "BudgetProfileUpdated",
+    "BudgetRemoved",
     "BudgetStatusChangeType",
     "BudgetStatusChanged",
-    "BudgetRemoved",
+    "BudgetVersionCreated",
 ]

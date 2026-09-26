@@ -19,6 +19,16 @@ class EmployeeDto:
     is_active: bool
     version: int
     user_id: str | None = None
+    organization_id: str | None = None
+
+
+@dataclass(frozen=True)
+class EmployeePageDto:
+    items: tuple[EmployeeDto, ...] = ()
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
 
 
 @dataclass(frozen=True)

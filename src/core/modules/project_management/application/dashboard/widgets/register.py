@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.application.risk import (
     RegisterDashboardSnapshot,
     RegisterService,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 class DashboardRegisterMixin:

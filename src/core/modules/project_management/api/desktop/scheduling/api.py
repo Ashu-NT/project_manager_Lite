@@ -1,25 +1,68 @@
 """ProjectManagementSchedulingDesktopApi — thin scheduling desktop facade."""
 
 from __future__ import annotations
+
 import logging
 from datetime import date
 
 logger = logging.getLogger(__name__)
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.scheduling import SchedulingEngine
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
-from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import ScheduleChangeImpactService
-from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
-    ConstraintValidator,
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
+    coerce_dependency_direction,
+    coerce_dependency_type,
+    dependency_direction,
+    dependency_type_label,
 )
-from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.platform.common.exceptions import NotFoundError
-
+from src.core.modules.project_management.api.desktop.scheduling.builders.activity_options_builder import (
+    build_activity_options,
+)
+from src.core.modules.project_management.api.desktop.scheduling.builders.baseline_builder import (
+    build_baseline_options,
+    build_baseline_rows,
+    build_variance_rows,
+)
+from src.core.modules.project_management.api.desktop.scheduling.builders.calendar_snapshot_builder import (
+    build_calendar_options,
+    build_calendar_snapshot,
+)
+from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import (
+    build_change_impact,
+)
+from src.core.modules.project_management.api.desktop.scheduling.builders.constraint_builder import (
+    build_constraint_violations,
+)
+from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+    build_gantt_baseline_overlay as assemble_gantt_baseline_overlay,
+)
+from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+    build_gantt_projection as assemble_gantt_projection,
+)
+from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+    build_hierarchy_nodes,
+)
+from src.core.modules.project_management.api.desktop.scheduling.builders.leveling_builder import (
+    build_resource_leveling_preview,
+    empty_leveling_proposal_dto,
+)
+from src.core.modules.project_management.api.desktop.scheduling.builders.project_options_builder import (
+    build_project_options,
+)
+from src.core.modules.project_management.api.desktop.scheduling.builders.resource_load_builder import (
+    build_resource_load,
+)
+from src.core.modules.project_management.api.desktop.scheduling.commands.baseline_commands import (
+    SchedulingBaselineApproveCommand,
+    SchedulingBaselineCreateCommand,
+    SchedulingBaselineRejectCommand,
+    SchedulingBaselineSubmitCommand,
+)
+from src.core.modules.project_management.api.desktop.scheduling.commands.dependency_commands import (
+    SchedulingDependencyCreateCommand,
+    SchedulingDependencyUpdateCommand,
+)
+from src.core.modules.project_management.api.desktop.scheduling.commands.working_day_commands import (
+    SchedulingWorkingDayCalculationCommand,
+)
 from src.core.modules.project_management.api.desktop.scheduling.models import (
     GanttBaselineOverlayDto,
     GanttProjectionDto,
@@ -40,51 +83,18 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingTaskDto,
     SchedulingWorkingDayCalculationDto,
 )
-from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
-    build_gantt_baseline_overlay as assemble_gantt_baseline_overlay,
-    build_gantt_projection as assemble_gantt_projection,
-    build_hierarchy_nodes,
+from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
+    ScheduleImpactReportDto,
 )
-from src.core.modules.project_management.api.desktop.scheduling.commands.dependency_commands import (
-    SchedulingDependencyCreateCommand,
-    SchedulingDependencyUpdateCommand,
-)
-from src.core.modules.project_management.api.desktop.scheduling.commands.baseline_commands import (
-    SchedulingBaselineApproveCommand,
-    SchedulingBaselineCreateCommand,
-    SchedulingBaselineRejectCommand,
-    SchedulingBaselineSubmitCommand,
-)
-from src.core.modules.project_management.api.desktop.scheduling.commands.working_day_commands import (
-    SchedulingWorkingDayCalculationCommand,
-)
-from src.core.modules.project_management.api.desktop.scheduling.builders.project_options_builder import build_project_options
-from src.core.modules.project_management.api.desktop.scheduling.builders.activity_options_builder import build_activity_options
-from src.core.modules.project_management.api.desktop.scheduling.builders.calendar_snapshot_builder import (
-    build_calendar_options,
-    build_calendar_snapshot,
-)
-from src.core.modules.project_management.api.desktop.scheduling.builders.baseline_builder import (
-    build_baseline_options,
-    build_baseline_rows,
-    build_variance_rows,
-)
-from src.core.modules.project_management.api.desktop.scheduling.builders.resource_load_builder import build_resource_load
-from src.core.modules.project_management.api.desktop.scheduling.builders.leveling_builder import (
-    build_resource_leveling_preview,
-    empty_leveling_proposal_dto,
-)
-from src.core.modules.project_management.api.desktop.scheduling.builders.constraint_builder import build_constraint_violations
-from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import build_change_impact
-from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import ScheduleImpactReportDto
 from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
     serialize_schedule_impact_report,
 )
-from src.core.modules.project_management.api.desktop.scheduling.serializers.dependency_serializer import serialize_dependency
+from src.core.modules.project_management.api.desktop.scheduling.serializers.dependency_serializer import (
+    serialize_dependency,
+)
 from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import (
     unwrap_platform_calendar_result,
 )
-from src.core.platform.finance.money import canonical_decimal_text
 from src.core.modules.project_management.api.desktop.scheduling.services.dependency_resolution_service import (
     build_tasks_by_id,
     get_task_method,
@@ -94,12 +104,30 @@ from src.core.modules.project_management.api.desktop.scheduling.services.schedul
     build_schedule_from_engine,
     build_schedule_from_tasks,
 )
-from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
-    coerce_dependency_direction,
-    coerce_dependency_type,
-    dependency_direction,
-    dependency_type_label,
+from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.scheduling import SchedulingEngine
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
+    BaselineService,
 )
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
+    ConstraintValidator,
+)
+from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
+    ScheduleChangeImpactService,
+)
+from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.infrastructure.reporting import (
+    ReportingService,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 class ProjectManagementSchedulingDesktopApi:

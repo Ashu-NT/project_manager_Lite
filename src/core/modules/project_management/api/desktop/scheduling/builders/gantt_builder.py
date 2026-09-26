@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from calendar import monthrange
+from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Iterable
 
 from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
     GanttBaselineOverlayDto,
@@ -95,7 +95,7 @@ class _Rollup:
     late_by_days: int | None = None
     canonical_count: int = 0
 
-    def include(self, other: "_Rollup") -> None:
+    def include(self, other: _Rollup) -> None:
         self.start = _min_date(self.start, other.start)
         self.finish = _max_date(self.finish, other.finish)
         self.latest_start = _min_date(self.latest_start, other.latest_start)

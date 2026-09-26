@@ -3,34 +3,51 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
+    safe_error_message,
     serialize_project_catalog_overview_view_model,
     serialize_project_detail_view_model,
     serialize_project_record_view_models,
     serialize_selector_options,
     serialize_workspace_view_model,
 )
-from src.ui_qml.shared.models.currency_options import (
-    CURRENCY_OPTIONS,
-    DEFAULT_CURRENCY_CODE,
-)
 from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
     ProjectProjectsWorkspacePresenter,
 )
-
-from .project_state import (
-    default_lazy_section,
-    default_overview,
-    default_projects,
-    default_selected_project,
+from src.ui_qml.shared.models.currency_options import (
+    CURRENCY_OPTIONS,
+    DEFAULT_CURRENCY_CODE,
 )
-from .project_table_models import ProjectTableModels, create_project_table_models
-from .project_state_setters import ProjectStateSettersMixin
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
+from .project_bulk_handler import (
+    apply_bulk_status,
+    bulk_delete_projects,
+    clear_project_bulk_selection,
+    select_visible_projects,
+    set_project_bulk_selection,
+)
 from .project_domain_event_binder import on_budget_project_summary_stale
+from .project_export_handler import export_projects
+from .project_import_handler import cancel_import, execute_import, preview_import
+from .project_lazy_section_loader import (
+    load_project_activity,
+    load_project_resources,
+    load_project_risks,
+    load_project_tasks,
+    update_project_detail_query,
+)
+from .project_resource_handler import (
+    assign_project_resource,
+    get_project_resource_usage,
+    load_assignable_resources,
+    remove_project_resource,
+    select_project_resource,
+    update_project_resource,
+)
 from .project_selection_handler import (
     activate_project,
     clear_filters,
@@ -50,30 +67,14 @@ from .project_selection_handler import (
     set_start_date_to,
     set_status_filter,
 )
-from .project_lazy_section_loader import (
-    load_project_activity,
-    load_project_resources,
-    load_project_risks,
-    load_project_tasks,
-    update_project_detail_query,
+from .project_state import (
+    default_lazy_section,
+    default_overview,
+    default_projects,
+    default_selected_project,
 )
-from .project_resource_handler import (
-    assign_project_resource,
-    get_project_resource_usage,
-    load_assignable_resources,
-    remove_project_resource,
-    select_project_resource,
-    update_project_resource,
-)
-from .project_bulk_handler import (
-    apply_bulk_status,
-    bulk_delete_projects,
-    clear_project_bulk_selection,
-    select_visible_projects,
-    set_project_bulk_selection,
-)
-from .project_export_handler import export_projects
-from .project_import_handler import cancel_import, execute_import, preview_import
+from .project_state_setters import ProjectStateSettersMixin
+from .project_table_models import ProjectTableModels, create_project_table_models
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -342,10 +343,6 @@ class ProjectManagementProjectsWorkspaceController(
     def projectActivity(self) -> dict[str, object]:
         return self._project_activity
 
-    @Property(QObject, constant=True)
-    def projectActivityTableModel(self) -> DynamicTableModel:
-        return self._table_models.project_activity
-
     @Property("QVariantMap", notify=importPreviewChanged)
     def importPreview(self) -> dict[str, object]:
         return self._import_preview
@@ -457,9 +454,11 @@ class ProjectManagementProjectsWorkspaceController(
                 if workspace_state.sort_direction == "desc"
                 else Qt.AscendingOrder.value
             )
-        except Exception as exc:  
+        except Exception as exc:
             self._set_projects({})
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(exc, safe_message="Projects could not be loaded.")
+            )
         finally:
             self._set_is_loading(False)
 
@@ -582,7 +581,9 @@ class ProjectManagementProjectsWorkspaceController(
         try:
             return self._projects_workspace_presenter.suggest_code(dict(payload))
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(exc, safe_message="A project code could not be suggested.")
+            )
             return ""
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -594,6 +595,10 @@ class ProjectManagementProjectsWorkspaceController(
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted project fields and try again.",
+            safe_validation_code="PROJECT_INPUT_INVALID",
+            safe_failure_message="The project change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="PROJECT_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -605,6 +610,10 @@ class ProjectManagementProjectsWorkspaceController(
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted project fields and try again.",
+            safe_validation_code="PROJECT_INPUT_INVALID",
+            safe_failure_message="The project change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="PROJECT_MUTATION_FAILED",
         )
 
     @Slot(str, str, result="QVariantMap")
@@ -616,6 +625,10 @@ class ProjectManagementProjectsWorkspaceController(
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted project fields and try again.",
+            safe_validation_code="PROJECT_INPUT_INVALID",
+            safe_failure_message="The project change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="PROJECT_MUTATION_FAILED",
         )
 
     @Slot(str, result="QVariantMap")
@@ -627,6 +640,10 @@ class ProjectManagementProjectsWorkspaceController(
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted project fields and try again.",
+            safe_validation_code="PROJECT_INPUT_INVALID",
+            safe_failure_message="The project change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="PROJECT_MUTATION_FAILED",
         )
 
     # ── Lazy Sections ────────────────────────────────────────────────────

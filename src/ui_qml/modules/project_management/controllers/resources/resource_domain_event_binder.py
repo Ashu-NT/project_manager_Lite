@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from .resource_availability_handler import load_resource_availability
 from .resource_context_handler import (
     load_resource_activity,
     load_resource_assignments,
     load_resource_projects,
 )
-from .resource_availability_handler import load_resource_availability
 from .resource_skills_handler import reload_skills_and_certs
 
 
@@ -62,9 +62,9 @@ def on_task_assignments_for_resource_stale(controller, resource_id: str) -> None
 
 
 __all__ = [
-    "on_task_assignments_for_resource_stale",
-    "on_resource_list_stale",
-    "on_resource_capabilities_stale",
-    "on_timesheet_resource_stale",
     "on_project_stale",
+    "on_resource_capabilities_stale",
+    "on_resource_list_stale",
+    "on_task_assignments_for_resource_stale",
+    "on_timesheet_resource_stale",
 ]

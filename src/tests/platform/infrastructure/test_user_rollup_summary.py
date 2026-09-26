@@ -20,13 +20,16 @@ from src.core.platform.infrastructure.persistence.orm.security.auth.auth import 
     RoleORM,
     UserORM,
 )
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+    TenantORM,
+)
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
+    UserTenantORM,
+)
 from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
     SqlAlchemyPlatformOverviewRollupReader,
 )
 from src.infra.persistence.orm import Base
-
 
 # ---------------------------------------------------------------------------
 # Reader-level unit tests: isolated db, full control over every scenario.
@@ -538,18 +541,25 @@ def test_desktop_api_get_user_rollup_summary(services):
 
 
 def _make_tenant_caller_session(services, *, tenant_id: str):
-    from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
     from src.core.platform.application.security.auth.auth_service import AuthService
-    from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+    from src.core.platform.application.tenant.tenancy.tenant_context import (
+        TenantContextService,
+    )
+    from src.core.platform.domain.security.auth.session import (
+        UserSessionContext,
+        UserSessionPrincipal,
+    )
 
     auth = services["auth_service"]
     viewer = auth.register_user(
         f"rollup-tenant-viewer-{tenant_id}", "StrongPass123!", role_names=["viewer"]
     )
+    from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
+        UserTenantMembership,
+    )
     from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
         SqlAlchemyUserTenantMembershipRepository,
     )
-    from src.core.platform.domain.tenant.tenancy.user_tenant_membership import UserTenantMembership
 
     session = services["session"]
     user_tenant_repo = SqlAlchemyUserTenantMembershipRepository(session)
@@ -600,10 +610,10 @@ def _make_tenant_caller_session(services, *, tenant_id: str):
 
 
 def test_service_tenant_caller_path_excludes_platform_users_and_scopes_by_tenant(services):
+    from src.core.platform.domain.tenant.tenancy.tenant import Tenant
     from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
         SqlAlchemyTenantRepository,
     )
-    from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 
     session = services["session"]
     tenant_repo = SqlAlchemyTenantRepository(session)
@@ -619,12 +629,13 @@ def test_service_tenant_caller_path_excludes_platform_users_and_scopes_by_tenant
     # Register a platform-authority user and add them to the SAME tenant --
     # they must not be counted, matching list_users()'s own exclusion.
     admin_service = services["auth_service"]
+    from src.core.platform.domain.security.authorization.roles import RoleBinding
+    from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
+        UserTenantMembership,
+    )
     from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
         SqlAlchemyUserTenantMembershipRepository,
     )
-    from src.core.platform.domain.tenant.tenancy.user_tenant_membership import UserTenantMembership
-
-    from src.core.platform.domain.security.authorization.roles import RoleBinding
 
     platform_role = admin_service._role_repo.get_by_name("admin")
     platform_user = admin_service.register_user(
@@ -646,9 +657,12 @@ def test_service_tenant_caller_path_excludes_platform_users_and_scopes_by_tenant
 
 
 def test_service_tenant_caller_requires_permission(services):
-    from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
     from src.core.platform.application.security.auth.auth_service import AuthService
     from src.core.platform.common.exceptions import BusinessRuleError
+    from src.core.platform.domain.security.auth.session import (
+        UserSessionContext,
+        UserSessionPrincipal,
+    )
 
     auth = services["auth_service"]
     no_perms_session = UserSessionContext()
@@ -706,15 +720,17 @@ def test_parity_with_list_users_platform_operator(services):
 
 
 def test_parity_with_list_users_tenant_caller_excludes_same_users(services):
+    from src.core.platform.domain.security.authorization.roles import RoleBinding
+    from src.core.platform.domain.tenant.tenancy.tenant import Tenant
+    from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
+        UserTenantMembership,
+    )
     from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
         SqlAlchemyTenantRepository,
     )
-    from src.core.platform.domain.tenant.tenancy.tenant import Tenant
     from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
         SqlAlchemyUserTenantMembershipRepository,
     )
-    from src.core.platform.domain.tenant.tenancy.user_tenant_membership import UserTenantMembership
-    from src.core.platform.domain.security.authorization.roles import RoleBinding
 
     session = services["session"]
     tenant_repo = SqlAlchemyTenantRepository(session)
@@ -797,8 +813,8 @@ def test_overview_path_never_calls_canonical_platform_authority_or_list_all_perm
 
 def test_admin_overview_user_metrics_match_rollup_not_full_list(services):
     from src.application.runtime import build_desktop_api_registry
-    from src.ui_qml.platform.context import PlatformWorkspaceCatalog
     from src.core.platform.application.security.auth.auth_query import AuthQueryMixin
+    from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
     auth_service = services["auth_service"]
     for i in range(10):

@@ -1,0 +1,9 @@
+from __future__ import annotations
+
+
+def on_financial_profile_stale(controller, project_id: str) -> None:
+    if not str(project_id or "") or str(project_id) == controller._selected_project_id:
+        controller._invalidate_destinations("controls", "commercial")
+
+
+__all__ = ["on_financial_profile_stale"]

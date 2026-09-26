@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import field
 from datetime import datetime, timezone
-from typing import Iterable
 
 from pydantic import field_validator
 
@@ -238,7 +238,7 @@ class TaskComment:
         read_by: Iterable[str] | None = None,
         read_by_user_ids: Iterable[str] | None = None,
         parent_comment_id: str | None = None,
-    ) -> "TaskComment":
+    ) -> TaskComment:
         return TaskComment(
             id=generate_id(),
             task_id=task_id,

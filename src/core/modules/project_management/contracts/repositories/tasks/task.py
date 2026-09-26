@@ -3,7 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
+from src.core.modules.project_management.domain.tasks.task import (
+    Task,
+    TaskAssignment,
+    TaskDependency,
+)
 
 
 @dataclass(frozen=True, slots=True)

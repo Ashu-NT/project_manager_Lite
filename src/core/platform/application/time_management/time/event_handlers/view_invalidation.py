@@ -53,7 +53,7 @@ def build_timesheet_view_invalidation_handler(channel: ViewInvalidationChannel):
     `timesheet_periods_changed` signal reached the exact same three consumer families uniformly,
     just without any scoping at all."""
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_org_targets: set[_OrgTarget] = set()
     notified_resource_targets: set[_ResourceTarget] = set()
 
@@ -61,8 +61,8 @@ def build_timesheet_view_invalidation_handler(channel: ViewInvalidationChannel):
         event: TimesheetPeriodStatusChanged,
         context: DomainEventContext,
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_org_targets.clear()
             notified_resource_targets.clear()
 
@@ -141,12 +141,12 @@ def build_timesheet_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_timesheet_view_invalidation_handler",
     "TIMESHEET_CATEGORY",
-    "TIMESHEET_WORKSPACE_SCOPE_CODE",
-    "TIMESHEET_RESOURCE_SCOPE_CODE",
-    "TIMESHEET_PROJECT_SCOPE_CODE",
     "TIMESHEET_MODULE_CODE",
-    "TIMESHEET_RESOURCE_ENTITY_TYPE",
     "TIMESHEET_PROJECT_ENTITY_TYPE",
+    "TIMESHEET_PROJECT_SCOPE_CODE",
+    "TIMESHEET_RESOURCE_ENTITY_TYPE",
+    "TIMESHEET_RESOURCE_SCOPE_CODE",
+    "TIMESHEET_WORKSPACE_SCOPE_CODE",
+    "build_timesheet_view_invalidation_handler",
 ]

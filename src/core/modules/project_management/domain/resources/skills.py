@@ -185,7 +185,7 @@ class ResourceSkill:
         skill_name: str,
         proficiency: SkillProficiencyLevel = SkillProficiencyLevel.INTERMEDIATE,
         notes: str = "",
-    ) -> "ResourceSkill":
+    ) -> ResourceSkill:
         return ResourceSkill(
             id=generate_id(),
             resource_id=resource_id,
@@ -276,7 +276,7 @@ class ResourceCertification:
         )
 
     @model_validator(mode="after")
-    def _validate_date_range(self) -> "ResourceCertification":
+    def _validate_date_range(self) -> ResourceCertification:
         if (
             self.issued_date is not None
             and self.expiry_date is not None
@@ -298,7 +298,7 @@ class ResourceCertification:
         certificate_number: str = "",
         issuer: str = "",
         notes: str = "",
-    ) -> "ResourceCertification":
+    ) -> ResourceCertification:
         return ResourceCertification(
             id=generate_id(),
             resource_id=resource_id,
@@ -414,7 +414,7 @@ class TaskSkillRequirement:
         )
 
     @model_validator(mode="after")
-    def _validate_requirement_target(self) -> "TaskSkillRequirement":
+    def _validate_requirement_target(self) -> TaskSkillRequirement:
         if self.skill_code is None and self.certification_code is None:
             raise ValidationError(
                 "Task skill requirement requires either skill_code or certification_code.",
@@ -435,7 +435,7 @@ class TaskSkillRequirement:
         required_proficiency: SkillProficiencyLevel = SkillProficiencyLevel.INTERMEDIATE,
         validation_mode: SkillValidationMode = SkillValidationMode.WARN,
         notes: str = "",
-    ) -> "TaskSkillRequirement":
+    ) -> TaskSkillRequirement:
         return TaskSkillRequirement(
             id=generate_id(),
             task_id=task_id,
@@ -457,9 +457,9 @@ class TaskSkillRequirement:
 
 __all__ = [
     "CertificationStatus",
-    "ResourceSkill",
     "ResourceCertification",
-    "TaskSkillRequirement",
+    "ResourceSkill",
     "SkillProficiencyLevel",
     "SkillValidationMode",
+    "TaskSkillRequirement",
 ]

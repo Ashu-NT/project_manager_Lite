@@ -10,9 +10,14 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
     build_project_management_timesheets_desktop_api,
 )
-from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
+    task_assignments_page,
+    task_dependencies_page,
+)
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogWorkspaceViewModel,
 )
@@ -39,6 +44,7 @@ from .collaboration_command_handler import (
     remove_task_comment_reaction,
     touch_task_collaboration_presence,
 )
+from .dependencies_builder import build_task_dependencies_state
 from .dependency_command_handler import (
     create_dependency,
     delete_dependency,
@@ -47,19 +53,13 @@ from .dependency_command_handler import (
     preview_update_dependency,
     update_dependency,
 )
-from .dependencies_builder import build_task_dependencies_state
 from .detail_builder import build_task_basic_detail_state, build_task_detail_state
 from .schedule_impact_builder import (
     build_task_schedule_impact_preview_state,
     build_task_schedule_overview_state,
 )
 from .skill_requirements_builder import build_task_skill_requirements_state
-from .task_activity_builder import build_task_activity_state
-from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
-    activity_page,
-    task_assignments_page,
-    task_dependencies_page,
-)
+from .task_activity_builder import build_task_activity_page
 from .task_command_handler import (
     apply_bulk_status,
     bulk_delete_tasks,
@@ -70,6 +70,7 @@ from .task_command_handler import (
     update_task,
     update_task_scheduling_constraint,
 )
+from .task_mapper import to_task_record_view_model
 from .time_builder import (
     build_empty_task_time_state,
     build_task_time_entries_refresh,
@@ -81,7 +82,7 @@ from .time_command_handler import (
     update_task_time_entry,
 )
 from .workspace_builder import build_workspace_state
-from .task_mapper import to_task_record_view_model
+
 
 class ProjectTasksWorkspacePresenter:
     def __init__(
@@ -92,7 +93,6 @@ class ProjectTasksWorkspacePresenter:
         timesheets_desktop_api: ProjectManagementTimesheetsDesktopApi | None = None,
         user_api: PlatformUserDesktopApi | None = None,
         employee_api: PlatformEmployeeDesktopApi | None = None,
-        activity_api: PlatformActivityDesktopApi | None = None,
         projects_desktop_api: object | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_tasks_desktop_api()
@@ -106,7 +106,6 @@ class ProjectTasksWorkspacePresenter:
         )
         self._user_api = user_api
         self._employee_api = employee_api
-        self._activity_api = activity_api
         self._projects_desktop_api = projects_desktop_api
 
     def list_constraint_options(self) -> tuple[dict[str, object], ...]:
@@ -340,24 +339,16 @@ class ProjectTasksWorkspacePresenter:
             task_id=task_id,
         )
 
-    def build_task_activity_state(
-        self,
-        *,
-        task_id: str,
-    ) -> TaskCatalogWorkspaceViewModel:
-        return build_task_activity_state(
-            self._activity_api,
-            task_id=task_id,
-            user_api=self._user_api,
-            employee_api=self._employee_api,
-        )
-
     def build_task_activity_page(self, *, task_id: str, search_text: str = "",
                                  category: str = "all", page: int = 1,
                                  page_size: int = 25) -> dict[str, object]:
-        return activity_page(self._desktop_api.list_task_activity_page(
-            task_id, search_text=search_text, category=category,
-            page=page, page_size=page_size))
+        return build_task_activity_page(
+            self._desktop_api.list_task_activity_page(
+                task_id, search_text=search_text, category=category,
+                page=page, page_size=page_size),
+            user_api=self._user_api,
+            employee_api=self._employee_api,
+        )
 
     def create_task(self, payload: dict[str, Any]) -> None:
         create_task(self._desktop_api, payload)

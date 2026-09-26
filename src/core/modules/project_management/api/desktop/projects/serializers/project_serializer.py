@@ -3,9 +3,13 @@
 from collections.abc import Mapping
 from decimal import Decimal
 
-from src.core.modules.project_management.api.desktop.projects.models.project import ProjectDesktopDto
-from src.core.modules.project_management.api.desktop.common.financial_formatting import format_budget
-from src.core.platform.finance.money import canonical_decimal_text
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_budget,
+)
+from src.core.modules.project_management.api.desktop.projects.models.project import (
+    ProjectDesktopDto,
+)
+from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 def serialize_project(

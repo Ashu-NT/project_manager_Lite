@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_resource_availability_view_model,
 )
 from src.ui_qml.modules.project_management.controllers.resources.resource_state import (
@@ -34,7 +35,9 @@ def load_resource_availability(
         )
     except Exception as exc:
         controller._set_resource_availability(default_resource_availability())
-        controller._set_section_error("availability", str(exc))
+        controller._set_section_error(
+            "availability", safe_error_message(exc, safe_message="Availability could not be loaded.")
+        )
     finally:
         controller._set_is_busy(False)
 

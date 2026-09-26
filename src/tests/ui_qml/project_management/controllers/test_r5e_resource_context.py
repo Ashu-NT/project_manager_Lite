@@ -12,20 +12,20 @@ from PySide6.QtQml import QQmlComponent
 from PySide6.QtQuick import QQuickItem
 from sqlalchemy import event
 
-from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.api.desktop.resources.commands.skill_commands import (
     ResourceAddSkillCommand,
 )
 from src.core.modules.project_management.api.desktop.resources.factories.resources_api_factory import (
     build_project_management_resources_desktop_api,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
-from src.ui_qml.modules.project_management.controllers.resources.resource_context_handler import (
-    load_resource_activity,
-)
 from src.ui_qml.modules.project_management.controllers.resources import (
     resource_domain_event_binder,
+)
+from src.ui_qml.modules.project_management.controllers.resources.resource_context_handler import (
+    load_resource_activity,
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
@@ -52,10 +52,10 @@ def _seed_resource_context(services):
         end_date=date(2026, 12, 31),
     )
     alpha_resource = project_resource_service.add_to_project(
-        alpha.id, resource.id, planned_hours=Decimal("120")
+        alpha.id, resource.id, planned_hours=Decimal(120)
     )
     zulu_resource = project_resource_service.add_to_project(
-        zulu.id, resource.id, planned_hours=Decimal("80")
+        zulu.id, resource.id, planned_hours=Decimal(80)
     )
     alpha_task = task_service.create_task(
         alpha.id,
@@ -76,13 +76,13 @@ def _seed_resource_context(services):
         alpha_task.id,
         alpha_resource.id,
         allocation_percent=50,
-        allocated_planned_hours=Decimal("40"),
+        allocated_planned_hours=Decimal(40),
     )
     zulu_assignment = task_service.assign_project_resource(
         zulu_task.id,
         zulu_resource.id,
         allocation_percent=25,
-        allocated_planned_hours=Decimal("30"),
+        allocated_planned_hours=Decimal(30),
     )
     task_service.add_time_entry(
         alpha_assignment.id,
@@ -176,14 +176,14 @@ def test_r5e_assignments_keep_project_envelope_planned_and_actual_distinct(servi
 
     assert page.filtered_total == 2
     assert len(statements) <= 3
-    assert by_task[seeded.alpha_task.id].allocated_planned_hours == Decimal("40")
-    assert by_task[seeded.zulu_task.id].allocated_planned_hours == Decimal("30")
-    assert by_task[seeded.alpha_task.id].actual_hours == Decimal("25")
-    assert by_task[seeded.zulu_task.id].actual_hours == Decimal("10")
+    assert by_task[seeded.alpha_task.id].allocated_planned_hours == Decimal(40)
+    assert by_task[seeded.zulu_task.id].allocated_planned_hours == Decimal(30)
+    assert by_task[seeded.alpha_task.id].actual_hours == Decimal(25)
+    assert by_task[seeded.zulu_task.id].actual_hours == Decimal(10)
     assert {item.actual_hours_source for item in page.items} == {"time_entries"}
-    assert seeded.alpha_resource.planned_hours == Decimal("120")
-    assert sum(item.allocated_planned_hours for item in page.items) == Decimal("70")
-    assert sum(item.actual_hours for item in page.items) == Decimal("35")
+    assert seeded.alpha_resource.planned_hours == Decimal(120)
+    assert sum(item.allocated_planned_hours for item in page.items) == Decimal(70)
+    assert sum(item.actual_hours for item in page.items) == Decimal(35)
 
 
 def test_r5e_assignment_filters_and_cross_page_sort_are_authoritative(services) -> None:
@@ -366,7 +366,10 @@ def test_r5e_activity_failure_is_section_error_not_empty_history() -> None:
     load_resource_activity(controller, force=True)
 
     assert controller._resource_activity is old_page
-    assert errors["activity"] == "activity query failed"
+    # Raw exception text must never reach the UI-facing property (Phase H
+    # error-boundary hardening) -- only the safe, sanitized message.
+    assert errors["activity"] == "Activity could not be loaded."
+    assert "activity query failed" not in errors["activity"]
 
 
 def test_r5e_late_activity_response_cannot_replace_new_resource() -> None:
@@ -461,8 +464,7 @@ def test_r5e_qml_uses_canonical_navigation_shared_activity_and_read_only_section
     assert 'sortingMode: "server"' in assignments
     assert 'openEntity("projects", projectId, "overview")' in projects
     assert 'openEntity("tasks", taskId, "details")' in assignments
-    assert "PMWidgets.ActivityLogSection" in activity
-    assert "clientSideSearch: false" in activity
+    assert "AppWidgets.ActivityFeed" in activity
     assert "createAssignment" not in assignments
     assert "deleteAssignment" not in assignments
     assert '"Details", "Assignments", "Skills", "Dependencies", "Time"' in task_state

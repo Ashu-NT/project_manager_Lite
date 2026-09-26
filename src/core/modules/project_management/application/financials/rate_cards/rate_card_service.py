@@ -1,28 +1,33 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
     RateCardCreated,
     RateCardDeactivated,
-    RateCardUpdated,
     RateCardLineAdded,
     RateCardLineDeactivated,
     RateCardLineUpdated,
+    RateCardUpdated,
 )
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import (
     ProjectRateCardRepository,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
 from src.core.modules.project_management.domain.financials.rate_cards import (
     ProjectRateCard,
     RateCardLine,
@@ -32,15 +37,16 @@ from src.core.modules.project_management.domain.financials.rate_cards import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-
 
 _UNSET = object()
 
@@ -253,7 +259,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         holiday_multiplier: Decimal | None | object = _UNSET,
         expected_card_version: int | None = None,
     ) -> RateCardLine:
-        current = self._require_line(line_id)
+        current = self._require_line(line_id, for_update=True)
         card = self._require_rate_card(current.rate_card_id)
         self._require_card_manage(card, "update rate card line")
         self._require_active_card(card)
@@ -312,7 +318,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         expected_version: int,
         expected_card_version: int | None = None,
     ) -> RateCardLine:
-        current = self._require_line(line_id)
+        current = self._require_line(line_id, for_update=True)
         card = self._require_rate_card(current.rate_card_id)
         self._require_card_manage(card, "deactivate rate card line")
         self._require_active_card(card)
@@ -441,8 +447,8 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             raise NotFoundError("Rate card not found.")
         return rate_card
 
-    def _require_line(self, line_id: str) -> RateCardLine:
-        line = self._rate_card_repo.get_line(line_id)
+    def _require_line(self, line_id: str, *, for_update: bool = False) -> RateCardLine:
+        line = self._rate_card_repo.get_line(line_id, for_update=for_update)
         if line is None:
             raise NotFoundError("Rate card line not found.")
         return line
@@ -524,8 +530,8 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             entity_type="project_rate_card",
             entity_id=rate_card.id,
             project_id=rate_card.project_id,
-            old_value=self._card_audit_value(old),
-            new_value=self._card_audit_value(rate_card),
+            before_data=self._card_audit_value(old),
+            after_data=self._card_audit_value(rate_card),
         )
 
     def _record_line_audit(
@@ -540,8 +546,8 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             entity_type="rate_card_line",
             entity_id=line.id,
             project_id=None,
-            old_value=self._line_audit_value(old),
-            new_value=self._line_audit_value(line),
+            before_data=self._line_audit_value(old),
+            after_data=self._line_audit_value(line),
         )
 
     def _record_audit(
@@ -551,8 +557,8 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         entity_type: str,
         entity_id: str,
         project_id: str | None,
-        old_value: str | None,
-        new_value: str | None,
+        before_data: dict[str, Any] | None,
+        after_data: dict[str, Any] | None,
     ) -> None:
         record_audit_entry(
             self,
@@ -561,57 +567,62 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             entity_id=entity_id,
             entity_parent_id=project_id,
             module="project_management",
-            old_value=old_value,
-            new_value=new_value,
+            category="FINANCIAL",
+            before_data=before_data,
+            after_data=after_data,
             workspace_id=project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
         )
+        record_activity(
+            self,
+            action=operation,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            parent_entity_id=project_id,
+            module="project_management",
+            workspace_id=project_id,
+            details={"action": operation},
+            commit=False,
+        )
 
     @staticmethod
-    def _card_audit_value(rate_card: ProjectRateCard | None) -> str | None:
+    def _card_audit_value(rate_card: ProjectRateCard | None) -> dict[str, Any] | None:
         if rate_card is None:
             return None
-        return json.dumps(
-            {
-                "name": rate_card.name,
-                "project_id": rate_card.project_id,
-                "is_active": rate_card.is_active,
-                "version": rate_card.version,
-            },
-            sort_keys=True,
-        )
+        return {
+            "name": rate_card.name,
+            "project_id": rate_card.project_id,
+            "is_active": rate_card.is_active,
+            "version": rate_card.version,
+        }
 
     @staticmethod
-    def _line_audit_value(line: RateCardLine | None) -> str | None:
+    def _line_audit_value(line: RateCardLine | None) -> dict[str, Any] | None:
         if line is None:
             return None
-        return json.dumps(
-            {
-                "rate_type": line.rate_type.value,
-                "origin": line.origin.value,
-                "resource_id": line.resource_id,
-                "customer_party_id": line.customer_party_id,
-                "contract_reference": line.contract_reference,
-                "role": line.role,
-                "skill_code": line.skill_code,
-                "department_id": line.department_id,
-                "effective_from": (
-                    line.effective_from.isoformat() if line.effective_from else None
-                ),
-                "effective_to": line.effective_to.isoformat() if line.effective_to else None,
-                "is_active": line.is_active,
-                "unit": line.unit,
-                "rate_amount": str(line.rate_amount),
-                "rate_currency": line.rate_currency,
-                "version": line.version,
-            },
-            sort_keys=True,
-        )
+        return {
+            "rate_type": line.rate_type.value,
+            "origin": line.origin.value,
+            "resource_id": line.resource_id,
+            "customer_party_id": line.customer_party_id,
+            "contract_reference": line.contract_reference,
+            "role": line.role,
+            "skill_code": line.skill_code,
+            "department_id": line.department_id,
+            "effective_from": (
+                line.effective_from.isoformat() if line.effective_from else None
+            ),
+            "effective_to": line.effective_to.isoformat() if line.effective_to else None,
+            "is_active": line.is_active,
+            "unit": line.unit,
+            "rate_amount": str(line.rate_amount),
+            "rate_currency": line.rate_currency,
+            "version": line.version,
+        }
 
 
 

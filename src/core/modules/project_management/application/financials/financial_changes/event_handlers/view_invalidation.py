@@ -22,7 +22,7 @@ FINANCIAL_CHANGE_PROJECT_ENTITY_TYPE = "project"
 def build_financial_change_view_invalidation_handler(
     channel: ViewInvalidationChannel,
 ):
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified: set[tuple[str, str, str, str]] = set()
 
     def notify(event: FinancialChangeChanged, scope_code: str) -> None:
@@ -54,8 +54,8 @@ def build_financial_change_view_invalidation_handler(
     def handle(
         event: FinancialChangeChanged, context: DomainEventContext
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified.clear()
         notify(event, FINANCIAL_CHANGE_WORKSPACE_SCOPE_CODE)
         scope_by_effect = {

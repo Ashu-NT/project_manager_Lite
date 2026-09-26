@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 from src.core.platform.domain.master_data.site import Site
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
 
 
 def site_to_orm(site: Site) -> SiteORM:
@@ -23,7 +25,6 @@ def site_to_orm(site: Site) -> SiteORM:
         status=site.status or None,
         default_calendar_id=site.default_calendar_id or None,
         default_language=site.default_language or None,
-        is_active=site.is_active,
         opened_at=site.opened_at,
         closed_at=site.closed_at,
         created_at=site.created_at,
@@ -52,7 +53,6 @@ def site_from_orm(obj: SiteORM) -> Site:
         status=obj.status or "",
         default_calendar_id=obj.default_calendar_id or "",
         default_language=obj.default_language or "",
-        is_active=obj.is_active,
         opened_at=obj.opened_at,
         closed_at=obj.closed_at,
         created_at=obj.created_at,

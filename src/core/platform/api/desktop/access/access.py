@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.access import AccessControlService
+from src.core.platform.access.domain import ScopedAccessGrant
 from src.core.platform.api.desktop.access.models.access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantDto,
@@ -11,8 +11,8 @@ from src.core.platform.api.desktop.access.models.access import (
     ScopeTargetDto,
     ScopeTypeChoiceDto,
 )
-from src.core.platform.access import AccessControlService
-from src.core.platform.access.domain import ScopedAccessGrant
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
 
 
 class PlatformAccessDesktopApi:

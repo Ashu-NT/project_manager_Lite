@@ -40,7 +40,7 @@ def test_qml_shell_navigation_view_models_are_route_shaped():
 
     assert len(items) == 2
     assert items[1].route_id == "shell.home"
-    assert items[1].qml_source.endswith("HomeWorkspace.qml")
+    assert items[1].qml_source.endswith("OverviewWorkspace.qml")
     assert items[0].module_label == "Shell"
     assert items[0].group_label == "Runtime"
 
@@ -49,17 +49,9 @@ def test_qml_main_window_navigation_uses_registry_routes():
     navigation = build_main_window_navigation(build_qml_route_registry())
 
     assert [item.title for item in navigation] == [
-        "QML Home",
+        "Overview",
         "Platform",
         "Project Management",
-        "Inventory Dashboard",
-        "Catalog",
-        "Inventory",
-        "Reservations",
-        "Procurement",
-        "Pricing",
-        "Stock Movements",
-        "Warehouses & Locations",
     ]
 
 

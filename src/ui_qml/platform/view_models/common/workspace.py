@@ -30,12 +30,23 @@ class PlatformWorkspaceOverviewViewModel:
     metrics: tuple[PlatformMetricViewModel, ...] = field(default_factory=tuple)
     sections: tuple[PlatformWorkspaceSectionViewModel, ...] = field(default_factory=tuple)
     breakdown_cards: tuple[dict, ...] = field(default_factory=tuple)
+    recent_activity: tuple[dict, ...] = field(default_factory=tuple)
+    # Pre-composed {"title", "subtitle", "emptyState", "items"} dict -- items
+    # are already-serialized canonical ActivityFeed shapes, not a
+    # PlatformWorkspaceActionListViewModel (that shape backs the full
+    # Approval Queue table separately; this is a compact preview).
+    approval_actions: dict[str, object] | None = None
 
 @dataclass(frozen=True)
 class PlatformWorkspaceActionItemViewModel:
     id: str
     title: str
-    status_label: str = ""
+    # Plain string for callers with no semantic tone (StatusChip falls back
+    # to "neutral"). Callers that need an explicit tone pass
+    # {"label": ..., "tone": "success" | "neutral" | "info" | "warning" | "danger"}
+    # instead -- DataTable/StatusChip already special-case this shape (see
+    # data_table_model.py's _to_display); this never infers tone from text.
+    status_label: str | dict[str, str] = ""
     subtitle: str = ""
     supporting_text: str = ""
     meta_text: str = ""
@@ -50,6 +61,17 @@ class PlatformWorkspaceActionListViewModel:
     subtitle: str = ""
     empty_state: str = ""
     items: tuple[PlatformWorkspaceActionItemViewModel, ...] = field(default_factory=tuple)
+    # Optional server-side pagination metadata. `paginated` is False (and the
+    # rest at their defaults) for every existing non-paginated list -- fully
+    # backward compatible. `no_results_state` is shown instead of
+    # `empty_state` when the dataset itself is non-empty but the current
+    # search/filter matched nothing (total > 0, filtered_total == 0).
+    paginated: bool = False
+    no_results_state: str = ""
+    page: int = 1
+    page_size: int = 0
+    total_count: int = 0
+    filtered_total: int = 0
 
 __all__ = [
     "PlatformMetricViewModel",

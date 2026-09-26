@@ -2,7 +2,6 @@ from src.ui_qml.modules.project_management.navigation import PM_CANONICAL_ROUTE_
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
 from src.ui_qml.shell.qml_registry import build_qml_route_registry
 
-
 EXPECTED_COMPATIBILITY_PM_ROUTE_IDS = [
     "project_management.projects",
     "project_management.tasks",
@@ -14,6 +13,7 @@ EXPECTED_COMPATIBILITY_PM_ROUTE_IDS = [
     "project_management.collaboration",
     "project_management.timesheets",
     "project_management.dashboard",
+    "project_management.review_queue",
 ]
 
 
@@ -30,9 +30,9 @@ def test_project_management_qml_routes_point_to_workspace_files() -> None:
 
 
 def test_project_management_canonical_route_is_the_only_navigation_entry() -> None:
-    """R2.7/R2.8: the shell exposes exactly ONE Project Management
-    destination. The ten compatibility route ids remain registered/loadable (for
-    deep-link compatibility) but are no longer separate drawer entries."""
+    """The shell exposes exactly ONE Project Management destination. The
+    per-workspace route ids remain registered/loadable for deep links, but
+    are not separate top-level drawer entries."""
     registry = build_qml_route_registry()
     route_ids = [route.route_id for route in registry.list_navigation_routes()]
 

@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.platform.domain.history.audit import AuditEntry
-from src.core.platform.common.exceptions import BusinessRuleError
-
 from src.core.platform.application.security.authorization.enforcement.target_user_authorization import (
     is_platform_operator,
     require_actor_active_tenant,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.history.audit import AuditEntry
 
 if TYPE_CHECKING:
     from src.core.platform.application.security.auth.auth_service import AuthService
@@ -90,14 +89,14 @@ def add_atomic_security_audit(
         module="platform",
         actor_id=principal.user_id,
         actor_username=principal.username,
-        field=field,
-        old_value=old_value,
-        new_value=new_value,
+        changed_fields=(
+            {field: {"before": old_value, "after": new_value}} if field else None
+        ),
         tenant_id=tenant_id,
         organization_id=organization_id,
         source="auth",
         severity=severity,
-        compliance_tag="SOC2",
+        category="SECURITY",
         metadata={
             **dict(metadata or {}),
             "action": action,
@@ -145,12 +144,12 @@ def add_atomic_system_security_audit(
             module="platform",
             actor_type="system",
             actor_username=normalized_actor,
-            field=field,
-            old_value=old_value,
-            new_value=new_value,
+            changed_fields=(
+                {field: {"before": old_value, "after": new_value}} if field else None
+            ),
             source=source,
             severity=severity,
-            compliance_tag="SOC2",
+            category="SECURITY",
             metadata={
                 **dict(metadata or {}),
                 "action": action,

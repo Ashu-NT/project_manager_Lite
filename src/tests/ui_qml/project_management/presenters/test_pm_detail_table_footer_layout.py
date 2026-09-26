@@ -4,7 +4,6 @@ from pathlib import Path
 
 from src.tests.path_rewrites import REPO_ROOT
 
-
 QML_ROOT = REPO_ROOT / "src" / "ui_qml" / "modules" / "project_management" / "qml"
 
 

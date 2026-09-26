@@ -4,11 +4,6 @@ from types import SimpleNamespace
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
 )
-from src.core.modules.project_management.domain.risk.register import (
-    RegisterEntrySeverity,
-    RegisterEntryStatus,
-    RegisterEntryType,
-)
 
 
 def test_project_management_dashboard_desktop_api_uses_real_period_labels_for_trend_axes() -> None:
@@ -183,9 +178,10 @@ def test_project_management_dashboard_desktop_api_normalizes_naive_activity_time
     snapshot = api.build_snapshot(project_id="proj-1", period_key="30d")
 
     assert snapshot.activity_feed.items[0].title == "Cable Pull update"
-    assert snapshot.activity_feed.items[0].meta_text.endswith(
-        recent_at.strftime("%Y-%m-%d %H:%M")
-    )
+    assert snapshot.activity_feed.items[0].occurred_at.tzinfo is not None
+    assert snapshot.activity_feed.items[0].occurred_at.strftime(
+        "%Y-%m-%d %H:%M"
+    ) == recent_at.strftime("%Y-%m-%d %H:%M")
     approvals_table = next(
         table for table in snapshot.operational_tables if table.id == "pending_approvals"
     )

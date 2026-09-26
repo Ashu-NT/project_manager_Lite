@@ -1,0 +1,3 @@
+module workspaces.sites
+AdminSiteDetailPage 1.0 AdminSiteDetailPage.qml
+SitesWorkspacePage 1.0 SitesWorkspacePage.qml

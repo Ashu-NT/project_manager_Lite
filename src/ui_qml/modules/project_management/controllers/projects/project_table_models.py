@@ -10,7 +10,6 @@ class ProjectTableModels:
     projects: DynamicTableModel
     project_tasks: DynamicTableModel
     project_resources: DynamicTableModel
-    project_activity: DynamicTableModel
 
 
 def create_project_table_models(parent) -> ProjectTableModels:
@@ -18,7 +17,6 @@ def create_project_table_models(parent) -> ProjectTableModels:
         projects=DynamicTableModel(parent),
         project_tasks=DynamicTableModel(parent),
         project_resources=DynamicTableModel(parent),
-        project_activity=DynamicTableModel(parent),
     )
 
 

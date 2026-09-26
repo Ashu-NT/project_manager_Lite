@@ -15,8 +15,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.finance.money.currency import CurrencyCode
-
+from src.core.platform.domain.finance.money.currency import CurrencyCode
 
 _COST_CODE_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9._-]{0,63}$")
 
@@ -127,7 +126,7 @@ class ProjectFinancialProfile:
         )
 
     @model_validator(mode="after")
-    def _validate_policy(self) -> "ProjectFinancialProfile":
+    def _validate_policy(self) -> ProjectFinancialProfile:
         if (
             self.financial_start_date
             and self.financial_end_date
@@ -181,7 +180,7 @@ class ProjectFinancialProfile:
         project_id: str,
         currency_code: str,
         **values,
-    ) -> "ProjectFinancialProfile":
+    ) -> ProjectFinancialProfile:
         return ProjectFinancialProfile(
             id=generate_id(),
             tenant_id=tenant_id,
@@ -269,7 +268,7 @@ class ProjectCostCode:
         )
 
     @model_validator(mode="after")
-    def _validate_hierarchy_and_dates(self) -> "ProjectCostCode":
+    def _validate_hierarchy_and_dates(self) -> ProjectCostCode:
         if self.parent_id == self.id:
             raise ValidationError(
                 "A cost code cannot be its own parent.",
@@ -302,7 +301,7 @@ class ProjectCostCode:
         code: str,
         name: str,
         **values,
-    ) -> "ProjectCostCode":
+    ) -> ProjectCostCode:
         return ProjectCostCode(
             id=generate_id(),
             tenant_id=tenant_id,
@@ -353,7 +352,7 @@ class ProjectCostCodeRestriction:
         organization_id: str,
         project_id: str,
         cost_code_id: str,
-    ) -> "ProjectCostCodeRestriction":
+    ) -> ProjectCostCodeRestriction:
         return ProjectCostCodeRestriction(
             id=generate_id(),
             tenant_id=tenant_id,

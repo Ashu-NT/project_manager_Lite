@@ -122,7 +122,7 @@ class DashboardProfessionalMixin:
         if resource_names is None:
             resource_names = {
                 resource.id: resource.name
-                for resource in getattr(self, "_resources").list_resources()
+                for resource in self._resources.list_resources()
             }
         for task in tasks:
             assignments = (

@@ -3,34 +3,35 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
+from decimal import Decimal
 
 from src.core.modules.project_management.application.dashboard.models.portfolio_models import (
     DashboardPortfolio,
 )
+from src.core.modules.project_management.application.risk import RegisterProjectSummary
+from src.core.modules.project_management.domain.risk.register import RegisterEntry
 from src.core.modules.project_management.infrastructure.reporting import (
     CostSourceBreakdown,
     ProjectKPI,
     ResourceLoadRow,
 )
-from src.core.modules.project_management.application.risk import RegisterProjectSummary
-from src.core.modules.project_management.domain.risk.register import RegisterEntry
 
 
 @dataclass
 class DashboardEVM:
     as_of: date
     baseline_id: str
-    BAC: float
-    PV: float
-    EV: float
-    AC: float
-    CPI: float | None
-    SPI: float | None
-    EAC: float | None
-    VAC: float | None
+    BAC: Decimal | None
+    PV: Decimal | None
+    EV: Decimal | None
+    AC: Decimal | None
+    CPI: Decimal | None
+    SPI: Decimal | None
+    EAC: Decimal | None
+    VAC: Decimal | None
     status_text: str
-    TCPI_to_BAC: float | None
-    TCPI_to_EAC: float | None
+    TCPI_to_BAC: Decimal | None
+    TCPI_to_EAC: Decimal | None
 
 
 @dataclass

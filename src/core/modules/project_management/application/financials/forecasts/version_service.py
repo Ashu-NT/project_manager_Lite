@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
@@ -8,19 +7,21 @@ from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
-    ForecastLineChangeType,
-    ForecastLineChanged,
-    ForecastVersionChangeType,
-    ForecastVersionChanged,
-)
 from src.core.modules.project_management.application.financials.forecasts.approval_result import (
     ForecastApprovalRequestResult,
+)
+from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
+    ForecastLineChanged,
+    ForecastLineChangeType,
+    ForecastVersionChanged,
+    ForecastVersionChangeType,
 )
 from src.core.modules.project_management.application.financials.successor_models import (
     ApprovedFinancialLineAdjustment,
@@ -33,9 +34,15 @@ from src.core.modules.project_management.contracts.repositories.finance.configur
 from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import (
     ProjectForecastRepository,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
-from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
+from src.core.modules.project_management.domain.financials.configuration import (
+    CostCodePolicy,
+)
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastDecisionAction,
     ForecastDecisionReason,
@@ -43,21 +50,23 @@ from src.core.modules.project_management.domain.financials.forecast import (
     ForecastLine,
     ForecastLineSourceKind,
     ForecastLineSourceType,
-    ForecastStatus,
     ForecastSourceDecision,
+    ForecastStatus,
     ProjectForecast,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-
 
 _OPEN_CONSTRAINT = "uq_pf_forecasts_one_open_per_project"
 _APPROVED_CONSTRAINT = "uq_pf_forecasts_one_approved_per_project"
@@ -561,7 +570,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         decisions: list[ForecastSourceDecision] = []
         for source in self._forecast_repo.list_lines(base.id):
             adjustment = by_target.get(source.id)
-            amount = source.amount + (adjustment.amount if adjustment else Decimal("0"))
+            amount = source.amount + (adjustment.amount if adjustment else Decimal(0))
             if amount < 0:
                 raise BusinessRuleError(
                     "Forecast change would make a successor line negative.",
@@ -675,7 +684,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             ),
             source_amount=line.amount,
             included_amount=line.amount,
-            excluded_amount=Decimal("0"),
+            excluded_amount=Decimal(0),
             currency_code=forecast.currency_code,
             source_snapshot_at=line.source_snapshot_at or occurred_at,
             created_at=occurred_at,
@@ -834,64 +843,82 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         raise
 
     def _record_forecast_audit(self, operation: str, forecast: ProjectForecast) -> None:
+        full_operation = f"project_forecast.{operation}"
+        snapshot = {
+            "status": forecast.status.value,
+            "revision": forecast.revision,
+            "as_of_date": forecast.as_of_date.isoformat(),
+            "generation_mode": forecast.generation_mode.value,
+            "currency_code": forecast.currency_code,
+        }
         record_audit_entry(
             self,
-            operation=f"project_forecast.{operation}",
+            operation=full_operation,
             entity_type="project_forecast",
             entity_id=forecast.id,
             entity_parent_id=forecast.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "status": forecast.status.value,
-                    "revision": forecast.revision,
-                    "as_of_date": forecast.as_of_date.isoformat(),
-                    "generation_mode": forecast.generation_mode.value,
-                    "currency_code": forecast.currency_code,
-                },
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data=snapshot,
             workspace_id=forecast.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_forecast",
+            entity_id=forecast.id,
+            parent_entity_id=forecast.project_id,
+            module="project_management",
+            workspace_id=forecast.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     def _record_line_audit(
         self, operation: str, line: ForecastLine, forecast: ProjectForecast
     ) -> None:
+        full_operation = f"project_forecast_line.{operation}"
+        snapshot = {
+            "amount": str(line.amount),
+            "currency_code": line.currency_code,
+            "cost_code_id": line.cost_code_id,
+            "task_id": line.task_id,
+            "source_kind": line.source_kind.value,
+            "source_type": line.source_type.value,
+            "source_reference_type": line.source_reference_type,
+            "source_reference_id": line.source_reference_id,
+        }
         record_audit_entry(
             self,
-            operation=f"project_forecast_line.{operation}",
+            operation=full_operation,
             entity_type="project_forecast_line",
             entity_id=line.id,
             entity_parent_id=forecast.id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "amount": str(line.amount),
-                    "currency_code": line.currency_code,
-                    "cost_code_id": line.cost_code_id,
-                    "task_id": line.task_id,
-                    "source_kind": line.source_kind.value,
-                    "source_type": line.source_type.value,
-                    "source_reference_type": line.source_reference_type,
-                    "source_reference_id": line.source_reference_id,
-                },
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data=snapshot,
             workspace_id=forecast.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_forecast_line",
+            entity_id=line.id,
+            parent_entity_id=forecast.id,
+            module="project_management",
+            workspace_id=forecast.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
 __all__ = ["ForecastVersionService"]

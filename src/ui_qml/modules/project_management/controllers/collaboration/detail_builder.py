@@ -40,9 +40,9 @@ def matching_items_for_task_or_project(
         for item in panel_item_index.get(pid, {}).values():
             if str(item.get("id") or "") == exclude_item_id:
                 continue
-            state = dict(item.get("state") or {})
-            same_task = task_id and str(state.get("taskId") or "") == task_id
-            same_project = project_id and str(state.get("projectId") or "") == project_id
+            lookup = dict(item.get("state") or item.get("activationState") or {})
+            same_task = task_id and str(lookup.get("taskId") or "") == task_id
+            same_project = project_id and str(lookup.get("projectId") or "") == project_id
             if not same_task and not same_project:
                 continue
             item_id = str(item.get("id") or "")
@@ -51,7 +51,9 @@ def matching_items_for_task_or_project(
             seen_ids.add(item_id)
             matches.append(dict(item))
     matches.sort(
-        key=lambda e: str(dict(e.get("state") or {}).get("createdAt") or ""),
+        key=lambda e: str(
+            dict(e.get("state") or e.get("activationState") or {}).get("createdAt") or ""
+        ),
         reverse=True,
     )
     return matches[:10]
@@ -62,7 +64,7 @@ def build_detail_payload(
     item: dict[str, object],
     panel_item_index: dict[str, dict[str, dict[str, object]]],
 ) -> dict[str, object]:
-    state = dict(item.get("state") or {})
+    state = dict(item.get("state") or item.get("activationState") or {})
     project_id = str(state.get("projectId") or "")
     task_id = str(state.get("taskId") or "")
     item_id = str(item.get("id") or "")
@@ -121,9 +123,9 @@ def build_detail_payload(
     detail = CollaborationDetailViewModel(
         id=item_id,
         title=str(item.get("title") or ""),
-        status_label=str(item.get("statusLabel") or ""),
-        subtitle=str(item.get("subtitle") or ""),
-        description=str(item.get("supportingText") or ""),
+        status_label=str(item.get("statusLabel") or item.get("badgeLabel") or ""),
+        subtitle=str(item.get("subtitle") or item.get("subjectDisplay") or ""),
+        description=str(item.get("supportingText") or item.get("description") or ""),
         state={
             "panelId": panel_id,
             "routeId": route_id,
@@ -146,19 +148,24 @@ def build_detail_payload(
             ),
             CollaborationDetailFieldViewModel(
                 "Created",
-                str(item.get("metaText") or state.get("createdAt") or "Timestamp unavailable"),
+                str(
+                    item.get("occurredAtLabel")
+                    or item.get("metaText")
+                    or state.get("createdAt")
+                    or "Timestamp unavailable"
+                ),
             ),
             CollaborationDetailFieldViewModel(
                 "Source",
                 str(route_id or "No linked source route"),
             ),
         ),
-        activity=CollaborationCollectionViewModel(
-            title="Activity",
-            subtitle="Related workflow and collaboration events.",
-            empty_state="No related activity is available for this collaboration item.",
-            items=tuple(to_record_view_model(e) for e in activity_items),
-        ),
+        activity={
+            "title": "Activity",
+            "subtitle": "Related workflow and collaboration events.",
+            "emptyState": "No related activity is available for this collaboration item.",
+            "items": [dict(e) for e in activity_items],
+        },
         related_items=CollaborationCollectionViewModel(
             title="Related Items",
             subtitle="Open the source workspace or review related project records.",

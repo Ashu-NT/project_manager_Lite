@@ -9,7 +9,9 @@ from PySide6.QtCore import QObject, QUrl
 from PySide6.QtQml import QQmlComponent
 from sqlalchemy import event
 
-from src.core.modules.project_management.api.desktop.financials import ProjectManagementFinancialsDesktopApi
+from src.core.modules.project_management.api.desktop.financials import (
+    ProjectManagementFinancialsDesktopApi,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
     AccountingStatusQuery,
     BillingPreparationLineQuery,
@@ -24,9 +26,11 @@ from src.core.modules.project_management.infrastructure.persistence.orm.billing 
     ProjectBillingScheduleLineORM,
     ProjectBillingSourceLockORM,
 )
-from src.core.platform.infrastructure.persistence.orm.approval.approval import ApprovalRequestORM
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
@@ -99,7 +103,7 @@ def _seed_billing(services):
             period_end=date(2026, 8, 31), currency_code="USD",
             idempotency_key=f"key-{identifier}", status=status,
             line_count=1 if identifier == "preparation-alpha" else 0,
-            total_amount=Decimal("5000.2500") if identifier == "preparation-alpha" else Decimal("0"),
+            total_amount=Decimal("5000.2500") if identifier == "preparation-alpha" else Decimal(0),
             correction_of_preparation_id=None,
             approval_request_id="billing-approval-a" if identifier == "preparation-alpha" else None,
             submitted_by="commercial.manager" if identifier == "preparation-alpha" else None,
@@ -119,7 +123,7 @@ def _seed_billing(services):
         preparation_id="preparation-alpha", source_type="schedule_line",
         source_id="schedule-alpha", source_revision="1", source_content_hash="a" * 64,
         description="Accepted milestone", source_date=date(2026, 9, 1),
-        quantity=Decimal("1"), unit="milestone", unit_rate=Decimal("5000.2500"),
+        quantity=Decimal(1), unit="milestone", unit_rate=Decimal("5000.2500"),
         net_amount=Decimal("5000.2500"), currency_code="USD", task_id=None,
         resource_id=None, source_amount=Decimal("5000.2500"), markup_percent=None,
         rate_card_id=None, rate_line_id=None, rate_card_version=None, created_at=now,
@@ -304,7 +308,7 @@ def test_billing_master_detail_loads_at_supported_viewports(qapp, width: int, he
     component.setData(
         b'''
 import QtQuick
-import workspaces.financials.sections 1.0
+import workspaces.financials.invoicing.sections 1.0
 Window {
     visible: true
     FinancialsBillingPreparationSection {
@@ -336,17 +340,19 @@ Window {
 
 
 def test_billing_qml_contract_is_server_read_only():
-    source = "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/FinancialsBillingPreparationSection.qml"
+    source = "src/ui_qml/modules/project_management/qml/workspaces/financials/invoicing/sections/FinancialsBillingPreparationSection.qml"
     text = open(source, encoding="utf-8").read()
     assert text.count('sortingMode: "server"') == 3
     assert "preparationSelected" in text
     assert "Local handoff" not in text
-    for forbidden in ('text: "Create Preparation"', 'text: "Approve Preparation"', 'text: "Deliver"', 'text: "Edit Profile"'):
+    for forbidden in ('text: "Approve Preparation"', 'text: "Deliver"', 'text: "Edit Profile"'):
         assert forbidden not in text
+    assert 'text: "Create Preparation"' in text
+    assert "canCreatePreparation" in text
 
 
 def test_billing_filter_helpers_are_safe_during_qml_initialization():
-    source = "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/FinancialsBillingPreparationSection.qml"
+    source = "src/ui_qml/modules/project_management/qml/workspaces/financials/invoicing/sections/FinancialsBillingPreparationSection.qml"
     text = open(source, encoding="utf-8").read()
     assert "replaceAll" not in text
     assert "if (!model || model.length === undefined) return 0" in text

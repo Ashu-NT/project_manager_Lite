@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from typing import Callable, Iterable
+from collections.abc import Callable, Iterable
 
-from src.core.shared.audit import record_audit_entry
-from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     MODULE_ENTITLEMENT_CATEGORY,
     MODULE_ENTITLEMENTS_SCOPE_CODE,
 )
-from src.core.shared.events.view_invalidation import OrganizationScope, ViewInvalidationHint
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.tenant.modules.defaults import (
     MODULE_LIFECYCLE_INACTIVE,
     MODULE_RUNTIME_ACCESS_STATUSES,
@@ -19,13 +19,19 @@ from src.core.platform.domain.tenant.modules.defaults import (
 from src.core.platform.domain.tenant.modules.events import (
     ModuleDisabled,
     ModuleEnabled,
-    ModuleLicenseRevoked,
     ModuleLicensed,
+    ModuleLicenseRevoked,
     ModuleLifecycleTransitioned,
 )
 from src.core.platform.domain.tenant.modules.module_definition import EnterpriseModule
 from src.core.platform.domain.tenant.modules.module_entitlement import ModuleEntitlement
 from src.core.platform.domain.tenant.modules.subscription import ModuleEntitlementRecord
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.view_invalidation import (
+    OrganizationScope,
+    ViewInvalidationHint,
+)
 
 _USER_SELECTABLE_LIFECYCLE_STATUSES = frozenset({"active", "trial", "suspended", "expired"})
 
@@ -55,6 +61,50 @@ class ModuleCatalogMutationMixin:
             audit_action="module.entitlement.license_revoked",
             event_factory=self._revoke_module_license_event,
         )
+
+    def bulk_set_module_license(
+        self, organization_module_pairs: Iterable[tuple[str, str]], *, licensed: bool
+    ) -> list[ModuleEntitlement]:
+        """Grants or revokes a module license across many (organization_id,
+        module_code) pairs -- e.g. Organizations' bulk "Assign Modules" action
+        applying N modules to M selected organizations. One UnitOfWork/commit
+        for every pair instead of one per pair, same reasoning as
+        OrganizationService.bulk_activate_organizations()."""
+        require_permission(
+            self._user_session,
+            "settings.manage",
+            operation_label="manage module entitlements",
+        )
+        if self._uow_factory is None:
+            raise RuntimeError("Module entitlement UnitOfWork factory is not configured.")
+        transition = self._license_module_transition if licensed else self._revoke_module_license_transition
+        audit_action = (
+            "module.entitlement.license_granted" if licensed else "module.entitlement.license_revoked"
+        )
+        event_factory = self._license_module_event if licensed else self._revoke_module_license_event
+        results: list[ModuleEntitlement] = []
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            for organization_id, module_code in organization_module_pairs:
+                normalized_organization_id = str(organization_id or "").strip()
+                if not normalized_organization_id:
+                    raise ValidationError(
+                        "Organization context is required to manage module entitlements.",
+                        code="ORGANIZATION_REQUIRED",
+                    )
+                results.append(
+                    self._apply_module_transition_using(
+                        uow.entitlements,
+                        uow,
+                        organization_id=normalized_organization_id,
+                        module_code=module_code,
+                        transition=transition,
+                        audit_action=audit_action,
+                        audit_extra=None,
+                        event_factory=event_factory,
+                    )
+                )
+            uow.commit()
+        return results
 
     def enable_module(self, organization_id: str, module_code: str) -> ModuleEntitlement:
         """ENABLE_MODULE: pure runtime activation. Requires an existing license and a
@@ -192,8 +242,25 @@ class ModuleCatalogMutationMixin:
             entity_type="module_entitlement",
             entity_id=module.code,
             module="platform",
+            category="PRIVILEGED_OPERATION",
             severity="low",
+            organization_id=organization_id,
+            changed_fields={
+                "licensed": {"before": current.licensed, "after": next_licensed},
+                "enabled": {"before": current.enabled, "after": next_enabled},
+                "lifecycle_status": {"before": current.lifecycle_status, "after": next_status},
+            },
             metadata=metadata,
+            commit=False,
+        )
+        record_activity(
+            uow,
+            action=audit_action,
+            entity_type="module_entitlement",
+            entity_id=module.code,
+            module="platform",
+            organization_id=organization_id,
+            details=metadata,
             commit=False,
         )
         if changed:
@@ -383,15 +450,29 @@ class ModuleCatalogMutationMixin:
             entity_type="organization",
             entity_id=normalized_organization_id,
             module="platform",
+            category="PRIVILEGED_OPERATION",
             severity="low",
-            metadata={
-                "action": "organization.modules.provision",
-                "organization_id": normalized_organization_id,
-                "licensed_modules": ",".join(sorted(licensed_codes)),
-                "enabled_modules": ",".join(sorted(enabled_codes)),
+            organization_id=normalized_organization_id,
+            after_data={
+                "licensed_modules": sorted(licensed_codes),
+                "enabled_modules": sorted(enabled_codes),
             },
+            metadata={"action": "organization.modules.provision"},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action="organization.modules.provision",
+            entity_type="organization",
+            entity_id=normalized_organization_id,
+            module="platform",
+            organization_id=normalized_organization_id,
+            details={
+                "licensed_modules": sorted(licensed_codes),
+                "enabled_modules": sorted(enabled_codes),
+            },
+            commit=False,
         )
         if self._session is not None:
             if commit:

@@ -33,6 +33,17 @@ Item {
     implicitWidth: _row.implicitWidth + 22
     implicitHeight: Theme.AppTheme.inputHeight
 
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: root._hasActiveItem ? String(root._activeItem.label || "") : root.triggerLabel
+    Accessible.onPressAction: _popup.open()
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            _popup.open()
+            event.accepted = true
+        }
+    }
+
     Rectangle {
         anchors.fill: parent
         radius: Theme.AppTheme.radiusSm
@@ -41,8 +52,10 @@ Item {
             : _hoverArea.containsMouse
                 ? Theme.AppTheme.hoverSurface
                 : Theme.AppTheme.surfaceOverlay
-        border.color: root._hasActiveItem ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
-        border.width: root._hasActiveItem ? 1 : 0
+        border.color: root.activeFocus
+            ? Theme.AppTheme.focusBorder
+            : root._hasActiveItem ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
+        border.width: root.activeFocus ? 2 : (root._hasActiveItem ? 1 : 0)
     }
 
     RowLayout {
@@ -94,10 +107,29 @@ Item {
                     Layout.fillWidth: true
                     implicitHeight: Theme.AppTheme.sidebarRowHeight
 
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.MenuItem
+                    Accessible.name: String(itemDelegate.modelData.label || "")
+                    Accessible.onPressAction: {
+                        root.itemSelected(String(itemDelegate.modelData.id || ""))
+                        _popup.close()
+                    }
+                    Keys.onPressed: (event) => {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            root.itemSelected(String(itemDelegate.modelData.id || ""))
+                            _popup.close()
+                            event.accepted = true
+                        }
+                    }
+
                     Rectangle {
                         anchors.fill: parent
-                        visible: itemDelegate._isActive
-                        color: Theme.AppTheme.navSelectedBackground
+                        visible: itemDelegate._isActive || itemDelegate.activeFocus
+                        color: itemDelegate.activeFocus && !itemDelegate._isActive
+                            ? Theme.AppTheme.hoverSurface
+                            : Theme.AppTheme.navSelectedBackground
+                        border.width: itemDelegate.activeFocus ? 2 : 0
+                        border.color: Theme.AppTheme.focusBorder
                     }
 
                     RowLayout {

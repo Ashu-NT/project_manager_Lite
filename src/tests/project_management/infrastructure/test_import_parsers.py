@@ -16,7 +16,6 @@ from src.core.modules.project_management.infrastructure.importers.scheduling.pri
     P6Parser,
 )
 
-
 # ── MS Project XML ────────────────────────────────────────────────────────────
 
 _MSP_NS = "http://schemas.microsoft.com/project"

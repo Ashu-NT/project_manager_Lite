@@ -1,0 +1,3 @@
+module workspaces.financials.governance.sections
+FinancialsActivitySection 1.0 FinancialsActivitySection.qml
+FinancialsProfileSection 1.0 FinancialsProfileSection.qml

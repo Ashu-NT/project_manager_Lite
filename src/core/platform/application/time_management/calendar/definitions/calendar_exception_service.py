@@ -8,7 +8,13 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    _resolve_username,
+)
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarExceptionRepository,
     PlatformCalendarRepository,
@@ -16,8 +22,6 @@ from src.core.platform.contract.repositories.time_management.calendar.contracts 
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarException,
 )
-from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import _resolve_username
 
 
 class CalendarExceptionService:

@@ -102,7 +102,7 @@ def test_qml_budget_commands_use_explicit_typed_controller_slots() -> None:
         "financials_workspace_controller.py"
     ).read_text(encoding="utf-8")
     host = Path(
-        "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs/"
+        "src/ui_qml/modules/project_management/qml/workspaces/financials/shared/dialogs/"
         "FinancialsDialogHost.qml"
     ).read_text(encoding="utf-8")
 

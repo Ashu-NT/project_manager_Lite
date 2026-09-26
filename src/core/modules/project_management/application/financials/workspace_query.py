@@ -8,17 +8,61 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_setup_reader import (
-    FinanceSetupReader,
+from src.core.modules.project_management.contracts.reads.financials.finance_billing_reader import (
+    FinanceBillingReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_budget_reader import (
+    FinanceBudgetReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_change_reader import (
+    FinanceChangeReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_forecast_reader import (
+    FinanceForecastReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_integration_reader import (
+    FinanceIntegrationReader,
 )
 from src.core.modules.project_management.contracts.reads.financials.finance_lookup_reader import (
     FinanceLookupReader,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
-    FinanceSetupCostCodeQuery,
-    FinanceSetupFacts,
-    FinanceSetupRestrictionQuery,
-    FinanceSetupWorkspaceFacts,
+from src.core.modules.project_management.contracts.reads.financials.finance_planned_cost_reader import (
+    FinancePlannedCostReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_rate_reader import (
+    FinanceRateReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_setup_reader import (
+    FinanceSetupReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+    AccountingStatusFact,
+    AccountingStatusQuery,
+    BillingPreparationLineQuery,
+    BillingPreparationQuery,
+    BillingScheduleQuery,
+    BillingSourceOptionFact,
+    BillingSourceQuery,
+    FinanceBillingWorkspaceFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+    FinanceBudgetWorkspaceFacts,
+    FinancePageFacts,
+    FinancePageRequest,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_change_facts import (
+    FinanceChangeWorkspaceFacts,
+    FinancialChangeImpactQuery,
+    FinancialChangeRequestQuery,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_forecast_facts import (
+    FinanceForecastWorkspaceFacts,
+    ForecastLineRequest,
+    ForecastVersionRequest,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
+    ApprovedTimePostingFailurePage,
+    ApprovedTimePostingFailureQuery,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
     FinanceLookupOptionFact,
@@ -27,58 +71,24 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     ManualActualCostCodeQuery,
     ManualActualDefaultsFacts,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_budget_reader import (
-    FinanceBudgetReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_planned_cost_reader import (
-    FinancePlannedCostReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_forecast_reader import (
-    FinanceForecastReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_rate_reader import (
-    FinanceRateReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_change_reader import (
-    FinanceChangeReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_billing_reader import (
-    FinanceBillingReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
-    FinanceBudgetWorkspaceFacts,
-    FinancePageFacts,
-    FinancePageRequest,
-)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_planned_cost_facts import (
     FinancePlannedCostWorkspaceFacts,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_forecast_facts import (
-    FinanceForecastWorkspaceFacts,
-    ForecastLineRequest,
-    ForecastVersionRequest,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_rate_facts import (
     FinanceRateWorkspaceFacts,
     RateCardRequest,
     RateLineRequest,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_change_facts import (
-    FinanceChangeWorkspaceFacts,
-    FinancialChangeImpactQuery,
-    FinancialChangeRequestQuery,
+from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
+    FinanceSetupCostCodeQuery,
+    FinanceSetupRestrictionQuery,
+    FinanceSetupWorkspaceFacts,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
-    AccountingStatusFact,
-    AccountingStatusQuery,
-    BillingPreparationLineQuery,
-    BillingPreparationQuery,
-    BillingScheduleQuery,
-    FinanceBillingWorkspaceFacts,
-)
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import NotFoundError
 
@@ -97,9 +107,11 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         rate_reader: FinanceRateReader | None = None,
         change_reader: FinanceChangeReader | None = None,
         billing_reader: FinanceBillingReader | None = None,
+        integration_reader: FinanceIntegrationReader | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         module_catalog_service=None,
+        accounting_capability=None,
     ) -> None:
         self._setup_reader = setup_reader
         self._lookup_reader = lookup_reader
@@ -109,9 +121,11 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         self._rate_reader = rate_reader
         self._change_reader = change_reader
         self._billing_reader = billing_reader
+        self._integration_reader = integration_reader
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+        self._accounting_capability = accounting_capability
 
     def active_scope_ids(self) -> tuple[str, str]:
         if self._tenant_context_service is None:
@@ -120,6 +134,50 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             operation_label="resolve Project Finance scope"
         )
         return scope.tenant_id, scope.organization_id
+
+    def list_approved_time_posting_failures(
+        self,
+        project_id: str,
+        *,
+        request: ApprovedTimePostingFailureQuery,
+    ) -> ApprovedTimePostingFailurePage:
+        require_permission(
+            self._user_session,
+            "finance.read",
+            operation_label="view approved-time posting failures",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read",
+            operation_label="view approved-time posting failures",
+        )
+        if self._integration_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Finance Integration Reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view approved-time posting failures"
+        )
+        page = self._integration_reader.list_approved_time_failures(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=request,
+        )
+        if self._has_project_permission(project_id, "finance.read_sensitive"):
+            return page
+        return replace(
+            page,
+            items=tuple(
+                replace(
+                    item,
+                    resource_id="",
+                    failure_message=(
+                        "Detailed integration evidence requires sensitive Finance access."
+                    ),
+                )
+                for item in page.items
+            ),
+        )
 
     def search_setup_cost_codes(
         self,
@@ -1126,6 +1184,30 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             can_create=can_manage,
         )
 
+    def list_eligible_billing_sources(
+        self, project_id: str, preparation_id: str, *, request: BillingSourceQuery
+    ) -> FinancePageFacts[BillingSourceOptionFact]:
+        require_permission(
+            self._user_session, "finance.manage",
+            operation_label="select billable preparation source",
+        )
+        require_project_permission(
+            self._user_session, project_id, "finance.manage",
+            operation_label="select billable preparation source",
+        )
+        if self._billing_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Finance Billing Reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="select billable preparation source"
+        )
+        return self._billing_reader.list_eligible_sources(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            preparation_id=preparation_id,
+            request=request,
+        )
+
     def get_billing_read_workspace(
         self,
         project_id: str,
@@ -1157,9 +1239,38 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             "project_id": project_id,
         }
         profile = self._billing_reader.get_profile(**arguments)
+        if profile is not None:
+            profile = replace(
+                profile,
+                can_activate=(
+                    self._has_project_permission(project_id, "finance.manage")
+                    and profile.status == "draft"
+                ),
+                can_add_schedule_line=(
+                    self._has_project_permission(project_id, "finance.manage")
+                    and profile.status == "active"
+                ),
+                can_create_preparation=(
+                    self._has_project_permission(project_id, "finance.manage")
+                    and profile.status == "active"
+                ),
+            )
         schedule = self._billing_reader.list_schedule(
             **arguments,
             request=schedule_request or BillingScheduleQuery(),
+        )
+        schedule = replace(
+            schedule,
+            items=tuple(
+                replace(
+                    item,
+                    can_mark_ready=(
+                        self._has_project_permission(project_id, "finance.manage")
+                        and item.status == "planned"
+                    ),
+                )
+                for item in schedule.items
+            ),
         )
         preparations = self._billing_reader.list_preparations(
             **arguments,
@@ -1175,6 +1286,47 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             else None
         )
         resolved_id = selected.id if selected is not None else ""
+        if selected is not None:
+            can_manage = self._has_project_permission(project_id, "finance.manage")
+            can_decide = self._has_project_permission(project_id, "approval.decide")
+            actor_id = str(
+                getattr(getattr(self._user_session, "principal", None), "user_id", "")
+                or ""
+            )
+            is_draft = selected.status == "draft"
+            independent_decider = bool(
+                actor_id
+                and actor_id != selected.created_by
+                and actor_id != (selected.submitted_by or "")
+            )
+            from src.core.platform.domain.integration.accounting.connector import (
+                AccountingHandoffCapability,
+                AccountingHandoffDenial,
+            )
+            handoff = (
+                self._accounting_capability.evaluate(
+                    authorized=self._has_project_permission(project_id, "finance.accounting_handoff.request"),
+                    eligible=bool(selected.status == "approved" and selected.line_count > 0
+                                  and selected.approval_request_id and selected.approved_by and selected.approved_at),
+                ) if self._accounting_capability is not None else AccountingHandoffCapability(
+                    allowed=False, reason=AccountingHandoffDenial.ADAPTER_NOT_INSTALLED,
+                )
+            )
+            selected = replace(
+                selected,
+                can_edit_draft=can_manage and is_draft,
+                can_add_source=can_manage and is_draft,
+                can_remove_source=can_manage and is_draft and selected.line_count > 0,
+                can_submit=can_manage and is_draft and selected.line_count > 0,
+                can_approve=can_decide and selected.status == "submitted" and independent_decider,
+                can_reject=can_decide and selected.status == "submitted" and independent_decider,
+                can_cancel=can_manage and is_draft,
+                can_create_correction=can_manage and selected.status == "reconciled",
+                can_request_delivery=handoff.allowed,
+                handoff_denial_reason=handoff.reason.value if handoff.reason else "",
+                handoff_denial_message=handoff.message,
+                can_view_accounting_status=self._has_project_permission(project_id, "finance.accounting_status.read"),
+            )
         requested_lines = line_request or BillingPreparationLineQuery()
         lines = (
             self._billing_reader.list_preparation_lines(
@@ -1194,6 +1346,38 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                 ),
             )
         )
+        if not self._has_project_permission(project_id, "finance.read_sensitive"):
+            lines = replace(
+                lines,
+                items=tuple(
+                    replace(
+                        item,
+                        unit_rate=None,
+                        resource_id=None,
+                        source_amount=None,
+                        markup_percent=None,
+                        rate_card_id=None,
+                        rate_line_id=None,
+                        rate_card_version=None,
+                    )
+                    for item in lines.items
+                ),
+            )
+        if not self._has_project_permission(project_id, "finance.accounting_status.read"):
+            def without_external_status(item):
+                return replace(
+                    item, latest_external_event_type="", latest_external_system="",
+                    latest_external_status="", latest_external_invoice_reference="",
+                    latest_reconciliation_reference="", latest_external_message="",
+                    latest_external_occurred_at=None,
+                )
+            preparations = replace(preparations, items=tuple(
+                replace(item, latest_external_event_type="", latest_external_system="",
+                        latest_external_status="", latest_external_occurred_at=None)
+                for item in preparations.items
+            ))
+            if selected is not None:
+                selected = without_external_status(selected)
         return FinanceBillingWorkspaceFacts(
             profile=profile,
             selected_preparation_id=resolved_id,
@@ -1201,6 +1385,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             schedule=schedule,
             preparations=preparations,
             lines=lines,
+            can_manage_billing=self._has_project_permission(project_id, "finance.manage"),
         )
 
     def get_accounting_statuses(
@@ -1209,6 +1394,14 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         *,
         request: AccountingStatusQuery | None = None,
     ) -> FinancePageFacts[AccountingStatusFact]:
+        require_permission(
+            self._user_session, "finance.accounting_status.read",
+            operation_label="view Accounting handoff status",
+        )
+        require_project_permission(
+            self._user_session, project_id, "finance.accounting_status.read",
+            operation_label="view Accounting handoff status",
+        )
         require_permission(
             self._user_session,
             "finance.read",

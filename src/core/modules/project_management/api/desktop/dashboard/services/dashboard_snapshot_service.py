@@ -1,15 +1,36 @@
 """Dashboard snapshot assembly and orchestration service."""
 
 from __future__ import annotations
+
 from typing import Any
 
-from src.core.modules.project_management.application.dashboard import PORTFOLIO_SCOPE_ID
-from src.core.modules.project_management.api.desktop.dashboard.models.snapshot import (
-    ProjectDashboardSelectorOptionDescriptor,
-    ProjectDashboardSnapshotDescriptor,
+from src.core.modules.project_management.api.desktop.dashboard.builders.activity_feed_builder import (
+    build_activity_feed,
+    build_preview_activity_feed,
 )
-from src.core.modules.project_management.api.desktop.dashboard.models.sections import (
-    ProjectDashboardSectionDescriptor,
+from src.core.modules.project_management.api.desktop.dashboard.builders.chart_builder import (
+    build_charts_from_dashboard_data,
+    build_preview_charts,
+)
+from src.core.modules.project_management.api.desktop.dashboard.builders.health_card_builder import (
+    build_health_cards,
+    build_preview_health_cards,
+)
+from src.core.modules.project_management.api.desktop.dashboard.builders.operational_table_builder import (
+    build_operational_tables,
+    build_operational_tabs,
+    build_preview_operational_tables,
+)
+from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
+    build_contextual_overview,
+    build_empty_overview,
+)
+from src.core.modules.project_management.api.desktop.dashboard.builders.panel_builder import (
+    build_panels_from_dashboard_data,
+    build_preview_panels,
+)
+from src.core.modules.project_management.api.desktop.dashboard.builders.section_builder import (
+    build_sections_from_dashboard_data,
 )
 from src.core.modules.project_management.api.desktop.dashboard.builders.selector_builder import (
     baseline_label_for_id,
@@ -23,34 +44,13 @@ from src.core.modules.project_management.api.desktop.dashboard.builders.selector
     resolve_project_id,
     resolve_view_key,
 )
-from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
-    build_contextual_overview,
-    build_empty_overview,
+from src.core.modules.project_management.api.desktop.dashboard.models.sections import (
+    ProjectDashboardSectionDescriptor,
 )
-from src.core.modules.project_management.api.desktop.dashboard.builders.health_card_builder import (
-    build_health_cards,
-    build_preview_health_cards,
+from src.core.modules.project_management.api.desktop.dashboard.models.snapshot import (
+    ProjectDashboardSnapshotDescriptor,
 )
-from src.core.modules.project_management.api.desktop.dashboard.builders.operational_table_builder import (
-    build_operational_tables,
-    build_operational_tabs,
-    build_preview_operational_tables,
-)
-from src.core.modules.project_management.api.desktop.dashboard.builders.activity_feed_builder import (
-    build_activity_feed,
-    build_preview_activity_feed,
-)
-from src.core.modules.project_management.api.desktop.dashboard.builders.chart_builder import (
-    build_charts_from_dashboard_data,
-    build_preview_charts,
-)
-from src.core.modules.project_management.api.desktop.dashboard.builders.panel_builder import (
-    build_panels_from_dashboard_data,
-    build_preview_panels,
-)
-from src.core.modules.project_management.api.desktop.dashboard.builders.section_builder import (
-    build_sections_from_dashboard_data,
-)
+from src.core.modules.project_management.application.dashboard import PORTFOLIO_SCOPE_ID
 
 
 class DashboardSnapshotService:

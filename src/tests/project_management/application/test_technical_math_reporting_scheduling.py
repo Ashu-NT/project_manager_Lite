@@ -1,8 +1,8 @@
 from datetime import date
 
-import pytest
-
-from src.core.modules.project_management.domain.enums import CostType, DependencyType, TaskStatus
+from src.core.modules.project_management.domain.enums import (
+    DependencyType,
+)
 
 
 def _bar_map(bars):

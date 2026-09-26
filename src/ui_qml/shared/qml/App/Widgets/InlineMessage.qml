@@ -35,6 +35,13 @@ Rectangle {
     radius: Theme.AppTheme.radiusSm
     color: root.toneSurface
 
+    // Danger/warning are urgent feedback assistive tech should announce;
+    // info/success are informational -- neither is keyboard-focusable
+    // itself (it's passive text, not a control), only discoverable.
+    Accessible.role: (root.tone === "danger" || root.tone === "warning")
+        ? Accessible.AlertMessage : Accessible.StaticText
+    Accessible.name: root.message
+
     Rectangle {
         anchors.left: parent.left
         anchors.top: parent.top
@@ -64,6 +71,7 @@ Rectangle {
     // Optional inline action (e.g. "Retry")
     Rectangle {
         id: _actionBtn
+        objectName: "inlineMessageActionButton"
         anchors.right: parent.right
         anchors.rightMargin: Theme.AppTheme.spacingSm
         anchors.verticalCenter: parent.verticalCenter
@@ -72,6 +80,19 @@ Rectangle {
         implicitHeight: Theme.AppTheme.captionSize + 8
         radius: Theme.AppTheme.radiusSm
         color: _actionHover.containsMouse ? Qt.darker(root.toneColor, 1.1) : root.toneColor
+        border.width: _actionBtn.activeFocus ? 2 : 0
+        border.color: Theme.AppTheme.focusBorder
+
+        activeFocusOnTab: root.actionLabel.length > 0
+        Accessible.role: Accessible.Button
+        Accessible.name: root.actionLabel
+        Accessible.onPressAction: root.actionClicked()
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                root.actionClicked()
+                event.accepted = true
+            }
+        }
 
         AppControls.Label {
             id: _actionLbl

@@ -14,7 +14,9 @@ from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work impo
     SqlAlchemyPlatformUnitOfWorkFactory,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
@@ -27,7 +29,9 @@ class _FakeTenantContextService:
         self._organization_id = organization_id
 
     def require_active_scope_ids(self, *, operation_label):
-        from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+        from src.core.platform.application.tenant.tenancy.tenant_context import (
+            ActiveScopeIds,
+        )
 
         return ActiveScopeIds(tenant_id=self._tenant_id, organization_id=self._organization_id)
 

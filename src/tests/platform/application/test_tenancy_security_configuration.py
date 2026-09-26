@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.application.tenant.tenancy.context_policy import (
     LocalSingleTenantContextPolicy,
     SaaSTenantContextPolicy,
     TenancyMode,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.tenant.tenancy.tenant import Tenant
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.infra.platform.security_config import (
     DeploymentEnvironment,
     RuntimeSecurityConfigurationError,

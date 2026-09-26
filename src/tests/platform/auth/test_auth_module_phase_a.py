@@ -4,14 +4,16 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.domain.security.auth import (
     UserSessionContext,
     UserSessionPrincipal,
 )
 from src.core.platform.domain.security.auth.credentials.mfa import generate_totp_code
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.infrastructure.persistence.orm.security.auth.auth import AuthSessionORM
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+    AuthSessionORM,
+)
 from src.infra.composition.app_container import build_service_dict
 
 
@@ -309,9 +311,7 @@ def test_auth_service_restores_last_active_context_on_reauthentication(services)
         display_name="Restore Org",
         timezone_name="UTC",
         base_currency="USD",
-        is_enabled=True,
     )
-    organization_service.enable_organization(restored_org.id)
     services["tenant_context_service"].set_active_organization(restored_org.id)
     current_principal = user_session.principal
 

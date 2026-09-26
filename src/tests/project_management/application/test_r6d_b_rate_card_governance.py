@@ -19,18 +19,17 @@ from src.core.modules.project_management.api.desktop.financials.commands.rates i
 )
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
-from src.ui_qml.shell.qml_engine import create_qml_engine
-from src.ui_qml.modules.project_management.presenters.financials.command_handler import (
+from src.ui_qml.modules.project_management.presenters.financials.rate_cards.commands import (
     add_rate_line,
     create_rate_card,
 )
-
+from src.ui_qml.shell.qml_engine import create_qml_engine
 
 ROOT = Path(__file__).resolve().parents[3]
 VIEWPORTS = ((1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080))
 RATE_DIALOGS = ("RateCardEditorDialog", "RateLineEditorDialog", "RateLifecycleDialog")
 RATE_DIALOG_ROOT = Path(
-    "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/rate_cards/dialogs"
 ).resolve()
 
 
@@ -53,7 +52,7 @@ def _project_resource(services):
         "R6D-B governed rates", financial_currency_code="XAF"
     )
     resource = services["resource_service"].create_resource(
-        "R6D-B resource", role="engineer", hourly_rate=Decimal("999")
+        "R6D-B resource", role="engineer", hourly_rate=Decimal(999)
     )
     return project, resource
 
@@ -93,7 +92,7 @@ def test_rate_card_and_line_edits_require_current_versions(services):
             line.id,
             expected_version=1,
             expected_card_version=updated_card.version,
-            rate_amount=Decimal("140"),
+            rate_amount=Decimal(140),
         )
 
 
@@ -107,7 +106,7 @@ def test_consumed_rate_line_blocks_rewrite_but_allows_future_end_date(
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("80"),
+        rate_amount=Decimal(80),
         rate_currency="XAF",
         resource_id=resource.id,
     )
@@ -119,7 +118,7 @@ def test_consumed_rate_line_blocks_rewrite_but_allows_future_end_date(
 
     with pytest.raises(BusinessRuleError) as exc:
         service.update_line(
-            line.id, expected_version=line.version, rate_amount=Decimal("81")
+            line.id, expected_version=line.version, rate_amount=Decimal(81)
         )
     assert exc.value.code == "RATE_CARD_LINE_HISTORICAL_IMMUTABLE"
 
@@ -139,7 +138,7 @@ def test_resolution_snapshot_captures_line_version_and_modifier(services):
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("100"),
+        rate_amount=Decimal(100),
         rate_currency="XAF",
         resource_id=resource.id,
         overtime_multiplier=Decimal("1.5"),
@@ -170,7 +169,7 @@ def test_rate_workspace_capabilities_and_consumed_state_are_server_owned(service
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("50"),
+        rate_amount=Decimal(50),
         rate_currency="XAF",
         resource_id=resource.id,
     )

@@ -28,11 +28,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.financia
 from src.core.modules.project_management.infrastructure.persistence.orm.forecast import (
     ProjectForecastORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskORM,
+)
 from src.core.platform.infrastructure.persistence.orm.approval.approval import (
     ApprovalRequestORM,
 )
-
 
 _IMPACT_COUNT = (
     select(func.count(FinancialChangeImpactORM.id))

@@ -4,7 +4,10 @@ from pydantic import field_validator
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.pydantic import validated_dataclass
-from src.core.platform.domain.tenant.modules.defaults import MODULE_LIFECYCLE_INACTIVE, normalize_lifecycle_status
+from src.core.platform.domain.tenant.modules.defaults import (
+    MODULE_LIFECYCLE_INACTIVE,
+    normalize_lifecycle_status,
+)
 from src.core.platform.domain.tenant.modules.module_codes import normalize_module_code
 
 

@@ -22,6 +22,6 @@ class ResourceCapabilityChanged:
 
 
 __all__ = [
-    "ResourceCapabilityChanged",
     "ResourceCapabilityChangeType",
+    "ResourceCapabilityChanged",
 ]

@@ -9,7 +9,6 @@ from PySide6.QtQuick import QQuickItem, QQuickWindow
 
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
-
 ROOT = Path(__file__).resolve().parents[4]
 PM_QML = ROOT / "ui_qml/modules/project_management/qml"
 
@@ -41,8 +40,8 @@ def test_r5g_filters_use_the_shared_centered_dialog_contract() -> None:
     resources_filter = _read(
         "workspaces/resources/components/ResourcesFilterPopup.qml"
     )
-    queue_page = _read("workspaces/timesheets/TimesheetsWorkspacePage.qml")
-    queue_filter = _read("workspaces/timesheets/components/TimesheetsFilterPopup.qml")
+    queue_page = _read("workspaces/review_queue/TimesheetsWorkspacePage.qml")
+    queue_filter = _read("workspaces/review_queue/components/TimesheetsFilterPopup.qml")
 
     assert "AppControls.CenteredDialog" in resources_filter
     assert "AppControls.CenteredDialog" in queue_filter
@@ -55,9 +54,9 @@ def test_r5g_filters_use_the_shared_centered_dialog_contract() -> None:
 
 
 def test_r5g_review_queue_uses_one_responsive_inspector_authority() -> None:
-    page = _read("workspaces/timesheets/TimesheetsWorkspacePage.qml")
+    page = _read("workspaces/review_queue/TimesheetsWorkspacePage.qml")
     inspector = _read(
-        "workspaces/timesheets/components/TimesheetReviewInspector.qml"
+        "workspaces/review_queue/components/TimesheetReviewInspector.qml"
     )
 
     assert "Theme.AppTheme.inspectorWidth + 720" in page
@@ -89,7 +88,7 @@ def test_r5g_review_queue_runtime_geometry(
     window = None
     try:
         engine = create_qml_engine()
-        source = PM_QML / "workspaces/timesheets/TimesheetsWorkspacePage.qml"
+        source = PM_QML / "workspaces/review_queue/TimesheetsWorkspacePage.qml"
         component = QQmlComponent(engine, QUrl.fromLocalFile(str(source.resolve())))
         page = component.create()
         assert page is not None, "\n".join(
@@ -274,7 +273,7 @@ def test_r5g_workload_routes_survive_repeated_open_close_lifecycle(
         engine = create_qml_engine()
         for relative_path in (
             "workspaces/resources/ResourcesWorkspacePage.qml",
-            "workspaces/timesheets/TimesheetsWorkspacePage.qml",
+            "workspaces/review_queue/TimesheetsWorkspacePage.qml",
         ):
             source = PM_QML / relative_path
             for _iteration in range(3):

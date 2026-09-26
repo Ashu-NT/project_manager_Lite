@@ -10,8 +10,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.core.modules.project_management.application.financials.budgets.budget_events import (
-    BudgetStatusChangeType,
     BudgetStatusChanged,
+    BudgetStatusChangeType,
 )
 from src.core.modules.project_management.domain.financials.budget import BudgetStatus
 from src.core.modules.project_management.infrastructure.approval.budget_apply_participant import (
@@ -19,7 +19,9 @@ from src.core.modules.project_management.infrastructure.approval.budget_apply_pa
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.approval import ApprovalRequest
-from src.infra.composition.approval_apply_dependencies.budget import build_budget_approval_deps
+from src.infra.composition.approval_apply_dependencies.budget import (
+    build_budget_approval_deps,
+)
 from src.infra.persistence.orm.base import Base
 
 
@@ -45,7 +47,7 @@ def _submitted_budget(services, session):
         budget.id,
         cost_code_id=cost_code.id,
         description="Line 1",
-        amount=Decimal("1000"),
+        amount=Decimal(1000),
         expected_budget_version=budget.row_version,
     )
     budget = budget_service.get_budget(budget.id)

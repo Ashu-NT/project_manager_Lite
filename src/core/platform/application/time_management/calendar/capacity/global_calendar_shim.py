@@ -24,7 +24,6 @@ from src.core.platform.application.time_management.calendar.capacity.enterprise_
     EnterpriseCalendarResolver,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

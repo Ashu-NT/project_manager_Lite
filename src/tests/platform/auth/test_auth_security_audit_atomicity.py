@@ -14,7 +14,6 @@ from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry 
     AuditEntryORM,
 )
 
-
 _PASSWORD = "StrongPass123!"
 
 
@@ -182,7 +181,7 @@ def test_atomic_security_audit_is_explicitly_scoped_and_redacted(
     assert row.organization_id == services[
         "tenant_context_service"
     ].get_active_organization_id()
-    assert row.compliance_tag == "SOC2"
+    assert row.category == "SECURITY"
     assert metadata["outcome"] == "success"
     serialized = json.dumps(metadata).lower()
     assert "secret" not in serialized

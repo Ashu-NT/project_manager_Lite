@@ -3,10 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillableSourceType,
     BillingExternalEventType,
+)
+from src.core.platform.contract.port.integration.external_accounting import (
+    ExternalAccountingFailureKind,
 )
 
 # ---------------------------------------------------------------------------
@@ -91,7 +95,19 @@ class BillingPreparationLineAdded:
     occurred_at: datetime
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BillingPreparationLineRemoved:
+    tenant_id: str
+    organization_id: str
+    project_id: str
+    billing_preparation_id: str
+    preparation_line_id: str
+    source_type: BillableSourceType
+    occurred_at: datetime
+
+
 class BillingPreparationStatusChangeType(str, Enum):
+    CANCELLED = "CANCELLED"
     SUBMITTED = "SUBMITTED"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
@@ -103,13 +119,11 @@ class BillingPreparationStatusChangeType(str, Enum):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class BillingPreparationStatusChanged:
-    """`submit`/`approve`/`reject`/`request_delivery` and the status-transitioning branches of
-    `record_external_outcome` are all the same kind of fact (the preparation's status field
-    changed), differentiated by `change_type`. `request_delivery` produces no separate durable
-    fact: it returns an in-memory delivery payload and persists nothing else. Some
-    `record_external_outcome` outcomes (e.g. DELIVERY_ACCEPTED) transition status twice in one
-    call (`mark_delivered` then `acknowledge`), each persisted as its own fact. `CANCELLED` has
-    no service-layer command and is not represented."""
+    """Governed local preparation status, including the atomic handoff request.
+
+    Transport and authenticated external outcomes emit their own narrowly scoped
+    facts; they do not imply commercial amount or profitability changes.
+    """
 
     tenant_id: str
     organization_id: str
@@ -121,10 +135,11 @@ class BillingPreparationStatusChanged:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class BillingPreparationExternalOutcomeRecorded:
-    """`record_external_outcome` -- the external accounting system's business response (delivery
-    acceptance/rejection, status update, reconciliation), not merely the `ProjectBillingExternalEvent`
-    ORM row's existence. Coexists with `BillingPreparationStatusChanged` when the outcome also
-    transitions status (both are genuine, separately meaningful persisted facts)."""
+    """Authenticated Accounting business evidence committed with inbox and status.
+
+    Not transport acceptance, invoice issuance or payment. Invalidation is limited
+    to Billing/Accounting Status, even when preparation acknowledgement changes.
+    """
 
     tenant_id: str
     organization_id: str
@@ -135,14 +150,28 @@ class BillingPreparationExternalOutcomeRecorded:
     occurred_at: datetime
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AccountingTransportFinalized:
+    """Committed transport state only; never commercial profitability authority."""
+
+    tenant_id: str
+    organization_id: str
+    project_id: str
+    handoff_id: str
+    result: ExternalAccountingFailureKind | Literal["transport_accepted"]
+    occurred_at: datetime
+
+
 __all__ = [
-    "BillingProfileCreated",
-    "BillingProfileActivated",
-    "BillingScheduleLineAdded",
-    "BillingScheduleLineMarkedReady",
+    "AccountingTransportFinalized",
     "BillingPreparationCreated",
+    "BillingPreparationExternalOutcomeRecorded",
     "BillingPreparationLineAdded",
+    "BillingPreparationLineRemoved",
     "BillingPreparationStatusChangeType",
     "BillingPreparationStatusChanged",
-    "BillingPreparationExternalOutcomeRecorded",
+    "BillingProfileActivated",
+    "BillingProfileCreated",
+    "BillingScheduleLineAdded",
+    "BillingScheduleLineMarkedReady",
 ]

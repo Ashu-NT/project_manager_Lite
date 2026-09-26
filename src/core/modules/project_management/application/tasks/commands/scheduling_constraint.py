@@ -3,19 +3,18 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date, datetime, timezone
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     emit_cascade_schedule_changed,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
-    TaskScheduleChangeType,
     TaskScheduleChanged,
+    TaskScheduleChangeType,
 )
 from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.domain.approval.policy import is_governance_required
-from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     is_admin_session,
     require_permission,
@@ -26,6 +25,9 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.domain.approval.policy import is_governance_required
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 
 
 class TaskSchedulingConstraintMixin:
@@ -151,6 +153,7 @@ class TaskSchedulingConstraintMixin:
                 entity_id=candidate.id,
                 module="project_management",
                 organization_id=scope.organization_id,
+                category="APPROVAL",
                 severity="low",
                 metadata={
                     "action": "task.constraint.update",

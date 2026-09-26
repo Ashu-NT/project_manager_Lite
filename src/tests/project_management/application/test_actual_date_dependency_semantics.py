@@ -9,14 +9,14 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date, timedelta
 
-import pytest
-
-from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
-from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import run_cpm
 from src.core.modules.project_management.application.scheduling.cpm.dependency_actual_variance import (
     find_dependency_actual_variances,
 )
+from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
+    run_cpm,
+)
+from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 
 
 class MonToFriCalendar:

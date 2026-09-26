@@ -6,13 +6,19 @@ from datetime import datetime
 from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.repositories.security.identity.contracts import (
     ApiKeyCredentialRepository,
     ServicePrincipalRepository,
 )
-from src.core.platform.domain.security.identity.service_principal import ApiKeyCredential, ServicePrincipal
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.identity.service_principal import (
+    ApiKeyCredential,
+    ServicePrincipal,
+)
 from src.core.platform.infrastructure.persistence.orm.security.identity.identity import (
     ApiKeyCredentialORM,
     ServicePrincipalORM,
@@ -20,7 +26,6 @@ from src.core.platform.infrastructure.persistence.orm.security.identity.identity
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 def _principal_from_orm(row: ServicePrincipalORM) -> ServicePrincipal:
@@ -120,6 +125,18 @@ class SqlAlchemyServicePrincipalRepository(
                 ServicePrincipalORM.tenant_id == tenant_id,
             )
         ).scalars().first()
+        return _principal_from_orm(row) if row is not None else None
+
+    def get_by_name(self, name: str) -> ServicePrincipal | None:
+        ctx = self._context(operation_label="resolve service principal")
+        normalized = str(name or "").strip()
+        row = self.session.execute(
+            select(ServicePrincipalORM).where(
+                ServicePrincipalORM.tenant_id == ctx.tenant_id,
+                ServicePrincipalORM.organization_id == ctx.organization_id,
+                ServicePrincipalORM.name == normalized,
+            )
+        ).scalar_one_or_none()
         return _principal_from_orm(row) if row is not None else None
 
     def _prepare_authentication_scope(self, tenant_id: str) -> None:

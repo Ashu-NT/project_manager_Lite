@@ -2,20 +2,29 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import date, time
-from typing import Any, Callable
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.repositories.time_management.calendar.contracts import ShiftPatternRepository
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.platform.contract.repositories.time_management.calendar.contracts import (
+    ShiftPatternRepository,
+)
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     ShiftPattern,
     ShiftPatternDay,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.application.tenant.tenancy import TenantContextService
 
 
 class ShiftPatternService:

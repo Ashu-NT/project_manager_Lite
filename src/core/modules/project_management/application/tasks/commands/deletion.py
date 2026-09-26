@@ -7,20 +7,29 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.tasks.task_events import TaskRemoved
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskRemoved,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.domain.tasks.hierarchy import order_tasks_children_first
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    order_tasks_children_first,
+)
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
+from src.core.platform.contract.repositories.time_management.time.contracts import (
+    TimeEntryRepository,
+)
 from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
 
 
 class TaskDeletionMixin:
@@ -103,18 +112,6 @@ class TaskDeletionMixin:
                 self._dependency_repo.delete_for_task(task.id)
                 self._assignment_repo.delete_by_task(task.id)
                 uow.tasks.delete_with_version_check(task.id, expected_version=task.version)
-                record_audit_entry(
-                    uow,
-                    operation="delete",
-                    entity_type="task",
-                    entity_id=task.id,
-                    module="project_management",
-                    organization_id=scope.organization_id,
-                    severity="low",
-                    metadata={"action": "task.delete", "name": task.name},
-                    commit=False,
-                    fail_closed=True,
-                )
                 record_activity(
                     uow,
                     action="task.delete",

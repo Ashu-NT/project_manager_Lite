@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from src.tests.path_rewrites import REPO_ROOT
 
 ROOT = REPO_ROOT
 SRC_ROOT = ROOT / "src"
 UI_QML_ROOT = SRC_ROOT / "ui_qml"
 PLATFORM_ADMIN_CONSOLE_CONTROLLER = (
-    UI_QML_ROOT / "platform" / "controllers" / "admin_console" / "admin_console_controller.py"
+    UI_QML_ROOT / "platform" / "controllers" / "overview" / "admin_console_controller.py"
 )
 STALE_PLATFORM_ADMIN_DIRECTORY = UI_QML_ROOT / "platform" / "controllers" / "admin"
 STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER = (
@@ -19,118 +17,38 @@ STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER = (
 def test_platform_admin_workspace_controller_uses_split_entrypoint() -> None:
     assert PLATFORM_ADMIN_CONSOLE_CONTROLLER.exists()
     assert not STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER.exists()
-    assert not STALE_PLATFORM_ADMIN_DIRECTORY.exists()
+    assert not list(STALE_PLATFORM_ADMIN_DIRECTORY.rglob("*.py"))
 
 
-def test_project_management_projects_workspace_no_longer_uses_placeholder_page() -> None:
-    projects_workspace = (
-        UI_QML_ROOT
-        / "modules"
-        / "project_management"
-        / "qml"
-        / "workspaces"
-        / "projects"
-        / "ProjectsWorkspace.qml"
-    )
-    text = projects_workspace.read_text(encoding="utf-8", errors="ignore")
-
-    assert "ProjectsWorkspacePage" in text
-    assert "WorkspacePlaceholderPage" not in text
-
-
-def test_project_management_tasks_workspace_no_longer_uses_placeholder_page() -> None:
-    tasks_workspace = (
-        UI_QML_ROOT
-        / "modules"
-        / "project_management"
-        / "qml"
-        / "workspaces"
-        / "tasks"
-        / "TasksWorkspace.qml"
-    )
-    text = tasks_workspace.read_text(encoding="utf-8", errors="ignore")
-
-    assert "TasksWorkspacePage" in text
-    assert "WorkspacePlaceholderPage" not in text
-
-
-def test_project_management_scheduling_workspace_no_longer_uses_placeholder_page() -> None:
-    scheduling_workspace = (
-        UI_QML_ROOT
-        / "modules"
-        / "project_management"
-        / "qml"
-        / "workspaces"
-        / "scheduling"
-        / "SchedulingWorkspace.qml"
-    )
-    text = scheduling_workspace.read_text(encoding="utf-8", errors="ignore")
-
-    assert "SchedulingWorkspacePage" in text
-    assert "WorkspacePlaceholderPage" not in text
-
-
-def test_project_management_financials_workspace_no_longer_uses_placeholder_page() -> None:
-    financials_workspace = (
-        UI_QML_ROOT
-        / "modules"
-        / "project_management"
-        / "qml"
-        / "workspaces"
-        / "financials"
-        / "FinancialsWorkspace.qml"
-    )
-    text = financials_workspace.read_text(encoding="utf-8", errors="ignore")
-
-    assert "FinancialsWorkspacePage" in text
-    assert "WorkspacePlaceholderPage" not in text
-
-
-def test_project_management_register_workspace_no_longer_uses_placeholder_page() -> None:
-    register_workspace = (
-        UI_QML_ROOT
-        / "modules"
-        / "project_management"
-        / "qml"
-        / "workspaces"
-        / "register"
-        / "RegisterWorkspace.qml"
-    )
-    text = register_workspace.read_text(encoding="utf-8", errors="ignore")
-
-    assert "RegisterWorkspacePage" in text
-    assert "WorkspacePlaceholderPage" not in text
-
-
-def test_project_management_collaboration_workspace_no_longer_uses_placeholder_page() -> None:
-    collaboration_workspace = (
-        UI_QML_ROOT
-        / "modules"
-        / "project_management"
-        / "qml"
-        / "workspaces"
-        / "collaboration"
-        / "CollaborationWorkspace.qml"
-    )
-    text = collaboration_workspace.read_text(encoding="utf-8", errors="ignore")
-
-    assert "CollaborationWorkspacePage" in text
-    assert "WorkspacePlaceholderPage" not in text
-
-
-def test_project_management_portfolio_workspace_no_longer_uses_placeholder_page() -> None:
-    portfolio_workspace = (
-        UI_QML_ROOT
-        / "modules"
-        / "project_management"
-        / "qml"
-        / "workspaces"
-        / "portfolio"
-        / "PortfolioWorkspace.qml"
-    )
-    text = portfolio_workspace.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PortfolioWorkspacePage" in text
-    assert "WorkspacePlaceholderPage" not in text
-
-
+def test_pm_workspace_wrapper_files_were_removed_as_dead_code() -> None:
+    """Every PM workspace directory used to also carry a thin top-level
+    `<Area>Workspace.qml` pass-through (`<Area>WorkspacePage {}`), left over
+    from an earlier placeholder-page migration this file used to guard
+    (`test_..._no_longer_uses_placeholder_page`). Verified dead: nothing
+    imports any of these by qmldir namespace anywhere in the tree -- the
+    real routing path is `ProjectManagementWorkspacePage.qml`'s Repeater,
+    which loads each area's `*WorkspacePage.qml` directly by file path.
+    Phase H removed all eight (Projects, Tasks, Scheduling, Financials,
+    Register, Collaboration, Portfolio, Dashboard) rather than leave dead
+    wrappers whose original guardrail purpose no longer applies."""
+    for area in (
+        "collaboration",
+        "dashboard",
+        "financials",
+        "portfolio",
+        "projects",
+        "register",
+        "scheduling",
+        "tasks",
+    ):
+        area_title = area[0].upper() + area[1:]
+        wrapper = (
+            UI_QML_ROOT
+            / "modules"
+            / "project_management"
+            / "qml"
+            / "workspaces"
+            / area
+            / f"{area_title}Workspace.qml"
+        )
+        assert not wrapper.exists(), wrapper

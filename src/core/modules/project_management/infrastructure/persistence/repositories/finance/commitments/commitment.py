@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.contracts.reads import (
+    ReadSort,
+    ReadSortDirection,
+)
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
     ProjectCommitmentRepository,
-)
-from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
-from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
-    stable_order_by,
 )
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitment,
@@ -33,7 +33,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.commitme
     ProjectCommitmentORM,
     ProjectCommitmentSourceRevisionORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     ActiveScopeIds,
     TenantContextService,
@@ -46,6 +51,17 @@ class SqlAlchemyProjectCommitmentRepository(ProjectCommitmentRepository):
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service: TenantContextService | None = None
+
+    def lock_purchase_order(self, purchase_order_id: str) -> None:
+        context = self._context(operation_label="lock procurement commitment source")
+        if self.session.get_bind().dialect.name != "postgresql":
+            return
+        # Serialize only this scoped PO, including its first line/header creation.
+        key = f"project_commitment:{context.tenant_id}:{context.organization_id}:{purchase_order_id}"
+        self.session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:source_key, 0))"),
+            {"source_key": key},
+        )
 
     def add(self, commitment: ProjectCommitment) -> None:
         context = self._context(operation_label="create project commitment")
@@ -128,13 +144,27 @@ class SqlAlchemyProjectCommitmentRepository(ProjectCommitmentRepository):
         offset: int = 0,
         limit: int = 50,
         sort: ReadSort | None = None,
+        exposure: str = "",
     ) -> tuple[list[ProjectCommitmentLine], int]:
         context = self._context(operation_label="list project commitment lines")
-        filters = (
+        filters = [
             ProjectCommitmentLineORM.tenant_id == context.tenant_id,
             ProjectCommitmentLineORM.organization_id == context.organization_id,
             ProjectCommitmentLineORM.project_id == project_id,
+        ]
+        if exposure not in {"", "open", "none"}:
+            raise ValueError("Commitment exposure filter is invalid.")
+        has_open_exposure = and_(
+            ProjectCommitmentLineORM.state.notin_(("closed", "cancelled")),
+            ProjectCommitmentLineORM.amount > ProjectCommitmentLineORM.matched_amount,
         )
+        if exposure == "open":
+            filters.append(has_open_exposure)
+        elif exposure == "none":
+            filters.append(or_(
+                ProjectCommitmentLineORM.state.in_(("closed", "cancelled")),
+                ProjectCommitmentLineORM.amount <= ProjectCommitmentLineORM.matched_amount,
+            ))
         total = self.session.execute(
             select(func.count(ProjectCommitmentLineORM.id)).where(*filters)
         ).scalar_one()
@@ -230,17 +260,6 @@ class SqlAlchemyProjectCommitmentRepository(ProjectCommitmentRepository):
         self._require_scope(match, context)
         self.session.add(commitment_match_to_orm(match))
 
-    def get_match(self, match_id: str) -> ProjectCommitmentMatch | None:
-        context = self._context(operation_label="access project commitment match")
-        row = self.session.execute(
-            select(ProjectCommitmentMatchORM).where(
-                ProjectCommitmentMatchORM.id == match_id,
-                ProjectCommitmentMatchORM.tenant_id == context.tenant_id,
-                ProjectCommitmentMatchORM.organization_id == context.organization_id,
-            )
-        ).scalar_one_or_none()
-        return commitment_match_from_orm(row) if row else None
-
     def get_match_by_idempotency_key(
         self, idempotency_key: str
     ) -> ProjectCommitmentMatch | None:
@@ -267,30 +286,6 @@ class SqlAlchemyProjectCommitmentRepository(ProjectCommitmentRepository):
             )
         ).scalar_one_or_none()
         return commitment_match_from_orm(row) if row else None
-
-    def has_reversal_for_match(self, match_id: str) -> bool:
-        context = self._context(operation_label="check commitment match reversal")
-        row = self.session.execute(
-            select(ProjectCommitmentMatchORM.id).where(
-                ProjectCommitmentMatchORM.tenant_id == context.tenant_id,
-                ProjectCommitmentMatchORM.organization_id == context.organization_id,
-                ProjectCommitmentMatchORM.reverses_match_id == match_id,
-            )
-        ).scalar_one_or_none()
-        return row is not None
-
-    def list_matches_for_line(self, line_id: str) -> list[ProjectCommitmentMatch]:
-        context = self._context(operation_label="list project commitment matches")
-        rows = self.session.execute(
-            select(ProjectCommitmentMatchORM)
-            .where(
-                ProjectCommitmentMatchORM.tenant_id == context.tenant_id,
-                ProjectCommitmentMatchORM.organization_id == context.organization_id,
-                ProjectCommitmentMatchORM.commitment_line_id == line_id,
-            )
-            .order_by(ProjectCommitmentMatchORM.created_at.asc(), ProjectCommitmentMatchORM.id.asc())
-        ).scalars().all()
-        return [commitment_match_from_orm(row) for row in rows]
 
     def flush(self) -> None:
         self.session.flush()

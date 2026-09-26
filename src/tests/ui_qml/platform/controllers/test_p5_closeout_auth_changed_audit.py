@@ -82,11 +82,11 @@ def test_zero_auth_changed_subscribers_remain():
     import importlib
     import inspect
 
-    import src.ui_qml.platform.controllers.identity_access.access.access_workspace_controller as access_module
+    import src.ui_qml.platform.controllers.access.access_workspace_controller as access_module
 
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module(
-            "src.ui_qml.platform.controllers.admin_console.domain_event_binder"
+            "src.ui_qml.platform.controllers.overview.domain_event_binder"
         )
     assert "domain_events" not in inspect.getsource(access_module)
 

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from src.core.platform.finance.periods import FinancialPeriod, FinancialPeriodStatus
+from src.core.platform.domain.finance.periods import (
+    FinancialPeriod,
+    FinancialPeriodStatus,
+)
 from src.core.platform.infrastructure.persistence.orm.finance.financial_period import (
     FinancialPeriodORM,
 )

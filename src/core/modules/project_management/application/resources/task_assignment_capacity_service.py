@@ -104,9 +104,9 @@ def evaluate_task_assignment_capacity(
     new/edited assignment's own task window). Batched: one `list_by_resource` + one
     `list_by_ids` call, never a per-task loop."""
     resource = resource_repo.get(resource_id)
-    capacity_modifier = Decimal(str(getattr(resource, "capacity_percent", 100.0) or 100.0)) / Decimal("100")
+    capacity_modifier = Decimal(str(getattr(resource, "capacity_percent", 100.0) or 100.0)) / Decimal(100)
     if capacity_modifier <= 0:
-        capacity_modifier = Decimal("1")
+        capacity_modifier = Decimal(1)
 
     raw_days = availability_service.get_availability_range(
         resource_id,
@@ -120,7 +120,7 @@ def evaluate_task_assignment_capacity(
     # cancels out of the ratio.
     raw_available_by_date: dict[date, Decimal] = {}
     source_chain: tuple[str, ...] = ()
-    calendar_capacity_hours = Decimal("0")
+    calendar_capacity_hours = Decimal(0)
     for day in raw_days:
         calendar_capacity_hours += Decimal(str(day.base_hours))
         if not day.source_chain:
@@ -157,18 +157,18 @@ def evaluate_task_assignment_capacity(
         overlap_end = min(end_date, task_end)
         if overlap_end < overlap_start:
             continue
-        allocation_fraction = Decimal(str(assignment.allocation_percent or 0)) / Decimal("100")
+        allocation_fraction = Decimal(str(assignment.allocation_percent or 0)) / Decimal(100)
         current = overlap_start
         while current <= overlap_end:
             raw = raw_available_by_date.get(current)
             if raw is not None:
-                existing_by_date[current] = existing_by_date.get(current, Decimal("0")) + (
+                existing_by_date[current] = existing_by_date.get(current, Decimal(0)) + (
                     raw * allocation_fraction
                 )
                 contributing_by_date.setdefault(current, set()).add(assignment.task_id)
             current += timedelta(days=1)
 
-    proposed_fraction = Decimal(str(proposed_allocation_percent or 0)) / Decimal("100")
+    proposed_fraction = Decimal(str(proposed_allocation_percent or 0)) / Decimal(100)
     proposed_by_date: dict[date, Decimal] = {}
     current = start_date
     while current <= end_date:
@@ -183,8 +183,8 @@ def evaluate_task_assignment_capacity(
     current = start_date
     while current <= end_date:
         effective = effective_by_date.get(current)
-        existing = existing_by_date.get(current, Decimal("0"))
-        proposed = proposed_by_date.get(current, Decimal("0"))
+        existing = existing_by_date.get(current, Decimal(0))
+        proposed = proposed_by_date.get(current, Decimal(0))
         resulting = existing + proposed
         status = _day_status(effective_hours=effective, resulting_hours=resulting)
         if status == CAPACITY_OVER_CAPACITY:
@@ -212,14 +212,14 @@ def evaluate_task_assignment_capacity(
         end_date=end_date,
         calendar_capacity_hours=calendar_capacity_hours,
         effective_available_capacity_hours=(
-            sum((d.effective_available_capacity_hours for d in known_days), Decimal("0"))
+            sum((d.effective_available_capacity_hours for d in known_days), Decimal(0))
             if known_days
             else None
         ),
-        existing_committed_capacity_hours=sum(existing_by_date.values(), Decimal("0")),
-        proposed_committed_capacity_hours=sum(proposed_by_date.values(), Decimal("0")),
+        existing_committed_capacity_hours=sum(existing_by_date.values(), Decimal(0)),
+        proposed_committed_capacity_hours=sum(proposed_by_date.values(), Decimal(0)),
         resulting_committed_capacity_hours=sum(
-            (d.resulting_committed_capacity_hours for d in days), Decimal("0")
+            (d.resulting_committed_capacity_hours for d in days), Decimal(0)
         ),
         peak_utilization_percent=peak_percent,
         capacity_status=_overall_status([d.status for d in days]),

@@ -1,0 +1,6 @@
+module workspaces.financials.invoicing.dialogs
+BillingDecisionDialog 1.0 BillingDecisionDialog.qml
+BillingPreparationDialog 1.0 BillingPreparationDialog.qml
+BillingProfileDialog 1.0 BillingProfileDialog.qml
+BillingScheduleLineDialog 1.0 BillingScheduleLineDialog.qml
+BillingSourcePickerDialog 1.0 BillingSourcePickerDialog.qml

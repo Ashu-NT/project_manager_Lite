@@ -3,14 +3,14 @@ from __future__ import annotations
 from src.core.modules.project_management.api.desktop.common.financial_formatting import (
     format_hours,
 )
-from src.core.modules.project_management.api.desktop.timesheets.formatters.time_formatter import (
-    format_hours as format_entry_hours,
-)
 from src.core.modules.project_management.api.desktop.tasks.models.time_summary import (
     TaskResourceTimeBreakdownDesktopDto,
     TaskTimeEntriesPageDesktopDto,
     TaskTimeEntryDesktopDto,
     TaskTimeSummaryDesktopDto,
+)
+from src.core.modules.project_management.api.desktop.timesheets.formatters.time_formatter import (
+    format_hours as format_entry_hours,
 )
 
 

@@ -14,7 +14,6 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
     build_project_management_timesheets_desktop_api,
 )
-
 from src.core.modules.project_management.api.desktop_runtime.registry import (
     ProjectManagementDesktopRuntimeApis,
     ProjectManagementDesktopRuntimePlatformDependencies,

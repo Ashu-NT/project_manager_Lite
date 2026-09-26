@@ -8,8 +8,8 @@ import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import "dialogs" as Dialogs
-import "panels" as Panels
+import "shared/dialogs" as Dialogs
+import "shared/panels" as Panels
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -213,6 +213,10 @@ AppLayouts.WorkspaceFrame {
             Dialogs.FinancialsDialogHost {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
                 selectedProjectLabel: root._selectedProjectLabel()
+                selectedActualEntryId: root._selectedActualEntryId
+                selectedBillingPreparationId: root.workspaceController ? root.workspaceController.selectedBillingPreparationId : ""
+                focusFallbackTarget: root.detailPage
+                    ? root.detailPage.actualDialogFocusFallback : null
                 manualActualDefaults: root.workspaceController
                     ? (root.workspaceController.manualActualDefaults || {}) : ({})
                 workspaceController: root.workspaceController
@@ -227,6 +231,8 @@ AppLayouts.WorkspaceFrame {
         asynchronous: true
         sourceComponent: Component {
             AppWidgets.SectionDetailPage {
+                property alias actualDialogFocusFallback: projectScopeSelector
+
                 open: true
                 anchors.fill: parent
                 showHeader: false
@@ -421,6 +427,16 @@ AppLayouts.WorkspaceFrame {
                     ledgerModel: root.ledgerModel
                     activityModel: root.activityModel
                     ledgerTableModel: root.workspaceController ? root.workspaceController.ledgerTableModel : null
+                    postingFailuresModel: root.workspaceController
+                        ? root.workspaceController.postingFailures : ({ "items": [] })
+                    postingFailuresTableModel: root.workspaceController
+                        ? root.workspaceController.postingFailuresTableModel : null
+                    postingFailureSortKey: root.workspaceController
+                        ? root.workspaceController.postingFailureSortKey : "metaText"
+                    postingFailureSortDirection: root.workspaceController
+                        ? root.workspaceController.postingFailureSortDirection : Qt.DescendingOrder
+                    postingFailureStatus: root.workspaceController
+                        ? root.workspaceController.postingFailureStatus : ""
                     selectedActualEntryId: root._selectedActualEntryId
                     actualSortKey: root.workspaceController ? root.workspaceController.actualSortKey : "metaText"
                     actualSortDirection: root.workspaceController ? root.workspaceController.actualSortDirection : Qt.DescendingOrder
@@ -470,6 +486,7 @@ AppLayouts.WorkspaceFrame {
                     commitmentsTableModel: root.workspaceController ? root.workspaceController.commitmentsTableModel : null
                     commitmentSortKey: root.workspaceController ? root.workspaceController.commitmentSortKey : "metaText"
                     commitmentSortDirection: root.workspaceController ? root.workspaceController.commitmentSortDirection : Qt.DescendingOrder
+                    commitmentExposure: root.workspaceController ? root.workspaceController.commitmentExposure : ""
                     baselineVarianceModel: root.baselineVarianceModel
                     baselineVersionsModel: root.workspaceController ? root.workspaceController.baselineVersions : ({ "items": [] })
                     varianceBasisModel: root.workspaceController ? root.workspaceController.varianceBasis : ({ "fields": [] })
@@ -673,6 +690,22 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null)
                             root.workspaceController.setActualFilters(status, source)
                     }
+                    onPostingFailurePageRequested: function(page) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setPostingFailurePage(page)
+                    }
+                    onPostingFailurePageSizeRequested: function(pageSize) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setPostingFailurePageSize(pageSize)
+                    }
+                    onPostingFailureSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setPostingFailureSort(key, direction)
+                    }
+                    onPostingFailureStatusRequested: function(status) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setPostingFailureStatus(status)
+                    }
                     onCommitmentPageRequested: function(page) {
                         if (root.workspaceController !== null) root.workspaceController.setCommitmentPage(page)
                     }
@@ -681,6 +714,9 @@ AppLayouts.WorkspaceFrame {
                     }
                     onCommitmentSortRequested: function(key, direction) {
                         if (root.workspaceController !== null) root.workspaceController.setCommitmentSort(key, direction)
+                    }
+                    onCommitmentExposureRequested: function(exposure) {
+                        if (root.workspaceController !== null) root.workspaceController.setCommitmentExposure(exposure)
                     }
                     onForecastSelected: function(forecastId) {
                         if (root.workspaceController !== null)
@@ -787,6 +823,31 @@ AppLayouts.WorkspaceFrame {
                     }
                     onBillingLineFiltersRequested: function(search, sourceType, sourceState) {
                         if (root.workspaceController !== null) root.workspaceController.setBillingLineFilters(search, sourceType, sourceState)
+                    }
+                    onBillingPreparationLifecycleRequested: function(action, preparation) {
+                        dialogHostLoader.invoke("openBillingDecisionDialog", action, preparation, "")
+                    }
+                    onBillingProfileCreateRequested: dialogHostLoader.invoke("openBillingProfileDialog")
+                    onBillingProfileActivateRequested: function(profile) {
+                        if (root.workspaceController === null) return
+                        const state = profile ? (profile.state || {}) : ({})
+                        root.workspaceController.activateBillingProfile({ "projectId": root.workspaceController.selectedProjectId, "version": Number(state.version || 0) })
+                    }
+                    onBillingScheduleLineCreateRequested: dialogHostLoader.invoke("openBillingScheduleLineDialog")
+                    onBillingPreparationCreateRequested: dialogHostLoader.invoke("openBillingPreparationDialog")
+                    onBillingPreparationSourceAddRequested: function(preparation) { dialogHostLoader.invoke("openBillingSourcePickerDialog", preparation) }
+                    onBillingPreparationDecisionRequested: function(approve, preparation) {
+                        dialogHostLoader.invoke("openBillingDecisionDialog", approve ? "approve" : "reject", preparation, "")
+                    }
+                    onBillingPreparationCorrectionRequested: function(preparation) {
+                        dialogHostLoader.invoke("openBillingPreparationDialog", preparation ? preparation.id : "")
+                    }
+                    onBillingPreparationLineRemoveRequested: function(preparation, lineId) {
+                        dialogHostLoader.invoke("openBillingDecisionDialog", "remove", preparation, lineId)
+                    }
+                    onBillingScheduleLineReadyRequested: function(lineId, version) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.markBillingScheduleLineReady({ "lineId": String(lineId || ""), "version": Number(version || 0) })
                     }
                     onVarianceBaselineSelected: function(baselineId) {
                         if (root.workspaceController !== null)

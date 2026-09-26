@@ -101,7 +101,7 @@ class PortfolioScoringTemplate:
         )
 
     @model_validator(mode="after")
-    def _validate_weight_mix(self) -> "PortfolioScoringTemplate":
+    def _validate_weight_mix(self) -> PortfolioScoringTemplate:
         if (self.strategic_weight + self.value_weight + self.urgency_weight) <= 0:
             raise ValidationError(
                 "At least one positive delivery weight is required.",
@@ -120,7 +120,7 @@ class PortfolioScoringTemplate:
         urgency_weight: int = 2,
         risk_weight: int = 1,
         is_active: bool = False,
-    ) -> "PortfolioScoringTemplate":
+    ) -> PortfolioScoringTemplate:
         now = datetime.now(timezone.utc)
         return PortfolioScoringTemplate(
             id=generate_id(),

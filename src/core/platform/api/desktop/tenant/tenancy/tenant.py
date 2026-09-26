@@ -1,21 +1,29 @@
 from __future__ import annotations
 
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import (
     execute_desktop_operation,
     serialize_organization,
 )
-from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
 from src.core.platform.api.desktop.tenant.tenancy.models.tenant import (
     TenantCreateCommand,
     TenantDto,
     TenantInvitationDto,
 )
+from src.core.platform.application.tenant.tenancy.tenant_admin_service import (
+    TenantAdminService,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.application.tenant.tenancy.tenant_membership_service import (
+    TenantMembershipService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.application.tenant.tenancy.tenant_admin_service import TenantAdminService
-from src.core.platform.application.tenant.tenancy.tenant_membership_service import TenantMembershipService
 from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 class PlatformTenantDesktopApi:

@@ -124,7 +124,7 @@ def test_legacy_platform_admin_ui_package_is_removed():
 
 
 def test_composition_imports_focused_persistence_adapters():
-    repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
+    repo_path = ROOT / "src" / "infra" / "composition" / "persistence" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
 
     assert not (ROOT / "src" / "infra" / "persistence" / "db" / "platform").exists()
@@ -237,7 +237,7 @@ def test_qml_shell_controller_module_is_registered():
 
 def test_qml_platform_controller_packages_exist():
     for rel_path in (
-        "src/ui_qml/platform/controllers/identity_access/access/access_workspace_controller.py",
+        "src/ui_qml/platform/controllers/access/access_workspace_controller.py",
         "src/ui_qml/platform/controllers/control/control_workspace_controller.py",
         "src/ui_qml/platform/controllers/settings/settings_workspace_controller.py",
         "src/ui_qml/platform/controllers/common/workspace_controller_base.py",

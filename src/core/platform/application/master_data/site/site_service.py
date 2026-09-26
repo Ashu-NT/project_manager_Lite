@@ -1,27 +1,40 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+from src.core.platform.access.authorization import (
+    filter_scope_rows,
+    require_scope_permission,
+)
+from src.core.platform.application.security.authorization import (
+    get_authorization_engine,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.common.ids import generate_id
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from src.core.platform.application.security.authorization import get_authorization_engine
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
     PlatformOverviewRollupReader,
     SiteRollupSummary,
 )
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.repositories.master_data.site.contracts import (
+    SiteRepository,
+)
 from src.core.platform.contract.uow.site_unit_of_work import SiteUnitOfWorkFactory
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.org.support import normalize_code
-from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.domain.master_data.site import Site
-from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
 
 from . import site_commands as _cmd
@@ -29,8 +42,23 @@ from .site_context import active_organization
 from .site_utils import normalize_optional_text
 
 if TYPE_CHECKING:
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
     from src.core.platform.domain.security.auth.session import UserSessionContext
+
+
+_DEFAULT_SITE_PAGE_SIZE = 25
+SITE_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
+
+
+@dataclass(frozen=True)
+class SitePage:
+    items: list[Site] = field(default_factory=list)
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = _DEFAULT_SITE_PAGE_SIZE
 
 
 class SiteService:
@@ -101,6 +129,65 @@ class SiteService:
             ).lower()
         ]
 
+    def list_sites_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = _DEFAULT_SITE_PAGE_SIZE,
+        search: str = "",
+        active_only: bool | None = None,
+    ) -> SitePage:
+        """Tenant-scoped read for ANY organization in the caller's tenant --
+        unlike list_sites()/search_sites(), not limited to the session's
+        active organization. For Organization Detail's Sites tab, where an
+        admin may be viewing an organization they haven't switched into.
+
+        Read-only: never used by create/update/delete, which keep using
+        self._active_organization() (the existing, unchanged domain rule).
+        Never gates on the organization's own lifecycle status -- inactive
+        and archived organizations' site history remains readable here.
+        """
+        self._require_site_read_access("list sites")
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Tenant context is required to list sites.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="list sites for organization"
+        )
+        target_organization = self._organization_repo.get_for_tenant(organization_id, tenant_id)
+        if target_organization is None:
+            raise NotFoundError(
+                "Organization not found in the current tenant.",
+                code="ORGANIZATION_NOT_FOUND",
+            )
+        normalized_page = max(1, page)
+        normalized_page_size = page_size if page_size in SITE_PAGE_SIZE_OPTIONS else _DEFAULT_SITE_PAGE_SIZE
+        items, total, filtered_total = self._site_repo.list_page_for_organization_in_tenant(
+            organization_id,
+            tenant_id,
+            page=normalized_page,
+            page_size=normalized_page_size,
+            search=search,
+            active_only=active_only,
+        )
+        items = filter_scope_rows(
+            items,
+            self._user_session,
+            scope_type="site",
+            permission_code="site.read",
+            scope_id_getter=lambda row: getattr(row, "id", ""),
+        )
+        return SitePage(
+            items=items,
+            total=total,
+            filtered_total=filtered_total,
+            page=normalized_page,
+            page_size=normalized_page_size,
+        )
+
     def get_site(self, site_id: str) -> Site:
         self._require_site_read_access("view site")
         organization = self._active_organization()
@@ -141,10 +228,8 @@ class SiteService:
         timezone_name: str | None = None,
         currency_code: str | None = None,
         site_type: str = "",
-        status: str | None = None,
         default_calendar_id: str = "",
         default_language: str = "",
-        is_active: bool = True,
         opened_at: datetime | None = None,
         closed_at: datetime | None = None,
         notes: str = "",
@@ -164,10 +249,8 @@ class SiteService:
             timezone_name=timezone_name,
             currency_code=currency_code,
             site_type=site_type,
-            status=status,
             default_calendar_id=default_calendar_id,
             default_language=default_language,
-            is_active=is_active,
             opened_at=opened_at,
             closed_at=closed_at,
             notes=notes,
@@ -190,10 +273,8 @@ class SiteService:
         timezone_name: str | None = None,
         currency_code: str | None = None,
         site_type: str | None = None,
-        status: str | None = None,
         default_calendar_id: str | None = None,
         default_language: str | None = None,
-        is_active: bool | None = None,
         opened_at: datetime | None = None,
         closed_at: datetime | None = None,
         notes: str | None = None,
@@ -215,15 +296,22 @@ class SiteService:
             timezone_name=timezone_name,
             currency_code=currency_code,
             site_type=site_type,
-            status=status,
             default_calendar_id=default_calendar_id,
             default_language=default_language,
-            is_active=is_active,
             opened_at=opened_at,
             closed_at=closed_at,
             notes=notes,
             expected_version=expected_version,
         )
+
+    def activate_site(self, site_id: str) -> Site:
+        return _cmd.activate_site(self, site_id)
+
+    def deactivate_site(self, site_id: str) -> Site:
+        return _cmd.deactivate_site(self, site_id)
+
+    def archive_site(self, site_id: str) -> Site:
+        return _cmd.archive_site(self, site_id)
 
     def _active_organization(self) -> Organization:
         return active_organization(self)

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
-from sqlalchemy import Boolean, Enum as SAEnum, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.platform.domain.master_data.employee import EmploymentType
@@ -15,41 +14,41 @@ class EmployeeORM(Base):
     __tablename__ = "employees"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
     )
     employee_code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     full_name: Mapped[str] = mapped_column(String(256), nullable=False)
-    organization_id: Mapped[Optional[str]] = mapped_column(
+    organization_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="SET NULL"),
         nullable=True,
     )
-    department_id: Mapped[Optional[str]] = mapped_column(
+    department_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("departments.id", ondelete="SET NULL"),
         nullable=True,
     )
-    department: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    site_id: Mapped[Optional[str]] = mapped_column(
+    department: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    site_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("sites.id", ondelete="SET NULL"),
         nullable=True,
     )
-    site_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    title: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    site_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(256), nullable=True)
     employment_type: Mapped[EmploymentType] = mapped_column(
         SAEnum(EmploymentType),
         nullable=False,
         default=EmploymentType.FULL_TIME,
         server_default=EmploymentType.FULL_TIME.value,
     )
-    email: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    phone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
-    user_id: Mapped[Optional[str]] = mapped_column(
+    user_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,

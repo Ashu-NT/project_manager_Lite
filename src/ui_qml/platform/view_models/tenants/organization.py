@@ -8,7 +8,7 @@ class OrganizationSwitcherItemViewModel:
     id: str
     display_name: str
     organization_code: str
-    is_enabled: bool
+    status: str
 
 
 __all__ = ["OrganizationSwitcherItemViewModel"]

@@ -127,7 +127,7 @@ class Employee:
         phone: str | None = None,
         is_active: bool = True,
         user_id: str | None = None,
-    ) -> "Employee":
+    ) -> Employee:
         return Employee(
             id=generate_id(),
             employee_code=employee_code,

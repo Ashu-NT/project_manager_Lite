@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
 import hashlib
 import hmac
 import logging
 import secrets
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
-from src.core.platform.contract.uow.tenant_membership_unit_of_work import (
-    TenantMembershipUnitOfWork,
-    TenantMembershipUnitOfWorkFactory,
+from src.core.platform.application.events.notifications.notification_service import (
+    NotificationService,
 )
-from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     require_permission,
@@ -22,22 +20,29 @@ from src.core.platform.application.security.authorization.roles.role_binding_mut
     resolve_domain_scope_for_binding,
     revoke_role_binding_using,
 )
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.domain.security.authorization.roles import (
-    ROLE_SCOPE_PLATFORM,
-    ROLE_SCOPE_TENANT,
-    RoleBindingTenantScope,
-)
-from src.core.platform.domain.security.auth import (
-    UserAccount,
-    UserSessionContext,
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
 )
 from src.core.platform.common.ids import generate_id
-from src.core.platform.application.events.notifications.notification_service import NotificationService
+from src.core.platform.contract.uow.tenant_membership_unit_of_work import (
+    TenantMembershipUnitOfWork,
+    TenantMembershipUnitOfWorkFactory,
+)
+from src.core.platform.domain.history.audit import AuditEntry
+from src.core.platform.domain.security.auth import (
+    UserAccount,
+    UserSessionContext,
+)
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.authorization.roles import (
+    ROLE_SCOPE_PLATFORM,
+    ROLE_SCOPE_TENANT,
+    RoleBindingTenantScope,
+)
 from src.core.platform.domain.tenant.tenancy import (
     MEMBERSHIP_STATUS_ACTIVE,
     MEMBERSHIP_STATUS_INVITED,
@@ -49,7 +54,6 @@ from src.core.platform.domain.tenant.tenancy import (
     TenantMembershipSuspended,
     UserTenantMembership,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
 
@@ -857,12 +861,10 @@ class TenantMembershipService:
             module="platform",
             actor_id=actor.user_id,
             actor_username=actor.username,
-            field="status",
-            old_value=old_status,
-            new_value=new_status,
+            changed_fields={"status": {"before": old_status, "after": new_status}},
             tenant_id=tenant_id,
             severity="high",
-            compliance_tag="SOC2",
+            category="SECURITY",
             metadata={"action": action, **metadata},
         )
         audit_repo.add_for_tenant(entry, tenant_id)

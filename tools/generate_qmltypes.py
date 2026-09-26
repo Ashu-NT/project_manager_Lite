@@ -7,7 +7,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 QMLTYPES_IMPORT = "import QtQuick.tooling 1.2"
 
 

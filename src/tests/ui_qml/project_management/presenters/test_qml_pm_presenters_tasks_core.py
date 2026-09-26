@@ -1,55 +1,13 @@
-from datetime import date, datetime
 from pathlib import Path
-from types import SimpleNamespace
 
 from PySide6.QtCore import QSettings
 
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
-from src.ui_qml.modules.project_management.presenters import (
-    ProjectDashboardPresenter,
-    ProjectFinancialsWorkspacePresenter,
-    build_project_management_workspace_presenters,
-)
-from src.ui_qml.modules.project_management.routes import build_project_management_routes
-from src.core.modules.project_management.api.desktop import (
-    build_project_management_collaboration_desktop_api,
-    build_project_management_dashboard_desktop_api,
-    build_project_management_financials_desktop_api,
-    build_project_management_projects_desktop_api,
-    build_project_management_register_desktop_api,
-    build_project_management_resources_desktop_api,
-    build_project_management_scheduling_desktop_api,
-    build_project_management_tasks_desktop_api,
-)
-from src.application.runtime import build_desktop_api_registry
-from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
-from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.domain.approval import ApprovalStatus
-from src.core.modules.project_management.domain.enums import (
-    CostType,
-    DependencyType,
-    ProjectStatus,
-    TaskStatus,
-    WorkerType,
-)
-from src.core.modules.project_management.domain.risk.register import (
-    RegisterEntrySeverity,
-    RegisterEntryStatus,
-    RegisterEntryType,
-)
-from src.core.platform.domain.master_data.documents import DocumentStorageKind
-from src.tests.ui_runtime_helpers import wait_until
-from src.ui_qml.modules.project_management.presenters.collaboration import (
-    ProjectCollaborationWorkspacePresenter,
-)
 from src.tests.ui_qml.project_management.presenters._task_presenters_test_helpers import (
-    _FakePmRuntimeApi,
-    _FakeCollaborationService,
-    _FakeTaskService,
-    _FakeTaskTimesheetsDesktopApi,
-    _build_task_record,
     _build_tasks_catalog,
+    _FakeCollaborationService,
+    _FakeTaskTimesheetsDesktopApi,
 )
+from src.tests.ui_runtime_helpers import wait_until
 
 
 def test_tasks_controller_initial_state(

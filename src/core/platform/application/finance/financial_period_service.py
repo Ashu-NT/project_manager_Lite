@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import date, datetime, timezone
+from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -20,7 +20,11 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.contract.repositories.finance import FinancialPeriodRepository
-from src.core.platform.finance.periods import FinancialPeriod, FinancialPeriodStatus
+from src.core.platform.domain.finance.periods import (
+    FinancialPeriod,
+    FinancialPeriodStatus,
+)
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
@@ -310,46 +314,54 @@ class FinancialPeriodService:
         operation: str,
         period: FinancialPeriod,
         *,
-        old_value: str | None,
+        old_value: dict[str, Any] | None,
     ) -> None:
+        full_operation = f"financial_period.{operation}"
         record_audit_entry(
             self,
-            operation=f"financial_period.{operation}",
+            operation=full_operation,
             entity_type="financial_period",
             entity_id=period.id,
             module="platform_finance",
-            old_value=old_value,
-            new_value=self._audit_value(period),
+            category="FINANCIAL",
+            before_data=old_value,
+            after_data=self._audit_value(period),
             organization_id=period.organization_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
         )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="financial_period",
+            entity_id=period.id,
+            module="platform_finance",
+            organization_id=period.organization_id,
+            details={"action": operation},
+            commit=False,
+        )
 
     @staticmethod
-    def _audit_value(period: FinancialPeriod | None) -> str | None:
+    def _audit_value(period: FinancialPeriod | None) -> dict[str, Any] | None:
         if period is None:
             return None
-        return json.dumps(
-            {
-                "code": period.code,
-                "name": period.name,
-                "fiscal_year": period.fiscal_year,
-                "period_number": period.period_number,
-                "start_date": period.start_date.isoformat(),
-                "end_date": period.end_date.isoformat(),
-                "status": period.status.value,
-                "closed_by": period.closed_by,
-                "closed_at": period.closed_at.isoformat() if period.closed_at else None,
-                "locked_by": period.locked_by,
-                "locked_at": period.locked_at.isoformat() if period.locked_at else None,
-                "version": period.version,
-            },
-            sort_keys=True,
-        )
+        return {
+            "code": period.code,
+            "name": period.name,
+            "fiscal_year": period.fiscal_year,
+            "period_number": period.period_number,
+            "start_date": period.start_date.isoformat(),
+            "end_date": period.end_date.isoformat(),
+            "status": period.status.value,
+            "closed_by": period.closed_by,
+            "closed_at": period.closed_at.isoformat() if period.closed_at else None,
+            "locked_by": period.locked_by,
+            "locked_at": period.locked_at.isoformat() if period.locked_at else None,
+            "version": period.version,
+        }
 
 
 __all__ = ["FinancialPeriodService"]

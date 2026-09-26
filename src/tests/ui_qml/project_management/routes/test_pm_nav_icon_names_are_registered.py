@@ -7,7 +7,6 @@ would have caught all three."""
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 from src.tests.path_rewrites import REPO_ROOT
 

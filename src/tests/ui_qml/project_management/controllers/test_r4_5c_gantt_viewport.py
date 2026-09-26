@@ -28,7 +28,6 @@ from src.ui_qml.modules.project_management.controllers.scheduling.scheduling_wor
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
-
 SCHEDULING_ROOT = (
     REPO_ROOT
     / "src"

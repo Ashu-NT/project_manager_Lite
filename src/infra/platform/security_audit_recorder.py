@@ -31,7 +31,7 @@ class DurableSecurityDenialRecorder:
         session: Session,
         *,
         trace_id_provider: Callable[[], str | None] = current_trace_id,
-    ) -> "DurableSecurityDenialRecorder":
+    ) -> DurableSecurityDenialRecorder:
         factory = sessionmaker(
             bind=session.get_bind(),
             autoflush=False,
@@ -73,7 +73,8 @@ class DurableSecurityDenialRecorder:
                 request_id=_safe_trace_id(self._trace_id_provider),
                 source="authorization",
                 severity="high",
-                compliance_tag="SOC2",
+                category="ACCESS",
+                result="DENIED",
                 metadata={
                     "action": _clean_text(
                         event.operation,

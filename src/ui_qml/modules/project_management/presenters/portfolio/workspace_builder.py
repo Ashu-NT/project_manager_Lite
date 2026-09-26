@@ -11,8 +11,9 @@ from src.ui_qml.modules.project_management.view_models.portfolio import (
     PortfolioSelectorOptionViewModel,
     PortfolioWorkspaceViewModel,
 )
+from src.ui_qml.shared.models.activity_item import serialize_activity_items
 
-from .action_mapper import to_recent_action_record
+from .action_mapper import to_recent_action_activity_item
 from .capacity_pool_builder import build_capacity_pool_view_model
 from .comparison_builder import build_comparison_summary
 from .dependency_mapper import to_dependency_record
@@ -21,10 +22,10 @@ from .filtering import build_empty_state, normalize_filter
 from .heatmap_mapper import to_heatmap_record
 from .intake_mapper import to_intake_record
 from .overview_builder import build_overview
+from .performance_logging import log_build_complete
 from .scenario_mapper import to_scenario_record
 from .selection import resolve_compare_id, resolve_selected_id
 from .template_mapper import to_template_record
-from .performance_logging import log_build_complete
 
 _ACTIVE_TABS = (
     "executive",
@@ -229,12 +230,14 @@ def build_workspace_state(
             sort_direction=dependencies_page_result.sort_direction,
             search_text=dependencies_page_result.search_text,
         ),
-        recent_actions=PortfolioCollectionViewModel(
-            title="Recent Actions",
-            subtitle="The latest project, task, baseline, approval, timesheet, and portfolio events worth executive review.",
-            empty_state="No recent PM actions are available yet.",
-            items=tuple(to_recent_action_record(item) for item in recent_actions),
-        ),
+        recent_actions={
+            "title": "Recent Actions",
+            "subtitle": "The latest project, task, baseline, approval, timesheet, and portfolio events worth executive review.",
+            "emptyState": "No recent PM actions are available yet.",
+            "items": serialize_activity_items(
+                to_recent_action_activity_item(item) for item in recent_actions
+            ),
+        },
         capacity_pool=build_capacity_pool_view_model(desktop_api),
         top_at_risk_projects=PortfolioCollectionViewModel(
             title="Top At-Risk Projects",

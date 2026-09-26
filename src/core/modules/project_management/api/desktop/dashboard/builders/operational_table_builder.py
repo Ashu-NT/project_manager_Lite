@@ -1,28 +1,33 @@
 """Operational table and tab builders."""
 
 from __future__ import annotations
+
 from typing import Any
 
-from src.core.modules.project_management.domain.risk.register import (
-    as_register_entry_severity,
-    as_register_entry_status,
+from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
+    coerce_utc_datetime,
+    fmt_date,
+    fmt_utc_datetime,
 )
-from src.core.platform.domain.approval import ApprovalStatus
+from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
+    fmt_float,
+    fmt_int,
+    fmt_percent,
+)
+from src.core.modules.project_management.api.desktop.dashboard.formatters.period_formatter import (
+    period_cutoff_date,
+)
 from src.core.modules.project_management.api.desktop.dashboard.models.tables import (
     ProjectDashboardOperationalTabDescriptor,
     ProjectDashboardOperationalTableDescriptor,
     ProjectDashboardTableColumnDescriptor,
     ProjectDashboardTableRowDescriptor,
 )
-from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
-    fmt_float, fmt_int, fmt_percent,
+from src.core.modules.project_management.domain.risk.register import (
+    as_register_entry_severity,
+    as_register_entry_status,
 )
-from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
-    coerce_utc_datetime, fmt_date, fmt_utc_datetime,
-)
-from src.core.modules.project_management.api.desktop.dashboard.formatters.period_formatter import (
-    period_cutoff_date,
-)
+from src.core.platform.domain.approval import ApprovalStatus
 
 _COL = ProjectDashboardTableColumnDescriptor
 

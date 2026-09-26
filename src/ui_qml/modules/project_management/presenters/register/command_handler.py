@@ -13,8 +13,9 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryType,
 )
 
-from .workspace_mode import WorkspaceMode
 from .validation import optional_date, optional_int, optional_text, require_text
+from .workspace_mode import WorkspaceMode
+
 
 def resolve_entry_type(payload: dict[str, Any], *, workspace_mode: WorkspaceMode) -> str:
     if workspace_mode == "risk":
@@ -106,3 +107,16 @@ def delete_entry(
     if not normalized_entry_id:
         raise ValueError("Register entry ID is required to delete an entry.")
     desktop_api.delete_entry(normalized_entry_id)
+
+def bulk_set_entry_status(
+    desktop_api: ProjectManagementRegisterDesktopApi,
+    entry_ids: list[str],
+    status: str,
+) -> None:
+    normalized_ids = tuple(str(i).strip() for i in entry_ids if str(i or "").strip())
+    normalized_status = (status or "").strip()
+    if not normalized_ids:
+        raise ValueError("At least one register entry is required to change status.")
+    if not normalized_status:
+        raise ValueError("Choose a status before saving.")
+    desktop_api.bulk_set_entry_status(normalized_ids, normalized_status)

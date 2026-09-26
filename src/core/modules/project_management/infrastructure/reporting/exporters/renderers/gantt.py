@@ -5,13 +5,16 @@ from pathlib import Path
 
 import matplotlib.dates as mdates
 import matplotlib.patches as mpatches
+from matplotlib import ticker
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.dates import date2num
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
-from matplotlib import ticker
 
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import GanttTaskBar
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    GanttTaskBar,
+)
+
 
 class GanttPngRenderer:
     _STATUS_COLORS = {

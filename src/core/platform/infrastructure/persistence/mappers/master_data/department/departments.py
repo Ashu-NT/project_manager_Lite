@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
 from src.core.platform.domain.master_data.department import Department
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
 
 
 def department_to_orm(department: Department) -> DepartmentORM:
@@ -15,7 +17,7 @@ def department_to_orm(department: Department) -> DepartmentORM:
         parent_department_id=department.parent_department_id,
         department_type=department.department_type or None,
         cost_center_code=department.cost_center_code or None,
-        manager_employee_id=department.manager_employee_id,
+        head_of_department_employee_id=department.head_of_department_employee_id,
         is_active=department.is_active,
         created_at=department.created_at,
         updated_at=department.updated_at,
@@ -35,7 +37,7 @@ def department_from_orm(obj: DepartmentORM) -> Department:
         parent_department_id=obj.parent_department_id,
         department_type=obj.department_type or "",
         cost_center_code=obj.cost_center_code or "",
-        manager_employee_id=obj.manager_employee_id,
+        head_of_department_employee_id=obj.head_of_department_employee_id,
         is_active=obj.is_active,
         created_at=obj.created_at,
         updated_at=obj.updated_at,

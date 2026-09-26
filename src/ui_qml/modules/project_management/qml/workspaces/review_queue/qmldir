@@ -1,0 +1,4 @@
+module ProjectManagement.ReviewQueue
+TimesheetsWorkspacePage 1.0 TimesheetsWorkspacePage.qml
+TimesheetsWorkspaceState 1.0 TimesheetsWorkspaceState.qml
+TimesheetsColumnConfig 1.0 TimesheetsColumnConfig.js

@@ -5,35 +5,47 @@ from decimal import Decimal
 
 from sqlalchemy import String, and_, case, cast, false, func, or_, select
 from sqlalchemy.orm import Session, aliased
-from src.core.modules.project_management.contracts.reads.sorting import ReadSort
-from src.core.modules.project_management.infrastructure.persistence.reads.sorting import stable_order_by
 
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.contracts.reads.tasks import (
-    TaskWorkspaceCriteria,
     TaskActivityFact,
     TaskActivityPage,
     TaskAssignmentReadItem,
     TaskAssignmentReadPage,
     TaskDependencyReadItem,
     TaskDependencyReadPage,
+    TaskWorkspaceCriteria,
     TaskWorkspaceReadItem,
     TaskWorkspaceReadPage,
     TaskWorkspaceSummary,
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskAssignmentORM,
     TaskDependencyORM,
     TaskORM,
 )
-from src.core.platform.infrastructure.persistence.orm.history.activity.activity import ActivityEntryORM
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 from src.core.platform.infrastructure.persistence.mappers.history.activity.activity import (
     activity_payload_from_json,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
-from src.core.platform.infrastructure.persistence.orm.time_management.time.time import TimeEntryORM
+from src.core.platform.infrastructure.persistence.orm.history.activity.activity import (
+    ActivityEntryORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
+from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
+    TimeEntryORM,
+)
 
 
 def _contains_pattern(value: str) -> str:

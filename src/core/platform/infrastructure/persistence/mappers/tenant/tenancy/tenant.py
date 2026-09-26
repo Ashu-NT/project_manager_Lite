@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
 from src.core.platform.domain.tenant.tenancy.tenant import TENANT_STATUS_ACTIVE, Tenant
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+    TenantORM,
+)
 
 
 def tenant_to_orm(tenant: Tenant) -> TenantORM:

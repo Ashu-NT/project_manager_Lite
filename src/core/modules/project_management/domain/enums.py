@@ -60,11 +60,11 @@ class ResourceKind(str, Enum):
 
 
 __all__ = [
-    "ProjectStatus",
-    "TaskStatus",
-    "DependencyType",
     "ConstraintType",
     "CostType",
+    "DependencyType",
+    "ProjectStatus",
     "ResourceKind",
+    "TaskStatus",
     "WorkerType",
 ]

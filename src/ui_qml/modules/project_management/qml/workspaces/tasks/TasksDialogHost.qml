@@ -45,6 +45,10 @@ Item {
                 message += " Refresh the latest values before saving again."
             }
             dialog.errorMessage = message
+            // Already shown above, inside the dialog -- clear it on the
+            // controller so it doesn't also leak onto the page behind this
+            // modal, or linger there after the user cancels out.
+            if (root.workspaceController) root.workspaceController.clearMessages()
         } else {
             dialog.errorMessage = ""
             dialog.close()

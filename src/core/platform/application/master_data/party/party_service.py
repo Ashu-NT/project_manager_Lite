@@ -7,31 +7,49 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
     PartyRollupSummary,
     PlatformOverviewRollupReader,
 )
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
-from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.repositories.master_data.party.contracts import (
+    PartyRepository,
+)
 from src.core.platform.contract.uow.party_unit_of_work import PartyUnitOfWorkFactory
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.party import (
     Party,
     PartyType,
     coerce_party_type,
     normalize_party_code,
 )
-from src.core.platform.domain.master_data.party.events import PartyCreated, PartyProfileUpdated
-from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.domain.master_data.party.events import (
+    PartyCreated,
+    PartyProfileUpdated,
+)
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
     from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
@@ -194,17 +212,24 @@ class PartyService:
                     entity_type="party",
                     entity_id=party.id,
                     module="platform",
+                    organization_id=organization.id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={
-                        "action": "party.create",
-                        "organization_id": organization.id,
-                        "party_code": party.party_code,
-                        "party_name": party.party_name,
-                        "party_type": party.party_type.value,
-                        "is_active": str(party.is_active),
-                    },
+                    after_data={"party_code": party.party_code, "party_name": party.party_name},
+                    metadata={"action": "party.create"},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="party.create",
+                    entity_type="party",
+                    entity_id=party.id,
+                    module="platform",
+                    organization_id=organization.id,
+                    message=f"Party created — {party.party_name}",
+                    icon="party",
+                    commit=False,
                 )
                 uow.record_event(
                     PartyCreated(
@@ -323,17 +348,23 @@ class PartyService:
                     entity_type="party",
                     entity_id=candidate.id,
                     module="platform",
+                    organization_id=organization.id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={
-                        "action": "party.update",
-                        "organization_id": organization.id,
-                        "party_code": candidate.party_code,
-                        "party_name": candidate.party_name,
-                        "party_type": candidate.party_type.value,
-                        "is_active": str(candidate.is_active),
-                    },
+                    metadata={"action": "party.update"},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="party.update",
+                    entity_type="party",
+                    entity_id=candidate.id,
+                    module="platform",
+                    organization_id=organization.id,
+                    message=f"Party updated — {candidate.party_name}",
+                    icon="party",
+                    commit=False,
                 )
                 uow.record_event(
                     PartyProfileUpdated(

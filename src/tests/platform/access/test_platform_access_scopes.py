@@ -2,13 +2,20 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.modules.project_management.access.policy import (
+    resolve_project_scope_permissions,
+)
 from src.core.platform.access.authorization import require_scope_permission
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.modules.project_management.access.policy import resolve_project_scope_permissions
-from src.core.platform.domain.master_data.site.access_policy import resolve_site_scope_permissions
 from src.core.platform.domain.master_data.org.access_policy import (
     resolve_organization_scope_permissions,
+)
+from src.core.platform.domain.master_data.site.access_policy import (
+    resolve_site_scope_permissions,
+)
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
 )
 from src.tests.ui_runtime_helpers import login_as
 
@@ -95,10 +102,10 @@ def test_access_service_supports_organization_scope_grants_and_principal_hydrati
     organization_service = services["organization_service"]
 
     org_a = organization_service.create_organization(
-        organization_code="ACCESS-ORG-A", display_name="Access Scope Org A", is_enabled=True,
+        organization_code="ACCESS-ORG-A", display_name="Access Scope Org A",
     )
     org_b = organization_service.create_organization(
-        organization_code="ACCESS-ORG-B", display_name="Access Scope Org B", is_enabled=True,
+        organization_code="ACCESS-ORG-B", display_name="Access Scope Org B",
     )
     user = _register_active_tenant_user(
         services,
@@ -143,8 +150,8 @@ def test_access_service_supports_organization_scope_grants_and_principal_hydrati
 
 def test_access_service_rejects_organization_target_from_another_tenant(services):
     from src.core.platform.common.exceptions import NotFoundError
-    from src.core.platform.domain.tenant.tenancy import Tenant
     from src.core.platform.domain.master_data.org import Organization
+    from src.core.platform.domain.tenant.tenancy import Tenant
     from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
         SqlAlchemyTenantRepository,
     )
@@ -185,8 +192,8 @@ def test_access_service_allows_organization_scope_grant_to_a_disabled_organizati
     disabled_org = organization_service.create_organization(
         organization_code="ACCESS-ORG-DISABLED",
         display_name="Access Scope Disabled Org",
-        is_enabled=False,
     )
+    disabled_org = organization_service.deactivate_organization(disabled_org.id)
     user = _register_active_tenant_user(
         services,
         "organization-scope-disabled-org-user",

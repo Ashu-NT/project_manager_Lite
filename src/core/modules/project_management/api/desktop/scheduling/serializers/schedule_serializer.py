@@ -3,7 +3,9 @@
 from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
     constraint_presentation,
 )
-from src.core.modules.project_management.api.desktop.scheduling.models.schedule import SchedulingTaskDto
+from src.core.modules.project_management.api.desktop.scheduling.models.schedule import (
+    SchedulingTaskDto,
+)
 
 
 def serialize_schedule_item(item) -> SchedulingTaskDto:

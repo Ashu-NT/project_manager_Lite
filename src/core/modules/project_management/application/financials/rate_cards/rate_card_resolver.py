@@ -25,10 +25,16 @@ from src.core.modules.project_management.domain.financials.rate_cards import (
     RateSelectionSnapshot,
     RateType,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.finance.money.money import Money
-from src.core.platform.finance.money.quantity import MonetaryRate, normalize_unit
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.platform.domain.finance.money.money import Money
+from src.core.platform.domain.finance.money.quantity import MonetaryRate, normalize_unit
 
 _PER_RESOURCE_FAILURE_CODES = frozenset(
     {"RATE_CARD_NO_APPLICABLE_RATE", "RATE_CARD_AMBIGUOUS_SELECTION"}
@@ -94,6 +100,40 @@ class RateCardResolver:
         snapshot = batch.snapshot_for(resource_id)
         assert snapshot is not None
         return snapshot
+
+    def resolve_for_posting(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str | None,
+        resource_id: str,
+        rate_type: RateType | str,
+        as_of: date,
+        unit: str,
+    ) -> RateSelectionSnapshot:
+        """Hold the selected line until the worker commits; retry a raced edit."""
+        for _attempt in range(3):
+            snapshot = self.resolve(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+                resource_id=resource_id,
+                rate_type=rate_type,
+                as_of=as_of,
+                unit=unit,
+            )
+            line = self._reader.lock_line_for_posting(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                line_id=snapshot.rate_line_id,
+            )
+            if line is not None and line.version == snapshot.rate_line_version:
+                return snapshot
+        raise BusinessRuleError(
+            "The selected Rate Line changed during labor posting; retry delivery.",
+            code="APPROVED_TIME_RATE_SELECTION_RACE",
+        )
 
     def resolve_many(
         self,
@@ -366,6 +406,9 @@ class RateCardResolver:
                     code="RATE_CARD_MODIFIER_NOT_CONFIGURED",
                 )
             amount = amount * multiplier
+        base_monetary_rate = MonetaryRate(
+            Money.of(line.rate_amount, line.rate_currency), line.unit
+        )
         monetary_rate = MonetaryRate(Money.of(amount, line.rate_currency), line.unit)
         return RateSelectionSnapshot(
             monetary_rate=monetary_rate,
@@ -378,6 +421,7 @@ class RateCardResolver:
             effective_date=as_of,
             modifier_applied=modifier,
             modifier_multiplier=multiplier,
+            base_monetary_rate=base_monetary_rate,
             resolved_at=self._clock.now(),
         )
 

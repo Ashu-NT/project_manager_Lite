@@ -151,15 +151,32 @@ QtObject {
     readonly property int navRailExpandedWidth: detailRailWidth
     readonly property int navRailCollapsedWidth: 48
 
-    // R7.3/R7.4: responsive breakpoints, both keyed off the top-level window
-    // width (via the Window attached property, not a page's own post-nav-
-    // chrome width, which would double-subtract chrome and misfire).
-    // narrowLayoutBreakpoint: below this, nav rails auto-collapse to
-    // icon-only, reclaiming chrome before anything else degrades.
-    // compactContentBreakpoint: the hard minimum (D8) -- below this, the
-    // inspector collapses and lower-priority table columns hide.
     readonly property int narrowLayoutBreakpoint: 1280
     readonly property int compactContentBreakpoint: 1024
+
+    // Global Overview responsive layout class -- a SEPARATE breakpoint set
+    // from the sidebar-collapse breakpoints above. Deliberately independent
+    // of density (AppTheme.densityMode): a standard-width window may still
+    // use compact density, and a compact-width window may still use
+    // comfortable density. Width/height in these calculations are the
+    // top-level window's usable content area, not a post-nav-chrome page
+    // width.
+    readonly property int overviewNarrowWidthBreakpoint: 1024
+    readonly property int overviewCompactWidthBreakpoint: 1440
+    readonly property int overviewCompactHeightBreakpoint: 820
+
+    // Returns "narrow" | "compact" | "standard" for the given usable
+    // width/height. Centralized here so no component computes its own
+    // `width < 1440 ? ...` breakpoint check.
+    function layoutClassFor(width, height) {
+        if (width < overviewNarrowWidthBreakpoint) {
+            return "narrow"
+        }
+        if (width < overviewCompactWidthBreakpoint || height < overviewCompactHeightBreakpoint) {
+            return "compact"
+        }
+        return "standard"
+    }
 
     // Inspector panel (list -> inspector -> detail pattern). Matches the
     // width AdminEntityDetailPanel.qml is already given today

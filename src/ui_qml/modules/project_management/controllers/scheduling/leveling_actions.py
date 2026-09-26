@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from src.ui_qml.modules.project_management.controllers.common import run_mutation
+from src.ui_qml.modules.project_management.controllers.common import (
+    run_mutation,
+    safe_error_message,
+)
 
 from .row_builders import build_leveling_move_rows
 from .scheduling_property_updates import set_leveling_move_rows, set_leveling_proposal
@@ -17,8 +20,11 @@ def preview_resource_leveling(controller) -> dict[str, object]:
         controller._set_error_message("")
         state = controller._scheduling_workspace_presenter.preview_resource_leveling(project_id)
     except Exception as exc:
-        controller._set_error_message(str(exc))
-        return {"ok": False, "message": str(exc)}
+        message = safe_error_message(
+            exc, safe_message="Resource leveling preview could not be generated."
+        )
+        controller._set_error_message(message)
+        return {"ok": False, "message": message}
     finally:
         controller._set_is_loading(False)
     set_leveling_proposal(controller, state)
@@ -57,7 +63,11 @@ def apply_resource_leveling(controller) -> dict[str, object]:
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_validation_message="Review the highlighted scheduling fields and try again.",
+        safe_validation_code="SCHEDULING_INPUT_INVALID",
+        safe_failure_message="Resource leveling could not be applied. Try again or refresh the workspace.",
+        safe_failure_code="SCHEDULING_MUTATION_FAILED",
     )
 
 
-__all__ = ["preview_resource_leveling", "apply_resource_leveling"]
+__all__ = ["apply_resource_leveling", "preview_resource_leveling"]

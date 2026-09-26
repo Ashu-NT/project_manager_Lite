@@ -1,8 +1,8 @@
 """Frontend RBAC visibility: PlatformRuntimeApplicationService.get_current_permissions() reads
 the session principal's already-resolved permission set (no extra query -- computed once at
 login), exposed through PlatformRuntimeDesktopApi and PlatformWorkspaceCatalog.hasPermission()/
-hasAnyPermission(), which PlatformNavigation.qml uses to filter its destination list to what
-the user can actually access.
+hasAnyPermission()/contextNavigation, which filter Platform's Context Navigation Tree to the
+destinations the user can actually access.
 """
 from __future__ import annotations
 

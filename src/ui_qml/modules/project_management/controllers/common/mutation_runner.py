@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
 
-from src.core.platform.common.exceptions import ConcurrencyError, DomainError, ValidationError
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    DomainError,
+    ValidationError,
+)
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_VALIDATION_MESSAGE = "Review the highlighted fields and try again."
+_DEFAULT_VALIDATION_CODE = "MUTATION_INPUT_INVALID"
+_DEFAULT_FAILURE_MESSAGE = "The change could not be completed. Try again or refresh the workspace."
+_DEFAULT_FAILURE_CODE = "MUTATION_FAILED"
 
 
 def run_mutation(
@@ -18,12 +27,13 @@ def run_mutation(
     set_is_busy,
     set_error_message,
     set_feedback_message,
-    safe_errors: bool = False,
-    safe_validation_message: str = "Review the highlighted resource fields and try again.",
-    safe_validation_code: str = "RESOURCE_INPUT_INVALID",
-    safe_failure_message: str = "The resource change could not be completed. Try again or reload the record.",
-    safe_failure_code: str = "RESOURCE_MUTATION_FAILED",
+    safe_validation_message: str = _DEFAULT_VALIDATION_MESSAGE,
+    safe_validation_code: str = _DEFAULT_VALIDATION_CODE,
+    safe_failure_message: str = _DEFAULT_FAILURE_MESSAGE,
+    safe_failure_code: str = _DEFAULT_FAILURE_CODE,
 ) -> dict[str, object]:
+    """Run a single workspace mutation and translate its outcome into a UI-safe result.
+    """
     payload: dict[str, object] = {
         "ok": False,
         "message": "",
@@ -45,7 +55,7 @@ def run_mutation(
                 category = "validation"
             elif isinstance(exc, DomainError):
                 category = "business"
-            elif safe_errors and callable(getattr(exc, "errors", None)):
+            elif callable(getattr(exc, "errors", None)):
                 category = "validation"
                 for item in exc.errors():
                     location = item.get("loc") or ()
@@ -53,11 +63,15 @@ def run_mutation(
                     field_errors[field] = str(item.get("msg") or "Invalid value.")
                 message = safe_validation_message
                 code = safe_validation_code
-            elif safe_errors and isinstance(exc, (TypeError, ValueError)):
+            elif isinstance(exc, (TypeError, ValueError)):
                 category = "validation"
                 message = safe_validation_message
                 code = safe_validation_code
-            elif safe_errors:
+            else:
+                # Not one of this codebase's own DomainError-family types --
+                # its raw text (SQL, stack fragments, internal identifiers,
+                # exception class names) must never reach the UI. The full
+                # exception is already logged above.
                 message = safe_failure_message
                 code = safe_failure_code
             set_feedback_message("")

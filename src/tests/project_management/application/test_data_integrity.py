@@ -14,8 +14,6 @@ from datetime import date, datetime
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.common.exceptions import ValidationError
-
 from src.core.modules.project_management.infrastructure.persistence.health import (
     run_pm_data_integrity_checks,
 )
@@ -35,8 +33,13 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskDependencyORM,
     TaskORM,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+    OrganizationORM,
+)
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+    TenantORM,
+)
 
 _DEFAULT_ORG_ID = "test-org-integrity"
 _DEFAULT_TENANT_ID = "test-tenant-integrity"

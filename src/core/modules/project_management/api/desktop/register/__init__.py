@@ -23,8 +23,8 @@ from src.core.modules.project_management.api.desktop.register.models.options imp
 
 __all__ = [
     "ProjectManagementRegisterDesktopApi",
-    "RegisterEntryCreateCommand",
     "RegisterCatalogPageDesktopDto",
+    "RegisterEntryCreateCommand",
     "RegisterEntryDesktopDto",
     "RegisterEntrySeverityDescriptor",
     "RegisterEntryStatusDescriptor",

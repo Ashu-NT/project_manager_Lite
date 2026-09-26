@@ -53,7 +53,7 @@ class ActivityEntry:
         visibility: str = "workspace",
         related_entity_type: str | None = None,
         related_entity_id: str | None = None,
-    ) -> "ActivityEntry":
+    ) -> ActivityEntry:
         return ActivityEntry(
             id=generate_id(),
             action=action,

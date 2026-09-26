@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
@@ -8,7 +7,9 @@ from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
@@ -16,12 +17,12 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
-from src.core.modules.project_management.application.financials.forecasts.version_service import (
-    ForecastVersionService,
-)
 from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
     FinancialChangeChanged,
     FinancialChangeEventType,
+)
+from src.core.modules.project_management.application.financials.forecasts.version_service import (
+    ForecastVersionService,
 )
 from src.core.modules.project_management.application.financials.successor_models import (
     ApprovedFinancialLineAdjustment,
@@ -33,43 +34,55 @@ from src.core.modules.project_management.contracts.ports.schedule_change import 
 from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import (
     ProjectBudgetRepository,
 )
-from src.core.modules.project_management.contracts.repositories.finance.financial_changes.financial_change import (
-    FinancialChangeRepository,
-)
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
+from src.core.modules.project_management.contracts.repositories.finance.financial_changes.financial_change import (
+    FinancialChangeRepository,
+)
 from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import (
     ProjectForecastRepository,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.financials.budget import ProjectBudget
-from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
+from src.core.modules.project_management.domain.financials.configuration import (
+    CostCodePolicy,
+)
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpact,
     FinancialChangeImpactType,
     FinancialChangeRequest,
     FinancialChangeStatus,
 )
-from src.core.modules.project_management.domain.financials.forecast import ProjectForecast
+from src.core.modules.project_management.domain.financials.forecast import (
+    ProjectForecast,
+)
 from src.core.platform.application.approval.approval_mutation_participant import (
     request_approval_using,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.platform.contract.repositories.approval.contracts import (
+    ApprovalRepository,
+)
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-
 
 _REVISION_CONSTRAINT = "uq_pf_change_project_revision"
 
@@ -238,7 +251,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         impact_type: FinancialChangeImpactType,
         description: str,
         expected_change_version: int,
-        amount: Decimal = Decimal("0"),
+        amount: Decimal = Decimal(0),
         currency_code: str | None = None,
         cost_code_id: str | None = None,
         task_id: str | None = None,
@@ -323,7 +336,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         description: str,
         expected_impact_version: int,
         expected_change_version: int,
-        amount: Decimal = Decimal("0"),
+        amount: Decimal = Decimal(0),
         currency_code: str | None = None,
         cost_code_id: str | None = None,
         task_id: str | None = None,
@@ -927,63 +940,81 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
     @staticmethod
     def _audit_change_using(owner, operation: str, change: FinancialChangeRequest) -> None:
         """Record the change audit through the current transaction-bound owner."""
+        full_operation = f"financial_change.{operation}"
+        snapshot = {
+            "revision": change.revision,
+            "status": change.status.value,
+            "base_budget_id": change.base_budget_id,
+            "base_forecast_id": change.base_forecast_id,
+            "applied_budget_id": change.applied_budget_id,
+            "applied_forecast_id": change.applied_forecast_id,
+            "applied_schedule_count": change.applied_schedule_count,
+        }
         record_audit_entry(
             owner,
-            operation=f"financial_change.{operation}",
+            operation=full_operation,
             entity_type="financial_change_request",
             entity_id=change.id,
             entity_parent_id=change.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "revision": change.revision,
-                    "status": change.status.value,
-                    "base_budget_id": change.base_budget_id,
-                    "base_forecast_id": change.base_forecast_id,
-                    "applied_budget_id": change.applied_budget_id,
-                    "applied_forecast_id": change.applied_forecast_id,
-                    "applied_schedule_count": change.applied_schedule_count,
-                },
-                sort_keys=True,
-            ),
+            category="APPROVAL",
+            after_data=snapshot,
             workspace_id=change.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            owner,
+            action=full_operation,
+            entity_type="financial_change_request",
+            entity_id=change.id,
+            parent_entity_id=change.project_id,
+            module="project_management",
+            workspace_id=change.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     def _audit_impact(
         self, operation: str, change: FinancialChangeRequest, impact: FinancialChangeImpact
     ) -> None:
+        full_operation = f"financial_change_impact.{operation}"
+        snapshot = {
+            "impact_type": impact.impact_type.value,
+            "amount": str(impact.amount),
+            "currency_code": impact.currency_code,
+            "target_line_id": impact.target_line_id,
+            "target_task_version": impact.target_task_version,
+        }
         record_audit_entry(
             self,
-            operation=f"financial_change_impact.{operation}",
+            operation=full_operation,
             entity_type="financial_change_impact",
             entity_id=impact.id,
             entity_parent_id=change.id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "impact_type": impact.impact_type.value,
-                    "amount": str(impact.amount),
-                    "currency_code": impact.currency_code,
-                    "target_line_id": impact.target_line_id,
-                    "target_task_version": impact.target_task_version,
-                },
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data=snapshot,
             workspace_id=change.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="financial_change_impact",
+            entity_id=impact.id,
+            parent_entity_id=change.id,
+            module="project_management",
+            workspace_id=change.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     def _audit_version(
@@ -993,25 +1024,33 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         change: FinancialChangeRequest,
         occurred_at: datetime,
     ) -> None:
+        full_operation = f"{entity_type}.apply_financial_change"
         record_audit_entry(
             self,
-            operation=f"{entity_type}.apply_financial_change",
+            operation=full_operation,
             entity_type=entity_type,
             entity_id=entity_id,
             entity_parent_id=change.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {"financial_change_id": change.id, "applied_at": occurred_at.isoformat()},
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data={"financial_change_id": change.id, "applied_at": occurred_at.isoformat()},
             workspace_id=change.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": "apply_financial_change"},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            parent_entity_id=change.project_id,
+            module="project_management",
+            workspace_id=change.project_id,
+            details={"action": "apply_financial_change"},
+            commit=False,
         )
 
 __all__ = ["FinancialChangeService"]

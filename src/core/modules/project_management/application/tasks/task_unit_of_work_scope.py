@@ -28,7 +28,7 @@ class TaskParticipantUnitOfWork:
     def commit(self) -> None:
         return None
 
-    def __enter__(self) -> "TaskParticipantUnitOfWork":
+    def __enter__(self) -> TaskParticipantUnitOfWork:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

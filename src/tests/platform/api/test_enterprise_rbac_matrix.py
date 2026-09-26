@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
-from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
     normalize_project_scope_role,
     resolve_project_scope_permissions,
 )
+from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.tests.ui_runtime_helpers import login_as
 
 

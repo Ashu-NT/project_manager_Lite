@@ -13,14 +13,14 @@ from src.core.modules.project_management.api.desktop.financials.models.configura
     FinancialConfigurationWorkspaceDto,
     FinancialProfileDto,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
-    FinanceSetupWorkspaceFacts,
-)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinanceBudgetWorkspaceFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_planned_cost_facts import (
     FinancePlannedCostWorkspaceFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
+    FinanceSetupWorkspaceFacts,
 )
 
 
@@ -319,6 +319,6 @@ def _planned_cost_line_dto(item) -> FinancialConfigurationRecordDto:
 
 __all__ = [
     "serialize_finance_budget_workspace",
-    "serialize_finance_setup_workspace",
     "serialize_finance_planned_cost_workspace",
+    "serialize_finance_setup_workspace",
 ]

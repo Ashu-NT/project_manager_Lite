@@ -4,8 +4,8 @@ from src.core.modules.project_management.application.financials.cost.entries.cos
     CostEntryRecorded,
     CostEntryRemoved,
     CostEntryReversed,
-    CostEntryStatusChangeType,
     CostEntryStatusChanged,
+    CostEntryStatusChangeType,
     CostEntryUpdated,
 )
 from src.core.modules.project_management.domain.financials.cost_entry import (
@@ -70,15 +70,15 @@ def _also_touches_actuals(event: _CostEntryEvent) -> bool:
 
 
 def build_cost_entry_view_invalidation_handler(channel: ViewInvalidationChannel):
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_targets: set[_ProjectTarget] = set()
 
     def handle_cost_entry_event(
         event: _CostEntryEvent,
         context: DomainEventContext,
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_targets.clear()
 
         scope = _project_scope(
@@ -109,10 +109,10 @@ def build_cost_entry_view_invalidation_handler(channel: ViewInvalidationChannel)
 
 
 __all__ = [
-    "build_cost_entry_view_invalidation_handler",
+    "COST_ENTRY_ACTUALS_SCOPE_CODE",
     "COST_ENTRY_CATEGORY",
     "COST_ENTRY_LIST_SCOPE_CODE",
-    "COST_ENTRY_ACTUALS_SCOPE_CODE",
     "COST_ENTRY_MODULE_CODE",
     "COST_ENTRY_PROJECT_ENTITY_TYPE",
+    "build_cost_entry_view_invalidation_handler",
 ]

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.approval._approval_labels import (
     approval_context_label,
     approval_display_label,
@@ -11,6 +9,8 @@ from src.core.platform.api.desktop.approval.models.approval import (
     ApprovalDecisionCommand,
     ApprovalRequestDto,
 )
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 

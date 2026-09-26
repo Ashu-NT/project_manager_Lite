@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from src.core.modules.project_management.application.dashboard.models.dashboard_models import BurndownPoint
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.infrastructure.reporting import ProjectKPI
+from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
+    BurndownPoint,
+)
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.modules.project_management.infrastructure.reporting import (
+    ProjectKPI,
+    ReportingService,
+)
 
 
 class DashboardBurndownMixin:

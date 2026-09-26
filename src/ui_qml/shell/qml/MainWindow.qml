@@ -2,16 +2,85 @@ import QtQuick
 import QtQuick.Layouts
 import Shell.Context 1.0 as ShellContexts
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
 Item {
     id: root
+    objectName: "mainWindow"
 
     property ShellContexts.ShellContext shellModel
     property var platformCatalog
     property var pmCatalog
+    property var globalOverviewController
+    property var organizationSwitcherController
+    property var notificationsController
+    property bool _notificationsPanelOpen: false
+    property bool _globalNavCollapsed: false
+
+    // Auto-collapse the global sidebar whenever ANY module's record detail
+    // view is open (Platform, Project Management, or any future module) --
+    // frees horizontal room for the detail page's own content. Driven by
+    // DetailViewTracker, a generic counter every SectionDetailPage instance
+    // reports itself to on creation/destruction; MainWindow never needs to
+    // know which workspace or module opened it. Only reacts on the
+    // open/close transition itself (not a permanent binding), so the
+    // user's own manual sidebar toggle still works freely afterward and is
+    // never fought while a detail view stays open.
+    Connections {
+        target: AppWidgets.DetailViewTracker
+        function onAnyOpenChanged() {
+            root._globalNavCollapsed = AppWidgets.DetailViewTracker.anyOpen
+        }
+    }
     readonly property string _currentRouteSource: root.shellModel
         ? String(root.shellModel.currentRouteSource || "")
         : ""
+    readonly property string _currentModuleCode: root.shellModel
+        ? String(root.shellModel.currentModuleCode || "")
+        : ""
+    readonly property bool _showContextNav: root._currentModuleCode === "platform"
+        || root._currentModuleCode === "project_management"
+
+    readonly property var _contextGroups: {
+        if (root._currentModuleCode === "platform" && root.platformCatalog) {
+            return root.platformCatalog.contextNavigation
+        }
+        if (root._currentModuleCode === "project_management" && root.pmCatalog) {
+            return root.pmCatalog.pmNavigation.contextNavigation
+        }
+        return []
+    }
+
+    readonly property string _contextActiveId: {
+        if (root._currentModuleCode === "platform" && root.platformCatalog) {
+            return root.platformCatalog.currentDestinationId
+        }
+        if (root._currentModuleCode === "project_management" && root.pmCatalog) {
+            return root.pmCatalog.pmNavigation.workspaceKey
+        }
+        return ""
+    }
+
+    readonly property var _breadcrumb: {
+        if (root._currentModuleCode === "platform" && root.platformCatalog) {
+            return root.platformCatalog.breadcrumb
+        }
+        if (root._currentModuleCode === "project_management" && root.pmCatalog) {
+            return root.pmCatalog.pmNavigation.breadcrumb
+        }
+        return []
+    }
+
+    function _selectContextDestination(destinationId) {
+        if (root._currentModuleCode === "platform" && root.platformCatalog) {
+            root.platformCatalog.selectDestination(destinationId)
+            return
+        }
+        if (root._currentModuleCode === "project_management" && root.pmCatalog) {
+            root.pmCatalog.pmNavigation.selectWorkspace(destinationId)
+            return
+        }
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -26,8 +95,11 @@ Item {
             Layout.fillWidth: true
             shellModel: root.shellModel
             platformCatalog: root.platformCatalog
-            sidebarCollapsed: shellDrawer.collapsed
-            onToggleSidebar: shellDrawer.collapsed = !shellDrawer.collapsed
+            organizationSwitcherController: root.organizationSwitcherController
+            notificationsController: root.notificationsController
+            sidebarCollapsed: root._globalNavCollapsed
+            onToggleSidebar: root._globalNavCollapsed = !root._globalNavCollapsed
+            onNotificationsRequested: root._notificationsPanelOpen = true
         }
 
         RowLayout {
@@ -35,16 +107,52 @@ Item {
             Layout.fillHeight: true
             spacing: 0
 
-            ShellDrawer {
-                id: shellDrawer
-                Layout.preferredWidth: shellDrawer.implicitWidth
+            AppWidgets.NavigationTree {
+                id: globalNavTree
+                objectName: "globalNavigationTree"
+                Layout.preferredWidth: globalNavTree.implicitWidth
                 Layout.fillHeight: true
-                shellModel: root.shellModel
+                groups: root.shellModel ? root.shellModel.globalNavigation : []
+                activeId: root.shellModel ? root.shellModel.currentRouteId : ""
+                collapsed: root._globalNavCollapsed
+                autoCollapseAtNarrowWidth: true
+                onItemActivated: function(id, routeId) {
+                    if (root.shellModel) {
+                        root.shellModel.selectRoute(routeId)
+                    }
+                }
             }
 
             Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 1
+                color: Theme.AppTheme.divider
+            }
+
+            Loader {
+                id: contextNavLoader
+                Layout.fillHeight: true
+                Layout.preferredWidth: item ? item.implicitWidth : 0
+                active: root._showContextNav
+                visible: active
+                sourceComponent: Component {
+                    AppWidgets.NavigationTree {
+                        objectName: "contextNavigationTree"
+                        railTitle: root._currentModuleCode === "platform" ? "Platform" : "Project Management"
+                        showRailToggle: true
+                        groups: root._contextGroups
+                        activeId: root._contextActiveId
+                        onItemActivated: function(id, _routeId) {
+                            root._selectContextDestination(id)
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillHeight: true
+                Layout.preferredWidth: 1
+                visible: contextNavLoader.active
                 color: Theme.AppTheme.divider
             }
 
@@ -73,9 +181,22 @@ Item {
                         if ("pmCatalog" in item) {
                             item.pmCatalog = root.pmCatalog
                         }
+                        if ("globalOverviewController" in item) {
+                            item.globalOverviewController = root.globalOverviewController
+                        }
+                        if ("breadcrumb" in item) {
+                            item.breadcrumb = Qt.binding(function() { return root._breadcrumb })
+                        }
                     }
                 }
             }
         }
+    }
+
+    NotificationsPanel {
+        anchors.fill: parent
+        controller: root.notificationsController
+        open: root._notificationsPanelOpen
+        onCloseRequested: root._notificationsPanelOpen = false
     }
 }

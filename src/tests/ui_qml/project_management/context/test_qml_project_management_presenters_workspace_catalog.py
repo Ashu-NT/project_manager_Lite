@@ -1,24 +1,14 @@
-import json
-from datetime import date, datetime
 from pathlib import Path
-from types import SimpleNamespace
 
-from PySide6.QtCore import QSettings
-
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.application.runtime import build_desktop_api_registry
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
+from src.ui_qml.modules.project_management.navigation import PM_CANONICAL_ROUTE_ID
 from src.ui_qml.modules.project_management.presenters import (
     build_project_management_workspace_presenters,
 )
-from src.ui_qml.modules.project_management.navigation import PM_CANONICAL_ROUTE_ID
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
-from src.application.runtime import build_desktop_api_registry
-from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.modules.project_management.domain.enums import (
-    CostType,
-    ProjectStatus,
-    TaskStatus,
-    WorkerType,
-)
 
 
 def test_project_management_workspace_presenters_match_qml_routes() -> None:

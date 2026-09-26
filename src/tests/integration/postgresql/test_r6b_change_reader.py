@@ -15,7 +15,6 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
 )
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 
-
 pytestmark = pytest.mark.postgresql_integration
 
 TENANT_A = "r6b-change-tenant-a"
@@ -34,8 +33,8 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
         text(
             "INSERT INTO organizations "
             "(id, tenant_id, organization_code, display_name, timezone_name, "
-            "base_currency, is_enabled, version) "
-            "VALUES (:id, :tenant, :code, :name, 'UTC', 'USD', true, 1)"
+            "base_currency, status, version) "
+            "VALUES (:id, :tenant, :code, :name, 'UTC', 'USD', 'active', 1)"
         ),
         {
             "id": organization_id,
@@ -127,9 +126,10 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
             text(
                 "INSERT INTO project_finance_change_impacts "
                 "(id, tenant_id, organization_id, change_request_id, project_id, "
-                "impact_type, description, amount, currency_code, cost_code_id, created_at) "
+                "impact_type, description, amount, currency_code, cost_code_id, "
+                "created_at, updated_at) "
                 "VALUES (:id, :tenant, :organization, :change, :project, :type, "
-                ":description, :amount, 'USD', :code, :now)"
+                ":description, :amount, 'USD', :code, :now, :now)"
             ),
             {
                 "id": f"r6b-change-impact-{suffix}-{index}",

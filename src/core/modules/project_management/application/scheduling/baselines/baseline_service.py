@@ -3,10 +3,14 @@ from collections.abc import Callable
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
     ProjectBaselineApproved,
     ProjectBaselineCreated,
@@ -14,30 +18,45 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
     ProjectBaselineRejected,
     ProjectBaselineSubmitted,
 )
+from src.core.modules.project_management.application.scheduling.services.scheduling_engine import (
+    SchedulingEngine,
+)
+from src.core.modules.project_management.contracts.repositories.finance.planned_costs.planned_cost import (
+    ProjectPlannedCostVersionRepository,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
+    BaselineRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.scheduling.baseline import (
-    BaselineStatus,
     BaselineTask,
     BaselineVarianceRecord,
     ProjectBaseline,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
-from src.core.modules.project_management.contracts.repositories.finance.planned_costs.planned_cost import (
-    ProjectPlannedCostVersionRepository,
-)
-from src.core.modules.project_management.contracts.repositories.scheduling.baseline import BaselineRepository
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    is_admin_session,
+    require_permission,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContext,
     TenantContextService,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 from src.core.platform.domain.approval.policy import is_governance_required
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.shared.activity import record_activity
-from src.core.platform.application.security.authorization.enforcement.permission_checks import is_admin_session, require_permission
-from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.shared.persistence.unit_of_work import UnitOfWork
 
 
@@ -205,7 +224,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 )
             for line in self._planned_costs.list_lines(version.id):
                 planned_by_task[line.task_id] = (
-                    planned_by_task.get(line.task_id, Decimal("0")) + line.amount
+                    planned_by_task.get(line.task_id, Decimal(0)) + line.amount
                 )
 
         baseline = ProjectBaseline.create(project_id, name)
@@ -233,7 +252,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         for tid, bs, bf in task_infos:
             dur = durations.get(tid, 0)
 
-            planned_cost = planned_by_task.get(tid, Decimal("0"))
+            planned_cost = planned_by_task.get(tid, Decimal(0))
 
             baseline_tasks.append(
                 BaselineTask.create(
@@ -540,6 +559,8 @@ class BaselineService(ProjectManagementModuleGuardMixin):
     def list_variance_records(
         self,
         baseline_id: str,
+        *,
+        expected_project_id: str | None = None,
     ) -> list[BaselineVarianceRecord]:
         """Return variance records created when this baseline was approved."""
         require_permission(
@@ -547,6 +568,8 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         )
         baseline = self._baselines.get_baseline(baseline_id)
         if not baseline:
+            raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
+        if expected_project_id is not None and baseline.project_id != expected_project_id:
             raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
         require_project_permission(
             self._user_session,

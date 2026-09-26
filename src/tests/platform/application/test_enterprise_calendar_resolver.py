@@ -6,7 +6,30 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.infra.persistence.orm import Base
+from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
+    EnterpriseCalendarResolver,
+)
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
+    WorkingTimeCalculator,
+)
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
+    CalendarExceptionService,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
+    CalendarType,
+    ExceptionType,
+    ImpactType,
+)
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -15,26 +38,7 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
-    CalendarType,
-    ExceptionType,
-    ImpactType,
-)
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
-)
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
-)
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
-)
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
-)
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.infra.persistence.orm import Base
 
 
 @pytest.fixture
@@ -65,8 +69,8 @@ def mock_user_session():
 
 @pytest.fixture
 def mock_org_repo(db_session, org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     @dataclass
     class FakeOrg:
@@ -79,8 +83,8 @@ def mock_org_repo(db_session, org_id):
 
 @pytest.fixture
 def tenant_context(org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     @dataclass
     class FakeOrg:
@@ -156,7 +160,9 @@ def exc_service(db_session, repos, mock_user_session):
 def seeded_assignment_entities(db_session, org_id):
     from datetime import datetime, timezone
 
-    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+        SiteORM,
+    )
 
     now = datetime.now(timezone.utc)
     db_session.add_all(
@@ -236,6 +242,46 @@ def test_resolver_returns_unavailable_with_no_global_calendar(resolver):
     ctx = resolver.resolve_calendar_context(target_date=date(2026, 6, 1))
     assert ctx.available_hours == 0.0  # no rules means no working hours
     assert ctx.source_chain == []
+
+
+def test_resolver_warns_once_per_scope_not_once_per_date(resolver, caplog):
+    """A day-by-day caller (e.g. ProjectCalendarAdapter.add_working_days
+    walking backward/forward searching for a working day) can call
+    resolve_calendar_context hundreds of times for the SAME missing-chain
+    project/resource -- this must log the "no source chain" warning once
+    per distinct scope, not once per date, or a single call floods the log
+    with one line per day (observed: hundreds of lines for one real
+    add_working_days call on a project with no calendar configured)."""
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        for day in range(1, 15):
+            resolver.resolve_calendar_context(
+                project_id="proj-without-a-calendar",
+                target_date=date(2026, 1, day),
+            )
+
+    no_chain_records = [
+        r for r in caplog.records
+        if "resolved without source chain" in r.message
+    ]
+    assert len(no_chain_records) == 1, (
+        f"expected exactly one dedup'd warning for 14 calls on the same "
+        f"scope, got {len(no_chain_records)}"
+    )
+
+    # A DIFFERENT scope must still get its own warning -- dedup is per-scope,
+    # not global.
+    with caplog.at_level(logging.WARNING):
+        resolver.resolve_calendar_context(
+            project_id="a-different-project-without-a-calendar",
+            target_date=date(2026, 1, 1),
+        )
+    no_chain_records = [
+        r for r in caplog.records
+        if "resolved without source chain" in r.message
+    ]
+    assert len(no_chain_records) == 2
 
 
 def test_resolver_source_chain_global(resolver, repos, global_cal, rule_service, org_id):

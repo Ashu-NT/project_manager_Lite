@@ -25,6 +25,9 @@ from src.core.modules.project_management.contracts.reads.timesheets import (
 from src.core.modules.project_management.infrastructure.persistence.reads.resources.sqlalchemy_catalog_reader import (
     SqlAlchemyResourceCatalogReader,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.resources.sqlalchemy_resource_identity_reader import (
+    SqlAlchemyResourceIdentityReader,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.resources.sqlalchemy_workload_reader import (
     SqlAlchemyResourceWorkloadDemandReader,
 )
@@ -34,7 +37,6 @@ from src.core.modules.project_management.infrastructure.persistence.reads.timesh
 from src.core.modules.project_management.infrastructure.persistence.reads.timesheets.sqlalchemy_workspace_reader import (
     SqlAlchemyTimesheetWorkspaceReader,
 )
-
 
 pytestmark = pytest.mark.postgresql_integration
 
@@ -74,8 +76,8 @@ def _seed_scale(connection, *, size: int, organization_id: str) -> None:
     connection.execute(
         text(
             "INSERT INTO organizations "
-            "(id, tenant_id, organization_code, display_name, timezone_name, base_currency, is_active, version) "
-            "VALUES (:id, :tenant, :code, :name, 'UTC', 'XAF', true, 1)"
+            "(id, tenant_id, organization_code, display_name, timezone_name, base_currency, status, version) "
+            "VALUES (:id, :tenant, :code, :name, 'UTC', 'XAF', 'active', 1)"
         ),
         {
             "id": organization_id,
@@ -231,7 +233,10 @@ def test_real_readers_are_bounded_and_measured(postgres_test_environment, size):
     try:
         catalog = SqlAlchemyResourceCatalogReader(session=session)
         workload = SqlAlchemyResourceWorkloadDemandReader(session=session)
-        selector = SqlAlchemyTimesheetWorkspaceReader(session=session)
+        selector = SqlAlchemyTimesheetWorkspaceReader(
+            session=session,
+            resource_identity_reader=SqlAlchemyResourceIdentityReader(session=session),
+        )
         review = SqlAlchemyTimesheetReviewReader(session=session)
         suffix = "10k" if size == 10_000 else "50k"
         resource_id = f"r5h-perf-resource-{suffix}-1"

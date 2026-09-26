@@ -66,7 +66,7 @@ AppLayouts.WorkspaceFrame {
             onTeamChanged: function(value) { if (root.workspaceController) root.workspaceController.setSelectedTeamId(value) }
             onPeriodChanged: function(value) { if (root.workspaceController) root.workspaceController.setSelectedPeriodKey(value) }
             onUnreadChanged: function(value) { if (root.workspaceController) root.workspaceController.setSelectedUnreadKey(value) }
-            onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
+            onRefreshRequested: { if (root.workspaceController !== null) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
         }
 
         AppWidgets.KpiStrip {
@@ -226,7 +226,7 @@ AppLayouts.WorkspaceFrame {
                             if (state.activePanelId !== "activity")
                                 panelTable.openColumnCustomizer(panelToolbar.customizeButtonItem)
                         }
-                        onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
+                        onRefreshRequested: { if (root.workspaceController !== null) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
                     }
 
                     Item {
@@ -285,7 +285,7 @@ AppLayouts.WorkspaceFrame {
                                     items: state._activityFeedItems
                                     emptyText: state._currentPanelModel.emptyState || "No collaboration activity is available."
                                     onItemActivated: function(itemData) {
-                                        const st = itemData && itemData.state ? itemData.state : {}
+                                        const st = itemData && itemData.activationState ? itemData.activationState : {}
                                         state._navigateRoute(String(st.routeId || ""))
                                     }
                                 }
@@ -352,7 +352,7 @@ AppLayouts.WorkspaceFrame {
                                 state._navigateRoute(String(st.routeId || ""))
                             }
                             onActivityItemActivated: function(itemData) {
-                                const st = itemData && itemData.state ? itemData.state : {}
+                                const st = itemData && itemData.activationState ? itemData.activationState : {}
                                 state._navigateRoute(String(st.routeId || ""))
                             }
                         }

@@ -1,9 +1,12 @@
 """Capacity pool assembly."""
 
 from __future__ import annotations
+
 from datetime import date, timedelta
 
-from src.core.modules.project_management.api.desktop.portfolio.models.capacity import PortfolioCapacityResourceDto
+from src.core.modules.project_management.api.desktop.portfolio.models.capacity import (
+    PortfolioCapacityResourceDto,
+)
 
 
 def build_capacity_pool(pool_service=None) -> tuple[PortfolioCapacityResourceDto, ...]:
