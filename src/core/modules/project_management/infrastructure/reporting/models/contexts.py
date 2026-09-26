@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from src.core.modules.project_management.application.dashboard.models.report_models import (
-    CostSourceBreakdown,
     GanttTaskBar,
     ProjectKPI,
     ResourceLoadRow,
 )
+from src.core.modules.project_management.application.financials.models import CostSourceBreakdown
 from src.core.modules.project_management.application.financials import (
     FinanceLedgerRow,
     FinanceSnapshot,

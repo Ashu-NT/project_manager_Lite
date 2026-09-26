@@ -11,7 +11,7 @@ from datetime import date
 from decimal import Decimal
 
 # Re-export so existing imports of these from reporting.builders.cost_policy still work.
-from src.core.modules.project_management.application.dashboard.models.report_models import (
+from src.core.modules.project_management.application.financials.models import (
     CostSourceBreakdown,
 )
 from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (

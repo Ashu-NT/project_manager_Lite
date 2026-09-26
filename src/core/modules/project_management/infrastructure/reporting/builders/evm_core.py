@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.dashboard.models.report_models import (
+from src.core.modules.project_management.application.financials.models import (
     EarnedValueMetrics,
 )
 from src.core.modules.project_management.application.financials.earned_value.canonical import (

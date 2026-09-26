@@ -1,16 +1,17 @@
 """Project management reporting adapters."""
-
-from src.core.modules.project_management.application.dashboard.models.report_models import (
-    BaselineComparisonResult,
-    BaselineComparisonRow,
+from src.core.modules.project_management.application.financials.models import (
     CostBreakdownRow,
     CostSourceBreakdown,
     CostSourceRow,
     EarnedValueMetrics,
     EvmSeriesPoint,
-    GanttTaskBar,
     LaborAssignmentRow,
     LaborResourceRow,
+)
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    BaselineComparisonResult,
+    BaselineComparisonRow,
+    GanttTaskBar,
     ProjectKPI,
     ResourceLoadRow,
     TaskVarianceRow,
