@@ -825,7 +825,7 @@ def build_project_management_service_bundle(
     from src.core.modules.project_management.application.financials.accounting.request_service import (
         AccountingHandoffRequestService,
     )
-    from src.infra.composition.accounting_integration import build_accounting_capability
+    from src.infra.composition.integration.accounting.accounting_integration import build_accounting_capability
 
     finance_workspace_query = ProjectFinanceWorkspaceQuery(
         accounting_capability=build_accounting_capability(

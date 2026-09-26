@@ -33,7 +33,7 @@ from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,
 )
-from src.infra.composition.accounting_integration import build_accounting_capability
+from src.infra.composition.integration.accounting.accounting_integration import build_accounting_capability
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )

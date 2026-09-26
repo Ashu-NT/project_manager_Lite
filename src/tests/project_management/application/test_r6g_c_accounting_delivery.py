@@ -22,7 +22,7 @@ from src.core.platform.contract.port.integration.external_accounting import (
     ExternalAccountingFailureKind,
     ExternalAccountingReceipt,
 )
-from src.infra.composition.accounting_integration import build_accounting_capability
+from src.infra.composition.integration.accounting.accounting_integration import build_accounting_capability
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
