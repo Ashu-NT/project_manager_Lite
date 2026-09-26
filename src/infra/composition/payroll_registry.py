@@ -1,1 +1,0 @@
-"""Payroll registry target module."""
