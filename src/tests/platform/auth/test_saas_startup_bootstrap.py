@@ -10,8 +10,8 @@ from src.core.platform.domain.security.authorization.roles.role_permission_catal
 )
 from src.core.platform.domain.tenant.tenancy import Tenant
 from src.core.platform.application.tenant.tenancy import TenancyMode
-from src.infra.composition.platform_registry import build_platform_service_bundle
-from src.infra.composition.repositories import build_repository_bundle
+from src.infra.composition.modules.platform_registry import build_platform_service_bundle
+from src.infra.composition.persistence.repositories import build_repository_bundle
 from src.infra.platform.security_config import (
     DeploymentEnvironment,
     RuntimeSecurityConfiguration,

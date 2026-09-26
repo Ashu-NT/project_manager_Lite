@@ -20,7 +20,7 @@ from src.infra.composition.approval_apply_dependencies._shared import (
     build_enterprise_audit_service,
     wire_tenant_context_service,
 )
-from src.infra.composition.repositories import build_repository_bundle
+from src.infra.composition.persistence.repositories import build_repository_bundle
 
 
 def build_billing_preparation_approval_deps(

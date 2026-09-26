@@ -470,7 +470,7 @@ def test_no_generic_compatibility_bridge_was_introduced():
 
     import src.core.platform.application.master_data.org.organization_service as org_service_module
     import src.core.platform.application.master_data.org.event_handlers.view_invalidation as vi_module
-    import src.infra.composition.platform_registry as registry_module
+    import src.infra.composition.modules.platform_registry as registry_module
 
     for module in (org_service_module, vi_module, registry_module):
         source = inspect.getsource(module)

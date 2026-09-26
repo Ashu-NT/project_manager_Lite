@@ -177,7 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     from src.core.platform.application.security.auth import AuthService
     from src.core.platform.application.security.authorization.roles import RolePolicyReconciliationService
     from src.core.platform.domain.security.auth import UserSessionContext
-    from src.infra.composition.repositories import build_repository_bundle
+    from src.infra.composition.persistence.repositories import build_repository_bundle
     from src.infra.persistence.db.session_factory import SessionLocal
     from src.infra.platform.logging_config import setup_logging
     from src.infra.platform.security_config import (

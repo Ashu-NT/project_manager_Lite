@@ -8,7 +8,7 @@ from src.core.platform.application.history.activity.activity_service import Acti
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.infra.composition.repositories import RepositoryBundle
+from src.infra.composition.persistence.repositories import RepositoryBundle
 
 
 def wire_tenant_context_service(repo: Any, tenant_context_service: Any) -> Any:

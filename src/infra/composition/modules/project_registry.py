@@ -368,7 +368,7 @@ from src.infra.composition.approval_apply_dependencies.project_cost import (
 from src.infra.composition.approval_apply_dependencies.task import (
     build_task_approval_deps,
 )
-from src.infra.composition.platform_registry import PlatformServiceBundle
+from src.infra.composition.modules.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
 
 logger = logging.getLogger(__name__)

@@ -556,7 +556,7 @@ def test_role_domain_enforces_system_and_tenant_ownership() -> None:
 def test_role_repository_uses_system_and_per_tenant_namespaces(
     session,
 ) -> None:
-    from src.infra.composition.repositories import build_repository_bundle
+    from src.infra.composition.persistence.repositories import build_repository_bundle
 
     repositories = build_repository_bundle(session)
     tenant_a = Tenant.create(

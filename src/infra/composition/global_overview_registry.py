@@ -32,8 +32,8 @@ from src.core.platform.application.global_overview.platform_action_center_contri
 from src.core.platform.application.global_overview.platform_module_overview_contributor import (
     PlatformModuleOverviewContributor,
 )
-from src.infra.composition.platform_registry import PlatformServiceBundle
-from src.infra.composition.project_registry import ProjectManagementServiceBundle
+from src.infra.composition.modules.platform_registry import PlatformServiceBundle
+from src.infra.composition.modules.project_registry import ProjectManagementServiceBundle
 
 # This module is the ONLY place that knows both Platform's and Project
 # Management's concrete Global Overview contributor classes at once. Every

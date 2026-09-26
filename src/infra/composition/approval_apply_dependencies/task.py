@@ -18,7 +18,7 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
     CalendarProtocol,
 )
 from src.infra.composition.approval_apply_dependencies._shared import wire_tenant_context_service
-from src.infra.composition.repositories import build_repository_bundle
+from src.infra.composition.persistence.repositories import build_repository_bundle
 
 
 def build_task_approval_deps(

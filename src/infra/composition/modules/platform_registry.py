@@ -250,7 +250,7 @@ from src.core.platform.application.time_management.calendar.capacity.global_cale
 from src.core.platform.infrastructure.persistence.repositories.tenant.modules.modules import SqlAlchemyModuleEntitlementRepository
 from src.core.platform.infrastructure.persistence.read.tenant.modules.module_entitlement_reader import SqlAlchemyModuleEntitlementReader
 from src.core.platform.infrastructure.persistence.repositories.data_operations.runtime_tracking.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
-from src.infra.composition.repositories import RepositoryBundle
+from src.infra.composition.persistence.repositories import RepositoryBundle
 from src.infra.platform.operational_support import current_trace_id
 from src.infra.platform.security_audit_recorder import (
     DurableSecurityDenialRecorder,

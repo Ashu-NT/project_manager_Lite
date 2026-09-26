@@ -172,11 +172,11 @@ from src.infra.composition.accounting_integration import (
 from src.infra.composition.global_overview_registry import (
     build_global_overview_service_bundle,
 )
-from src.infra.composition.platform_registry import build_platform_service_bundle
-from src.infra.composition.project_registry import (
+from src.infra.composition.modules.platform_registry import build_platform_service_bundle
+from src.infra.composition.modules.project_registry import (
     build_project_management_service_bundle,
 )
-from src.infra.composition.repositories import build_repository_bundle
+from src.infra.composition.persistence.repositories import build_repository_bundle
 from src.infra.integration.approved_time_dispatcher import (
     ApprovedTimeFinancialDispatcher,
 )
