@@ -19,7 +19,7 @@ from src.core.platform.infrastructure.persistence.repositories.security.auth.aut
 from src.core.platform.infrastructure.persistence.repositories.security.identity.identity import (
     SqlAlchemyServicePrincipalRepository,
 )
-from src.infra.composition.accounting_integration import build_accounting_capability
+from src.infra.composition.integration.accounting.accounting_integration import build_accounting_capability
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
