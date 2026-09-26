@@ -111,8 +111,9 @@ def test_desktop_billing_profile_and_schedule_lifecycle(services) -> None:
 
 
 def test_desktop_billing_preparation_fixed_price_lifecycle_through_delivery_request(
-    services,
+    accounting_services,
 ) -> None:
+    services = accounting_services
     _organization, project, _cost_code = _setup_billable_project(services)
     api = _build_api(services)
 

@@ -16,7 +16,6 @@ from src.core.modules.project_management.application.common.module_guard import 
 )
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     BillingPreparationCreated,
-    BillingPreparationExternalOutcomeRecorded,
     BillingPreparationLineAdded,
     BillingPreparationLineRemoved,
     BillingPreparationStatusChanged,
@@ -42,7 +41,6 @@ from src.core.modules.project_management.domain.financials.accounting.handoff im
 )
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillableSourceType,
-    BillingExternalEventType,
     BillingPreparationStatus,
     ProjectBillingExternalEvent,
     ProjectBillingPreparation,
@@ -619,90 +617,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             lines=lines,
         )
 
-    def record_external_outcome(
-        self,
-        preparation_id: str,
-        *,
-        event_type: BillingExternalEventType | str,
-        external_system: str,
-        external_status: str,
-        idempotency_key: str,
-        occurred_at,
-        external_invoice_reference: str | None = None,
-        reconciliation_reference: str | None = None,
-        message: str = "",
-    ) -> ProjectBillingExternalEvent:
-        preparation = self._require_preparation(preparation_id)
-        self._require(preparation.project_id, "finance.manage", "record accounting outcome")
-        existing = self._billing_repo.get_external_event_by_idempotency_key(
-            external_system=external_system, idempotency_key=idempotency_key
-        )
-        if existing is not None:
-            if existing.preparation_id != preparation.id or existing.project_id != preparation.project_id:
-                raise BusinessRuleError(
-                    "Accounting outcome idempotency key belongs to another Billing Preparation.",
-                    code="BILLING_EXTERNAL_OUTCOME_SCOPE_MISMATCH",
-                )
-            return existing
-        resolved_type = BillingExternalEventType(event_type)
-        event = ProjectBillingExternalEvent.create(
-            tenant_id=preparation.tenant_id,
-            organization_id=preparation.organization_id,
-            project_id=preparation.project_id,
-            preparation_id=preparation.id,
-            event_type=resolved_type,
-            external_system=external_system,
-            external_status=external_status,
-            idempotency_key=idempotency_key,
-            occurred_at=occurred_at,
-            external_invoice_reference=external_invoice_reference,
-            reconciliation_reference=reconciliation_reference,
-            message=message,
-            recorded_at=self._clock.now(),
-        )
-        expected = preparation.row_version
-        status_change_types: tuple[BillingPreparationStatusChangeType, ...] = ()
-        if resolved_type is BillingExternalEventType.DELIVERY_ACCEPTED:
-            preparation.mark_delivered(occurred_at=occurred_at)
-            preparation.acknowledge(occurred_at=occurred_at)
-            status_change_types = (
-                BillingPreparationStatusChangeType.DELIVERED,
-                BillingPreparationStatusChangeType.ACKNOWLEDGED,
-            )
-        elif resolved_type is BillingExternalEventType.RECONCILED:
-            preparation.reconcile(occurred_at=occurred_at)
-            status_change_types = (BillingPreparationStatusChangeType.RECONCILED,)
-        outcome_event = BillingPreparationExternalOutcomeRecorded(
-            tenant_id=preparation.tenant_id,
-            organization_id=preparation.organization_id,
-            project_id=preparation.project_id,
-            billing_preparation_id=preparation.id,
-            external_event_id=event.id,
-            event_type=resolved_type,
-            occurred_at=occurred_at,
-        )
-        events: tuple[object, ...] = (outcome_event,) + tuple(
-            BillingPreparationStatusChanged(
-                tenant_id=preparation.tenant_id,
-                organization_id=preparation.organization_id,
-                project_id=preparation.project_id,
-                billing_preparation_id=preparation.id,
-                change_type=change_type,
-                occurred_at=occurred_at,
-            )
-            for change_type in status_change_types
-        )
-        return self._write(
-            "external_outcome",
-            event,
-            lambda: (
-                self._billing_repo.add_external_event(event),
-                self._billing_repo.update_preparation(
-                    preparation, expected_row_version=expected
-                ) if preparation.row_version == expected else None,
-            ),
-            events,
-        )
 
     def _reserve(
         self,

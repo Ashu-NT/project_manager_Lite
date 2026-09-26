@@ -124,7 +124,7 @@ def test_legacy_platform_admin_ui_package_is_removed():
 
 
 def test_composition_imports_focused_persistence_adapters():
-    repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
+    repo_path = ROOT / "src" / "infra" / "composition" / "persistence" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
 
     assert not (ROOT / "src" / "infra" / "persistence" / "db" / "platform").exists()

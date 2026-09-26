@@ -47,3 +47,11 @@ def accounting_services(session):
     )
     session.commit()
     return services
+
+
+@pytest.fixture
+def accounting_outcome(accounting_services, session):
+    from src.tests.project_management.application.accounting_outcome_support import (
+        outcome_sender,
+    )
+    return outcome_sender(accounting_services, session)

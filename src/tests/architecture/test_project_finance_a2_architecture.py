@@ -68,7 +68,7 @@ def test_platform_finance_and_integration_do_not_import_business_modules() -> No
 
 
 def test_canonical_finance_snapshot_replaces_transient_forecast_formulas() -> None:
-    project_registry = (ROOT / "src" / "infra" / "composition" / "project_registry.py").read_text(
+    project_registry = (ROOT / "src" / "infra" / "composition" / "modules" / "project_registry.py").read_text(
         encoding="utf-8"
     )
     app_container = (ROOT / "src" / "infra" / "composition" / "app_container.py").read_text(

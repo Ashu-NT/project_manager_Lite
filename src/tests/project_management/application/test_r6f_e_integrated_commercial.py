@@ -30,8 +30,7 @@ from src.tests.project_management.application.test_project_finance_profitability
 
 
 def test_governed_golden_project_keeps_preparation_progress_separate_from_revenue(
-    accounting_services,
-):
+    accounting_services, accounting_outcome):
     services = accounting_services
     _, project, cost_code = _setup_billable_project(services)
     profile, schedule = _ready_schedule_line(services, project, amount=Decimal(24000))
@@ -86,12 +85,10 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
         BillingExternalEventType.DELIVERY_ACCEPTED,
         BillingExternalEventType.RECONCILED,
     ):
-        billing.record_external_outcome(
+        accounting_outcome(
             approved.id,
-            event_type=event_type,
-            external_system="test-authoritative-accounting",
-            external_status=event_type.value,
-            idempotency_key=f"golden-{event_type.value}",
+            outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[event_type.value],
+            event_id=f"golden-{event_type.value}",
             occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
             reconciliation_reference="external-confirmation",
         )
@@ -104,16 +101,6 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
         idempotency_key="golden-correction",
         correction_of_preparation_id=parent.id,
     )
-    with pytest.raises(BusinessRuleError) as replay_error:
-        billing.record_external_outcome(
-            correction.id,
-            event_type=BillingExternalEventType.RECONCILED,
-            external_system="test-authoritative-accounting",
-            external_status="reconciled",
-            idempotency_key="golden-reconciled",
-            occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
-        )
-    assert replay_error.value.code == "BILLING_EXTERNAL_OUTCOME_SCOPE_MISMATCH"
     assert billing.list_external_events(correction.id) == []
     _, other_project, _ = _setup_other_project(
         services, name="Other commercial scope", create_period=False
@@ -126,16 +113,6 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
         period_end=cutoff,
         idempotency_key="other-project-preparation",
     )
-    with pytest.raises(BusinessRuleError) as project_replay_error:
-        billing.record_external_outcome(
-            other.id,
-            event_type=BillingExternalEventType.RECONCILED,
-            external_system="test-authoritative-accounting",
-            external_status="reconciled",
-            idempotency_key="golden-reconciled",
-            occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
-        )
-    assert project_replay_error.value.code == "BILLING_EXTERNAL_OUTCOME_SCOPE_MISMATCH"
     assert billing.list_external_events(other.id) == []
     with pytest.raises(BusinessRuleError):
         billing.add_fixed_price_source(

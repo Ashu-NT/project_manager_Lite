@@ -336,7 +336,7 @@ def test_project_scope_is_enforced(services) -> None:
         reporting.get_project_commercial_projection(project_b.id)
 
 
-def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accounting_services) -> None:
+def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accounting_services, accounting_outcome) -> None:
     services = accounting_services
     _organization, project, cost_code = _setup_billable_project(
         services, billing_method=BillingMethod.FIXED_PRICE
@@ -389,14 +389,11 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     assert not hasattr(before_events, "externally_paid_amount")
 
     now = datetime(2026, 8, 21, tzinfo=timezone.utc)
-    preparation_service.record_external_outcome(
+    accounting_outcome(
         delivery_pending.id,
-        event_type=BillingExternalEventType.DELIVERY_ACCEPTED,
-        external_system="test-erp",
-        external_status="accepted",
-        idempotency_key="ext-evt-1",
+        outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[BillingExternalEventType.DELIVERY_ACCEPTED.value],
+        event_id="ext-evt-1",
         occurred_at=now,
-        external_invoice_reference="INV-0001",
     )
     acknowledged = preparation_service.get_preparation(delivery_pending.id)
 
@@ -404,12 +401,10 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     assert after_invoice.approved_preparation_amount == Decimal(24000)
     assert not hasattr(after_invoice, "externally_invoiced_amount")
 
-    preparation_service.record_external_outcome(
+    accounting_outcome(
         acknowledged.id,
-        event_type=BillingExternalEventType.RECONCILED,
-        external_system="test-erp",
-        external_status="reconciled",
-        idempotency_key="ext-evt-2",
+        outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[BillingExternalEventType.RECONCILED.value],
+        event_id="ext-evt-2",
         occurred_at=now,
         reconciliation_reference="RECON-0001",
     )

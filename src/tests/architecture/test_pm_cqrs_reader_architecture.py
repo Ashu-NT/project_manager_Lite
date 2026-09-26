@@ -67,7 +67,7 @@ FINANCE_READS = PM_ROOT / "infrastructure/persistence/reads/financials"
 FINANCE_STATEMENTS = FINANCE_READS / "statements/finance_snapshot_statements.py"
 FINANCE_READER = FINANCE_READS / "sqlalchemy_finance_snapshot_reader.py"
 FINANCE_POLICY = PM_ROOT / "application/financials/cost/engines/cost_policy_engine.py"
-PROJECT_REGISTRY = REPO_ROOT / "src/infra/composition/project_registry.py"
+PROJECT_REGISTRY = REPO_ROOT / "src/infra/composition/modules/project_registry.py"
 PORTFOLIO_POOL_READER = (
     PM_ROOT
     / "infrastructure/persistence/reads/portfolio/sqlalchemy_resource_pool_reader.py"

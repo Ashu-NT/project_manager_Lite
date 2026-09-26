@@ -437,19 +437,6 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
         self._preparation_row(event.preparation_id, context)
         self.session.add(external_event_to_orm(event))
 
-    def get_external_event_by_idempotency_key(
-        self, *, external_system: str, idempotency_key: str
-    ) -> ProjectBillingExternalEvent | None:
-        context = self._context(operation_label="resolve external billing retry")
-        row = self.session.execute(
-            select(ProjectBillingExternalEventORM).where(
-                ProjectBillingExternalEventORM.external_system == external_system,
-                ProjectBillingExternalEventORM.idempotency_key == idempotency_key,
-                ProjectBillingExternalEventORM.tenant_id == context.tenant_id,
-                ProjectBillingExternalEventORM.organization_id == context.organization_id,
-            )
-        ).scalar_one_or_none()
-        return external_event_from_orm(row) if row else None
 
     def list_external_events(
         self, preparation_id: str

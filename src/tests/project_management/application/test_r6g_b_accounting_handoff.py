@@ -551,8 +551,7 @@ def test_handoff_uses_one_scoped_line_query(accounting_services, session, line_c
 
 
 def test_correction_gets_new_identity_without_changing_parent(
-    accounting_services, session
-):
+    accounting_services, session, accounting_outcome):
     from datetime import date, datetime, timezone
     from decimal import Decimal
 
@@ -573,12 +572,10 @@ def test_correction_gets_new_identity_without_changing_parent(
         BillingExternalEventType.DELIVERY_ACCEPTED,
         BillingExternalEventType.RECONCILED,
     ):
-        billing.record_external_outcome(
+        accounting_outcome(
             approved.id,
-            event_type=event_type,
-            external_system="test",
-            external_status=event_type.value,
-            idempotency_key=event_type.value,
+            outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[event_type.value],
+            event_id=event_type.value,
             occurred_at=datetime.now(timezone.utc),
             reconciliation_reference="confirmed",
         )

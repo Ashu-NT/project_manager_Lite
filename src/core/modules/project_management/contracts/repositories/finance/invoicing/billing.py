@@ -94,11 +94,6 @@ class ProjectBillingRepository(ABC):
     def add_external_event(self, event: ProjectBillingExternalEvent) -> None: ...
 
     @abstractmethod
-    def get_external_event_by_idempotency_key(
-        self, *, external_system: str, idempotency_key: str
-    ) -> ProjectBillingExternalEvent | None: ...
-
-    @abstractmethod
     def list_external_events(
         self, preparation_id: str
     ) -> list[ProjectBillingExternalEvent]: ...

@@ -136,7 +136,7 @@ def _fake_channel():
     return _FakeChannel()
 
 
-def test_every_billing_event_maps_to_the_single_commercial_target():
+def test_billing_events_use_commercial_or_outcome_only_targets():
     channel = _fake_channel()
     handler = build_billing_view_invalidation_handler(channel)
     now = datetime.now(timezone.utc)
@@ -180,8 +180,9 @@ def test_every_billing_event_maps_to_the_single_commercial_target():
         handler(event, DomainEventContext(correlation_id=f"c{index}"))
 
     assert len(channel.notified) == len(events)
-    for hint in channel.notified:
-        assert hint.scope_code == BILLING_COMMERCIAL_SCOPE_CODE
+    for event, hint in zip(events, channel.notified):
+        expected = "billing_transport" if isinstance(event, BillingPreparationExternalOutcomeRecorded) else BILLING_COMMERCIAL_SCOPE_CODE
+        assert hint.scope_code == expected
         assert isinstance(hint.scope, ResourceScope)
         assert hint.scope.module_code == "project_management"
         assert hint.scope.entity_type == "project"
@@ -608,48 +609,7 @@ def test_request_delivery_produces_status_changed_delivery_pending(accounting_se
     assert len(_billing_hints(hints)) == 1
 
 
-def test_external_outcome_delivery_accepted_produces_outcome_and_two_status_facts(accounting_services):
-    """`record_external_outcome(DELIVERY_ACCEPTED)` transitions status twice in one call
-    (DELIVERED then ACKNOWLEDGED) -- both are recorded as separate facts, plus the outcome fact
-    itself: 3 typed events total, still one deduped ViewInvalidation hint."""
-    services = accounting_services
-    _login(services, "admin", "ChangeMe123!")
-    _, project, _cost_code = _setup_billable_project(services)
-    _, line = _ready_schedule_line(services, project)
-    submitted = _submitted_preparation(services, project, line)
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
-    reviewer = _unique("p39-outcome-reviewer")
-    services["auth_service"].register_user(reviewer, "StrongPass123", role_names=["approver"])
-    _login(services, reviewer, "StrongPass123")
-    services["approval_service"].approve_and_apply(request.id)
-    _login(services, "admin", "ChangeMe123!")
-
-    billing_preparation_service = services["billing_preparation_service"]
-    approved = billing_preparation_service.get_preparation(submitted.id)
-    billing_preparation_service.request_delivery(
-        approved.id, expected_row_version=approved.row_version
-    )
-    pending = billing_preparation_service.get_preparation(approved.id)
-
-    hints = _spy_hints(services)
-    billing_preparation_service.record_external_outcome(
-        pending.id,
-        event_type=BillingExternalEventType.DELIVERY_ACCEPTED,
-        external_system="ext-accounting",
-        external_status="accepted",
-        idempotency_key=_unique("ext-key"),
-        occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
-    )
-
-    final = billing_preparation_service.get_preparation(pending.id)
-    assert final.status == BillingPreparationStatus.ACKNOWLEDGED
-    assert final.delivered_at is not None
-    assert final.acknowledged_at is not None
-    # Same-transaction dedupe: 3 typed facts (outcome + DELIVERED + ACKNOWLEDGED), one hint.
-    assert len(_billing_hints(hints)) == 1
-
-
-def test_correction_uses_reconciled_parent_without_mutating_its_evidence(accounting_services):
+def test_correction_uses_reconciled_parent_without_mutating_its_evidence(accounting_services, accounting_outcome):
     services = accounting_services
     _login(services, "admin", "ChangeMe123!")
     organization, project, cost_code = _setup_billable_project(services)
@@ -675,9 +635,8 @@ def test_correction_uses_reconciled_parent_without_mutating_its_evidence(account
     approved = billing.get_preparation(parent.id)
     billing.request_delivery(parent.id, expected_row_version=approved.row_version)
     for event_type in (BillingExternalEventType.DELIVERY_ACCEPTED, BillingExternalEventType.RECONCILED):
-        billing.record_external_outcome(
-            parent.id, event_type=event_type, external_system="external-accounting",
-            external_status=event_type.value, idempotency_key=_unique("outcome"),
+        accounting_outcome(
+            parent.id, outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[event_type.value], event_id=_unique("outcome"),
             occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
             reconciliation_reference="external-confirmation",
         )
@@ -704,7 +663,7 @@ def test_correction_uses_reconciled_parent_without_mutating_its_evidence(account
         correction(parent.id, other_project)
 
 
-def test_external_outcome_replay_produces_zero_hints(accounting_services):
+def test_external_outcome_replay_produces_zero_hints(accounting_services, accounting_outcome):
     services = accounting_services
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
@@ -724,17 +683,15 @@ def test_external_outcome_replay_produces_zero_hints(accounting_services):
     )
     pending = billing_preparation_service.get_preparation(approved.id)
     key = _unique("ext-replay-key")
-    billing_preparation_service.record_external_outcome(
-        pending.id, event_type=BillingExternalEventType.DELIVERY_ACCEPTED,
-        external_system="ext-accounting", external_status="accepted",
-        idempotency_key=key, occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
+    accounting_outcome(
+        pending.id, outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[BillingExternalEventType.DELIVERY_ACCEPTED.value],
+        event_id=key, occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
     )
 
     hints = _spy_hints(services)
-    billing_preparation_service.record_external_outcome(
-        pending.id, event_type=BillingExternalEventType.DELIVERY_ACCEPTED,
-        external_system="ext-accounting", external_status="accepted",
-        idempotency_key=key, occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
+    accounting_outcome(
+        pending.id, outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[BillingExternalEventType.DELIVERY_ACCEPTED.value],
+        event_id=key, occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
     )
 
     assert _billing_hints(hints) == []

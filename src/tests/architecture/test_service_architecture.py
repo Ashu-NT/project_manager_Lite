@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 
 from src.core.modules.project_management.application.collaboration import (
@@ -168,7 +169,12 @@ def test_services_module_delegates_to_modular_registration_builders():
         errors="ignore",
     )
 
-    assert "from src.infra.composition.platform_registry import build_platform_service_bundle" in text
+    assert any(
+        isinstance(node, ast.ImportFrom)
+        and node.module == "src.infra.composition.modules.platform_registry"
+        and any(alias.name == "build_platform_service_bundle" for alias in node.names)
+        for node in ast.walk(ast.parse(text))
+    )
     assert "from src.infra.composition.persistence.repositories import build_repository_bundle" in text
     assert "build_repository_bundle(session)" in text
     assert "build_platform_service_bundle(session, repositories)" in text
@@ -179,7 +185,7 @@ def test_service_registration_package_is_split_by_platform_and_module():
     root = REPO_ROOT / "src" / "infra" / "composition"
 
     assert (root / "__init__.py").exists()
-    assert (root / "repositories.py").exists()
-    assert (root / "platform_registry.py").exists()
-    assert (root / "project_registry.py").exists()
+    assert (root / "persistence" / "repositories.py").exists()
+    assert (root / "modules" / "platform_registry.py").exists()
+    assert (root / "modules" / "project_registry.py").exists()
 

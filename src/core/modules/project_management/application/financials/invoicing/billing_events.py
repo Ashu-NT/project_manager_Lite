@@ -119,12 +119,11 @@ class BillingPreparationStatusChangeType(str, Enum):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class BillingPreparationStatusChanged:
-    """`submit`/`approve`/`reject`/`request_delivery` and the status-transitioning branches of
-    `record_external_outcome` are all the same kind of fact (the preparation's status field
-    changed), differentiated by `change_type`. `request_delivery` commits its immutable
-    handoff and durable outbox in the same UoW; this event only invalidates local views. Some
-    `record_external_outcome` outcomes (e.g. DELIVERY_ACCEPTED) transition status twice in one
-    call (`mark_delivered` then `acknowledge`), each persisted as its own fact."""
+    """Governed local preparation status, including the atomic handoff request.
+
+    Transport and authenticated external outcomes emit their own narrowly scoped
+    facts; they do not imply commercial amount or profitability changes.
+    """
 
     tenant_id: str
     organization_id: str
@@ -136,10 +135,11 @@ class BillingPreparationStatusChanged:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class BillingPreparationExternalOutcomeRecorded:
-    """`record_external_outcome` -- the external accounting system's business response (delivery
-    acceptance/rejection, status update, reconciliation), not merely the `ProjectBillingExternalEvent`
-    ORM row's existence. Coexists with `BillingPreparationStatusChanged` when the outcome also
-    transitions status (both are genuine, separately meaningful persisted facts)."""
+    """Authenticated Accounting business evidence committed with inbox and status.
+
+    Not transport acceptance, invoice issuance or payment. Invalidation is limited
+    to Billing/Accounting Status, even when preparation acknowledgement changes.
+    """
 
     tenant_id: str
     organization_id: str

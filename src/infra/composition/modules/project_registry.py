@@ -1493,7 +1493,6 @@ def build_project_management_service_bundle(
                 "cancel_draft_preparation",
                 "submit_preparation",
                 "request_delivery",
-                "record_external_outcome",
             }
         ),
     )
