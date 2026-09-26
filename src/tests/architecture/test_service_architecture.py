@@ -169,7 +169,7 @@ def test_services_module_delegates_to_modular_registration_builders():
     )
 
     assert "from src.infra.composition.platform_registry import build_platform_service_bundle" in text
-    assert "from src.infra.composition.repositories import build_repository_bundle" in text
+    assert "from src.infra.composition.persistence.repositories import build_repository_bundle" in text
     assert "build_repository_bundle(session)" in text
     assert "build_platform_service_bundle(session, repositories)" in text
     assert "build_project_management_service_bundle(" in text
