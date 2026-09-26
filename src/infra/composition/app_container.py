@@ -180,7 +180,7 @@ from src.infra.composition.persistence.repositories import build_repository_bund
 from src.infra.integration.approved_time_dispatcher import (
     ApprovedTimeFinancialDispatcher,
 )
-from src.infra.integration.delivery import SystemDeliveryClock
+from src.infra.time.system_clock import SystemClock
 from src.infra.integration.procurement_financial_dispatcher import (
     ProcurementFinancialDispatcher,
 )
@@ -376,7 +376,7 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
         "Platform service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-    _delivery_clock = SystemDeliveryClock()
+    _delivery_clock = SystemClock()
     _time_financial_outbox_service = IntegrationOutboxService(
         repository=repositories.time_financial_outbox_repo,
         owner_module="platform_time",
