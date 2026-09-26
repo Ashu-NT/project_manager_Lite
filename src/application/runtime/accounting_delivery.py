@@ -60,7 +60,7 @@ def main(argv=None, *, adapters=None, credentials=None) -> int:
     from src.core.modules.project_management.infrastructure.persistence.uow.integration.accounting.accounting_delivery import (
         AccountingWorkerScope,
     )
-    from src.infra.composition.accounting_delivery import (
+    from src.infra.composition.integration.accounting.accounting_delivery import (
         build_external_accounting_processor,
     )
     from src.infra.platform.env_loader import load_env_file

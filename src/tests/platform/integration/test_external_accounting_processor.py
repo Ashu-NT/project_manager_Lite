@@ -200,7 +200,7 @@ def test_executable_host_handles_termination_and_restores_signal_handlers(monkey
     import signal
 
     from src.application.runtime.accounting_delivery import main
-    from src.infra.composition import accounting_delivery
+    from src.infra.composition.integration.accounting import accounting_delivery
 
     previous = signal.getsignal(signal.SIGTERM)
     processor = Mock()

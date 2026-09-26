@@ -18,7 +18,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.port.integration.external_accounting import (
     ExternalAccountingReceipt,
 )
-from src.infra.composition.accounting_delivery import (
+from src.infra.composition.integration.accounting.accounting_delivery import (
     build_external_accounting_processor,
 )
 from src.tests.integration.postgresql.test_r6f_billing_concurrency import (
