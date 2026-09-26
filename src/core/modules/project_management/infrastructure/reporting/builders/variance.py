@@ -7,7 +7,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
+from src.core.modules.project_management.application.dashboard.models.report_models import (
     TaskVarianceRow,
 )
 

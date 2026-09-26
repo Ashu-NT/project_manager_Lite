@@ -12,7 +12,7 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineTask,
     ProjectBaseline,
 )
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
+from src.core.modules.project_management.application.dashboard.models.report_models import (
     BaselineComparisonResult,
     BaselineComparisonRow,
 )

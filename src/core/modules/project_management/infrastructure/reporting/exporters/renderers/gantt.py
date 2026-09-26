@@ -11,7 +11,7 @@ from matplotlib.dates import date2num
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
+from src.core.modules.project_management.application.dashboard.models.report_models import (
     GanttTaskBar,
 )
 

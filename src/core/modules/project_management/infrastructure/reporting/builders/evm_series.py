@@ -13,7 +13,7 @@ from src.core.modules.project_management.application.financials.earned_value.evm
 from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
     EvmSeriesReader,
 )
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
+from src.core.modules.project_management.application.dashboard.models.report_models import (
     EvmSeriesPoint,
 )
 

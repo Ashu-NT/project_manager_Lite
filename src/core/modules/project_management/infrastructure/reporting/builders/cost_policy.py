@@ -31,7 +31,7 @@ from src.core.modules.project_management.contracts.repositories.finance.rate_car
 from src.core.modules.project_management.domain.enums import CostType
 
 # Re-export so existing imports of these from reporting.builders.cost_policy still work.
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
+from src.core.modules.project_management.application.dashboard.models.report_models import (
     CostSourceBreakdown,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import (

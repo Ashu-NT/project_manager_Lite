@@ -24,7 +24,7 @@ from src.core.modules.project_management.infrastructure.reporting.models.context
     FinanceLedgerExportPage,
     PdfReportContext,
 )
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
+from src.core.modules.project_management.application.dashboard.models.report_models import (
     GanttTaskBar,
 )
 from src.core.modules.project_management.infrastructure.reporting.services.reporting_service import (
