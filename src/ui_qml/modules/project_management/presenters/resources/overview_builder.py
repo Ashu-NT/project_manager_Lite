@@ -5,6 +5,7 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceCatalogOverviewViewModel,
 )
 
+
 def build_overview(
     *,
     total: int,

@@ -7,7 +7,7 @@ from pathlib import Path
 from textwrap import dedent
 
 import pytest
-from PySide6.QtCore import QUrl, Qt, qInstallMessageHandler
+from PySide6.QtCore import Qt, QUrl, qInstallMessageHandler
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QTest
 

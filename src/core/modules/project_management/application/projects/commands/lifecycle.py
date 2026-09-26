@@ -9,22 +9,8 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    AssignmentRepository,
-    DependencyRepository,
-    TaskRepository,
-)
-from src.core.modules.project_management.contracts.uow.projects.project_unit_of_work import (
-    ProjectUnitOfWorkFactory,
-)
-from src.core.modules.project_management.domain.projects.project import Project
-from src.core.modules.project_management.domain.tasks.hierarchy import (
-    order_tasks_children_first,
-    select_leaf_tasks,
-)
-from src.core.modules.project_management.domain.financials.configuration import (
-    ProjectFinancialProfile,
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
 )
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
@@ -38,17 +24,48 @@ from src.core.modules.project_management.application.projects.project_events imp
     ProjectRemoved,
     ProjectStatusChanged,
 )
-from src.core.modules.project_management.application.tasks.task_events import TaskRemoved
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskRemoved,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+    DependencyRepository,
+    TaskRepository,
+)
+from src.core.modules.project_management.contracts.uow.projects.project_unit_of_work import (
+    ProjectUnitOfWorkFactory,
+)
+from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.financials.configuration import (
+    ProjectFinancialProfile,
+)
+from src.core.modules.project_management.domain.projects.project import Project
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    order_tasks_children_first,
+    select_leaf_tasks,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.platform.contract.repositories.time_management.time.contracts import (
+    TimeEntryRepository,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
-from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 logger = logging.getLogger(__name__)
 

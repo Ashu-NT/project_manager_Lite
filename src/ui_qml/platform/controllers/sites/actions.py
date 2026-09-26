@@ -46,9 +46,9 @@ def archive_site(controller, site_id: str) -> dict[str, object]:
 
 
 __all__ = [
-    "create_site",
     "activate_site",
-    "deactivate_site",
     "archive_site",
+    "create_site",
+    "deactivate_site",
     "update_site",
 ]

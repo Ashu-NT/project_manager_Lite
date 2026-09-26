@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 import uuid
+from collections.abc import Mapping
 from dataclasses import field
 from datetime import datetime, timezone
 from typing import Any

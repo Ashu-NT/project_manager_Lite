@@ -8,13 +8,16 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.domain.security.authorization.roles.events import (
     RoleBindingAssigned,
     RoleBindingRevoked,
 )
 from src.core.platform.domain.security.authorization.roles.role_binding_scope import (
-    RoleBindingPlatformScope,
     RoleBindingResourceScope,
     RoleBindingTenantScope,
 )
@@ -177,7 +180,9 @@ def _imported_module_names(module) -> set[str]:
 
 
 def test_role_binding_events_module_has_no_ui_or_infrastructure_vocabulary():
-    from src.core.platform.domain.security.authorization.roles import events as events_module
+    from src.core.platform.domain.security.authorization.roles import (
+        events as events_module,
+    )
 
     imports = _imported_module_names(events_module)
     for forbidden in (
@@ -188,7 +193,9 @@ def test_role_binding_events_module_has_no_ui_or_infrastructure_vocabulary():
 
 
 def test_role_binding_scope_module_has_no_ui_or_infrastructure_vocabulary():
-    from src.core.platform.domain.security.authorization.roles import role_binding_scope as scope_module
+    from src.core.platform.domain.security.authorization.roles import (
+        role_binding_scope as scope_module,
+    )
 
     imports = _imported_module_names(scope_module)
     for forbidden in (
@@ -504,9 +511,15 @@ def test_site_scope_event_carries_the_authoritative_organization_from_the_correc
 
 
 def test_cross_tenant_site_assignment_attempt_emits_zero_events(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
-    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+        SiteORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+        TenantORM,
+    )
 
     session = services["session"]
     now = datetime.now(timezone.utc)

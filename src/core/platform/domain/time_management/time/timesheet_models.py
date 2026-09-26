@@ -159,7 +159,7 @@ class TimeEntry:
         return version
 
     @model_validator(mode="after")
-    def _validate_owner_state(self) -> "TimeEntry":
+    def _validate_owner_state(self) -> TimeEntry:
         assignment_id = self.assignment_id
         if assignment_id is None and self.owner_type == "task_assignment":
             assignment_id = self.work_allocation_id
@@ -189,7 +189,7 @@ class TimeEntry:
         department_name: str = "",
         site_id: str | None = None,
         site_name: str = "",
-    ) -> "TimeEntry":
+    ) -> TimeEntry:
         now = datetime.now(timezone.utc)
         return TimeEntry(
             id=generate_id(),
@@ -300,7 +300,7 @@ class TimesheetPeriod:
         return version
 
     @model_validator(mode="after")
-    def _validate_period_range(self) -> "TimesheetPeriod":
+    def _validate_period_range(self) -> TimesheetPeriod:
         if self.period_end < self.period_start:
             raise ValidationError(
                 "Timesheet period end date cannot be before period start date.",
@@ -315,7 +315,7 @@ class TimesheetPeriod:
         period_start: date,
         period_end: date,
         organization_id: str | None = None,
-    ) -> "TimesheetPeriod":
+    ) -> TimesheetPeriod:
         return TimesheetPeriod(
             id=generate_id(),
             resource_id=resource_id,

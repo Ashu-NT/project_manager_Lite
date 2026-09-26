@@ -77,11 +77,11 @@ def default_leveling_proposal() -> dict[str, object]:
 
 
 __all__ = [
-    "default_overview",
-    "default_collection",
-    "default_calendar",
     "default_baselines",
-    "default_selected_activity",
-    "default_schedule_impact",
+    "default_calendar",
+    "default_collection",
     "default_leveling_proposal",
+    "default_overview",
+    "default_schedule_impact",
+    "default_selected_activity",
 ]

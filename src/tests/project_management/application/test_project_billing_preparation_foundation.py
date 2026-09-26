@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -7,13 +8,6 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
-from src.core.modules.project_management.gateway.billing.accounting_billing import (
-    BillingPreparationLinePayload,
-    ProjectBillingPreparationPayload,
-)
-from src.core.modules.project_management.api.desktop.financials.api import (
-    ProjectManagementFinancialsDesktopApi,
-)
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillableSourceType,
     BillingPreparationStatus,
@@ -28,9 +22,14 @@ from src.core.modules.project_management.domain.financials.billing_profile impor
     ProjectBillingProfile,
     ProjectBillingScheduleLine,
 )
-from src.core.modules.project_management.domain.financials.configuration import BillingMethod
+from src.core.modules.project_management.domain.financials.configuration import (
+    BillingMethod,
+)
+from src.core.modules.project_management.gateway.billing.accounting_billing import (
+    BillingPreparationLinePayload,
+    ProjectBillingPreparationPayload,
+)
 from src.infra.persistence.orm import Base
-
 
 NOW = datetime(2026, 8, 11, 10, tzinfo=timezone.utc)
 HASH = "a" * 64
@@ -43,7 +42,7 @@ def test_billing_profile_and_schedule_use_governed_lifecycles() -> None:
         project_id="project-1",
         currency_code="EUR",
         contract_reference="CONTRACT-42",
-        contract_value=Decimal("120000"),
+        contract_value=Decimal(120000),
         customer_party_id="party-1",
         created_by="user-1",
         created_at=NOW,
@@ -55,7 +54,7 @@ def test_billing_profile_and_schedule_use_governed_lifecycles() -> None:
         project_id=profile.project_id,
         billing_profile_id=profile.id,
         name="Design acceptance",
-        amount=Decimal("24000"),
+        amount=Decimal(24000),
         currency_code=profile.currency_code,
         due_date=date(2026, 9, 30),
         created_by="user-1",
@@ -93,10 +92,10 @@ def test_preparation_snapshots_and_finalizes_a_billable_source() -> None:
         source_content_hash=HASH,
         description="Design acceptance",
         source_date=date(2026, 8, 20),
-        quantity=Decimal("1"),
+        quantity=Decimal(1),
         unit="MILESTONE",
-        unit_rate=Decimal("24000"),
-        net_amount=Decimal("24000"),
+        unit_rate=Decimal(24000),
+        net_amount=Decimal(24000),
         currency_code="EUR",
         created_at=NOW,
     )

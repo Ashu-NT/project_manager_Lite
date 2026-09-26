@@ -6,11 +6,18 @@ from datetime import datetime
 from sqlalchemy import false, func, select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.repositories.history.activity.contracts import ActivityRepository
-from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.mappers.history.activity.activity import activity_from_orm, activity_to_orm
-from src.core.platform.infrastructure.persistence.orm.history.activity.activity import ActivityEntryORM
+from src.core.platform.contract.repositories.history.activity.contracts import (
+    ActivityRepository,
+)
+from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
+from src.core.platform.infrastructure.persistence.mappers.history.activity.activity import (
+    activity_from_orm,
+    activity_to_orm,
+)
+from src.core.platform.infrastructure.persistence.orm.history.activity.activity import (
+    ActivityEntryORM,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )

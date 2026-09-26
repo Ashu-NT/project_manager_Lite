@@ -5,11 +5,11 @@ bulk currency, bulk timezone, and bulk module grant/revoke."""
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
-    SqlAlchemyOrganizationUnitOfWorkFactory,
-)
 from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWorkFactory,
+)
+from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
+    SqlAlchemyOrganizationUnitOfWorkFactory,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 

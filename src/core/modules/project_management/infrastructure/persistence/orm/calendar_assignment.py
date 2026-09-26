@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 from sqlalchemy import Boolean, Date, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -25,8 +24,8 @@ class ProjectCalendarAssignmentORM(Base):
         ForeignKey("platform_calendars.id", ondelete="CASCADE"),
         nullable=False,
     )
-    effective_from: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    effective_to: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_default: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
@@ -53,8 +52,8 @@ class ResourceCalendarAssignmentORM(Base):
         ForeignKey("platform_calendars.id", ondelete="CASCADE"),
         nullable=False,
     )
-    effective_from: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    effective_to: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_default: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )

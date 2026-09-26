@@ -12,8 +12,8 @@ from src.core.platform.application.time_management.time.event_handlers.view_inva
     build_timesheet_view_invalidation_handler,
 )
 from src.core.platform.application.time_management.time.timesheet_events import (
-    TimesheetPeriodStatusChangeType,
     TimesheetPeriodStatusChanged,
+    TimesheetPeriodStatusChangeType,
 )
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext

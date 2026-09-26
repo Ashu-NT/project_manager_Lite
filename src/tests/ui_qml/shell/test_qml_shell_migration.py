@@ -8,8 +8,8 @@ from src.ui_qml.shell.login import LoginViewModel, ShellLoginController
 from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.qml_engine import QML_IMPORT_ROOTS
 from src.ui_qml.shell.qml_registry import QmlRouteRegistry, build_qml_route_registry
-from src.ui_qml.shell.runtime_session import ShellRuntimeSessionController
 from src.ui_qml.shell.routes import build_shell_routes
+from src.ui_qml.shell.runtime_session import ShellRuntimeSessionController
 
 
 def test_qml_shell_routes_point_to_existing_qml_files() -> None:

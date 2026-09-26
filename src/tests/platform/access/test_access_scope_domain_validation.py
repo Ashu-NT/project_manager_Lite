@@ -4,7 +4,9 @@ from dataclasses import dataclass
 
 import pytest
 
-from src.core.platform.access.application.access_control_service import AccessControlService
+from src.core.platform.access.application.access_control_service import (
+    AccessControlService,
+)
 from src.core.platform.access.domain import (
     ScopedAccessGrant,
     ScopedRolePolicy,

@@ -12,14 +12,15 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import pytest
 
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
 
 
 @dataclass(frozen=True, slots=True)

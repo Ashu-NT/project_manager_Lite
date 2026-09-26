@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitment,
     ProjectCommitmentLine,
     ProjectCommitmentMatch,
     ProjectCommitmentSourceRevision,
 )
-from src.core.modules.project_management.contracts.reads import ReadSort
 
 
 class ProjectCommitmentRepository(ABC):

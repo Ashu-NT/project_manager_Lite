@@ -1,4 +1,6 @@
-from src.core.platform.domain.data_operations.report_runtime.report_definition import ReportDefinition
+from src.core.platform.domain.data_operations.report_runtime.report_definition import (
+    ReportDefinition,
+)
 from src.core.platform.domain.data_operations.report_runtime.report_document import (
     ChartBlock,
     ChartSeries,

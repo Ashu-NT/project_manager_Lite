@@ -7,11 +7,11 @@ from src.core.modules.project_management.api.desktop.common.financial_formatting
 from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
     FinancialCostEntryDto,
 )
-from src.core.modules.project_management.domain.financials.cost_entry import (
-    ProjectCostEntry,
-)
 from src.core.modules.project_management.application.financials.cost.entries.capabilities import (
     CostEntryActionCapabilities,
+)
+from src.core.modules.project_management.domain.financials.cost_entry import (
+    ProjectCostEntry,
 )
 
 

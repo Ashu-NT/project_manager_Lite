@@ -2,11 +2,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from src.core.platform.common.ids import generate_id
-from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import ValidationError
-from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.repositories.time_management.time.contracts import (
     TimeEntryRepository,
     WorkAllocationRepository,
@@ -14,6 +11,9 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
     WorkResourceRepository,
 )
 from src.core.platform.domain.time_management.time import TimeEntry
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
 def _time_entry_unit_of_work(service):

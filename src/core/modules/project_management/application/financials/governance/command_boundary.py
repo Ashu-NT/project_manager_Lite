@@ -8,11 +8,11 @@ from typing import Any, TypeVar
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
-    ProjectCostEntryService,
-)
 from src.core.modules.project_management.application.financials.configuration_service import (
     FinancialConfigurationService,
+)
+from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
+    ProjectCostEntryService,
 )
 from src.core.modules.project_management.application.financials.financial_changes.service import (
     FinancialChangeService,
@@ -41,7 +41,6 @@ from src.core.modules.project_management.contracts.uow.finance.finance_governanc
 )
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
-
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")

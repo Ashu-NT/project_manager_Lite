@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-import shutil
 from datetime import date
-from pathlib import Path
 
 import pytest
 
-from src.core.platform.domain.security.auth.session import UserSessionPrincipal
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
-from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.domain.enums import WorkerType
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
+from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 

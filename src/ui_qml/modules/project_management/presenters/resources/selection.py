@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 def resolve_selected_resource_id(
     selected_resource_id: str | None,
     filtered_resources: Any,

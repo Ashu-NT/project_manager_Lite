@@ -337,8 +337,8 @@ def test_domain_event_is_a_protocol_not_related_to_integration_event_envelope():
 
     from pydantic import BaseModel
 
-    from src.core.shared.events.domain_event import DomainEvent
     from src.core.platform.integration.events import IntegrationEventEnvelope
+    from src.core.shared.events.domain_event import DomainEvent
 
     assert typing.get_origin(DomainEvent) is None
     assert typing.Protocol in DomainEvent.__mro__
@@ -350,8 +350,9 @@ def test_domain_event_is_a_protocol_not_related_to_integration_event_envelope():
 def test_view_invalidation_hint_is_a_plain_dataclass_not_a_domain_event_or_integration_event():
     import dataclasses as dc
 
-    from src.core.shared.events.view_invalidation import ViewInvalidationHint
     from pydantic import BaseModel
+
+    from src.core.shared.events.view_invalidation import ViewInvalidationHint
 
     assert dc.is_dataclass(ViewInvalidationHint)
     assert not issubclass(ViewInvalidationHint, BaseModel)
@@ -375,9 +376,11 @@ def test_notification_and_platform_event_remain_distinct_from_domain_event():
     governance/audit record) are each their own class, neither inherits from `DomainEvent`'s
     Protocol, and they are not the same class as each other -- never merged into one universal
     "event" type."""
-    from src.core.shared.events.domain_event import DomainEvent
     from src.core.platform.domain.events.notifications.notification import Notification
-    from src.core.platform.domain.events.platform_events.platform_event import PlatformEvent
+    from src.core.platform.domain.events.platform_events.platform_event import (
+        PlatformEvent,
+    )
+    from src.core.shared.events.domain_event import DomainEvent
 
     assert Notification is not PlatformEvent
     assert DomainEvent not in Notification.__mro__

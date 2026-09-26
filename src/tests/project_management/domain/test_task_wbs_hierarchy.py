@@ -10,10 +10,10 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.infrastructure.importers.tasks.csv.task_csv_importer import (
     import_tasks,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def _project(services, name: str):

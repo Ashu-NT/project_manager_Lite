@@ -13,7 +13,7 @@ class FinancialCreateBillingProfileCommand:
     customer_party_id: str | None = None
     external_customer_reference: str | None = None
     purchase_order_reference: str | None = None
-    cost_plus_markup_percent: Decimal = Decimal("0")
+    cost_plus_markup_percent: Decimal = Decimal(0)
     payment_terms_days: int = 30
     retention_years: int = 7
 

@@ -2,35 +2,47 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.uow.portfolio.portfolio_unit_of_work import (
-    PortfolioUnitOfWorkFactory,
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
 )
-from src.core.platform.common.ids import generate_id
-from src.core.shared.events.domain_event_context import DomainEventContext
-
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
-from src.core.modules.project_management.application.portfolio.commands.portfolio_dependencies import PortfolioDependencyCommandMixin
-from src.core.modules.project_management.application.portfolio.commands.portfolio_intake import PortfolioIntakeCommandMixin
-from src.core.modules.project_management.application.portfolio.commands.portfolio_scenarios import PortfolioScenarioCommandMixin
-from src.core.modules.project_management.application.portfolio.commands.portfolio_templates import PortfolioTemplateCommandMixin
-from src.core.modules.project_management.application.portfolio.utils.portfolio_support import PortfolioSupportMixin
-from src.core.modules.project_management.application.portfolio.queries.portfolio_dependencies import PortfolioDependencyQueryMixin
-from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import PortfolioExecutiveQueryMixin
-from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import PortfolioIntakeQueryMixin
-from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import PortfolioScenarioQueryMixin
-from src.core.modules.project_management.application.portfolio.queries.portfolio_templates import PortfolioTemplateQueryMixin
-from src.core.modules.project_management.contracts.repositories.portfolio.portfolio import (
-    PortfolioIntakeRepository,
-    PortfolioProjectDependencyRepository,
-    PortfolioScoringTemplateRepository,
-    PortfolioScenarioRepository,
+from src.core.modules.project_management.application.portfolio.commands.portfolio_dependencies import (
+    PortfolioDependencyCommandMixin,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.reads.portfolio.scenario_reader import (
-    PortfolioScenarioReader,
+from src.core.modules.project_management.application.portfolio.commands.portfolio_intake import (
+    PortfolioIntakeCommandMixin,
+)
+from src.core.modules.project_management.application.portfolio.commands.portfolio_scenarios import (
+    PortfolioScenarioCommandMixin,
+)
+from src.core.modules.project_management.application.portfolio.commands.portfolio_templates import (
+    PortfolioTemplateCommandMixin,
+)
+from src.core.modules.project_management.application.portfolio.queries.portfolio_dependencies import (
+    PortfolioDependencyQueryMixin,
+)
+from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
+    PortfolioExecutiveQueryMixin,
+)
+from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
+    PortfolioIntakeQueryMixin,
+)
+from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import (
+    PortfolioScenarioQueryMixin,
+)
+from src.core.modules.project_management.application.portfolio.queries.portfolio_templates import (
+    PortfolioTemplateQueryMixin,
+)
+from src.core.modules.project_management.application.portfolio.utils.portfolio_support import (
+    PortfolioSupportMixin,
+)
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
+    ProjectCalendarAdapter,
 )
 from src.core.modules.project_management.contracts.reads.portfolio.heatmap_reader import (
     PortfolioHeatmapReader,
+)
+from src.core.modules.project_management.contracts.reads.portfolio.scenario_reader import (
+    PortfolioScenarioReader,
 )
 from src.core.modules.project_management.contracts.reads.projects.catalog_reader import (
     ProjectCatalogReader,
@@ -38,12 +50,27 @@ from src.core.modules.project_management.contracts.reads.projects.catalog_reader
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
 )
-from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
-    ProjectCalendarAdapter,
+from src.core.modules.project_management.contracts.repositories.portfolio.portfolio import (
+    PortfolioIntakeRepository,
+    PortfolioProjectDependencyRepository,
+    PortfolioScenarioRepository,
+    PortfolioScoringTemplateRepository,
 )
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.uow.portfolio.portfolio_unit_of_work import (
+    PortfolioUnitOfWorkFactory,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
+from src.core.platform.contract.repositories.history.audit.contracts import (
+    AuditRepository,
+)
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
 class PortfolioService(

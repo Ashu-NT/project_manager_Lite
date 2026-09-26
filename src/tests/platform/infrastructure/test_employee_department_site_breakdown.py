@@ -14,14 +14,19 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
-from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
 from src.core.platform.infrastructure.persistence.read.master_data.employee.employee_headcount_reader import (
     SqlAlchemyEmployeeHeadcountReader,
 )
 from src.infra.persistence.orm import Base
-
 
 # ---------------------------------------------------------------------------
 # Reader-level unit tests: exact query count, unassigned bucket, ordering,
@@ -261,7 +266,9 @@ def test_employee_service_get_site_breakdown_reflects_writes(services):
 
 
 def test_desktop_api_get_department_and_site_breakdown(services):
-    from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+    from src.core.platform.api.desktop.master_data.employee.employee import (
+        PlatformEmployeeDesktopApi,
+    )
 
     employee_service = services["employee_service"]
     department_service = services["department_service"]

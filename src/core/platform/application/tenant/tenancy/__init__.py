@@ -1,8 +1,3 @@
-from src.core.platform.application.tenant.tenancy.tenant_admin_service import TenantAdminService
-from src.core.platform.application.tenant.tenancy.tenant_membership_service import (
-    IssuedTenantInvitation,
-    TenantMembershipService,
-)
 from src.core.platform.application.tenant.tenancy.context_policy import (
     LocalSingleTenantContextPolicy,
     SaaSTenantContextPolicy,
@@ -10,11 +5,18 @@ from src.core.platform.application.tenant.tenancy.context_policy import (
     TenantContextPolicy,
     build_tenant_context_policy,
 )
+from src.core.platform.application.tenant.tenancy.tenant_admin_service import (
+    TenantAdminService,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     ActiveScopeIds,
     TenantContext,
     TenantContextService,
     require_tenant_context_service,
+)
+from src.core.platform.application.tenant.tenancy.tenant_membership_service import (
+    IssuedTenantInvitation,
+    TenantMembershipService,
 )
 
 __all__ = [

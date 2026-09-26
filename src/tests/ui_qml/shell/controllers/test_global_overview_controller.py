@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from src.core.application.global_overview.contracts.overview import GlobalOverviewContextDto
 from src.ui_qml.shell.controllers.global_overview.global_overview_controller import (
     GlobalOverviewController,
 )

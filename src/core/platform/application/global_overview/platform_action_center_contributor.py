@@ -8,7 +8,9 @@ from src.core.application.global_overview.contracts.action_center import (
     ActionCenterItemDto,
     ActionCenterSummaryDto,
 )
-from src.core.application.global_overview.services.ordering import sort_action_center_items
+from src.core.application.global_overview.services.ordering import (
+    sort_action_center_items,
+)
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.platform_runtime.platform_runtime_service import (
     PlatformRuntimeApplicationService,

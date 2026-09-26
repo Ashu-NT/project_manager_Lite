@@ -37,7 +37,11 @@ from src.core.modules.project_management.infrastructure.persistence.orm.commitme
     ProjectCommitmentLineORM,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload, Money
+from src.core.platform.domain.finance import (
+    DecimalQuantityPayload,
+    MonetaryRatePayload,
+    Money,
+)
 
 
 def _setup(services):

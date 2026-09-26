@@ -38,10 +38,10 @@ import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
 
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
-from src.core.modules.project_management.domain.enums import DependencyType
 
 logger = logging.getLogger(__name__)
 
@@ -285,14 +285,14 @@ def predecessor_late_boundary(
 
 
 __all__ = [
-    "UnsupportedDependencyTypeError",
-    "SuccessorBoundary",
     "PredecessorLateBoundary",
+    "SuccessorBoundary",
+    "UnsupportedDependencyTypeError",
     "normalize_forward",
-    "shift_working_days",
+    "predecessor_late_boundary",
     "relationship_anchor_is_predecessor_finish",
     "relationship_constrains_successor_start",
+    "shift_working_days",
     "successor_boundary",
     "successor_earliest_start_from_boundary",
-    "predecessor_late_boundary",
 ]

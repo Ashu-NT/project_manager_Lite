@@ -5,12 +5,12 @@ from datetime import date, timedelta
 from src.core.modules.project_management.application.tasks.workspace_filters import (
     build_task_workspace_criteria,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.tasks import (
     TaskWorkspaceReadItem,
     TaskWorkspaceReadPage,
     TaskWorkspaceSummary,
 )
-from src.core.modules.project_management.contracts.reads import ReadSort
 
 
 def _status(task) -> str:

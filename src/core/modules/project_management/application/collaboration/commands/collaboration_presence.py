@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
     notify_task_presence_stale,
 )
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 
 
 class CollaborationPresenceCommandMixin:

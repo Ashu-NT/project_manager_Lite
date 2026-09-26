@@ -16,7 +16,9 @@ from src.core.modules.project_management.domain.financials.billing_profile impor
     ProjectBillingProfile,
     ProjectBillingScheduleLine,
 )
-from src.core.modules.project_management.domain.financials.configuration import BillingMethod
+from src.core.modules.project_management.domain.financials.configuration import (
+    BillingMethod,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
     ProjectBillingExternalEventORM,
     ProjectBillingPreparationLineORM,

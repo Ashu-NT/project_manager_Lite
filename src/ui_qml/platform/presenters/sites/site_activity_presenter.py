@@ -17,8 +17,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
-from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
+from src.core.platform.api.desktop.history.activity.activity import (
+    PlatformActivityDesktopApi,
+)
+from src.core.platform.api.desktop.history.activity.models.activity import (
+    ActivityEntryDto,
+)
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.platform.presenters.common.activity_presenter_support import (
     ACTIVITY_DATE_FILTER_OPTIONS,
@@ -150,4 +154,4 @@ class PlatformSiteActivityPresenter:
         )
 
 
-__all__ = ["PlatformSiteActivityPresenter", "ACTIVITY_DATE_FILTER_OPTIONS"]
+__all__ = ["ACTIVITY_DATE_FILTER_OPTIONS", "PlatformSiteActivityPresenter"]

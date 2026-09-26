@@ -19,10 +19,6 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.rate
     rate_card_line_to_orm,
     rate_card_to_orm,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
-    ProjectRateCardORM,
-    RateCardLineORM,
-)
 from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
     ProjectBillingPreparationLineORM,
 )
@@ -32,8 +28,17 @@ from src.core.modules.project_management.infrastructure.persistence.orm.labor_po
 from src.core.modules.project_management.infrastructure.persistence.orm.planned_cost import (
     ProjectPlannedCostLineORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
+    ProjectRateCardORM,
+    RateCardLineORM,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.infra.persistence.db.optimistic import update_with_version_check
 

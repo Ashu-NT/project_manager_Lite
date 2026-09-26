@@ -3,7 +3,9 @@ from __future__ import annotations
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import FinancePageFacts
+from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+    FinancePageFacts,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
     FinanceSetupCostCodeFact,
     FinanceSetupCostCodeQuery,

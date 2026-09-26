@@ -4,7 +4,9 @@ import logging
 from datetime import date, timedelta
 from decimal import Decimal
 
-from src.core.modules.project_management.application.common.pagination import PaginatedResult
+from src.core.modules.project_management.application.common.pagination import (
+    PaginatedResult,
+)
 from src.core.modules.project_management.application.resources.resource_load_engine import (
     ResourceLoadEngine,
 )
@@ -19,7 +21,11 @@ from src.core.modules.project_management.contracts.reads.portfolio.models.heatma
     PortfolioHeatmapFacts,
 )
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
-from src.core.modules.project_management.domain.enums import DependencyType, ProjectStatus, TaskStatus
+from src.core.modules.project_management.domain.enums import (
+    DependencyType,
+    ProjectStatus,
+    TaskStatus,
+)
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,
     PortfolioRecentAction,
@@ -29,9 +35,10 @@ from src.core.modules.project_management.domain.tasks.hierarchy import (
     select_leaf_tasks,
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
-
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +207,7 @@ class PortfolioExecutiveQueryMixin:
                         critical_tasks=0,
                         late_tasks=0,
                         peak_utilization_percent=0.0,
-                        cost_variance=Decimal("0"),
+                        cost_variance=Decimal(0),
                         pressure_score=0,
                         pressure_label="Stable",
                     )
@@ -248,7 +255,7 @@ class PortfolioExecutiveQueryMixin:
     def _heatmap_cost_variance(self, project: HeatmapProjectFacts) -> Decimal:
         eac = project.finance.control.estimate_at_completion
         if eac is None:
-            return Decimal("0")
+            return Decimal(0)
         return eac - project.finance.control.approved_budget
 
     def _heatmap_calendar(self, project: HeatmapProjectFacts) -> WorkingDaySnapshotCalendar:

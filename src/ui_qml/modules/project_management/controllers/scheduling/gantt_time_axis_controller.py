@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from calendar import monthrange
+from collections.abc import Callable, Iterable
 from datetime import date, timedelta
 from math import ceil, floor
-from typing import Callable, Iterable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
@@ -14,7 +14,6 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     GanttBaselineOverlayDto,
     GanttProjectionDto,
 )
-
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1

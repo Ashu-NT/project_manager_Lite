@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from src.core.platform.domain.master_data.employee import Employee, coerce_employment_type, normalize_email, normalize_phone
+from src.core.platform.domain.master_data.employee import (
+    Employee,
+    coerce_employment_type,
+    normalize_email,
+    normalize_phone,
+)
 
 
 def employee_contact(employee: Employee) -> str:

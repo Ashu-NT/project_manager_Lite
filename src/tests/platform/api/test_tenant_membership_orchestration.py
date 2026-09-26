@@ -1,14 +1,22 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import json
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import select
 
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
+from src.core.platform.domain.tenant.tenancy import (
+    MEMBERSHIP_STATUS_ACTIVE,
+    MEMBERSHIP_STATUS_INVITED,
+    MEMBERSHIP_STATUS_REMOVED,
+    MEMBERSHIP_STATUS_SUSPENDED,
+)
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
+    AuditEntryORM,
+)
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
@@ -20,13 +28,6 @@ from src.core.platform.infrastructure.persistence.repositories.security.auth.aut
 from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
     SqlAlchemyUserTenantMembershipRepository,
 )
-from src.core.platform.domain.tenant.tenancy import (
-    MEMBERSHIP_STATUS_ACTIVE,
-    MEMBERSHIP_STATUS_INVITED,
-    MEMBERSHIP_STATUS_REMOVED,
-    MEMBERSHIP_STATUS_SUSPENDED,
-)
-
 
 _PASSWORD = "StrongPass123!"
 

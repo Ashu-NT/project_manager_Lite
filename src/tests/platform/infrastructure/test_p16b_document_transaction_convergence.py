@@ -556,8 +556,10 @@ def test_document_service_and_integration_service_share_the_same_uow_factory(ser
 def test_no_raw_session_commit_in_document_mutation_paths():
     import inspect
 
-    import src.core.platform.application.master_data.documents.document_commands as document_commands
-    import src.core.platform.application.master_data.documents.document_integration_service as document_integration_service
+    from src.core.platform.application.master_data.documents import (
+        document_commands,
+        document_integration_service,
+    )
 
     for module in (document_commands, document_integration_service):
         source = inspect.getsource(module)

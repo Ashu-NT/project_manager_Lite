@@ -2,8 +2,12 @@ from datetime import date
 
 import pytest
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
 
 
 def test_task_name_validation_rules(services):

@@ -5,7 +5,10 @@ module cards and Quick Actions already use (PlatformRuntimeApplicationService
 
 from __future__ import annotations
 
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
 from src.core.platform.api.desktop.platform_runtime.models.runtime import ModuleDto
 from src.ui_qml.shell.context import ShellContext
 from src.ui_qml.shell.navigation import (
@@ -177,7 +180,7 @@ def test_coordinator_scope_change_from_inaccessible_to_accessible_adds_pm_naviga
     # Scope changed (e.g. organization switch) and PM is now accessible --
     # simulate by swapping the presenter's underlying api, then firing
     # scopeChanged exactly as app.py's real switchers do.
-    coordinator._presenter = NavigationAccessibilityPresenter(  # noqa: SLF001
+    coordinator._presenter = NavigationAccessibilityPresenter(
         platform_runtime_api=_FakePlatformRuntimeApi(accessible_codes=("project_management",))
     )
     context.scopeChanged.emit()
@@ -196,7 +199,7 @@ def test_coordinator_scope_change_from_accessible_to_inaccessible_removes_pm_nav
     coordinator.refresh()
     assert "project_management.workspace" in [i["routeId"] for i in context.navigationItems]
 
-    coordinator._presenter = NavigationAccessibilityPresenter(  # noqa: SLF001
+    coordinator._presenter = NavigationAccessibilityPresenter(
         platform_runtime_api=_FakePlatformRuntimeApi(accessible_codes=())
     )
     context.scopeChanged.emit()
@@ -215,7 +218,7 @@ def test_no_restart_required_multiple_scope_changes_stay_in_sync(qapp):
     coordinator.refresh()
 
     for accessible in (("project_management",), (), ("project_management",)):
-        coordinator._presenter = NavigationAccessibilityPresenter(  # noqa: SLF001
+        coordinator._presenter = NavigationAccessibilityPresenter(
             platform_runtime_api=_FakePlatformRuntimeApi(accessible_codes=accessible)
         )
         context.scopeChanged.emit()
@@ -238,7 +241,7 @@ def test_user_on_pm_route_when_scope_change_makes_pm_inaccessible_is_returned_to
     context.selectRoute("project_management.workspace")
     assert context.currentRouteId == "project_management.workspace"
 
-    coordinator._presenter = NavigationAccessibilityPresenter(  # noqa: SLF001
+    coordinator._presenter = NavigationAccessibilityPresenter(
         platform_runtime_api=_FakePlatformRuntimeApi(accessible_codes=())
     )
     context.scopeChanged.emit()
@@ -257,7 +260,7 @@ def test_user_on_platform_route_unaffected_when_pm_becomes_inaccessible(qapp):
     coordinator.refresh()
     context.selectRoute("platform.workspace")
 
-    coordinator._presenter = NavigationAccessibilityPresenter(  # noqa: SLF001
+    coordinator._presenter = NavigationAccessibilityPresenter(
         platform_runtime_api=_FakePlatformRuntimeApi(accessible_codes=())
     )
     context.scopeChanged.emit()

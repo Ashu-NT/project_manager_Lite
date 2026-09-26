@@ -10,7 +10,7 @@ from src.core.platform.application.approval.event_handlers.view_invalidation imp
     APPROVAL_REQUESTS_SCOPE_CODE,
     build_approval_view_invalidation_handler,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.approval import (
     ApprovalApproved,
     ApprovalRejected,
@@ -24,7 +24,9 @@ from src.core.shared.events.view_invalidation import (
     OrganizationScope,
     TenantWide,
 )
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
     ApprovalViewInvalidationAdapter,
 )
@@ -264,7 +266,7 @@ def test_host_workflow_submit_change_refreshes_control_workspace_exactly_once(se
     budgets = services["budget_service"]
     budget = budgets.create_budget(project.id, "VI approved budget")
     budget_line = budgets.add_line(
-        budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal("100"),
+        budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal(100),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
@@ -279,7 +281,7 @@ def test_host_workflow_submit_change_refreshes_control_workspace_exactly_once(se
     )
     changes.add_impact(
         change.id, impact_type=FinancialChangeImpactType.BUDGET, description="Increase scope",
-        amount=Decimal("10"), cost_code_id=code.id, target_line_id=budget_line.id,
+        amount=Decimal(10), cost_code_id=code.id, target_line_id=budget_line.id,
         expected_change_version=change.row_version,
     )
     change = changes.get_change(change.id)
@@ -685,14 +687,19 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
     from sqlalchemy.orm import sessionmaker
 
     from src.core.platform.application.approval.approval_service import ApprovalService
-    from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
+    from src.core.platform.domain.security.auth.session import (
+        UserSessionContext,
+        UserSessionPrincipal,
+    )
     from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
         SqlAlchemyApprovalRepository,
     )
     from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWorkFactory,
     )
-    from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+    from src.infra.events.in_process_post_commit_event_bus import (
+        InProcessPostCommitEventBus,
+    )
     from src.infra.events.in_process_transactional_event_dispatcher import (
         InProcessTransactionalEventDispatcher,
     )
@@ -710,7 +717,9 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
             self._organization_id = organization_id
 
         def require_active_scope_ids(self, *, operation_label):
-            from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+            from src.core.platform.application.tenant.tenancy.tenant_context import (
+                ActiveScopeIds,
+            )
 
             return ActiveScopeIds(tenant_id=self._tenant_id, organization_id=self._organization_id)
 

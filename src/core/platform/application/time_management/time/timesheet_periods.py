@@ -1,22 +1,32 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
 import logging
+from datetime import date, datetime, timezone
 
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.time_management.time.timesheet_events import (
+    TimesheetPeriodStatusChanged,
+    TimesheetPeriodStatusChangeType,
+)
+from src.core.platform.application.time_management.time.timesheet_query import (
+    TimesheetPeriodAggregate,
+)
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    ValidationError,
+)
+from src.core.platform.common.ids import generate_id
+from src.core.platform.domain.time_management.time import (
+    TimesheetPeriod,
+    TimesheetPeriodStatus,
+)
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, ValidationError
-from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.platform.application.time_management.time.timesheet_events import (
-    TimesheetPeriodStatusChangeType,
-    TimesheetPeriodStatusChanged,
-)
-from src.core.platform.domain.time_management.time import TimesheetPeriod, TimesheetPeriodStatus
-from src.core.platform.application.time_management.time.timesheet_query import TimesheetPeriodAggregate
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
-
 
 logger = logging.getLogger(__name__)
 

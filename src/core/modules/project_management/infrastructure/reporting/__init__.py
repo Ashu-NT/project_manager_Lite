@@ -20,7 +20,6 @@ from src.core.modules.project_management.infrastructure.reporting.services.repor
 )
 
 __all__ = [
-    "ReportingService",
     "BaselineComparisonResult",
     "BaselineComparisonRow",
     "CostBreakdownRow",
@@ -32,6 +31,7 @@ __all__ = [
     "LaborAssignmentRow",
     "LaborResourceRow",
     "ProjectKPI",
+    "ReportingService",
     "ResourceLoadRow",
     "TaskVarianceRow",
 ]

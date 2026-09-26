@@ -1,12 +1,8 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
+from collections.abc import Callable
 from datetime import date
-from typing import Callable
 
-from src.core.platform.common.exceptions import ValidationError
-from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.modules.project_management.application.scheduling.cpm.dependency_schedule_math import (
     predecessor_late_boundary,
     shift_working_days,
@@ -14,7 +10,11 @@ from src.core.modules.project_management.application.scheduling.cpm.dependency_s
 from src.core.modules.project_management.application.scheduling.cpm.task_date_math import (
     apply_backward_scheduling_constraints,
 )
-
+from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 ForwardComputeFn = Callable[
     [Task, list[TaskDependency], dict[str, date | None], dict[str, date | None]],

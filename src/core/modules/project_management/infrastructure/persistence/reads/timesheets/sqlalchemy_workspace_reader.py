@@ -22,18 +22,26 @@ from src.core.modules.project_management.contracts.reads.timesheets import (
 from src.core.modules.project_management.domain.resources import (
     TimeReportingEligibilityPolicy,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskAssignmentORM,
     TaskORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.sorting import stable_order_by
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 from src.core.platform.domain.time_management.time import (
     TimesheetPeriodStatus,
     coerce_timesheet_period_status,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
 from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
     TimeEntryORM,
     TimesheetPeriodORM,

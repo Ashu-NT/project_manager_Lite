@@ -1,17 +1,18 @@
 """Overview and headline metric builders."""
 
 from __future__ import annotations
+
 from typing import Any
 
-from src.core.modules.project_management.api.desktop.dashboard.models.overview import (
-    ProjectDashboardMetricDescriptor,
-    ProjectDashboardOverviewDescriptor,
-)
 from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
     fmt_float,
     fmt_int,
     fmt_percent,
     fmt_ratio,
+)
+from src.core.modules.project_management.api.desktop.dashboard.models.overview import (
+    ProjectDashboardMetricDescriptor,
+    ProjectDashboardOverviewDescriptor,
 )
 
 _PORTFOLIO_SUBTITLES = {

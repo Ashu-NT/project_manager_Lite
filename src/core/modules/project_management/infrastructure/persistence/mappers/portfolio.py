@@ -6,15 +6,17 @@ from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
     PortfolioProjectDependency,
-    PortfolioScoringTemplate,
     PortfolioScenario,
+    PortfolioScoringTemplate,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.portfolio import (
     PortfolioIntakeItemORM,
     PortfolioProjectDependencyORM,
-    PortfolioScoringTemplateORM,
     PortfolioScenarioORM,
+    PortfolioScoringTemplateORM,
 )
+
+
 def portfolio_intake_to_orm(item: PortfolioIntakeItem) -> PortfolioIntakeItemORM:
     return PortfolioIntakeItemORM(
         id=item.id,
@@ -169,8 +171,8 @@ __all__ = [
     "portfolio_intake_to_orm",
     "portfolio_project_dependency_from_orm",
     "portfolio_project_dependency_to_orm",
-    "portfolio_scoring_template_from_orm",
-    "portfolio_scoring_template_to_orm",
     "portfolio_scenario_from_orm",
     "portfolio_scenario_to_orm",
+    "portfolio_scoring_template_from_orm",
+    "portfolio_scoring_template_to_orm",
 ]

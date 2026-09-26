@@ -8,13 +8,13 @@ from decimal import Decimal
 from src.core.modules.project_management.application.dashboard.models.portfolio_models import (
     DashboardPortfolio,
 )
+from src.core.modules.project_management.application.risk import RegisterProjectSummary
+from src.core.modules.project_management.domain.risk.register import RegisterEntry
 from src.core.modules.project_management.infrastructure.reporting import (
     CostSourceBreakdown,
     ProjectKPI,
     ResourceLoadRow,
 )
-from src.core.modules.project_management.application.risk import RegisterProjectSummary
-from src.core.modules.project_management.domain.risk.register import RegisterEntry
 
 
 @dataclass

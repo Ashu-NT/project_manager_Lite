@@ -6,12 +6,13 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules import ModuleEntitlementORM
+from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules import (
+    ModuleEntitlementORM,
+)
 from src.core.platform.infrastructure.persistence.read.tenant.modules.module_entitlement_reader import (
     SqlAlchemyModuleEntitlementReader,
 )
 from src.infra.persistence.orm import Base
-
 
 # ---------------------------------------------------------------------------
 # Reader-level unit tests: exact query count + tenancy scoping, no service

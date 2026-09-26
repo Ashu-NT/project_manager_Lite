@@ -13,7 +13,9 @@ from src.core.modules.project_management.application.resources.assignment_valida
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentMixin,
 )
-from src.core.modules.project_management.domain.resources.skills import SkillValidationMode
+from src.core.modules.project_management.domain.resources.skills import (
+    SkillValidationMode,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 
 

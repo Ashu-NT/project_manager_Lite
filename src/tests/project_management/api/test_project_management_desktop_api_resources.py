@@ -1,4 +1,3 @@
-from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -6,15 +5,12 @@ from src.core.modules.project_management.api.desktop import (
     ResourceCreateCommand,
     ResourceLifecycleCommand,
     ResourceUpdateCommand,
-    build_project_management_projects_desktop_api,
     build_project_management_resources_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import (
     CostType,
-    ProjectStatus,
     WorkerType,
 )
-from src.core.modules.project_management.domain.projects.project import Project
 
 
 def test_project_management_resources_desktop_api_mutates_resource_records() -> None:
@@ -39,7 +35,7 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
             code="",
             kind="CREW",
             role="Lead Technician",
-            hourly_rate=Decimal("95"),
+            hourly_rate=Decimal(95),
             cost_type="LABOR",
             currency_code="eur",
             capacity_percent=110.0,
@@ -64,7 +60,7 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
             code="",
             kind="PERSON",
             role="",
-            hourly_rate=Decimal("80"),
+            hourly_rate=Decimal(80),
             cost_type="LABOR",
             currency_code="usd",
             capacity_percent=100.0,
@@ -88,7 +84,7 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
             code=created.code,
             kind="CREW",
             role="Field Supervisor",
-            hourly_rate=Decimal("105"),
+            hourly_rate=Decimal(105),
             cost_type="EQUIPMENT",
             currency_code="usd",
             capacity_percent=125.0,

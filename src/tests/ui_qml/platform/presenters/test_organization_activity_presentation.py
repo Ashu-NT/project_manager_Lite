@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
+from src.core.platform.api.desktop.history.activity.models.activity import (
+    ActivityEntryDto,
+)
 from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter import (
     PlatformOrganizationCatalogPresenter,
 )

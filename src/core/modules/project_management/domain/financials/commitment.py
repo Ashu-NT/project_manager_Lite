@@ -11,7 +11,6 @@ from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.common.pydantic import (
     normalize_optional_identifier,
-    normalize_optional_text,
     normalize_required_text,
     validated_dataclass,
 )
@@ -53,7 +52,7 @@ def open_commitment_amount(
     """Current financial exposure, never historical gross or posted Actual."""
     status = state.value if isinstance(state, ProjectCommitmentLineState) else str(state)
     if status in {"closed", "cancelled"}:
-        return Decimal("0")
+        return Decimal(0)
     currency = target_currency.strip().upper()
     matched = Decimal(matched_amount or 0)
     if currency_code.strip().upper() == currency:
@@ -65,7 +64,7 @@ def open_commitment_amount(
             "Commitment currency cannot be reconciled to the target currency.",
             code=currency_mismatch_code,
         )
-    return max(Decimal("0"), remaining)
+    return max(Decimal(0), remaining)
 
 
 _ALLOWED_STATE_TRANSITIONS = {
@@ -210,7 +209,7 @@ class ProjectCommitmentLine:
     source_revision: int
     source_content_hash: str
     source_idempotency_key: str
-    matched_amount: Decimal = Decimal("0")
+    matched_amount: Decimal = Decimal(0)
     task_id: str | None = None
     order_date: date | None = None
     expected_delivery_date: date | None = None
@@ -328,7 +327,7 @@ class ProjectCommitmentLine:
                 code="PROJECT_COMMITMENT_OVERMATCHED",
             )
         if self.currency_code == self.base_currency_code and (
-            self.exchange_rate != Decimal("1") or self.base_amount != self.amount
+            self.exchange_rate != Decimal(1) or self.base_amount != self.amount
         ):
             raise ValidationError(
                 "Identity-currency commitment snapshots must preserve amount at rate 1.",

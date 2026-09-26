@@ -5,7 +5,9 @@ import inspect
 from src.core.application.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
-from src.core.application.global_overview.services.action_center_service import ActionCenterService
+from src.core.application.global_overview.services.action_center_service import (
+    ActionCenterService,
+)
 from src.core.application.global_overview.services.global_overview_service import (
     GlobalOverviewService,
 )

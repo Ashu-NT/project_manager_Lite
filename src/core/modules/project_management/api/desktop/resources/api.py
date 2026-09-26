@@ -30,18 +30,17 @@ from src.core.modules.project_management.api.desktop.resources.commands.skill_co
     ResourceRemoveSkillCommand,
     ResourceUpdateSkillCommand,
 )
-from src.core.modules.project_management.api.desktop.resources.models.context import (
-    ResourceActivityPageDesktopDto,
-    ResourceAssignmentDesktopDto,
-    ResourceAssignmentsPageDesktopDto,
-    ResourceProjectsPageDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.resources.models.availability import (
     ResourceAvailabilityDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.certifications import (
     ResourceCertificationDesktopDto,
     ResourceCertificationsPageDesktopDto,
+)
+from src.core.modules.project_management.api.desktop.resources.models.context import (
+    ResourceActivityPageDesktopDto,
+    ResourceAssignmentsPageDesktopDto,
+    ResourceProjectsPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
@@ -63,6 +62,11 @@ from src.core.modules.project_management.api.desktop.resources.models.skills imp
 from src.core.modules.project_management.api.desktop.resources.serializers.certification_serializer import (
     serialize_certification,
 )
+from src.core.modules.project_management.api.desktop.resources.serializers.context_serializer import (
+    serialize_resource_activity,
+    serialize_resource_assignment,
+    serialize_resource_project,
+)
 from src.core.modules.project_management.api.desktop.resources.serializers.resource_serializer import (
     serialize_resource,
     serialize_resource_catalog_item,
@@ -71,11 +75,6 @@ from src.core.modules.project_management.api.desktop.resources.serializers.resou
 )
 from src.core.modules.project_management.api.desktop.resources.serializers.skill_serializer import (
     serialize_skill,
-)
-from src.core.modules.project_management.api.desktop.resources.serializers.context_serializer import (
-    serialize_resource_activity,
-    serialize_resource_assignment,
-    serialize_resource_project,
 )
 from src.core.modules.project_management.api.desktop.resources.utils.date_utils import (
     parse_date,
@@ -86,7 +85,9 @@ from src.core.modules.project_management.api.desktop.resources.utils.resource_en
 )
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
-from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.application.master_data.employee.employee_service import (
+    EmployeeService,
+)
 
 
 def _coerce_project_status(value: object) -> ProjectStatus | None:

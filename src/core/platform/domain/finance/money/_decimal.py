@@ -5,7 +5,6 @@ from typing import TypeAlias
 
 from src.core.platform.common.exceptions import ValidationError
 
-
 DecimalInput: TypeAlias = Decimal | int | str
 
 
@@ -29,7 +28,7 @@ def decimal_value(value: DecimalInput, *, label: str = "Decimal value") -> Decim
             f"{label} must be finite.",
             code="DECIMAL_VALUE_NON_FINITE",
         )
-    return Decimal("0") if resolved.is_zero() else resolved
+    return Decimal(0) if resolved.is_zero() else resolved
 
 
 def canonical_decimal_text(value: DecimalInput) -> str:

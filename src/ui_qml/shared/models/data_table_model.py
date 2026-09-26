@@ -12,11 +12,11 @@ from time import monotonic
 from typing import Any
 
 from PySide6.QtCore import (
+    Property,
     QAbstractTableModel,
     QByteArray,
     QModelIndex,
     Qt,
-    Property,
     Signal,
     Slot,
 )

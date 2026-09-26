@@ -4,6 +4,7 @@ from typing import Any
 
 from .formatters import format_date
 
+
 def matches_schedule_filters(
     item: Any,
     *,

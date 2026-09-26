@@ -18,7 +18,6 @@ static "Cannot assign to non-existent property" binding failure.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 

@@ -9,7 +9,9 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.financials.builders import commitment_builder
+from src.core.modules.project_management.api.desktop.financials.builders import (
+    commitment_builder,
+)
 
 
 class _FinanceService:
@@ -20,14 +22,14 @@ class _FinanceService:
     def get_finance_overview(self, project_id):
         assert project_id == "project-1"
         self.overview_calls += 1
-        control = SimpleNamespace(commitment_rate_percent=Decimal("15"))
+        control = SimpleNamespace(commitment_rate_percent=Decimal(15))
         return SimpleNamespace(
             currency_code="EUR",
             approved_budget_id="budget-1",
-            approved_budget=Decimal("1000"),
-            posted_actual=Decimal("400"),
-            open_commitment=Decimal("150"),
-            available_after_commitment=Decimal("450"),
+            approved_budget=Decimal(1000),
+            posted_actual=Decimal(400),
+            open_commitment=Decimal(150),
+            available_after_commitment=Decimal(450),
             control=control,
         )
 

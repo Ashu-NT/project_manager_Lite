@@ -102,7 +102,7 @@ class _FakeResourceUnitOfWork:
         self.certifications = cert_repo
         self._enterprise_audit_service = SimpleNamespace(record=lambda **kwargs: None)
 
-    def __enter__(self) -> "_FakeResourceUnitOfWork":
+    def __enter__(self) -> _FakeResourceUnitOfWork:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:

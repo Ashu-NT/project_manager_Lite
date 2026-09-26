@@ -12,7 +12,6 @@ from src.tests.project_management._sql_measurement_helpers import (
     measure_sql,
 )
 
-
 _SIZES = {
     "small": 1,
     "medium": 5,

@@ -6,10 +6,6 @@ from sqlalchemy.exc import IntegrityError
 from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
     PORTFOLIO_CATEGORY,
 )
-from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioScoringTemplateChangeType,
-    PortfolioScoringTemplateChanged,
-)
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
@@ -307,7 +303,9 @@ def test_database_rejects_a_second_active_row_via_raw_insert_bypassing_applicati
 
     from sqlalchemy.exc import IntegrityError as _IntegrityError
 
-    from src.core.modules.project_management.domain.portfolio import PortfolioScoringTemplate
+    from src.core.modules.project_management.domain.portfolio import (
+        PortfolioScoringTemplate,
+    )
     from src.core.modules.project_management.infrastructure.persistence.mappers.portfolio import (
         portfolio_scoring_template_to_orm,
     )

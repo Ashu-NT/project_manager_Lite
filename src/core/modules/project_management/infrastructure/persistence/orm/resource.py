@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Optional
 from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
-    Enum as SAEnum,
     Float,
     ForeignKey,
     Index,
@@ -15,15 +13,22 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
+from sqlalchemy import (
+    Enum as SAEnum,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.modules.project_management.domain.enums import CostType, ResourceKind, WorkerType
-from src.infra.persistence.orm.base import Base
+from src.core.modules.project_management.domain.enums import (
+    CostType,
+    ResourceKind,
+    WorkerType,
+)
 from src.infra.persistence.db.financial_numeric import (
     FinancialNumericKind,
     financial_numeric,
     financial_numeric_info,
 )
+from src.infra.persistence.orm.base import Base
 
 
 class ResourceORM(Base):
@@ -44,7 +49,7 @@ class ResourceORM(Base):
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    resource_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    resource_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     kind: Mapped[ResourceKind] = mapped_column(
         SAEnum(ResourceKind),
@@ -56,7 +61,7 @@ class ResourceORM(Base):
     hourly_rate: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.RATE),
         info=financial_numeric_info(FinancialNumericKind.RATE),
-        default=Decimal("0"),
+        default=Decimal(0),
         server_default="0",
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -71,21 +76,21 @@ class ResourceORM(Base):
         default=100.0,
         server_default="100.0",
     )
-    address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    contact: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    address: Mapped[str | None] = mapped_column(String, nullable=True)
+    contact: Mapped[str | None] = mapped_column(String, nullable=True)
     cost_type: Mapped[CostType] = mapped_column(
         SAEnum(CostType),
         default=CostType.LABOR,
         nullable=False,
     )
-    currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+    currency_code: Mapped[str | None] = mapped_column(String(8), nullable=True)
     worker_type: Mapped[WorkerType] = mapped_column(
         SAEnum(WorkerType),
         nullable=False,
         default=WorkerType.EXTERNAL,
         server_default=WorkerType.EXTERNAL.value,
     )
-    employee_id: Mapped[Optional[str]] = mapped_column(
+    employee_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("employees.id", ondelete="SET NULL"),
         nullable=True,
@@ -95,12 +100,12 @@ class ResourceORM(Base):
         ForeignKey("organizations.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    department_id: Mapped[Optional[str]] = mapped_column(
+    department_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("departments.id", ondelete="SET NULL"),
         nullable=True,
     )
-    site_id: Mapped[Optional[str]] = mapped_column(
+    site_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("sites.id", ondelete="SET NULL"),
         nullable=True,

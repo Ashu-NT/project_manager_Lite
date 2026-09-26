@@ -7,7 +7,9 @@ from src.core.modules.project_management.application.imports import (
     MSProjectXmlParser,
     P6Parser,
 )
-from src.ui_qml.modules.project_management.utils.file_paths import local_path_from_qml_file_url
+from src.ui_qml.modules.project_management.utils.file_paths import (
+    local_path_from_qml_file_url,
+)
 
 _PARSERS = {
     "csv": CsvImportParser,

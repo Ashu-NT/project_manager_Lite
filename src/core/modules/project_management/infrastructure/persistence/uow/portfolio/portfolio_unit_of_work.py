@@ -13,7 +13,9 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyPortfolioScenarioRepository,
     SqlAlchemyPortfolioScoringTemplateRepository,
 )
-from src.core.platform.application.history.activity.activity_service import ActivityService
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )

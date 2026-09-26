@@ -8,13 +8,19 @@ from typing import Generic, TypeVar
 from src.core.application.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
-from src.core.application.global_overview.contracts.action_center import ActionCenterItemDto
-from src.core.application.global_overview.contracts.module_summary import ModuleSummaryDto
+from src.core.application.global_overview.contracts.action_center import (
+    ActionCenterItemDto,
+)
+from src.core.application.global_overview.contracts.module_summary import (
+    ModuleSummaryDto,
+)
 from src.core.application.global_overview.contracts.overview import (
     GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
 )
-from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
+from src.core.platform.api.desktop.history.activity.models.activity import (
+    ActivityEntryDto,
+)
 from src.ui_qml.shared.models.activity_item import (
     ActivityItemViewModel,
     humanize_action,

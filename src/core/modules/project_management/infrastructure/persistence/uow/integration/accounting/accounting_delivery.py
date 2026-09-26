@@ -213,9 +213,7 @@ class SqlAlchemyAccountingDeliveryTransactions:
             failure = None
             target = None
             secret_reference = None
-            if not decision.allowed or config is None:
-                failure = ExternalAccountingFailureKind.CONFIGURATION
-            elif row.target_adapter_id is not None and (
+            if not decision.allowed or config is None or row.target_adapter_id is not None and (
                 row.target_adapter_id != config.adapter_id
                 or row.target_connection_id != config.connection_id
             ):

@@ -8,7 +8,9 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
@@ -18,12 +20,12 @@ from src.core.modules.project_management.application.financials.budgets.approval
     BudgetApprovalResult,
 )
 from src.core.modules.project_management.application.financials.budgets.budget_events import (
-    BudgetLineChangeType,
     BudgetLineChanged,
+    BudgetLineChangeType,
     BudgetProfileUpdated,
     BudgetRemoved,
-    BudgetStatusChangeType,
     BudgetStatusChanged,
+    BudgetStatusChangeType,
     BudgetVersionCreated,
 )
 from src.core.modules.project_management.application.financials.successor_models import (
@@ -37,14 +39,20 @@ from src.core.modules.project_management.contracts.repositories.finance.configur
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.financials.budget import (
     BudgetLine,
     BudgetStatus,
     ProjectBudget,
 )
-from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
+from src.core.modules.project_management.domain.financials.configuration import (
+    CostCodePolicy,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -156,14 +164,14 @@ class BudgetService(ProjectManagementModuleGuardMixin):
     def get_totals_by_cost_code(self, budget_id: str) -> dict[str, Decimal]:
         totals: dict[str, Decimal] = {}
         for line in self.list_lines(budget_id):
-            totals[line.cost_code_id] = totals.get(line.cost_code_id, Decimal("0")) + line.amount
+            totals[line.cost_code_id] = totals.get(line.cost_code_id, Decimal(0)) + line.amount
         return totals
 
     def get_totals_by_task(self, budget_id: str) -> dict[str, Decimal]:
         totals: dict[str, Decimal] = {}
         for line in self.list_lines(budget_id):
             key = line.task_id or ""
-            totals[key] = totals.get(key, Decimal("0")) + line.amount
+            totals[key] = totals.get(key, Decimal(0)) + line.amount
         return totals
 
     # -- Lifecycle ----------------------------------------------------------
@@ -852,7 +860,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         references: list[tuple[str, str]] = []
         for source in self._budget_repo.list_lines(base.id):
             adjustment = by_target.get(source.id)
-            amount = source.amount + (adjustment.amount if adjustment else Decimal("0"))
+            amount = source.amount + (adjustment.amount if adjustment else Decimal(0))
             if amount < 0:
                 raise BusinessRuleError(
                     "Budget change would make a successor line negative.",

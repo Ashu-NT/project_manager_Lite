@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.api.desktop.tenant.tenancy.models.tenant import TenantCreateCommand, TenantDto
+from src.core.platform.api.desktop.tenant.tenancy.models.tenant import (
+    TenantCreateCommand,
+    TenantDto,
+)
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     preview_error_result,

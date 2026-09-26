@@ -4,16 +4,18 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.history.activity.activity_service import ActivityService
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
-    SqlAlchemyActivityRepository,
-)
-from src.core.platform.contract.uow.employee_unit_of_work import EmployeeUnitOfWork
 from src.core.platform.contract.repositories.master_data.employee.contracts import (
     LinkedEmployeeResourceRepository,
+)
+from src.core.platform.contract.uow.employee_unit_of_work import EmployeeUnitOfWork
+from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
+    SqlAlchemyActivityRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,

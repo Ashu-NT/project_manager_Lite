@@ -5,10 +5,12 @@ from datetime import datetime, timezone
 from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
 from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
 from src.core.platform.domain.approval import ApprovalStatus
-from src.ui_qml.platform.presenters.control.control_queue_presenter import PlatformControlQueuePresenter
 from src.tests.ui_qml.platform.presenters._platform_test_helpers import (
     FakePlatformApprovalApi,
     FakePlatformEnterpriseAuditApi,
+)
+from src.ui_qml.platform.presenters.control.control_queue_presenter import (
+    PlatformControlQueuePresenter,
 )
 
 

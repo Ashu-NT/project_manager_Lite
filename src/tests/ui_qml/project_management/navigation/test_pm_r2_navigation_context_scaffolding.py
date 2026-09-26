@@ -4,6 +4,9 @@ without deliberately deciding to change it."""
 
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.controllers.common.pm_workspace_navigation_controller import (
+    PMWorkspaceNavigationController,
+)
 from src.ui_qml.modules.project_management.navigation import (
     PM_CANONICAL_ROUTE_ID,
     PM_COMPATIBILITY_ROUTE_IDS,
@@ -11,9 +14,6 @@ from src.ui_qml.modules.project_management.navigation import (
     PMWorkspaceIntent,
     compatibility_route_intent,
     workspace_intent,
-)
-from src.ui_qml.modules.project_management.controllers.common.pm_workspace_navigation_controller import (
-    PMWorkspaceNavigationController,
 )
 
 

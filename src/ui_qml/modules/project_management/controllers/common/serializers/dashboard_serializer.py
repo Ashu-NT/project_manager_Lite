@@ -6,7 +6,6 @@ from src.ui_qml.modules.project_management.view_models.dashboard import (
     ProjectDashboardOperationalTableViewModel,
     ProjectDashboardOverviewViewModel,
     ProjectDashboardPanelViewModel,
-    ProjectDashboardSectionViewModel,
 )
 
 

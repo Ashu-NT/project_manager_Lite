@@ -5,7 +5,9 @@ from src.core.platform.domain.master_data.documents.document import (
     DocumentType,
 )
 from src.core.platform.domain.master_data.documents.document_link import DocumentLink
-from src.core.platform.domain.master_data.documents.document_structure import DocumentStructure
+from src.core.platform.domain.master_data.documents.document_structure import (
+    DocumentStructure,
+)
 
 __all__ = [
     "Document",

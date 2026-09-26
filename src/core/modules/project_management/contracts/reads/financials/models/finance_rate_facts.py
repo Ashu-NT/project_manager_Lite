@@ -6,7 +6,6 @@ from decimal import Decimal
 
 from .finance_budget_facts import FinancePageFacts
 
-
 _CARD_SORT_KEYS = {"title", "statusLabel", "subtitle", "supportingText", "metaText"}
 _LINE_SORT_KEYS = {
     "title",

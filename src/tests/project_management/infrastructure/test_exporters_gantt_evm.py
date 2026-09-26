@@ -6,9 +6,13 @@ from decimal import Decimal
 from matplotlib.axes import Axes
 from matplotlib.dates import date2num
 
+from src.core.modules.project_management.infrastructure.reporting import (
+    api as reporting_api,
+)
+from src.core.modules.project_management.infrastructure.reporting.models import (
+    EvmSeriesPoint,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.modules.project_management.infrastructure.reporting import api as reporting_api
-from src.core.modules.project_management.infrastructure.reporting.models import EvmSeriesPoint
 
 
 def test_gantt_export_inclusive_duration_for_one_day_tasks(services, tmp_path, monkeypatch):
@@ -111,19 +115,19 @@ def test_evm_export_png_generates_image_when_series_exists(tmp_path):
             return [
                 EvmSeriesPoint(
                     period_end=date(2023, 11, 30),
-                    PV=Decimal("100"),
-                    EV=Decimal("80"),
-                    AC=Decimal("90"),
-                    BAC=Decimal("120"),
+                    PV=Decimal(100),
+                    EV=Decimal(80),
+                    AC=Decimal(90),
+                    BAC=Decimal(120),
                     CPI=Decimal("0.89"),
                     SPI=Decimal("0.80"),
                 ),
                 EvmSeriesPoint(
                     period_end=date(2023, 12, 31),
-                    PV=Decimal("120"),
-                    EV=Decimal("110"),
-                    AC=Decimal("115"),
-                    BAC=Decimal("120"),
+                    PV=Decimal(120),
+                    EV=Decimal(110),
+                    AC=Decimal(115),
+                    BAC=Decimal(120),
                     CPI=Decimal("0.96"),
                     SPI=Decimal("0.92"),
                 ),

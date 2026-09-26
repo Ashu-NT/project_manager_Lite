@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from src.ui_qml.shared.models.activity_item import ActivityItemViewModel, serialize_activity_items
+from src.ui_qml.shared.models.activity_item import (
+    ActivityItemViewModel,
+    serialize_activity_items,
+)
 
 from .formatting import format_timestamp
 

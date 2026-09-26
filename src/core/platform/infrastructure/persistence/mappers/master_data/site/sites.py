@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 from src.core.platform.domain.master_data.site import Site
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
 
 
 def site_to_orm(site: Site) -> SiteORM:

@@ -12,6 +12,10 @@ from src.core.platform.domain.security.authorization.roles.events import (
     RoleBindingAssigned,
     RoleBindingRevoked,
 )
+from src.core.platform.domain.tenant.tenancy import (
+    MEMBERSHIP_STATUS_ACTIVE,
+    MEMBERSHIP_STATUS_REMOVED,
+)
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
@@ -20,10 +24,6 @@ from src.core.platform.infrastructure.persistence.repositories.security.auth.aut
 )
 from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWork,
-)
-from src.core.platform.domain.tenant.tenancy import (
-    MEMBERSHIP_STATUS_ACTIVE,
-    MEMBERSHIP_STATUS_REMOVED,
 )
 
 _PASSWORD = "StrongPass123!"

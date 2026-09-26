@@ -15,6 +15,7 @@ from .validation import (
     require_text,
 )
 
+
 def suggest_code(
     desktop_api: ProjectManagementProjectsDesktopApi,
     payload: dict[str, Any],

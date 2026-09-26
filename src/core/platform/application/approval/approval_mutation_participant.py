@@ -4,7 +4,11 @@ from collections.abc import Callable
 from typing import Any
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.domain.approval import ApprovalRequest, ApprovalRequested, ApprovalStatus
+from src.core.platform.domain.approval import (
+    ApprovalRequest,
+    ApprovalRequested,
+    ApprovalStatus,
+)
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.time.clock import Clock
 

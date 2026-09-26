@@ -6,8 +6,8 @@ from dataclasses import replace
 from datetime import date
 
 from src.core.modules.project_management.application.resources.resource_capability_events import (
-    ResourceCapabilityChangeType,
     ResourceCapabilityChanged,
+    ResourceCapabilityChangeType,
 )
 from src.core.modules.project_management.contracts.repositories.resources.skills import (
     ResourceCertificationRepository,
@@ -20,7 +20,11 @@ from src.core.modules.project_management.domain.resources.skills import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 

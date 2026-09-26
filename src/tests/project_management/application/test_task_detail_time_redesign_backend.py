@@ -7,8 +7,6 @@ from __future__ import annotations
 from datetime import date, timedelta
 from decimal import Decimal
 
-import pytest
-
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
 )
@@ -33,11 +31,11 @@ def test_task_time_summary_aggregates_across_all_assignments_on_the_task(service
 
     a1 = ts.assign_project_resource(
         task_id=task.id, project_resource_id=pr_alice.id,
-        allocation_percent=50.0, allocated_planned_hours=Decimal("32"),
+        allocation_percent=50.0, allocated_planned_hours=Decimal(32),
     )
     a2 = ts.assign_project_resource(
         task_id=task.id, project_resource_id=pr_bob.id,
-        allocation_percent=40.0, allocated_planned_hours=Decimal("24"),
+        allocation_percent=40.0, allocated_planned_hours=Decimal(24),
     )
     ts.add_time_entry(a1.id, entry_date=date(2026, 8, 16), hours=18.0, note="Wiring")
     ts.add_time_entry(a2.id, entry_date=date(2026, 8, 17), hours=20.0, note="Docs")
@@ -63,7 +61,7 @@ def test_task_time_summary_reports_overrun_when_actual_exceeds_planned(services)
     task = ts.create_task(project.id, "Overrun Task")
     assignment = ts.assign_project_resource(
         task_id=task.id, project_resource_id=pr_alice.id,
-        allocation_percent=100.0, allocated_planned_hours=Decimal("8"),
+        allocation_percent=100.0, allocated_planned_hours=Decimal(8),
     )
     ts.add_time_entry(assignment.id, entry_date=date(2026, 8, 16), hours=6.0, note="Work")
     ts.add_time_entry(assignment.id, entry_date=date(2026, 8, 17), hours=6.0, note="More work")
@@ -94,11 +92,11 @@ def test_task_time_summary_and_entries_are_task_scoped_not_resource_wide(service
 
     assignment_a = ts.assign_project_resource(
         task_id=task_a.id, project_resource_id=pr_alice.id,
-        allocation_percent=50.0, allocated_planned_hours=Decimal("20"),
+        allocation_percent=50.0, allocated_planned_hours=Decimal(20),
     )
     assignment_b = ts.assign_project_resource(
         task_id=task_b.id, project_resource_id=pr_alice.id,
-        allocation_percent=50.0, allocated_planned_hours=Decimal("50"),
+        allocation_percent=50.0, allocated_planned_hours=Decimal(50),
     )
     ts.add_time_entry(assignment_a.id, entry_date=date(2026, 8, 16), hours=18.0, note="Task A work")
     ts.add_time_entry(assignment_b.id, entry_date=date(2026, 8, 16), hours=42.0, note="Task B work")
@@ -128,7 +126,7 @@ def test_list_task_time_entries_paginates_authoritatively(services):
     task = ts.create_task(project.id, "Many Entries Task")
     assignment = ts.assign_project_resource(
         task_id=task.id, project_resource_id=pr_alice.id,
-        allocation_percent=100.0, allocated_planned_hours=Decimal("500"),
+        allocation_percent=100.0, allocated_planned_hours=Decimal(500),
     )
     base_date = date(2026, 8, 1)
     for i in range(7):

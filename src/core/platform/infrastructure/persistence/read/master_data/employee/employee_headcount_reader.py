@@ -16,9 +16,15 @@ from src.core.platform.contract.read.master_data.employee.employee_headcount_rea
     EmployeeHeadcountSummary,
     EmployeeSiteBreakdownRow,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
-from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
 
 
 class SqlAlchemyEmployeeHeadcountReader:

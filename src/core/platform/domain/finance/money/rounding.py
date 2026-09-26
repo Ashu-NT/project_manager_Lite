@@ -50,7 +50,7 @@ class RoundingPolicy:
                 code="ROUNDING_SCALE_INVALID",
             )
         resolved = decimal_value(value)
-        quantum = Decimal("1").scaleb(-scale)
+        quantum = Decimal(1).scaleb(-scale)
         digits = len(resolved.as_tuple().digits)
         with localcontext() as context:
             context.prec = max(34, digits + abs(resolved.adjusted()) + scale + 4)

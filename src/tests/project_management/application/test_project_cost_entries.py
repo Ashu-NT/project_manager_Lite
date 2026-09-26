@@ -26,7 +26,11 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryKind,
     ProjectCostEntryStatus,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.domain.finance.money.money import Money
 
 
@@ -105,7 +109,7 @@ def test_cost_entry_domain_enforces_signed_lifecycle_and_complete_posting_snapsh
             project_id="project-a",
             description="Invalid actual",
             kind=ProjectCostEntryKind.ACTUAL,
-            money=Money.of(Decimal("-1"), "EUR"),
+            money=Money.of(Decimal(-1), "EUR"),
             transaction_date=date(2026, 1, 10),
             cost_code_id="cost-code-a",
             source=_source(),
@@ -121,7 +125,7 @@ def test_cost_entry_domain_enforces_signed_lifecycle_and_complete_posting_snapsh
         project_id="project-a",
         description="Valid actual",
         kind=ProjectCostEntryKind.ACTUAL,
-        money=Money.of(Decimal("10"), "EUR"),
+        money=Money.of(Decimal(10), "EUR"),
         transaction_date=date(2026, 1, 10),
         cost_code_id="cost-code-a",
         source=_source(),
@@ -139,8 +143,8 @@ def test_cost_entry_domain_enforces_signed_lifecycle_and_complete_posting_snapsh
         occurred_at=now,
         posting_date=date(2026, 1, 10),
         financial_period_id="period-a",
-        base_money=Money.of(Decimal("10"), "EUR"),
-        exchange_rate=Decimal("1"),
+        base_money=Money.of(Decimal(10), "EUR"),
+        exchange_rate=Decimal(1),
         exchange_rate_date=date(2026, 1, 10),
         exchange_rate_source="identity",
         exchange_rate_captured_at=now,
@@ -149,7 +153,7 @@ def test_cost_entry_domain_enforces_signed_lifecycle_and_complete_posting_snapsh
     with pytest.raises(BusinessRuleError):
         entry.update_draft(
             description="Forbidden edit",
-            amount=Decimal("11"),
+            amount=Decimal(11),
             currency_code="EUR",
             transaction_date=date(2026, 1, 10),
             cost_code_id="cost-code-a",
@@ -202,7 +206,7 @@ def test_manual_entry_lifecycle_is_idempotent_posts_and_reverses_exactly(service
     )
     assert posted.status == ProjectCostEntryStatus.POSTED
     assert posted.base_amount == posted.amount
-    assert posted.exchange_rate == Decimal("1")
+    assert posted.exchange_rate == Decimal(1)
 
     reversal = service.reverse(
         posted.id,
@@ -221,7 +225,7 @@ def test_manual_entry_lifecycle_is_idempotent_posts_and_reverses_exactly(service
     assert reversal.exchange_rate == original.exchange_rate
     assert reversal.currency_code == original.currency_code
     assert reversal.base_currency_code == original.base_currency_code
-    assert reversal.amount + original.amount == Decimal("0")
+    assert reversal.amount + original.amount == Decimal(0)
 
     reversal_retry = service.reverse(
         posted.id,
@@ -320,7 +324,7 @@ def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> No
         project_id=project.id,
         command_id="fx-command",
         description="Imported equipment charge",
-        amount=Decimal("100"),
+        amount=Decimal(100),
         currency_code=transaction_currency,
         transaction_date=date(2026, 1, 5),
         cost_code_id=cost_code.id,
@@ -519,10 +523,9 @@ def test_cost_entry_migration_installs_database_immutability_guards(tmp_path) ->
                 sa.text("UPDATE project_cost_entries SET amount = 11 WHERE id = 'posted-1'")
             )
 
-    with engine.begin() as connection:
-        with pytest.raises(sa.exc.IntegrityError):
-            connection.execute(
-                sa.text("DELETE FROM project_cost_entries WHERE id = 'posted-1'")
-            )
+    with engine.begin() as connection, pytest.raises(sa.exc.IntegrityError):
+        connection.execute(
+            sa.text("DELETE FROM project_cost_entries WHERE id = 'posted-1'")
+        )
 
     engine.dispose()

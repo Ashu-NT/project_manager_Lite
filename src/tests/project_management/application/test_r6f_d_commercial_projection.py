@@ -43,8 +43,8 @@ def inputs(**changes):
     return replace(
         ProfitabilityInputs(
             billing_method=BillingMethod.FIXED_PRICE,
-            contract_value=Decimal("1000000"),
-            forecast_cost_at_completion=Decimal("750000"),
+            contract_value=Decimal(1000000),
+            forecast_cost_at_completion=Decimal(750000),
             project_currency="XAF",
             contract_currency="XAF",
             cost_currency="XAF",
@@ -65,7 +65,7 @@ def test_exact_golden_scenarios(eac, margin, percent):
     result = ProjectProfitabilityCalculator.calculate(
         inputs(forecast_cost_at_completion=Decimal(eac))
     )
-    assert result.forecast_revenue_at_completion == Decimal("1000000")
+    assert result.forecast_revenue_at_completion == Decimal(1000000)
     assert result.projected_margin_amount == Decimal(margin)
     assert result.projected_margin_percent == Decimal(percent)
     assert result.margin_availability == "available"
@@ -92,12 +92,12 @@ def test_missing_unsupported_and_currency_are_not_zero(changes, state):
         "forecast_cost_at_completion" in changes
         or changes.get("cost_currency") == "EUR"
     ):
-        assert result.forecast_revenue_at_completion == Decimal("1000000")
+        assert result.forecast_revenue_at_completion == Decimal(1000000)
 
 
 def test_zero_denominator_and_decimal_precision():
     result = ProjectProfitabilityCalculator.calculate(inputs(contract_value=Decimal(0)))
-    assert result.projected_margin_amount == Decimal("-750000")
+    assert result.projected_margin_amount == Decimal(-750000)
     assert result.projected_margin_percent is None
     assert result.percent_availability == "not_applicable"
     precise = ProjectProfitabilityCalculator.calculate(

@@ -23,7 +23,7 @@ def test_pm_only_commercial_workflow_needs_no_optional_operational_module(servic
         assert not registry.is_module_enabled(module)
 
     _, project, cost_code = _setup_billable_project(services, name="PM-only commercial")
-    _create_billing_profile(services, project.id, contract_value=Decimal("1000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(1000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="750")
     preparation = services["billing_preparation_service"].create_preparation(
         project.id,
@@ -37,9 +37,9 @@ def test_pm_only_commercial_workflow_needs_no_optional_operational_module(servic
     )
     assert preparation.project_id == project.id
     assert projection.revenue_availability is CommercialMetricAvailability.AVAILABLE
-    assert projection.forecast_revenue_at_completion == Decimal("1000")
-    assert projection.projected_margin_amount == Decimal("250")
-    assert projection.projected_margin_percent == Decimal("25")
+    assert projection.forecast_revenue_at_completion == Decimal(1000)
+    assert projection.projected_margin_amount == Decimal(250)
+    assert projection.projected_margin_percent == Decimal(25)
 
 
 def test_pm_billing_payload_describes_evidence_not_accounting_decisions():

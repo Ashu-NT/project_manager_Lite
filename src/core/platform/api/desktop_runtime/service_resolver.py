@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.domain.tenant.modules import (
     EnterpriseModule,
     ModuleEntitlement,
     PlatformCapability,
 )
-from src.core.platform.application.tenant.modules import ModuleCatalogService
 
 
 @dataclass(frozen=True)

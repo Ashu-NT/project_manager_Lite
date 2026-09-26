@@ -4,13 +4,6 @@ import os
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
-from src.core.modules.project_management.application.collaboration.utils.principal import (
-    CollaborationPrincipalMixin,
-)
-from src.core.modules.project_management.application.collaboration.utils.support import (
-    CollaborationSupportMixin,
-)
 from src.core.modules.project_management.application.collaboration.commands.collaboration_comments import (
     CollaborationCommentCommandMixin,
 )
@@ -29,21 +22,36 @@ from src.core.modules.project_management.application.collaboration.queries.colla
 from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
     CollaborationPresenceQueryMixin,
 )
-from src.core.modules.project_management.contracts.repositories.collaboration.collaboration import (
-    TaskCommentRepository,
-    TaskPresenceRepository,
+from src.core.modules.project_management.application.collaboration.utils.principal import (
+    CollaborationPrincipalMixin,
+)
+from src.core.modules.project_management.application.collaboration.utils.support import (
+    CollaborationSupportMixin,
+)
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
 )
 from src.core.modules.project_management.contracts.reads.collaboration import (
     CollaborationWorkspaceReader,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.collaboration.collaboration import (
+    TaskCommentRepository,
+    TaskPresenceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.modules.project_management.contracts.uow.collaboration.collaboration_unit_of_work import (
     CollaborationUnitOfWorkFactory,
 )
+from src.core.platform.application.master_data.documents import (
+    DocumentIntegrationService,
+)
 from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.repositories.security.auth import UserRepository
-from src.core.platform.application.master_data.documents import DocumentIntegrationService
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 

@@ -212,7 +212,9 @@ def test_update_organization_has_no_lifecycle_status_parameter():
 
 
 def test_update_organization_audit_failure_rolls_back_with_zero_observable_event(services, monkeypatch):
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
 
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
@@ -237,7 +239,9 @@ def test_update_organization_audit_failure_rolls_back_with_zero_observable_event
 
 
 def test_deactivate_organization_audit_failure_rolls_back_with_zero_observable_event(services, monkeypatch):
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
 
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
@@ -468,8 +472,8 @@ def test_organization_events_module_exports_exactly_the_five_expected_events():
 def test_no_generic_compatibility_bridge_was_introduced():
     import inspect
 
-    import src.core.platform.application.master_data.org.organization_service as org_service_module
     import src.core.platform.application.master_data.org.event_handlers.view_invalidation as vi_module
+    import src.core.platform.application.master_data.org.organization_service as org_service_module
     import src.infra.composition.modules.platform_registry as registry_module
 
     for module in (org_service_module, vi_module, registry_module):

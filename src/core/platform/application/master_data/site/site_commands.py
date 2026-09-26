@@ -6,8 +6,14 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.domain.master_data.site import (
     SITE_STATUS_ACTIVE,
     SITE_STATUS_ARCHIVED,
@@ -369,4 +375,4 @@ def archive_site(service: SiteService, site_id: str) -> Site:
     return _transition_site_status(service, site_id, new_status=SITE_STATUS_ARCHIVED, action="site.archive")
 
 
-__all__ = ["create_site", "update_site", "activate_site", "deactivate_site", "archive_site"]
+__all__ = ["activate_site", "archive_site", "create_site", "deactivate_site", "update_site"]

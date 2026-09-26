@@ -32,7 +32,11 @@ from src.core.modules.project_management.application.resources.enterprise_resour
 from src.core.modules.project_management.application.resources.resource_workload_service import (
     ResourceWorkloadService,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+)
 from src.tests.ui_runtime_helpers import login_as
 
 
@@ -62,13 +66,13 @@ def test_project_resource_update_with_expected_version_succeeds(services):
         project_resource.id,
         hourly_rate=project_resource.hourly_rate,
         currency_code=project_resource.currency_code,
-        planned_hours=Decimal("60"),
+        planned_hours=Decimal(60),
         is_active=True,
         expected_version=project_resource.version,
     )
 
     updated = prs.get(project_resource.id)
-    assert updated.planned_hours == Decimal("60")
+    assert updated.planned_hours == Decimal(60)
     assert updated.version == project_resource.version + 1
 
 
@@ -79,7 +83,7 @@ def test_project_resource_update_stale_version_raises_concurrency_error(services
         project_resource.id,
         hourly_rate=project_resource.hourly_rate,
         currency_code=project_resource.currency_code,
-        planned_hours=Decimal("50"),
+        planned_hours=Decimal(50),
         is_active=True,
         expected_version=project_resource.version,
     )
@@ -89,7 +93,7 @@ def test_project_resource_update_stale_version_raises_concurrency_error(services
             project_resource.id,
             hourly_rate=project_resource.hourly_rate,
             currency_code=project_resource.currency_code,
-            planned_hours=Decimal("55"),
+            planned_hours=Decimal(55),
             is_active=True,
             expected_version=project_resource.version,  # now stale
         )
@@ -105,11 +109,11 @@ def test_project_resource_update_without_expected_version_still_works(services):
         project_resource.id,
         hourly_rate=project_resource.hourly_rate,
         currency_code=project_resource.currency_code,
-        planned_hours=Decimal("45"),
+        planned_hours=Decimal(45),
         is_active=True,
     )
 
-    assert prs.get(project_resource.id).planned_hours == Decimal("45")
+    assert prs.get(project_resource.id).planned_hours == Decimal(45)
 
 
 # ---------------------------------------------------------------------------
@@ -134,17 +138,17 @@ def test_project_resource_usage_reconciles_planned_allocated_actual_remaining(se
         task_id=task_c.id, project_resource_id=project_resource.id, allocation_percent=20.0
     )
     ts.update_assignment_planned_hours(
-        assignment_a.id, allocated_planned_hours=Decimal("30"),
+        assignment_a.id, allocated_planned_hours=Decimal(30),
         expected_assignment_version=assignment_a.version,
         expected_project_resource_version=prs.get(project_resource.id).version,
     )
     ts.update_assignment_planned_hours(
-        assignment_b.id, allocated_planned_hours=Decimal("50"),
+        assignment_b.id, allocated_planned_hours=Decimal(50),
         expected_assignment_version=assignment_b.version,
         expected_project_resource_version=prs.get(project_resource.id).version,
     )
     ts.update_assignment_planned_hours(
-        assignment_c.id, allocated_planned_hours=Decimal("20"),
+        assignment_c.id, allocated_planned_hours=Decimal(20),
         expected_assignment_version=assignment_c.version,
         expected_project_resource_version=prs.get(project_resource.id).version,
     )
@@ -154,11 +158,11 @@ def test_project_resource_usage_reconciles_planned_allocated_actual_remaining(se
 
     usage = prs.get_usage(project_resource.id)
 
-    assert usage.planned_hours == Decimal("120")
-    assert usage.allocated_to_tasks_hours == Decimal("100")
-    assert usage.unallocated_planned_hours == Decimal("20")
-    assert usage.actual_hours == Decimal("72")
-    assert usage.remaining_project_hours == Decimal("48")
+    assert usage.planned_hours == Decimal(120)
+    assert usage.allocated_to_tasks_hours == Decimal(100)
+    assert usage.unallocated_planned_hours == Decimal(20)
+    assert usage.actual_hours == Decimal(72)
+    assert usage.remaining_project_hours == Decimal(48)
     assert usage.task_assignment_count == 3
     assert usage.envelope_status == "PARTIALLY_ALLOCATED"
     assert usage.burn_status == "WITHIN_PLAN"
@@ -176,7 +180,7 @@ def test_project_resource_usage_is_task_page_independent(services):
     # Even though nothing about a "current page" is passed here, the usage
     # fact still reflects the complete, authoritative assignment set.
     usage = prs.get_usage(project_resource.id)
-    assert usage.actual_hours == Decimal("5")
+    assert usage.actual_hours == Decimal(5)
     assert usage.task_assignment_count == 1
 
 
@@ -194,7 +198,7 @@ def test_desktop_api_exposes_project_resource_usage_and_version(services):
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
     ts.update_assignment_planned_hours(
-        assignment.id, allocated_planned_hours=Decimal("10"),
+        assignment.id, allocated_planned_hours=Decimal(10),
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,
     )
@@ -221,18 +225,18 @@ def test_desktop_api_update_project_resource_forwards_expected_version_and_confl
     api.update_project_resource(
         ProjectResourceUpdateCommand(
             project_resource_id=project_resource.id,
-            planned_hours=Decimal("60"),
+            planned_hours=Decimal(60),
             is_active=True,
             expected_version=project_resource.version,
         )
     )
-    assert prs.get(project_resource.id).planned_hours == Decimal("60")
+    assert prs.get(project_resource.id).planned_hours == Decimal(60)
 
     with pytest.raises(ConcurrencyError):
         api.update_project_resource(
             ProjectResourceUpdateCommand(
                 project_resource_id=project_resource.id,
-                planned_hours=Decimal("70"),
+                planned_hours=Decimal(70),
                 is_active=True,
                 expected_version=project_resource.version,  # now stale
             )
@@ -357,6 +361,7 @@ def test_assign_resource_bridge_requires_project_resource_repository():
     been removed. A TaskService missing that repo now fails closed rather
     than silently creating an orphaned assignment."""
     from types import SimpleNamespace
+
     from src.core.modules.project_management.application.tasks.commands.assignment_bridge import (
         TaskAssignmentBridgeMixin,
     )

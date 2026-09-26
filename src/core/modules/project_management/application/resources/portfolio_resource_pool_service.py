@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from src.core.modules.project_management.contracts.reads.portfolio.resource_pool_reader import (
-    PortfolioResourcePoolReader,
-)
 from src.core.modules.project_management.contracts.reads.portfolio.models.resource_pool_facts import (
     PortfolioDemandFact,
     PortfolioResourceFact,
+)
+from src.core.modules.project_management.contracts.reads.portfolio.resource_pool_reader import (
+    PortfolioResourcePoolReader,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 @dataclass
@@ -232,8 +233,8 @@ class PortfolioResourcePoolService:
 
 
 __all__ = [
-    "PortfolioResourcePoolService",
     "PortfolioResourcePoolReport",
-    "ResourcePoolSummary",
+    "PortfolioResourcePoolService",
     "ResourceDemandEntry",
+    "ResourcePoolSummary",
 ]

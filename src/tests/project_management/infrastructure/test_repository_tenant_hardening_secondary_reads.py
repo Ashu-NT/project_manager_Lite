@@ -11,7 +11,14 @@ from src.core.modules.project_management.domain.enums import (
     TaskStatus,
     WorkerType,
 )
-from src.core.modules.project_management.domain.scheduling.baseline import BaselineStatus
+from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
+)
+from src.core.modules.project_management.domain.scheduling.baseline import (
+    BaselineStatus,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.baseline import (
     BaselineTaskORM,
     BaselineVarianceRecordORM,
@@ -28,15 +35,19 @@ from src.core.modules.project_management.infrastructure.persistence.orm.collabor
 from src.core.modules.project_management.infrastructure.persistence.orm.portfolio import (
     PortfolioIntakeItemORM,
     PortfolioProjectDependencyORM,
-    PortfolioScoringTemplateORM,
     PortfolioScenarioORM,
+    PortfolioScoringTemplateORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
     ProjectResourceORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.register import RegisterEntryORM
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.register import (
+    RegisterEntryORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.skills import (
     ResourceCertificationORM,
     ResourceSkillORM,
@@ -47,13 +58,10 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskDependencyORM,
     TaskORM,
 )
-from src.core.modules.project_management.domain.risk.register import (
-    RegisterEntrySeverity,
-    RegisterEntryStatus,
-    RegisterEntryType,
-)
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import PlatformCalendarORM
+from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
+    PlatformCalendarORM,
+)
 
 
 def _seed_priority_pm_rows(services):

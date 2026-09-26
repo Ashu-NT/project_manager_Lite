@@ -5,8 +5,99 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.platform.presenters.overview.admin_overview_presenter import (
-    PlatformAdminWorkspacePresenter,
+from src.ui_qml.platform.controllers.calendars.actions import (
+    add_calendar_exception,
+    add_calendar_recurring_event,
+    assign_calendar,
+    calculate_calendar_working_days,
+    create_enterprise_calendar,
+    delete_calendar_exception,
+    delete_calendar_recurring_event,
+    remove_calendar_assignment,
+    update_enterprise_calendar,
+)
+from src.ui_qml.platform.controllers.calendars.calendar_controller import (
+    PlatformCalendarController,
+)
+from src.ui_qml.platform.controllers.calendars.context import (
+    calendar_assignment_context,
+    calendar_detail_context,
+    site_calendar_summary,
+)
+from src.ui_qml.platform.controllers.common import PlatformWorkspaceControllerBase
+from src.ui_qml.platform.controllers.departments.actions import (
+    activate_department,
+    create_department,
+    deactivate_department,
+    update_department,
+)
+from src.ui_qml.platform.controllers.departments.department_controller import (
+    PlatformDepartmentController,
+)
+from src.ui_qml.platform.controllers.documents.actions import (
+    add_document_link,
+    create_document,
+    create_document_structure,
+    remove_document_link,
+    select_document,
+    toggle_document_active,
+    toggle_document_structure_active,
+    update_document,
+    update_document_structure,
+)
+from src.ui_qml.platform.controllers.documents.document_controller import (
+    PlatformDocumentController,
+)
+from src.ui_qml.platform.controllers.documents.document_structure_controller import (
+    PlatformDocumentStructureController,
+)
+from src.ui_qml.platform.controllers.employees.actions import (
+    create_employee,
+    toggle_employee_active,
+    update_employee,
+)
+from src.ui_qml.platform.controllers.employees.employee_controller import (
+    PlatformEmployeeController,
+)
+from src.ui_qml.platform.controllers.organizations.actions import (
+    activate_organization,
+    apply_bulk_organization_currency,
+    apply_bulk_organization_modules,
+    apply_bulk_organization_timezone,
+    archive_organization,
+    bulk_activate_organizations,
+    bulk_archive_organizations,
+    bulk_deactivate_organizations,
+    create_organization,
+    deactivate_organization,
+    update_organization,
+)
+from src.ui_qml.platform.controllers.organizations.organization_controller import (
+    PlatformOrganizationController,
+)
+from src.ui_qml.platform.controllers.parties.actions import (
+    create_party,
+    toggle_party_active,
+    update_party,
+)
+from src.ui_qml.platform.controllers.parties.party_controller import (
+    PlatformPartyController,
+)
+from src.ui_qml.platform.controllers.sites.actions import (
+    activate_site,
+    archive_site,
+    create_site,
+    deactivate_site,
+    update_site,
+)
+from src.ui_qml.platform.controllers.sites.site_controller import PlatformSiteController
+from src.ui_qml.platform.controllers.users.actions import (
+    create_user,
+    toggle_user_active,
+    update_user,
+)
+from src.ui_qml.platform.controllers.users.user_controller import (
+    PlatformUserController,
 )
 from src.ui_qml.platform.presenters.calendars.calendar_catalog_presenter import (
     PlatformCalendarCatalogPresenter,
@@ -23,115 +114,27 @@ from src.ui_qml.platform.presenters.documents.document_management_presenter impo
 from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
     PlatformEmployeeCatalogPresenter,
 )
+from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
+    PlatformOrganizationActivityPresenter,
+)
 from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter import (
     PlatformOrganizationCatalogPresenter,
 )
-from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
-    PlatformOrganizationActivityPresenter,
+from src.ui_qml.platform.presenters.overview.admin_overview_presenter import (
+    PlatformAdminWorkspacePresenter,
 )
 from src.ui_qml.platform.presenters.parties.party_catalog_presenter import (
     PlatformPartyCatalogPresenter,
 )
-from src.ui_qml.platform.presenters.sites.site_catalog_presenter import (
-    PlatformSiteCatalogPresenter,
-)
 from src.ui_qml.platform.presenters.sites.site_activity_presenter import (
     PlatformSiteActivityPresenter,
+)
+from src.ui_qml.platform.presenters.sites.site_catalog_presenter import (
+    PlatformSiteCatalogPresenter,
 )
 from src.ui_qml.platform.presenters.users.user_catalog_presenter import (
     PlatformUserCatalogPresenter,
 )
-
-from src.ui_qml.platform.controllers.calendars.actions import (
-    add_calendar_exception,
-    add_calendar_recurring_event,
-    assign_calendar,
-    calculate_calendar_working_days,
-    create_enterprise_calendar,
-    delete_calendar_exception,
-    delete_calendar_recurring_event,
-    remove_calendar_assignment,
-    update_enterprise_calendar,
-)
-from src.ui_qml.platform.controllers.calendars.context import (
-    calendar_assignment_context,
-    calendar_detail_context,
-    site_calendar_summary,
-)
-from src.ui_qml.platform.controllers.calendars.calendar_controller import PlatformCalendarController
-from src.ui_qml.platform.controllers.documents.actions import (
-    add_document_link,
-    create_document,
-    create_document_structure,
-    remove_document_link,
-    select_document,
-    toggle_document_active,
-    toggle_document_structure_active,
-    update_document,
-    update_document_structure,
-)
-from src.ui_qml.platform.controllers.documents.document_controller import PlatformDocumentController
-from src.ui_qml.platform.controllers.documents.document_structure_controller import (
-    PlatformDocumentStructureController,
-)
-from src.ui_qml.platform.controllers.departments.department_controller import (
-    PlatformDepartmentController,
-)
-from src.ui_qml.platform.controllers.departments.actions import (
-    activate_department,
-    create_department,
-    deactivate_department,
-    update_department,
-)
-from src.ui_qml.platform.controllers.employees.employee_controller import (
-    PlatformEmployeeController,
-)
-from src.ui_qml.platform.controllers.employees.actions import (
-    create_employee,
-    toggle_employee_active,
-    update_employee,
-)
-from src.ui_qml.platform.controllers.organizations.organization_controller import (
-    PlatformOrganizationController,
-)
-from src.ui_qml.platform.controllers.organizations.actions import (
-    activate_organization,
-    apply_bulk_organization_currency,
-    apply_bulk_organization_modules,
-    apply_bulk_organization_timezone,
-    archive_organization,
-    bulk_activate_organizations,
-    bulk_archive_organizations,
-    bulk_deactivate_organizations,
-    create_organization,
-    deactivate_organization,
-    update_organization,
-)
-from src.ui_qml.platform.controllers.parties.party_controller import (
-    PlatformPartyController,
-)
-from src.ui_qml.platform.controllers.parties.actions import (
-    create_party,
-    toggle_party_active,
-    update_party,
-)
-from src.ui_qml.platform.controllers.sites.site_controller import PlatformSiteController
-from src.ui_qml.platform.controllers.sites.actions import (
-    activate_site,
-    archive_site,
-    create_site,
-    deactivate_site,
-    update_site,
-)
-from src.ui_qml.platform.controllers.users.user_controller import (
-    PlatformUserController,
-)
-from src.ui_qml.platform.controllers.users.actions import (
-    create_user,
-    toggle_user_active,
-    update_user,
-)
-from src.ui_qml.platform.controllers.common import PlatformWorkspaceControllerBase
 
 from .entity_code_dispatch import generate_entity_code
 from .refresh_coordinator import do_refresh, refresh_overview

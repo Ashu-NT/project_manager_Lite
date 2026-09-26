@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from PySide6.QtCore import QMetaObject, QObject
 from PySide6.QtGui import QGuiApplication
 
 from src.tests.path_rewrites import REPO_ROOT
 from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
-
 
 ROOT_COMPONENT = (
     REPO_ROOT

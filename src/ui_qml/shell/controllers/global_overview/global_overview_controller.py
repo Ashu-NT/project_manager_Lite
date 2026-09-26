@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.shared.models.activity_item import ActivityItemViewModel, serialize_activity_item
+from src.ui_qml.shared.models.activity_item import (
+    ActivityItemViewModel,
+    serialize_activity_item,
+)
 from src.ui_qml.shell.context import ShellContext
-from src.ui_qml.shell.presenters.global_overview_presenter import GlobalOverviewPresenter, SectionResult
+from src.ui_qml.shell.presenters.global_overview_presenter import (
+    GlobalOverviewPresenter,
+    SectionResult,
+)
 from src.ui_qml.shell.view_models.global_overview import (
     ActionCenterRowViewModel,
     AttentionCardViewModel,
@@ -199,7 +205,7 @@ class GlobalOverviewController(QObject):
         ):
             try:
                 reload_one()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.exception("Global Overview section reload raised unexpectedly")
 
     @Slot()
@@ -322,7 +328,7 @@ class GlobalOverviewController(QObject):
         loading_setter()
         try:
             result = load()
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("Global Overview section load raised unexpectedly")
             clear_data()
             set_state({"loading": False, "errorMessage": "This section could not be loaded.", "empty": False})

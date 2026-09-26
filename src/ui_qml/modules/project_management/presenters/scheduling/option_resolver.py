@@ -6,6 +6,7 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingSelectorOptionViewModel,
 )
 
+
 def resolve_project_id(
     project_id: str | None,
     project_options: tuple[SchedulingSelectorOptionViewModel, ...],
@@ -81,9 +82,9 @@ def resolve_selected_activity_id(
     return ""
 
 __all__ = [
-    "resolve_project_id",
-    "resolve_selected_option",
-    "resolve_baseline_ids",
     "build_status_options",
+    "resolve_baseline_ids",
+    "resolve_project_id",
     "resolve_selected_activity_id",
+    "resolve_selected_option",
 ]

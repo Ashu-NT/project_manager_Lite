@@ -3,13 +3,12 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.shared.models.activity_item import serialize_activity_items
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
-
 from src.ui_qml.platform.presenters import (
     PlatformControlQueuePresenter,
     PlatformControlWorkspacePresenter,
 )
+from src.ui_qml.shared.models.activity_item import serialize_activity_items
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from ..common import (
     WORKSPACE_PERMISSIONS,

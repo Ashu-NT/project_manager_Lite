@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, time
 from time import perf_counter
 from typing import Any
 
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
+    DayCapacity,
+    WorkingTimeCalculator,
+)
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarAssignmentRepository,
     CalendarExceptionRepository,
@@ -15,15 +19,10 @@ from src.core.platform.contract.repositories.time_management.calendar.contracts 
     CalendarWorkingRuleRepository,
     PlatformCalendarRepository,
 )
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
-    DayCapacity,
-    WorkingTimeCalculator,
-)
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarException,
     CalendarRecurringEvent,
     CalendarWorkingRule,
-    PlatformCalendar,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,7 +52,7 @@ class ResolvedCalendarContext:
         source_chain: list[str],
         timezone: str,
         exceptions: list[CalendarException],
-    ) -> "ResolvedCalendarContext":
+    ) -> ResolvedCalendarContext:
         return ResolvedCalendarContext(
             date=day.date,
             base_hours=day.base_hours,

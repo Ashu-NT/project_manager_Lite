@@ -246,7 +246,7 @@ class ProjectCostEntry:
         return _aware_utc(value, field_name=info.field_name)
 
     @model_validator(mode="after")
-    def _validate_ledger_invariants(self) -> "ProjectCostEntry":
+    def _validate_ledger_invariants(self) -> ProjectCostEntry:
         self._validate_sign_and_reversal()
         self._validate_source_reference()
         self._validate_posting_snapshot()
@@ -431,7 +431,7 @@ class ProjectCostEntry:
         resource_id: str | None,
         actor_id: str,
         occurred_at: datetime,
-    ) -> "ProjectCostEntry":
+    ) -> ProjectCostEntry:
         if kind == ProjectCostEntryKind.REVERSAL:
             raise ValidationError(
                 "Draft entries cannot be created as reversals.",
@@ -468,7 +468,7 @@ class ProjectCostEntry:
     def create_posted_reversal(
         cls,
         *,
-        original: "ProjectCostEntry",
+        original: ProjectCostEntry,
         reversal_id: str,
         description: str,
         source: FinancialSourceReference,
@@ -476,7 +476,7 @@ class ProjectCostEntry:
         financial_period_id: str,
         actor_id: str,
         occurred_at: datetime,
-    ) -> "ProjectCostEntry":
+    ) -> ProjectCostEntry:
         if original.status != ProjectCostEntryStatus.POSTED:
             raise BusinessRuleError(
                 "Only a posted cost entry can be reversed.",
@@ -601,7 +601,7 @@ class ProjectCostEntry:
                 code=code,
             )
 
-    def _copy_from(self, candidate: "ProjectCostEntry") -> None:
+    def _copy_from(self, candidate: ProjectCostEntry) -> None:
         for name, value in candidate.__dict__.items():
             object.__setattr__(self, name, value)
 

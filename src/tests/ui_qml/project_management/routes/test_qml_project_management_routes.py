@@ -2,7 +2,6 @@ from src.ui_qml.modules.project_management.navigation import PM_CANONICAL_ROUTE_
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
 from src.ui_qml.shell.qml_registry import build_qml_route_registry
 
-
 EXPECTED_COMPATIBILITY_PM_ROUTE_IDS = [
     "project_management.projects",
     "project_management.tasks",

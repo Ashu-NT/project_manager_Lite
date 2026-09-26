@@ -7,7 +7,9 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
 )
-from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.platform_runtime.runtime import (
+    PlatformRuntimeDesktopApi,
+)
 
 
 def test_list_countries_returns_static_reference_data(services):

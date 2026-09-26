@@ -15,17 +15,16 @@ under its original name; SQLite does not reliably reflect named
 constraints back across a fresh connection (as a later downgrade would),
 so this migration does not attempt to rename it explicitly.
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'd6a3f8c2b951'
-down_revision: Union[str, Sequence[str], None] = 'c7f2a5d91b48'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = 'c7f2a5d91b48'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _TABLE = "departments"
 _OLD_COLUMN = "manager_employee_id"

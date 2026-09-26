@@ -66,7 +66,7 @@ def test_money_rounds_only_at_named_currency_boundary() -> None:
 
     assert Money.of("2.345", "EUR").rounded(half_even).amount == Decimal("2.34")
     assert Money.of("2.355", "EUR").rounded(half_even).amount == Decimal("2.36")
-    assert Money.of("125.5", "JPY").rounded(half_even).amount == Decimal("126")
+    assert Money.of("125.5", "JPY").rounded(half_even).amount == Decimal(126)
 
     with pytest.raises(ValidationError) as exc:
         Money.of("1", "XDR").rounded()
@@ -87,8 +87,8 @@ def test_money_allocation_preserves_positive_and_negative_totals() -> None:
         Decimal("-3.33"),
         Decimal("-3.33"),
     ]
-    assert sum((part.amount for part in positive), Decimal("0")) == Decimal("10.00")
-    assert sum((part.amount for part in negative), Decimal("0")) == Decimal("-10.00")
+    assert sum((part.amount for part in positive), Decimal(0)) == Decimal("10.00")
+    assert sum((part.amount for part in negative), Decimal(0)) == Decimal("-10.00")
 
 
 def test_quantity_and_rate_are_decimal_and_unit_safe() -> None:
@@ -184,4 +184,4 @@ def test_money_allocation_property_preserves_rounded_total(
 
     assert len(parts) == len(weights)
     assert all(part.currency == source.currency for part in parts)
-    assert sum((part.amount for part in parts), Decimal("0")) == source.rounded().amount
+    assert sum((part.amount for part in parts), Decimal(0)) == source.rounded().amount

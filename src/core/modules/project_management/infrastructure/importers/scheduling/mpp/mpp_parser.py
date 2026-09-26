@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.modules.project_management.infrastructure.importers.models.import_models import (
-    ImportFieldMapping,
     ImportMappingProfile,
     ImportParser,
     ImportRow,
 )
+
 
 class MSProjectXmlParser(ImportParser):
     """

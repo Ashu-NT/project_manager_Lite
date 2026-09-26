@@ -3,6 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
+from src.core.modules.project_management.contracts.repositories.resources.skills import (
+    ResourceCertificationRepository,
+    ResourceSkillRepository,
+    TaskSkillRequirementRepository,
+)
 from src.core.modules.project_management.domain.resources.skills import (
     ResourceCertification,
     ResourceSkill,
@@ -10,13 +15,7 @@ from src.core.modules.project_management.domain.resources.skills import (
     SkillValidationMode,
     TaskSkillRequirement,
 )
-from src.core.modules.project_management.contracts.repositories.resources.skills import (
-    ResourceCertificationRepository,
-    ResourceSkillRepository,
-    TaskSkillRequirementRepository,
-)
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.platform.common.exceptions import BusinessRuleError
 
 
 @dataclass
@@ -237,7 +236,7 @@ class AssignmentSkillValidator:
 
 
 __all__ = [
-    "AssignmentValidationResult",
     "AssignmentSkillValidator",
+    "AssignmentValidationResult",
     "SkillViolation",
 ]

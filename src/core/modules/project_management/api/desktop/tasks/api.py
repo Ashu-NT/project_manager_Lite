@@ -4,6 +4,20 @@ import logging
 from datetime import date
 from decimal import Decimal
 
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    EDITABLE_CONSTRAINT_OPTIONS,
+    coerce_constraint_type,
+)
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
+    coerce_dependency_direction,
+    coerce_dependency_type,
+    dependency_direction,
+    dependency_type_label,
+)
+from src.core.modules.project_management.api.desktop.common.detail_pages import (
+    DetailActivityDesktopDto,
+    DetailActivityPageDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
     ScheduleImpactReportDto,
     TaskScheduleImpactOverviewDesktopDto,
@@ -27,20 +41,6 @@ from src.core.modules.project_management.api.desktop.tasks.builders.resource_opt
 from src.core.modules.project_management.api.desktop.tasks.builders.status_options_builder import (
     build_status_options,
 )
-from src.core.modules.project_management.api.desktop.tasks.serializers.time_summary_serializer import (
-    serialize_task_time_entries_page,
-    serialize_task_time_summary,
-)
-from src.core.modules.project_management.api.desktop.tasks.serializers.dependency_impact_preview_serializer import (
-    serialize_dependency_impact_preview,
-)
-from src.core.modules.project_management.api.desktop.tasks.models.dependency import (
-    TaskDependencyImpactPreviewDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.tasks.models.time_summary import (
-    TaskTimeEntriesPageDesktopDto,
-    TaskTimeSummaryDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.tasks.commands.assignment_commands import (
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
@@ -53,10 +53,6 @@ from src.core.modules.project_management.api.desktop.tasks.commands.bulk_command
 from src.core.modules.project_management.api.desktop.tasks.commands.dependency_commands import (
     TaskDependencyCreateCommand,
     TaskDependencyUpdateCommand,
-)
-from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
-    EDITABLE_CONSTRAINT_OPTIONS,
-    coerce_constraint_type,
 )
 from src.core.modules.project_management.api.desktop.tasks.commands.task_commands import (
     TaskConstraintUpdateCommand,
@@ -71,11 +67,8 @@ from src.core.modules.project_management.api.desktop.tasks.models.assignment imp
 )
 from src.core.modules.project_management.api.desktop.tasks.models.dependency import (
     TaskDependencyDesktopDto,
+    TaskDependencyImpactPreviewDesktopDto,
     TaskDependencyPageDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.common.detail_pages import (
-    DetailActivityDesktopDto,
-    DetailActivityPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.options import (
     TaskConstraintOptionDescriptor,
@@ -91,12 +84,19 @@ from src.core.modules.project_management.api.desktop.tasks.models.task import (
     TaskDesktopDto,
     TaskWorkspacePageDesktopDto,
 )
+from src.core.modules.project_management.api.desktop.tasks.models.time_summary import (
+    TaskTimeEntriesPageDesktopDto,
+    TaskTimeSummaryDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.tasks.models.validation import (
     AssignmentPreviewDesktopDto,
     AssignmentValidationDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.serializers.assignment_serializer import (
     serialize_assignment,
+)
+from src.core.modules.project_management.api.desktop.tasks.serializers.dependency_impact_preview_serializer import (
+    serialize_dependency_impact_preview,
 )
 from src.core.modules.project_management.api.desktop.tasks.serializers.dependency_serializer import (
     serialize_dependency,
@@ -107,18 +107,16 @@ from src.core.modules.project_management.api.desktop.tasks.serializers.skill_ser
 from src.core.modules.project_management.api.desktop.tasks.serializers.task_serializer import (
     serialize_task,
 )
+from src.core.modules.project_management.api.desktop.tasks.serializers.time_summary_serializer import (
+    serialize_task_time_entries_page,
+    serialize_task_time_summary,
+)
 from src.core.modules.project_management.api.desktop.tasks.services.access_resolution_service import (
     project_rows_for_task_scope,
 )
 from src.core.modules.project_management.api.desktop.tasks.services.resource_lookup_service import (
     resource_by_id,
     resource_name_for_assignment,
-)
-from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
-    coerce_dependency_direction,
-    coerce_dependency_type,
-    dependency_direction,
-    dependency_type_label,
 )
 from src.core.modules.project_management.api.desktop.tasks.utils.task_id_utils import (
     normalize_task_ids,
@@ -138,12 +136,10 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.gateway.task.reservation import (
     TaskReservationGateway,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-
 
 logger = logging.getLogger(__name__)
 
@@ -585,7 +581,7 @@ class ProjectManagementTasksDesktopApi:
             task_id=command.task_id,
             project_resource_id=command.project_resource_id,
             allocation_percent=command.allocation_percent,
-            allocated_planned_hours=getattr(command, "allocated_planned_hours", None) or Decimal("0"),
+            allocated_planned_hours=getattr(command, "allocated_planned_hours", None) or Decimal(0),
         )
         return serialize_assignment(
             assignment,

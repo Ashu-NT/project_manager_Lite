@@ -80,13 +80,13 @@ class ProjectCostCodeRestrictionRemoved:
 
 
 __all__ = [
-    "ProjectFinancialProfileCreated",
-    "ProjectFinancialProfileUpdated",
-    "ProjectFinancialProfileTransitioned",
-    "CostCodeCreated",
-    "CostCodeProfileUpdated",
     "CostCodeActivated",
+    "CostCodeCreated",
     "CostCodeDeactivated",
+    "CostCodeProfileUpdated",
     "ProjectCostCodeRestrictionAdded",
     "ProjectCostCodeRestrictionRemoved",
+    "ProjectFinancialProfileCreated",
+    "ProjectFinancialProfileTransitioned",
+    "ProjectFinancialProfileUpdated",
 ]

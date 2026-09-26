@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
 from src.core.platform.domain.master_data.employee import Employee
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
 
 
 def employee_to_orm(employee: Employee) -> EmployeeORM:

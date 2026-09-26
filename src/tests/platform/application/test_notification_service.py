@@ -4,7 +4,6 @@ import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
-
 _PASSWORD = "StrongPass123!"
 
 

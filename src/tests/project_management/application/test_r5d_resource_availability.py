@@ -12,7 +12,11 @@ from src.core.modules.project_management.api.desktop.resources.factories.resourc
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceWorkloadDemandFact,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 

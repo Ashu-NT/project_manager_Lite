@@ -8,12 +8,13 @@ import sys
 import threading
 import traceback
 import uuid
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import date, datetime, timezone
 from pathlib import Path
 from threading import Lock
-from typing import Any, Generator, Mapping
+from typing import Any
 
 from src.infra.platform.path import user_data_dir
 from src.infra.platform.version import get_app_version
@@ -285,9 +286,9 @@ def install_global_exception_hooks(support: OperationalSupport | None = None) ->
 
 
 __all__ = [
-    "OperationalSupport",
     "REDACTED",
     "REDACTED_EMAIL",
+    "OperationalSupport",
     "TraceIdLogFilter",
     "bind_trace_id",
     "create_incident_id",

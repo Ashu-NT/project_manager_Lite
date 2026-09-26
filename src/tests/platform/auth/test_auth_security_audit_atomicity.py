@@ -14,7 +14,6 @@ from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry 
     AuditEntryORM,
 )
 
-
 _PASSWORD = "StrongPass123!"
 
 

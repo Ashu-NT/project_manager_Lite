@@ -6,12 +6,13 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskSelectorOptionViewModel,
 )
 
+from .filter_models import NormalizedTaskFilters, TaskFilterOptions
 from .task_filters import (
     build_task_priority_options,
     build_task_schedule_options,
     normalize_task_filter,
 )
-from .filter_models import NormalizedTaskFilters, TaskFilterOptions
+
 
 def build_task_filter_options(desktop_api: Any) -> TaskFilterOptions:
     project_options = (

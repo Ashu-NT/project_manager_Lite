@@ -133,7 +133,7 @@ class AuditEntry:
         approval_request_id: str | None = None,
         reason: str | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> "AuditEntry":
+    ) -> AuditEntry:
         normalized_category = str(category or "COMPLIANCE").strip().upper()
         if normalized_category not in AUDIT_CATEGORIES:
             normalized_category = "COMPLIANCE"
@@ -181,4 +181,4 @@ class AuditEntry:
         )
 
 
-__all__ = ["AuditEntry", "AUDIT_CATEGORIES", "AUDIT_RESULTS"]
+__all__ = ["AUDIT_CATEGORIES", "AUDIT_RESULTS", "AuditEntry"]

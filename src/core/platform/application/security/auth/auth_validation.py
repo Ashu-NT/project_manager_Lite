@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from src.core.platform.domain.security.auth import normalize_auth_email
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.domain.security.auth import normalize_auth_email
+
 
 class AuthValidationMixin:
     @staticmethod

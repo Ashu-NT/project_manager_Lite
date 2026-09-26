@@ -1,12 +1,15 @@
 """Change impact view-model assembly."""
 
 from __future__ import annotations
+
 from datetime import date
 
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
     SchedulingChangeImpactDto,
 )
-from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import serialize_change_impact
+from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
+    serialize_change_impact,
+)
 
 
 def build_change_impact(

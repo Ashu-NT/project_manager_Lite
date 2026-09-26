@@ -1,7 +1,11 @@
 """Resource load view-model assembly."""
 
-from src.core.modules.project_management.api.desktop.scheduling.models.resources import SchedulingResourceLoadDto
-from src.core.modules.project_management.api.desktop.scheduling.serializers.resource_load_serializer import serialize_resource_load_row
+from src.core.modules.project_management.api.desktop.scheduling.models.resources import (
+    SchedulingResourceLoadDto,
+)
+from src.core.modules.project_management.api.desktop.scheduling.serializers.resource_load_serializer import (
+    serialize_resource_load_row,
+)
 
 
 def build_resource_load(project_id: str, reporting_service=None) -> tuple[SchedulingResourceLoadDto, ...]:

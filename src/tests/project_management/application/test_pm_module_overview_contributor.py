@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
-from src.core.application.global_overview.contracts.action_center import ActionCenterContext
+from src.core.application.global_overview.contracts.action_center import (
+    ActionCenterContext,
+)
 from src.core.modules.project_management.application.global_overview.pm_module_overview_contributor import (
     ProjectManagementModuleOverviewContributor,
 )

@@ -42,7 +42,7 @@ def build_site_list_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_site_list_view_invalidation_handler",
     "SITE_CATEGORY",
     "SITE_LIST_SCOPE_CODE",
+    "build_site_list_view_invalidation_handler",
 ]

@@ -16,4 +16,4 @@ class PostCommitEventPublisher(Protocol):
     def publish(self, event: DomainEvent, context: DomainEventContext) -> None: ...
 
 
-__all__ = ["TransactionalEventDispatcher", "PostCommitEventPublisher"]
+__all__ = ["PostCommitEventPublisher", "TransactionalEventDispatcher"]

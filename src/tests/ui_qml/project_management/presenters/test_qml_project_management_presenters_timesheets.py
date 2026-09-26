@@ -1,7 +1,9 @@
 from datetime import date
 from types import SimpleNamespace
 
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 
 class _FakeTimesheetsDesktopApi:

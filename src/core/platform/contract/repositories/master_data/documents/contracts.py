@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from src.core.platform.domain.master_data.documents import Document, DocumentLink, DocumentStructure
+from src.core.platform.domain.master_data.documents import (
+    Document,
+    DocumentLink,
+    DocumentStructure,
+)
 
 
 class DocumentStructureRepository(ABC):

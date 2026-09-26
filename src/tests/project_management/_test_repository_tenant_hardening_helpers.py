@@ -4,16 +4,16 @@ from datetime import date, datetime, timezone
 
 from src.core.modules.project_management.domain.enums import (
     CostType,
-    DependencyType,
     ProjectStatus,
     TaskStatus,
     WorkerType,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
-    ProjectResourceORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskORM,
 )

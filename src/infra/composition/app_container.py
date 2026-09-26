@@ -166,13 +166,15 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver
 from src.core.shared.events.view_invalidation import ViewInvalidationChannel
-from src.infra.composition.integration.accounting.accounting_integration import (
-    build_accounting_configuration_commands,
-)
 from src.infra.composition.global_overview_registry import (
     build_global_overview_service_bundle,
 )
-from src.infra.composition.modules.platform_registry import build_platform_service_bundle
+from src.infra.composition.integration.accounting.accounting_integration import (
+    build_accounting_configuration_commands,
+)
+from src.infra.composition.modules.platform_registry import (
+    build_platform_service_bundle,
+)
 from src.infra.composition.modules.project_registry import (
     build_project_management_service_bundle,
 )
@@ -180,10 +182,10 @@ from src.infra.composition.persistence.repositories import build_repository_bund
 from src.infra.integration.approved_time_dispatcher import (
     ApprovedTimeFinancialDispatcher,
 )
-from src.infra.time.system_clock import SystemClock
 from src.infra.integration.procurement_financial_dispatcher import (
     ProcurementFinancialDispatcher,
 )
+from src.infra.time.system_clock import SystemClock
 
 logger = logging.getLogger(__name__)
 

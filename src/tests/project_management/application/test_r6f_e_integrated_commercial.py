@@ -34,7 +34,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
 ):
     services = accounting_services
     _, project, cost_code = _setup_billable_project(services)
-    profile, schedule = _ready_schedule_line(services, project, amount=Decimal("24000"))
+    profile, schedule = _ready_schedule_line(services, project, amount=Decimal(24000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="30000")
     billing = services["billing_preparation_service"]
     reporting = services["reporting_service"]
@@ -68,14 +68,14 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
             expected_row_version=approved.row_version,
         )
     initial = reporting.get_project_commercial_projection(project.id, as_of_date=cutoff)
-    assert initial.approved_preparation_amount == Decimal("24000")
+    assert initial.approved_preparation_amount == Decimal(24000)
     assert (
         initial.forecast_revenue_at_completion
         == profile.contract_value
-        == Decimal("50000")
+        == Decimal(50000)
     )
-    assert initial.projected_margin_amount == Decimal("20000")
-    assert initial.projected_margin_percent == Decimal("40")
+    assert initial.projected_margin_amount == Decimal(20000)
+    assert initial.projected_margin_percent == Decimal(40)
 
     billing.request_delivery(approved.id, expected_row_version=approved.row_version)
     pending = billing.get_preparation(approved.id)
@@ -118,7 +118,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
     _, other_project, _ = _setup_other_project(
         services, name="Other commercial scope", create_period=False
     )
-    _create_billing_profile(services, other_project.id, contract_value=Decimal("1000"))
+    _create_billing_profile(services, other_project.id, contract_value=Decimal(1000))
     other = billing.create_preparation(
         other_project.id,
         preparation_number="OTHER-PROJECT",
@@ -147,7 +147,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
     delta = schedule_service.add_schedule_line(
         project.id,
         name="Additional governed milestone",
-        amount=Decimal("1000"),
+        amount=Decimal(1000),
         due_date=cutoff,
     )
     delta = schedule_service.mark_schedule_line_ready(
@@ -166,7 +166,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
     assert billing.get_preparation(parent.id) == parent
     assert billing.list_lines(parent.id) == saved_lines
     result = reporting.get_project_commercial_projection(project.id, as_of_date=cutoff)
-    assert result.approved_preparation_amount == Decimal("25000")
+    assert result.approved_preparation_amount == Decimal(25000)
     assert (
         result.forecast_revenue_at_completion == initial.forecast_revenue_at_completion
     )

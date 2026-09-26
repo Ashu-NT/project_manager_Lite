@@ -128,7 +128,7 @@ class ResourceCreateCommand(_ResourceMasterCommandValidation):
     code: str = ""
     kind: str = ResourceKind.PERSON.value
     role: str = ""
-    hourly_rate: Decimal = Decimal("0")
+    hourly_rate: Decimal = Decimal(0)
     cost_type: str = CostType.LABOR.value
     currency_code: str | None = None
     capacity_percent: float = 100.0

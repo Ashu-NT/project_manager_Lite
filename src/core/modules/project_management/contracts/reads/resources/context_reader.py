@@ -9,8 +9,8 @@ from src.core.modules.project_management.domain.enums import ProjectStatus, Task
 from .models import (
     ResourceActivityReadPage,
     ResourceAssignmentReadPage,
-    ResourceProjectReadPage,
     ResourceCertificationReadPage,
+    ResourceProjectReadPage,
     ResourceSkillReadPage,
 )
 

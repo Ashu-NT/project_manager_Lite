@@ -8,16 +8,15 @@ Existing rows remain nullable because their exact historical line version and
 modifier cannot be reconstructed truthfully from mutable current Rate Lines.
 New Finance consumers populate these columns from RateSelectionSnapshot.
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision: str = "e9f2a5b8c4d1"
-down_revision: Union[str, Sequence[str], None] = "d8e1f4a7b2c3"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "d8e1f4a7b2c3"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 _TABLES = {

@@ -3,14 +3,16 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from src.core.modules.project_management.application.common.pagination import PaginatedResult
+from src.core.modules.project_management.application.common.pagination import (
+    PaginatedResult,
+)
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
     PortfolioProjectDependency,
-    PortfolioScoringTemplate,
     PortfolioScenario,
+    PortfolioScoringTemplate,
 )
 
 

@@ -7,24 +7,32 @@ from src.core.modules.project_management.contracts.repositories.projects.project
     ProjectRepository,
     ProjectResourceRepository,
 )
-from src.core.modules.project_management.domain.projects.project import Project, ProjectResource
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM, ProjectResourceORM
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
-from src.core.modules.project_management.infrastructure.persistence.repositories._tenant_scope import (
-    ProjectManagementParentScopedRepositorySupport,
+from src.core.modules.project_management.domain.projects.project import (
+    Project,
+    ProjectResource,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.application.tenant.tenancy.tenant_context import (
-    ActiveScopeIds,
-    TenantContextService,
-)
-from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.project import (
     project_from_orm,
     project_resource_from_orm,
     project_resource_to_orm,
     project_to_orm,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+    ProjectResourceORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories._tenant_scope import (
+    ProjectManagementParentScopedRepositorySupport,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyProjectRepository(ProjectRepository):

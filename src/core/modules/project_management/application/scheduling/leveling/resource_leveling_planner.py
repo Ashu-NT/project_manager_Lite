@@ -17,11 +17,9 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
-    CalendarProtocol,
+from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
+    run_cpm,
 )
-from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
-from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import run_cpm
 from src.core.modules.project_management.application.scheduling.leveling.calendar_cache import (
     build_memoizing_window_for_tasks,
 )
@@ -41,6 +39,14 @@ from src.core.modules.project_management.application.scheduling.models.leveling 
 )
 from src.core.modules.project_management.application.scheduling.utils.task_priority import (
     get_task_priority_value,
+)
+from src.core.modules.project_management.domain.tasks.task import (
+    Task,
+    TaskAssignment,
+    TaskDependency,
+)
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
 )
 
 

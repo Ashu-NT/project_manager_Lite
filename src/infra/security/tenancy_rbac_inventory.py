@@ -11,7 +11,6 @@ from typing import Any
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection
 
-
 _MEMBERSHIP_LIFECYCLE_COLUMNS = frozenset(
     {
         "status",

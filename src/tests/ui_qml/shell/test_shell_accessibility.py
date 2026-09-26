@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from textwrap import dedent
 
-from PySide6.QtCore import QUrl, Qt, qInstallMessageHandler
+from PySide6.QtCore import Qt, QUrl, qInstallMessageHandler
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QTest
 

@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from src.core.application.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
-from src.core.application.global_overview.services.action_center_service import ActionCenterService
+from src.core.application.global_overview.services.action_center_service import (
+    ActionCenterService,
+)
 from src.core.application.global_overview.services.global_overview_service import (
     GlobalOverviewService,
 )
@@ -33,7 +35,9 @@ from src.core.platform.application.global_overview.platform_module_overview_cont
     PlatformModuleOverviewContributor,
 )
 from src.infra.composition.modules.platform_registry import PlatformServiceBundle
-from src.infra.composition.modules.project_registry import ProjectManagementServiceBundle
+from src.infra.composition.modules.project_registry import (
+    ProjectManagementServiceBundle,
+)
 
 # This module is the ONLY place that knows both Platform's and Project
 # Management's concrete Global Overview contributor classes at once. Every

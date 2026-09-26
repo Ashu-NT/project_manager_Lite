@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Callable
 
 from src.core.modules.project_management.application.financials.models.finance_models import (
     EarnedValueMetrics,
@@ -75,9 +75,9 @@ class CanonicalEarnedValueCalculator:
                 reason="Current progress is unavailable for one or more baseline tasks.",
             )
 
-        bac = sum((task.baseline_planned_cost for task in cost_loaded_tasks), Decimal("0"))
-        pv = Decimal("0")
-        ev = Decimal("0")
+        bac = sum((task.baseline_planned_cost for task in cost_loaded_tasks), Decimal(0))
+        pv = Decimal(0)
+        ev = Decimal(0)
         for task in cost_loaded_tasks:
             assert task.baseline_start is not None
             assert task.baseline_finish is not None
@@ -172,18 +172,18 @@ class CanonicalEarnedValueCalculator:
         working_days_between: Callable[[date, date], int],
     ) -> Decimal:
         if as_of <= start:
-            return Decimal("0")
+            return Decimal(0)
         if as_of >= finish:
-            return Decimal("1")
+            return Decimal(1)
         total = max(0, working_days_between(start, finish))
         if total == 0:
-            return Decimal("0")
+            return Decimal(0)
         completed = max(0, working_days_between(start, as_of))
-        return min(Decimal("1"), max(Decimal("0"), Decimal(completed) / Decimal(total)))
+        return min(Decimal(1), max(Decimal(0), Decimal(completed) / Decimal(total)))
 
     @staticmethod
     def _clamp_percent(value: Decimal) -> Decimal:
-        return min(Decimal("1"), max(Decimal("0"), value / Decimal("100")))
+        return min(Decimal(1), max(Decimal(0), value / Decimal(100)))
 
     @staticmethod
     def _ratio_or_none(numerator: Decimal, denominator: Decimal) -> Decimal | None:

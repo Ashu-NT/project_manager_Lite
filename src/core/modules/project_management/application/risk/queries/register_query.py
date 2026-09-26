@@ -2,26 +2,40 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.domain.risk.register import RegisterEntry, RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
-from src.core.platform.common.exceptions import NotFoundError
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.register.register import RegisterEntryRepository
+from src.core.modules.project_management.access.scope_permissions import (
+    filter_project_rows,
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
 )
-from src.core.modules.project_management.contracts.reads.register import (
-    RegisterCatalogReadPage,
-    RegisterCatalogReader,
-)
-from src.core.modules.project_management.contracts.reads import ReadSort
-from src.core.modules.project_management.access.scope_permissions import filter_project_rows, require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.risk.dto.register_summary import (
     RegisterDashboardSnapshot,
     RegisterProjectSummary,
     RegisterUrgentItem,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
+from src.core.modules.project_management.contracts.reads.register import (
+    RegisterCatalogReader,
+    RegisterCatalogReadPage,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.register.register import (
+    RegisterEntryRepository,
+)
+from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntry,
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import NotFoundError
 
 _ACTIVE_STATUSES = {
     RegisterEntryStatus.OPEN,

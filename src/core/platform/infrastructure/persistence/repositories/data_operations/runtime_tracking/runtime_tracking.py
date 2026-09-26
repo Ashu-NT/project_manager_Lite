@@ -5,8 +5,13 @@ import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.contract.repositories.data_operations.runtime_tracking.contracts import RuntimeExecutionRepository
+from src.core.platform.contract.repositories.data_operations.runtime_tracking.contracts import (
+    RuntimeExecutionRepository,
+)
 from src.core.platform.domain.data_operations.runtime_tracking import RuntimeExecution
 from src.core.platform.infrastructure.persistence.orm.data_operations.runtime_tracking.runtime_tracking import (
     RuntimeExecutionORM,
@@ -14,7 +19,6 @@ from src.core.platform.infrastructure.persistence.orm.data_operations.runtime_tr
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 def _from_orm(obj: RuntimeExecutionORM) -> RuntimeExecution:

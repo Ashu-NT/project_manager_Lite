@@ -1,4 +1,6 @@
-from src.core.modules.project_management.api.desktop.portfolio.models.templates import PortfolioTemplateDesktopDto
+from src.core.modules.project_management.api.desktop.portfolio.models.templates import (
+    PortfolioTemplateDesktopDto,
+)
 
 
 def serialize_template(template) -> PortfolioTemplateDesktopDto:

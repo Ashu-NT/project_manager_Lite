@@ -8,7 +8,6 @@ from src.core.platform.domain.finance.money import decimal_value
 from src.core.platform.domain.finance.money.currency import CurrencyCode
 from src.core.platform.domain.finance.money.rounding import DEFAULT_ROUNDING_POLICY
 
-
 DesktopNumericInput: TypeAlias = Decimal | int | str
 
 
@@ -23,7 +22,7 @@ def format_decimal_amount(
     if value is None:
         if fallback is not None:
             return fallback
-        amount = Decimal("0")
+        amount = Decimal(0)
     else:
         amount = decimal_value(value, label="Desktop financial amount")
     rounded = DEFAULT_ROUNDING_POLICY.quantize(amount, scale=places)

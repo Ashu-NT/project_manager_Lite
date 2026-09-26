@@ -5,8 +5,6 @@ from datetime import datetime, timezone
 from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
 from src.core.platform.contract.repositories.security.auth import (
     AuthPolicyReconciliationRepository,
     AuthSessionRepository,
@@ -17,11 +15,6 @@ from src.core.platform.contract.repositories.security.auth import (
     RoleRepository,
     UserRepository,
 )
-from src.core.platform.domain.security.authorization.roles import (
-    AuthPolicyReconciliation,
-    RoleBinding,
-    RoleDelegationPolicy,
-)
 from src.core.platform.domain.security.auth import (
     AuthSession,
     Permission,
@@ -31,16 +24,25 @@ from src.core.platform.domain.security.auth import (
     normalize_auth_session_context_id,
     normalize_auth_session_datetime,
 )
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.authorization.roles import (
+    AuthPolicyReconciliation,
+    RoleBinding,
+    RoleDelegationPolicy,
+)
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
+    MEMBERSHIP_STATUS_ACTIVE,
+)
 from src.core.platform.infrastructure.persistence.mappers.security.auth.auth import (
     auth_session_from_orm,
     auth_session_to_orm,
     permission_from_orm,
     permission_to_orm,
-    role_from_orm,
     role_binding_from_orm,
     role_binding_to_orm,
     role_delegation_policy_from_orm,
     role_delegation_policy_to_orm,
+    role_from_orm,
     role_permission_to_orm,
     role_to_orm,
     user_from_orm,
@@ -56,8 +58,8 @@ from src.core.platform.infrastructure.persistence.orm.security.auth.auth import 
     RolePermissionORM,
     UserORM,
 )
-from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
-    MEMBERSHIP_STATUS_ACTIVE,
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
+    UserTenantORM,
 )
 from src.infra.persistence.db.optimistic import update_with_version_check
 
@@ -769,10 +771,10 @@ class SqlAlchemyRolePermissionRepository(RolePermissionRepository):
 __all__ = [
     "SqlAlchemyAuthPolicyReconciliationRepository",
     "SqlAlchemyAuthSessionRepository",
-    "SqlAlchemyUserRepository",
-    "SqlAlchemyRoleRepository",
     "SqlAlchemyPermissionRepository",
     "SqlAlchemyRoleBindingRepository",
     "SqlAlchemyRoleDelegationPolicyRepository",
     "SqlAlchemyRolePermissionRepository",
+    "SqlAlchemyRoleRepository",
+    "SqlAlchemyUserRepository",
 ]

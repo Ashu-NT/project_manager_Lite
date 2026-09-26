@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
+    BaselineService,
+)
 from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
 )
 
 

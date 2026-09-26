@@ -6,7 +6,6 @@ import subprocess
 import sys
 from dataclasses import replace
 from datetime import date, timedelta
-from pathlib import Path
 from time import perf_counter
 
 import pytest
@@ -41,7 +40,6 @@ from src.ui_qml.modules.project_management.controllers.scheduling.scheduling_wor
     ProjectManagementSchedulingWorkspaceController,
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine
-
 
 GANTT_ROOT = (
     REPO_ROOT

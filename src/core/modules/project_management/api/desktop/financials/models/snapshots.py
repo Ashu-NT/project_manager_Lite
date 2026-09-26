@@ -1,7 +1,7 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
+from datetime import date, datetime
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,6 @@ class FinancialPeriodRowDto:
 
 
 __all__ = [
-    "FinancialPeriodRowDto",
     "FinancialOverviewDto",
+    "FinancialPeriodRowDto",
 ]

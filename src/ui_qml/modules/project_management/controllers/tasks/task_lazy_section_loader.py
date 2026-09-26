@@ -4,7 +4,6 @@ import logging
 
 from src.ui_qml.modules.project_management.controllers.common import (
     safe_error_message,
-    serialize_task_collection_view_model,
 )
 
 logger = logging.getLogger(__name__)

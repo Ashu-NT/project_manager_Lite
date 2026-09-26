@@ -2,20 +2,20 @@ from __future__ import annotations
 
 from pydantic import field_validator
 
-from src.core.platform.common.ids import generate_id
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import (
     normalize_optional_identifier,
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.domain.finance.money.currency import CurrencyCode
 from src.core.platform.domain.master_data.org.support import (
     normalize_country_code,
     normalize_email,
     normalize_optional_organization_text,
     normalize_phone,
 )
-from src.core.platform.domain.finance.money.currency import CurrencyCode
 
 ORGANIZATION_STATUS_ACTIVE = "active"
 ORGANIZATION_STATUS_INACTIVE = "inactive"
@@ -182,7 +182,7 @@ class Organization:
         email: str = "",
         phone: str = "",
         website: str = "",
-    ) -> "Organization":
+    ) -> Organization:
         # New organizations always start ACTIVE -- there is no onboarding
         # workflow that needs a different starting state, and lifecycle
         # transitions after creation go through the dedicated activate/

@@ -104,10 +104,10 @@ def build_billing_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_billing_view_invalidation_handler",
     "BILLING_CATEGORY",
     "BILLING_COMMERCIAL_SCOPE_CODE",
-    "BILLING_TRANSPORT_SCOPE_CODE",
     "BILLING_MODULE_CODE",
     "BILLING_PROJECT_ENTITY_TYPE",
+    "BILLING_TRANSPORT_SCOPE_CODE",
+    "build_billing_view_invalidation_handler",
 ]

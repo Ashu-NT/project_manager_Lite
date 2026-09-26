@@ -9,9 +9,6 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
-    CalendarProtocol,
-)
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintType,
 )
@@ -21,6 +18,9 @@ from src.core.modules.project_management.application.scheduling.cpm.dependency_s
     successor_earliest_start_from_boundary,
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 def compute_milestone_dates(
@@ -303,10 +303,10 @@ def apply_backward_scheduling_constraints(
 
 
 __all__ = [
-    "compute_milestone_dates",
-    "compute_duration_dates",
     "apply_actual_date_constraints",
-    "apply_scheduling_constraints",
-    "apply_resource_leveling_floor",
     "apply_backward_scheduling_constraints",
+    "apply_resource_leveling_floor",
+    "apply_scheduling_constraints",
+    "compute_duration_dates",
+    "compute_milestone_dates",
 ]

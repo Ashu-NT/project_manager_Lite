@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from src.core.modules.project_management.api.desktop.scheduling.models import GanttTaskRowDto
+from src.core.modules.project_management.api.desktop.scheduling.models import (
+    GanttTaskRowDto,
+)
 
 from .state import default_selected_activity
 

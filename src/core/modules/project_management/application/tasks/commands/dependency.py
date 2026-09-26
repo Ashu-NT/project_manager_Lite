@@ -4,26 +4,31 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     emit_cascade_schedule_changed,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
-    TaskDependencyChangeType,
     TaskDependencyChanged,
+    TaskDependencyChangeType,
 )
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.domain.approval.policy import is_governance_required
-from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
-from src.core.platform.application.security.authorization.enforcement.permission_checks import is_admin_session, require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    is_admin_session,
+    require_permission,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
     ValidationError,
 )
-from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.platform.domain.approval.policy import is_governance_required
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -37,7 +42,7 @@ if TYPE_CHECKING:
     )
 
 
-def _raise_for_invalid_diagnostic(diagnostic: "DependencyDiagnostic") -> None:
+def _raise_for_invalid_diagnostic(diagnostic: DependencyDiagnostic) -> None:
     """Shared error-mapping for a failed DependencyDiagnostic, used by both
     the request-time check (add/update) and the apply-time re-check so the
     two can never map codes to exception types differently."""

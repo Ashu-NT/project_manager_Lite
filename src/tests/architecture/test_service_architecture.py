@@ -1,24 +1,9 @@
-from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
-from src.core.platform.common.service_base import ServiceBase as LegacyServiceBase
-from src.core.platform.access import AccessControlService
-from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.security.auth import AuthService
-from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
-from src.core.platform.application.master_data.documents.document_service import DocumentService
-from src.core.platform.application.master_data.department.department_service import DepartmentService
-from src.core.platform.application.master_data.employee.employee_service import EmployeeService
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.tenant.modules import ModuleCatalogService
-from src.core.platform.application.time_management.time import TimeService
-from src.tests.path_rewrites import REPO_ROOT
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from pathlib import Path
+
+from src.core.modules.project_management.application.collaboration import (
+    CollaborationService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
-from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -28,17 +13,49 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
-    CPMTaskInfo,
     CalendarProtocol,
-    GlobalCalendarShim,
     SchedulingEngine,
 )
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.collaboration import CollaborationService
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
+    BaselineService,
+)
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
+from src.core.modules.project_management.infrastructure.importers import (
+    DataImportService,
+)
+from src.core.modules.project_management.infrastructure.reporting import (
+    ReportingService,
+)
+from src.core.platform.access import AccessControlService
+from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.master_data.data_exchange import (
+    MasterDataExchangeService,
+)
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.documents.document_service import (
+    DocumentService,
+)
+from src.core.platform.application.master_data.employee.employee_service import (
+    EmployeeService,
+)
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationService,
+)
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.platform_runtime import (
+    PlatformRuntimeApplicationService,
+)
+from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.time_management.time import TimeService
+from src.core.platform.common.service_base import ServiceBase as LegacyServiceBase
 from src.infra.composition.app_container import ServiceGraph, build_service_graph
-from pathlib import Path
+from src.tests.path_rewrites import REPO_ROOT
 
 
 def test_service_graph_builder_wires_all_services(session):

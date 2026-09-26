@@ -42,7 +42,7 @@ def create_billing_profile(desktop_api, payload: dict[str, Any]):
                     payload, "costPlusMarkupPercent", "Markup must be a number."
                 )
                 if optional_text(payload, "costPlusMarkupPercent")
-                else Decimal("0")
+                else Decimal(0)
             ),
             payment_terms_days=require_int(payload, "paymentTermsDays", "Payment terms are required."),
             retention_years=require_int(payload, "retentionYears", "Retention years are required."),

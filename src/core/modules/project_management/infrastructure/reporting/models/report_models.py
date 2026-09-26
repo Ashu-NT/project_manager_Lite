@@ -4,22 +4,11 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+# Financial domain DTOs live in financials/models/ — re-exported here for backward compat.
 from src.core.modules.project_management.application.resources.resource_load_engine import (
     ResourceUtilizationBand,
     resource_utilization_band,
     resource_utilization_status_label,
-)
-
-# Financial domain DTOs live in financials/models/ — re-exported here for backward compat.
-from src.core.modules.project_management.application.financials.models.finance_models import (
-    CostBreakdownRow,
-    CostSourceBreakdown,
-    CostSourceRow,
-    EarnedValueMetrics,
-    EvmSeriesPoint,
-    LaborAssignmentRow,
-    LaborDetailsResult,
-    LaborResourceRow,
 )
 
 # ── Reporting-specific DTOs (schedule, Gantt, KPI, resource load) ─────────────

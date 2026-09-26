@@ -4,14 +4,25 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.resources import (
-    ProjectResourceService,
-    ResourceService,
+from src.core.modules.project_management.api.desktop.common.detail_pages import (
+    DetailActivityDesktopDto,
+    DetailActivityPageDesktopDto,
 )
-from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.application.master_data.department.department_service import DepartmentService
-
+from src.core.modules.project_management.api.desktop.projects.builders.resource_builder import (
+    build_assignable_options,
+    resource_lookup,
+)
+from src.core.modules.project_management.api.desktop.projects.builders.status_builder import (
+    build_status_options,
+)
+from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
+    ProjectCreateCommand,
+    ProjectUpdateCommand,
+)
+from src.core.modules.project_management.api.desktop.projects.commands.resource_commands import (
+    ProjectResourceAssignCommand,
+    ProjectResourceUpdateCommand,
+)
 from src.core.modules.project_management.api.desktop.projects.models.project import (
     ProjectCatalogPageDesktopDto,
     ProjectDesktopDto,
@@ -24,25 +35,9 @@ from src.core.modules.project_management.api.desktop.projects.models.resources i
     ProjectResourceDetailPageDesktopDto,
     ProjectResourceUsageDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.common.detail_pages import (
-    DetailActivityDesktopDto,
-    DetailActivityPageDesktopDto,
+from src.core.modules.project_management.api.desktop.projects.serializers.project_serializer import (
+    serialize_project,
 )
-from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
-    ProjectCreateCommand,
-    ProjectUpdateCommand,
-)
-from src.core.modules.project_management.api.desktop.projects.commands.resource_commands import (
-    ProjectResourceAssignCommand,
-    ProjectResourceUpdateCommand,
-)
-from src.core.modules.project_management.api.desktop.projects.builders.status_builder import build_status_options
-from src.core.modules.project_management.api.desktop.projects.builders.resource_builder import (
-    build_assignable_options,
-    list_resources_for_context,
-    resource_lookup,
-)
-from src.core.modules.project_management.api.desktop.projects.serializers.project_serializer import serialize_project
 from src.core.modules.project_management.api.desktop.projects.serializers.resource_serializer import (
     serialize_project_resource,
     serialize_project_resource_usage,
@@ -51,6 +46,15 @@ from src.core.modules.project_management.api.desktop.projects.utils.project_util
     coerce_project_status,
     optional_date,
 )
+from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.resources import (
+    ProjectResourceService,
+    ResourceService,
+)
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.site.site_service import SiteService
 
 
 class ProjectManagementProjectsDesktopApi:
@@ -435,7 +439,7 @@ class ProjectManagementProjectsDesktopApi:
             normalized_id,
             hourly_rate=command.hourly_rate,
             currency_code=None,
-            planned_hours=max(Decimal("0"), command.planned_hours),
+            planned_hours=max(Decimal(0), command.planned_hours),
             is_active=command.is_active,
             expected_version=command.expected_version,
         )

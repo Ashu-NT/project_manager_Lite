@@ -4,15 +4,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
+    UserTenantMembershipRepository,
+)
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
+    MEMBERSHIP_STATUS_ACTIVE,
+    UserTenantMembership,
+)
 from src.core.platform.infrastructure.persistence.mappers.tenant.tenancy.user_tenant import (
     user_tenant_from_orm,
     user_tenant_to_orm,
 )
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
-from src.core.platform.contract.repositories.tenant.tenancy.contracts import UserTenantMembershipRepository
-from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
-    MEMBERSHIP_STATUS_ACTIVE,
-    UserTenantMembership,
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
+    UserTenantORM,
 )
 from src.infra.persistence.db.optimistic import update_with_version_check
 

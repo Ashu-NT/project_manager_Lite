@@ -13,15 +13,15 @@ from datetime import datetime, timezone
 
 import pytest
 
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.tenant.modules import events as module_events_module
 from src.core.platform.domain.tenant.modules.events import (
     ModuleDisabled,
     ModuleEnabled,
-    ModuleLicenseRevoked,
     ModuleLicensed,
+    ModuleLicenseRevoked,
     ModuleLifecycleTransitioned,
 )
-from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWork,
 )
@@ -399,8 +399,12 @@ def test_events_carry_the_commanded_organization_not_the_active_one(services, mo
 
 def test_command_against_a_foreign_tenant_organization_is_rejected_with_no_event(services, monkeypatch):
     from src.core.platform.common.exceptions import NotFoundError
-    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+        TenantORM,
+    )
 
     catalog = services["module_catalog_service"]
     session = services["session"]

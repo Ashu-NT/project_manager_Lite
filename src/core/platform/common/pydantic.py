@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Callable, TypeVar, cast, overload, dataclass_transform
+from collections.abc import Callable
+from typing import Any, TypeVar, cast, dataclass_transform, overload
 
 from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass as pydantic_dataclass

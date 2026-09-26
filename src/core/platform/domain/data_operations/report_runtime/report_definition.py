@@ -3,7 +3,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Protocol
 
-from src.core.platform.domain.data_operations.report_runtime.report_document import ReportFormat
+from src.core.platform.domain.data_operations.report_runtime.report_document import (
+    ReportFormat,
+)
 
 
 class ReportDefinition(Protocol):

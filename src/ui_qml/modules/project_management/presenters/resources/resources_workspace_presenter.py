@@ -6,7 +6,9 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
     build_project_management_resources_desktop_api,
 )
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceAvailabilityViewModel,
@@ -14,11 +16,6 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceEmployeeOptionViewModel,
 )
 
-from .context_builder import (
-    build_resource_activity_page,
-    build_resource_assignments_page,
-    build_resource_projects_page,
-)
 from .availability_builder import build_resource_availability_state
 from .certifications_builder import (
     add_certification,
@@ -33,6 +30,13 @@ from .command_handler import (
     suggest_code,
     update_resource,
 )
+from .context_builder import (
+    build_resource_activity_page,
+    build_resource_assignments_page,
+    build_resource_projects_page,
+)
+from .detail_builder import build_detail_view_model, build_inspector_view_model
+from .resource_mapper import to_resource_record_view_model
 from .skills_builder import (
     add_skill,
     build_skills_page,
@@ -40,8 +44,7 @@ from .skills_builder import (
     update_skill,
 )
 from .workspace_builder import build_employee_options, build_workspace_state
-from .resource_mapper import to_resource_record_view_model
-from .detail_builder import build_detail_view_model, build_inspector_view_model
+
 
 class ProjectResourcesWorkspacePresenter:
     def __init__(

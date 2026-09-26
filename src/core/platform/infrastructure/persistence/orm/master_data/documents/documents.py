@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Optional
 
-from sqlalchemy import DateTime
 from sqlalchemy import (
     Boolean,
     Date,
-    Enum as SAEnum,
-    Float,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -20,9 +17,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.platform.domain.master_data.employee import EmploymentType
-from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.infra.persistence.orm.base import Base
+
 
 class DocumentStructureORM(Base):
     __tablename__ = "document_structures"
@@ -31,7 +27,7 @@ class DocumentStructureORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
@@ -43,8 +39,8 @@ class DocumentStructureORM(Base):
     )
     structure_code: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    parent_structure_id: Mapped[Optional[str]] = mapped_column(
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    parent_structure_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("document_structures.id", ondelete="SET NULL"),
         nullable=True,
@@ -53,7 +49,7 @@ class DocumentStructureORM(Base):
     default_document_type: Mapped[str] = mapped_column(String(64), nullable=False, default="GENERAL", server_default="GENERAL")
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
@@ -69,7 +65,7 @@ class DocumentORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
@@ -82,29 +78,29 @@ class DocumentORM(Base):
     document_code: Mapped[str] = mapped_column(String(64), nullable=False)
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     document_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    document_structure_id: Mapped[Optional[str]] = mapped_column(
+    document_structure_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("document_structures.id", ondelete="SET NULL"),
         nullable=True,
     )
     storage_kind: Mapped[str] = mapped_column(String(64), nullable=False)
     storage_uri: Mapped[str] = mapped_column(Text, nullable=False)
-    file_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    mime_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    source_system: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    file_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    source_system: Mapped[str | None] = mapped_column(String(128), nullable=True)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    uploaded_by_user_id: Mapped[Optional[str]] = mapped_column(
+    uploaded_by_user_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    effective_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    review_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    confidentiality_level: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    revision: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    business_version_label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    review_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    confidentiality_level: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    revision: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    business_version_label: Mapped[str | None] = mapped_column(String(64), nullable=True)
     is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
@@ -142,7 +138,7 @@ class DocumentLinkORM(Base):
     module_code: Mapped[str] = mapped_column(String(128), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(128), nullable=False)
     entity_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    link_role: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    link_role: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
 
 Index("idx_document_links_document", DocumentLinkORM.document_id)

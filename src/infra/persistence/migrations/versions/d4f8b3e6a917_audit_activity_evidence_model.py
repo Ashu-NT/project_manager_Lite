@@ -15,15 +15,15 @@ and existing `field`/`old_value`/`new_value` triples are folded into a single
 schema is kept afterward.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 
 revision: str = "d4f8b3e6a917"
-down_revision: Union[str, Sequence[str], None] = "a2f5c8d3b917"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "a2f5c8d3b917"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _TABLE = "audit_entries"
 

@@ -3,19 +3,30 @@ from __future__ import annotations
 from dataclasses import replace
 from decimal import Decimal
 
-from src.core.modules.project_management.application.resources.resource_master_events import (
-    ResourceMasterChangeType,
-    ResourceMasterChanged,
-)
-from src.core.modules.project_management.domain.enums import CostType, ResourceKind, WorkerType
-from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
+from src.core.modules.project_management.application.resources.resource_master_events import (
+    ResourceMasterChanged,
+    ResourceMasterChangeType,
+)
+from src.core.modules.project_management.domain.enums import (
+    CostType,
+    ResourceKind,
+    WorkerType,
+)
+from src.core.modules.project_management.domain.resources.resource import Resource
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 
 
 def _employee_contact(employee) -> str:
@@ -218,7 +229,7 @@ class ResourceCommandMixin:
         *,
         code: str = "",
         kind: ResourceKind | str = ResourceKind.PERSON,
-        hourly_rate: Decimal | int | str = Decimal("0"),
+        hourly_rate: Decimal | int | str = Decimal(0),
         cost_type: CostType = CostType.LABOR,
         currency_code: str | None = None,
         capacity_percent: float = 100.0,

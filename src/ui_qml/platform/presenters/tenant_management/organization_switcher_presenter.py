@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
-from src.ui_qml.platform.presenters.common.presenter_support_helpers import preview_error_result
-from src.ui_qml.platform.view_models.tenants.organization import OrganizationSwitcherItemViewModel
+from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
+    preview_error_result,
+)
+from src.ui_qml.platform.view_models.tenants.organization import (
+    OrganizationSwitcherItemViewModel,
+)
 
 
 class OrganizationSwitcherPresenter:

@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 
 

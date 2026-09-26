@@ -20,7 +20,10 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.contract.repositories.finance import FinancialPeriodRepository
-from src.core.platform.domain.finance.periods import FinancialPeriod, FinancialPeriodStatus
+from src.core.platform.domain.finance.periods import (
+    FinancialPeriod,
+    FinancialPeriodStatus,
+)
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 

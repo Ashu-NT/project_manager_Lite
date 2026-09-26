@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.history.audit import AuditEntry
 
 if TYPE_CHECKING:
     from src.core.platform.application.security.auth.auth_service import AuthService

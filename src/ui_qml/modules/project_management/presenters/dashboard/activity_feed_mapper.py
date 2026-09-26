@@ -3,7 +3,10 @@ from __future__ import annotations
 from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
     fmt_utc_datetime,
 )
-from src.ui_qml.shared.models.activity_item import ActivityItemViewModel, serialize_activity_items
+from src.ui_qml.shared.models.activity_item import (
+    ActivityItemViewModel,
+    serialize_activity_items,
+)
 
 
 def to_activity_feed(feed) -> dict[str, object] | None:

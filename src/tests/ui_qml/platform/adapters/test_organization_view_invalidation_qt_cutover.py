@@ -72,8 +72,9 @@ def test_no_refresh_signal_before_commit_and_none_on_rollback(services):
     code = _unique_code("QTCUT-ROLLBACK")
     organization_service.create_organization(organization_code=code, display_name="First")
 
-    from src.core.platform.common.exceptions import ValidationError
     import pytest
+
+    from src.core.platform.common.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
         organization_service.create_organization(organization_code=code, display_name="Second")
@@ -145,8 +146,13 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
     tenant_b = admin_svc.create_tenant(_unique_code("SCOPE-TENANT-B"), "Scope Tenant B")
     services["session"].flush()
 
-    from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
-    from src.core.platform.application.master_data.org.organization_service import OrganizationService
+    from src.core.platform.application.master_data.org.organization_service import (
+        OrganizationService,
+    )
+    from src.core.platform.domain.security.auth.session import (
+        UserSessionContext,
+        UserSessionPrincipal,
+    )
 
     ctx_b = UserSessionContext()
     ctx_b.set_principal(
@@ -201,8 +207,13 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
     tenant_b = admin_svc.create_tenant(_unique_code("SWITCH-TENANT-B"), "Switch Tenant B")
     services["session"].flush()
 
-    from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
-    from src.core.platform.application.master_data.org.organization_service import OrganizationService
+    from src.core.platform.application.master_data.org.organization_service import (
+        OrganizationService,
+    )
+    from src.core.platform.domain.security.auth.session import (
+        UserSessionContext,
+        UserSessionPrincipal,
+    )
 
     ctx_b = UserSessionContext()
     ctx_b.set_principal(

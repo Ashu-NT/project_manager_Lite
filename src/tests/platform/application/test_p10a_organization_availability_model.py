@@ -22,17 +22,28 @@ import inspect
 
 import pytest
 
-from src.core.platform.application.master_data.org import organization_service as organization_service_module
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.master_data.org import (
+    organization_service as organization_service_module,
+)
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationService,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
 from src.core.platform.domain.master_data.org import (
     ORGANIZATION_STATUS_ACTIVE,
     ORGANIZATION_STATUS_INACTIVE,
     Organization,
 )
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
 
 _COUNTER = {"n": 0}
 

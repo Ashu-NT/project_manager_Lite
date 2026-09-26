@@ -1,6 +1,6 @@
 from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidation import (
-    TENANT_MEMBERSHIPS_SCOPE_CODE,
     TENANT_MEMBERSHIP_CATEGORY,
+    TENANT_MEMBERSHIPS_SCOPE_CODE,
     build_tenant_membership_view_invalidation_handler,
 )
 

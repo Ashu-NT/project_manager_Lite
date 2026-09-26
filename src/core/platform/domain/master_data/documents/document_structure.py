@@ -146,7 +146,7 @@ class DocumentStructure:
         sort_order: int = 0,
         is_active: bool = True,
         notes: str = "",
-    ) -> "DocumentStructure":
+    ) -> DocumentStructure:
         return DocumentStructure(
             id=generate_id(),
             organization_id=organization_id,

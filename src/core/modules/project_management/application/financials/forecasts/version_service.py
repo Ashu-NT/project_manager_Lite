@@ -7,19 +7,21 @@ from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
-    ForecastLineChangeType,
-    ForecastLineChanged,
-    ForecastVersionChangeType,
-    ForecastVersionChanged,
-)
 from src.core.modules.project_management.application.financials.forecasts.approval_result import (
     ForecastApprovalRequestResult,
+)
+from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
+    ForecastLineChanged,
+    ForecastLineChangeType,
+    ForecastVersionChanged,
+    ForecastVersionChangeType,
 )
 from src.core.modules.project_management.application.financials.successor_models import (
     ApprovedFinancialLineAdjustment,
@@ -32,9 +34,15 @@ from src.core.modules.project_management.contracts.repositories.finance.configur
 from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import (
     ProjectForecastRepository,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
-from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
+from src.core.modules.project_management.domain.financials.configuration import (
+    CostCodePolicy,
+)
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastDecisionAction,
     ForecastDecisionReason,
@@ -42,14 +50,16 @@ from src.core.modules.project_management.domain.financials.forecast import (
     ForecastLine,
     ForecastLineSourceKind,
     ForecastLineSourceType,
-    ForecastStatus,
     ForecastSourceDecision,
+    ForecastStatus,
     ProjectForecast,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -57,7 +67,6 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-
 
 _OPEN_CONSTRAINT = "uq_pf_forecasts_one_open_per_project"
 _APPROVED_CONSTRAINT = "uq_pf_forecasts_one_approved_per_project"
@@ -561,7 +570,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         decisions: list[ForecastSourceDecision] = []
         for source in self._forecast_repo.list_lines(base.id):
             adjustment = by_target.get(source.id)
-            amount = source.amount + (adjustment.amount if adjustment else Decimal("0"))
+            amount = source.amount + (adjustment.amount if adjustment else Decimal(0))
             if amount < 0:
                 raise BusinessRuleError(
                     "Forecast change would make a successor line negative.",
@@ -675,7 +684,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             ),
             source_amount=line.amount,
             included_amount=line.amount,
-            excluded_amount=Decimal("0"),
+            excluded_amount=Decimal(0),
             currency_code=forecast.currency_code,
             source_snapshot_at=line.source_snapshot_at or occurred_at,
             created_at=occurred_at,

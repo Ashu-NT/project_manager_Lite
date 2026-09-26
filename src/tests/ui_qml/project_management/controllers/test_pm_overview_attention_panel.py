@@ -12,8 +12,12 @@ from PySide6.QtGui import QGuiApplication
 
 from src.application.runtime import build_desktop_api_registry
 from src.core.modules.project_management.domain.enums import TaskStatus
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskORM,
+)
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.modules.project_management.controllers.dashboard.dashboard_operational_table_mixin import (
     DashboardOperationalTableMixin,
 )

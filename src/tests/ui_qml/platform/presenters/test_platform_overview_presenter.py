@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.ui_qml.platform.presenters.overview.admin_overview_presenter import (
-    PlatformAdminWorkspacePresenter,
-)
 from src.tests.ui_qml.platform.presenters._platform_test_helpers import (
     build_connected_platform_registry,
+)
+from src.ui_qml.platform.presenters.overview.admin_overview_presenter import (
+    PlatformAdminWorkspacePresenter,
 )
 
 

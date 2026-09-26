@@ -2,12 +2,18 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.platform.controllers.common import (
+    run_mutation,
+    safe_exception_message,
+    serialize_action_list,
+)
+from src.ui_qml.platform.presenters.sites.site_activity_presenter import (
+    PlatformSiteActivityPresenter,
+)
+from src.ui_qml.platform.presenters.sites.site_catalog_presenter import (
+    PlatformSiteCatalogPresenter,
+)
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
-from src.ui_qml.platform.presenters.sites.site_catalog_presenter import PlatformSiteCatalogPresenter
-from src.ui_qml.platform.presenters.sites.site_activity_presenter import PlatformSiteActivityPresenter
-
-from src.ui_qml.platform.controllers.common import run_mutation, safe_exception_message, serialize_action_list
-
 
 _SITE_PAGE_SIZE_OPTIONS = (25, 50, 100)
 _DEFAULT_SITE_PAGE_SIZE = 25

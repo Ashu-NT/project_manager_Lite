@@ -79,9 +79,9 @@ def build_commitment_view_invalidation_handler(channel: ViewInvalidationChannel)
 
 
 __all__ = [
-    "build_commitment_view_invalidation_handler",
     "COMMITMENT_CATEGORY",
     "COMMITMENT_LIST_SCOPE_CODE",
     "COMMITMENT_MODULE_CODE",
     "COMMITMENT_PROJECT_ENTITY_TYPE",
+    "build_commitment_view_invalidation_handler",
 ]

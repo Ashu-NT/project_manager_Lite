@@ -25,11 +25,11 @@ from src.core.modules.project_management.contracts.reads.timesheets import (
 from src.core.modules.project_management.infrastructure.persistence.reads.resources.sqlalchemy_catalog_reader import (
     SqlAlchemyResourceCatalogReader,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.resources.sqlalchemy_workload_reader import (
-    SqlAlchemyResourceWorkloadDemandReader,
-)
 from src.core.modules.project_management.infrastructure.persistence.reads.resources.sqlalchemy_resource_identity_reader import (
     SqlAlchemyResourceIdentityReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.resources.sqlalchemy_workload_reader import (
+    SqlAlchemyResourceWorkloadDemandReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.timesheets.sqlalchemy_review_reader import (
     SqlAlchemyTimesheetReviewReader,
@@ -37,7 +37,6 @@ from src.core.modules.project_management.infrastructure.persistence.reads.timesh
 from src.core.modules.project_management.infrastructure.persistence.reads.timesheets.sqlalchemy_workspace_reader import (
     SqlAlchemyTimesheetWorkspaceReader,
 )
-
 
 pytestmark = pytest.mark.postgresql_integration
 

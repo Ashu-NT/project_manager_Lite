@@ -5,22 +5,26 @@ from __future__ import annotations
 
 from datetime import date
 
-import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.modules.project_management.domain.enums import ConstraintType, DependencyType
 from src.core.modules.project_management.application.tasks.task_events import (
-    TaskDependencyChangeType,
     TaskDependencyChanged,
-    TaskScheduleChangeType,
+    TaskDependencyChangeType,
     TaskScheduleChanged,
+    TaskScheduleChangeType,
+)
+from src.core.modules.project_management.domain.enums import (
+    ConstraintType,
+    DependencyType,
 )
 from src.core.modules.project_management.infrastructure.approval.task_apply_participant import (
     TaskApprovalParticipant,
 )
 from src.core.platform.domain.approval import ApprovalRequest
-from src.infra.composition.approval_apply_dependencies.task import build_task_approval_deps
+from src.infra.composition.approval_apply_dependencies.task import (
+    build_task_approval_deps,
+)
 from src.infra.persistence.orm.base import Base
 
 

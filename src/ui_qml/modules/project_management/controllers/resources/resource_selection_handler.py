@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+from .resource_context_handler import clear_resource_context
 from .resource_read_handler import (
     clear_resource_read_state,
     load_resource_detail,
     load_resource_inspector,
 )
 from .resource_state import default_selected_resource
-from .resource_context_handler import clear_resource_context
 
 
 def set_search_text(controller, search_text: str) -> None:

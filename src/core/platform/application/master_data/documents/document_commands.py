@@ -6,10 +6,14 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.domain.master_data.documents import (
     Document,
     DocumentClassification,
@@ -28,10 +32,18 @@ from src.core.platform.domain.master_data.documents.events import (
 )
 from src.core.platform.domain.master_data.documents.support import (
     default_file_name as _default_file_name,
+)
+from src.core.platform.domain.master_data.documents.support import (
     infer_mime_type as _infer_mime_type,
 )
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 
-from .document_context import active_organization, require_document_in_context, resolve_structure_for_context
+from .document_context import (
+    active_organization,
+    require_document_in_context,
+    resolve_structure_for_context,
+)
 
 if TYPE_CHECKING:
     from .document_service import DocumentService
@@ -415,10 +427,7 @@ def update_document(
         )
         if file_name is not None:
             updated.file_name = _default_file_name(updated.storage_uri, file_name)
-        if mime_type is not None:
-            if not updated.mime_type:
-                updated.mime_type = _infer_mime_type(updated.file_name or updated.storage_uri)
-        elif storage_uri is not None or storage_ref is not None or file_name is not None:
+        if mime_type is not None or storage_uri is not None or storage_ref is not None or file_name is not None:
             if not updated.mime_type:
                 updated.mime_type = _infer_mime_type(updated.file_name or updated.storage_uri)
         other_fields_changed = (

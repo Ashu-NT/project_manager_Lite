@@ -13,4 +13,4 @@ def default_summary() -> dict[str, object]:
     return {"title": "", "subtitle": "", "emptyState": "", "fields": []}
 
 
-__all__ = ["default_overview", "default_collection", "default_summary"]
+__all__ = ["default_collection", "default_overview", "default_summary"]

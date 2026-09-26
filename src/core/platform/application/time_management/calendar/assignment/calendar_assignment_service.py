@@ -7,7 +7,10 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarAssignmentRepository,
     PlatformCalendarRepository,
@@ -17,7 +20,6 @@ from src.core.platform.domain.time_management.calendar.enterprise_calendar impor
     EmployeeCalendarAssignment,
     SiteCalendarAssignment,
 )
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
 class CalendarAssignmentService:

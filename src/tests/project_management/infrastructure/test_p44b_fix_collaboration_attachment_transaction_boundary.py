@@ -9,6 +9,7 @@ state, never commit counts.
 
 from __future__ import annotations
 
+import pytest
 from sqlalchemy import func, select
 
 from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
@@ -35,8 +36,6 @@ from src.core.platform.infrastructure.persistence.orm.master_data.documents.docu
 from src.core.platform.infrastructure.persistence.repositories.master_data.documents.documents import (
     SqlAlchemyDocumentRepository,
 )
-
-import pytest
 
 
 def _fake_channel():

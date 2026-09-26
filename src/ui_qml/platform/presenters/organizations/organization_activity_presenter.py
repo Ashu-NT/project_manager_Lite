@@ -15,11 +15,21 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
-from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
-from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
-from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.history.activity.activity import (
+    PlatformActivityDesktopApi,
+)
+from src.core.platform.api.desktop.history.activity.models.activity import (
+    ActivityEntryDto,
+)
+from src.core.platform.api.desktop.master_data.department.department import (
+    PlatformDepartmentDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.documents.document import (
+    PlatformDocumentDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.platform.presenters.common.activity_presenter_support import (
@@ -307,7 +317,7 @@ class PlatformOrganizationActivityPresenter:
 
 
 __all__ = [
-    "PlatformOrganizationActivityPresenter",
-    "ACTIVITY_TYPE_FILTER_OPTIONS",
     "ACTIVITY_DATE_FILTER_OPTIONS",
+    "ACTIVITY_TYPE_FILTER_OPTIONS",
+    "PlatformOrganizationActivityPresenter",
 ]

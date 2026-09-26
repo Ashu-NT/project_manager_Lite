@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
-from src.core.platform.application.data_operations.exporting import ExportDefinitionRegistry, ExportRuntime, ensure_output_path
-from src.core.platform.application.data_operations.importing import CsvImportRuntime, ImportDefinitionRegistry
+from src.core.platform.application.data_operations.exporting import (
+    ExportDefinitionRegistry,
+    ExportRuntime,
+    ensure_output_path,
+)
+from src.core.platform.application.data_operations.importing import (
+    CsvImportRuntime,
+    ImportDefinitionRegistry,
+)
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.domain.data_operations.importing import (
     ImportFieldSpec,
     ImportPreview,
@@ -14,15 +24,13 @@ from src.core.platform.domain.data_operations.importing import (
     ImportSourceRow,
     ImportSummary,
 )
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.domain.master_data.party import PartyType
 from src.core.platform.domain.master_data.site import (
     SITE_STATUS_ACTIVE,
     SITE_STATUS_ARCHIVED,
     SITE_STATUS_INACTIVE,
     normalize_site_status,
 )
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.domain.master_data.party import PartyType
 
 if TYPE_CHECKING:
     from src.core.platform.domain.security.auth.session import UserSessionContext
@@ -422,9 +430,7 @@ class MasterDataExchangeService:
         activate_site/deactivate_site/archive_site transitions."""
         payload: dict[str, object] = {}
         name = _text(values.get("name"))
-        if require_name:
-            payload["name"] = name
-        elif name:
+        if require_name or name:
             payload["name"] = name
         for key in (
             "description",
@@ -466,9 +472,7 @@ class MasterDataExchangeService:
     def _parse_party_payload(self, values: dict[str, str], *, require_name: bool) -> dict[str, object]:
         payload: dict[str, object] = {}
         party_name = _text(values.get("party_name"))
-        if require_name:
-            payload["party_name"] = party_name
-        elif party_name:
+        if require_name or party_name:
             payload["party_name"] = party_name
         party_type = _parse_optional_party_type(values.get("party_type"))
         if party_type is not None:

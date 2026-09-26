@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.domain.finance import DecimalQuantity, DecimalQuantityPayload

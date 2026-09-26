@@ -10,7 +10,9 @@ from src.core.modules.project_management.contracts.uow.register.register_unit_of
 from src.core.modules.project_management.infrastructure.persistence.repositories.register.register import (
     SqlAlchemyRegisterEntryRepository,
 )
-from src.core.platform.application.history.activity.activity_service import ActivityService
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )

@@ -6,33 +6,6 @@ from dataclasses import dataclass
 from src.core.application.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
-from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
-from src.core.platform.api.desktop.integration.capability_api import build_integration_capability_api
-from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
-from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.events.notifications.notification import (
-    PlatformNotificationDesktopApi,
-)
-from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
-from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
-from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
-from src.core.platform.api.desktop.master_data.party.party import PlatformPartyDesktopApi
-from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
-from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
-from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
-from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
-from src.core.platform.api.desktop.security.identity.identity import PlatformIdentityDesktopApi
-from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
-from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
-from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
-from src.core.platform.api.desktop.finance import FinancialPeriodDesktopApi
-from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import EnterpriseCalendarDesktopApi
-from src.core.platform.application.platform_runtime import (
-    PlatformRuntimeApplicationService,
-    resolve_platform_runtime_application_service,
-)
-from src.core.shared.events.view_invalidation import ViewInvalidationChannel
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementCollaborationDesktopApi,
     ProjectManagementDashboardDesktopApi,
@@ -50,22 +23,78 @@ from src.core.modules.project_management.api.desktop_runtime import (
     build_project_management_desktop_runtime_apis,
 )
 from src.core.platform.access import AccessControlService
+from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
+from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
+from src.core.platform.api.desktop.events.notifications.notification import (
+    PlatformNotificationDesktopApi,
+)
+from src.core.platform.api.desktop.finance import FinancialPeriodDesktopApi
+from src.core.platform.api.desktop.history.activity.activity import (
+    PlatformActivityDesktopApi,
+)
+from src.core.platform.api.desktop.history.audit.audit_enterprise import (
+    PlatformEnterpriseAuditDesktopApi,
+)
+from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
+from src.core.platform.api.desktop.integration.capability_api import (
+    build_integration_capability_api,
+)
+from src.core.platform.api.desktop.master_data.department.department import (
+    PlatformDepartmentDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.documents.document import (
+    PlatformDocumentDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.party.party import (
+    PlatformPartyDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.platform_runtime.runtime import (
+    PlatformRuntimeDesktopApi,
+)
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.core.platform.api.desktop.security.identity.identity import (
+    PlatformIdentityDesktopApi,
+)
+from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
+from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
+from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import (
+    EnterpriseCalendarDesktopApi,
+)
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.history.activity.activity_service import ActivityService
-from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.finance import FinancialPeriodService
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
+from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.documents.document_service import (
+    DocumentService,
+)
+from src.core.platform.application.master_data.employee.employee_service import (
+    EmployeeService,
+)
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.platform_runtime import (
+    PlatformRuntimeApplicationService,
+    resolve_platform_runtime_application_service,
+)
 from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.security.identity import ServicePrincipalService
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
-)
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
 )
 from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
     EnterpriseCalendarResolver,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
+    CalendarExceptionService,
 )
 from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
     RecurringEventService,
@@ -76,13 +105,12 @@ from src.core.platform.application.time_management.calendar.definitions.shift_pa
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
-from src.core.platform.application.master_data.department.department_service import DepartmentService
-from src.core.platform.application.master_data.documents.document_service import DocumentService
-from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.core.platform.integration.module_registry import ModuleRegistry
-from src.core.platform.application.security.identity import ServicePrincipalService
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.shared.events.view_invalidation import ViewInvalidationChannel
 
 
 @dataclass(frozen=True)
@@ -229,10 +257,12 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         else None
     )
     if integration_capability is None:
+        from src.core.platform.application.tenant.modules import (
+            build_default_module_catalog,
+        )
         from src.core.platform.integration.module_registry import (
             ModuleRegistry as _FallbackModuleRegistry,
         )
-        from src.core.platform.application.tenant.modules import build_default_module_catalog
 
         fallback_catalog = build_default_module_catalog()
         fallback_registry = _FallbackModuleRegistry(fallback_catalog)
@@ -339,9 +369,15 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
 def _build_platform_tenant_api(
     services: Mapping[str, object],
 ) -> PlatformTenantDesktopApi | None:
-    from src.core.platform.application.tenant.tenancy.tenant_admin_service import TenantAdminService as _TAS
-    from src.core.platform.application.tenant.tenancy.tenant_membership_service import TenantMembershipService as _TMS
-    from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService as _TCS
+    from src.core.platform.application.tenant.tenancy.tenant_admin_service import (
+        TenantAdminService as _TAS,
+    )
+    from src.core.platform.application.tenant.tenancy.tenant_context import (
+        TenantContextService as _TCS,
+    )
+    from src.core.platform.application.tenant.tenancy.tenant_membership_service import (
+        TenantMembershipService as _TMS,
+    )
 
     tenant_admin_service = services.get("tenant_admin_service")
     tenant_context_service = services.get("tenant_context_service")

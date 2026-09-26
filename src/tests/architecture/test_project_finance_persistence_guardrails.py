@@ -11,12 +11,11 @@ from src.infra.persistence.db.financial_numeric import (
     financial_numeric_info,
     precision_for,
 )
-from src.infra.persistence.orm import Base
 from src.infra.persistence.migrations.helpers import (
     build_tenant_organization_rls_disable_statements,
     build_tenant_organization_rls_enable_statements,
 )
-
+from src.infra.persistence.orm import Base
 
 PROJECT_FINANCE_TABLE_PREFIX = "project_finance_"
 PROJECT_FINANCE_SCOPED_TABLES = {

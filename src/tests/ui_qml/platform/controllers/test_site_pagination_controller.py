@@ -7,7 +7,9 @@ test_organization_pagination_controller.py's own coverage."""
 from __future__ import annotations
 
 from src.ui_qml.platform.controllers.sites.site_controller import PlatformSiteController
-from src.ui_qml.platform.presenters.sites.site_catalog_presenter import PlatformSiteCatalogPresenter
+from src.ui_qml.platform.presenters.sites.site_catalog_presenter import (
+    PlatformSiteCatalogPresenter,
+)
 
 
 def test_default_page_size_is_25_and_options_are_25_50_100():

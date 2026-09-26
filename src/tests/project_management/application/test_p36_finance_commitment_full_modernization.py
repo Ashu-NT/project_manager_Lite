@@ -9,10 +9,10 @@ import pytest
 
 from src.application.runtime import build_desktop_api_registry
 from src.core.modules.project_management.application.financials.commitments.commitment_events import (
-    CommitmentLineChangeType,
     CommitmentLineChanged,
-    CommitmentMatchChangeType,
+    CommitmentLineChangeType,
     CommitmentMatchChanged,
+    CommitmentMatchChangeType,
 )
 from src.core.modules.project_management.application.financials.commitments.event_handlers.view_invalidation import (
     COMMITMENT_CATEGORY,
@@ -37,11 +37,17 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
     ProjectCostEntryKind,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
-from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload, Money
+from src.core.platform.common.exceptions import ConcurrencyError
+from src.core.platform.domain.finance import (
+    DecimalQuantityPayload,
+    MonetaryRatePayload,
+    Money,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ResourceScope
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 
 def _pm_catalog(services) -> ProjectManagementWorkspaceCatalog:
@@ -204,7 +210,7 @@ def _posted_receipt_entry(services, *, organization, project, cost_code, period,
         posting_date=date(2026, 8, 10),
         financial_period_id=period.id,
         base_money=Money.of(amount, organization.base_currency),
-        exchange_rate=Decimal("1"),
+        exchange_rate=Decimal(1),
         exchange_rate_date=date(2026, 8, 10),
         exchange_rate_source="identity",
         exchange_rate_captured_at=now,

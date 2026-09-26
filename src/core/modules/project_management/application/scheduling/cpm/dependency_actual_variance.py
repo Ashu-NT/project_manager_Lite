@@ -15,7 +15,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.models.cpm import (
+    CPMTaskInfo,
+)
 from src.core.modules.project_management.domain.tasks.task import Task
 
 

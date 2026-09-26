@@ -19,8 +19,13 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
     FinancialSourceReference,
     FinancialSourceType,
 )
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.domain.security.identity.service_principal import (
+    ServicePrincipal,
+)
 from src.core.platform.integration import (
     PROCUREMENT_COMMITMENT_EVENT_TYPE,
     PROCUREMENT_RECEIPT_ACCRUAL_EVENT_TYPE,
@@ -28,9 +33,7 @@ from src.core.platform.integration import (
     ProcurementCommitmentEventPayload,
     ProcurementReceiptAccrualEventPayload,
 )
-from src.core.platform.domain.security.identity.service_principal import ServicePrincipal
 from src.core.shared.events.domain_event import DomainEvent
-
 
 PROCUREMENT_FINANCE_PRINCIPAL_NAME = "PM Finance Procurement Worker"
 

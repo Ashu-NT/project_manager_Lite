@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Iterable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -141,13 +142,8 @@ ModuleCatalogEntry = EnterpriseModule
 
 
 __all__ = [
-    "DEFAULT_PLATFORM_CAPABILITIES",
     "DEFAULT_ENTERPRISE_MODULES",
-    "EnterpriseModule",
-    "ModuleCatalogEntry",
-    "ModuleCatalogService",
-    "ModuleCatalogSnapshot",
-    "ModuleEntitlement",
+    "DEFAULT_PLATFORM_CAPABILITIES",
     "MODULE_LIFECYCLE_ACTIVE",
     "MODULE_LIFECYCLE_EXPIRED",
     "MODULE_LIFECYCLE_INACTIVE",
@@ -155,6 +151,11 @@ __all__ = [
     "MODULE_LIFECYCLE_SUSPENDED",
     "MODULE_LIFECYCLE_TRIAL",
     "MODULE_RUNTIME_ACCESS_STATUSES",
+    "EnterpriseModule",
+    "ModuleCatalogEntry",
+    "ModuleCatalogService",
+    "ModuleCatalogSnapshot",
+    "ModuleEntitlement",
     "PlatformCapability",
     "build_default_module_catalog",
     "normalize_module_code",

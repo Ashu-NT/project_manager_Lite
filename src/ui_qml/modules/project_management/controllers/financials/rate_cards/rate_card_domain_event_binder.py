@@ -16,7 +16,7 @@ def on_rate_card_detail_stale(controller, rate_card_id: str) -> None:
 
 
 __all__ = [
+    "on_rate_card_detail_stale",
     "on_rate_card_list_stale",
     "on_rate_card_list_stale_for_project",
-    "on_rate_card_detail_stale",
 ]

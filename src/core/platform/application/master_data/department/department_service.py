@@ -4,29 +4,38 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
+from src.core.platform.access.authorization import filter_scope_rows
+from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.common.ids import generate_id
-from src.core.platform.access.authorization import filter_scope_rows
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
     DepartmentRollupSummary,
     PlatformOverviewRollupReader,
 )
-from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
-from src.core.platform.contract.uow.department_unit_of_work import DepartmentUnitOfWorkFactory
+from src.core.platform.contract.repositories.master_data.department.contracts import (
+    DepartmentRepository,
+)
+from src.core.platform.contract.repositories.master_data.employee.contracts import (
+    EmployeeRepository,
+)
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.repositories.master_data.site.contracts import (
+    SiteRepository,
+)
+from src.core.platform.contract.uow.department_unit_of_work import (
+    DepartmentUnitOfWorkFactory,
+)
 from src.core.platform.domain.master_data.department import Department
-from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
-from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
 
-from .department_access import require_department_read_access
-from .department_context import active_organization
 from . import department_commands as _cmd
 from . import department_queries as _queries
-
+from .department_access import require_department_read_access
+from .department_context import active_organization
 
 _DEFAULT_DEPARTMENT_PAGE_SIZE = 25
 DEPARTMENT_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
@@ -244,4 +253,4 @@ class DepartmentService:
         return _cmd.deactivate_department(self, department_id)
 
 
-__all__ = ["DepartmentService", "DepartmentPage", "DEPARTMENT_PAGE_SIZE_OPTIONS"]
+__all__ = ["DEPARTMENT_PAGE_SIZE_OPTIONS", "DepartmentPage", "DepartmentService"]

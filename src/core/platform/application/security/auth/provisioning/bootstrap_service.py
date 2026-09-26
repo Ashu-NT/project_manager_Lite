@@ -4,26 +4,25 @@ import os
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+from src.core.platform.application.security.authorization.roles.role_binding_mutation_participant import (
+    create_role_binding_using,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     RoleBindingPlatformScope,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
 
 from .default_seed_service import (
-    ensure_auth_policy_definitions,
     ensure_auth_policy_defaults,
+    ensure_auth_policy_definitions,
     resolve_bootstrap_admin_password,
 )
 from .registration_service import _register_bootstrap_user
-from src.core.platform.application.security.authorization.roles.role_binding_mutation_participant import (
-    create_role_binding_using,
-)
 
 if TYPE_CHECKING:
-    from src.core.platform.domain.security.auth import UserAccount
-
     from src.core.platform.application.security.auth.auth_service import AuthService
+    from src.core.platform.domain.security.auth import UserAccount
 
 
 def bootstrap_policy_catalog(service: AuthService) -> None:

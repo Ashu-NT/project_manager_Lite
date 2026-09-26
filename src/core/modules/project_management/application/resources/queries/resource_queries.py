@@ -5,22 +5,22 @@ from dataclasses import replace
 from src.core.modules.project_management.access.scope_permissions import (
     require_any_project_permission,
 )
-from src.core.modules.project_management.contracts.repositories.resources.resource import (
-    ResourceRepository,
-)
 from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.resources import (
-    ResourceCatalogReadPage,
     ResourceCatalogReader,
+    ResourceCatalogReadPage,
     ResourceInspectorFact,
     ResourceInspectorReader,
     ResourceSummaryFact,
     ResourceSummaryReader,
 )
-from src.core.modules.project_management.contracts.reads import ReadSort
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (

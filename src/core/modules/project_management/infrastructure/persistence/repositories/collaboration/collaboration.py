@@ -9,18 +9,31 @@ from src.core.modules.project_management.contracts.repositories.collaboration.co
     TaskCommentRepository,
     TaskPresenceRepository,
 )
-from src.core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
+from src.core.modules.project_management.domain.collaboration import (
+    TaskComment,
+    TaskPresence,
+)
 from src.core.modules.project_management.infrastructure.persistence.mappers.collaboration import (
     task_comment_from_orm,
     task_comment_to_orm,
     task_presence_from_orm,
     task_presence_to_orm,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import TaskCommentORM, TaskPresenceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
+    TaskCommentORM,
+    TaskPresenceORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskORM,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

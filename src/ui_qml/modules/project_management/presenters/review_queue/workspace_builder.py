@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.api.desktop import ProjectManagementTimesheetsDesktopApi
+from src.core.modules.project_management.api.desktop import (
+    ProjectManagementTimesheetsDesktopApi,
+)
 from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetCollectionViewModel,
     TimesheetMetricViewModel,

@@ -2,11 +2,13 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.core.modules.project_management.api.desktop import (
     build_project_management_projects_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 
 def test_project_management_workspace_catalog_exposes_typed_projects_controller() -> None:
@@ -81,7 +83,7 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
                     project=project,
                     site_label="",
                     financial_currency_code=("EUR" if project.id == "proj-1" else ""),
-                    approved_budget=(Decimal("250000") if project.id == "proj-1" else None),
+                    approved_budget=(Decimal(250000) if project.id == "proj-1" else None),
                     client_label=project.client_name or "",
                 )
                 for project in filtered[offset : offset + page_size]

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from textwrap import dedent
 
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QAccessible
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QTest

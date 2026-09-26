@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+    OrganizationORM,
+)
 
 
 def organization_to_orm(organization: Organization) -> OrganizationORM:

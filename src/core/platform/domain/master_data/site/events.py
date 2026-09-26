@@ -45,9 +45,9 @@ class SiteArchived:
 
 
 __all__ = [
-    "SiteCreated",
-    "SiteProfileUpdated",
     "SiteActivated",
-    "SiteDeactivated",
     "SiteArchived",
+    "SiteCreated",
+    "SiteDeactivated",
+    "SiteProfileUpdated",
 ]

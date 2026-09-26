@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from src.ui_qml.shared.models.activity_item import (
     ActivityItemViewModel,
@@ -8,6 +9,7 @@ from src.ui_qml.shared.models.activity_item import (
     icon_key_for_entity_type,
     tone_for_action,
 )
+
 
 def build_id_lookup(list_result) -> dict[str, str]:
     if not list_result.ok or list_result.data is None:

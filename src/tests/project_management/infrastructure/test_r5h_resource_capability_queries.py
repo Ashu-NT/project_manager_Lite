@@ -3,12 +3,11 @@ from __future__ import annotations
 from datetime import date, timedelta
 from pathlib import Path
 
+import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
-import sqlalchemy as sa
 
 from src.core.modules.project_management.contracts.reads import ReadSort
-
 
 ROOT = Path(__file__).resolve().parents[3]
 

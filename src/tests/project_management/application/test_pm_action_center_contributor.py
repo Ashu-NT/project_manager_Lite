@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.application.global_overview.contracts.action_center import ActionCenterContext
+from src.core.application.global_overview.contracts.action_center import (
+    ActionCenterContext,
+)
 from src.core.modules.project_management.application.global_overview.pm_action_center_contributor import (
     ProjectManagementActionCenterContributor,
 )
 from src.core.modules.project_management.domain.enums import TaskStatus, WorkerType
-from src.core.modules.project_management.domain.scheduling.baseline import BaselineStatus
+from src.core.modules.project_management.domain.scheduling.baseline import (
+    BaselineStatus,
+)
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.shared.resource_identity.contracts import ResourceIdentityReader
 

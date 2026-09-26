@@ -6,29 +6,35 @@ Fix 4:     user_roles unique constraint supports org-scoped role assignment.
 """
 from __future__ import annotations
 
-import pytest
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationService,
+)
+from src.core.platform.domain.master_data.org.organization import Organization
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
 )
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+    TenantORM,
+)
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
 )
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.domain.master_data.org.organization import Organization
 from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
-from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
 from src.infra.time.system_clock import SystemClock
-
 
 # ---------------------------------------------------------------------------
 # Helpers

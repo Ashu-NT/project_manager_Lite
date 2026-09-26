@@ -4,25 +4,32 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import record_authorization_denial
-from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.common.exceptions import (
-    BusinessRuleError,
-    DomainError,
-    NotFoundError,
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    record_authorization_denial,
 )
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
-from src.core.platform.domain.master_data.org import (
-    ORGANIZATION_STATUS_ACTIVE,
-    ORGANIZATION_STATUS_ARCHIVED,
-    Organization,
-)
-from src.core.platform.contract.repositories.tenant.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
 from src.core.platform.application.tenant.tenancy.context_policy import (
     LocalSingleTenantContextPolicy,
     TenancyMode,
     TenantContextPolicy,
 )
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    DomainError,
+    NotFoundError,
+)
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
+    TenantRepository,
+    UserTenantMembershipRepository,
+)
+from src.core.platform.domain.master_data.org import (
+    ORGANIZATION_STATUS_ACTIVE,
+    ORGANIZATION_STATUS_ARCHIVED,
+    Organization,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 
 if TYPE_CHECKING:
@@ -69,21 +76,21 @@ class TenantContextService:
         self._user_tenant_repo = user_tenant_repo
         self._context_policy = context_policy or LocalSingleTenantContextPolicy()
         self._principal_rebuilder: (
-            Callable[[str, str | None], "UserSessionPrincipal"] | None
+            Callable[[str, str | None], UserSessionPrincipal] | None
         ) = None
         self._context_switch_committer: (
-            Callable[["UserSessionPrincipal", str], None] | None
+            Callable[[UserSessionPrincipal, str], None] | None
         ) = None
 
     def set_principal_rebuilder(
         self,
-        rebuilder: Callable[[str, str | None], "UserSessionPrincipal"] | None,
+        rebuilder: Callable[[str, str | None], UserSessionPrincipal] | None,
     ) -> None:
         self._principal_rebuilder = rebuilder
 
     def set_context_switch_committer(
         self,
-        committer: Callable[["UserSessionPrincipal", str], None] | None,
+        committer: Callable[[UserSessionPrincipal, str], None] | None,
     ) -> None:
         self._context_switch_committer = committer
 
@@ -442,7 +449,7 @@ class TenantContextService:
 
     def _activate_rebuilt_context(
         self,
-        principal: "UserSessionPrincipal",
+        principal: UserSessionPrincipal,
         *,
         switch_type: str,
     ) -> None:

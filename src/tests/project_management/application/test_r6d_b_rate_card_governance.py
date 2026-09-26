@@ -52,7 +52,7 @@ def _project_resource(services):
         "R6D-B governed rates", financial_currency_code="XAF"
     )
     resource = services["resource_service"].create_resource(
-        "R6D-B resource", role="engineer", hourly_rate=Decimal("999")
+        "R6D-B resource", role="engineer", hourly_rate=Decimal(999)
     )
     return project, resource
 
@@ -92,7 +92,7 @@ def test_rate_card_and_line_edits_require_current_versions(services):
             line.id,
             expected_version=1,
             expected_card_version=updated_card.version,
-            rate_amount=Decimal("140"),
+            rate_amount=Decimal(140),
         )
 
 
@@ -106,7 +106,7 @@ def test_consumed_rate_line_blocks_rewrite_but_allows_future_end_date(
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("80"),
+        rate_amount=Decimal(80),
         rate_currency="XAF",
         resource_id=resource.id,
     )
@@ -118,7 +118,7 @@ def test_consumed_rate_line_blocks_rewrite_but_allows_future_end_date(
 
     with pytest.raises(BusinessRuleError) as exc:
         service.update_line(
-            line.id, expected_version=line.version, rate_amount=Decimal("81")
+            line.id, expected_version=line.version, rate_amount=Decimal(81)
         )
     assert exc.value.code == "RATE_CARD_LINE_HISTORICAL_IMMUTABLE"
 
@@ -138,7 +138,7 @@ def test_resolution_snapshot_captures_line_version_and_modifier(services):
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("100"),
+        rate_amount=Decimal(100),
         rate_currency="XAF",
         resource_id=resource.id,
         overtime_multiplier=Decimal("1.5"),
@@ -169,7 +169,7 @@ def test_rate_workspace_capabilities_and_consumed_state_are_server_owned(service
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("50"),
+        rate_amount=Decimal(50),
         rate_currency="XAF",
         resource_id=resource.id,
     )

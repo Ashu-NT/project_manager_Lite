@@ -5,7 +5,9 @@ from datetime import date
 
 import pytest
 
-from src.core.modules.project_management.contracts.reads.timesheets import TimesheetScope
+from src.core.modules.project_management.contracts.reads.timesheets import (
+    TimesheetScope,
+)
 from src.core.modules.project_management.domain.enums import ResourceKind, WorkerType
 from src.core.platform.common.exceptions import (
     BusinessRuleError,

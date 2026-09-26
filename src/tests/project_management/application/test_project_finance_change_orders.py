@@ -8,6 +8,9 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
+from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+    FinanceLookupQuery,
+)
 from src.core.modules.project_management.domain.financials.budget import BudgetStatus
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpact,
@@ -24,9 +27,6 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     ValidationError,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
-    FinanceLookupQuery,
 )
 
 
@@ -51,7 +51,7 @@ def _seed_approved_finance(services):
         budget.id,
         cost_code_id=code.id,
         description="Approved scope",
-        amount=Decimal("100"),
+        amount=Decimal(100),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
@@ -75,7 +75,7 @@ def _seed_approved_finance(services):
         forecast.id,
         cost_code_id=code.id,
         description="Approved ETC",
-        amount=Decimal("80"),
+        amount=Decimal(80),
         source_kind=ForecastLineSourceKind.MANUAL,
         source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin",
@@ -116,7 +116,7 @@ def test_submit_change_uses_a_fresh_uow_session_shared_by_the_approval_request(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Increase approved scope",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
@@ -168,7 +168,7 @@ def test_submit_change_commit_failure_rolls_back_change_and_approval_request_tog
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Increase approved scope",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
@@ -213,7 +213,7 @@ def test_submit_change_audit_failure_rolls_back_change_and_approval_request_toge
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Increase approved scope",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
@@ -256,7 +256,7 @@ def test_negative_financial_delta_requires_an_exact_target() -> None:
             project_id="project-a",
             impact_type=FinancialChangeImpactType.BUDGET,
             description="Unscoped reduction",
-            amount=Decimal("-10"),
+            amount=Decimal(-10),
             currency_code="USD",
             cost_code_id="code-a",
         )
@@ -283,7 +283,7 @@ def test_draft_change_and_impact_support_versioned_edit_and_remove(services) -> 
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Initial increase",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
@@ -293,14 +293,14 @@ def test_draft_change_and_impact_support_versioned_edit_and_remove(services) -> 
         impact.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Revised increase",
-        amount=Decimal("15"),
+        amount=Decimal(15),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_impact_version=impact.row_version,
         expected_change_version=change.row_version,
     )
     assert impact.row_version == 2
-    assert impact.amount == Decimal("15")
+    assert impact.amount == Decimal(15)
 
     change = changes.get_change(change.id)
     removed = changes.remove_impact(
@@ -321,7 +321,7 @@ def test_impact_edit_rejects_stale_version_and_type_change(services) -> None:
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Initial increase",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
@@ -333,7 +333,7 @@ def test_impact_edit_rejects_stale_version_and_type_change(services) -> None:
             impact.id,
             impact_type=FinancialChangeImpactType.FORECAST,
             description="Wrong type",
-            amount=Decimal("10"),
+            amount=Decimal(10),
             cost_code_id=code.id,
             target_line_id=budget_line.id,
             expected_impact_version=impact.row_version,
@@ -345,7 +345,7 @@ def test_impact_edit_rejects_stale_version_and_type_change(services) -> None:
         impact.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Updated once",
-        amount=Decimal("12"),
+        amount=Decimal(12),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_impact_version=impact.row_version,
@@ -357,7 +357,7 @@ def test_impact_edit_rejects_stale_version_and_type_change(services) -> None:
             updated.id,
             impact_type=FinancialChangeImpactType.BUDGET,
             description="Stale retry",
-            amount=Decimal("13"),
+            amount=Decimal(13),
             cost_code_id=code.id,
             target_line_id=budget_line.id,
             expected_impact_version=1,
@@ -380,7 +380,7 @@ def test_change_read_capabilities_are_deny_safe_and_target_lookup_is_bounded(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Governed increase",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
@@ -440,7 +440,7 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Increase approved scope",
-        amount=Decimal("25"),
+        amount=Decimal(25),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
@@ -450,7 +450,7 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
         change.id,
         impact_type=FinancialChangeImpactType.FORECAST,
         description="Reduce remaining ETC",
-        amount=Decimal("-15"),
+        amount=Decimal(-15),
         cost_code_id=code.id,
         target_line_id=forecast_line.id,
         expected_change_version=change.row_version,
@@ -481,13 +481,13 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
     assert budgets.get_budget(budget.id).status is BudgetStatus.SUPERSEDED
     successor_budget = budgets.get_budget(applied.applied_budget_id)
     assert successor_budget.status is BudgetStatus.APPROVED
-    assert budgets.list_lines(successor_budget.id)[0].amount == Decimal("125")
+    assert budgets.list_lines(successor_budget.id)[0].amount == Decimal(125)
 
     forecasts = services["forecast_version_service"]
     assert forecasts.get_forecast(forecast.id).status is ForecastStatus.SUPERSEDED
     successor_forecast = forecasts.get_forecast(applied.applied_forecast_id)
     assert successor_forecast.status is ForecastStatus.APPROVED
-    assert forecasts.list_lines(successor_forecast.id)[0].amount == Decimal("65")
+    assert forecasts.list_lines(successor_forecast.id)[0].amount == Decimal(65)
     assert {
         row.source_type for row in forecasts.list_source_decisions(successor_forecast.id)
     } == {ForecastLineSourceType.FINANCIAL_CHANGE}
@@ -510,7 +510,7 @@ def test_financial_change_requester_cannot_decide_own_request(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Dual-permission requester proof",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
@@ -555,7 +555,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Budget base race",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
@@ -565,7 +565,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
         change.id,
         impact_type=FinancialChangeImpactType.FORECAST,
         description="Forecast base race",
-        amount=Decimal("5"),
+        amount=Decimal(5),
         cost_code_id=code.id,
         target_line_id=forecast_line.id,
         expected_change_version=change.row_version,
@@ -605,7 +605,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
             successor.id,
             cost_code_id=code.id,
             description="Replacement approved ETC",
-            amount=Decimal("70"),
+            amount=Decimal(70),
             source_kind=ForecastLineSourceKind.MANUAL,
             source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
             created_by="admin",
@@ -801,7 +801,7 @@ def test_impact_write_rolls_back_when_financial_audit_fails(
             change.id,
             impact_type=FinancialChangeImpactType.BUDGET,
             description="Must be atomic",
-            amount=Decimal("5"),
+            amount=Decimal(5),
             cost_code_id=code.id,
             target_line_id=budget_line.id,
             expected_change_version=change.row_version,
@@ -836,7 +836,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Audited increase",
-        amount=Decimal("5"),
+        amount=Decimal(5),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,

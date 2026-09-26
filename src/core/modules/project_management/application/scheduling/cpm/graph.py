@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import heapq
-from typing import Callable
+from collections.abc import Callable
 
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def build_project_dependency_graph(

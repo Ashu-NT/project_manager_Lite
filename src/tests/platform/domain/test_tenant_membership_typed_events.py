@@ -345,11 +345,11 @@ def test_transactional_handler_failure_rolls_back_the_whole_membership_transacti
         subscription.dispose()
 
     assert recorder.events == []
-    from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
-        SqlAlchemyUserTenantMembershipRepository,
-    )
     from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
         SqlAlchemyRoleBindingRepository,
+    )
+    from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
+        SqlAlchemyUserTenantMembershipRepository,
     )
 
     stored = SqlAlchemyUserTenantMembershipRepository(services["session"]).get(target.id, tenant_id)

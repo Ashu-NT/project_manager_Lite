@@ -8,6 +8,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarAssignmentRepository,
     CalendarExceptionRepository,
@@ -27,7 +28,6 @@ from src.core.platform.domain.time_management.calendar.enterprise_calendar impor
     ShiftPatternDay,
     SiteCalendarAssignment,
 )
-from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.infrastructure.persistence.mappers.time_management.calendar.enterprise_calendar import (
     calendar_exception_from_orm,
     calendar_exception_to_orm,
@@ -48,8 +48,15 @@ from src.core.platform.infrastructure.persistence.mappers.time_management.calend
     working_rule_from_orm,
     working_rule_to_orm,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
-from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
 from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
     CalendarExceptionORM,
     CalendarRecurringEventORM,
@@ -61,7 +68,6 @@ from src.core.platform.infrastructure.persistence.orm.time_management.calendar.e
     ShiftPatternORM,
     SiteCalendarAssignmentORM,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )

@@ -44,8 +44,8 @@ def _evm(**overrides):
         "ETC": Decimal("50.00"),
         "EAC": Decimal("95.00"),
         "VAC": Decimal("5.00"),
-        "TCPI_to_BAC": Decimal("1"),
-        "TCPI_to_EAC": Decimal("1"),
+        "TCPI_to_BAC": Decimal(1),
+        "TCPI_to_EAC": Decimal(1),
         "notes": "",
     }
     values.update(overrides)
@@ -141,7 +141,7 @@ def test_missing_approved_budget_makes_only_budget_pressure_unavailable(monkeypa
 
 
 def test_desktop_tone_consumes_authoritative_favorability(monkeypatch) -> None:
-    facts = _query(monkeypatch, evm=_evm(CV=Decimal("-1"), EAC=Decimal("101"))).get_variance(
+    facts = _query(monkeypatch, evm=_evm(CV=Decimal(-1), EAC=Decimal(101))).get_variance(
         "project-1", as_of_date=date(2026, 8, 28)
     )
     dto = serialize_performance_variance(facts)

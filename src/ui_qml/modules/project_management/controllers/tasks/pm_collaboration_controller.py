@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from PySide6.QtCore import Property, QCoreApplication, QObject, Signal, Slot
 
@@ -21,7 +21,6 @@ _SAFE_KWARGS = dict(
 from src.ui_qml.modules.project_management.presenters import (
     ProjectTasksWorkspacePresenter,
 )
-
 
 logger = logging.getLogger(__name__)
 

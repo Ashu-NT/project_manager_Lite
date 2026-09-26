@@ -102,10 +102,10 @@ def _setup_billable_project(services):
     return organization, project, cost_code
 
 
-def _ready_schedule_line(services, project, *, amount=Decimal("24000")):
+def _ready_schedule_line(services, project, *, amount=Decimal(24000)):
     billing_profile_service = services["billing_profile_service"]
     bp_profile = billing_profile_service.create_profile(
-        project.id, contract_reference=_unique("P39-CONTRACT"), contract_value=Decimal("50000"),
+        project.id, contract_reference=_unique("P39-CONTRACT"), contract_value=Decimal(50000),
         customer_party_id="party-1",
     )
     bp_profile = billing_profile_service.activate_profile(
@@ -216,7 +216,7 @@ def test_profile_lifecycle_produces_source_derived_facts(services):
 
     hints = _spy_hints(services)
     profile = billing_profile_service.create_profile(
-        project.id, contract_reference=_unique("CONTRACT"), contract_value=Decimal("50000"),
+        project.id, contract_reference=_unique("CONTRACT"), contract_value=Decimal(50000),
         customer_party_id="party-1",
     )
     assert len(_billing_hints(hints)) == 1
@@ -230,7 +230,7 @@ def test_profile_lifecycle_produces_source_derived_facts(services):
 
     hints.clear()
     line = billing_profile_service.add_schedule_line(
-        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+        project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     )
     assert len(_billing_hints(hints)) == 1
 
@@ -367,7 +367,7 @@ def test_preparation_creator_cannot_approve_when_another_user_submitted():
         idempotency_key="preparation-1",
         created_by="creator-1",
         line_count=1,
-        total_amount=Decimal("100"),
+        total_amount=Decimal(100),
     )
     preparation.submit(
         submitted_by="submitter-2",
@@ -685,7 +685,7 @@ def test_correction_uses_reconciled_parent_without_mutating_its_evidence(account
     draft = correction(parent.id)
     assert draft.correction_of_preparation_id == parent.id
     assert draft.status is BillingPreparationStatus.DRAFT
-    assert draft.total_amount == Decimal("0")
+    assert draft.total_amount == Decimal(0)
     assert billing.get_preparation(parent.id) == reconciled
     billing.cancel_draft_preparation(draft.id, expected_row_version=draft.row_version)
     replacement = correction(parent.id)
@@ -759,7 +759,7 @@ def test_add_schedule_line_reports_the_command_permission_without_a_boundary_pre
 
     with pytest.raises(BusinessRuleError, match="finance.manage"):
         billing_profile_service.create_profile(
-            project.id, contract_reference="X", contract_value=Decimal("1"),
+            project.id, contract_reference="X", contract_value=Decimal(1),
         )
 
 
@@ -768,12 +768,12 @@ def test_mark_schedule_line_ready_permission_check_is_not_masked(services):
     _, project, _cost_code = _setup_billable_project(services)
     billing_profile_service = services["billing_profile_service"]
     profile = billing_profile_service.create_profile(
-        project.id, contract_reference=_unique("CONTRACT"), contract_value=Decimal("50000"),
+        project.id, contract_reference=_unique("CONTRACT"), contract_value=Decimal(50000),
         customer_party_id="party-1",
     )
     billing_profile_service.activate_profile(project.id, expected_row_version=profile.row_version)
     line = billing_profile_service.add_schedule_line(
-        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+        project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     )
 
     auth = services["auth_service"]
@@ -833,13 +833,13 @@ def test_profile_audit_failure_rolls_back_and_leaves_the_session_usable(services
     hints = _spy_hints(services)
     with pytest.raises(RuntimeError):
         services["billing_profile_service"].create_profile(
-            project.id, contract_reference="Should Roll Back", contract_value=Decimal("1000"),
+            project.id, contract_reference="Should Roll Back", contract_value=Decimal(1000),
         )
     assert _billing_hints(hints) == []
 
     monkeypatch.undo()
     recovered = services["billing_profile_service"].create_profile(
-        project.id, contract_reference="Recovered", contract_value=Decimal("1000"),
+        project.id, contract_reference="Recovered", contract_value=Decimal(1000),
     )
     assert recovered.contract_reference == "Recovered", (
         "the shared session must remain usable for a subsequent legitimate operation"
@@ -861,7 +861,7 @@ def test_concurrent_activate_profile_second_writer_rejected(services, session):
     _, project, _cost_code = _setup_billable_project(services)
     billing_profile_service = services["billing_profile_service"]
     profile = billing_profile_service.create_profile(
-        project.id, contract_reference=_unique("CONTRACT"), contract_value=Decimal("50000"),
+        project.id, contract_reference=_unique("CONTRACT"), contract_value=Decimal(50000),
         customer_party_id="party-1",
     )
     assert profile.row_version == 1

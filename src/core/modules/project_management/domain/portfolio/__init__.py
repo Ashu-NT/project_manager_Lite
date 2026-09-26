@@ -27,16 +27,16 @@ from src.core.modules.project_management.domain.portfolio.scoring_template impor
 )
 
 __all__ = [
-    "PortfolioIntakeStatus",
-    "as_portfolio_intake_status",
-    "calculate_portfolio_intake_composite_score",
-    "PortfolioIntakeItem",
-    "PortfolioScoringTemplate",
     "PortfolioExecutiveRow",
-    "PortfolioRecentAction",
-    "PortfolioScenario",
-    "PortfolioScenarioEvaluation",
-    "PortfolioScenarioComparison",
+    "PortfolioIntakeItem",
+    "PortfolioIntakeStatus",
     "PortfolioProjectDependency",
     "PortfolioProjectDependencyView",
+    "PortfolioRecentAction",
+    "PortfolioScenario",
+    "PortfolioScenarioComparison",
+    "PortfolioScenarioEvaluation",
+    "PortfolioScoringTemplate",
+    "as_portfolio_intake_status",
+    "calculate_portfolio_intake_composite_score",
 ]

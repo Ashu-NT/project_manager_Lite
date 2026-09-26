@@ -5,8 +5,8 @@ from decimal import Decimal
 
 import pytest
 
-from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
 def _login_as(services, username: str, password: str):
@@ -105,7 +105,7 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
             project_id=project.id,
             command_id="viewer-forbidden-cost",
             description="Forbidden cost",
-            amount=Decimal("100"),
+            amount=Decimal(100),
             currency_code="EUR",
             transaction_date=date(2026, 1, 1),
             cost_code_id="forbidden-cost-code",
@@ -195,7 +195,7 @@ def test_governance_permissions_are_split_between_request_and_decide(services, m
         project_id=project.id,
         command_id="governance-permission-split",
         description="Hotel",
-        amount=Decimal("20"),
+        amount=Decimal(20),
         currency_code=organization.base_currency,
         transaction_date=date(2026, 1, 1),
         cost_code_id=cost_code.id,

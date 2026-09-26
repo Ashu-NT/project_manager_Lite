@@ -7,10 +7,10 @@ from datetime import datetime, timezone
 import pytest
 
 from src.core.modules.project_management.application.collaboration.collaboration_events import (
-    TaskCommentChangeType,
     TaskCommentChanged,
-    TaskCommentReactionChangeType,
+    TaskCommentChangeType,
     TaskCommentReactionChanged,
+    TaskCommentReactionChangeType,
     TaskCommentReadStateChanged,
 )
 from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
@@ -18,9 +18,6 @@ from src.core.modules.project_management.application.collaboration.event_handler
     TASK_COMMENT_CATEGORY,
     TASK_COMMENT_SCOPE_CODE,
     build_task_comment_view_invalidation_handler,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
-    SqlAlchemyTaskCommentRepository,
 )
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 from src.core.shared.events.domain_event_context import DomainEventContext

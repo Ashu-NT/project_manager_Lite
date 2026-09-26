@@ -6,7 +6,26 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.infra.persistence.orm import Base
+from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
+    CalendarExceptionService,
+)
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
+    RecurringEventService,
+)
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
+    ShiftPatternService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
+    ExceptionType,
+    ImpactType,
+    PatternType,
+    RecurringEventType,
+)
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -15,23 +34,7 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
-    CalendarType,
-    ExceptionType,
-    ImpactType,
-    PatternType,
-    RecurringEventType,
-)
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
-)
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
-)
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import RecurringEventService
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
-from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.infra.persistence.orm import Base
 
 
 @pytest.fixture
@@ -62,8 +65,8 @@ def mock_user_session():
 
 @pytest.fixture
 def mock_org_repo(db_session, org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     @dataclass
     class FakeOrg:
@@ -76,8 +79,8 @@ def mock_org_repo(db_session, org_id):
 
 @pytest.fixture
 def tenant_context(org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     @dataclass
     class FakeOrg:

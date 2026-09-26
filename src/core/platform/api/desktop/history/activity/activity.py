@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.history.activity.models.activity import (
     ActivityEntryDto,
     ActivityEntryPageDto,
 )
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 

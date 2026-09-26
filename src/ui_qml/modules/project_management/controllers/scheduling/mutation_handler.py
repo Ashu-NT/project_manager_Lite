@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from src.ui_qml.modules.project_management.controllers.common import run_mutation
 
 from .activity_log_service import ActivityLogService
+
 
 class SchedulingMutationHandler:
     def __init__(

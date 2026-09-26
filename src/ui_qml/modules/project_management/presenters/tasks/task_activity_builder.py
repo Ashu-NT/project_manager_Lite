@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.modules.project_management.presenters.common.activity_log_builder import (

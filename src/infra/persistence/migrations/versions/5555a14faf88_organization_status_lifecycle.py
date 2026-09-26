@@ -10,17 +10,16 @@ row could previously represent 'archived', so none are backfilled into it.
 is_enabled and its index are dropped outright -- pre-release, no dual
 enabled/status source of truth is retained.
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '5555a14faf88'
-down_revision: Union[str, Sequence[str], None] = 'e7b2a9c4f613'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = 'e7b2a9c4f613'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _TABLE = "organizations"
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import field
 from datetime import datetime, timezone
-from typing import Iterable
 
 from pydantic import field_validator
 
@@ -114,7 +114,7 @@ class ScopedAccessGrant:
         user_id: str,
         scope_role: str,
         permission_codes: Iterable[str] | None = None,
-    ) -> "ScopedAccessGrant":
+    ) -> ScopedAccessGrant:
         return ScopedAccessGrant(
             id=generate_id(),
             scope_type=scope_type,

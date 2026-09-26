@@ -6,7 +6,6 @@ from src.ui_qml.modules.project_management.controllers.dashboard.dashboard_types
     DASHBOARD_CONTROLLER_LOGGER_NAME,
 )
 
-
 logger = logging.getLogger(DASHBOARD_CONTROLLER_LOGGER_NAME)
 
 

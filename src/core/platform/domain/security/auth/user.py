@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 
 from pydantic import field_validator, model_validator
 
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import (
@@ -14,6 +13,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.domain.security.authorization.roles.role_binding import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
@@ -300,7 +300,7 @@ class UserAccount:
         return normalize_auth_datetime(value, code="AUTH_TIMESTAMP_INVALID")
 
     @model_validator(mode="after")
-    def _validate_federated_identity_pair(self) -> "UserAccount":
+    def _validate_federated_identity_pair(self) -> UserAccount:
         if bool(self.identity_provider) != bool(self.federated_subject):
             raise ValidationError(
                 "Identity provider and federated subject must be set together.",
@@ -321,7 +321,7 @@ class UserAccount:
         session_timeout_minutes_override: int | str | None = None,
         must_change_password: bool = False,
         account_type: str = ACCOUNT_TYPE_HUMAN,
-    ) -> "UserAccount":
+    ) -> UserAccount:
         now = datetime.now(timezone.utc)
         return UserAccount(
             id=generate_id(),
@@ -438,7 +438,7 @@ class Role:
         )
 
     @model_validator(mode="after")
-    def _initialize_metadata(self) -> "Role":
+    def _initialize_metadata(self) -> Role:
         if self.is_system and self.tenant_id is not None:
             raise ValidationError(
                 "System role definitions cannot be tenant-owned.",
@@ -478,7 +478,7 @@ class Role:
         allowed_scope_type: str = ROLE_SCOPE_TENANT,
         is_assignable: bool = True,
         policy_version: int = 1,
-    ) -> "Role":
+    ) -> Role:
         now = datetime.now(timezone.utc)
         return Role(
             id=generate_id(),
@@ -518,7 +518,7 @@ class Permission:
         return normalize_optional_text(value)
 
     @staticmethod
-    def create(code: str, description: str = "") -> "Permission":
+    def create(code: str, description: str = "") -> Permission:
         return Permission(
             id=generate_id(),
             code=code,
@@ -552,7 +552,7 @@ class RolePermissionBinding:
         return normalize_auth_permission_id(value)
 
     @staticmethod
-    def create(role_id: str, permission_id: str) -> "RolePermissionBinding":
+    def create(role_id: str, permission_id: str) -> RolePermissionBinding:
         return RolePermissionBinding(
             id=generate_id(),
             role_id=role_id,

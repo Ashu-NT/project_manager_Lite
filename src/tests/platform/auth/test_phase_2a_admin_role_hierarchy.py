@@ -15,8 +15,6 @@ Covers:
 """
 from __future__ import annotations
 
-import pytest
-
 from src.core.platform.domain.security.authorization.roles import RoleBinding
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
@@ -316,10 +314,10 @@ def test_user_assigned_org_member_gets_correct_permissions(services):
 
 
 def test_org_admin_is_effective_only_in_its_canonical_organization(services):
+    from src.core.platform.domain.master_data.org.organization import Organization
     from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
         SqlAlchemyOrganizationRepository,
     )
-    from src.core.platform.domain.master_data.org.organization import Organization
 
     auth = services["auth_service"]
     session = services["session"]
@@ -411,9 +409,13 @@ def test_org_admin_binding_supports_organization_scope(services):
     """Canonical bindings support the same role in multiple organizations."""
     from sqlalchemy import select
 
-    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import RoleBindingORM
-    from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import SqlAlchemyOrganizationRepository
     from src.core.platform.domain.master_data.org.organization import Organization
+    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+        RoleBindingORM,
+    )
+    from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
+        SqlAlchemyOrganizationRepository,
+    )
 
     session = services["session"]
     auth = services["auth_service"]

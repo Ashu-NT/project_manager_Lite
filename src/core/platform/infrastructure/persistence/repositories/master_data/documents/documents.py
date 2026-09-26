@@ -8,7 +8,11 @@ from src.core.platform.contract.repositories.master_data.documents.contracts imp
     DocumentRepository,
     DocumentStructureRepository,
 )
-from src.core.platform.domain.master_data.documents import Document, DocumentLink, DocumentStructure
+from src.core.platform.domain.master_data.documents import (
+    Document,
+    DocumentLink,
+    DocumentStructure,
+)
 from src.core.platform.infrastructure.persistence.mappers.master_data.documents.documents import (
     document_from_orm,
     document_link_from_orm,
@@ -17,7 +21,11 @@ from src.core.platform.infrastructure.persistence.mappers.master_data.documents.
     document_structure_to_orm,
     document_to_orm,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import DocumentLinkORM, DocumentORM, DocumentStructureORM
+from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import (
+    DocumentLinkORM,
+    DocumentORM,
+    DocumentStructureORM,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )

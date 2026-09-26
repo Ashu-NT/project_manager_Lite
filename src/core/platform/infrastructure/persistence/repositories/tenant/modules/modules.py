@@ -1,22 +1,31 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.contract.repositories.tenant.modules.contracts import (
+    ModuleEntitlementRepository,
+)
 from src.core.platform.domain.tenant.modules import (
     ModuleEntitlementRecord,
     module_storage_codes,
     normalize_module_code,
 )
-from src.core.platform.contract.repositories.tenant.modules.contracts import ModuleEntitlementRepository
-from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules import ModuleEntitlementORM
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+    OrganizationORM,
+)
+from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules import (
+    ModuleEntitlementORM,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 def _utc_now_naive() -> datetime:

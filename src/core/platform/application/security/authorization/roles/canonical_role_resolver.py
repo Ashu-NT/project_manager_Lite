@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.repositories.security.auth import (
     PermissionRepository,
     RoleBindingRepository,
@@ -16,8 +17,6 @@ from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_TENANT,
     RoleBinding,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-
 
 ScopeTenantResolver = Callable[[str, str], bool]
 

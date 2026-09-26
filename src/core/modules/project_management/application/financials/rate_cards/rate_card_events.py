@@ -64,8 +64,8 @@ class RateCardLineDeactivated:
 __all__ = [
     "RateCardCreated",
     "RateCardDeactivated",
-    "RateCardUpdated",
     "RateCardLineAdded",
-    "RateCardLineUpdated",
     "RateCardLineDeactivated",
+    "RateCardLineUpdated",
+    "RateCardUpdated",
 ]

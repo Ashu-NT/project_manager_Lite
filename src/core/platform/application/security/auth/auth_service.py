@@ -6,8 +6,51 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.auth.auth_query import AuthQueryMixin
-from src.core.platform.application.security.auth.auth_validation import AuthValidationMixin
-from src.core.platform.contract.read.overview.platform_overview_rollup_reader import PlatformOverviewRollupReader
+from src.core.platform.application.security.auth.auth_validation import (
+    AuthValidationMixin,
+)
+from src.core.platform.application.security.auth.credentials import (
+    authentication_service as _auth,
+)
+from src.core.platform.application.security.auth.credentials import (
+    federated_identity_service as _fed,
+)
+from src.core.platform.application.security.auth.credentials import mfa_service as _mfa
+from src.core.platform.application.security.auth.credentials import (
+    password_service as _pw,
+)
+from src.core.platform.application.security.auth.provisioning import (
+    bootstrap_service as _bootstrap,
+)
+from src.core.platform.application.security.auth.provisioning import (
+    platform_owner_provisioning_service as _platform_owner,
+)
+from src.core.platform.application.security.auth.provisioning import (
+    registration_service as _reg,
+)
+from src.core.platform.application.security.auth.provisioning import (
+    user_admin_service as _users,
+)
+from src.core.platform.application.security.auth.session import (
+    context_switch_service as _context_switch,
+)
+from src.core.platform.application.security.auth.session import (
+    principal_builder as _principal,
+)
+from src.core.platform.application.security.auth.session import (
+    session_service as _sessions,
+)
+from src.core.platform.application.security.authorization.roles import (
+    role_assignment_service as _roles,
+)
+from src.core.platform.application.security.authorization.roles.canonical_role_resolver import (
+    CanonicalRoleResolver,
+    ScopeTenantResolver,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
+    PlatformOverviewRollupReader,
+)
 from src.core.platform.contract.repositories.security.auth import (
     AuthSessionRepository,
     PermissionRepository,
@@ -17,35 +60,34 @@ from src.core.platform.contract.repositories.security.auth import (
     UserRepository,
 )
 from src.core.platform.domain.security.auth import AuthSession, Role, UserAccount
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.domain.security.authorization.enforcement.sod import SeparationOfDutiesPolicy
-from src.core.platform.common.exceptions import BusinessRuleError
-
-from src.core.platform.application.security.auth.credentials import authentication_service as _auth
-from src.core.platform.application.security.auth.provisioning import bootstrap_service as _bootstrap
-from src.core.platform.application.security.auth.session import context_switch_service as _context_switch
-from src.core.platform.application.security.auth.credentials import federated_identity_service as _fed
-from src.core.platform.application.security.auth.credentials import mfa_service as _mfa
-from src.core.platform.application.security.auth.credentials import password_service as _pw
-from src.core.platform.application.security.auth.provisioning import platform_owner_provisioning_service as _platform_owner
-from src.core.platform.application.security.auth.session import principal_builder as _principal
-from src.core.platform.application.security.auth.provisioning import registration_service as _reg
-from src.core.platform.application.security.authorization.roles import role_assignment_service as _roles
-from src.core.platform.application.security.auth.session import session_service as _sessions
-from src.core.platform.application.security.auth.provisioning import user_admin_service as _users
-from src.core.platform.application.security.authorization.roles.canonical_role_resolver import CanonicalRoleResolver, ScopeTenantResolver
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
+from src.core.platform.domain.security.authorization.enforcement.sod import (
+    SeparationOfDutiesPolicy,
+)
 
 if TYPE_CHECKING:
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
-    from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
-    from src.core.platform.contract.repositories.tenant.tenancy.contracts import UserTenantMembershipRepository
-    from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
+    from src.core.platform.application.security.authorization.roles.role_governance_service import (
+        RoleGovernanceService,
+    )
+    from src.core.platform.application.tenant.tenancy.tenant_context import (
+        TenantContextService,
+    )
+    from src.core.platform.contract.repositories.history.audit.contracts import (
+        AuditRepository,
+    )
+    from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
+        UserTenantMembershipRepository,
+    )
     from src.core.shared.events.domain_event_publisher import (
         PostCommitEventPublisher,
         TransactionalEventDispatcher,
     )
-
-    from src.core.platform.application.security.authorization.roles.role_governance_service import RoleGovernanceService
 
 
 class AuthService(AuthQueryMixin, AuthValidationMixin):
@@ -58,11 +100,11 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         role_permission_repo: RolePermissionRepository,
         auth_session_repo: AuthSessionRepository | None = None,
         user_session: UserSessionContext | None = None,
-        enterprise_audit_service: "EnterpriseAuditService | None" = None,
-        security_audit_repo: "AuditRepository | None" = None,
+        enterprise_audit_service: EnterpriseAuditService | None = None,
+        security_audit_repo: AuditRepository | None = None,
         sod_policy: SeparationOfDutiesPolicy | None = None,
-        user_tenant_repo: "UserTenantMembershipRepository | None" = None,
-        tenant_context_service: "TenantContextService | None" = None,
+        user_tenant_repo: UserTenantMembershipRepository | None = None,
+        tenant_context_service: TenantContextService | None = None,
         request_id_provider: Callable[[], str | None] | None = None,
         role_binding_repo: RoleBindingRepository | None = None,
         canonical_scope_tenant_resolvers: Mapping[
@@ -72,8 +114,8 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         allow_platform_customer_context: bool = False,
         overview_rollup_reader: PlatformOverviewRollupReader | None = None,
         *,
-        transactional_dispatcher: "TransactionalEventDispatcher",
-        post_commit_bus: "PostCommitEventPublisher",
+        transactional_dispatcher: TransactionalEventDispatcher,
+        post_commit_bus: PostCommitEventPublisher,
     ):
         from src.infra.time.system_clock import SystemClock
 
@@ -90,8 +132,8 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._enterprise_audit_service: EnterpriseAuditService | None = enterprise_audit_service
         self._security_audit_repo: AuditRepository | None = security_audit_repo
         self._sod_policy = sod_policy or SeparationOfDutiesPolicy()
-        self._user_tenant_repo: "UserTenantMembershipRepository | None" = user_tenant_repo
-        self._tenant_context_service: "TenantContextService | None" = (
+        self._user_tenant_repo: UserTenantMembershipRepository | None = user_tenant_repo
+        self._tenant_context_service: TenantContextService | None = (
             tenant_context_service
         )
         self._request_id_provider = request_id_provider
@@ -117,7 +159,9 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._role_governance_service: RoleGovernanceService | None = None
 
     def _uow(self):
-        from src.core.platform.application.security.auth.unit_of_work import auth_unit_of_work
+        from src.core.platform.application.security.auth.unit_of_work import (
+            auth_unit_of_work,
+        )
 
         return auth_unit_of_work(
             session=self._session,

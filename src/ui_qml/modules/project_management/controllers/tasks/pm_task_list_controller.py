@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementUndoCommand,
     ProjectManagementUndoStack,
@@ -18,6 +17,7 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.presenters import (
     ProjectTasksWorkspacePresenter,
 )
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 
 class PMTaskListController(QObject):

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from src.core.application.global_overview.services.activity_visibility import is_activity_visible
+from src.core.application.global_overview.services.activity_visibility import (
+    is_activity_visible,
+)
 
 
 def test_platform_activity_is_always_visible_even_with_no_accessible_modules():

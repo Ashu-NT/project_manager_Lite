@@ -8,6 +8,7 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
     _seed_priority_pm_rows,
 )
 
+
 def test_capacity_reader_preserves_cross_project_demand_and_utilization(services) -> None:
     project_service = services["project_service"]
     task_service = services["task_service"]

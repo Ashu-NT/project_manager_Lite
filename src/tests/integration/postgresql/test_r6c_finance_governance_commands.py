@@ -28,41 +28,42 @@ from src.core.modules.project_management.application.financials.forecasts.genera
 from src.core.modules.project_management.application.financials.forecasts.version_service import (
     ForecastVersionService,
 )
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
-    ProjectRateCardService,
-)
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
     FinanceGovernanceOperations,
 )
-from src.core.modules.project_management.domain.financials.financial_change import (
-    FinancialChangeImpactType,
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
+    ProjectRateCardService,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinancePageRequest,
 )
-from src.core.platform.common.exceptions import ConcurrencyError
-from src.core.platform.domain.approval import ApprovalStatus
-from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
-    SqlAlchemyApprovalRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
-    SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
+from src.core.modules.project_management.domain.financials.financial_change import (
+    FinancialChangeImpactType,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_budget_reader import (
     SqlAlchemyFinanceBudgetReader,
 )
+from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
+    SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.core.platform.common.exceptions import ConcurrencyError
+from src.core.platform.domain.approval import ApprovalStatus
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,
 )
-from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
+    SqlAlchemyApprovalRepository,
+)
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
-
 
 pytestmark = pytest.mark.postgresql_integration
 TENANT_A = "r6c-command-tenant-a"

@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.core.platform.api.desktop.events.notifications.models.notification import NotificationDto
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.events.notifications.models.notification import (
+    NotificationDto,
+)
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
 from src.ui_qml.shell.controllers.notifications.notifications_controller import (
     NotificationsController,
 )

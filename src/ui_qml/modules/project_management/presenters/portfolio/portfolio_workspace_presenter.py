@@ -21,6 +21,7 @@ from .command_handler import (
 )
 from .workspace_builder import build_workspace_state
 
+
 class ProjectPortfolioWorkspacePresenter:
     def __init__(
         self,

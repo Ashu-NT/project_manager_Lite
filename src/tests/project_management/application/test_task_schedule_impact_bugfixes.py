@@ -74,7 +74,9 @@ class TestUnavailableReason:
         seam instead, matching test_schedule_impact_da5.py's convention,
         so this defensive branch has real coverage without depending on
         constructing an artificial CPM edge case."""
-        from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import CPMResult
+        from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
+            CPMResult,
+        )
 
         ps = services["project_service"]
         ts = services["task_service"]
@@ -109,6 +111,7 @@ class TestUnavailableReason:
 class TestDependencyMutationRefresh:
     def test_refresh_after_dependency_mutation_reloads_dependencies_without_reactivation(self):
         from types import SimpleNamespace
+
         from src.ui_qml.modules.project_management.controllers.tasks.task_lazy_section_loader import (
             refresh_after_dependency_mutation,
         )
@@ -162,6 +165,7 @@ class TestDependencyMutationRefresh:
 
     def test_refresh_after_dependency_mutation_is_a_noop_with_no_selected_task(self):
         from types import SimpleNamespace
+
         from src.ui_qml.modules.project_management.controllers.tasks.task_lazy_section_loader import (
             refresh_after_dependency_mutation,
         )
@@ -185,6 +189,7 @@ class TestScheduleOverviewProjectIdFallback:
 
     def test_overview_resolves_task_project_id_when_filter_is_blank(self):
         from types import SimpleNamespace
+
         from src.ui_qml.modules.project_management.presenters.tasks.schedule_impact_builder import (
             build_task_schedule_overview_state,
         )
@@ -212,6 +217,7 @@ class TestScheduleOverviewProjectIdFallback:
 
     def test_overview_uses_filter_project_id_when_present(self):
         from types import SimpleNamespace
+
         from src.ui_qml.modules.project_management.presenters.tasks.schedule_impact_builder import (
             build_task_schedule_overview_state,
         )
@@ -236,6 +242,7 @@ class TestScheduleOverviewProjectIdFallback:
 
     def test_preview_resolves_task_project_id_when_filter_is_blank(self):
         from types import SimpleNamespace
+
         from src.ui_qml.modules.project_management.presenters.tasks.schedule_impact_builder import (
             build_task_schedule_impact_preview_state,
         )
@@ -526,6 +533,7 @@ class TestPreviewDeadlineConflict:
 
     def test_preview_builder_surfaces_deadline_conflict_as_blocked_state(self):
         from types import SimpleNamespace
+
         from src.ui_qml.modules.project_management.presenters.tasks.schedule_impact_builder import (
             build_task_schedule_impact_preview_state,
         )

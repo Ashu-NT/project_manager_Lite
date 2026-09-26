@@ -23,10 +23,10 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from .collection_page_state import PortfolioCollectionPageState
 from .domain_event_binder import on_task_metrics_stale, portfolio_request_domain_refresh
+from .filter_normalization import normalize_intake_status
 from .mutation_handler import PortfolioMutationHandler
 from .state import default_collection, default_overview, default_summary
 from .table_models import create_portfolio_table_models
-from .filter_normalization import normalize_intake_status
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1

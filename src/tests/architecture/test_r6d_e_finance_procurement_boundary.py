@@ -1,7 +1,6 @@
 import ast
 from pathlib import Path
 
-
 PM_FINANCE = Path("src/core/modules/project_management/application/financials")
 INNER_SERVICES = (
     PM_FINANCE / "procurement_consumer.py",

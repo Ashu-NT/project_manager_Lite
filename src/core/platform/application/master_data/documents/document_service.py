@@ -4,8 +4,14 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
 
+from sqlalchemy.orm import Session
+
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
     DocumentRollupSummary,
     PlatformOverviewRollupReader,
@@ -15,7 +21,12 @@ from src.core.platform.contract.repositories.master_data.documents.contracts imp
     DocumentRepository,
     DocumentStructureRepository,
 )
-from src.core.platform.contract.uow.document_unit_of_work import DocumentUnitOfWorkFactory
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.uow.document_unit_of_work import (
+    DocumentUnitOfWorkFactory,
+)
 from src.core.platform.domain.master_data.documents import (
     Document,
     DocumentClassification,
@@ -26,23 +37,22 @@ from src.core.platform.domain.master_data.documents import (
 )
 from src.core.platform.domain.master_data.documents.document_link import (
     normalize_document_entity_id as _normalize_document_entity_id,
+)
+from src.core.platform.domain.master_data.documents.document_link import (
     normalize_document_entity_type as _normalize_document_entity_type,
+)
+from src.core.platform.domain.master_data.documents.document_link import (
     normalize_document_module_code as _normalize_document_module_code,
 )
 from src.core.platform.domain.master_data.documents.support import (
     normalize_object_scope as _normalize_object_scope,
 )
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.application.tenant.tenancy import TenantContextService
-from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
-from sqlalchemy.orm import Session
 
 from . import document_commands as _cmd
 from .document_context import active_organization, resolve_structure_for_context
-
 
 _DEFAULT_DOCUMENT_PAGE_SIZE = 25
 DOCUMENT_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
@@ -405,4 +415,4 @@ class DocumentService:
         return active_organization(self)
 
 
-__all__ = ["DocumentService", "DocumentPage", "DOCUMENT_PAGE_SIZE_OPTIONS"]
+__all__ = ["DOCUMENT_PAGE_SIZE_OPTIONS", "DocumentPage", "DocumentService"]

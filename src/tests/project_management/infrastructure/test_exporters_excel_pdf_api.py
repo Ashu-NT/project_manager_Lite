@@ -7,19 +7,15 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
-from src.core.platform.domain.security.auth.session import UserSessionPrincipal
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
-from src.core.modules.project_management.infrastructure.reporting import api as reporting_api
-from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
-    FinanceLedgerExportPage,
-    MAX_FINANCE_LEDGER_EXPORT_ROWS,
+from src.core.modules.project_management.infrastructure.reporting import (
+    api as reporting_api,
 )
 from src.core.modules.project_management.infrastructure.reporting.models import (
+    CostBreakdownRow,
     CostSourceBreakdown,
     CostSourceRow,
-    CostBreakdownRow,
     EarnedValueMetrics,
     EvmSeriesPoint,
     GanttTaskBar,
@@ -27,6 +23,12 @@ from src.core.modules.project_management.infrastructure.reporting.models import 
     ResourceLoadRow,
     TaskVarianceRow,
 )
+from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
+    MAX_FINANCE_LEDGER_EXPORT_ROWS,
+    FinanceLedgerExportPage,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
 def _setup_report_project(services):
@@ -194,12 +196,12 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
         currency_code="XAF",
         availability="available",
         unavailable_reason=None,
-        BAC=Decimal("100"),
-        PV=Decimal("80"),
-        EV=Decimal("60"),
-        AC=Decimal("50"),
-        CV=Decimal("10"),
-        SV=Decimal("-20"),
+        BAC=Decimal(100),
+        PV=Decimal(80),
+        EV=Decimal(60),
+        AC=Decimal(50),
+        CV=Decimal(10),
+        SV=Decimal(-20),
         CPI=Decimal("1.2"),
         SPI=Decimal("0.75"),
         EAC=Decimal("83.33"),
@@ -209,10 +211,10 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
     series = [
         EvmSeriesPoint(
             period_end=date(2023, 11, 30),
-            PV=Decimal("80"),
-            EV=Decimal("60"),
-            AC=Decimal("50"),
-            BAC=Decimal("100"),
+            PV=Decimal(80),
+            EV=Decimal(60),
+            AC=Decimal(50),
+            BAC=Decimal(100),
             CPI=Decimal("1.2"),
             SPI=Decimal("0.75"),
         )

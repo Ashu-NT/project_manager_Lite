@@ -14,8 +14,6 @@ from __future__ import annotations
 
 from sqlalchemy import event
 
-import pytest
-
 
 def _seed_employees(employee_service, *, department_id=None, site_id=None, count, prefix):
     created = []
@@ -136,7 +134,9 @@ def test_department_filter_from_foreign_organization_yields_no_rows(services):
 
 
 def test_desktop_api_list_employees_accepts_department_and_site_filters(services):
-    from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+    from src.core.platform.api.desktop.master_data.employee.employee import (
+        PlatformEmployeeDesktopApi,
+    )
 
     employee_service = services["employee_service"]
     department_service = services["department_service"]

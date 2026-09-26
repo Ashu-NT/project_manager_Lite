@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
 from src.core.platform.domain.master_data.department import Department
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
 
 
 def department_to_orm(department: Department) -> DepartmentORM:

@@ -9,7 +9,11 @@ from src.core.modules.project_management.api.desktop.resources.models.options im
     ResourceScopeOptionDescriptor,
     ResourceWorkerTypeDescriptor,
 )
-from src.core.modules.project_management.domain.enums import CostType, ResourceKind, WorkerType
+from src.core.modules.project_management.domain.enums import (
+    CostType,
+    ResourceKind,
+    WorkerType,
+)
 
 
 def build_worker_type_options() -> tuple[ResourceWorkerTypeDescriptor, ...]:

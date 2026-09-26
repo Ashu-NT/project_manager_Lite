@@ -9,14 +9,13 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
 from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
     EnterpriseCalendarResolver,
     ResolvedCalendarContext,
 )
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
-)
-
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ class BoundProjectCalendar:
     without needing to know the project_id at every call site.
     """
 
-    def __init__(self, adapter: "ProjectCalendarAdapter", project_id: str) -> None:
+    def __init__(self, adapter: ProjectCalendarAdapter, project_id: str) -> None:
         self._adapter = adapter
         self._project_id = project_id
 
@@ -206,7 +205,7 @@ class ProjectCalendarAdapter:
     def get_source_chain(self, project_id: str) -> list[str]:
         return self._resolver.get_source_chain(project_id=project_id)
 
-    def bind_for_project(self, project_id: str) -> "BoundProjectCalendar" | None:
+    def bind_for_project(self, project_id: str) -> BoundProjectCalendar | None:
         """
         Always returns a BoundProjectCalendar so the SchedulingEngine uses the enterprise
         calendar hierarchy for every project.

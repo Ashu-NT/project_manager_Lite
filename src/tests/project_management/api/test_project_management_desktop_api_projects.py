@@ -1,18 +1,14 @@
 from datetime import date
-from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_projects_desktop_api,
-    build_project_management_resources_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
     ProjectCreateCommand,
     ProjectUpdateCommand,
 )
 from src.core.modules.project_management.domain.enums import (
-    CostType,
     ProjectStatus,
-    WorkerType,
 )
 from src.core.modules.project_management.domain.projects.project import Project
 

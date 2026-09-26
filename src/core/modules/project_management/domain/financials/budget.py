@@ -272,7 +272,7 @@ class ProjectBudget:
         revision: int = 1,
         created_at: datetime | None = None,
         **values,
-    ) -> "ProjectBudget":
+    ) -> ProjectBudget:
         now = created_at or _utc_now()
         return ProjectBudget(
             id=generate_id(),
@@ -299,7 +299,7 @@ class BudgetLine:
     cost_code_id: str
     task_id: str | None = None
     description: str = ""
-    amount: Decimal = Decimal("0")
+    amount: Decimal = Decimal(0)
     currency_code: str = ""
     row_version: int = 1
     created_at: datetime = field(default_factory=_utc_now)
@@ -376,7 +376,7 @@ class BudgetLine:
         currency_code: str,
         created_at: datetime | None = None,
         **values,
-    ) -> "BudgetLine":
+    ) -> BudgetLine:
         now = created_at or _utc_now()
         return BudgetLine(
             id=generate_id(),

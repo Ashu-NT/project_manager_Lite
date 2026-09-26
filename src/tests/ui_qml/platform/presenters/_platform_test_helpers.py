@@ -4,13 +4,13 @@ from dataclasses import replace
 from datetime import datetime
 from types import SimpleNamespace
 
-from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
 from src.core.platform.api.desktop.access.models.access import (
+    ScopedAccessGrantDto,
     ScopeTargetDto,
     ScopeTypeChoiceDto,
-    ScopedAccessGrantDto,
 )
 from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
+from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentDto,
     DepartmentRollupSummaryDto,
@@ -27,10 +27,22 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeHeadcountSummaryDto,
     EmployeeSiteBreakdownRowDto,
 )
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
-from src.core.platform.api.desktop.master_data.party.models.party import PartyDto, PartyRollupSummaryDto
-from src.core.platform.api.desktop.master_data.site.models.site import SiteDto, SitePageDto, SiteRollupSummaryDto
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
+from src.core.platform.api.desktop.master_data.party.models.party import (
+    PartyDto,
+    PartyRollupSummaryDto,
+)
+from src.core.platform.api.desktop.master_data.site.models.site import (
+    SiteDto,
+    SitePageDto,
+    SiteRollupSummaryDto,
+)
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
 from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     CountryDto,
     ModuleDto,
@@ -39,7 +51,11 @@ from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     PlatformRuntimeContextDto,
     TimezoneDto,
 )
-from src.core.platform.api.desktop.security.auth.models.user import RoleDto, UserDto, UserRollupSummaryDto
+from src.core.platform.api.desktop.security.auth.models.user import (
+    RoleDto,
+    UserDto,
+    UserRollupSummaryDto,
+)
 from src.core.platform.api.desktop.support.models.support import (
     SupportBundleDto,
     SupportEventDto,

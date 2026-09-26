@@ -13,14 +13,6 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
 )
-from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
-from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
-    SqlAlchemyUserRepository,
-)
-from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
-    SqlAlchemyUserTenantMembershipRepository,
-)
 from src.core.platform.domain.tenant.tenancy import (
     MEMBERSHIP_STATUS_ACTIVE,
     MEMBERSHIP_STATUS_INVITED,
@@ -28,8 +20,17 @@ from src.core.platform.domain.tenant.tenancy import (
     MEMBERSHIP_STATUS_SUSPENDED,
     UserTenantMembership,
 )
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+    TenantORM,
+)
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
+    SqlAlchemyUserRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
+    SqlAlchemyUserTenantMembershipRepository,
+)
 from src.infra.persistence.migrations.runner import run_migrations
-
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _MIGRATIONS_ROOT = (

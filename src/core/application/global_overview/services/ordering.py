@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date, datetime
-from typing import Iterable
 
-from src.core.application.global_overview.contracts.action_center import ActionCenterItemDto
+from src.core.application.global_overview.contracts.action_center import (
+    ActionCenterItemDto,
+)
 
 # Tier 3 (no due_at) filler for the due_at sort column, so every item's key
 # has the same shape/type per column regardless of tier -- never actually

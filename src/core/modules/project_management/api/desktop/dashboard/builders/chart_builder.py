@@ -1,19 +1,23 @@
 """Chart builders — EVM trend, burndown, resource load, portfolio charts."""
 
 from __future__ import annotations
+
 from datetime import date
 from decimal import Decimal
 from typing import Any
 
+from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
+    fmt_float,
+    fmt_int,
+    fmt_percent,
+)
+from src.core.modules.project_management.api.desktop.dashboard.formatters.period_formatter import (
+    fmt_period_axis_label,
+    period_cutoff_date,
+)
 from src.core.modules.project_management.api.desktop.dashboard.models.charts import (
     ProjectDashboardChartDescriptor,
     ProjectDashboardChartPointDescriptor,
-)
-from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
-    fmt_float, fmt_int, fmt_percent,
-)
-from src.core.modules.project_management.api.desktop.dashboard.formatters.period_formatter import (
-    fmt_period_axis_label, period_cutoff_date,
 )
 
 _PT = ProjectDashboardChartPointDescriptor

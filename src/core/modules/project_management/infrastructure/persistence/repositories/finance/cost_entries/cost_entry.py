@@ -3,15 +3,15 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
-    ProjectCostEntryRepository,
-)
-from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialSourceModule,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
-    stable_order_by,
+from src.core.modules.project_management.contracts.reads import (
+    ReadSort,
+    ReadSortDirection,
+)
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
+    ProjectCostEntryRepository,
 )
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
@@ -24,7 +24,12 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.cost
 from src.core.modules.project_management.infrastructure.persistence.orm.cost_entry import (
     ProjectCostEntryORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     ActiveScopeIds,
     TenantContextService,

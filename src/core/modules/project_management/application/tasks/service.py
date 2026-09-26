@@ -1,29 +1,27 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-from src.core.modules.project_management.contracts.reads.tasks import TaskWorkspaceReader
-
 import os
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.scheduling import SchedulingEngine
+from src.core.modules.project_management.application.tasks.commands.approved_schedule_change import (
+    ApprovedScheduleChangeMixin,
+)
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.assignment_bridge import (
     TaskAssignmentBridgeMixin,
 )
-from src.core.modules.project_management.application.tasks.commands.approved_schedule_change import (
-    ApprovedScheduleChangeMixin,
-)
-from src.core.modules.project_management.application.tasks.commands.dependency import (
-    TaskDependencyMixin,
-)
 from src.core.modules.project_management.application.tasks.commands.deletion import (
     TaskDeletionMixin,
 )
-from src.core.modules.project_management.application.tasks.commands.lifecycle import (
-    TaskLifecycleMixin,
+from src.core.modules.project_management.application.tasks.commands.dependency import (
+    TaskDependencyMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.hierarchy import (
     TaskHierarchyMixin,
@@ -33,6 +31,9 @@ from src.core.modules.project_management.application.tasks.commands.hierarchy_su
 )
 from src.core.modules.project_management.application.tasks.commands.identity import (
     TaskIdentityMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.lifecycle import (
+    TaskLifecycleMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.progress import (
     TaskProgressMixin,
@@ -55,38 +56,48 @@ from src.core.modules.project_management.application.tasks.commands.validation i
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     TaskDependencyDiagnosticsMixin,
 )
+from src.core.modules.project_management.application.tasks.queries.hierarchy_query import (
+    TaskHierarchyQueryMixin,
+)
 from src.core.modules.project_management.application.tasks.queries.task_query import (
     TaskQueryMixin,
 )
-from src.core.modules.project_management.application.tasks.queries.hierarchy_query import (
-    TaskHierarchyQueryMixin,
+from src.core.modules.project_management.application.timesheets import TimesheetService
+from src.core.modules.project_management.contracts.reads.tasks import (
+    TaskWorkspaceReader,
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
     ProjectResourceRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
 )
-from src.core.platform.application.history.activity.activity_service import ActivityService
-from src.core.platform.application.history.audit.enterprise_audit_service import (
-    EnterpriseAuditService,
-)
 from src.core.modules.project_management.contracts.uow.tasks.task_unit_of_work import (
     TaskUnitOfWorkFactory,
 )
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.platform.common.ids import generate_id
 from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
+from src.core.platform.application.history.audit.enterprise_audit_service import (
+    EnterpriseAuditService,
+)
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
+from src.core.platform.contract.repositories.time_management.time.contracts import (
+    TimeEntryRepository,
+    TimesheetPeriodRepository,
+)
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository, TimesheetPeriodRepository
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
-from src.core.modules.project_management.application.scheduling import SchedulingEngine
-from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
 class TaskService(

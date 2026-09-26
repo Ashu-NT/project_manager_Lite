@@ -4,22 +4,33 @@ import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.domain.security.auth import AuthSession
-from src.core.platform.domain.security.auth.events import UserSessionPolicyChanged, UserSessionsRevoked
-from src.core.platform.domain.security.auth.session import UserSessionPrincipal
+from src.core.platform.application.security.auth.audit.security_audit import (
+    add_atomic_security_audit,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+)
+from src.core.platform.application.security.authorization.enforcement.target_user_authorization import (
+    require_target_user_in_active_tenant,
+)
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.domain.security.auth import AuthSession
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.auth.events import (
+    UserSessionPolicyChanged,
+    UserSessionsRevoked,
+)
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 from .principal_builder import build_principal
-from src.core.platform.application.security.auth.audit.security_audit import add_atomic_security_audit
-from .session_utils import next_session_expiry, rotate_session_revision, validate_session_timeout_override
-from src.core.platform.application.security.authorization.enforcement.target_user_authorization import require_target_user_in_active_tenant
+from .session_utils import (
+    next_session_expiry,
+    rotate_session_revision,
+)
 
 if TYPE_CHECKING:
-    from src.core.platform.domain.security.auth import UserAccount
-
     from src.core.platform.application.security.auth.auth_service import AuthService
+    from src.core.platform.domain.security.auth import UserAccount
 
 logger = logging.getLogger(__name__)
 _SESSION_VALIDATION_THROTTLE_SECONDS = 60

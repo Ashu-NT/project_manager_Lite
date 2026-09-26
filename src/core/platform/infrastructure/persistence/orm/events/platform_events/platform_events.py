@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -14,7 +13,7 @@ class PlatformEventORM(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     operation: Mapped[str] = mapped_column(String(64), nullable=False)
-    actor_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    actor_user_id: Mapped[str | None] = mapped_column(String, nullable=True)
     tenant_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),

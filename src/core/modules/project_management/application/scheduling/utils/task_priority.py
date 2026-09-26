@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from src.core.modules.project_management.domain.tasks.task import Task
 
 
-def get_task_priority_value(task: "Task") -> int:
+def get_task_priority_value(task: Task) -> int:
     """
     Return a sort key where lower = higher scheduling priority.
 

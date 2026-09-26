@@ -8,18 +8,25 @@ from src.core.platform.api.desktop_runtime.service_resolver import (
     ModuleRuntimeSnapshot,
     build_module_runtime_snapshot,
 )
-from src.core.platform.application.platform_runtime.module_access_policy import is_module_accessible
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationPage,
+    OrganizationService,
+)
+from src.core.platform.application.platform_runtime.module_access_policy import (
+    is_module_accessible,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.application.tenant.modules import ModuleCatalogService
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.uow.platform_provisioning_unit_of_work import (
     PlatformProvisioningUnitOfWorkFactory,
 )
-from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.application.master_data.org.organization_service import OrganizationPage, OrganizationService
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 
@@ -189,14 +196,18 @@ class PlatformRuntimeApplicationService:
         )
 
     def get_organization_statistics(self, organization_id: str):
-        from src.core.platform.application.master_data.org.organization_service import OrganizationStatistics
+        from src.core.platform.application.master_data.org.organization_service import (
+            OrganizationStatistics,
+        )
 
         if self._organization_service is None:
             return OrganizationStatistics()
         return self._organization_service.get_organization_statistics(organization_id)
 
     def get_organization_calendar_summary(self, organization_id: str):
-        from src.core.platform.application.master_data.org.organization_service import OrganizationCalendarSummary
+        from src.core.platform.application.master_data.org.organization_service import (
+            OrganizationCalendarSummary,
+        )
 
         if self._organization_service is None:
             return OrganizationCalendarSummary()

@@ -9,8 +9,6 @@ from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import pytest
-
 from src.core.modules.project_management.api.desktop.common.detail_pages import (
     DetailActivityDesktopDto,
     DetailActivityPageDesktopDto,
@@ -26,7 +24,6 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.ui_qml.modules.project_management.presenters.projects import (
     ProjectProjectsWorkspacePresenter,
 )
-
 
 # ── DTO factories ──────────────────────────────────────────────────────────────
 

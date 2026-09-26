@@ -2,27 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import Optional
+from datetime import datetime
 
-from sqlalchemy import DateTime
 from sqlalchemy import (
     Boolean,
-    Date,
-    Enum as SAEnum,
-    Float,
+    DateTime,
     ForeignKey,
     Index,
-    Integer,
     String,
-    Text,
-    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.platform.domain.master_data.employee import EmploymentType
-from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.infra.persistence.orm.base import Base
+
 
 class ModuleEntitlementORM(Base):
     __tablename__ = "organization_module_entitlements"

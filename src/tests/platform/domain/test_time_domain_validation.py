@@ -5,13 +5,17 @@ from datetime import date
 
 import pytest
 
-from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.application.time_management.time.time_service import TimeService
 from src.core.platform.application.time_management.time.timesheet_events import (
-    TimesheetPeriodStatusChangeType,
     TimesheetPeriodStatusChanged,
+    TimesheetPeriodStatusChangeType,
 )
-from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.domain.time_management.time import (
+    TimeEntry,
+    TimesheetPeriod,
+    TimesheetPeriodStatus,
+)
 from src.core.shared.events.domain_event import DomainEvent
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.persistence.unit_of_work import UnitOfWork

@@ -102,18 +102,18 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if self._closed:
-            return None
+            return
 
         if exc_type is not None:
             self._rollback_and_close()
-            return None
+            return
 
         logger.warning(
             "UnitOfWork exited its 'with' block without commit() ever being called; "
             "closing without committing."
         )
         self._rollback_and_close()
-        return None
+        return
     # -- aggregate tracking -------------------------------------------------------------
 
     def register_touched(self, aggregate: RecordsDomainEvents) -> None:
@@ -234,8 +234,8 @@ class SqlAlchemyUnitOfWorkFactoryBase(UnitOfWorkFactory):
 
 
 __all__ = [
+    "MAX_DISPATCH_ROUNDS",
     "SqlAlchemyUnitOfWorkBase",
     "SqlAlchemyUnitOfWorkFactoryBase",
-    "MAX_DISPATCH_ROUNDS",
     "sqlite_write_lock",
 ]

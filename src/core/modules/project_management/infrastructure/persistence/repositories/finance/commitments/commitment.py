@@ -3,12 +3,12 @@ from __future__ import annotations
 from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.contracts.reads import (
+    ReadSort,
+    ReadSortDirection,
+)
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
     ProjectCommitmentRepository,
-)
-from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
-from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
-    stable_order_by,
 )
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitment,
@@ -33,7 +33,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.commitme
     ProjectCommitmentORM,
     ProjectCommitmentSourceRevisionORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     ActiveScopeIds,
     TenantContextService,

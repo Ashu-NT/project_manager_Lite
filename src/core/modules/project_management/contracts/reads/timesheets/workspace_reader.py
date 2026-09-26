@@ -242,6 +242,6 @@ __all__ = [
     "TimesheetResourceReadPage",
     "TimesheetResourceSelectorCriteria",
     "TimesheetScope",
-    "TimesheetWorkspaceReader",
     "TimesheetWorkspaceAccessFact",
+    "TimesheetWorkspaceReader",
 ]

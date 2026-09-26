@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from src.core.modules.project_management.application.collaboration import CollaborationService
-
 from src.core.modules.project_management.api.desktop.collaboration.commands.task_commands import (
     TaskCollaborationDeleteCommand,
     TaskCollaborationEditCommand,
@@ -27,6 +25,9 @@ from src.core.modules.project_management.api.desktop.collaboration.serializers.c
 )
 from src.core.modules.project_management.api.desktop.collaboration.utils.formatting import (
     format_document_option_label,
+)
+from src.core.modules.project_management.application.collaboration import (
+    CollaborationService,
 )
 
 

@@ -4,7 +4,9 @@ from datetime import date
 
 import pytest
 
-from src.core.modules.project_management.domain.scheduling.baseline import BaselineStatus
+from src.core.modules.project_management.domain.scheduling.baseline import (
+    BaselineStatus,
+)
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 

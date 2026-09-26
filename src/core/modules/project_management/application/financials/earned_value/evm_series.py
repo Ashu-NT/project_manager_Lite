@@ -13,14 +13,17 @@ from src.core.modules.project_management.application.financials.earned_value.can
     CanonicalEarnedValueCalculator,
     EvmCalculationInput,
 )
+from src.core.modules.project_management.application.financials.models.finance_models import (
+    EvmSeriesPoint,
+)
 from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
     EvmSeriesReader,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
-from src.core.modules.project_management.application.financials.models.finance_models import (
-    EvmSeriesPoint,
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
 )
 
 
@@ -110,7 +113,7 @@ class EarnedValueSeriesCalculator:
                     and entry.occurred_on is not None
                     and entry.occurred_on <= pe
                 ),
-                start=Decimal("0"),
+                start=Decimal(0),
             )
             approved_forecast_etc = (
                 None

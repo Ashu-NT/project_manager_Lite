@@ -1,28 +1,42 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.common.ids import generate_id
-from src.core.platform.contract.uow.approval_unit_of_work import PlatformUnitOfWorkFactory
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.approval.approval_mutation_participant import (
     build_request_audit_details,
     request_approval_using,
 )
-from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
-from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
-from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
-from src.core.platform.domain.approval import ApprovalApproved, ApprovalRejected
-from src.core.platform.domain.security.authorization.roles.role_binding import ROLE_PRINCIPAL_USER
-from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+    require_permission,
+)
 from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
+from src.core.platform.contract.repositories.approval.contracts import (
+    ApprovalRepository,
+)
+from src.core.platform.contract.uow.approval_unit_of_work import (
+    PlatformUnitOfWorkFactory,
+)
+from src.core.platform.domain.approval import (
+    ApprovalApproved,
+    ApprovalRejected,
+    ApprovalRequest,
+    ApprovalStatus,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.domain.security.authorization.roles.role_binding import (
+    ROLE_PRINCIPAL_USER,
+)
+from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.notifications import safe_dispatch_notification
 from src.core.shared.time.clock import Clock
 
@@ -538,4 +552,4 @@ class ApprovalService:
             raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
 
 
-__all__ = ["ApplyHandler", "DependenciesFactory", "ApprovalService"]
+__all__ = ["ApplyHandler", "ApprovalService", "DependenciesFactory"]

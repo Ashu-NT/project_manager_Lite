@@ -9,16 +9,18 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
 from src.core.modules.project_management.application.financials.commitments.commitment_events import (
-    CommitmentLineChangeType,
     CommitmentLineChanged,
-    CommitmentMatchChangeType,
+    CommitmentLineChangeType,
     CommitmentMatchChanged,
+    CommitmentMatchChangeType,
 )
 from src.core.modules.project_management.contracts.financial_sources.procurement import (
     ProcurementCommitmentFinancialSource,
@@ -28,21 +30,25 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
     FinancialSourceModule,
     FinancialSourceType,
 )
-from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
-    ProjectCommitmentRepository,
-)
 from src.core.modules.project_management.contracts.reads.financials.sorting import (
     normalize_commitment_sort,
 )
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
-    ProjectCostEntryRepository,
+from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
+    ProjectCommitmentRepository,
 )
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
+    ProjectCostEntryRepository,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitment,
     ProjectCommitmentLine,
@@ -63,10 +69,20 @@ from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
-from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.platform.contract.repositories.master_data.party.contracts import (
+    PartyRepository,
+)
+from src.core.platform.contract.repositories.master_data.site.contracts import (
+    SiteRepository,
+)
 from src.core.platform.domain.finance import (
     EXCHANGE_RATE_STORAGE,
     DecimalQuantity,
@@ -644,12 +660,12 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         exchange_rate_captured_at: datetime | None,
     ) -> tuple[Decimal, date, str, datetime]:
         if currency_code == base_currency:
-            if exchange_rate not in (None, Decimal("1"), 1, "1"):
+            if exchange_rate not in (None, Decimal(1), 1, "1"):
                 raise ValidationError(
                     "Identity-currency commitments must use exchange rate 1.",
                     code="PROJECT_COMMITMENT_IDENTITY_RATE_INVALID",
                 )
-            return Decimal("1"), effective_date, "identity", self._clock.now()
+            return Decimal(1), effective_date, "identity", self._clock.now()
         if (
             exchange_rate is None
             or exchange_rate_date is None

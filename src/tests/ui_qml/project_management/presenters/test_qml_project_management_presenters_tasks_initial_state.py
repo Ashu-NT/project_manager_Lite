@@ -1,12 +1,12 @@
 from pathlib import Path
 
-from src.tests.ui_runtime_helpers import wait_until
 from src.tests.ui_qml.project_management.presenters._task_presenters_test_helpers import (
+    _build_tasks_catalog,
     _FakeCollaborationService,
     _FakeTaskTimesheetsDesktopApi,
-    _build_tasks_catalog,
     _make_task_service,
 )
+from src.tests.ui_runtime_helpers import wait_until
 
 
 def test_tasks_controller_initial_state_and_lazy_load(tmp_path: Path, qapp) -> None:

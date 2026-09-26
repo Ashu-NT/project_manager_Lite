@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from typing import Callable, Iterable
+from collections.abc import Callable, Iterable
 
-from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
-from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     MODULE_ENTITLEMENT_CATEGORY,
     MODULE_ENTITLEMENTS_SCOPE_CODE,
 )
-from src.core.shared.events.view_invalidation import OrganizationScope, ViewInvalidationHint
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.tenant.modules.defaults import (
     MODULE_LIFECYCLE_INACTIVE,
     MODULE_RUNTIME_ACCESS_STATUSES,
@@ -20,13 +19,19 @@ from src.core.platform.domain.tenant.modules.defaults import (
 from src.core.platform.domain.tenant.modules.events import (
     ModuleDisabled,
     ModuleEnabled,
-    ModuleLicenseRevoked,
     ModuleLicensed,
+    ModuleLicenseRevoked,
     ModuleLifecycleTransitioned,
 )
 from src.core.platform.domain.tenant.modules.module_definition import EnterpriseModule
 from src.core.platform.domain.tenant.modules.module_entitlement import ModuleEntitlement
 from src.core.platform.domain.tenant.modules.subscription import ModuleEntitlementRecord
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.view_invalidation import (
+    OrganizationScope,
+    ViewInvalidationHint,
+)
 
 _USER_SELECTABLE_LIFECYCLE_STATUSES = frozenset({"active", "trial", "suspended", "expired"})
 

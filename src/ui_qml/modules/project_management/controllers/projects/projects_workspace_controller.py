@@ -3,7 +3,6 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -14,24 +13,41 @@ from src.ui_qml.modules.project_management.controllers.common import (
     serialize_selector_options,
     serialize_workspace_view_model,
 )
-from src.ui_qml.shared.models.currency_options import (
-    CURRENCY_OPTIONS,
-    DEFAULT_CURRENCY_CODE,
-)
 from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
     ProjectProjectsWorkspacePresenter,
 )
-
-from .project_state import (
-    default_lazy_section,
-    default_overview,
-    default_projects,
-    default_selected_project,
+from src.ui_qml.shared.models.currency_options import (
+    CURRENCY_OPTIONS,
+    DEFAULT_CURRENCY_CODE,
 )
-from .project_table_models import ProjectTableModels, create_project_table_models
-from .project_state_setters import ProjectStateSettersMixin
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
+from .project_bulk_handler import (
+    apply_bulk_status,
+    bulk_delete_projects,
+    clear_project_bulk_selection,
+    select_visible_projects,
+    set_project_bulk_selection,
+)
 from .project_domain_event_binder import on_budget_project_summary_stale
+from .project_export_handler import export_projects
+from .project_import_handler import cancel_import, execute_import, preview_import
+from .project_lazy_section_loader import (
+    load_project_activity,
+    load_project_resources,
+    load_project_risks,
+    load_project_tasks,
+    update_project_detail_query,
+)
+from .project_resource_handler import (
+    assign_project_resource,
+    get_project_resource_usage,
+    load_assignable_resources,
+    remove_project_resource,
+    select_project_resource,
+    update_project_resource,
+)
 from .project_selection_handler import (
     activate_project,
     clear_filters,
@@ -51,30 +67,14 @@ from .project_selection_handler import (
     set_start_date_to,
     set_status_filter,
 )
-from .project_lazy_section_loader import (
-    load_project_activity,
-    load_project_resources,
-    load_project_risks,
-    load_project_tasks,
-    update_project_detail_query,
+from .project_state import (
+    default_lazy_section,
+    default_overview,
+    default_projects,
+    default_selected_project,
 )
-from .project_resource_handler import (
-    assign_project_resource,
-    get_project_resource_usage,
-    load_assignable_resources,
-    remove_project_resource,
-    select_project_resource,
-    update_project_resource,
-)
-from .project_bulk_handler import (
-    apply_bulk_status,
-    bulk_delete_projects,
-    clear_project_bulk_selection,
-    select_visible_projects,
-    set_project_bulk_selection,
-)
-from .project_export_handler import export_projects
-from .project_import_handler import cancel_import, execute_import, preview_import
+from .project_state_setters import ProjectStateSettersMixin
+from .project_table_models import ProjectTableModels, create_project_table_models
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1

@@ -6,27 +6,38 @@ from uuid import uuid4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.repositories.master_data.documents.contracts import (
     DocumentLinkRepository,
     DocumentRepository,
     DocumentStructureRepository,
 )
-from src.core.platform.contract.uow.document_unit_of_work import DocumentUnitOfWorkFactory
-from src.core.platform.domain.master_data.documents import Document, DocumentLink, DocumentType
-from src.core.platform.domain.master_data.documents.events import (
-    DocumentCreated,
-    DocumentReferenceLinked,
-    DocumentReferenceUnlinked,
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.uow.document_unit_of_work import (
+    DocumentUnitOfWorkFactory,
+)
+from src.core.platform.domain.master_data.documents import (
+    Document,
+    DocumentLink,
+    DocumentType,
 )
 from src.core.platform.domain.master_data.documents.document_link import (
     normalize_document_entity_id,
     normalize_document_entity_type,
     normalize_document_link_role,
     normalize_document_module_code,
+)
+from src.core.platform.domain.master_data.documents.events import (
+    DocumentCreated,
+    DocumentReferenceLinked,
+    DocumentReferenceUnlinked,
 )
 from src.core.platform.domain.master_data.documents.support import (
     coerce_document_type,
@@ -36,10 +47,9 @@ from src.core.platform.domain.master_data.documents.support import (
     infer_title,
     normalize_optional_text,
 )
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.application.tenant.tenancy import TenantContextService
-from src.core.platform.common.ids import generate_id
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
 

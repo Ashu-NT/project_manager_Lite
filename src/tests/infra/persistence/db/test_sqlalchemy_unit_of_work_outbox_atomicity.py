@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import Column, Integer, MetaData, String, Table, select, text
+from sqlalchemy import Column, Integer, MetaData, String, Table, select
 
 from src.core.shared.events.aggregate_events import RecordsDomainEvents
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -116,12 +116,11 @@ def test_business_row_and_outbox_like_row_both_roll_back_together_on_handler_fai
 
     transactional_dispatcher.subscribe(_SomeBusinessFact, stage_then_fail)
 
-    with pytest.raises(ValueError):
-        with uow_factory.create(context=_context()) as uow:
-            aggregate = _SomeAggregate()
-            aggregate._record_event(_SomeBusinessFact())
-            uow.register_touched(aggregate)
-            uow.commit()
+    with pytest.raises(ValueError), uow_factory.create(context=_context()) as uow:
+        aggregate = _SomeAggregate()
+        aggregate._record_event(_SomeBusinessFact())
+        uow.register_touched(aggregate)
+        uow.commit()
 
     business_count, outbox_count = _read_row_counts(session_factory)
     assert business_count == 0, "the business row must not survive the rollback"

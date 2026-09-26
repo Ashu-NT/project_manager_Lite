@@ -34,7 +34,9 @@ class ModuleEntitlement:
 
     @property
     def runtime_enabled(self) -> bool:
-        from src.core.platform.domain.tenant.modules.defaults import MODULE_RUNTIME_ACCESS_STATUSES
+        from src.core.platform.domain.tenant.modules.defaults import (
+            MODULE_RUNTIME_ACCESS_STATUSES,
+        )
 
         return bool(
             self.licensed

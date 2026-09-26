@@ -7,11 +7,6 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, aliased
 
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.modules.project_management.domain.financials.commitment import (
-    open_commitment_amount,
-)
-
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
     ApprovedForecastFact,
     CostAggregateFact,
@@ -32,19 +27,18 @@ from src.core.modules.project_management.contracts.reads.portfolio.models.heatma
     HeatmapTaskFact,
     PortfolioHeatmapFacts,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
-    ProjectCommitmentLineORM,
+from src.core.modules.project_management.domain.financials.commitment import (
+    open_commitment_amount,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
     BudgetLineORM,
     ProjectBudgetORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
+    ProjectCommitmentLineORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.cost_entry import (
     ProjectCostEntryORM,
-)
-from src.core.modules.project_management.infrastructure.persistence.orm.planned_cost import (
-    ProjectPlannedCostLineORM,
-    ProjectPlannedCostVersionORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
     ProjectFinancialProfileORM,
@@ -53,16 +47,23 @@ from src.core.modules.project_management.infrastructure.persistence.orm.forecast
     ForecastLineORM,
     ProjectForecastORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.planned_cost import (
+    ProjectPlannedCostLineORM,
+    ProjectPlannedCostVersionORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
     ProjectResourceORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskAssignmentORM,
     TaskDependencyORM,
     TaskORM,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 class SqlAlchemyPortfolioHeatmapReader:
@@ -496,7 +497,7 @@ class SqlAlchemyPortfolioHeatmapReader:
             aggregate_values: dict[tuple[str, str, str | None], tuple[Decimal, int]] = {}
             for entry in ledger_entries:
                 key = (entry.stage, entry.cost_type, entry.currency_code)
-                amount, count = aggregate_values.get(key, (Decimal("0"), 0))
+                amount, count = aggregate_values.get(key, (Decimal(0), 0))
                 aggregate_values[key] = (amount + entry.amount, count + 1)
             finance = FinanceSnapshotFacts(
                 tenant_id=tenant_id,
@@ -555,7 +556,7 @@ class SqlAlchemyPortfolioHeatmapReader:
                     ProjectResourceFact(
                         project_resource_id=str(row.id),
                         resource_id=str(row.resource_id),
-                        planned_hours=row.planned_hours or Decimal("0"),
+                        planned_hours=row.planned_hours or Decimal(0),
                         is_active=bool(row.is_active),
                     )
                     for row in rows["project_resources"]
@@ -565,7 +566,7 @@ class SqlAlchemyPortfolioHeatmapReader:
                         assignment_id=str(row.id),
                         task_id=str(row.task_id),
                         resource_id=str(row.resource_id),
-                        hours_logged=row.hours_logged or Decimal("0"),
+                        hours_logged=row.hours_logged or Decimal(0),
                     )
                     for row in rows["assignments"]
                 ),
@@ -645,7 +646,7 @@ def _commitment_amount(row, currency: str) -> Decimal:
 def _stage_total(entries: tuple[FinanceLedgerFact, ...], stage: str) -> Decimal:
     return sum(
         (entry.amount for entry in entries if entry.stage == stage),
-        start=Decimal("0"),
+        start=Decimal(0),
     )
 
 

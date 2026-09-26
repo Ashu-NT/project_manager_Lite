@@ -80,11 +80,11 @@ def test_emit_signal_safely_removed_after_task_modernization():
 
 
 def test_project_cost_apply_participant_emits_typed_status_changed_events():
-    from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
-        ProjectCostApprovalParticipant,
-    )
     from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
         ProjectCostEntryService,
+    )
+    from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
+        ProjectCostApprovalParticipant,
     )
 
     apply_source = inspect.getsource(ProjectCostApprovalParticipant.apply)
@@ -147,7 +147,7 @@ def test_real_budget_approval_still_emits_its_own_real_view_invalidation(service
     budgets = services["budget_service"]
     budget = budgets.create_budget(project.id, "P7C Budget")
     budgets.add_line(
-        budget.id, cost_code_id=cost_code.id, description="Line", amount=Decimal("100"),
+        budget.id, cost_code_id=cost_code.id, description="Line", amount=Decimal(100),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)

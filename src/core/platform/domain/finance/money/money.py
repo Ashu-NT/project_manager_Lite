@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import ROUND_DOWN, Decimal, localcontext
-from typing import Iterable
 
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
@@ -26,7 +26,7 @@ class Money:
 
     @classmethod
     def zero(cls, currency: CurrencyCode | str) -> Money:
-        return cls(amount=Decimal("0"), currency=currency)
+        return cls(amount=Decimal(0), currency=currency)
 
     def _require_same_currency(self, other: Money) -> None:
         if not isinstance(other, Money) or self.currency != other.currency:
@@ -87,7 +87,7 @@ class Money:
                 "Allocation weights cannot be negative.",
                 code="MONEY_ALLOCATION_WEIGHT_NEGATIVE",
             )
-        total_weight = sum(resolved_weights, Decimal("0"))
+        total_weight = sum(resolved_weights, Decimal(0))
         if total_weight.is_zero():
             raise ValidationError(
                 "At least one allocation weight must be positive.",
@@ -102,7 +102,7 @@ class Money:
             raw = tuple(target.amount * weight / total_weight for weight in resolved_weights)
             allocated = [value.quantize(quantum, rounding=ROUND_DOWN) for value in raw]
 
-        remainder_steps = int((target.amount - sum(allocated, Decimal("0"))) / quantum)
+        remainder_steps = int((target.amount - sum(allocated, Decimal(0))) / quantum)
         if remainder_steps:
             residuals = [value - base for value, base in zip(raw, allocated, strict=True)]
             if remainder_steps > 0:

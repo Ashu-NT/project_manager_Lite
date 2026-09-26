@@ -7,6 +7,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     GanttProjectionDto,
 )
 
+
 @dataclass(frozen=True)
 class SchedulingMetricViewModel:
     label: str

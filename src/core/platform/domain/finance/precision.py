@@ -20,7 +20,7 @@ class NumericPrecision:
 
     @property
     def quantum(self) -> Decimal:
-        return Decimal("1").scaleb(-self.scale)
+        return Decimal(1).scaleb(-self.scale)
 
     @property
     def maximum(self) -> Decimal:
@@ -57,8 +57,8 @@ EXCHANGE_RATE_STORAGE = NumericPrecision("Exchange rate", 24, 12)
 __all__ = [
     "EXCHANGE_RATE_STORAGE",
     "MONEY_STORAGE",
-    "NumericPrecision",
     "PERCENTAGE_STORAGE",
     "QUANTITY_STORAGE",
     "RATE_STORAGE",
+    "NumericPrecision",
 ]

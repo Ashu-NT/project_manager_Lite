@@ -17,7 +17,7 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QCoreApplication, Q_ARG, QMetaObject, qInstallMessageHandler
+from PySide6.QtCore import Q_ARG, QCoreApplication, QMetaObject, qInstallMessageHandler
 
 from src.application.runtime import build_desktop_api_registry
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog

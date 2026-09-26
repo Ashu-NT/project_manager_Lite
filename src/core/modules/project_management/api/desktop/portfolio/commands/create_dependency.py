@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from src.core.modules.project_management.domain.enums import DependencyType
 
 

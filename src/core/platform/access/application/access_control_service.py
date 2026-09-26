@@ -5,10 +5,6 @@ from typing import TYPE_CHECKING, NoReturn
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.common.exceptions import (
-    NotFoundError,
-    ValidationError,
-)
 from src.core.platform.access.domain import (
     ScopedAccessGrant,
     ScopedRolePolicy,
@@ -17,12 +13,16 @@ from src.core.platform.access.domain import (
     normalize_access_scope_type,
     normalize_access_user_id,
 )
+from src.core.platform.application.security.auth.session.session_service import (
+    refresh_current_session_if_user,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     require_permission,
 )
-from src.core.platform.application.security.auth.session.session_service import (
-    refresh_current_session_if_user,
+from src.core.platform.common.exceptions import (
+    NotFoundError,
+    ValidationError,
 )
 from src.core.platform.contract.repositories.security.auth import UserRepository
 from src.core.platform.domain.master_data.org.access_policy import (
@@ -31,13 +31,24 @@ from src.core.platform.domain.master_data.org.access_policy import (
 from src.core.platform.domain.tenant.tenancy import MEMBERSHIP_STATUS_ACTIVE
 
 if TYPE_CHECKING:
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
-    from src.core.platform.domain.security.auth import UserSessionContext
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
     from src.core.platform.application.security.auth.auth_service import AuthService
-    from src.core.platform.application.security.authorization.roles.role_governance_service import RoleGovernanceService
-    from src.core.platform.contract.repositories.security.auth import RoleBindingRepository, RoleRepository
-    from src.core.platform.contract.repositories.tenant.tenancy.contracts import UserTenantMembershipRepository
-    from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+    from src.core.platform.application.security.authorization.roles.role_governance_service import (
+        RoleGovernanceService,
+    )
+    from src.core.platform.application.tenant.tenancy.tenant_context import (
+        TenantContextService,
+    )
+    from src.core.platform.contract.repositories.security.auth import (
+        RoleBindingRepository,
+        RoleRepository,
+    )
+    from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
+        UserTenantMembershipRepository,
+    )
+    from src.core.platform.domain.security.auth import UserSessionContext
 
 
 ScopeExistsResolver = Callable[[str, str], bool]
@@ -53,16 +64,16 @@ class AccessControlService:
         *,
         session: Session,
         user_repo: UserRepository,
-        auth_service: "AuthService",
+        auth_service: AuthService,
         policy_registry: ScopedRolePolicyRegistry | None = None,
         scope_exists_resolvers: dict[str, ScopeExistsResolver] | None = None,
-        user_session: "UserSessionContext | None" = None,
-        enterprise_audit_service: "EnterpriseAuditService | None" = None,
-        user_tenant_repo: "UserTenantMembershipRepository | None" = None,
-        tenant_context_service: "TenantContextService | None" = None,
-        role_governance_service: "RoleGovernanceService | None" = None,
-        role_repo: "RoleRepository | None" = None,
-        role_binding_repo: "RoleBindingRepository | None" = None,
+        user_session: UserSessionContext | None = None,
+        enterprise_audit_service: EnterpriseAuditService | None = None,
+        user_tenant_repo: UserTenantMembershipRepository | None = None,
+        tenant_context_service: TenantContextService | None = None,
+        role_governance_service: RoleGovernanceService | None = None,
+        role_repo: RoleRepository | None = None,
+        role_binding_repo: RoleBindingRepository | None = None,
     ) -> None:
         self._session = session
         self._user_repo = user_repo
@@ -269,7 +280,7 @@ class AccessControlService:
             if candidate_scope_type == scope_type and canonical_name == role_name:
                 return scope_role
         prefix = f"{scope_type}_"
-        return role_name[len(prefix):] if role_name.startswith(prefix) else role_name
+        return role_name.removeprefix(prefix)
 
     def _canonical_role_names_for_scope(self, scope_type: str) -> tuple[str, ...]:
         return tuple(

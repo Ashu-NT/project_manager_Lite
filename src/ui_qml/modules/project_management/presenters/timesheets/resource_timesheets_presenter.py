@@ -11,7 +11,6 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_timesheets_desktop_api,
 )
 
-
 _WORKSPACE = {
     "routeId": "project_management.timesheets",
     "title": "Timesheets",

@@ -5,12 +5,12 @@ from datetime import date, timedelta
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.contracts.reads.register import (
     RegisterCatalogReadItem,
     RegisterCatalogReadPage,
     RegisterCatalogSummary,
 )
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
@@ -19,10 +19,15 @@ from src.core.modules.project_management.domain.risk.register import (
 from src.core.modules.project_management.infrastructure.persistence.mappers.register import (
     register_entry_from_orm,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.register import RegisterEntryORM
-from src.core.modules.project_management.infrastructure.persistence.reads.sorting import stable_order_by
-
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.register import (
+    RegisterEntryORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 
 _ACTIVE_STATUSES = (
     RegisterEntryStatus.OPEN,

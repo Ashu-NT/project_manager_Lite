@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 def resolve_selected_project_id(
     selected_project_id: str | None,
     filtered_projects: Any,

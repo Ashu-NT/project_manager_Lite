@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from src.core.application.global_overview.contracts.action_center import ActionCenterContext
-from src.core.application.global_overview.contracts.module_summary import ModuleSummaryDto
+from src.core.application.global_overview.contracts.action_center import (
+    ActionCenterContext,
+)
+from src.core.application.global_overview.contracts.module_summary import (
+    ModuleSummaryDto,
+)
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.common.exceptions import BusinessRuleError
 

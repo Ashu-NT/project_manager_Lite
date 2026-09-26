@@ -8,8 +8,12 @@ from src.core.application.global_overview.contracts.action_center import (
     ActionCenterItemDto,
     ActionCenterSummaryDto,
 )
-from src.core.application.global_overview.services.ordering import sort_action_center_items
-from src.core.modules.project_management.application.projects.service import ProjectService
+from src.core.application.global_overview.services.ordering import (
+    sort_action_center_items,
+)
+from src.core.modules.project_management.application.projects.service import (
+    ProjectService,
+)
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
@@ -19,7 +23,9 @@ from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetWorkspaceReader,
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
-from src.core.modules.project_management.domain.scheduling.baseline import BaselineStatus
+from src.core.modules.project_management.domain.scheduling.baseline import (
+    BaselineStatus,
+)
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.core.shared.resource_identity.contracts import ResourceIdentityReader

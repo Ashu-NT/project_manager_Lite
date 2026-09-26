@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from decimal import Decimal
-import re
 
 from pydantic import field_validator, model_validator
 
@@ -156,7 +156,7 @@ class Task:
         return resolved
 
     @model_validator(mode="after")
-    def _validate_date_ranges(self) -> "Task":
+    def _validate_date_ranges(self) -> Task:
         if self.is_milestone and self.duration_days:
             self.duration_days = 0
         if not self.wbs_code:
@@ -226,7 +226,7 @@ class Task:
         return max(0, int(round(self.duration_days * remaining_ratio)))
 
     @staticmethod
-    def create(project_id: str, name: str, description: str = "", **extra) -> "Task":
+    def create(project_id: str, name: str, description: str = "", **extra) -> Task:
         return Task(
             id=generate_id(),
             project_id=project_id,
@@ -242,8 +242,8 @@ class TaskAssignment:
     task_id: str
     resource_id: str
     allocation_percent: float = 100.0
-    hours_logged: Decimal = Decimal("0")
-    allocated_planned_hours: Decimal = Decimal("0")
+    hours_logged: Decimal = Decimal(0)
+    allocated_planned_hours: Decimal = Decimal(0)
     version: int = 1
     project_resource_id: str | None = None
     response_status: str = "pending"
@@ -348,9 +348,9 @@ class TaskAssignment:
         task_id: str,
         resource_id: str,
         allocation_percent: float = 100.0,
-        hours_logged: Decimal = Decimal("0"),
-        allocated_planned_hours: Decimal = Decimal("0"),
-    ) -> "TaskAssignment":
+        hours_logged: Decimal = Decimal(0),
+        allocated_planned_hours: Decimal = Decimal(0),
+    ) -> TaskAssignment:
         return TaskAssignment(
             id=generate_id(),
             task_id=task_id,
@@ -394,7 +394,7 @@ class TaskDependency:
         return int(value if value not in (None, "") else 0)
 
     @model_validator(mode="after")
-    def _validate_not_self_dependency(self) -> "TaskDependency":
+    def _validate_not_self_dependency(self) -> TaskDependency:
         if self.predecessor_task_id == self.successor_task_id:
             raise ValidationError(
                 "A task cannot depend on itself.",
@@ -408,7 +408,7 @@ class TaskDependency:
         successor_id: str,
         dependency_type: DependencyType = DependencyType.FINISH_TO_START,
         lag_days: int = 0,
-    ) -> "TaskDependency":
+    ) -> TaskDependency:
         return TaskDependency(
             id=generate_id(),
             predecessor_task_id=predecessor_id,

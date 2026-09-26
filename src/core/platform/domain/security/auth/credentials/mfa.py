@@ -7,7 +7,6 @@ import os
 import struct
 from datetime import datetime, timezone
 
-
 _TOTP_INTERVAL_SECONDS = 30
 _TOTP_DIGITS = 6
 

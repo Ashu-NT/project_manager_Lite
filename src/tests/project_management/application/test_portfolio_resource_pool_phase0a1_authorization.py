@@ -24,10 +24,15 @@ from src.core.modules.project_management.contracts.reads.portfolio.models.resour
 )
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.application.tenant.tenancy import TenantContextService
-from src.core.platform.application.tenant.tenancy.context_policy import SaaSTenantContextPolicy
+from src.core.platform.application.tenant.tenancy.context_policy import (
+    SaaSTenantContextPolicy,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
 from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 
 _FROM_DATE = date(2026, 1, 5)

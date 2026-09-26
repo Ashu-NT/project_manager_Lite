@@ -309,7 +309,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             posting_date=source.work_date,
             financial_period_id=period.id,
             base_money=money,
-            exchange_rate=Decimal("1"),
+            exchange_rate=Decimal(1),
             exchange_rate_date=source.work_date,
             exchange_rate_source="identity",
             exchange_rate_captured_at=now,
@@ -990,12 +990,12 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         exchange_rate_captured_at: datetime | None,
     ) -> tuple[Decimal, date, str, datetime]:
         if entry.currency_code == base_currency:
-            if exchange_rate not in (None, Decimal("1"), 1, "1"):
+            if exchange_rate not in (None, Decimal(1), 1, "1"):
                 raise ValidationError(
                     "Identity-currency postings must use an exchange rate of 1.",
                     code="PROJECT_COST_ENTRY_IDENTITY_RATE_INVALID",
                 )
-            return Decimal("1"), posting_date, "identity", self._clock.now()
+            return Decimal(1), posting_date, "identity", self._clock.now()
         if (
             exchange_rate is None
             or exchange_rate_date is None

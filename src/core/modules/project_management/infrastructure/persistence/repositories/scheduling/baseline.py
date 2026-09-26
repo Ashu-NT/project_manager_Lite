@@ -3,14 +3,15 @@ from __future__ import annotations
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.scheduling.baseline import BaselineRepository
+from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
+    BaselineRepository,
+)
 from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineStatus,
     BaselineTask,
     BaselineVarianceRecord,
     ProjectBaseline,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.modules.project_management.infrastructure.persistence.mappers.baseline import (
     baseline_from_orm,
     baseline_task_from_orm,
@@ -24,8 +25,14 @@ from src.core.modules.project_management.infrastructure.persistence.orm.baseline
     BaselineVarianceRecordORM,
     ProjectBaselineORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

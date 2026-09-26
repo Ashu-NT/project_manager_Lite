@@ -1,15 +1,8 @@
 from __future__ import annotations
 
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
-from src.core.platform.common.exceptions import (
-    BusinessRuleError,
-    ConcurrencyError,
-    DomainError,
-    NotFoundError,
-    ValidationError,
-)
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
 from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationCalendarSummaryDto,
     OrganizationCatalogPageDto,
@@ -17,6 +10,10 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationProvisionCommand,
     OrganizationStatisticsDto,
     OrganizationUpdateCommand,
+)
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
 )
 from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     CountryDto,
@@ -26,7 +23,16 @@ from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     PlatformRuntimeContextDto,
     TimezoneDto,
 )
-from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
+from src.core.platform.application.platform_runtime import (
+    PlatformRuntimeApplicationService,
+)
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    DomainError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.shared.reference_data import COUNTRY_OPTIONS, TIMEZONE_OPTIONS
 
 _ResultT = TypeVar("_ResultT")

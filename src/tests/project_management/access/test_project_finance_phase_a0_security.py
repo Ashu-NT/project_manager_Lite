@@ -1,21 +1,20 @@
 from __future__ import annotations
 
-import json
 from datetime import date
 from decimal import Decimal
 
 import pytest
 
+from src.core.modules.project_management.access.policy import (
+    PROJECT_SCOPE_ROLE_PERMISSIONS,
+)
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
     DEFAULT_ROLE_PERMISSIONS,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.modules.project_management.access.policy import (
-    PROJECT_SCOPE_ROLE_PERMISSIONS,
-)
-from src.core.modules.project_management.domain.financials.rate_cards import RateType
 
 
 def _login(services, username: str, password: str) -> None:
@@ -50,7 +49,7 @@ def _seed_labor_finance_project(services) -> str:
         rate_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("125"),
+        rate_amount=Decimal(125),
         rate_currency="EUR",
         resource_id=resource.id,
         effective_from=date(2026, 1, 5),
@@ -79,7 +78,7 @@ def _seed_labor_finance_project(services) -> str:
     )
     services["task_service"].update_assignment_planned_hours(
         assignment.id,
-        allocated_planned_hours=Decimal("16"),
+        allocated_planned_hours=Decimal(16),
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,
     )

@@ -6,30 +6,40 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common import (
     project_resource_envelope_policy as envelope_policy,
 )
 from src.core.modules.project_management.application.tasks.commands.assignment_activity import (
     record_assignment_action,
 )
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskAssignmentChanged,
+    TaskAssignmentChangeType,
+)
 from src.core.modules.project_management.contracts.reads.tasks.models import (
     TaskResourceTimeBreakdownRow,
     TaskTimeSummaryFact,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectResourceRepository
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.application.tasks.task_events import (
-    TaskAssignmentChangeType,
-    TaskAssignmentChanged,
-)
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.application.security.authorization import get_authorization_engine
+from src.core.platform.application.security.authorization import (
+    get_authorization_engine,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
@@ -140,8 +150,8 @@ class TaskAssignmentMixin:
         } if assignments else {}
 
         rows: list[TaskResourceTimeBreakdownRow] = []
-        planned_total = Decimal("0")
-        actual_total = Decimal("0")
+        planned_total = Decimal(0)
+        actual_total = Decimal(0)
         for assignment in assignments:
             planned = Decimal(str(assignment.allocated_planned_hours or 0))
             actual = Decimal(str(assignment.hours_logged or 0))
@@ -155,8 +165,8 @@ class TaskAssignmentMixin:
                     resource_name=getattr(resource, "name", "") or assignment.resource_id,
                     planned_hours=planned,
                     actual_hours=actual,
-                    remaining_hours=max(planned - actual, Decimal("0")),
-                    overrun_hours=max(actual - planned, Decimal("0")),
+                    remaining_hours=max(planned - actual, Decimal(0)),
+                    overrun_hours=max(actual - planned, Decimal(0)),
                     burn_status=envelope_policy.burn_status(
                         planned_hours=planned, actual_hours=actual
                     ),
@@ -167,8 +177,8 @@ class TaskAssignmentMixin:
             task_id=task_id,
             planned_hours=planned_total,
             actual_hours=actual_total,
-            remaining_hours=max(planned_total - actual_total, Decimal("0")),
-            overrun_hours=max(actual_total - planned_total, Decimal("0")),
+            remaining_hours=max(planned_total - actual_total, Decimal(0)),
+            overrun_hours=max(actual_total - planned_total, Decimal(0)),
             burn_status=envelope_policy.burn_status(
                 planned_hours=planned_total, actual_hours=actual_total
             ),
@@ -423,7 +433,7 @@ class TaskAssignmentMixin:
         project_resource_id: str,
         allocation_percent: float,
         *,
-        allocated_planned_hours: Decimal = Decimal("0"),
+        allocated_planned_hours: Decimal = Decimal(0),
     ) -> TaskAssignment:
         if not self._project_resource_repo:
             raise BusinessRuleError(

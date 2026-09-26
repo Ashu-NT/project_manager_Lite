@@ -20,7 +20,11 @@ from src.core.modules.project_management.application.resources.project_resource_
     ProjectResourceAssignmentChanged,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 # ---------------------------------------------------------------------------

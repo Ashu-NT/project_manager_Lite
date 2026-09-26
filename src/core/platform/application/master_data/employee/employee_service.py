@@ -6,19 +6,23 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.contract.uow.employee_unit_of_work import EmployeeUnitOfWorkFactory
-from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
 from src.core.platform.application.master_data.employee.employee_support import (
     resolve_employee_department_reference,
     resolve_employee_site_reference,
     sync_linked_employee_resources,
 )
-from src.core.platform.contract.repositories.master_data.employee.contracts import (
-    EmployeeRepository,
-    LinkedEmployeeResourceRepository,
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.interface.master_data.employee.contracts import (
     ResourceMasterEventFactory,
 )
@@ -28,22 +32,36 @@ from src.core.platform.contract.read.master_data.employee.employee_headcount_rea
     EmployeeHeadcountSummary,
     EmployeeSiteBreakdownRow,
 )
-from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.repositories.master_data.department.contracts import (
+    DepartmentRepository,
+)
+from src.core.platform.contract.repositories.master_data.employee.contracts import (
+    EmployeeRepository,
+    LinkedEmployeeResourceRepository,
+)
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.repositories.master_data.site.contracts import (
+    SiteRepository,
+)
+from src.core.platform.contract.uow.employee_unit_of_work import (
+    EmployeeUnitOfWorkFactory,
+)
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
 from src.core.platform.domain.master_data.employee.events import (
     EmployeeCreated,
     EmployeeProfileUpdated,
 )
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
-from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
     from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
@@ -507,4 +525,4 @@ class EmployeeService:
         )
 
 
-__all__ = ["EmployeeService", "EmployeePage", "EMPLOYEE_PAGE_SIZE_OPTIONS"]
+__all__ = ["EMPLOYEE_PAGE_SIZE_OPTIONS", "EmployeePage", "EmployeeService"]

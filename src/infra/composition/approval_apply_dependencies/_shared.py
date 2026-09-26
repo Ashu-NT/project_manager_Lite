@@ -4,7 +4,9 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.history.activity.activity_service import ActivityService
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
@@ -52,7 +54,7 @@ def build_activity_service(
 
 
 __all__ = [
-    "wire_tenant_context_service",
-    "build_enterprise_audit_service",
     "build_activity_service",
+    "build_enterprise_audit_service",
+    "wire_tenant_context_service",
 ]

@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from src.core.application.global_overview.contracts.action_center import ActionCenterContext
+from src.core.application.global_overview.contracts.action_center import (
+    ActionCenterContext,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,4 +21,4 @@ class ModuleSummaryContributor(Protocol):
     def get_summary(self, context: ActionCenterContext) -> ModuleSummaryDto | None: ...
 
 
-__all__ = ["ModuleSummaryDto", "ModuleSummaryContributor"]
+__all__ = ["ModuleSummaryContributor", "ModuleSummaryDto"]

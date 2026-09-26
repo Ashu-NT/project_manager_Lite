@@ -24,7 +24,9 @@ from src.core.shared.events.view_invalidation import (
     TenantWide,
     ViewInvalidationHint,
 )
-from src.infra.events.in_process_view_invalidation_channel import InProcessViewInvalidationChannel
+from src.infra.events.in_process_view_invalidation_channel import (
+    InProcessViewInvalidationChannel,
+)
 
 
 @pytest.fixture()

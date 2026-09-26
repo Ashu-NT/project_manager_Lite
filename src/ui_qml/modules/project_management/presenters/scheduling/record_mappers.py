@@ -2,14 +2,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.api.desktop import SchedulingConstraintViolationDto
-from src.ui_qml.modules.project_management.view_models.scheduling import SchedulingRecordViewModel
+from src.core.modules.project_management.api.desktop import (
+    SchedulingConstraintViolationDto,
+)
+from src.ui_qml.modules.project_management.view_models.scheduling import (
+    SchedulingRecordViewModel,
+)
 
 from .formatters import (
     format_date,
     int_label,
     shift_label,
 )
+
 
 def to_delayed_activity_record(item: Any) -> SchedulingRecordViewModel:
     return SchedulingRecordViewModel(
@@ -148,10 +153,10 @@ def to_baseline_variance_record(rec: Any) -> SchedulingRecordViewModel:
     )
 
 __all__ = [
-    "to_delayed_activity_record",
     "to_baseline_compare_record",
     "to_baseline_register_record",
-    "to_resource_load_record",
-    "to_constraint_violation_record",
     "to_baseline_variance_record",
+    "to_constraint_violation_record",
+    "to_delayed_activity_record",
+    "to_resource_load_record",
 ]

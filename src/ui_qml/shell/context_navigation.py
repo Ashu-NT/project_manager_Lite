@@ -148,8 +148,8 @@ def build_context_navigation_view_model(
 
 
 __all__ = [
-    "ContextNavigationItemViewModel",
     "ContextNavigationGroupViewModel",
+    "ContextNavigationItemViewModel",
     "ContextNavigationViewModel",
     "build_context_navigation_view_model",
     "filter_context_navigation",

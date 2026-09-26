@@ -20,6 +20,7 @@ from .validation import (
     require_text,
 )
 
+
 def suggest_code(desktop_api, payload: dict[str, Any]) -> str:
     from src.core.platform.common.code_generation import CodeGenerator
 

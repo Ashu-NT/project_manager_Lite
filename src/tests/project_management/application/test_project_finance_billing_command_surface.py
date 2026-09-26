@@ -75,7 +75,7 @@ def test_desktop_billing_profile_and_schedule_lifecycle(services) -> None:
         FinancialCreateBillingProfileCommand(
             project_id=project.id,
             contract_reference="CONTRACT-1",
-            contract_value=Decimal("50000"),
+            contract_value=Decimal(50000),
             customer_party_id="party-1",
         )
     )
@@ -95,12 +95,12 @@ def test_desktop_billing_profile_and_schedule_lifecycle(services) -> None:
         FinancialAddBillingScheduleLineCommand(
             project_id=project.id,
             name="Milestone 1",
-            amount=Decimal("24000"),
+            amount=Decimal(24000),
             due_date=date(2026, 8, 20),
         )
     )
     assert line.status == "planned"
-    assert Decimal(line.amount) == Decimal("24000")
+    assert Decimal(line.amount) == Decimal(24000)
 
     ready = api.mark_billing_schedule_line_ready(
         FinancialMarkBillingScheduleLineReadyCommand(
@@ -120,7 +120,7 @@ def test_desktop_billing_preparation_fixed_price_lifecycle_through_delivery_requ
         FinancialCreateBillingProfileCommand(
             project_id=project.id,
             contract_reference="CONTRACT-2",
-            contract_value=Decimal("24000"),
+            contract_value=Decimal(24000),
             customer_party_id="party-1",
         )
     )
@@ -133,7 +133,7 @@ def test_desktop_billing_preparation_fixed_price_lifecycle_through_delivery_requ
         FinancialAddBillingScheduleLineCommand(
             project_id=project.id,
             name="Milestone 1",
-            amount=Decimal("24000"),
+            amount=Decimal(24000),
             due_date=date(2026, 8, 20),
         )
     )
@@ -163,7 +163,7 @@ def test_desktop_billing_preparation_fixed_price_lifecycle_through_delivery_requ
         )
     )
     assert source_line.preparation_id == preparation.id
-    assert Decimal(source_line.net_amount) == Decimal("24000")
+    assert Decimal(source_line.net_amount) == Decimal(24000)
 
     # Creator, requester, and approver are independent actors.
     services["auth_service"].register_user(
@@ -176,7 +176,7 @@ def test_desktop_billing_preparation_fixed_price_lifecycle_through_delivery_requ
         )
     )
     assert submitted.status == "submitted"
-    assert Decimal(submitted.total_amount) == Decimal("24000")
+    assert Decimal(submitted.total_amount) == Decimal(24000)
 
     reviewer = services["auth_service"].authenticate(
         "billing-independent-reviewer", "StrongPass123"
@@ -206,7 +206,7 @@ def test_desktop_billing_preparation_creation_is_idempotent(services) -> None:
         FinancialCreateBillingProfileCommand(
             project_id=project.id,
             contract_reference="CONTRACT-3",
-            contract_value=Decimal("1000"),
+            contract_value=Decimal(1000),
             customer_party_id="party-1",
         )
     )
@@ -239,7 +239,7 @@ def test_desktop_billing_source_does_not_bypass_service_method_validation(servic
         FinancialCreateBillingProfileCommand(
             project_id=project.id,
             contract_reference="CONTRACT-4",
-            contract_value=Decimal("1000"),
+            contract_value=Decimal(1000),
             customer_party_id="party-1",
         )
     )
@@ -279,7 +279,7 @@ def test_desktop_billing_commands_require_finance_manage_permission(services) ->
             FinancialCreateBillingProfileCommand(
                 project_id=project.id,
                 contract_reference="CONTRACT-5",
-                contract_value=Decimal("1000"),
+                contract_value=Decimal(1000),
             )
         )
     assert exc.value.code == "PERMISSION_DENIED"
@@ -317,7 +317,7 @@ def test_desktop_billing_project_scope_is_enforced(services) -> None:
         FinancialCreateBillingProfileCommand(
             project_id=project_a.id,
             contract_reference="CONTRACT-A",
-            contract_value=Decimal("1000"),
+            contract_value=Decimal(1000),
         )
     )
     assert profile_a.contract_reference == "CONTRACT-A"
@@ -327,7 +327,7 @@ def test_desktop_billing_project_scope_is_enforced(services) -> None:
             FinancialCreateBillingProfileCommand(
                 project_id=project_b.id,
                 contract_reference="CONTRACT-B",
-                contract_value=Decimal("1000"),
+                contract_value=Decimal(1000),
             )
         )
 

@@ -4,42 +4,22 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from src.core.modules.project_management.domain.calendar.assignment import (
-    ProjectCalendarAssignment,
-    ResourceCalendarAssignment,
-)
 from src.core.modules.project_management.domain.collaboration import TaskComment
 from src.core.modules.project_management.domain.enums import (
-    CostType,
     DependencyType,
-    ProjectStatus,
-    TaskStatus,
-    WorkerType,
 )
-from src.core.modules.project_management.domain.portfolio import (
-    PortfolioIntakeItem,
-    PortfolioProjectDependency,
-    PortfolioScoringTemplate,
-    PortfolioScenario,
-)
-from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
-    RegisterEntrySeverity,
-    RegisterEntryStatus,
     RegisterEntryType,
 )
-from src.core.modules.project_management.domain.resources.skills import (
-    ResourceCertification,
-    ResourceSkill,
-    SkillProficiencyLevel,
-    TaskSkillRequirement,
-)
 from src.core.modules.project_management.domain.scheduling.baseline import (
-    BaselineStatus,
     ProjectBaseline,
 )
-from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
+from src.core.modules.project_management.domain.tasks.task import (
+    Task,
+    TaskAssignment,
+    TaskDependency,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
     SqlAlchemyTaskPresenceRepository,
 )

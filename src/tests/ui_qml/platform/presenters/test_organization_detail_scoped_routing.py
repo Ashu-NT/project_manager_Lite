@@ -114,6 +114,6 @@ def test_related_actions_and_key_statistics_switch_the_local_tab_not_global_navi
 
 
 def QMetaObject_invoke(root, method_name: str, arg: str) -> bool:
-    from PySide6.QtCore import QMetaObject, Q_ARG
+    from PySide6.QtCore import Q_ARG, QMetaObject
 
     return QMetaObject.invokeMethod(root, method_name, Q_ARG("QVariant", arg))

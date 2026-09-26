@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 
 from pydantic import field_validator, model_validator
 
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import (
@@ -14,6 +13,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 
 SERVICE_PRINCIPAL_STATUS_ACTIVE = "active"
 SERVICE_PRINCIPAL_STATUS_DISABLED = "disabled"
@@ -95,7 +95,7 @@ class ServicePrincipal:
         return _optional_datetime(value)
 
     @model_validator(mode="after")
-    def _initialize_timestamps(self) -> "ServicePrincipal":
+    def _initialize_timestamps(self) -> ServicePrincipal:
         now = datetime.now(timezone.utc)
         if self.created_at is None:
             object.__setattr__(self, "created_at", now)
@@ -112,7 +112,7 @@ class ServicePrincipal:
         name: str,
         description: str = "",
         created_by_user_id: str | None = None,
-    ) -> "ServicePrincipal":
+    ) -> ServicePrincipal:
         return ServicePrincipal(
             id=generate_id(),
             tenant_id=tenant_id,
@@ -192,7 +192,7 @@ class ApiKeyCredential:
         return _optional_datetime(value)
 
     @model_validator(mode="after")
-    def _validate_lifecycle(self) -> "ApiKeyCredential":
+    def _validate_lifecycle(self) -> ApiKeyCredential:
         if not self.permission_scopes:
             raise ValidationError(
                 "API keys require at least one permission scope.",
@@ -219,7 +219,7 @@ class ApiKeyCredential:
         permission_scopes: tuple[str, ...],
         expires_at: datetime,
         created_by_user_id: str | None,
-    ) -> "ApiKeyCredential":
+    ) -> ApiKeyCredential:
         return ApiKeyCredential(
             id=generate_id(),
             tenant_id=tenant_id,
@@ -240,9 +240,9 @@ class IssuedApiKey:
 
 
 __all__ = [
-    "ApiKeyCredential",
-    "IssuedApiKey",
     "SERVICE_PRINCIPAL_STATUS_ACTIVE",
     "SERVICE_PRINCIPAL_STATUS_DISABLED",
+    "ApiKeyCredential",
+    "IssuedApiKey",
     "ServicePrincipal",
 ]

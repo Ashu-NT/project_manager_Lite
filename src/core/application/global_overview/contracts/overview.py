@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.application.global_overview.contracts.action_center import ActionCenterSummaryDto
+from src.core.application.global_overview.contracts.action_center import (
+    ActionCenterSummaryDto,
+)
 
 # The four attention KPI counts are the same normalized counts the Action
 # Center panel itself is built from -- reusing the one type here, rather than
@@ -30,4 +32,4 @@ class GlobalOverviewCapabilitiesDto:
     accessible_module_codes: tuple[str, ...]
 
 
-__all__ = ["AttentionSummaryDto", "GlobalOverviewContextDto", "GlobalOverviewCapabilitiesDto"]
+__all__ = ["AttentionSummaryDto", "GlobalOverviewCapabilitiesDto", "GlobalOverviewContextDto"]

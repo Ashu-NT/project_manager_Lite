@@ -22,17 +22,26 @@ from src.core.application.global_overview.contracts.action_center import (
     ActionCenterItemDto,
     ActionCenterSummaryDto,
 )
-from src.core.application.global_overview.contracts.module_summary import ModuleSummaryDto
+from src.core.application.global_overview.contracts.module_summary import (
+    ModuleSummaryDto,
+)
 from src.core.application.global_overview.contracts.overview import (
     GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
 )
-from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.history.activity.models.activity import (
+    ActivityEntryDto,
+)
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
 from src.ui_qml.shell.controllers.global_overview.global_overview_controller import (
     GlobalOverviewController,
 )
-from src.ui_qml.shell.presenters.global_overview_presenter import GlobalOverviewPresenter
+from src.ui_qml.shell.presenters.global_overview_presenter import (
+    GlobalOverviewPresenter,
+)
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -270,12 +279,14 @@ def test_real_shell_wiring_injects_controller_into_overview_page(qapp) -> None:
     the controller genuinely reaches the loaded page and its one reload()
     actually ran, purely by observing controller-side effects (context
     becomes populated) -- no Loader internals are reached into."""
+    from src.ui_qml.modules.project_management.context import (
+        ProjectManagementWorkspaceCatalog,
+    )
     from src.ui_qml.platform.context import PlatformWorkspaceCatalog
-    from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
     from src.ui_qml.shell.context import build_shell_context
     from src.ui_qml.shell.main_window import build_main_window_navigation
-    from src.ui_qml.shell.qml_registry import build_qml_route_registry
     from src.ui_qml.shell.qml_engine import load_qml
+    from src.ui_qml.shell.qml_registry import build_qml_route_registry
 
     controller = _build_controller()
     assert controller.context.get("tenantName") == ""

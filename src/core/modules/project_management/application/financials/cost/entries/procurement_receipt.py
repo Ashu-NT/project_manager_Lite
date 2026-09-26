@@ -109,7 +109,7 @@ def apply_procurement_receipt_source(
         posting_date=posting_date,
         financial_period_id=period.id,
         base_money=money,
-        exchange_rate=Decimal("1"),
+        exchange_rate=Decimal(1),
         exchange_rate_date=posting_date,
         exchange_rate_source="identity",
         exchange_rate_captured_at=now,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
 from decimal import Decimal
+from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
     PortfolioDependencyCreateCommand,
@@ -20,6 +20,7 @@ from .validation import (
     optional_text,
     require_text,
 )
+
 
 def create_template(
     desktop_api: ProjectManagementPortfolioDesktopApi,
@@ -53,7 +54,7 @@ def create_intake_item(
         title=require_text(payload, "title", "Intake title is required."),
         sponsor_name=require_text(payload, "sponsorName", "Sponsor is required."),
         summary=optional_text(payload, "summary") or "",
-        requested_budget=optional_decimal(payload, "requestedBudget") or Decimal("0"),
+        requested_budget=optional_decimal(payload, "requestedBudget") or Decimal(0),
         requested_capacity_percent=optional_float(payload, "requestedCapacityPercent") or 0.0,
         target_start_date=optional_date(payload, "targetStartDate"),
         strategic_score=optional_int(payload, "strategicScore") or 3,

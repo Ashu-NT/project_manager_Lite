@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
+from src.core.platform.api.desktop.master_data.department.department import (
+    PlatformDepartmentDesktopApi,
+)
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentCreateCommand,
     DepartmentDto,
     DepartmentUpdateCommand,
 )
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (

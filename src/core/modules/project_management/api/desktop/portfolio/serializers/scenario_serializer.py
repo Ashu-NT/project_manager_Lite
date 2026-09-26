@@ -1,18 +1,20 @@
-from src.core.modules.project_management.api.desktop.portfolio.models.scenarios import (
-    PortfolioScenarioComparisonDesktopDto,
-    PortfolioScenarioDesktopDto,
-    PortfolioScenarioEvaluationDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.common.financial_formatting import (
     format_money,
     format_signed_money,
+)
+from src.core.modules.project_management.api.desktop.portfolio.formatters.date_formatter import (
+    format_datetime,
 )
 from src.core.modules.project_management.api.desktop.portfolio.formatters.percent_formatter import (
     format_percent,
     format_signed_int,
     format_signed_percent,
 )
-from src.core.modules.project_management.api.desktop.portfolio.formatters.date_formatter import format_datetime
+from src.core.modules.project_management.api.desktop.portfolio.models.scenarios import (
+    PortfolioScenarioComparisonDesktopDto,
+    PortfolioScenarioDesktopDto,
+    PortfolioScenarioEvaluationDesktopDto,
+)
 from src.core.platform.domain.finance.money import canonical_decimal_text
 
 

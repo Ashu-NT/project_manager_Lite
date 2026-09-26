@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 from src.core.platform.infrastructure.persistence.orm.integration.procurement_financial_outbox import (
     ProcurementFinancialOutboxORM,
 )
-from src.infra.persistence.repositories.integration_delivery import SqlAlchemyIntegrationOutboxRepository
+from src.infra.persistence.repositories.integration_delivery import (
+    SqlAlchemyIntegrationOutboxRepository,
+)
 
 
 class SqlAlchemyProcurementFinancialOutboxRepository(SqlAlchemyIntegrationOutboxRepository):

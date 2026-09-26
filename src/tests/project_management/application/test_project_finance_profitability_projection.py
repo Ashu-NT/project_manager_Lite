@@ -121,7 +121,7 @@ def test_fixed_price_projected_margin_and_percent(services) -> None:
     _organization, project, cost_code = _setup_billable_project(
         services, billing_method=BillingMethod.FIXED_PRICE
     )
-    _create_billing_profile(services, project.id, contract_value=Decimal("1000000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(1000000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="720000")
 
     reporting = services["reporting_service"]
@@ -129,16 +129,16 @@ def test_fixed_price_projected_margin_and_percent(services) -> None:
 
     assert projection.profitability_detail_included is True
     assert projection.revenue_basis == "contract_value"
-    assert projection.forecast_revenue_at_completion == Decimal("1000000")
-    assert projection.projected_margin_amount == Decimal("280000")
-    assert projection.projected_margin_percent == pytest.approx(Decimal("28"))
+    assert projection.forecast_revenue_at_completion == Decimal(1000000)
+    assert projection.projected_margin_amount == Decimal(280000)
+    assert projection.projected_margin_percent == pytest.approx(Decimal(28))
 
 
 def test_desktop_api_get_commercial_projection_serializes_service_result(services) -> None:
     _organization, project, cost_code = _setup_billable_project(
         services, billing_method=BillingMethod.FIXED_PRICE
     )
-    _create_billing_profile(services, project.id, contract_value=Decimal("1000000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(1000000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="720000")
 
     api = ProjectManagementFinancialsDesktopApi(reporting_service=services["reporting_service"])
@@ -147,10 +147,10 @@ def test_desktop_api_get_commercial_projection_serializes_service_result(service
     assert dto.project_id == project.id
     assert dto.profitability_detail_included is True
     assert dto.revenue_basis == "contract_value"
-    assert Decimal(dto.contract_value) == Decimal("1000000")
-    assert Decimal(dto.forecast_revenue_at_completion) == Decimal("1000000")
-    assert Decimal(dto.projected_margin_amount) == Decimal("280000")
-    assert Decimal(dto.projected_margin_percent) == pytest.approx(Decimal("28"))
+    assert Decimal(dto.contract_value) == Decimal(1000000)
+    assert Decimal(dto.forecast_revenue_at_completion) == Decimal(1000000)
+    assert Decimal(dto.projected_margin_amount) == Decimal(280000)
+    assert Decimal(dto.projected_margin_percent) == pytest.approx(Decimal(28))
 
 
 def test_desktop_api_get_commercial_projection_without_reporting_service_returns_empty_dto() -> None:
@@ -167,19 +167,19 @@ def test_fixed_price_negative_margin_on_cost_overrun(services) -> None:
     _organization, project, cost_code = _setup_billable_project(
         services, billing_method=BillingMethod.FIXED_PRICE
     )
-    _create_billing_profile(services, project.id, contract_value=Decimal("100000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(100000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="150000")
 
     reporting = services["reporting_service"]
     projection = reporting.get_project_commercial_projection(project.id)
 
-    assert projection.projected_margin_amount == Decimal("-50000")
-    assert projection.projected_margin_percent == pytest.approx(Decimal("-50"))
+    assert projection.projected_margin_amount == Decimal(-50000)
+    assert projection.projected_margin_percent == pytest.approx(Decimal(-50))
 
 
 def test_commercial_as_of_and_zero_margin_are_explicit(services) -> None:
     _organization, project, cost_code = _setup_billable_project(services)
-    _create_billing_profile(services, project.id, contract_value=Decimal("100"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(100))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="100")
     api = ProjectManagementFinancialsDesktopApi(reporting_service=services["reporting_service"])
 
@@ -200,15 +200,15 @@ def test_zero_contract_value_gives_none_percent_not_divide_by_zero(services) -> 
         services, billing_method=BillingMethod.FIXED_PRICE
     )
     _create_billing_profile(
-        services, project.id, contract_value=Decimal("0"), activate=False
+        services, project.id, contract_value=Decimal(0), activate=False
     )
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="10000")
 
     reporting = services["reporting_service"]
     projection = reporting.get_project_commercial_projection(project.id)
 
-    assert projection.forecast_revenue_at_completion == Decimal("0")
-    assert projection.projected_margin_amount == Decimal("-10000")
+    assert projection.forecast_revenue_at_completion == Decimal(0)
+    assert projection.projected_margin_amount == Decimal(-10000)
     assert projection.projected_margin_percent is None
 
 
@@ -216,7 +216,7 @@ def test_time_and_materials_profitability_explicitly_unavailable(services) -> No
     _organization, project, cost_code = _setup_billable_project(
         services, billing_method=BillingMethod.TIME_AND_MATERIALS
     )
-    _create_billing_profile(services, project.id, contract_value=Decimal("500000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(500000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="300000")
 
     reporting = services["reporting_service"]
@@ -229,14 +229,14 @@ def test_time_and_materials_profitability_explicitly_unavailable(services) -> No
     assert projection.projected_margin_amount is None
     assert projection.projected_margin_percent is None
     # contract_value itself remains visible -- only repurposing it as revenue is withheld.
-    assert projection.contract_value == Decimal("500000")
+    assert projection.contract_value == Decimal(500000)
 
 
 def test_cost_plus_profitability_explicitly_unavailable(services) -> None:
     _organization, project, cost_code = _setup_billable_project(
         services, billing_method=BillingMethod.COST_PLUS
     )
-    _create_billing_profile(services, project.id, contract_value=Decimal("500000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(500000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="300000")
 
     reporting = services["reporting_service"]
@@ -255,7 +255,7 @@ def test_profitability_redacted_without_finance_read_profitability_permission(
     _organization, project, cost_code = _setup_billable_project(
         services, billing_method=BillingMethod.FIXED_PRICE
     )
-    _create_billing_profile(services, project.id, contract_value=Decimal("1000000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(1000000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="720000")
 
     _register_and_login(services, "profit-reader-nonsensitive", role_names=["project_manager"])
@@ -268,14 +268,14 @@ def test_profitability_redacted_without_finance_read_profitability_permission(
     assert projection.projected_margin_amount is None
     assert projection.projected_margin_percent is None
     # Ordinary billing-progress figures remain visible under finance.read alone.
-    assert projection.contract_value == Decimal("1000000")
+    assert projection.contract_value == Decimal(1000000)
 
 
 def test_finance_read_profitability_allows_margin_detail(services) -> None:
     _organization, project, cost_code = _setup_billable_project(
         services, billing_method=BillingMethod.FIXED_PRICE
     )
-    _create_billing_profile(services, project.id, contract_value=Decimal("1000000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(1000000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="720000")
 
     _register_and_login(services, "profit-reader-sensitive", role_names=["finance_controller"])
@@ -283,7 +283,7 @@ def test_finance_read_profitability_allows_margin_detail(services) -> None:
     projection = reporting.get_project_commercial_projection(project.id)
 
     assert projection.profitability_detail_included is True
-    assert projection.projected_margin_amount == Decimal("280000")
+    assert projection.projected_margin_amount == Decimal(280000)
 
 
 def test_no_billing_profile_returns_empty_projection_without_error(services) -> None:
@@ -296,7 +296,7 @@ def test_no_billing_profile_returns_empty_projection_without_error(services) -> 
     projection = reporting.get_project_commercial_projection(project.id)
 
     assert projection.contract_value is None
-    assert projection.approved_preparation_amount == Decimal("0")
+    assert projection.approved_preparation_amount == Decimal(0)
     assert projection.projected_margin_amount is None
 
 
@@ -341,10 +341,10 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     _organization, project, cost_code = _setup_billable_project(
         services, billing_method=BillingMethod.FIXED_PRICE
     )
-    _create_billing_profile(services, project.id, contract_value=Decimal("24000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(24000))
     api_profile_service = services["billing_profile_service"]
     line = api_profile_service.add_schedule_line(
-        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+        project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     )
     line = api_profile_service.mark_schedule_line_ready(
         line.id, expected_row_version=line.row_version
@@ -384,7 +384,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
 
     reporting = services["reporting_service"]
     before_events = reporting.get_project_commercial_projection(project.id)
-    assert before_events.approved_preparation_amount == Decimal("24000")
+    assert before_events.approved_preparation_amount == Decimal(24000)
     assert not hasattr(before_events, "externally_invoiced_amount")
     assert not hasattr(before_events, "externally_paid_amount")
 
@@ -401,7 +401,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     acknowledged = preparation_service.get_preparation(delivery_pending.id)
 
     after_invoice = reporting.get_project_commercial_projection(project.id)
-    assert after_invoice.approved_preparation_amount == Decimal("24000")
+    assert after_invoice.approved_preparation_amount == Decimal(24000)
     assert not hasattr(after_invoice, "externally_invoiced_amount")
 
     preparation_service.record_external_outcome(
@@ -415,7 +415,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     )
 
     after_reconciliation = reporting.get_project_commercial_projection(project.id)
-    assert after_reconciliation.approved_preparation_amount == Decimal("24000")
+    assert after_reconciliation.approved_preparation_amount == Decimal(24000)
     assert not hasattr(after_reconciliation, "externally_paid_amount")
 
 
@@ -423,16 +423,16 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
     _organization, project, cost_code = _setup_billable_project(
         services, billing_method=BillingMethod.FIXED_PRICE
     )
-    _create_billing_profile(services, project.id, contract_value=Decimal("48000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(48000))
     profile_service = services["billing_profile_service"]
     line_a = profile_service.add_schedule_line(
-        project.id, name="Milestone A", amount=Decimal("24000"), due_date=date(2026, 8, 15)
+        project.id, name="Milestone A", amount=Decimal(24000), due_date=date(2026, 8, 15)
     )
     line_a = profile_service.mark_schedule_line_ready(
         line_a.id, expected_row_version=line_a.row_version
     )
     line_b = profile_service.add_schedule_line(
-        project.id, name="Milestone B", amount=Decimal("24000"), due_date=date(2026, 8, 25)
+        project.id, name="Milestone B", amount=Decimal(24000), due_date=date(2026, 8, 25)
     )
     line_b = profile_service.mark_schedule_line_ready(
         line_b.id, expected_row_version=line_b.row_version
@@ -475,12 +475,12 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
 
     reporting = services["reporting_service"]
     projection = reporting.get_project_commercial_projection(project.id)
-    assert projection.approved_preparation_amount == Decimal("48000")
+    assert projection.approved_preparation_amount == Decimal(48000)
 
 
 def test_commercial_aggregate_is_bounded_and_nets_correction_history(services) -> None:
     _organization, project, _code = _setup_billable_project(services)
-    _create_billing_profile(services, project.id, contract_value=Decimal("100"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(100))
     preparation = services["billing_preparation_service"].create_preparation(
         project.id,
         preparation_number="BP-AGG-BASE",
@@ -601,7 +601,7 @@ def test_commercial_report_desktop_and_presenter_consume_identical_facts(service
     )
 
     _, project, code = _setup_billable_project(services)
-    _create_billing_profile(services, project.id, contract_value=Decimal("1000000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(1000000))
     _approve_forecast_with_etc(services, project.id, code, etc_amount="750000")
     reporting = services["reporting_service"]
     cutoff = date(2026, 8, 31)
@@ -627,7 +627,7 @@ def test_commercial_statement_shape_ignores_growing_cost_schedule_and_time_colle
     )
 
     organization, project, code = _setup_billable_project(services)
-    _create_billing_profile(services, project.id, contract_value=Decimal("1000"))
+    _create_billing_profile(services, project.id, contract_value=Decimal(1000))
     schedule = services["billing_profile_service"].add_schedule_line(
         project.id, name="Scale", amount=Decimal(1), due_date=date(2026, 8, 31))
     draft = services["cost_entry_service"].create_manual_entry(

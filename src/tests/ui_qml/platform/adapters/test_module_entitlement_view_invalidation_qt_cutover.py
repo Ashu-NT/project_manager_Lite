@@ -23,14 +23,17 @@ from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.tenant.modules.events import (
     ModuleDisabled,
     ModuleEnabled,
-    ModuleLicenseRevoked,
     ModuleLicensed,
+    ModuleLicenseRevoked,
     ModuleLifecycleTransitioned,
 )
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.view_invalidation import ExactOrganization, OrganizationScope
 from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWork,
+)
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.events.view_invalidation import (
+    ExactOrganization,
+    OrganizationScope,
 )
 from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter import (
     ModuleEntitlementViewInvalidationAdapter,
@@ -220,8 +223,12 @@ def test_non_active_organization_mutation_does_not_refresh_active_org_ui(service
 
 def test_command_against_a_foreign_tenant_organization_produces_no_invalidation(services):
     from src.core.platform.common.exceptions import NotFoundError
-    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+        TenantORM,
+    )
 
     channel = services["platform_view_invalidation_channel"]
     tenant_a = _active_tenant(services)

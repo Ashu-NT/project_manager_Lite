@@ -1,20 +1,19 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_scheduling_desktop_api,
 )
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
+    ConstraintValidator,
+)
 from src.core.modules.project_management.domain.enums import (
-    DependencyType,
     ProjectStatus,
     TaskStatus,
 )
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
-    ConstraintValidator,
-)
 
 
 def test_project_management_scheduling_desktop_api_supports_schedule_calendar_and_baselines() -> None:
@@ -347,7 +346,7 @@ class _FakeReportingService:
                     start_shift_days=1,
                     finish_shift_days=1,
                     duration_delta_days=0,
-                    planned_cost_delta=Decimal("1200"),
+                    planned_cost_delta=Decimal(1200),
                 )
             ]
         )

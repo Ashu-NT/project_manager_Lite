@@ -31,7 +31,7 @@ class DurableSecurityDenialRecorder:
         session: Session,
         *,
         trace_id_provider: Callable[[], str | None] = current_trace_id,
-    ) -> "DurableSecurityDenialRecorder":
+    ) -> DurableSecurityDenialRecorder:
         factory = sessionmaker(
             bind=session.get_bind(),
             autoflush=False,

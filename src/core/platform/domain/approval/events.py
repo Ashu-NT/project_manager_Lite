@@ -40,4 +40,4 @@ class ApprovalRejected:
     occurred_at: datetime
 
 
-__all__ = ["ApprovalRequested", "ApprovalApproved", "ApprovalRejected"]
+__all__ = ["ApprovalApproved", "ApprovalRejected", "ApprovalRequested"]

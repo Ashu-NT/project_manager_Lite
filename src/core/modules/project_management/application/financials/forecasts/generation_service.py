@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
@@ -24,12 +26,12 @@ from src.core.modules.project_management.application.financials.forecasts.genera
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
     ProjectCommitmentRepository,
 )
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
-    ProjectCostEntryRepository,
-)
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
+    ProjectCostEntryRepository,
 )
 from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import (
     ProjectForecastRepository,
@@ -37,15 +39,22 @@ from src.core.modules.project_management.contracts.repositories.finance.forecast
 from src.core.modules.project_management.contracts.repositories.finance.planned_costs.planned_cost import (
     ProjectPlannedCostVersionRepository,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
 from src.core.modules.project_management.contracts.repositories.register.register import (
     RegisterEntryRepository,
 )
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitmentLine,
     ProjectCommitmentLineState,
     open_commitment_amount,
+)
+from src.core.modules.project_management.domain.financials.configuration import (
+    CostCodePolicy,
 )
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
@@ -62,7 +71,6 @@ from src.core.modules.project_management.domain.financials.forecast import (
     ForecastSourceDecision,
     ProjectForecast,
 )
-from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
 from src.core.modules.project_management.domain.financials.planned_cost import (
     ProjectPlannedCostLine,
     ProjectPlannedCostVersion,
@@ -75,7 +83,9 @@ from src.core.modules.project_management.domain.risk.register import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -83,7 +93,6 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-
 
 _PAGE_SIZE = 200
 _OPEN_CONSTRAINT = "uq_pf_forecasts_one_open_per_project"
@@ -274,7 +283,7 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
                     code="PROJECT_FORECAST_PLANNED_COST_CURRENCY_MISMATCH",
                 )
         plan = [_PlanSlice(item, item.amount) for item in sorted(planned_lines, key=lambda x: x.id)]
-        planned_total = sum((item.remaining for item in plan), Decimal("0"))
+        planned_total = sum((item.remaining for item in plan), Decimal(0))
         actual_offsets: dict[Dimension, Decimal] = {}
         commitment_offsets: dict[Dimension, Decimal] = {}
         decisions: list[ForecastSourceDecision] = []
@@ -287,7 +296,7 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
                     forecast, entry.cost_code_id, entry.task_id,
                     ForecastLineSourceType.POSTED_ACTUAL, "project_cost_entry", entry.id,
                     ForecastDecisionAction.EXCLUDED, ForecastDecisionReason.AFTER_AS_OF,
-                    abs(amount), Decimal("0"), abs(amount), snapshot_at, now,
+                    abs(amount), Decimal(0), abs(amount), snapshot_at, now,
                 ))
                 continue
             if entry.status == ProjectCostEntryStatus.REVERSED or entry.entry_kind == ProjectCostEntryKind.REVERSAL:
@@ -295,35 +304,35 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
                     forecast, entry.cost_code_id, entry.task_id,
                     ForecastLineSourceType.POSTED_ACTUAL, "project_cost_entry", entry.id,
                     ForecastDecisionAction.EXCLUDED, ForecastDecisionReason.REVERSED_ACTUAL,
-                    abs(amount), Decimal("0"), abs(amount), snapshot_at, now,
+                    abs(amount), Decimal(0), abs(amount), snapshot_at, now,
                 ))
                 continue
             if amount < 0:
                 key = (entry.cost_code_id, entry.task_id)
-                actual_offsets[key] = actual_offsets.get(key, Decimal("0")) + amount
+                actual_offsets[key] = actual_offsets.get(key, Decimal(0)) + amount
                 decisions.append(self._decision(
                     forecast, entry.cost_code_id, entry.task_id,
                     ForecastLineSourceType.POSTED_ACTUAL, "project_cost_entry", entry.id,
                     ForecastDecisionAction.EXCLUDED, ForecastDecisionReason.ACTUAL_CREDIT,
-                    abs(amount), Decimal("0"), abs(amount), snapshot_at, now,
+                    abs(amount), Decimal(0), abs(amount), snapshot_at, now,
                 ))
             else:
                 key = (entry.cost_code_id, entry.task_id)
-                actual_offsets[key] = actual_offsets.get(key, Decimal("0")) + amount
+                actual_offsets[key] = actual_offsets.get(key, Decimal(0)) + amount
                 decisions.append(self._decision(
                     forecast, entry.cost_code_id, entry.task_id,
                     ForecastLineSourceType.POSTED_ACTUAL, "project_cost_entry", entry.id,
                     ForecastDecisionAction.OFFSET, ForecastDecisionReason.POSTED_ACTUAL_OFFSET,
-                    amount, Decimal("0"), amount, snapshot_at, now,
+                    amount, Decimal(0), amount, snapshot_at, now,
                 ))
         actual_offsets = {
-            dimension: max(Decimal("0"), amount)
+            dimension: max(Decimal(0), amount)
             for dimension, amount in actual_offsets.items()
         }
-        posted_actual_total = sum(actual_offsets.values(), Decimal("0"))
+        posted_actual_total = sum(actual_offsets.values(), Decimal(0))
 
         lines: list[ForecastLine] = []
-        open_commitment_total = Decimal("0")
+        open_commitment_total = Decimal(0)
         for item in commitments:
             remaining = self._commitment_amount(item, currency)
             snapshot_at = item.updated_at
@@ -342,14 +351,14 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
                     forecast, item.cost_code_id, item.task_id,
                     ForecastLineSourceType.OPEN_COMMITMENT, "project_commitment_line", item.id,
                     ForecastDecisionAction.EXCLUDED, reason,
-                    max(Decimal("0"), self._commitment_gross_amount(item, currency)),
-                    Decimal("0"), max(Decimal("0"), self._commitment_gross_amount(item, currency)),
+                    max(Decimal(0), self._commitment_gross_amount(item, currency)),
+                    Decimal(0), max(Decimal(0), self._commitment_gross_amount(item, currency)),
                     snapshot_at, now,
                 ))
                 continue
             open_commitment_total += remaining
             key = (item.cost_code_id, item.task_id)
-            commitment_offsets[key] = commitment_offsets.get(key, Decimal("0")) + remaining
+            commitment_offsets[key] = commitment_offsets.get(key, Decimal(0)) + remaining
             lines.append(self._line(
                 forecast, item.cost_code_id, item.task_id,
                 f"Open commitment {item.purchase_order_line_id}", remaining,
@@ -360,21 +369,21 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
                 forecast, item.cost_code_id, item.task_id,
                 ForecastLineSourceType.OPEN_COMMITMENT, "project_commitment_line", item.id,
                 ForecastDecisionAction.INCLUDED, ForecastDecisionReason.OPEN_COMMITMENT,
-                remaining, remaining, Decimal("0"), snapshot_at, now,
+                remaining, remaining, Decimal(0), snapshot_at, now,
             ))
 
         self._apply_offsets(plan, actual_offsets)
         self._apply_offsets(plan, commitment_offsets)
         manual_by_dimension = {(item.cost_code_id, item.task_id): item for item in manual_estimates}
         manual_cost_scopes = {item.cost_code_id for item in manual_estimates if item.task_id is None}
-        remaining_plan_total = Decimal("0")
+        remaining_plan_total = Decimal(0)
         for item in plan:
             source = item.source
             overridden = (
                 source.cost_code_id in manual_cost_scopes
                 or (source.cost_code_id, source.task_id) in manual_by_dimension
             )
-            included = Decimal("0") if overridden else item.remaining
+            included = Decimal(0) if overridden else item.remaining
             excluded = source.amount - included
             reason = (
                 ForecastDecisionReason.MANUAL_OVERRIDE
@@ -405,7 +414,7 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
                     generated_by, now,
                 ))
 
-        manual_total = Decimal("0")
+        manual_total = Decimal(0)
         for item in manual_estimates:
             manual_total += item.amount
             reference_id = f"{item.cost_code_id}:{item.task_id or '*'}"
@@ -421,10 +430,10 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
                 ForecastLineSourceType.MANUAL_ESTIMATE, "manual_etc_estimate", reference_id,
                 ForecastDecisionAction.INCLUDED if item.amount > 0 else ForecastDecisionAction.EXCLUDED,
                 ForecastDecisionReason.MANUAL_OVERRIDE,
-                item.amount, item.amount, Decimal("0"), now, now,
+                item.amount, item.amount, Decimal(0), now, now,
             ))
 
-        risk_total = Decimal("0")
+        risk_total = Decimal(0)
         for item in risk_contingencies:
             risk = risks[item.risk_id]
             risk_total += item.amount
@@ -442,7 +451,7 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
                 ForecastLineSourceType.RISK, "register_risk", risk.id,
                 ForecastDecisionAction.INCLUDED if item.amount > 0 else ForecastDecisionAction.EXCLUDED,
                 ForecastDecisionReason.RISK_CONTINGENCY,
-                item.amount, item.amount, Decimal("0"), snapshot_at, now,
+                item.amount, item.amount, Decimal(0), snapshot_at, now,
             ))
 
         etc_total = open_commitment_total + remaining_plan_total + manual_total + risk_total
@@ -461,7 +470,7 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
         for (cost_code_id, task_id), amount in sorted(
             offsets.items(), key=lambda item: (item[0][0], item[0][1] or "")
         ):
-            remaining_offset = max(Decimal("0"), amount)
+            remaining_offset = max(Decimal(0), amount)
             candidates = [
                 item for item in plan
                 if item.source.cost_code_id == cost_code_id

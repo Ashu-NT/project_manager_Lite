@@ -9,8 +9,9 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -18,18 +19,15 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.common.ids import generate_id
-from src.core.platform.domain.time_management.calendar.enterprise_calendar import CalendarType
-from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
-    CalendarWorkingRuleORM,
-    PlatformCalendarORM,
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
+    PlatformOverviewRollupReader,
 )
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
 from src.core.platform.contract.uow.organization_unit_of_work import (
     OrganizationUnitOfWorkFactory,
 )
-from src.core.platform.contract.read.overview.platform_overview_rollup_reader import PlatformOverviewRollupReader
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import (
     ORGANIZATION_STATUS_ACTIVE,
     ORGANIZATION_STATUS_ARCHIVED,
@@ -49,16 +47,30 @@ from src.core.platform.domain.master_data.org.support import (
     DEFAULT_ORGANIZATION_NAME,
     DEFAULT_ORGANIZATION_TIMEZONE,
 )
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
+    CalendarType,
+)
+from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
+    CalendarWorkingRuleORM,
+    PlatformCalendarORM,
+)
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
+    from src.core.platform.application.tenant.tenancy.tenant_context import (
+        TenantContextService,
+    )
     from src.core.platform.contract.read.master_data.employee.employee_headcount_reader import (
         EmployeeHeadcountReader,
     )
     from src.core.platform.domain.history.audit.audit_entry import AuditEntry
     from src.core.platform.domain.security.auth.session import UserSessionContext
-    from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 logger = logging.getLogger(__name__)
 

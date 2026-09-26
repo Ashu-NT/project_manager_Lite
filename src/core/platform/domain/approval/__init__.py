@@ -7,9 +7,9 @@ from src.core.platform.domain.approval.events import (
 )
 
 __all__ = [
-    "ApprovalRequest",
-    "ApprovalStatus",
     "ApprovalApproved",
     "ApprovalRejected",
+    "ApprovalRequest",
     "ApprovalRequested",
+    "ApprovalStatus",
 ]

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import gc
 import os
+import tracemalloc
 from datetime import date, timedelta
 from pathlib import Path
 from time import perf_counter
-import tracemalloc
 from types import SimpleNamespace
 
 import pytest
@@ -15,21 +15,23 @@ from PySide6.QtQuick import QQuickView
 from PySide6.QtTest import QTest
 
 import src.ui_qml.modules.project_management.controllers.scheduling.gantt_baseline_actions as baseline_actions
-import src.ui_qml.modules.project_management.controllers.scheduling.gantt_view_state as gantt_view_state
 from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
     build_gantt_projection,
 )
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask
 from src.tests.path_rewrites import REPO_ROOT
-from src.tests.ui_qml.project_management.controllers.test_r4_5b_gantt_read_contract import _projection
-from src.tests.ui_qml.project_management.controllers.test_r4_5c_gantt_viewport import (
-    _projection_from_hierarchy,
-)
 from src.tests.ui_qml.project_management.controllers.test_r4_5b_gantt_read_contract import (
     _edge,
     _node,
+    _projection,
     _schedule,
     _task,
+)
+from src.tests.ui_qml.project_management.controllers.test_r4_5c_gantt_viewport import (
+    _projection_from_hierarchy,
+)
+from src.ui_qml.modules.project_management.controllers.scheduling import (
+    gantt_view_state,
 )
 from src.ui_qml.modules.project_management.controllers.scheduling.gantt_list_model import (
     GanttListModel,
@@ -41,7 +43,6 @@ from src.ui_qml.modules.project_management.controllers.scheduling.scheduling_wor
     ProjectManagementSchedulingWorkspaceController,
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine
-
 
 SCHEDULING_ROOT = (
     REPO_ROOT

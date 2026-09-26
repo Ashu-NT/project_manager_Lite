@@ -38,7 +38,7 @@ ResolvedRoleBindingScope = PlatformBindingScope | TenantBindingScope | ResourceB
 
 __all__ = [
     "PlatformBindingScope",
-    "TenantBindingScope",
-    "ResourceBindingScope",
     "ResolvedRoleBindingScope",
+    "ResourceBindingScope",
+    "TenantBindingScope",
 ]

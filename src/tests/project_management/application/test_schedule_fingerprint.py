@@ -4,12 +4,16 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date
 
-from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
+from src.core.modules.project_management.application.scheduling.leveling.resource_leveling_planner import (
+    ResourceLevelingPlanner,
+)
 from src.core.modules.project_management.application.scheduling.leveling.schedule_fingerprint import (
     compute_schedule_fingerprint,
 )
-from src.core.modules.project_management.application.scheduling.leveling.resource_leveling_planner import (
-    ResourceLevelingPlanner,
+from src.core.modules.project_management.domain.tasks.task import (
+    Task,
+    TaskAssignment,
+    TaskDependency,
 )
 
 

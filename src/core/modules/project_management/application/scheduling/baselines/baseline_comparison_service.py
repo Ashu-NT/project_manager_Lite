@@ -1,16 +1,23 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
-from src.core.modules.project_management.contracts.repositories.scheduling.baseline import BaselineRepository
-from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask, ProjectBaseline
-from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.models.cpm import (
+    CPMTaskInfo,
+)
+from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
+    BaselineRepository,
+)
+from src.core.modules.project_management.domain.scheduling.baseline import (
+    BaselineTask,
+    ProjectBaseline,
+)
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 @dataclass
@@ -65,7 +72,7 @@ class BaselineComparisonService:
         project_id: str,
         cpm_result: dict[str, CPMTaskInfo],
         baseline_id: str | None = None,
-        current_costs_by_task: Optional[dict[str, Decimal]] = None,
+        current_costs_by_task: dict[str, Decimal] | None = None,
     ) -> BaselineComparisonReport:
         """
         Compare cpm_result against the specified baseline (latest if None).
@@ -127,7 +134,7 @@ class BaselineComparisonService:
         max_slip = max((v.finish_variance_days for v in variances if v.finish_variance_days is not None), default=0)
         total_cost_var = sum(
             (v.cost_variance for v in variances if v.cost_variance is not None),
-            Decimal("0"),
+            Decimal(0),
         )
 
         return BaselineComparisonReport(
@@ -160,4 +167,4 @@ class BaselineComparisonService:
         return -(self._calendar.working_days_between(current_date, baseline_date) - 1)
 
 
-__all__ = ["BaselineComparisonService", "BaselineComparisonReport", "TaskVariance"]
+__all__ = ["BaselineComparisonReport", "BaselineComparisonService", "TaskVariance"]

@@ -141,17 +141,17 @@ class TaskDependencyChanged:
 
 
 __all__ = [
-    "TaskCreated",
-    "TaskProfileUpdated",
-    "TaskHierarchyChangeType",
-    "TaskHierarchyChanged",
-    "TaskStatusChanged",
-    "TaskProgressChanged",
-    "TaskScheduleChangeType",
-    "TaskScheduleChanged",
-    "TaskRemoved",
     "TaskAssignmentChangeType",
     "TaskAssignmentChanged",
+    "TaskCreated",
     "TaskDependencyChangeType",
     "TaskDependencyChanged",
+    "TaskHierarchyChangeType",
+    "TaskHierarchyChanged",
+    "TaskProfileUpdated",
+    "TaskProgressChanged",
+    "TaskRemoved",
+    "TaskScheduleChangeType",
+    "TaskScheduleChanged",
+    "TaskStatusChanged",
 ]

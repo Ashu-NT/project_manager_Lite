@@ -5,8 +5,15 @@ import pytest
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.domain.master_data.department.events import DepartmentCreated, DepartmentProfileUpdated
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    ValidationError,
+)
+from src.core.platform.domain.master_data.department.events import (
+    DepartmentCreated,
+    DepartmentProfileUpdated,
+)
 from src.core.platform.infrastructure.persistence.uow.department_unit_of_work import (
     SqlAlchemyDepartmentUnitOfWork,
 )

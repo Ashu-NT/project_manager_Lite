@@ -4,17 +4,16 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import (
-    require_permission,
-)
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceWorkloadDemandReader,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-
 
 MAX_RESOURCE_WORKLOAD_DAYS = 366
 
@@ -107,7 +106,7 @@ class ResourceWorkloadService:
         )
 
         capacity_percent = _decimal(resource.capacity_percent)
-        capacity_fraction = capacity_percent / Decimal("100")
+        capacity_fraction = capacity_percent / Decimal(100)
         calendar_days = self._availability.get_availability_range(
             resource_id,
             site_id=getattr(resource, "site_id", None),
@@ -129,21 +128,21 @@ class ResourceWorkloadService:
         assignments_by_date: dict[date, set[str]] = {}
         project_ids: set[str] = set()
         relevant_assignment_ids: set[str] = set()
-        allocated_planned_hours = Decimal("0")
+        allocated_planned_hours = Decimal(0)
         for assignment in assignments:
             overlap_start = max(start_date, assignment.task_start)
             overlap_end = min(end_date, assignment.task_end)
             project_ids.add(assignment.project_id)
             relevant_assignment_ids.add(assignment.assignment_id)
             allocated_planned_hours += assignment.allocated_planned_hours
-            allocation_fraction = _decimal(assignment.allocation_percent) / Decimal("100")
+            allocation_fraction = _decimal(assignment.allocation_percent) / Decimal(100)
             current = overlap_start
             while current <= overlap_end:
                 calendar_day = calendar_by_date.get(current)
                 if calendar_day is not None:
                     raw_hours = _decimal(calendar_day.available_hours)
                     planned_by_date[current] = planned_by_date.get(
-                        current, Decimal("0")
+                        current, Decimal(0)
                     ) + raw_hours * allocation_fraction
                     assignments_by_date.setdefault(current, set()).add(
                         assignment.assignment_id
@@ -155,12 +154,12 @@ class ResourceWorkloadService:
         current = start_date
         while current <= end_date:
             calendar_day = calendar_by_date.get(current)
-            base = _decimal(calendar_day.available_hours) if calendar_day else Decimal("0")
+            base = _decimal(calendar_day.available_hours) if calendar_day else Decimal(0)
             effective = base * capacity_fraction
-            planned = planned_by_date.get(current, Decimal("0"))
+            planned = planned_by_date.get(current, Decimal(0))
             remaining = effective - planned
             utilization = (
-                planned / effective * Decimal("100") if effective > 0 else None
+                planned / effective * Decimal(100) if effective > 0 else None
             )
             if calendar_day is not None and not source_chain and calendar_day.source_chain:
                 source_chain = tuple(str(item) for item in calendar_day.source_chain)
@@ -178,12 +177,12 @@ class ResourceWorkloadService:
             )
             current += timedelta(days=1)
 
-        base_total = sum((day.base_capacity_hours for day in daily_facts), Decimal("0"))
+        base_total = sum((day.base_capacity_hours for day in daily_facts), Decimal(0))
         effective_total = sum(
-            (day.effective_capacity_hours for day in daily_facts), Decimal("0")
+            (day.effective_capacity_hours for day in daily_facts), Decimal(0)
         )
         planned_total = sum(
-            (day.planned_commitment_hours for day in daily_facts), Decimal("0")
+            (day.planned_commitment_hours for day in daily_facts), Decimal(0)
         )
         return ResourceWorkloadFact(
             resource_id=resource.id,
@@ -197,7 +196,7 @@ class ResourceWorkloadService:
             allocated_planned_hours=allocated_planned_hours,
             remaining_capacity_hours=effective_total - planned_total,
             utilization_percent=(
-                planned_total / effective_total * Decimal("100")
+                planned_total / effective_total * Decimal(100)
                 if effective_total > 0
                 else None
             ),

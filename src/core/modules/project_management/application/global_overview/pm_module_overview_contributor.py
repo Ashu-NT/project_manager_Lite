@@ -1,11 +1,17 @@
 from __future__ import annotations
 
-from src.core.application.global_overview.contracts.action_center import ActionCenterContext
-from src.core.application.global_overview.contracts.module_summary import ModuleSummaryDto
+from src.core.application.global_overview.contracts.action_center import (
+    ActionCenterContext,
+)
+from src.core.application.global_overview.contracts.module_summary import (
+    ModuleSummaryDto,
+)
 from src.core.modules.project_management.application.dashboard.services.dashboard_service import (
     DashboardService,
 )
-from src.core.modules.project_management.application.projects.service import ProjectService
+from src.core.modules.project_management.application.projects.service import (
+    ProjectService,
+)
 from src.core.platform.application.platform_runtime.platform_runtime_service import (
     PlatformRuntimeApplicationService,
 )

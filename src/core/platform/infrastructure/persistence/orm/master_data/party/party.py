@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import Optional
+from datetime import datetime
 
-from sqlalchemy import DateTime
 from sqlalchemy import (
     Boolean,
-    Date,
-    Enum as SAEnum,
-    Float,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -20,9 +16,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.platform.domain.master_data.employee import EmploymentType
-from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.infra.persistence.orm.base import Base
+
 
 class PartyORM(Base):
     __tablename__ = "parties"
@@ -31,7 +26,7 @@ class PartyORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
@@ -44,22 +39,22 @@ class PartyORM(Base):
     party_code: Mapped[str] = mapped_column(String(64), nullable=False)
     party_name: Mapped[str] = mapped_column(String(256), nullable=False)
     party_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    legal_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    contact_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    email: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    phone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    country: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    city: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    address_line_1: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    address_line_2: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    postal_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    website: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    tax_registration_number: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    external_reference: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    legal_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    contact_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    address_line_1: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    address_line_2: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    website: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    tax_registration_number: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    external_reference: Mapped[str | None] = mapped_column(String(128), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 

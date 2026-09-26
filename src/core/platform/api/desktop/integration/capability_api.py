@@ -19,6 +19,7 @@ Usage in a controller:
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 from src.core.platform.integration.cross_module_reference import CrossModuleReference
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver

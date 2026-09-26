@@ -5,24 +5,62 @@ from uuid import uuid4
 
 from sqlalchemy import select, text
 
-from src.core.modules.project_management.application.financials.accounting.outcome_quarantine import AccountingOutcomeQuarantine
-from src.core.modules.project_management.application.financials.invoicing.billing_events import BillingPreparationExternalOutcomeRecorded
-from src.core.modules.project_management.domain.financials.accounting.outcome_policy import OutcomeRejectionReason, validate_outcome_transition
-from src.core.modules.project_management.domain.financials.billing_preparation import BillingExternalEventType, ProjectBillingExternalEvent
-from src.core.modules.project_management.infrastructure.persistence.orm.accounting.handoff import ProjectAccountingHandoffORM, ProjectAccountingOutboxORM
-from src.core.modules.project_management.infrastructure.persistence.orm.billing import ProjectBillingExternalEventORM
-from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import ProjectFinanceInboxORM
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import SqlAlchemyFinanceGovernanceUnitOfWork
-from src.core.platform.application.integration import InboxDeliveryDisposition, IntegrationInboxService
-from src.core.platform.application.integration.accounting.outcome_ingress import AccountingIngressAuthenticationError
-from src.core.platform.application.security.identity.execution_principal import resolve_execution_principal
+from src.core.modules.project_management.application.financials.accounting.outcome_quarantine import (
+    AccountingOutcomeQuarantine,
+)
+from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    BillingPreparationExternalOutcomeRecorded,
+)
+from src.core.modules.project_management.domain.financials.accounting.outcome_policy import (
+    OutcomeRejectionReason,
+    validate_outcome_transition,
+)
+from src.core.modules.project_management.domain.financials.billing_preparation import (
+    BillingExternalEventType,
+    ProjectBillingExternalEvent,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.accounting.handoff import (
+    ProjectAccountingHandoffORM,
+    ProjectAccountingOutboxORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
+    ProjectBillingExternalEventORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import (
+    ProjectFinanceInboxORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
+    SqlAlchemyFinanceGovernanceUnitOfWork,
+)
+from src.core.platform.application.integration import (
+    InboxDeliveryDisposition,
+    IntegrationInboxService,
+)
+from src.core.platform.application.integration.accounting.outcome_ingress import (
+    AccountingIngressAuthenticationError,
+)
+from src.core.platform.application.security.identity.execution_principal import (
+    resolve_execution_principal,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
-from src.core.platform.contract.port.integration.accounting_outcomes import AccountingOutcomeKind
-from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import SqlAlchemyUserRepository
-from src.core.platform.infrastructure.persistence.repositories.security.identity.identity import SqlAlchemyServicePrincipalRepository
-from src.core.platform.integration.accounting_events import ACCOUNTING_OUTCOME_CONSUMER, accounting_outcome_envelope
+from src.core.platform.contract.port.integration.accounting_outcomes import (
+    AccountingOutcomeKind,
+)
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
+    SqlAlchemyUserRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.security.identity.identity import (
+    SqlAlchemyServicePrincipalRepository,
+)
+from src.core.platform.integration.accounting_events import (
+    ACCOUNTING_OUTCOME_CONSUMER,
+    accounting_outcome_envelope,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.infra.persistence.db.postgresql_rls import configure_session_rls_context, worker_tenant_scope
+from src.infra.persistence.db.postgresql_rls import (
+    configure_session_rls_context,
+    worker_tenant_scope,
+)
 
 
 @dataclass(frozen=True)
@@ -110,7 +148,9 @@ class SqlAlchemyAccountingOutcomeConsumer:
             else:
                 previous = self._previous(session, preparation)
                 # Sequenced aggregate identity is independent of the current ordering mode.
-                from src.core.platform.integration.canonical_json import canonical_json_sha256
+                from src.core.platform.integration.canonical_json import (
+                    canonical_json_sha256,
+                )
                 aggregate_id = canonical_json_sha256({
                     "tenant_id": identity.tenant_id, "organization_id": identity.organization_id,
                     "adapter_id": identity.adapter_id, "connection_id": identity.connection_id,

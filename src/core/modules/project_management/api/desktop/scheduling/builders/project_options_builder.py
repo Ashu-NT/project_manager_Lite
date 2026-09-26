@@ -1,4 +1,6 @@
-from src.core.modules.project_management.api.desktop.scheduling.models.schedule import SchedulingProjectOptionDescriptor
+from src.core.modules.project_management.api.desktop.scheduling.models.schedule import (
+    SchedulingProjectOptionDescriptor,
+)
 
 
 def build_project_options(project_service=None) -> tuple[SchedulingProjectOptionDescriptor, ...]:

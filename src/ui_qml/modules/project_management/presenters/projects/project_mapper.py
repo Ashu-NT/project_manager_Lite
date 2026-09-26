@@ -8,6 +8,7 @@ from src.ui_qml.modules.project_management.view_models.projects import (
 
 from .formatting import format_date, format_date_label
 
+
 def build_project_state(project: Any) -> dict[str, object]:
     return {
         "projectId": project.id,

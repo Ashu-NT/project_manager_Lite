@@ -6,23 +6,35 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+from src.core.platform.access.authorization import (
+    filter_scope_rows,
+    require_scope_permission,
+)
+from src.core.platform.application.security.authorization import (
+    get_authorization_engine,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.common.ids import generate_id
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from src.core.platform.application.security.authorization import get_authorization_engine
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
     PlatformOverviewRollupReader,
     SiteRollupSummary,
 )
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.repositories.master_data.site.contracts import (
+    SiteRepository,
+)
 from src.core.platform.contract.uow.site_unit_of_work import SiteUnitOfWorkFactory
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.org.support import normalize_code
-from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.domain.master_data.site import Site
-from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
 
 from . import site_commands as _cmd
@@ -30,7 +42,9 @@ from .site_context import active_organization
 from .site_utils import normalize_optional_text
 
 if TYPE_CHECKING:
-    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
     from src.core.platform.domain.security.auth.session import UserSessionContext
 
 

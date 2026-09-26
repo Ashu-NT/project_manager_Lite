@@ -3,9 +3,6 @@ from __future__ import annotations
 import logging
 from time import perf_counter
 
-from src.ui_qml.modules.project_management.controllers.common.baseline_domain_event_binder import (
-    on_project_baseline_stale,
-)
 from src.ui_qml.modules.project_management.controllers.common import (
     safe_error_message,
     serialize_dashboard_activity_feed_view_model,
@@ -18,10 +15,12 @@ from src.ui_qml.modules.project_management.controllers.common import (
     serialize_dashboard_section_view_models,
     serialize_selector_options,
 )
+from src.ui_qml.modules.project_management.controllers.common.baseline_domain_event_binder import (
+    on_project_baseline_stale,
+)
 from src.ui_qml.modules.project_management.controllers.dashboard.dashboard_types import (
     DASHBOARD_CONTROLLER_LOGGER_NAME,
 )
-
 
 logger = logging.getLogger(DASHBOARD_CONTROLLER_LOGGER_NAME)
 

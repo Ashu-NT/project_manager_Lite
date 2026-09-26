@@ -26,6 +26,7 @@ from .command_handler import (
 from .leveling_builder import build_resource_leveling_state
 from .workspace_builder import build_workspace_state
 
+
 class ProjectSchedulingWorkspacePresenter:
     def __init__(
         self,

@@ -360,7 +360,7 @@ def _create_card_and_line(services, **card_kwargs):
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
-        rate_amount=Decimal("50"),
+        rate_amount=Decimal(50),
         rate_currency="USD",
         origin=RateLineOrigin.CONFIGURED,
         resource_id=_unique("P22-RES"),
@@ -472,7 +472,7 @@ def test_create_line_produces_exactly_one_detail_hint(services):
 
     rate_card_service = services["rate_card_service"]
     line = rate_card_service.create_line(
-        card.id, rate_type=RateType.COST, unit="HOUR", rate_amount=Decimal("60"),
+        card.id, rate_type=RateType.COST, unit="HOUR", rate_amount=Decimal(60),
         rate_currency="USD", resource_id=_unique("P22-RES2"),
     )
 
@@ -502,10 +502,10 @@ def test_update_line_real_change_produces_exactly_one_detail_hint(services):
     hints = _spy_hints(services)
 
     updated = rate_card_service.update_line(
-        line.id, expected_version=line.version, rate_amount=Decimal("75"),
+        line.id, expected_version=line.version, rate_amount=Decimal(75),
     )
 
-    assert updated.rate_amount == Decimal("75")
+    assert updated.rate_amount == Decimal(75)
     rate_hints = _rate_card_hints(hints)
     assert len(rate_hints) == 1
     assert rate_hints[0].scope_code == RATE_CARD_DETAIL_SCOPE_CODE
@@ -570,7 +570,9 @@ def test_rate_card_uses_the_canonical_finance_governance_unit_of_work(services):
 
 def test_financials_controller_list_stale_invalidates_costs(services):
     from src.application.runtime import build_desktop_api_registry
-    from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+    from src.ui_qml.modules.project_management.context import (
+        ProjectManagementWorkspaceCatalog,
+    )
 
     registry = build_desktop_api_registry(services)
     catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
@@ -584,7 +586,9 @@ def test_financials_controller_list_stale_invalidates_costs(services):
 
 def test_financials_controller_detail_stale_invalidates_costs_only_if_selected(services):
     from src.application.runtime import build_desktop_api_registry
-    from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+    from src.ui_qml.modules.project_management.context import (
+        ProjectManagementWorkspaceCatalog,
+    )
 
     registry = build_desktop_api_registry(services)
     catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
@@ -605,7 +609,9 @@ def test_financials_controller_list_stale_for_project_invalidates_costs_only_if_
     project, mirroring on_forecast_planning_stale's established pattern -- unlike the org-wide
     rateCardListStale path, which stays unconditional."""
     from src.application.runtime import build_desktop_api_registry
-    from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+    from src.ui_qml.modules.project_management.context import (
+        ProjectManagementWorkspaceCatalog,
+    )
 
     registry = build_desktop_api_registry(services)
     catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)

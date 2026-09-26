@@ -3,11 +3,11 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.application.financials.financial_changes.service import (
-    FinancialChangeService,
-)
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
+)
+from src.core.modules.project_management.application.financials.financial_changes.service import (
+    FinancialChangeService,
 )
 from src.core.modules.project_management.application.financials.forecasts.version_service import (
     ForecastVersionService,
@@ -17,7 +17,9 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalDeps,
 )
-from src.core.platform.application.history.activity.activity_service import ActivityService
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )

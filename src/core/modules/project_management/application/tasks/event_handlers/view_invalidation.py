@@ -121,14 +121,14 @@ def build_task_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_task_view_invalidation_handler",
-    "TASK_CATEGORY",
-    "TASK_MODULE_CODE",
-    "TASK_LIST_SCOPE_CODE",
-    "TASK_PROFILE_SCOPE_CODE",
-    "TASK_DETAIL_SCOPE_CODE",
-    "TASK_SCHEDULE_SCOPE_CODE",
-    "TASK_ASSIGNMENTS_SCOPE_CODE",
-    "TASK_DEPENDENCIES_SCOPE_CODE",
     "DASHBOARD_TASK_METRICS_SCOPE_CODE",
+    "TASK_ASSIGNMENTS_SCOPE_CODE",
+    "TASK_CATEGORY",
+    "TASK_DEPENDENCIES_SCOPE_CODE",
+    "TASK_DETAIL_SCOPE_CODE",
+    "TASK_LIST_SCOPE_CODE",
+    "TASK_MODULE_CODE",
+    "TASK_PROFILE_SCOPE_CODE",
+    "TASK_SCHEDULE_SCOPE_CODE",
+    "build_task_view_invalidation_handler",
 ]

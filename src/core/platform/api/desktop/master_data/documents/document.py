@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation, serialize_organization
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
-from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.master_data.documents.models.document import (
     DocumentCreateCommand,
     DocumentDto,
@@ -15,8 +12,22 @@ from src.core.platform.api.desktop.master_data.documents.models.document import 
     DocumentStructureUpdateCommand,
     DocumentUpdateCommand,
 )
-from src.core.platform.application.master_data.documents.document_service import DocumentService
-from src.core.platform.domain.master_data.documents import Document, DocumentLink, DocumentStructure
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.support._support import (
+    execute_desktop_operation,
+    serialize_organization,
+)
+from src.core.platform.application.master_data.documents.document_service import (
+    DocumentService,
+)
+from src.core.platform.domain.master_data.documents import (
+    Document,
+    DocumentLink,
+    DocumentStructure,
+)
 
 
 class PlatformDocumentDesktopApi:

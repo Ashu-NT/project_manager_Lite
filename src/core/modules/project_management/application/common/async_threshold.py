@@ -104,4 +104,4 @@ class AsyncThresholdGuard:
         return scale in (WorkloadScale.LARGE, WorkloadScale.XLARGE)
 
 
-__all__ = ["AsyncThresholdGuard", "AsyncThresholds", "DEFAULT_ASYNC_THRESHOLDS", "WorkloadScale"]
+__all__ = ["DEFAULT_ASYNC_THRESHOLDS", "AsyncThresholdGuard", "AsyncThresholds", "WorkloadScale"]

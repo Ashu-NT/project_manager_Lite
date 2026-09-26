@@ -6,14 +6,14 @@ from uuid import uuid4
 
 from sqlalchemy import event, select
 
-from src.core.modules.project_management.application.financials.procurement_consumer import (
-    PROCUREMENT_FINANCE_PRINCIPAL_NAME,
+from src.core.modules.project_management.api.desktop.financials.api import (
+    ProjectManagementFinancialsDesktopApi,
 )
 from src.core.modules.project_management.application.financials.commitments.event_handlers.view_invalidation import (
     COMMITMENT_CATEGORY,
 )
-from src.core.modules.project_management.api.desktop.financials.api import (
-    ProjectManagementFinancialsDesktopApi,
+from src.core.modules.project_management.application.financials.procurement_consumer import (
+    PROCUREMENT_FINANCE_PRINCIPAL_NAME,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
     ProjectCommitmentLineORM,
@@ -26,11 +26,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.cost_ent
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import (
     ProjectFinanceInboxORM,
 )
-from src.core.platform.infrastructure.persistence.orm.integration.procurement_financial_outbox import (
-    ProcurementFinancialOutboxORM,
-)
+from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
+)
+from src.core.platform.infrastructure.persistence.orm.integration.procurement_financial_outbox import (
+    ProcurementFinancialOutboxORM,
 )
 from src.core.platform.integration import (
     PROCUREMENT_COMMITMENT_EVENT_TYPE,
@@ -39,7 +40,6 @@ from src.core.platform.integration import (
     ProcurementCommitmentEventPayload,
     ProcurementReceiptAccrualEventPayload,
 )
-from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload
 
 
 def _setup(services):
@@ -217,10 +217,10 @@ def test_procurement_delivery_projects_receipt_actual_and_match_once(services):
     line = session.execute(select(ProjectCommitmentLineORM)).scalar_one()
     entry = session.execute(select(ProjectCostEntryORM)).scalar_one()
     match = session.execute(select(ProjectCommitmentMatchORM)).scalar_one()
-    assert line.amount == Decimal("100")
-    assert line.matched_amount == Decimal("40")
-    assert entry.amount == Decimal("40")
-    assert match.amount == Decimal("40")
+    assert line.amount == Decimal(100)
+    assert line.matched_amount == Decimal(40)
+    assert entry.amount == Decimal(40)
+    assert match.amount == Decimal(40)
     assert match.cost_entry_id == entry.id
     assert session.execute(select(ProjectCommitmentSourceRevisionORM)).scalars().all()
     assert {row.status for row in session.execute(select(ProcurementFinancialOutboxORM)).scalars()} == {"published"}
@@ -271,7 +271,7 @@ def test_changed_receipt_revision_quarantines_without_double_actual(services):
     session = services["session"]
     assert len(session.execute(select(ProjectCostEntryORM)).scalars().all()) == 1
     assert len(session.execute(select(ProjectCommitmentMatchORM)).scalars().all()) == 1
-    assert session.execute(select(ProjectCommitmentLineORM.matched_amount)).scalar_one() == Decimal("40")
+    assert session.execute(select(ProjectCommitmentLineORM.matched_amount)).scalar_one() == Decimal(40)
     inbox = session.execute(
         select(ProjectFinanceInboxORM).where(ProjectFinanceInboxORM.aggregate_version == 2)
     ).scalar_one()
@@ -287,7 +287,7 @@ def test_newer_line_revision_wins_and_terminal_line_remains_visible(services):
     session = services["session"]
     line = session.execute(select(ProjectCommitmentLineORM)).scalar_one()
     assert line.source_revision == 5
-    assert line.amount == Decimal("120")
+    assert line.amount == Decimal(120)
     assert len(session.execute(select(ProjectCommitmentSourceRevisionORM)).scalars().all()) == 2
 
     assert _deliver(services, _commitment(organization, project, site, supplier, revision=6, state="CLOSED", quantity="12")) == 1
@@ -305,9 +305,9 @@ def test_receipt_match_over_commitment_keeps_actual_and_zero_open(services):
     line = session.execute(select(ProjectCommitmentLineORM)).scalar_one()
     entry = session.execute(select(ProjectCostEntryORM)).scalar_one()
     match = session.execute(select(ProjectCommitmentMatchORM)).scalar_one()
-    assert entry.amount == Decimal("120")
-    assert match.amount == Decimal("100")
-    assert line.matched_amount == Decimal("100")
+    assert entry.amount == Decimal(120)
+    assert match.amount == Decimal(100)
+    assert line.matched_amount == Decimal(100)
     assert services["commitment_service"].get_line(line.id).remaining_money.amount == 0
 
 
@@ -318,10 +318,10 @@ def test_distinct_partial_receipts_reach_full_match_without_duplicate_actual(ser
     assert _deliver(services, _receipt(organization, project, site, supplier, quantity="7", suffix="-b")) == 1
     session = services["session"]
     line = session.execute(select(ProjectCommitmentLineORM)).scalar_one()
-    assert line.matched_amount == Decimal("100")
+    assert line.matched_amount == Decimal(100)
     assert services["commitment_service"].get_line(line.id).remaining_money.amount == 0
     assert sorted(row.amount for row in session.execute(select(ProjectCostEntryORM)).scalars()) == [
-        Decimal("30"), Decimal("70")
+        Decimal(30), Decimal(70)
     ]
     assert len(session.execute(select(ProjectCommitmentMatchORM)).scalars().all()) == 2
 
@@ -364,8 +364,9 @@ def test_exposure_filter_is_server_scoped_and_paged(services):
     assert closed.total == 1
     assert closed.items[0].id not in {first.items[0].id, second.items[0].id}
 
-    from src.core.platform.common.exceptions import ValidationError
     import pytest
+
+    from src.core.platform.common.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
         api.list_commitments(project.id, exposure="unknown")

@@ -1,6 +1,6 @@
 import logging
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Mapping
 
 from src.core.platform.contract.port.integration.external_accounting import (
     AccountingCredentialProvider,

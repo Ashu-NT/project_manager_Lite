@@ -25,7 +25,9 @@ from src.core.modules.project_management.domain.financials.rate_cards import Rat
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ResourceScope
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 
 def _pm_catalog(services) -> ProjectManagementWorkspaceCatalog:
@@ -169,7 +171,7 @@ def test_dedupe_by_target_within_one_transaction():
 
 def test_calculate_snapshot_produces_exactly_one_planned_cost_hint(services):
     ctx = _setup_project(services)
-    _allocate(services, ctx, Decimal("30"))
+    _allocate(services, ctx, Decimal(30))
     hints = _spy_hints(services)
 
     result = services["planned_cost_service"].calculate_snapshot(
@@ -185,10 +187,10 @@ def test_calculate_snapshot_produces_exactly_one_planned_cost_hint(services):
 
 def test_second_calculation_supersedes_and_produces_one_hint(services):
     ctx = _setup_project(services)
-    _allocate(services, ctx, Decimal("10"))
+    _allocate(services, ctx, Decimal(10))
     services["planned_cost_service"].calculate_snapshot(ctx["project"].id, calculated_by="admin")
 
-    _allocate(services, ctx, Decimal("20"))
+    _allocate(services, ctx, Decimal(20))
     hints = _spy_hints(services)
     second = services["planned_cost_service"].calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
@@ -223,7 +225,7 @@ def test_audit_failure_raises_and_produces_zero_hints(services, monkeypatch):
     P35's own "do not redesign Finance approval infrastructure" instruction). No other Finance
     family's test suite asserts persisted-state-after-failure through this boundary either."""
     ctx = _setup_project(services)
-    _allocate(services, ctx, Decimal("30"))
+    _allocate(services, ctx, Decimal(30))
 
     from src.core.platform.application.history.audit.enterprise_audit_service import (
         EnterpriseAuditService,
@@ -258,7 +260,7 @@ def test_concurrent_recalculation_second_writer_rejected_zero_hints(services, se
     )
 
     ctx = _setup_project(services)
-    _allocate(services, ctx, Decimal("10"))
+    _allocate(services, ctx, Decimal(10))
     first = services["planned_cost_service"].calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
     ).version

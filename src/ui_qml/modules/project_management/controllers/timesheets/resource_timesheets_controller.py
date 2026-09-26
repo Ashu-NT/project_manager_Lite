@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import calendar
 from datetime import date
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
@@ -9,11 +8,11 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
 )
-from src.ui_qml.modules.project_management.controllers.common.mutation_runner import (
-    run_mutation,
-)
 from src.ui_qml.modules.project_management.controllers.common.error_sanitizer import (
     safe_error_message,
+)
+from src.ui_qml.modules.project_management.controllers.common.mutation_runner import (
+    run_mutation,
 )
 from src.ui_qml.modules.project_management.presenters.timesheets import (
     ResourceTimesheetsPresenter,

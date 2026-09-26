@@ -249,7 +249,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             source_content_hash=source_hash,
             description=source.name,
             source_date=source.due_date,
-            quantity=Decimal("1"),
+            quantity=Decimal(1),
             unit="MILESTONE",
             unit_rate=source.amount,
             net_amount=source.amount,
@@ -332,7 +332,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self._require_source_date(preparation, entry.posting_date)
         profile = self._require_active_profile(preparation.project_id)
         self._require_currency(preparation.currency_code, entry.currency_code)
-        multiplier = Decimal("1") + (profile.cost_plus_markup_percent / Decimal("100"))
+        multiplier = Decimal(1) + (profile.cost_plus_markup_percent / Decimal(100))
         total = (Money.of(entry.amount, entry.currency_code) * multiplier).rounded()
         line = self._line(
             preparation,
@@ -342,7 +342,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             source_content_hash=entry.source_content_hash,
             description=entry.description,
             source_date=entry.posting_date,
-            quantity=Decimal("1"),
+            quantity=Decimal(1),
             unit="COST",
             unit_rate=total.amount,
             net_amount=total.amount,
@@ -369,7 +369,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         remaining = [item for item in lines if item.id != line_id]
         preparation.replace_totals(
             line_count=len(remaining),
-            total_amount=sum((item.net_amount for item in remaining), Decimal("0")),
+            total_amount=sum((item.net_amount for item in remaining), Decimal(0)),
             occurred_at=now,
         )
         event = BillingPreparationLineRemoved(
@@ -726,7 +726,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         now = self._clock.now()
         preparation.replace_totals(
             line_count=len(current_lines) + 1,
-            total_amount=sum((item.net_amount for item in current_lines), Decimal("0")) + line.net_amount,
+            total_amount=sum((item.net_amount for item in current_lines), Decimal(0)) + line.net_amount,
             occurred_at=now,
         )
         event = BillingPreparationLineAdded(

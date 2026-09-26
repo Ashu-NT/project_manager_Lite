@@ -6,6 +6,7 @@ from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetRecordViewModel,
 )
 
+
 def to_review_queue_record(row: Any) -> TimesheetRecordViewModel:
     return TimesheetRecordViewModel(
         id=row.period_id,

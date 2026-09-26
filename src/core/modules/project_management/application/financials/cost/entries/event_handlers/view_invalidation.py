@@ -4,8 +4,8 @@ from src.core.modules.project_management.application.financials.cost.entries.cos
     CostEntryRecorded,
     CostEntryRemoved,
     CostEntryReversed,
-    CostEntryStatusChangeType,
     CostEntryStatusChanged,
+    CostEntryStatusChangeType,
     CostEntryUpdated,
 )
 from src.core.modules.project_management.domain.financials.cost_entry import (
@@ -109,10 +109,10 @@ def build_cost_entry_view_invalidation_handler(channel: ViewInvalidationChannel)
 
 
 __all__ = [
-    "build_cost_entry_view_invalidation_handler",
+    "COST_ENTRY_ACTUALS_SCOPE_CODE",
     "COST_ENTRY_CATEGORY",
     "COST_ENTRY_LIST_SCOPE_CODE",
-    "COST_ENTRY_ACTUALS_SCOPE_CODE",
     "COST_ENTRY_MODULE_CODE",
     "COST_ENTRY_PROJECT_ENTITY_TYPE",
+    "build_cost_entry_view_invalidation_handler",
 ]

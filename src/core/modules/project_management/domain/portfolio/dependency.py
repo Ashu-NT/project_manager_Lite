@@ -84,7 +84,7 @@ class PortfolioProjectDependency:
         )
 
     @model_validator(mode="after")
-    def _validate_project_pair(self) -> "PortfolioProjectDependency":
+    def _validate_project_pair(self) -> PortfolioProjectDependency:
         if self.predecessor_project_id == self.successor_project_id:
             raise ValidationError(
                 "Portfolio dependency must link two different projects.",
@@ -99,7 +99,7 @@ class PortfolioProjectDependency:
         successor_project_id: str,
         dependency_type: DependencyType | str = DependencyType.FINISH_TO_START,
         summary: str = "",
-    ) -> "PortfolioProjectDependency":
+    ) -> PortfolioProjectDependency:
         now = datetime.now(timezone.utc)
         return PortfolioProjectDependency(
             id=generate_id(),

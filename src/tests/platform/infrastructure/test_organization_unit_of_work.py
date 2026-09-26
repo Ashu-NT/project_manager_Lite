@@ -7,13 +7,17 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+    TenantORM,
+)
 from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWork,
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
@@ -28,7 +32,9 @@ class _FakeTenantContextService:
         self._organization_id = organization_id
 
     def require_active_scope_ids(self, *, operation_label):
-        from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+        from src.core.platform.application.tenant.tenancy.tenant_context import (
+            ActiveScopeIds,
+        )
 
         return ActiveScopeIds(tenant_id=self._tenant_id, organization_id=self._organization_id)
 

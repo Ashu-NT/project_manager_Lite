@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.application.common.pagination import PaginatedResult
-from src.core.modules.project_management.contracts.reads.sorting import ReadSort, ReadSortDirection
+from src.core.modules.project_management.application.common.pagination import (
+    PaginatedResult,
+)
+from src.core.modules.project_management.contracts.reads.sorting import (
+    ReadSort,
+    ReadSortDirection,
+)
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
 )
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 
 _INTAKE_BROWSE_SORT_KEYS = {"title", "sponsorName", "statusLabel", "targetStartDate", "updatedAt"}
 

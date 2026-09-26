@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+
 @dataclass(frozen=True)
 class ProjectDashboardMetricViewModel:
     label: str
@@ -33,8 +34,8 @@ class ProjectDashboardPanelViewModel:
     subtitle: str = ""
     hint: str = ""
     empty_state: str = ""
-    rows: tuple["ProjectDashboardPanelRowViewModel", ...] = field(default_factory=tuple)
-    metrics: tuple["ProjectDashboardMetricViewModel", ...] = field(default_factory=tuple)
+    rows: tuple[ProjectDashboardPanelRowViewModel, ...] = field(default_factory=tuple)
+    metrics: tuple[ProjectDashboardMetricViewModel, ...] = field(default_factory=tuple)
 
 @dataclass(frozen=True)
 class ProjectDashboardChartPointViewModel:
@@ -51,7 +52,7 @@ class ProjectDashboardChartViewModel:
     subtitle: str = ""
     chart_type: str = "bar"
     empty_state: str = ""
-    points: tuple["ProjectDashboardChartPointViewModel", ...] = field(default_factory=tuple)
+    points: tuple[ProjectDashboardChartPointViewModel, ...] = field(default_factory=tuple)
 
 @dataclass(frozen=True)
 class ProjectDashboardSectionItemViewModel:
@@ -167,9 +168,9 @@ __all__ = [
     "ProjectDashboardChartViewModel",
     "ProjectDashboardHealthCardViewModel",
     "ProjectDashboardMetricViewModel",
-    "ProjectDashboardOverviewViewModel",
-    "ProjectDashboardOperationalTableViewModel",
     "ProjectDashboardOperationalTabViewModel",
+    "ProjectDashboardOperationalTableViewModel",
+    "ProjectDashboardOverviewViewModel",
     "ProjectDashboardPanelRowViewModel",
     "ProjectDashboardPanelViewModel",
     "ProjectDashboardSectionItemViewModel",

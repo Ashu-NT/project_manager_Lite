@@ -23,16 +23,25 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
-from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import DocumentORM
-from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-from src.core.platform.infrastructure.persistence.orm.master_data.party.party import PartyORM
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import (
+    DocumentORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+    OrganizationORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.party.party import (
+    PartyORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
 from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
     SqlAlchemyPlatformOverviewRollupReader,
 )
 from src.infra.persistence.orm import Base
-
 
 # ---------------------------------------------------------------------------
 # Reader-level unit tests: exact query count + tenancy/organization scoping,
@@ -550,7 +559,9 @@ def test_site_rollup_summary_respects_scope_restriction(services):
     grants via filter_scope_rows() when the caller is scope-restricted for
     the "site" scope type -- get_site_rollup_summary() must reflect the
     same restricted view, not the full organization's sites."""
-    from src.core.platform.application.security.authorization import get_authorization_engine
+    from src.core.platform.application.security.authorization import (
+        get_authorization_engine,
+    )
 
     site_service = services["site_service"]
     site_a = site_service.create_site(site_code="SCOPE-A", name="Scope Site A")

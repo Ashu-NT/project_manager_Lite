@@ -12,7 +12,9 @@ from src.core.platform.domain.tenant.modules.module_entitlement import (
 )
 
 if TYPE_CHECKING:
-    from src.core.platform.domain.tenant.modules.subscription import ModuleEntitlementRecord
+    from src.core.platform.domain.tenant.modules.subscription import (
+        ModuleEntitlementRecord,
+    )
 
 
 class ModuleCatalogQueryMixin:
@@ -40,7 +42,7 @@ class ModuleCatalogQueryMixin:
         licensed_codes, _enabled_codes = self._effective_codes(self._fetch_snapshot())
         return self._available_from_codes(licensed_codes)
 
-    def _entitlements_from_records(self, records: list["ModuleEntitlementRecord"]) -> list[ModuleEntitlement]:
+    def _entitlements_from_records(self, records: list[ModuleEntitlementRecord]) -> list[ModuleEntitlement]:
         records_by_code = {record.module_code: record for record in records}
         return [self._build_entitlement(module, records_by_code) for module in self._modules]
 
@@ -123,7 +125,7 @@ class ModuleCatalogQueryMixin:
         )
 
     def _build_entitlement(
-        self, module: EnterpriseModule, records_by_code: dict[str, "ModuleEntitlementRecord"]
+        self, module: EnterpriseModule, records_by_code: dict[str, ModuleEntitlementRecord]
     ) -> ModuleEntitlement:
         record = records_by_code.get(module.code)
         missing_organization_context = (

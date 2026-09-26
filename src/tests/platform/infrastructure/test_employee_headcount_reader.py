@@ -12,12 +12,13 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
 from src.core.platform.infrastructure.persistence.read.master_data.employee.employee_headcount_reader import (
     SqlAlchemyEmployeeHeadcountReader,
 )
 from src.infra.persistence.orm import Base
-
 
 # ---------------------------------------------------------------------------
 # Reader-level unit tests: exact query count + tenancy scoping, no service

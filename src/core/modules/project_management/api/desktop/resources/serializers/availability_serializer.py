@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
-
 from src.core.modules.project_management.api.desktop.resources.models.availability import (
     ResourceAvailabilityDayDto,
     ResourceAvailabilityDto,

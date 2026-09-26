@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeCreateCommand,
     EmployeeDepartmentBreakdownRowDto,
@@ -11,7 +9,11 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeSiteBreakdownRowDto,
     EmployeeUpdateCommand,
 )
-from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
+from src.core.platform.application.master_data.employee.employee_service import (
+    EmployeeService,
+)
 
 
 class PlatformEmployeeDesktopApi:

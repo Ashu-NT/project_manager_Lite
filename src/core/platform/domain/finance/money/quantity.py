@@ -9,7 +9,6 @@ from src.core.platform.common.exceptions import BusinessRuleError, ValidationErr
 from ._decimal import DecimalInput, decimal_value
 from .money import Money
 
-
 _UNIT_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9._/-]{0,31}$")
 
 

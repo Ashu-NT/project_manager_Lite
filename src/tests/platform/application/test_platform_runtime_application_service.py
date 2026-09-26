@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
 def test_platform_runtime_application_service_tracks_active_organization_context(services):

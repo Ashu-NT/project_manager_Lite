@@ -4,7 +4,9 @@ import os
 
 from PySide6.QtGui import QGuiApplication
 
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.context import build_shell_context
 from src.ui_qml.shell.main_window import build_main_window_navigation

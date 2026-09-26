@@ -6,21 +6,21 @@ from inspect import signature
 import pytest
 
 from src.core.platform.application.security.auth import AuthService
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.security.auth import UserAccount
+from src.core.platform.domain.security.auth.credentials.passwords import hash_password
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     RoleBinding,
 )
-from src.core.platform.domain.security.auth import UserAccount
-from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.domain.security.auth.credentials.passwords import hash_password
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
-    SqlAlchemyOrganizationRepository,
-)
-from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
     UserTenantMembership,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
+    SqlAlchemyOrganizationRepository,
 )
 
 

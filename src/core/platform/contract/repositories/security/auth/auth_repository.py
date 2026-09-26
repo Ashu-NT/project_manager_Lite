@@ -278,9 +278,9 @@ __all__ = [
     "AuthPolicyReconciliationRepository",
     "AuthSessionRepository",
     "PermissionRepository",
-    "RolePermissionRepository",
     "RoleBindingRepository",
     "RoleDelegationPolicyRepository",
+    "RolePermissionRepository",
     "RoleRepository",
     "UserRepository",
 ]

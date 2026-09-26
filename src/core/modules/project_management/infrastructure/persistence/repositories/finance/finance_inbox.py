@@ -1,12 +1,16 @@
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import ProjectFinanceInboxORM
+from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import (
+    ProjectFinanceInboxORM,
+)
 from src.core.platform.integration import (
     APPROVED_TIME_ENTRY_EVENT_TYPE,
     ApprovedTimeEntryEventPayload,
     IntegrationInboxReceipt,
 )
-from src.infra.persistence.repositories.integration_delivery import SqlAlchemyIntegrationInboxRepository
+from src.infra.persistence.repositories.integration_delivery import (
+    SqlAlchemyIntegrationInboxRepository,
+)
 
 
 class SqlAlchemyProjectFinanceInboxRepository(SqlAlchemyIntegrationInboxRepository):

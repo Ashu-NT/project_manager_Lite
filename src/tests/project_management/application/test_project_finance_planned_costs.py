@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -12,7 +11,6 @@ from src.core.modules.project_management.domain.financials.planned_cost import (
 )
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -91,15 +89,15 @@ def _allocate(services, ctx, hours: Decimal, *, assignment=None, project_resourc
 
 def test_allocating_within_envelope_succeeds(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
-    updated = _allocate(services, ctx, Decimal("30"))
-    assert updated.allocated_planned_hours == Decimal("30")
+    updated = _allocate(services, ctx, Decimal(30))
+    assert updated.allocated_planned_hours == Decimal(30)
     assert updated.version == 2
 
 
 def test_allocating_beyond_envelope_is_rejected(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
     with pytest.raises(BusinessRuleError) as exc:
-        _allocate(services, ctx, Decimal("41"))
+        _allocate(services, ctx, Decimal(41))
     assert exc.value.code == "PROJECT_RESOURCE_HOURS_OVERALLOCATED"
 
 
@@ -111,19 +109,19 @@ def test_allocating_across_two_tasks_reconciles_against_shared_envelope(services
         project_resource_id=ctx["project_resource"].id,
         allocation_percent=50.0,
     )
-    _allocate(services, ctx, Decimal("25"))
+    _allocate(services, ctx, Decimal(25))
     # 25 (task 1) + 20 (task 2) = 45 > 40 envelope.
     with pytest.raises(BusinessRuleError) as exc:
-        _allocate(services, ctx, Decimal("20"), assignment=assignment2)
+        _allocate(services, ctx, Decimal(20), assignment=assignment2)
     assert exc.value.code == "PROJECT_RESOURCE_HOURS_OVERALLOCATED"
     # 25 + 15 = 40, exactly the envelope — allowed.
-    updated = _allocate(services, ctx, Decimal("15"), assignment=assignment2)
-    assert updated.allocated_planned_hours == Decimal("15")
+    updated = _allocate(services, ctx, Decimal(15), assignment=assignment2)
+    assert updated.allocated_planned_hours == Decimal(15)
 
 
 def test_shrinking_envelope_below_allocated_total_is_rejected(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
-    _allocate(services, ctx, Decimal("30"))
+    _allocate(services, ctx, Decimal(30))
     with pytest.raises(BusinessRuleError) as exc:
         services["project_resource_service"].update(
             ctx["project_resource"].id,
@@ -145,11 +143,11 @@ def test_shrinking_envelope_below_allocated_total_is_rejected(services) -> None:
 
 def test_stale_assignment_version_raises_concurrency_error(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
-    _allocate(services, ctx, Decimal("10"))
+    _allocate(services, ctx, Decimal(10))
     with pytest.raises(Exception) as exc:
         services["task_service"].update_assignment_planned_hours(
             ctx["assignment"].id,
-            allocated_planned_hours=Decimal("15"),
+            allocated_planned_hours=Decimal(15),
             expected_assignment_version=1,  # stale — already advanced to 2
             expected_project_resource_version=ctx["project_resource"].version,
         )
@@ -163,7 +161,7 @@ def test_stale_assignment_version_raises_concurrency_error(services) -> None:
 
 def test_calculate_snapshot_basic_correctness(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0, hourly_rate=50.0)
-    _allocate(services, ctx, Decimal("30"))
+    _allocate(services, ctx, Decimal(30))
 
     result = services["planned_cost_service"].calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
@@ -184,20 +182,20 @@ def test_calculate_snapshot_basic_correctness(services) -> None:
     assert line.project_resource_id == ctx["project_resource"].id
     assert line.cost_code_id == ctx["cost_code"].id
     assert line.source_assignment_id == ctx["assignment"].id
-    assert line.planned_hours == Decimal("30")
-    assert line.amount == Decimal("30") * line.rate_amount
+    assert line.planned_hours == Decimal(30)
+    assert line.amount == Decimal(30) * line.rate_amount
 
     diagnostics = {d.resource_id: d for d in result.diagnostics}
     diag = diagnostics[ctx["resource"].id]
     assert diag.reason_code == PLANNED_HOURS_PARTIALLY_ALLOCATED
-    assert diag.envelope_hours == Decimal("40")
-    assert diag.allocated_hours == Decimal("30")
-    assert diag.unallocated_hours == Decimal("10")
+    assert diag.envelope_hours == Decimal(40)
+    assert diag.allocated_hours == Decimal(30)
+    assert diag.unallocated_hours == Decimal(10)
 
 
 def test_fully_allocated_envelope_marks_allocations_complete(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
-    _allocate(services, ctx, Decimal("40"))
+    _allocate(services, ctx, Decimal(40))
     result = services["planned_cost_service"].calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
     )
@@ -205,7 +203,7 @@ def test_fully_allocated_envelope_marks_allocations_complete(services) -> None:
     assert result.version.partially_allocated_resource_count == 0
     diag = result.diagnostics[0]
     assert diag.reason_code == PLANNED_HOURS_FULLY_ALLOCATED
-    assert diag.unallocated_hours == Decimal("0")
+    assert diag.unallocated_hours == Decimal(0)
 
 
 def test_empty_project_produces_valid_empty_snapshot(services) -> None:
@@ -229,12 +227,12 @@ def test_missing_default_cost_code_fails_closed(services) -> None:
 
 def test_calculation_supersedes_previous_version_and_increments_revision(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
-    _allocate(services, ctx, Decimal("10"))
+    _allocate(services, ctx, Decimal(10))
     first = services["planned_cost_service"].calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
     ).version
 
-    _allocate(services, ctx, Decimal("20"))
+    _allocate(services, ctx, Decimal(20))
     second = services["planned_cost_service"].calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
     ).version
@@ -249,7 +247,7 @@ def test_calculation_supersedes_previous_version_and_increments_revision(service
 
 def test_totals_by_task_and_cost_code_match_lines(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
-    _allocate(services, ctx, Decimal("30"))
+    _allocate(services, ctx, Decimal(30))
     version = services["planned_cost_service"].calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
     ).version
@@ -257,16 +255,16 @@ def test_totals_by_task_and_cost_code_match_lines(services) -> None:
     by_task = services["planned_cost_service"].get_totals_by_task(version.id)
     by_cost_code = services["planned_cost_service"].get_totals_by_cost_code(version.id)
     lines = services["planned_cost_service"].list_lines(version.id)
-    expected_total = sum((line.amount for line in lines), Decimal("0"))
-    assert sum(by_task.values(), Decimal("0")) == expected_total
-    assert sum(by_cost_code.values(), Decimal("0")) == expected_total
+    expected_total = sum((line.amount for line in lines), Decimal(0))
+    assert sum(by_task.values(), Decimal(0)) == expected_total
+    assert sum(by_cost_code.values(), Decimal(0)) == expected_total
     assert by_task[ctx["task"].id] == expected_total
     assert by_cost_code[ctx["cost_code"].id] == expected_total
 
 
 def test_source_assignment_id_survives_assignment_deletion(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
-    _allocate(services, ctx, Decimal("30"))
+    _allocate(services, ctx, Decimal(30))
     version = services["planned_cost_service"].calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
     ).version

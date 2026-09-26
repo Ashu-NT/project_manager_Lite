@@ -5,8 +5,8 @@ from pydantic import field_validator
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import (
-    normalize_required_text,
     normalize_optional_text,
+    normalize_required_text,
     validated_dataclass,
 )
 
@@ -90,7 +90,7 @@ class Tenant:
         *,
         is_active: bool = True,
         tenant_status: str | None = None,
-    ) -> "Tenant":
+    ) -> Tenant:
         resolved_status = tenant_status or (TENANT_STATUS_ACTIVE if is_active else TENANT_STATUS_SUSPENDED)
         return Tenant(
             id=generate_id(),

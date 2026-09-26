@@ -8,7 +8,6 @@ from datetime import date, timedelta
 
 import pytest
 
-from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.application.scheduling.cpm.dependency_schedule_math import (
     UnsupportedDependencyTypeError,
     normalize_forward,
@@ -17,6 +16,7 @@ from src.core.modules.project_management.application.scheduling.cpm.dependency_s
     successor_boundary,
     successor_earliest_start_from_boundary,
 )
+from src.core.modules.project_management.domain.enums import DependencyType
 
 
 class MonToFriCalendar:
@@ -69,7 +69,7 @@ def test_shift_is_strictly_monotonic_for_negative_offsets(cal):
     produce the identical date. The canonical primitive must not repeat
     this: every distinct negative offset is a distinct date."""
     anchor = THU
-    seen = {shift_working_days(cal, anchor, -n) for n in range(0, 6)}
+    seen = {shift_working_days(cal, anchor, -n) for n in range(6)}
     assert len(seen) == 6
 
 

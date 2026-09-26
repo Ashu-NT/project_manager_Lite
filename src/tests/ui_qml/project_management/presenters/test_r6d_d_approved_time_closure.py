@@ -8,21 +8,22 @@ from unittest.mock import MagicMock
 from PySide6.QtCore import QObject, QUrl
 from PySide6.QtQml import QQmlComponent
 
+from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
+    FinancialPostingFailurePageDto,
+)
 from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
     ApprovedTimeLaborCostConsumer,
 )
 from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
     ProjectCostEntryService,
 )
-from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
-    FinancialPostingFailurePageDto,
+from src.infra.integration.approved_time_dispatcher import (
+    ApprovedTimeFinancialDispatcher,
 )
-from src.infra.integration.approved_time_dispatcher import ApprovedTimeFinancialDispatcher
 from src.ui_qml.modules.project_management.presenters.financials.shared.destination_builder import (
     build_destination_state,
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine
-
 
 SECTION = Path(
     "src/ui_qml/modules/project_management/qml/workspaces/financials/cost/sections/FinancialsPostingFailuresSection.qml"

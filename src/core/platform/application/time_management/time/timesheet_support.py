@@ -4,13 +4,17 @@ import calendar
 from datetime import date
 from typing import Protocol
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+)
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
 from src.core.platform.contract.interface.time_management.time.contracts import (
     WorkAllocationRecord,
     WorkOwnerRecord,
     WorkResourceRecord,
+)
+from src.core.platform.contract.repositories.master_data.employee.contracts import (
+    EmployeeRepository,
 )
 from src.core.platform.contract.repositories.time_management.time.contracts import (
     TimeEntryRepository,
@@ -19,7 +23,11 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
     WorkOwnerRepository,
     WorkResourceRepository,
 )
-from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from src.core.platform.domain.time_management.time import (
+    TimeEntry,
+    TimesheetPeriod,
+    TimesheetPeriodStatus,
+)
 
 
 class _LegacySeedContext(Protocol):
@@ -72,7 +80,7 @@ class TimesheetSupportMixin:
         additionally require project-scoped task.manage/task.read, closing
         the gap where a user with only the global time.manage capability
         could otherwise write time against any project's tasks."""
-        return None
+        return
 
     def _load_work_allocation_context(
         self,

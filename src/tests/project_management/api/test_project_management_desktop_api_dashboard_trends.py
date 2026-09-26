@@ -4,11 +4,6 @@ from types import SimpleNamespace
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
 )
-from src.core.modules.project_management.domain.risk.register import (
-    RegisterEntrySeverity,
-    RegisterEntryStatus,
-    RegisterEntryType,
-)
 
 
 def test_project_management_dashboard_desktop_api_uses_real_period_labels_for_trend_axes() -> None:

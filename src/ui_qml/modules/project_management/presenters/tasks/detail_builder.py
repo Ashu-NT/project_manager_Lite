@@ -9,8 +9,9 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
 )
 
 from .overview_builder import build_empty_overview
-from .task_mapper import build_task_state
 from .task_lookup import resolve_selected_task
+from .task_mapper import build_task_state
+
 
 def build_detail_view_model(
     desktop_api: Any,

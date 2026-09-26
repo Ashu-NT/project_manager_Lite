@@ -7,18 +7,28 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.tasks.task_events import TaskRemoved
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskRemoved,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.domain.tasks.hierarchy import order_tasks_children_first
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    order_tasks_children_first,
+)
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
+from src.core.platform.contract.repositories.time_management.time.contracts import (
+    TimeEntryRepository,
+)
 from src.core.shared.activity import record_activity
 
 

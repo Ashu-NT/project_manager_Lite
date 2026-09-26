@@ -7,7 +7,9 @@ from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
@@ -15,12 +17,12 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
-from src.core.modules.project_management.application.financials.forecasts.version_service import (
-    ForecastVersionService,
-)
 from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
     FinancialChangeChanged,
     FinancialChangeEventType,
+)
+from src.core.modules.project_management.application.financials.forecasts.version_service import (
+    ForecastVersionService,
 )
 from src.core.modules.project_management.application.financials.successor_models import (
     ApprovedFinancialLineAdjustment,
@@ -32,44 +34,55 @@ from src.core.modules.project_management.contracts.ports.schedule_change import 
 from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import (
     ProjectBudgetRepository,
 )
-from src.core.modules.project_management.contracts.repositories.finance.financial_changes.financial_change import (
-    FinancialChangeRepository,
-)
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
+from src.core.modules.project_management.contracts.repositories.finance.financial_changes.financial_change import (
+    FinancialChangeRepository,
+)
 from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import (
     ProjectForecastRepository,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.financials.budget import ProjectBudget
-from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
+from src.core.modules.project_management.domain.financials.configuration import (
+    CostCodePolicy,
+)
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpact,
     FinancialChangeImpactType,
     FinancialChangeRequest,
     FinancialChangeStatus,
 )
-from src.core.modules.project_management.domain.financials.forecast import ProjectForecast
+from src.core.modules.project_management.domain.financials.forecast import (
+    ProjectForecast,
+)
 from src.core.platform.application.approval.approval_mutation_participant import (
     request_approval_using,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.platform.contract.repositories.approval.contracts import (
+    ApprovalRepository,
+)
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-
 
 _REVISION_CONSTRAINT = "uq_pf_change_project_revision"
 
@@ -238,7 +251,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         impact_type: FinancialChangeImpactType,
         description: str,
         expected_change_version: int,
-        amount: Decimal = Decimal("0"),
+        amount: Decimal = Decimal(0),
         currency_code: str | None = None,
         cost_code_id: str | None = None,
         task_id: str | None = None,
@@ -323,7 +336,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         description: str,
         expected_impact_version: int,
         expected_change_version: int,
-        amount: Decimal = Decimal("0"),
+        amount: Decimal = Decimal(0),
         currency_code: str | None = None,
         cost_code_id: str | None = None,
         task_id: str | None = None,

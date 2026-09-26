@@ -122,7 +122,7 @@ class AccountingHandoffSnapshot(BaseModel):
             if (
                 not total.is_finite()
                 or total == 0
-                or sum(amounts, Decimal("0")) != total
+                or sum(amounts, Decimal(0)) != total
             ):
                 raise ValueError(
                     "Approved line amounts must exactly reconcile to the total."

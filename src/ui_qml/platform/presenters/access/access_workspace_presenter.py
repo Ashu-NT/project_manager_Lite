@@ -7,10 +7,15 @@ from src.core.platform.api.desktop.access.models.access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
 )
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
 from src.core.platform.api.desktop.security.auth.models.user import UserDto
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
-from src.ui_qml.platform.presenters.common.presenter_support_helpers import preview_error_result
+from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
+    preview_error_result,
+)
 from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,

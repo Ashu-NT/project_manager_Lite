@@ -15,8 +15,8 @@ def emit_cascade_schedule_changed(uow, *, scope, project_id: str, changed_task_i
     if not changed_task_ids:
         return
     from src.core.modules.project_management.application.tasks.task_events import (
-        TaskScheduleChangeType,
         TaskScheduleChanged,
+        TaskScheduleChangeType,
     )
 
     for task_id in changed_task_ids:

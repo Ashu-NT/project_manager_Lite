@@ -84,9 +84,9 @@ class CostEntryRemoved:
 
 __all__ = [
     "CostEntryRecorded",
-    "CostEntryUpdated",
+    "CostEntryRemoved",
+    "CostEntryReversed",
     "CostEntryStatusChangeType",
     "CostEntryStatusChanged",
-    "CostEntryReversed",
-    "CostEntryRemoved",
+    "CostEntryUpdated",
 ]

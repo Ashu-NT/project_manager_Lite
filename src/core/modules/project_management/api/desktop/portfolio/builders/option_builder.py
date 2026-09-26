@@ -1,12 +1,14 @@
 """Project, intake status, and dependency type option builders."""
 
-from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
+    dependency_type_label,
+)
 from src.core.modules.project_management.api.desktop.portfolio.models.options import (
     PortfolioOptionDescriptor,
     PortfolioProjectOptionDescriptor,
 )
-from src.core.modules.project_management.api.desktop.common.dependency_presentation import dependency_type_label
+from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
 
 
 def build_project_options(project_service=None) -> tuple[PortfolioProjectOptionDescriptor, ...]:

@@ -4,17 +4,16 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.infra.persistence.orm.base import Base
 from src.infra.persistence.db.financial_numeric import (
     FinancialNumericKind,
     financial_numeric,
     financial_numeric_info,
 )
+from src.infra.persistence.orm.base import Base
 
 
 class ProjectBaselineORM(Base):
@@ -30,11 +29,11 @@ class ProjectBaselineORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    submitted_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    submitted_at: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    approved_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    approved_at: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    submitted_by: Mapped[str | None] = mapped_column(String, nullable=True)
+    submitted_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String, nullable=True)
+    approved_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 Index("idx_baseline_project", ProjectBaselineORM.project_id)
@@ -53,9 +52,9 @@ class BaselineTaskORM(Base):
         nullable=False,
     )
     task_id: Mapped[str] = mapped_column(String, nullable=False)
-    task_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    baseline_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    baseline_finish: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    task_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    baseline_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    baseline_finish: Mapped[date | None] = mapped_column(Date, nullable=True)
     baseline_duration_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     baseline_is_milestone: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
@@ -63,7 +62,7 @@ class BaselineTaskORM(Base):
     baseline_planned_cost: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.MONEY),
         nullable=False,
-        default=Decimal("0"),
+        default=Decimal(0),
         server_default="0",
         info=financial_numeric_info(FinancialNumericKind.MONEY),
     )
@@ -89,13 +88,13 @@ class BaselineVarianceRecordORM(Base):
         nullable=False,
     )
     task_id: Mapped[str] = mapped_column(String, nullable=False)
-    task_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    task_name: Mapped[str | None] = mapped_column(String, nullable=True)
     start_variance_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     finish_variance_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     cost_variance: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.MONEY),
         nullable=False,
-        default=Decimal("0"),
+        default=Decimal(0),
         server_default="0",
         info=financial_numeric_info(FinancialNumericKind.MONEY),
     )

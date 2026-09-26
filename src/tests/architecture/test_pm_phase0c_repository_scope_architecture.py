@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 PM_REPOSITORIES = Path(
     "src/core/modules/project_management/infrastructure/persistence/repositories"
 )

@@ -12,14 +12,14 @@ from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.platform.presenters.access.access_workspace_presenter import (
     PlatformAccessWorkspacePresenter,
 )
-from src.ui_qml.platform.presenters.support.support_workspace_presenter import (
-    PlatformSupportWorkspacePresenter,
-)
 from src.ui_qml.platform.presenters.control.control_queue_presenter import (
     PlatformControlQueuePresenter,
 )
 from src.ui_qml.platform.presenters.settings.settings_catalog_presenter import (
     PlatformSettingsCatalogPresenter,
+)
+from src.ui_qml.platform.presenters.support.support_workspace_presenter import (
+    PlatformSupportWorkspacePresenter,
 )
 
 

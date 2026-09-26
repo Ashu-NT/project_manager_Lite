@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 from src.core.platform.domain.events.notifications import Notification
-from src.core.platform.infrastructure.persistence.orm.events.notifications.notification import NotificationORM
+from src.core.platform.infrastructure.persistence.orm.events.notifications.notification import (
+    NotificationORM,
+)
 
 
 def _to_json(payload: dict[str, Any]) -> str:
@@ -56,4 +58,4 @@ def notification_from_orm(obj: NotificationORM) -> Notification:
     )
 
 
-__all__ = ["notification_to_orm", "notification_from_orm"]
+__all__ = ["notification_from_orm", "notification_to_orm"]

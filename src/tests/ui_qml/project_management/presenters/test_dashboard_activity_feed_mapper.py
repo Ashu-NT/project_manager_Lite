@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop.dashboard.models.activity_feed import (
     ProjectDashboardActivityFeedDescriptor,

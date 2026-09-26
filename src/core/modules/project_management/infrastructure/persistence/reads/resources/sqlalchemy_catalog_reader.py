@@ -18,19 +18,28 @@ from src.core.modules.project_management.infrastructure.persistence.orm.project 
     ProjectORM,
     ProjectResourceORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskAssignmentORM,
     TaskORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.sorting import stable_order_by
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
-from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
-
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+    OrganizationORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
 
 ResourceDepartment = aliased(DepartmentORM, name="resource_department")
 EmployeeDepartment = aliased(DepartmentORM, name="employee_department")

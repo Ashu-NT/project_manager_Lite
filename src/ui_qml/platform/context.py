@@ -3,39 +3,33 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.platform.navigation.platform_context_navigation import (
-    build_platform_context_navigation,
-)
-from src.ui_qml.shell.context_navigation import (
-    resolve_breadcrumb,
-    resolve_safe_context_destination,
-)
-
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
-from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.platform_runtime.runtime import (
+    PlatformRuntimeDesktopApi,
+)
+from src.ui_qml.platform.adapters.account_security_view_invalidation_adapter import (
+    AccountSecurityViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
     ApprovalViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
-    EmployeeViewInvalidationAdapter,
+from src.ui_qml.platform.adapters.authorization_context_view_invalidation_adapter import (
+    AuthorizationContextViewInvalidationAdapter,
 )
 from src.ui_qml.platform.adapters.department_view_invalidation_adapter import (
     DepartmentViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.site_view_invalidation_adapter import (
-    SiteViewInvalidationAdapter,
-)
-from src.ui_qml.platform.adapters.party_view_invalidation_adapter import (
-    PartyViewInvalidationAdapter,
-)
-from src.ui_qml.platform.adapters.document_view_invalidation_adapter import (
-    DocumentViewInvalidationAdapter,
+from src.ui_qml.platform.adapters.document_links_view_invalidation_adapter import (
+    DocumentLinksViewInvalidationAdapter,
 )
 from src.ui_qml.platform.adapters.document_structure_view_invalidation_adapter import (
     DocumentStructureViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.document_links_view_invalidation_adapter import (
-    DocumentLinksViewInvalidationAdapter,
+from src.ui_qml.platform.adapters.document_view_invalidation_adapter import (
+    DocumentViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
+    EmployeeViewInvalidationAdapter,
 )
 from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter import (
     ModuleEntitlementViewInvalidationAdapter,
@@ -43,53 +37,60 @@ from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter i
 from src.ui_qml.platform.adapters.organization_view_invalidation_adapter import (
     OrganizationViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.party_view_invalidation_adapter import (
+    PartyViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.role_binding_view_invalidation_adapter import (
     RoleBindingViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.authorization_context_view_invalidation_adapter import (
-    AuthorizationContextViewInvalidationAdapter,
-)
-from src.ui_qml.platform.adapters.account_security_view_invalidation_adapter import (
-    AccountSecurityViewInvalidationAdapter,
+from src.ui_qml.platform.adapters.site_view_invalidation_adapter import (
+    SiteViewInvalidationAdapter,
 )
 from src.ui_qml.platform.adapters.tenant_membership_view_invalidation_adapter import (
     TenantMembershipViewInvalidationAdapter,
 )
-from src.ui_qml.platform.controllers.overview import PlatformAdminWorkspaceController
 from src.ui_qml.platform.controllers.access import (
     PlatformAdminAccessWorkspaceController,
 )
-from src.ui_qml.platform.controllers.support import PlatformSupportWorkspaceController
 from src.ui_qml.platform.controllers.control import PlatformControlWorkspaceController
+from src.ui_qml.platform.controllers.overview import PlatformAdminWorkspaceController
 from src.ui_qml.platform.controllers.settings import PlatformSettingsWorkspaceController
+from src.ui_qml.platform.controllers.support import PlatformSupportWorkspaceController
 from src.ui_qml.platform.controllers.tenant_management import (
     OrganizationSwitcherController,
     TenantSwitcherController,
+)
+from src.ui_qml.platform.navigation.platform_context_navigation import (
+    build_platform_context_navigation,
 )
 from src.ui_qml.platform.presenters import (
     OrganizationSwitcherPresenter,
     PlatformAccessWorkspacePresenter,
     PlatformAdminWorkspacePresenter,
+    PlatformCalendarCatalogPresenter,
     PlatformControlQueuePresenter,
     PlatformControlWorkspacePresenter,
-    PlatformCalendarCatalogPresenter,
     PlatformDepartmentCatalogPresenter,
     PlatformDocumentCatalogPresenter,
     PlatformDocumentManagementPresenter,
     PlatformEmployeeCatalogPresenter,
-    PlatformOrganizationCatalogPresenter,
     PlatformOrganizationActivityPresenter,
+    PlatformOrganizationCatalogPresenter,
     PlatformPartyCatalogPresenter,
     PlatformRuntimePresenter,
     PlatformSettingsCatalogPresenter,
     PlatformSettingsWorkspacePresenter,
-    PlatformSiteCatalogPresenter,
     PlatformSiteActivityPresenter,
+    PlatformSiteCatalogPresenter,
     PlatformSupportWorkspacePresenter,
-    TenantSwitcherPresenter,
     PlatformUserCatalogPresenter,
+    TenantSwitcherPresenter,
 )
 from src.ui_qml.platform.routes import build_platform_routes
+from src.ui_qml.shell.context_navigation import (
+    resolve_breadcrumb,
+    resolve_safe_context_destination,
+)
 
 QML_IMPORT_NAME = "Platform.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1

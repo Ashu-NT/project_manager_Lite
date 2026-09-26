@@ -9,8 +9,8 @@ import pytest
 
 from src.application.runtime import build_desktop_api_registry
 from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidation import (
-    TENANT_MEMBERSHIPS_SCOPE_CODE,
     TENANT_MEMBERSHIP_CATEGORY,
+    TENANT_MEMBERSHIPS_SCOPE_CODE,
     build_tenant_membership_view_invalidation_handler,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -20,14 +20,14 @@ from src.core.platform.domain.tenant.tenancy.events import (
     TenantMembershipRemoved,
     TenantMembershipSuspended,
 )
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.view_invalidation import TenantScope
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
 from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWork,
 )
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.events.view_invalidation import TenantScope
 from src.ui_qml.platform.adapters.tenant_membership_view_invalidation_adapter import (
     TenantMembershipViewInvalidationAdapter,
 )
@@ -159,8 +159,8 @@ def test_adapter_module_has_no_domain_event_or_postcommit_bus_dependency():
 
 
 def test_controllers_do_not_import_event_infrastructure():
-    import src.ui_qml.platform.controllers.overview.admin_console_controller as admin_module
     import src.ui_qml.platform.controllers.access.access_workspace_controller as access_module
+    import src.ui_qml.platform.controllers.overview.admin_console_controller as admin_module
 
     for module in (admin_module, access_module):
         imports = _imported_module_names(module)

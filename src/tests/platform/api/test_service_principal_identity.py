@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
+from src.application.runtime import build_desktop_api_registry
 from src.core.platform.api.desktop.security.identity.models.identity import (
     ApiKeyIssueCommand,
     ServicePrincipalCreateCommand,
 )
-from src.application.runtime import build_desktop_api_registry
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
 

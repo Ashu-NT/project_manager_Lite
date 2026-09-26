@@ -92,10 +92,10 @@ def build_budget_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_budget_view_invalidation_handler",
     "BUDGET_CATEGORY",
-    "BUDGET_PLANNING_SCOPE_CODE",
-    "BUDGET_PROJECT_SUMMARY_SCOPE_CODE",
     "BUDGET_MODULE_CODE",
+    "BUDGET_PLANNING_SCOPE_CODE",
     "BUDGET_PROJECT_ENTITY_TYPE",
+    "BUDGET_PROJECT_SUMMARY_SCOPE_CODE",
+    "build_budget_view_invalidation_handler",
 ]

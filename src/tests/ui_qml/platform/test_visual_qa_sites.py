@@ -18,7 +18,9 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
     SiteCalendarAssignCommand,
 )
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.context import build_shell_context
 from src.ui_qml.shell.main_window import build_main_window_navigation

@@ -7,7 +7,9 @@ from src.core.platform.api.desktop.master_data.party.models.party import (
     PartyDto,
     PartyUpdateCommand,
 )
-from src.core.platform.api.desktop.master_data.party.party import PlatformPartyDesktopApi
+from src.core.platform.api.desktop.master_data.party.party import (
+    PlatformPartyDesktopApi,
+)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.domain.master_data.party import PartyType
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
@@ -22,6 +24,7 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,
 )
+
 
 class PlatformPartyCatalogPresenter:
     def __init__(self, *, party_api: PlatformPartyDesktopApi | None = None) -> None:

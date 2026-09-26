@@ -10,6 +10,7 @@ from src.core.modules.project_management.infrastructure.importers.models.import_
     ImportRow,
 )
 
+
 class P6Parser(ImportParser):
     """
     Oracle Primavera P6 XER parser.

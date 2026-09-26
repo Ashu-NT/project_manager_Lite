@@ -332,7 +332,9 @@ def test_add_and_remove_project_cost_code_restriction_invalidate_project_setup(s
 
 def test_financials_controller_financial_profile_stale_invalidates_only_controls(services):
     from src.application.runtime import build_desktop_api_registry
-    from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+    from src.ui_qml.modules.project_management.context import (
+        ProjectManagementWorkspaceCatalog,
+    )
 
     registry = build_desktop_api_registry(services)
     catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)

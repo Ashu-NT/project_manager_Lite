@@ -4,13 +4,12 @@ import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.history.audit import AuditEntry
 
 if TYPE_CHECKING:
-    from src.core.platform.domain.security.auth.session import UserSessionPrincipal
-
     from src.core.platform.application.security.auth.auth_service import AuthService
+    from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 logger = logging.getLogger(__name__)
 

@@ -65,7 +65,7 @@ class TaskDependencyImpactPreviewDesktopDto:
 
 __all__ = [
     "TaskDependencyDesktopDto",
-    "TaskDependencyPageDesktopDto",
-    "TaskDependencyImpactRowDesktopDto",
     "TaskDependencyImpactPreviewDesktopDto",
+    "TaskDependencyImpactRowDesktopDto",
+    "TaskDependencyPageDesktopDto",
 ]

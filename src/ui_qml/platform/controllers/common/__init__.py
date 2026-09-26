@@ -12,8 +12,8 @@ from .workspace_controller_base import PlatformWorkspaceControllerBase
 
 __all__ = [
     "DEFAULT_SAFE_FAILURE_MESSAGE",
-    "PlatformWorkspaceControllerBase",
     "WORKSPACE_PERMISSIONS",
+    "PlatformWorkspaceControllerBase",
     "run_admin_action",
     "run_admin_result_action",
     "run_mutation",

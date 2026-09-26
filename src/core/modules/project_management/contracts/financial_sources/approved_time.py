@@ -57,7 +57,7 @@ class ApprovedTimeFinancialSource(_FinancialSourceContract):
         return value.astimezone(timezone.utc)
 
     @model_validator(mode="after")
-    def _validate_time_source(self) -> "ApprovedTimeFinancialSource":
+    def _validate_time_source(self) -> ApprovedTimeFinancialSource:
         reference = self.reference
         if (
             reference.source_module != FinancialSourceModule.PLATFORM_TIME

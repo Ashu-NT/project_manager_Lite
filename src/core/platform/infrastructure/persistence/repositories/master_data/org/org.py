@@ -3,13 +3,17 @@ from __future__ import annotations
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.infrastructure.persistence.mappers.master_data.org.org import (
     organization_from_orm,
     organization_to_orm,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
-from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+    OrganizationORM,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

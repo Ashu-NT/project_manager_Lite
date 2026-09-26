@@ -6,13 +6,19 @@ from datetime import datetime
 from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.repositories.security.identity.contracts import (
     ApiKeyCredentialRepository,
     ServicePrincipalRepository,
 )
-from src.core.platform.domain.security.identity.service_principal import ApiKeyCredential, ServicePrincipal
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.identity.service_principal import (
+    ApiKeyCredential,
+    ServicePrincipal,
+)
 from src.core.platform.infrastructure.persistence.orm.security.identity.identity import (
     ApiKeyCredentialORM,
     ServicePrincipalORM,
@@ -20,7 +26,6 @@ from src.core.platform.infrastructure.persistence.orm.security.identity.identity
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 def _principal_from_orm(row: ServicePrincipalORM) -> ServicePrincipal:

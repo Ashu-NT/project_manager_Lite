@@ -1,10 +1,6 @@
 from datetime import date, datetime
 from types import SimpleNamespace
 
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
-from src.ui_qml.modules.project_management.presenters import (
-    ProjectDashboardPresenter,
-)
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
 )
@@ -12,6 +8,12 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
+)
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
+from src.ui_qml.modules.project_management.presenters import (
+    ProjectDashboardPresenter,
 )
 
 

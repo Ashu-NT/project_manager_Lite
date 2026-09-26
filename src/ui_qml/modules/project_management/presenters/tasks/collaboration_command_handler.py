@@ -11,6 +11,7 @@ from src.core.modules.project_management.api.desktop import (
 
 from .validation import coerce_string_list, require_text
 
+
 def post_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> None:
     command = TaskCollaborationPostCommand(
         task_id=require_text(

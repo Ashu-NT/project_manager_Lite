@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import pytest
 from PySide6.QtGui import QGuiApplication
@@ -9,7 +8,6 @@ from PySide6.QtGui import QGuiApplication
 from src.tests.path_rewrites import REPO_ROOT
 from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
 from src.ui_qml.shell.qml_registry import build_qml_route_registry
-
 
 SCHEDULING_ROOT = (
     REPO_ROOT

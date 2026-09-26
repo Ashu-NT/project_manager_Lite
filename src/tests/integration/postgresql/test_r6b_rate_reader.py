@@ -19,7 +19,6 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 )
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 
-
 pytestmark = pytest.mark.postgresql_integration
 
 TENANT_A = "r6b-rate-tenant-a"

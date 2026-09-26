@@ -22,10 +22,16 @@ from src.core.platform.domain.security.authorization.roles.role_binding_scope im
     RoleBindingResourceScope,
     RoleBindingTenantScope,
 )
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.view_invalidation import ExactOrganization, OrganizationScope, PlatformScope, TenantScope, TenantWide
 from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWork,
+)
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.events.view_invalidation import (
+    ExactOrganization,
+    OrganizationScope,
+    PlatformScope,
+    TenantScope,
+    TenantWide,
 )
 from src.ui_qml.platform.adapters.role_binding_view_invalidation_adapter import (
     RoleBindingViewInvalidationAdapter,
@@ -417,9 +423,15 @@ def test_tenant_scope_mutation_refreshes_regardless_of_which_organization_is_act
 def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
     from datetime import datetime as _dt
 
-    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
-    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+        SiteORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+        TenantORM,
+    )
 
     channel = services["platform_view_invalidation_channel"]
     tenant_a = _active_tenant(services)
@@ -461,7 +473,10 @@ def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
 
 
 def test_adapter_subscribes_via_exact_organization_and_tenant_wide_only(services):
-    from src.core.shared.events.view_invalidation import AllTenants, AnyOrganizationInTenant
+    from src.core.shared.events.view_invalidation import (
+        AllTenants,
+        AnyOrganizationInTenant,
+    )
 
     channel = services["platform_view_invalidation_channel"]
     tenant_id = _active_tenant(services)

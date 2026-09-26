@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from src.ui_qml.modules.project_management.view_models.financials import (
-    BaselineVarianceRowViewModel,
     FinancialsCollectionViewModel,
     FinancialsCommitmentSummaryViewModel,
     FinancialsDetailViewModel,

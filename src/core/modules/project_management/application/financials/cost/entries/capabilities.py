@@ -25,7 +25,7 @@ class CostEntryActionCapabilities:
     read_only_reason: str = ""
 
     @classmethod
-    def none(cls) -> "CostEntryActionCapabilities":
+    def none(cls) -> CostEntryActionCapabilities:
         """All-False default, for a caller with no computed capabilities to pass."""
         return cls()
 

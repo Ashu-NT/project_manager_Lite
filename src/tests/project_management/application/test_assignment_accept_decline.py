@@ -10,7 +10,11 @@ from src.core.modules.project_management.application.tasks.commands.assignment i
     TaskAssignmentMixin,
 )
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, OperationNotPermittedError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    OperationNotPermittedError,
+)
 
 
 class _FakeRepo:

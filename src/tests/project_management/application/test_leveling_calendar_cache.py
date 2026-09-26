@@ -7,7 +7,7 @@ against in production.
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
 from src.core.modules.project_management.application.scheduling.leveling.calendar_cache import (
     MemoizingCalendarWindow,

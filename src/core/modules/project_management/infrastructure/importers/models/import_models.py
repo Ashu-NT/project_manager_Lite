@@ -10,6 +10,7 @@ from typing import Any
 
 from src.core.modules.project_management.domain.identifiers import generate_id
 
+
 class ImportParseState(str, Enum):
     PENDING = "pending"
     PARSING = "parsing"
@@ -87,7 +88,7 @@ class ImportMappingProfile:
     version: int = 1
 
     @staticmethod
-    def create(name: str, source_format: str, owner_id: str | None = None) -> "ImportMappingProfile":
+    def create(name: str, source_format: str, owner_id: str | None = None) -> ImportMappingProfile:
         return ImportMappingProfile(
             id=generate_id(),
             name=name,
@@ -116,8 +117,8 @@ class ImportParser(ABC):
 __all__ = [
     "ImportFieldMapping",
     "ImportMappingProfile",
-    "ImportParser",
     "ImportParseState",
+    "ImportParser",
     "ImportPreviewModel",
     "ImportRow",
     "ImportValidationIssue",

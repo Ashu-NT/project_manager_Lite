@@ -5,8 +5,8 @@ from textwrap import dedent
 from PySide6.QtCore import (
     Property,
     QAbstractTableModel,
-    QPoint,
     QModelIndex,
+    QPoint,
     Qt,
     Signal,
     Slot,
@@ -15,7 +15,6 @@ from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QTest
 
 from src.ui_qml.shell.qml_engine import create_qml_engine
-
 
 ASCENDING = Qt.SortOrder.AscendingOrder.value
 DESCENDING = Qt.SortOrder.DescendingOrder.value
@@ -30,10 +29,10 @@ class _SortSpyModel(QAbstractTableModel):
         self.toggle_count = 0
         self.last_key = ""
 
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 0 if not parent.isValid() else 0
 
-    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 0 if not parent.isValid() else 0
 
     def _get_columns(self) -> list[dict]:
@@ -51,16 +50,16 @@ class _SortSpyModel(QAbstractTableModel):
     )
 
     @Property(int, constant=True)
-    def rowCountValue(self) -> int:  # noqa: N802
+    def rowCountValue(self) -> int:
         return 0
 
     @Slot(str)
-    def toggleSort(self, key: str) -> None:  # noqa: N802
+    def toggleSort(self, key: str) -> None:
         self.toggle_count += 1
         self.last_key = key
 
     @Slot(int, result=str)
-    def rowId(self, _row: int) -> str:  # noqa: N802
+    def rowId(self, _row: int) -> str:
         return ""
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 def test_module_entitlements_are_scoped_by_active_organization(services):
     organization_service = services["organization_service"]
     module_catalog = services["module_catalog_service"]

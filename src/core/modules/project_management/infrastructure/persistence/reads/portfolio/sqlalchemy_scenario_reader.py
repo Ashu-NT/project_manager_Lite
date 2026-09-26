@@ -17,16 +17,20 @@ from src.core.modules.project_management.contracts.reads.portfolio.models.scenar
 from src.core.modules.project_management.domain.portfolio import (
     calculate_portfolio_intake_composite_score,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.portfolio import (
-    PortfolioIntakeItemORM,
-    PortfolioScenarioORM,
-)
 from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
     BudgetLineORM,
     ProjectBudgetORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.portfolio import (
+    PortfolioIntakeItemORM,
+    PortfolioScenarioORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskAssignmentORM,
     TaskORM,

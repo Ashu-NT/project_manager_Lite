@@ -3,14 +3,13 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
-
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.platform.presenters import (
     PlatformSettingsCatalogPresenter,
     PlatformSettingsWorkspacePresenter,
 )
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from ..common import (
     WORKSPACE_PERMISSIONS,

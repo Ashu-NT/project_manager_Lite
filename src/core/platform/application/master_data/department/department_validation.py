@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
-from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
-from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
+from src.core.platform.contract.repositories.master_data.department.contracts import (
+    DepartmentRepository,
+)
+from src.core.platform.contract.repositories.master_data.employee.contracts import (
+    EmployeeRepository,
+)
+from src.core.platform.contract.repositories.master_data.site.contracts import (
+    SiteRepository,
+)
 
 from .department_utils import normalize_optional_text
 

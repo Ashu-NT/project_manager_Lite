@@ -171,4 +171,4 @@ def remove_database_guards(operations: Any, bind: Any) -> None:
         operations.execute("DROP FUNCTION IF EXISTS prevent_project_cost_entry_mutation()")
 
 
-__all__ = ["install_database_guards", "remove_database_guards", "install_immutable_row_guards", "install_envelope_guards"]
+__all__ = ["install_database_guards", "install_envelope_guards", "install_immutable_row_guards", "remove_database_guards"]

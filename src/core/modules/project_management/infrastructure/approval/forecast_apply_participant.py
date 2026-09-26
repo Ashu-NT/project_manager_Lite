@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.modules.project_management.application.financials.forecasts.version_service import (
-    ForecastVersionService,
-)
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastVersionChanged,
     ForecastVersionChangeType,
+)
+from src.core.modules.project_management.application.financials.forecasts.version_service import (
+    ForecastVersionService,
 )
 from src.core.modules.project_management.infrastructure.approval._financial_decision_actor import (
     require_financial_decision_actor,

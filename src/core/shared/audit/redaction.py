@@ -82,4 +82,4 @@ def redact_changed_fields(value: Any) -> Any:
     return result
 
 
-__all__ = ["redact_sensitive", "redact_changed_fields"]
+__all__ = ["redact_changed_fields", "redact_sensitive"]

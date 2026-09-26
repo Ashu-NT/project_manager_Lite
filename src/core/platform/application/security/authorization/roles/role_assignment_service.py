@@ -2,24 +2,25 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from src.core.platform.application.security.auth.session.session_service import (
+    refresh_current_session_if_user,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     require_permission,
 )
-from src.core.platform.domain.security.auth import UserAccount
-from src.core.platform.domain.security.authorization.roles import (
-    ROLE_SCOPE_PLATFORM,
-    ROLE_SCOPE_TENANT,
+from src.core.platform.application.security.authorization.enforcement.target_user_authorization import (
+    require_target_user_in_customer_tenant,
 )
-
-from src.core.platform.application.security.auth.session.session_service import refresh_current_session_if_user
 from src.core.platform.application.security.authorization.roles.role_scope_policy import (
     EXPLICIT_SCOPE_ROLE_NAMES,
     PLATFORM_ROLE_NAMES,
     normalize_role_name,
 )
-from src.core.platform.application.security.authorization.enforcement.target_user_authorization import (
-    require_target_user_in_customer_tenant,
+from src.core.platform.domain.security.auth import UserAccount
+from src.core.platform.domain.security.authorization.roles import (
+    ROLE_SCOPE_PLATFORM,
+    ROLE_SCOPE_TENANT,
 )
 
 if TYPE_CHECKING:

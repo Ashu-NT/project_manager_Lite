@@ -1,8 +1,7 @@
-from pathlib import Path
 import re
+from pathlib import Path
 
 from PySide6.QtCore import QSettings
-
 
 QMLLS_CONFIG = Path(".qmlls.ini")
 UI_QML_ROOT = Path("src/ui_qml")

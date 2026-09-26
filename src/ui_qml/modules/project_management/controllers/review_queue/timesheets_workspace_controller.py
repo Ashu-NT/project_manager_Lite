@@ -3,7 +3,9 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.modules.project_management.controllers.common import ProjectManagementWorkspaceControllerBase
+from src.ui_qml.modules.project_management.controllers.common import (
+    ProjectManagementWorkspaceControllerBase,
+)
 from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
     ProjectTimesheetsWorkspacePresenter,

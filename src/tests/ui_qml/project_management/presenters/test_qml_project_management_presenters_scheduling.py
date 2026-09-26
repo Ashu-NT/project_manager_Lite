@@ -1,7 +1,6 @@
 from datetime import date
 from types import SimpleNamespace
 
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.core.modules.project_management.api.desktop import (
     build_project_management_scheduling_desktop_api,
 )
@@ -11,6 +10,9 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
     ProjectBaseline,
 )
 from src.core.modules.project_management.domain.tasks.task import Task
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 
 class _FakeSchedulingEngine:

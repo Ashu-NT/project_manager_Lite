@@ -3,10 +3,6 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
-from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
-from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
     build_project_management_projects_desktop_api,
@@ -18,6 +14,18 @@ from src.core.modules.project_management.api.desktop.register import (
 from src.core.modules.project_management.api.desktop.tasks import (
     ProjectManagementTasksDesktopApi,
     build_project_management_tasks_desktop_api,
+)
+from src.core.platform.api.desktop.master_data.department.department import (
+    PlatformDepartmentDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
+    project_resources_page,
+    project_tasks_page,
 )
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogWorkspaceViewModel,
@@ -39,14 +47,14 @@ from .resource_handler import (
     remove_project_resource,
     update_project_resource,
 )
-from .resources_builder import build_assignable_resource_options, build_project_resources_state
+from .resources_builder import (
+    build_assignable_resource_options,
+    build_project_resources_state,
+)
 from .risks_builder import build_project_risks_state
 from .tasks_builder import build_project_tasks_state
 from .workspace_builder import build_project_detail_state, build_workspace_state
-from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
-    project_resources_page,
-    project_tasks_page,
-)
+
 
 class ProjectProjectsWorkspacePresenter:
     def __init__(

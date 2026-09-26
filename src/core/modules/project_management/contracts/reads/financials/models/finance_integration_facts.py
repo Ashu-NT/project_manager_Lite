@@ -5,7 +5,6 @@ from datetime import date, datetime
 
 from .finance_budget_facts import FinancePageFacts
 
-
 _SORT_KEYS = {"source", "status", "failure", "attempts", "updated"}
 _STATUSES = {"processing", "retry", "quarantined", "dead_letter"}
 

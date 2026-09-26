@@ -7,7 +7,9 @@ sourced from EnterpriseAuditService and shows everything, uncurated)."""
 
 from __future__ import annotations
 
-from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
+from src.core.platform.api.desktop.history.activity.activity import (
+    PlatformActivityDesktopApi,
+)
 
 _COUNTER = {"n": 0}
 

@@ -11,4 +11,4 @@ def on_forecast_approved_basis_stale(controller, project_id: str) -> None:
         controller._invalidate_destinations("overview", "performance", "commercial")
 
 
-__all__ = ["on_forecast_planning_stale", "on_forecast_approved_basis_stale"]
+__all__ = ["on_forecast_approved_basis_stale", "on_forecast_planning_stale"]

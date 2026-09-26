@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-
 PORTFOLIO_SCOPE_ID = "__portfolio__"
 
 

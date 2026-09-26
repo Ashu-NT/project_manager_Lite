@@ -111,8 +111,8 @@ class FinanceControlFact:
     @property
     def commitment_rate_percent(self) -> Decimal:
         if self.approved_budget <= 0:
-            return Decimal("0")
-        return (self.open_commitment / self.approved_budget) * Decimal("100")
+            return Decimal(0)
+        return (self.open_commitment / self.approved_budget) * Decimal(100)
 
 
 @dataclass(frozen=True, slots=True)

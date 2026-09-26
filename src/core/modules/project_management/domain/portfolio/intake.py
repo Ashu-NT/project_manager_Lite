@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
 from dataclasses import field
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from enum import Enum
 
@@ -72,7 +72,7 @@ class PortfolioIntakeItem:
     sponsor_name: str
     organization_id: str = ""
     summary: str = ""
-    requested_budget: Decimal = Decimal("0")
+    requested_budget: Decimal = Decimal(0)
     requested_capacity_percent: float = 0.0
     target_start_date: date | None = None
     strategic_score: int = 3
@@ -242,7 +242,7 @@ class PortfolioIntakeItem:
         )
 
     @model_validator(mode="after")
-    def _validate_weight_mix(self) -> "PortfolioIntakeItem":
+    def _validate_weight_mix(self) -> PortfolioIntakeItem:
         if (self.strategic_weight + self.value_weight + self.urgency_weight) <= 0:
             raise ValidationError(
                 "At least one positive delivery weight is required.",
@@ -257,7 +257,7 @@ class PortfolioIntakeItem:
         title: str,
         sponsor_name: str,
         summary: str = "",
-        requested_budget: Decimal | int | str = Decimal("0"),
+        requested_budget: Decimal | int | str = Decimal(0),
         requested_capacity_percent: float = 0.0,
         target_start_date: date | None = None,
         strategic_score: int = 3,
@@ -271,7 +271,7 @@ class PortfolioIntakeItem:
         urgency_weight: int = 2,
         risk_weight: int = 1,
         status: PortfolioIntakeStatus = PortfolioIntakeStatus.PROPOSED,
-    ) -> "PortfolioIntakeItem":
+    ) -> PortfolioIntakeItem:
         now = datetime.now(timezone.utc)
         return PortfolioIntakeItem(
             id=generate_id(),

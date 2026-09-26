@@ -19,15 +19,6 @@ from src.core.modules.project_management.api.desktop.timesheets.models.options i
     TimesheetPeriodOptionDescriptor,
     TimesheetProjectOptionDescriptor,
 )
-from src.core.modules.project_management.api.desktop.timesheets.models.workspace import (
-    ResourceTimesheetEntryDesktopDto,
-    ResourceTimesheetEntryPageDesktopDto,
-    ResourceTimesheetHistoryPageDesktopDto,
-    ResourceTimesheetPeriodDesktopDto,
-    TimesheetResourceDesktopDto,
-    TimesheetResourcePageDesktopDto,
-    TimesheetWorkspaceAccessDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.timesheets.models.periods import (
     TimesheetPeriodSummaryDesktopDto,
     TimesheetReviewPageDesktopDto,
@@ -38,13 +29,22 @@ from src.core.modules.project_management.api.desktop.timesheets.models.review im
 from src.core.modules.project_management.api.desktop.timesheets.models.snapshots import (
     TimesheetAssignmentSnapshotDesktopDto,
 )
+from src.core.modules.project_management.api.desktop.timesheets.models.workspace import (
+    ResourceTimesheetEntryDesktopDto,
+    ResourceTimesheetEntryPageDesktopDto,
+    ResourceTimesheetHistoryPageDesktopDto,
+    ResourceTimesheetPeriodDesktopDto,
+    TimesheetResourceDesktopDto,
+    TimesheetResourcePageDesktopDto,
+    TimesheetWorkspaceAccessDesktopDto,
+)
 
 __all__ = [
+    "ProjectManagementTimesheetsDesktopApi",
     "ResourceTimesheetEntryDesktopDto",
     "ResourceTimesheetEntryPageDesktopDto",
     "ResourceTimesheetHistoryPageDesktopDto",
     "ResourceTimesheetPeriodDesktopDto",
-    "ProjectManagementTimesheetsDesktopApi",
     "TimesheetAssignmentOptionDescriptor",
     "TimesheetAssignmentSnapshotDesktopDto",
     "TimesheetEntryCreateCommand",
@@ -54,10 +54,10 @@ __all__ = [
     "TimesheetPeriodOptionDescriptor",
     "TimesheetPeriodSummaryDesktopDto",
     "TimesheetProjectOptionDescriptor",
-    "TimesheetReviewDetailDesktopDto",
-    "TimesheetReviewPageDesktopDto",
     "TimesheetResourceDesktopDto",
     "TimesheetResourcePageDesktopDto",
+    "TimesheetReviewDetailDesktopDto",
+    "TimesheetReviewPageDesktopDto",
     "TimesheetWorkspaceAccessDesktopDto",
     "build_project_management_timesheets_desktop_api",
 ]

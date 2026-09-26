@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -9,7 +8,11 @@ from src.core.modules.project_management.application.collaboration.services.coll
     CollaborationService,
 )
 from src.core.modules.project_management.domain.collaboration import TaskComment
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 
 
 class _FakeSession:

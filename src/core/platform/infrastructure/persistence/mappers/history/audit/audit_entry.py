@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 from src.core.platform.domain.history.audit.audit_entry import AuditEntry
-from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
+    AuditEntryORM,
+)
 from src.core.shared.audit.redaction import redact_changed_fields, redact_sensitive
 
 
@@ -124,4 +126,4 @@ def audit_entry_from_orm(obj: AuditEntryORM) -> AuditEntry:
     )
 
 
-__all__ = ["audit_entry_to_orm", "audit_entry_from_orm"]
+__all__ = ["audit_entry_from_orm", "audit_entry_to_orm"]

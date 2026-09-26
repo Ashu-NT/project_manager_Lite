@@ -15,17 +15,16 @@ Any row where status is somehow still NULL/empty is backfilled from
 is_active before the column is dropped, so no row silently loses its
 lifecycle state.
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'c7f2a5d91b48'
-down_revision: Union[str, Sequence[str], None] = 'b54546fc740c'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = 'b54546fc740c'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _TABLE = "sites"
 

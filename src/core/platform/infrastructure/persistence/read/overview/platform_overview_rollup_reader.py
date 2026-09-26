@@ -15,14 +15,32 @@ from src.core.platform.contract.read.overview.platform_overview_rollup_reader im
     UserRollupSummary,
 )
 from src.core.platform.domain.security.authorization.roles import ROLE_SCOPE_PLATFORM
-from src.core.platform.domain.tenant.tenancy.user_tenant_membership import MEMBERSHIP_STATUS_ACTIVE
-from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
-from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import DocumentORM
-from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-from src.core.platform.infrastructure.persistence.orm.master_data.party.party import PartyORM
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
-from src.core.platform.infrastructure.persistence.orm.security.auth.auth import RoleBindingORM, RoleORM, UserORM
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
+    MEMBERSHIP_STATUS_ACTIVE,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import (
+    DocumentORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+    OrganizationORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.party.party import (
+    PartyORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+    RoleBindingORM,
+    RoleORM,
+    UserORM,
+)
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
+    UserTenantORM,
+)
 from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
     CalendarExceptionORM,
     CalendarWorkingRuleORM,

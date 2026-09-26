@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 
 
@@ -207,13 +208,13 @@ class TaskTimeEntriesPage:
 
 
 __all__ = [
-    "TaskResourceTimeBreakdownRow",
     "TaskActivityFact",
     "TaskActivityPage",
     "TaskAssignmentReadItem",
     "TaskAssignmentReadPage",
     "TaskDependencyReadItem",
     "TaskDependencyReadPage",
+    "TaskResourceTimeBreakdownRow",
     "TaskTimeEntriesPage",
     "TaskTimeEntryRow",
     "TaskTimeSummaryFact",

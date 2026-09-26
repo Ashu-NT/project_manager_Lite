@@ -119,7 +119,7 @@ def _approve_finance_bases(services, project_id: str, cost_code_id: str) -> None
         budget.id,
         cost_code_id=cost_code_id,
         description="Approved scope base",
-        amount=Decimal("1000"),
+        amount=Decimal(1000),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
@@ -142,7 +142,7 @@ def _approve_finance_bases(services, project_id: str, cost_code_id: str) -> None
         forecast.id,
         cost_code_id=cost_code_id,
         description="Approved forecast base",
-        amount=Decimal("900"),
+        amount=Decimal(900),
         source_kind=ForecastLineSourceKind.MANUAL,
         source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin",
@@ -253,7 +253,7 @@ def test_selected_change_detail_and_typed_impacts_are_bounded(services):
     assert by_id[schedule.id].task_id == task.id
     assert by_id[schedule.id].schedule_start == date(2026, 9, 8)
     assert by_id[schedule.id].schedule_finish == date(2026, 9, 11)
-    assert by_id[schedule.id].amount == Decimal("0")
+    assert by_id[schedule.id].amount == Decimal(0)
 
     schedule_only = reader.list_impacts(
         tenant_id=scope.tenant_id,

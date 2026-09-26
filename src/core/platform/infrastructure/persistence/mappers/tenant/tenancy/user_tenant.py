@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
-from src.core.platform.domain.tenant.tenancy.user_tenant_membership import UserTenantMembership
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
+    UserTenantMembership,
+)
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
+    UserTenantORM,
+)
 
 
 def user_tenant_to_orm(membership: UserTenantMembership) -> UserTenantORM:

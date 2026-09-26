@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.core.modules.project_management.application.tasks.commands.assignment import (
-    TaskAssignmentMixin,
-)
 from src.core.modules.project_management.application.collaboration.commands.collaboration_comments import (
     CollaborationCommentCommandMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentMixin,
 )
 from src.core.modules.project_management.domain.collaboration import TaskComment
 

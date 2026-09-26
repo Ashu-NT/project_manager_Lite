@@ -75,9 +75,9 @@ def build_organization_profile_view_invalidation_handler(channel: ViewInvalidati
 
 
 __all__ = [
+    "ORGANIZATION_CATEGORY",
+    "ORGANIZATION_DETAILS_SCOPE_CODE",
+    "ORGANIZATION_LIST_SCOPE_CODE",
     "build_organization_created_view_invalidation_handler",
     "build_organization_profile_view_invalidation_handler",
-    "ORGANIZATION_CATEGORY",
-    "ORGANIZATION_LIST_SCOPE_CODE",
-    "ORGANIZATION_DETAILS_SCOPE_CODE",
 ]

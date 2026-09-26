@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.security.auth import ACCOUNT_TYPE_HUMAN
 from src.core.platform.domain.security.auth.credentials.mfa import verify_totp_code
 from src.core.platform.domain.security.auth.credentials.passwords import (
@@ -10,7 +11,6 @@ from src.core.platform.domain.security.auth.credentials.passwords import (
     password_needs_rehash,
     verify_password,
 )
-from src.core.platform.common.exceptions import ValidationError
 
 from .authentication_transactions import (
     complete_successful_authentication,
@@ -24,9 +24,8 @@ from .federated_identity_service import (
 )
 
 if TYPE_CHECKING:
-    from src.core.platform.domain.security.auth import UserAccount
-
     from src.core.platform.application.security.auth.auth_service import AuthService
+    from src.core.platform.domain.security.auth import UserAccount
 
 
 def authenticate(

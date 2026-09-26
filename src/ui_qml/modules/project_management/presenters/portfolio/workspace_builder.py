@@ -22,10 +22,10 @@ from .filtering import build_empty_state, normalize_filter
 from .heatmap_mapper import to_heatmap_record
 from .intake_mapper import to_intake_record
 from .overview_builder import build_overview
+from .performance_logging import log_build_complete
 from .scenario_mapper import to_scenario_record
 from .selection import resolve_compare_id, resolve_selected_id
 from .template_mapper import to_template_record
-from .performance_logging import log_build_complete
 
 _ACTIVE_TABS = (
     "executive",

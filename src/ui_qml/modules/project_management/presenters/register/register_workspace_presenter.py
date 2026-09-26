@@ -17,8 +17,9 @@ from .command_handler import (
     suggest_code,
     update_entry,
 )
-from .workspace_mode import WorkspaceMode
 from .workspace_builder import build_workspace_state
+from .workspace_mode import WorkspaceMode
+
 
 class ProjectRegisterWorkspacePresenter:
     def __init__(

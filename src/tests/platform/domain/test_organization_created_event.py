@@ -18,7 +18,9 @@ from src.core.platform.application.master_data.org.event_handlers.view_invalidat
     build_organization_created_view_invalidation_handler,
 )
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.domain.master_data.org import events as organization_events_module
+from src.core.platform.domain.master_data.org import (
+    events as organization_events_module,
+)
 from src.core.platform.domain.master_data.org.events import OrganizationCreated
 from src.core.shared.events.domain_event import DomainEvent
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -319,9 +321,16 @@ def test_cross_organization_routing_via_real_channel(services):
 
 
 def test_cross_tenant_routing_via_real_channel(services):
-    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
-    from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
-    from src.core.platform.application.master_data.org.organization_service import OrganizationService
+    from src.core.platform.application.master_data.org.organization_service import (
+        OrganizationService,
+    )
+    from src.core.platform.domain.security.auth.session import (
+        UserSessionContext,
+        UserSessionPrincipal,
+    )
+    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+        TenantORM,
+    )
 
     organization_service = services["organization_service"]
     session = services["session"]

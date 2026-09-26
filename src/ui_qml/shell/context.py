@@ -227,20 +227,20 @@ def update_shell_runtime_state(
     if theme_mode is not None:
         normalized_theme = (theme_mode or "light").strip().lower()
         normalized_theme = "dark" if normalized_theme == "dark" else "light"
-        if normalized_theme != shell_context._theme_mode:  # noqa: SLF001
-            shell_context._theme_mode = normalized_theme  # noqa: SLF001
+        if normalized_theme != shell_context._theme_mode:
+            shell_context._theme_mode = normalized_theme
             shell_context.themeModeChanged.emit()
     if density_mode is not None:
         normalized_density = (density_mode or "compact").strip().lower()
         if normalized_density not in {"compact", "comfortable", "spacious"}:
             normalized_density = "compact"
-        if normalized_density != shell_context._density_mode:  # noqa: SLF001
-            shell_context._density_mode = normalized_density  # noqa: SLF001
+        if normalized_density != shell_context._density_mode:
+            shell_context._density_mode = normalized_density
             shell_context.densityModeChanged.emit()
     if user_display_name is not None:
         normalized_name = (user_display_name or "").strip()
-        if normalized_name != shell_context._user_display_name:  # noqa: SLF001
-            shell_context._user_display_name = normalized_name  # noqa: SLF001
+        if normalized_name != shell_context._user_display_name:
+            shell_context._user_display_name = normalized_name
             shell_context.userDisplayNameChanged.emit()
 
 

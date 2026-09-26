@@ -3,47 +3,53 @@ from __future__ import annotations
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
-from src.core.modules.project_management.application.common.pagination import PaginatedResult
+from src.core.modules.project_management.application.common.pagination import (
+    PaginatedResult,
+)
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.contracts.repositories.portfolio.portfolio import (
     PortfolioIntakeRepository,
     PortfolioProjectDependencyPageItem,
     PortfolioProjectDependencyRepository,
-    PortfolioScoringTemplateRepository,
     PortfolioScenarioRepository,
+    PortfolioScoringTemplateRepository,
 )
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
     PortfolioProjectDependency,
-    PortfolioScoringTemplate,
     PortfolioScenario,
-)
-from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
-    stable_order_by,
+    PortfolioScoringTemplate,
 )
 from src.core.modules.project_management.infrastructure.persistence.mappers.portfolio import (
     portfolio_intake_from_orm,
     portfolio_intake_to_orm,
     portfolio_project_dependency_from_orm,
     portfolio_project_dependency_to_orm,
-    portfolio_scoring_template_from_orm,
-    portfolio_scoring_template_to_orm,
     portfolio_scenario_from_orm,
     portfolio_scenario_to_orm,
+    portfolio_scoring_template_from_orm,
+    portfolio_scoring_template_to_orm,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.portfolio import (
     PortfolioIntakeItemORM,
     PortfolioProjectDependencyORM,
-    PortfolioScoringTemplateORM,
     PortfolioScenarioORM,
+    PortfolioScoringTemplateORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories._tenant_scope import (
     ProjectManagementParentScopedRepositorySupport,
     ProjectManagementTenantScopedRepositorySupport,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
@@ -522,6 +528,6 @@ class SqlAlchemyPortfolioScoringTemplateRepository(
 __all__ = [
     "SqlAlchemyPortfolioIntakeRepository",
     "SqlAlchemyPortfolioProjectDependencyRepository",
-    "SqlAlchemyPortfolioScoringTemplateRepository",
     "SqlAlchemyPortfolioScenarioRepository",
+    "SqlAlchemyPortfolioScoringTemplateRepository",
 ]

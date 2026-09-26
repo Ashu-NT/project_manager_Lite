@@ -12,6 +12,7 @@ from src.core.modules.project_management.api.desktop import (
 
 from .validation import optional_decimal, require_decimal, require_float, require_text
 
+
 def create_assignment(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskAssignmentCreateCommand(
         task_id=require_text(
@@ -23,7 +24,7 @@ def create_assignment(desktop_api, payload: dict[str, Any]) -> None:
         allocation_percent=require_float(
             payload, "allocationPercent", "Allocation percent is required."
         ),
-        allocated_planned_hours=optional_decimal(payload, "plannedHours") or Decimal("0"),
+        allocated_planned_hours=optional_decimal(payload, "plannedHours") or Decimal(0),
     )
     desktop_api.create_assignment(command)
 

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import ProjectCostEntryService
+from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
+    ProjectCostEntryService,
+)
 from src.core.modules.project_management.contracts.financial_sources.approved_time import (
     ApprovedTimeFinancialSource,
 )
@@ -10,9 +12,14 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
     FinancialSourceReference,
     FinancialSourceType,
 )
-from src.core.platform.integration import APPROVED_TIME_ENTRY_EVENT_TYPE, ApprovedTimeEntryEventPayload, IntegrationEventEnvelope
-from src.core.platform.domain.security.identity.service_principal import ServicePrincipal
-
+from src.core.platform.domain.security.identity.service_principal import (
+    ServicePrincipal,
+)
+from src.core.platform.integration import (
+    APPROVED_TIME_ENTRY_EVENT_TYPE,
+    ApprovedTimeEntryEventPayload,
+    IntegrationEventEnvelope,
+)
 
 APPROVED_TIME_FINANCE_PRINCIPAL_NAME = "PM Finance Approved Time Worker"
 

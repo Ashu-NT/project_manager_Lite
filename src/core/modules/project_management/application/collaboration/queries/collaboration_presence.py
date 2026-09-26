@@ -2,9 +2,15 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from src.core.modules.project_management.domain.collaboration import TaskPresenceStatusItem
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
+from src.core.modules.project_management.domain.collaboration import (
+    TaskPresenceStatusItem,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 
 
 class CollaborationPresenceQueryMixin:

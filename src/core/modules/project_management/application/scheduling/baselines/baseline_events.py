@@ -54,9 +54,9 @@ class ProjectBaselineDeleted:
 
 
 __all__ = [
-    "ProjectBaselineCreated",
-    "ProjectBaselineSubmitted",
     "ProjectBaselineApproved",
-    "ProjectBaselineRejected",
+    "ProjectBaselineCreated",
     "ProjectBaselineDeleted",
+    "ProjectBaselineRejected",
+    "ProjectBaselineSubmitted",
 ]

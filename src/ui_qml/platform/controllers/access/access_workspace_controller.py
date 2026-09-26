@@ -1,21 +1,18 @@
 from __future__ import annotations
 
-from typing import Callable
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
-
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from PySide6.QtQml import QmlElement, QmlUncreatable
-
-from src.ui_qml.platform.presenters.access.access_workspace_presenter import PlatformAccessWorkspacePresenter
 
 from src.ui_qml.platform.controllers.common import (
     WORKSPACE_PERMISSIONS,
     PlatformWorkspaceControllerBase,
     run_mutation,
     serialize_action_list,
-    serialize_operation_result,
 )
+from src.ui_qml.platform.presenters.access.access_workspace_presenter import (
+    PlatformAccessWorkspacePresenter,
+)
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 QML_IMPORT_NAME = "Platform.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1

@@ -5,10 +5,15 @@ from pathlib import Path
 
 import pytest
 
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
 from src.tests.ui_runtime_helpers import login_as
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -65,8 +70,8 @@ def test_list_accessible_organizations_includes_only_enabled_and_authorized_orgs
 
 
 def test_list_accessible_organizations_excludes_other_tenants(services):
-    from src.core.platform.domain.tenant.tenancy import Tenant
     from src.core.platform.domain.master_data.org import Organization
+    from src.core.platform.domain.tenant.tenancy import Tenant
     from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
         SqlAlchemyTenantRepository,
     )

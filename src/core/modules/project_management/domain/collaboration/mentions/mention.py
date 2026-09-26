@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-
 MENTION_RE = re.compile(r"@([A-Za-z0-9_.-]+)")
 
 BROADCAST_MENTION_TOKENS = frozenset({"everyone", "team"})
@@ -78,8 +77,8 @@ def resolve_mentions(
 
 __all__ = [
     "BROADCAST_MENTION_TOKENS",
-    "CollaborationMentionCandidate",
     "MENTION_RE",
+    "CollaborationMentionCandidate",
     "candidate_handles",
     "extract_mention_tokens",
     "resolve_mentions",

@@ -2,11 +2,13 @@
 mirroring the existing Organizations "Create Organization" flow."""
 from __future__ import annotations
 
-import pytest
-
+from src.core.platform.api.desktop.tenant.tenancy.models.tenant import (
+    TenantCreateCommand,
+)
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
-from src.core.platform.api.desktop.tenant.tenancy.models.tenant import TenantCreateCommand
-from src.ui_qml.platform.presenters.tenant_management.tenant_switcher_presenter import TenantSwitcherPresenter
+from src.ui_qml.platform.presenters.tenant_management.tenant_switcher_presenter import (
+    TenantSwitcherPresenter,
+)
 
 
 def _build_tenant_api(services) -> PlatformTenantDesktopApi:

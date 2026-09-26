@@ -15,13 +15,21 @@ from src.core.application.global_overview.contracts.overview import (
     GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
 )
-from src.core.application.global_overview.services.action_center_service import ActionCenterService
-from src.core.application.global_overview.services.activity_visibility import is_activity_visible
-from src.core.platform.application.history.activity.activity_service import ActivityService
+from src.core.application.global_overview.services.action_center_service import (
+    ActionCenterService,
+)
+from src.core.application.global_overview.services.activity_visibility import (
+    is_activity_visible,
+)
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
 from src.core.platform.application.platform_runtime.platform_runtime_service import (
     PlatformRuntimeApplicationService,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 from src.core.platform.domain.security.auth.session import UserSessionContext

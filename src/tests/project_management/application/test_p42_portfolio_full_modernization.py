@@ -10,14 +10,14 @@ from src.core.modules.project_management.application.portfolio.event_handlers.vi
     build_portfolio_view_invalidation_handler,
 )
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioIntakeItemChangeType,
     PortfolioIntakeItemChanged,
-    PortfolioProjectDependencyChangeType,
+    PortfolioIntakeItemChangeType,
     PortfolioProjectDependencyChanged,
-    PortfolioScenarioChangeType,
+    PortfolioProjectDependencyChangeType,
     PortfolioScenarioChanged,
-    PortfolioScoringTemplateChangeType,
+    PortfolioScenarioChangeType,
     PortfolioScoringTemplateChanged,
+    PortfolioScoringTemplateChangeType,
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext

@@ -10,7 +10,9 @@ from src.core.modules.project_management.application.scheduling.cpm.constraint_v
     ConstraintType,
     ConstraintValidator,
 )
-from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import run_cpm
+from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
+    run_cpm,
+)
 from src.core.modules.project_management.domain.tasks.task import Task
 
 

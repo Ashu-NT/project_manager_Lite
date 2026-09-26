@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Iterable
 
 from pydantic import field_validator
 
@@ -99,7 +99,7 @@ class PortfolioScenario:
         project_ids: Iterable[str] | None = None,
         intake_item_ids: Iterable[str] | None = None,
         notes: str = "",
-    ) -> "PortfolioScenario":
+    ) -> PortfolioScenario:
         now = datetime.now(timezone.utc)
         return PortfolioScenario(
             id=generate_id(),

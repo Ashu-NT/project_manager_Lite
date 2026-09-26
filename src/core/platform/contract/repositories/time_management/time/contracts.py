@@ -9,7 +9,11 @@ from src.core.platform.contract.interface.time_management.time.contracts import 
     WorkOwnerRecord,
     WorkResourceRecord,
 )
-from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from src.core.platform.domain.time_management.time import (
+    TimeEntry,
+    TimesheetPeriod,
+    TimesheetPeriodStatus,
+)
 
 
 class WorkAllocationRepository(Protocol):

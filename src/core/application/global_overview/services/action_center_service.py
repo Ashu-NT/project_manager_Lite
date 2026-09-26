@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date
-from typing import Iterable
 
 from src.core.application.global_overview.contracts.action_center import (
     ActionCenterContext,
@@ -9,7 +9,9 @@ from src.core.application.global_overview.contracts.action_center import (
     ActionCenterContributor,
     ActionCenterSummaryDto,
 )
-from src.core.application.global_overview.services.ordering import sort_action_center_items
+from src.core.application.global_overview.services.ordering import (
+    sort_action_center_items,
+)
 
 
 def _sum_summaries(summaries: Iterable[ActionCenterSummaryDto]) -> ActionCenterSummaryDto:

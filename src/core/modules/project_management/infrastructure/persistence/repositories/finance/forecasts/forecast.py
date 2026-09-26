@@ -12,9 +12,9 @@ from src.core.modules.project_management.domain.financials.forecast import (
     ProjectForecast,
 )
 from src.core.modules.project_management.infrastructure.persistence.mappers.forecast import (
-    forecast_from_orm,
     forecast_decision_from_orm,
     forecast_decision_to_orm,
+    forecast_from_orm,
     forecast_line_from_orm,
     forecast_line_to_orm,
     forecast_to_orm,
@@ -24,7 +24,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.forecast
     ForecastSourceDecisionORM,
     ProjectForecastORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     ActiveScopeIds,
     TenantContextService,

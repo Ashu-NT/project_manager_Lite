@@ -4,15 +4,22 @@ from dataclasses import replace
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.modules.project_management.domain.portfolio import PortfolioScoringTemplate
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioScoringTemplateChangeType,
-    PortfolioScoringTemplateChanged,
 )
+from src.core.modules.project_management.domain.portfolio import (
+    PortfolioScoringTemplate,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 
 
 class PortfolioTemplateCommandMixin:

@@ -7,7 +7,10 @@ from src.ui_qml.modules.project_management.controllers.common import (
 
 from .row_builders import build_baseline_variance_rows
 from .schedule_impact_controller import compute_schedule_impact, format_impact_tasks
-from .scheduling_property_updates import set_baseline_variance_rows, set_calculator_result
+from .scheduling_property_updates import (
+    set_baseline_variance_rows,
+    set_calculator_result,
+)
 
 
 def calculate_working_days(controller, payload: dict) -> dict:

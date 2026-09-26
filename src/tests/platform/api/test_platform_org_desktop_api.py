@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
+from src.application.runtime import build_desktop_api_registry
+from src.core.platform.api.desktop.master_data.department.department import (
+    PlatformDepartmentDesktopApi,
+)
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
 from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
@@ -15,7 +20,6 @@ from src.core.platform.api.desktop.master_data.site.models.site import (
     SiteUpdateCommand,
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
-from src.application.runtime import build_desktop_api_registry
 
 
 def _build_site_api(services) -> PlatformSiteDesktopApi:

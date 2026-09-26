@@ -3,7 +3,9 @@ from __future__ import annotations
 import inspect
 import json
 
-from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
+from src.core.platform.contract.repositories.history.audit.contracts import (
+    AuditRepository,
+)
 from src.core.platform.domain.history.audit.audit_entry import (
     AUDIT_CATEGORIES,
     AUDIT_RESULTS,

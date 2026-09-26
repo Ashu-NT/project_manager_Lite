@@ -3,8 +3,6 @@ from __future__ import annotations
 import ast
 import inspect
 
-import pytest
-
 from src.core.shared.events.view_invalidation import (
     ExactOrganization,
     TenantWide,
@@ -293,8 +291,8 @@ def test_other_four_adapters_construct_exactly_one_subscription_helper():
 
 
 def test_no_service_locator_or_generic_adapter_registry_introduced():
-    from src.ui_qml.platform import context as platform_context_module
     from src.ui_qml.modules.project_management import context as pm_context_module
+    from src.ui_qml.platform import context as platform_context_module
 
     for module in (platform_context_module, pm_context_module):
         source = _strip_strings_and_comments(inspect.getsource(module))

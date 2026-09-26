@@ -4,7 +4,11 @@ from decimal import Decimal, InvalidOperation
 
 from pydantic import field_validator, model_validator
 
-from src.core.modules.project_management.domain.enums import CostType, ResourceKind, WorkerType
+from src.core.modules.project_management.domain.enums import (
+    CostType,
+    ResourceKind,
+    WorkerType,
+)
 from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.pydantic import (
@@ -23,7 +27,7 @@ class Resource:
     kind: ResourceKind = ResourceKind.PERSON
     code: str = ""
     role: str = ""
-    hourly_rate: Decimal = Decimal("0")
+    hourly_rate: Decimal = Decimal(0)
     is_active: bool = True
     cost_type: CostType = CostType.LABOR
     currency_code: str | None = None
@@ -154,7 +158,7 @@ class Resource:
         return resolved
 
     @model_validator(mode="after")
-    def _validate_kind_context(self) -> "Resource":
+    def _validate_kind_context(self) -> Resource:
         if self.kind != ResourceKind.PERSON:
             if self.employee_id:
                 raise ValidationError(
@@ -178,7 +182,7 @@ class Resource:
         name: str,
         kind: ResourceKind | str = ResourceKind.PERSON,
         role: str = "",
-        hourly_rate: Decimal | int | str = Decimal("0"),
+        hourly_rate: Decimal | int | str = Decimal(0),
         is_active: bool = True,
         cost_type: CostType = CostType.LABOR,
         currency_code: str | None = None,
@@ -191,7 +195,7 @@ class Resource:
         organization_id: str | None = None,
         department_id: str | None = None,
         site_id: str | None = None,
-    ) -> "Resource":
+    ) -> Resource:
         return Resource(
             id=generate_id(),
             name=name,

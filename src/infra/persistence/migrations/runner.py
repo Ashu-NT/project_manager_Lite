@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
 from threading import Timer
 from time import perf_counter
-
 
 logger = logging.getLogger(__name__)
 

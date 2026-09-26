@@ -4,7 +4,6 @@ from typing import Protocol
 
 from .models.finance_budget_facts import (
     BudgetLineFact,
-    BudgetVersionFact,
     BudgetVersionPageFacts,
     FinancePageFacts,
     FinancePageRequest,

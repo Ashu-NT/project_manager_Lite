@@ -9,10 +9,12 @@ from alembic.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.core.platform.infrastructure.persistence.orm.time_management.time_financial_outbox import TimeFinancialOutboxORM
-from src.core.platform.infrastructure.persistence.repositories.time_management.time_financial_outbox import SqlAlchemyTimeFinancialOutboxRepository
-from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import ProjectFinanceInboxORM
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.finance_inbox import SqlAlchemyProjectFinanceInboxRepository
+from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import (
+    ProjectFinanceInboxORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.finance_inbox import (
+    SqlAlchemyProjectFinanceInboxRepository,
+)
 from src.core.platform.application.integration import (
     InboxDeliveryDisposition,
     IntegrationInboxService,
@@ -21,6 +23,12 @@ from src.core.platform.application.integration import (
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.infrastructure.persistence.orm.time_management.time_financial_outbox import (
+    TimeFinancialOutboxORM,
+)
+from src.core.platform.infrastructure.persistence.repositories.time_management.time_financial_outbox import (
+    SqlAlchemyTimeFinancialOutboxRepository,
+)
 from src.core.platform.integration import IntegrationEventEnvelope, OutboxDeliveryStatus
 
 

@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from src.core.platform.domain.master_data.documents import DocumentStorageKind, DocumentType
+from src.core.platform.domain.master_data.documents import (
+    DocumentStorageKind,
+    DocumentType,
+)
 
 
 @dataclass(frozen=True)

@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.application.master_data.employee.employee_service import (
+    EmployeeService,
+)
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
@@ -124,14 +126,14 @@ def test_admin_console_refresh_fails_open_when_runtime_api_missing():
     from src.ui_qml.platform.presenters.calendars.calendar_catalog_presenter import (
         PlatformCalendarCatalogPresenter,
     )
+    from src.ui_qml.platform.presenters.departments.department_catalog_presenter import (
+        PlatformDepartmentCatalogPresenter,
+    )
     from src.ui_qml.platform.presenters.documents.document_catalog_presenter import (
         PlatformDocumentCatalogPresenter,
     )
     from src.ui_qml.platform.presenters.documents.document_management_presenter import (
         PlatformDocumentManagementPresenter,
-    )
-    from src.ui_qml.platform.presenters.departments.department_catalog_presenter import (
-        PlatformDepartmentCatalogPresenter,
     )
     from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
         PlatformEmployeeCatalogPresenter,
@@ -139,14 +141,14 @@ def test_admin_console_refresh_fails_open_when_runtime_api_missing():
     from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter import (
         PlatformOrganizationCatalogPresenter,
     )
+    from src.ui_qml.platform.presenters.overview.admin_overview_presenter import (
+        PlatformAdminWorkspacePresenter,
+    )
     from src.ui_qml.platform.presenters.parties.party_catalog_presenter import (
         PlatformPartyCatalogPresenter,
     )
     from src.ui_qml.platform.presenters.sites.site_catalog_presenter import (
         PlatformSiteCatalogPresenter,
-    )
-    from src.ui_qml.platform.presenters.overview.admin_overview_presenter import (
-        PlatformAdminWorkspacePresenter,
     )
     from src.ui_qml.platform.presenters.users.user_catalog_presenter import (
         PlatformUserCatalogPresenter,

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 from sqlalchemy import delete, func
 from sqlalchemy.orm import Session
 
@@ -24,18 +23,26 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.skil
     task_req_from_orm,
     task_req_to_orm,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
-from src.core.modules.project_management.infrastructure.persistence.repositories._tenant_scope import (
-    ProjectManagementParentScopedRepositorySupport,
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.skills import (
     ResourceCertificationORM,
     ResourceSkillORM,
     TaskSkillRequirementORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories._tenant_scope import (
+    ProjectManagementParentScopedRepositorySupport,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.infra.persistence.db.optimistic import (
     delete_with_version_check,
     update_with_version_check,

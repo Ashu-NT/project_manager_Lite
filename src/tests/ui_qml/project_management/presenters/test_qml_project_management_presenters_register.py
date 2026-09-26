@@ -1,9 +1,14 @@
 from datetime import date
 from types import SimpleNamespace
 
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.core.modules.project_management.api.desktop import (
     build_project_management_register_desktop_api,
+)
+from src.core.modules.project_management.contracts.reads import ReadSort
+from src.core.modules.project_management.contracts.reads.register import (
+    RegisterCatalogReadItem,
+    RegisterCatalogReadPage,
+    RegisterCatalogSummary,
 )
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
@@ -11,12 +16,9 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
-from src.core.modules.project_management.contracts.reads.register import (
-    RegisterCatalogReadItem,
-    RegisterCatalogReadPage,
-    RegisterCatalogSummary,
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
 )
-from src.core.modules.project_management.contracts.reads import ReadSort
 
 
 class _FakeRegisterService:

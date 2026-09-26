@@ -3,9 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from src.core.platform.api.desktop.support.models.support import SupportSettingsUpdateCommand
-from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.support.models.support import (
+    SupportSettingsUpdateCommand,
+)
+from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
     option_item,
@@ -17,6 +19,7 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,
 )
+
 
 class PlatformSupportWorkspacePresenter:
     def __init__(self, *, support_api: PlatformSupportDesktopApi | None = None) -> None:

@@ -12,8 +12,36 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
+    BoundProjectCalendar,
+    ProjectCalendarAdapter,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.calendar_assignment import (
+    SqlAlchemyProjectCalendarAssignmentRepository,
+    SqlAlchemyResourceCalendarAssignmentRepository,
+)
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
+    EnterpriseCalendarResolver,
+)
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
+    WorkingTimeCalculator,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
+    CalendarType,
+)
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -22,21 +50,6 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyPlatformCalendarRepository,
 )
 from src.infra.persistence.orm import Base
-from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.calendar_assignment import (
-    SqlAlchemyProjectCalendarAssignmentRepository,
-    SqlAlchemyResourceCalendarAssignmentRepository,
-)
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import EnterpriseCalendarService
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import CalendarAssignmentService
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import EnterpriseCalendarResolver
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
-from src.core.platform.domain.time_management.calendar.enterprise_calendar import CalendarType
-from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
-    BoundProjectCalendar,
-    ProjectCalendarAdapter,
-)
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -337,8 +350,13 @@ def test_scheduling_engine_falls_back_to_base_calendar_when_not_bootstrapped(
 ):
     """get_source_chain returns [] -> bind_for_project returns None -> base calendar used."""
     from unittest.mock import MagicMock
-    from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
-    from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
+
+    from src.core.modules.project_management.application.scheduling.services.scheduling_engine import (
+        SchedulingEngine,
+    )
+    from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+        CalendarProtocol,
+    )
 
     mock_cal = MagicMock(spec=CalendarProtocol)
     engine = SchedulingEngine(
@@ -360,8 +378,13 @@ def test_scheduling_engine_uses_enterprise_calendar_when_assigned(
     global_cal, adapter, assignment_service, db_session, tenant_context
 ):
     from unittest.mock import MagicMock
-    from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
-    from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
+
+    from src.core.modules.project_management.application.scheduling.services.scheduling_engine import (
+        SchedulingEngine,
+    )
+    from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+        CalendarProtocol,
+    )
 
     _seed_project(db_session, tenant_context, "proj-enterprise-cal")
     assignment_service.assign_project_calendar("proj-enterprise-cal", global_cal.id)

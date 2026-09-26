@@ -124,7 +124,7 @@ def test_inspector_menu_action_deactivate_and_archive_route_through_confirmation
         # dialog rather than mutating immediately (a destructive-ish,
         # confirmable action) -- verified via the QML function directly,
         # the same call the ActionsMenuButton's onActionSelected makes.
-        from PySide6.QtCore import QMetaObject, Q_ARG
+        from PySide6.QtCore import Q_ARG, QMetaObject
 
         assert QMetaObject.invokeMethod(
             root, "_onInspectorMenuAction", Q_ARG("QVariant", "deactivate")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 def normalize_filter(value: str, options: Any, *, default_value: str) -> str:
     normalized_value = (value or default_value).strip().lower()
     available_values = {

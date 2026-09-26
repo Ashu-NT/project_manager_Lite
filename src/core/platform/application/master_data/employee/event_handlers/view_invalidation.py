@@ -34,7 +34,7 @@ def build_employee_list_view_invalidation_handler(channel: ViewInvalidationChann
 
 
 __all__ = [
-    "build_employee_list_view_invalidation_handler",
     "EMPLOYEE_CATEGORY",
     "EMPLOYEE_LIST_SCOPE_CODE",
+    "build_employee_list_view_invalidation_handler",
 ]

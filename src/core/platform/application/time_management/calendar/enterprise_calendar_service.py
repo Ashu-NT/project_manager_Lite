@@ -11,7 +11,15 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarAssignmentRepository,
     CalendarExceptionRepository,
@@ -22,9 +30,6 @@ from src.core.platform.domain.time_management.calendar.enterprise_calendar impor
     CalendarType,
     PlatformCalendar,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.application.tenant.tenancy import TenantContextService
-
 
 _VALID_GRANULARITIES = {5, 10, 15, 30, 60}
 logger = logging.getLogger(__name__)
@@ -291,13 +296,14 @@ class EnterpriseCalendarService:
         Falls back to Mon-Fri 08:00-17:00 defaults when no legacy data exists.
         Safe to call multiple times — skips if working rules already exist.
         """
+        from datetime import time
+
         from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
-            CalendarWorkingRule,
             CalendarException,
+            CalendarWorkingRule,
             ExceptionType,
             ImpactType,
         )
-        from datetime import time
 
         if self._rule_repo is None:
             logger.warning(

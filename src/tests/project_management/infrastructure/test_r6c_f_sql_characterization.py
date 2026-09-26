@@ -10,15 +10,14 @@ from sqlalchemy import event
 from src.core.modules.project_management.application.financials.forecasts.generation_service import (
     ManualEtcEstimate,
 )
+from src.core.modules.project_management.domain.financials.financial_change import (
+    FinancialChangeImpactType,
+)
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastGenerationMode,
     ForecastLineSourceKind,
     ForecastLineSourceType,
 )
-from src.core.modules.project_management.domain.financials.financial_change import (
-    FinancialChangeImpactType,
-)
-
 
 _OBSERVED_SQL: list[list[str]] = []
 
@@ -60,7 +59,7 @@ def _seed_approved_bases(services, *, suffix: str):
         budget.id,
         cost_code_id=code.id,
         description="Approved scope",
-        amount=Decimal("100"),
+        amount=Decimal(100),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
@@ -83,7 +82,7 @@ def _seed_approved_bases(services, *, suffix: str):
         forecast.id,
         cost_code_id=code.id,
         description="Approved ETC",
-        amount=Decimal("80"),
+        amount=Decimal(80),
         source_kind=ForecastLineSourceKind.MANUAL,
         source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin",
@@ -157,7 +156,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
             budget.id,
             cost_code_id=budget_code.id,
             description="Measured line",
-            amount=Decimal("100"),
+            amount=Decimal(100),
             expected_budget_version=budget.row_version,
         ),
     )
@@ -168,7 +167,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
             budget_line.id,
             expected_line_version=budget_line.row_version,
             expected_budget_version=budget.row_version,
-            amount=Decimal("125"),
+            amount=Decimal(125),
         ),
     )
     budget = budgets.get_budget(budget.id)
@@ -218,7 +217,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
                 ManualEtcEstimate(
                     cost_code_id=forecast_code.id,
                     description="Measured ETC",
-                    amount=Decimal("50"),
+                    amount=Decimal(50),
                 ),
             ),
         ),
@@ -231,7 +230,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
             forecast.id,
             cost_code_id=extra_forecast_code.id,
             description="Governed adjustment",
-            amount=Decimal("10"),
+            amount=Decimal(10),
             source_kind=ForecastLineSourceKind.MANUAL,
             source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
             created_by="admin",
@@ -273,7 +272,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
                 ManualEtcEstimate(
                     cost_code_id=forecast_code.id,
                     description="Measured successor ETC",
-                    amount=Decimal("45"),
+                    amount=Decimal(45),
                 ),
             ),
         ),
@@ -303,7 +302,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
             change.id,
             impact_type=FinancialChangeImpactType.BUDGET,
             description="Measured impact",
-            amount=Decimal("5"),
+            amount=Decimal(5),
             cost_code_id=change_code.id,
             target_line_id=budget_line.id,
             expected_change_version=change.row_version,

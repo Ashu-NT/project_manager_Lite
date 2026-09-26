@@ -1,6 +1,10 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from src.core.modules.project_management.api.desktop.dashboard.models.overview import ProjectDashboardMetricDescriptor
+
+from src.core.modules.project_management.api.desktop.dashboard.models.overview import (
+    ProjectDashboardMetricDescriptor,
+)
 
 
 @dataclass(frozen=True)

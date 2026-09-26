@@ -5,10 +5,10 @@ Revises:
 Create Date: 2026-08-20 16:02:21.052084
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 from src.infra.persistence.migrations.helpers.rls_classification import (
     disable_baseline_rls,
@@ -19,12 +19,11 @@ from src.infra.persistence.migrations.helpers.schema_guards import (
     remove_database_guards,
 )
 
-
 # revision identifiers, used by Alembic.
 revision: str = 'f3c89cac079d'
-down_revision: Union[str, Sequence[str], None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 _DELAYED_FOREIGN_KEYS = (

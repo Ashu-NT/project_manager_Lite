@@ -7,14 +7,24 @@ from src.core.application.global_overview.contracts.action_center import (
     ActionCenterItemDto,
     ActionCenterSummaryDto,
 )
-from src.core.application.global_overview.contracts.module_summary import ModuleSummaryDto
+from src.core.application.global_overview.contracts.module_summary import (
+    ModuleSummaryDto,
+)
 from src.core.application.global_overview.contracts.overview import (
     GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
 )
-from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
-from src.ui_qml.shell.presenters.global_overview_presenter import GlobalOverviewPresenter
+from src.core.platform.api.desktop.history.activity.models.activity import (
+    ActivityEntryDto,
+)
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
+from src.ui_qml.shell.presenters.global_overview_presenter import (
+    GlobalOverviewPresenter,
+)
+
 
 class _FakeGlobalOverviewApi:
     def __init__(self) -> None:

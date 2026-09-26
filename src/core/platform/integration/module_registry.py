@@ -97,10 +97,10 @@ class ModuleRegistry:
     # Cross-module reference checks
     # ------------------------------------------------------------------
 
-    def can_open_reference(self, module_id: str, entity_type: str) -> bool:  # noqa: ARG002
+    def can_open_reference(self, module_id: str, entity_type: str) -> bool:
         return self.is_module_enabled(module_id)
 
-    def can_create_reference(self, module_id: str, entity_type: str) -> bool:  # noqa: ARG002
+    def can_create_reference(self, module_id: str, entity_type: str) -> bool:
         return self.is_module_enabled(module_id)
 
     def can_use_integration(

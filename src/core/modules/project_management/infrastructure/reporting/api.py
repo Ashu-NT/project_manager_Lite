@@ -6,27 +6,44 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from src.core.modules.project_management.application.financials import FinanceService
+from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.evm import (
+    EvmCurveRenderer,
+)
+from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.excel import (
+    ExcelReportRenderer,
+)
+from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.gantt import (
+    GanttPngRenderer,
+)
+from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.pdf import (
+    PdfReportRenderer,
+)
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
     ExcelReportContext,
     FinanceLedgerExportPage,
     PdfReportContext,
 )
-from src.core.modules.project_management.infrastructure.reporting.templates.definitions import register_project_management_report_definitions
-from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.evm import EvmCurveRenderer
-from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.excel import ExcelReportRenderer
-from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.gantt import GanttPngRenderer
-from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.pdf import PdfReportRenderer
-from src.core.modules.project_management.application.financials import FinanceService
-from src.core.modules.project_management.infrastructure.reporting.services.reporting_service import ReportingService
-from src.core.modules.project_management.infrastructure.reporting.models.report_models import GanttTaskBar
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
+    GanttTaskBar,
+)
+from src.core.modules.project_management.infrastructure.reporting.services.reporting_service import (
+    ReportingService,
+)
+from src.core.modules.project_management.infrastructure.reporting.templates.definitions import (
+    register_project_management_report_definitions,
+)
 from src.core.platform.application.data_operations.exporting import (
     cleanup_temp_artifact,
     ensure_output_path,
     finalize_artifact,
 )
+from src.core.platform.application.data_operations.report_runtime import (
+    ReportDefinitionRegistry,
+    ReportRuntime,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.data_operations.exporting import ExportArtifact
-from src.core.platform.application.data_operations.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 
 @dataclass(frozen=True)

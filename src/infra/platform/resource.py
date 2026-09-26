@@ -1,7 +1,9 @@
 # src/infra/platform/resource.py
 from __future__ import annotations
+
 import sys
 from pathlib import Path
+
 
 def resource_path(relative: str) -> str:
     """

@@ -20,11 +20,12 @@ from src.core.platform.application.integration import (
     IntegrationOutboxService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.domain.security.identity.service_principal import ServicePrincipal
+from src.core.platform.domain.security.identity.service_principal import (
+    ServicePrincipal,
+)
 from src.core.platform.integration import IntegrationEventEnvelope
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.infra.persistence.db.postgresql_rls import worker_tenant_scope
-
 
 logger = logging.getLogger(__name__)
 
@@ -140,18 +141,17 @@ class ApprovedTimeFinancialDispatcher:
             tenant_id=envelope.tenant_id,
             organization_id=envelope.organization_id,
             actor_user_id=principal.user_id,
-        ):
-            with self._uow_factory.create(context=self._event_context(envelope)) as uow:
-                inbox = self._inbox_service(uow)
-                decision = inbox.begin_delivery(envelope)
-                if decision.disposition is InboxDeliveryDisposition.READY:
-                    consumer = self._consumer_factory(uow, principal)
-                    events = consumer.consume(envelope)
-                    inbox.mark_processed(decision.receipt.id)
-                    for event in events:
-                        uow.record_event(event)
-                uow.commit()
-                return decision.disposition
+        ), self._uow_factory.create(context=self._event_context(envelope)) as uow:
+            inbox = self._inbox_service(uow)
+            decision = inbox.begin_delivery(envelope)
+            if decision.disposition is InboxDeliveryDisposition.READY:
+                consumer = self._consumer_factory(uow, principal)
+                events = consumer.consume(envelope)
+                inbox.mark_processed(decision.receipt.id)
+                for event in events:
+                    uow.record_event(event)
+            uow.commit()
+            return decision.disposition
 
     def _record_failure(
         self,
@@ -163,25 +163,24 @@ class ApprovedTimeFinancialDispatcher:
         with worker_tenant_scope(
             tenant_id=envelope.tenant_id,
             organization_id=envelope.organization_id,
-        ):
-            with self._uow_factory.create(context=self._event_context(envelope)) as uow:
-                inbox = self._inbox_service(uow)
-                decision = inbox.begin_delivery(envelope)
-                if decision.disposition is InboxDeliveryDisposition.READY:
-                    if error_code in _PERMANENT_FAILURE_CODES:
-                        inbox.quarantine(
-                            decision.receipt.id,
-                            reason_code=error_code,
-                            message=error_message,
-                        )
-                    else:
-                        inbox.record_failure(
-                            decision.receipt.id,
-                            error_code=error_code,
-                            error_message=error_message,
-                        )
-                uow.commit()
-                return decision.disposition
+        ), self._uow_factory.create(context=self._event_context(envelope)) as uow:
+            inbox = self._inbox_service(uow)
+            decision = inbox.begin_delivery(envelope)
+            if decision.disposition is InboxDeliveryDisposition.READY:
+                if error_code in _PERMANENT_FAILURE_CODES:
+                    inbox.quarantine(
+                        decision.receipt.id,
+                        reason_code=error_code,
+                        message=error_message,
+                    )
+                else:
+                    inbox.record_failure(
+                        decision.receipt.id,
+                        error_code=error_code,
+                        error_message=error_message,
+                    )
+            uow.commit()
+            return decision.disposition
 
     @staticmethod
     def _inbox_service(

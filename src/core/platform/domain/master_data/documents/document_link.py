@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from pydantic import field_validator
 
+from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import (
     normalize_optional_text,
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.common.ids import generate_id
 
 
 def normalize_document_module_code(value: object) -> str:
@@ -104,7 +104,7 @@ class DocumentLink:
         entity_type: str,
         entity_id: str,
         link_role: str = "",
-    ) -> "DocumentLink":
+    ) -> DocumentLink:
         return DocumentLink(
             id=generate_id(),
             organization_id=organization_id,

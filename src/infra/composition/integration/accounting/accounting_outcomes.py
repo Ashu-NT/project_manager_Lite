@@ -4,10 +4,18 @@ from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.infrastructure.integration.accounting.accounting_outcomes import SqlAlchemyAccountingOutcomeConsumer
-from src.core.platform.application.integration.accounting.outcome_ingress import AccountingOutcomeIngress
-from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
-from src.infra.events.in_process_transactional_event_dispatcher import InProcessTransactionalEventDispatcher
+from src.core.modules.project_management.infrastructure.integration.accounting.accounting_outcomes import (
+    SqlAlchemyAccountingOutcomeConsumer,
+)
+from src.core.platform.application.integration.accounting.outcome_ingress import (
+    AccountingOutcomeIngress,
+)
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
+from src.infra.events.in_process_transactional_event_dispatcher import (
+    InProcessTransactionalEventDispatcher,
+)
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 
 

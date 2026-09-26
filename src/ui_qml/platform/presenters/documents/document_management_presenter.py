@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
+from src.core.platform.api.desktop.master_data.documents.document import (
+    PlatformDocumentDesktopApi,
+)
 from src.core.platform.api.desktop.master_data.documents.models.document import (
     DocumentDto,
     DocumentLinkCreateCommand,
@@ -13,7 +15,10 @@ from src.core.platform.api.desktop.master_data.documents.models.document import 
     DocumentStructureUpdateCommand,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.domain.master_data.documents import DocumentStorageKind, DocumentType
+from src.core.platform.domain.master_data.documents import (
+    DocumentStorageKind,
+    DocumentType,
+)
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
     int_value,

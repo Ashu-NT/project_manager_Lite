@@ -90,7 +90,7 @@ class PlatformWorkspaceControllerBase(QObject):
         return self._app_settings.load_table_column_state(table_id)
 
     @Slot(str, "QVariantMap")
-    def saveTableColumnState(self, table_id: str, state: "dict[str, object]") -> None:
+    def saveTableColumnState(self, table_id: str, state: dict[str, object]) -> None:
         self._app_settings.save_table_column_state(table_id, state)
 
     @Slot()

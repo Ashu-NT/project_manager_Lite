@@ -17,7 +17,9 @@ from types import SimpleNamespace
 
 from src.application.runtime import build_desktop_api_registry
 from src.ui_qml.platform.controllers.calendars.context import site_calendar_summary
-from src.ui_qml.platform.presenters.sites.site_catalog_presenter import PlatformSiteCatalogPresenter
+from src.ui_qml.platform.presenters.sites.site_catalog_presenter import (
+    PlatformSiteCatalogPresenter,
+)
 
 
 def test_create_and_update_site_round_trip_full_address(services) -> None:

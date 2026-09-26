@@ -33,18 +33,18 @@ from src.core.modules.project_management.api.desktop.timesheets.models.review im
 from src.core.modules.project_management.api.desktop.timesheets.models.snapshots import (
     TimesheetAssignmentSnapshotDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.timesheets.serializers.entry_serializer import (
-    serialize_entry,
-)
-from src.core.modules.project_management.api.desktop.timesheets.serializers.period_serializer import (
-    serialize_period_aggregate,
-)
 from src.core.modules.project_management.api.desktop.timesheets.models.workspace import (
     ResourceTimesheetEntryPageDesktopDto,
     ResourceTimesheetHistoryPageDesktopDto,
     ResourceTimesheetPeriodDesktopDto,
     TimesheetResourcePageDesktopDto,
     TimesheetWorkspaceAccessDesktopDto,
+)
+from src.core.modules.project_management.api.desktop.timesheets.serializers.entry_serializer import (
+    serialize_entry,
+)
+from src.core.modules.project_management.api.desktop.timesheets.serializers.period_serializer import (
+    serialize_period_aggregate,
 )
 from src.core.modules.project_management.api.desktop.timesheets.serializers.review_serializer import (
     serialize_review_detail,
@@ -65,7 +65,9 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.modules.project_management.contracts.reads.timesheets import TimesheetScope
+from src.core.modules.project_management.contracts.reads.timesheets import (
+    TimesheetScope,
+)
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 

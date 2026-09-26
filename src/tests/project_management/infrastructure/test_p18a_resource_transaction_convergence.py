@@ -11,19 +11,23 @@ from datetime import date
 import pytest
 
 from src.core.modules.project_management.application.resources.resource_capability_events import (
-    ResourceCapabilityChangeType,
     ResourceCapabilityChanged,
+    ResourceCapabilityChangeType,
 )
 from src.core.modules.project_management.application.resources.resource_master_events import (
-    ResourceMasterChangeType,
     ResourceMasterChanged,
+    ResourceMasterChangeType,
 )
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.uow.resources.resource_unit_of_work import (
     SqlAlchemyResourceUnitOfWork,
 )
-from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+from src.core.platform.application.history.audit.enterprise_audit_service import (
+    EnterpriseAuditService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,

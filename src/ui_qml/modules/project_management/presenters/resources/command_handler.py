@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
 from decimal import Decimal
+from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
@@ -9,15 +9,20 @@ from src.core.modules.project_management.api.desktop import (
     ResourceLifecycleCommand,
     ResourceUpdateCommand,
 )
-from src.core.modules.project_management.domain.enums import CostType, ResourceKind, WorkerType
+from src.core.modules.project_management.domain.enums import (
+    CostType,
+    ResourceKind,
+    WorkerType,
+)
 
 from .validation import (
     optional_decimal,
     optional_float,
-    require_int,
     optional_text,
+    require_int,
     require_text,
 )
+
 
 def suggest_code(
     desktop_api: ProjectManagementResourcesDesktopApi,
@@ -46,7 +51,7 @@ def create_resource(
         code=optional_text(payload, "resourceCode"),
         kind=optional_text(payload, "kind") or ResourceKind.PERSON.value,
         role=optional_text(payload, "role") or "",
-        hourly_rate=optional_decimal(payload, "hourlyRate", "Hourly rate must be a valid number.", default=Decimal("0")),
+        hourly_rate=optional_decimal(payload, "hourlyRate", "Hourly rate must be a valid number.", default=Decimal(0)),
         cost_type=optional_text(payload, "costType") or CostType.LABOR.value,
         currency_code=optional_text(payload, "currency"),
         capacity_percent=optional_float(payload, "capacityPercent", "Capacity must be a valid number.", default=100.0),
@@ -69,7 +74,7 @@ def update_resource(
         code=optional_text(payload, "resourceCode"),
         kind=require_text(payload, "kind", "Resource kind is required."),
         role=optional_text(payload, "role") or "",
-        hourly_rate=optional_decimal(payload, "hourlyRate", "Hourly rate must be a valid number.", default=Decimal("0")),
+        hourly_rate=optional_decimal(payload, "hourlyRate", "Hourly rate must be a valid number.", default=Decimal(0)),
         cost_type=optional_text(payload, "costType") or CostType.LABOR.value,
         currency_code=optional_text(payload, "currency"),
         capacity_percent=optional_float(payload, "capacityPercent", "Capacity must be a valid number.", default=100.0),

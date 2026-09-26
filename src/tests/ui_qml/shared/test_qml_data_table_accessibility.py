@@ -257,7 +257,6 @@ def _set_theme(engine, mode: str) -> None:
 
 
 def test_data_table_loads_without_warnings_light_and_dark(qapp) -> None:
-    import logging
 
     from PySide6.QtCore import qInstallMessageHandler
 

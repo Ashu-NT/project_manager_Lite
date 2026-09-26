@@ -5,17 +5,19 @@ from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.modules.project_management.access.scope_permissions import filter_project_rows
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.modules.project_management.access.scope_permissions import (
+    filter_project_rows,
+)
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioScoringTemplateChanged,
+    PortfolioScoringTemplateChangeType,
+)
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioScenarioComparison,
     PortfolioScoringTemplate,
 )
-from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioScoringTemplateChangeType,
-    PortfolioScoringTemplateChanged,
-)
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 

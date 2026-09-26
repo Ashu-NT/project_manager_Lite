@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
-from src.core.modules.project_management.api.desktop.common.financial_formatting import format_money
-from src.core.modules.project_management.api.desktop.financials.models.snapshots import FinancialOverviewDto
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_money,
+)
+from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
+    FinancialOverviewDto,
+)
 from src.core.platform.domain.finance.money import canonical_decimal_text
 
 

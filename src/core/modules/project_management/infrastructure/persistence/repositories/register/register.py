@@ -3,19 +3,31 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.register.register import RegisterEntryRepository
+from src.core.modules.project_management.contracts.repositories.register.register import (
+    RegisterEntryRepository,
+)
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.register import RegisterEntryORM
+from src.core.modules.project_management.infrastructure.persistence.mappers.register import (
+    register_entry_from_orm,
+    register_entry_to_orm,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.register import (
+    RegisterEntryORM,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
-from src.core.modules.project_management.infrastructure.persistence.mappers.register import register_entry_from_orm, register_entry_to_orm
 
 
 class SqlAlchemyRegisterEntryRepository(RegisterEntryRepository):

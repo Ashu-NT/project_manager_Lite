@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.ui_qml.shared.models.activity_item import ActivityItemViewModel, serialize_activity_items
+from src.ui_qml.shared.models.activity_item import (
+    ActivityItemViewModel,
+    serialize_activity_items,
+)
 
 from .formatters import format_date, int_label
 

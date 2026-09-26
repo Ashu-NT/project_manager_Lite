@@ -7,7 +7,11 @@ from src.core.platform.domain.master_data.documents import (
     DocumentStructure,
     DocumentType,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import DocumentLinkORM, DocumentORM, DocumentStructureORM
+from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import (
+    DocumentLinkORM,
+    DocumentORM,
+    DocumentStructureORM,
+)
 
 
 def document_structure_to_orm(structure: DocumentStructure) -> DocumentStructureORM:

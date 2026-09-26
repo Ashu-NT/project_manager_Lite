@@ -5,18 +5,20 @@ from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioIntakeItemChanged,
+    PortfolioIntakeItemChangeType,
+)
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
 )
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioIntakeItemChangeType,
-    PortfolioIntakeItemChanged,
-)
 
 
 class PortfolioIntakeCommandMixin:
@@ -26,7 +28,7 @@ class PortfolioIntakeCommandMixin:
         title: str,
         sponsor_name: str,
         summary: str = "",
-        requested_budget: Decimal | int | str = Decimal("0"),
+        requested_budget: Decimal | int | str = Decimal(0),
         requested_capacity_percent: float = 0.0,
         target_start_date=None,
         strategic_score: int = 3,

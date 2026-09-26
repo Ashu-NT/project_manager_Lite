@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-
 _DEFAULT_APP_VERSION = "2.1.1"
 _VERSION_FILE = Path(__file__).with_name("app_version.txt")
 

@@ -8,7 +8,10 @@ from pydantic import field_validator, model_validator
 
 from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.common.pydantic import normalize_required_text, validated_dataclass
+from src.core.platform.common.pydantic import (
+    normalize_required_text,
+    validated_dataclass,
+)
 
 
 def _normalize_optional_date(value: object) -> date | None:
@@ -80,7 +83,7 @@ class ProjectCalendarAssignment:
         return _normalize_int(value, default=0)
 
     @model_validator(mode="after")
-    def _validate_effective_range(self) -> "ProjectCalendarAssignment":
+    def _validate_effective_range(self) -> ProjectCalendarAssignment:
         if (
             self.effective_from is not None
             and self.effective_to is not None
@@ -101,7 +104,7 @@ class ProjectCalendarAssignment:
         effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
-    ) -> "ProjectCalendarAssignment":
+    ) -> ProjectCalendarAssignment:
         return ProjectCalendarAssignment(
             id=generate_id(),
             project_id=project_id,
@@ -161,7 +164,7 @@ class ResourceCalendarAssignment:
         return _normalize_int(value, default=0)
 
     @model_validator(mode="after")
-    def _validate_effective_range(self) -> "ResourceCalendarAssignment":
+    def _validate_effective_range(self) -> ResourceCalendarAssignment:
         if (
             self.effective_from is not None
             and self.effective_to is not None
@@ -182,7 +185,7 @@ class ResourceCalendarAssignment:
         effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
-    ) -> "ResourceCalendarAssignment":
+    ) -> ResourceCalendarAssignment:
         return ResourceCalendarAssignment(
             id=generate_id(),
             resource_id=resource_id,

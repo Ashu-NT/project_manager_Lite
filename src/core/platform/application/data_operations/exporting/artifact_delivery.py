@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import suppress
 from pathlib import Path
-from typing import Mapping
 
-from src.core.platform.domain.data_operations.exporting import ExportArtifact, ExportArtifactDraft
+from src.core.platform.domain.data_operations.exporting import (
+    ExportArtifact,
+    ExportArtifactDraft,
+)
 
 
 def ensure_output_path(path: str | Path) -> Path:

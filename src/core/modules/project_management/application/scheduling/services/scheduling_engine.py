@@ -1,21 +1,16 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 import logging
 from datetime import date, timedelta
+
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    AssignmentRepository,
-    DependencyRepository,
-    TaskRepository,
-)
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
-from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.modules.project_management.application.scheduling.cpm.task_date_math import (
     apply_actual_date_constraints,
     apply_resource_leveling_floor,
@@ -23,17 +18,36 @@ from src.core.modules.project_management.application.scheduling.cpm.task_date_ma
     compute_duration_dates,
     compute_milestone_dates,
 )
-from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_dependencies, select_leaf_tasks
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+    DependencyRepository,
+    TaskRepository,
+)
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    select_leaf_dependencies,
+    select_leaf_tasks,
+)
+from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+
 # Enterprise CalendarResolver now handles hierarchy resolution; kept as a
 # type placeholder for the isinstance checks below.
 CalendarResolver = None  # type: ignore[assignment]
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
+    BoundProjectCalendar,
+    ProjectCalendarAdapter,
+)
+from src.core.modules.project_management.application.scheduling.calendars.working_day_snapshot import (
+    WorkingDaySnapshotCalendar,
+)
 from src.core.modules.project_management.application.scheduling.cpm.date_compute import (
     compute_task_dates_common,
 )
 from src.core.modules.project_management.application.scheduling.cpm.graph import (
     build_project_dependency_graph,
 )
-from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 from src.core.modules.project_management.application.scheduling.cpm.passes import (
     run_backward_pass,
     run_forward_pass,
@@ -41,12 +55,8 @@ from src.core.modules.project_management.application.scheduling.cpm.passes impor
 from src.core.modules.project_management.application.scheduling.cpm.results import (
     build_schedule_result,
 )
-from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
-    BoundProjectCalendar,
-    ProjectCalendarAdapter,
-)
-from src.core.modules.project_management.application.scheduling.calendars.working_day_snapshot import (
-    WorkingDaySnapshotCalendar,
+from src.core.modules.project_management.application.scheduling.models.cpm import (
+    CPMTaskInfo,
 )
 
 
@@ -356,5 +366,7 @@ class SchedulingEngine:
         return apply_actual_date_constraints(self._task_calendar, task, est, eft, duration_days)
 
     def _priority_value(self, task: Task) -> int:
-        from src.core.modules.project_management.application.scheduling.utils.task_priority import get_task_priority_value
+        from src.core.modules.project_management.application.scheduling.utils.task_priority import (
+            get_task_priority_value,
+        )
         return get_task_priority_value(task)

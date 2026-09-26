@@ -8,7 +8,6 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     safe_error_message,
-    serialize_task_collection_view_model,
 )
 from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
     PMAssignmentController,
@@ -46,7 +45,6 @@ from .task_domain_event_binder import (
 from .task_export_handler import export_tasks
 from .task_lazy_section_loader import (
     load_selected_task_activity,
-    update_task_activity_query,
     load_selected_task_assignments,
     load_selected_task_collaboration,
     load_selected_task_dependencies,
@@ -55,6 +53,7 @@ from .task_lazy_section_loader import (
     load_selected_task_time,
     load_task_assignments_and_dependencies,
     refresh_time_entries_only,
+    update_task_activity_query,
 )
 from .task_selection_handler import (
     activate_task,

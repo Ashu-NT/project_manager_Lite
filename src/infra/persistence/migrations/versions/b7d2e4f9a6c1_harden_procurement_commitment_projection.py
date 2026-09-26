@@ -9,16 +9,15 @@ facts but no correction/reversal lineage. One semantic receipt line therefore
 maps to one Finance Actual until an explicit correction contract is introduced.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision: str = "b7d2e4f9a6c1"
-down_revision: Union[str, Sequence[str], None] = "f4b7c9d2e6a1"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "f4b7c9d2e6a1"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 _INDEX = "uq_project_cost_entries_procurement_receipt_source"

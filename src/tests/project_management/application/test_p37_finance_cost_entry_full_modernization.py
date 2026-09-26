@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from dataclasses import replace
 
 import pytest
 
@@ -11,8 +11,8 @@ from src.core.modules.project_management.application.financials.cost.entries.cos
     CostEntryRecorded,
     CostEntryRemoved,
     CostEntryReversed,
-    CostEntryStatusChangeType,
     CostEntryStatusChanged,
+    CostEntryStatusChangeType,
     CostEntryUpdated,
 )
 from src.core.modules.project_management.application.financials.cost.entries.event_handlers.view_invalidation import (
@@ -27,7 +27,9 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ResourceScope
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 
 def _pm_catalog(services) -> ProjectManagementWorkspaceCatalog:

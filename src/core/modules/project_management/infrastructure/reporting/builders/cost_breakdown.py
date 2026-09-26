@@ -17,6 +17,7 @@ from src.core.modules.project_management.infrastructure.reporting.models.report_
     CostBreakdownRow,
 )
 
+
 class ReportingCostBreakdownMixin(ReportingCostPolicyMixin):
     def get_cost_breakdown(
         self,

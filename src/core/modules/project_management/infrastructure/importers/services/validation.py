@@ -14,6 +14,7 @@ from src.core.modules.project_management.infrastructure.importers.models.import_
     ImportValidationSeverity,
 )
 
+
 class ImportValidationService:
     """Validates parsed ImportRows against PM business rules before commit."""
 

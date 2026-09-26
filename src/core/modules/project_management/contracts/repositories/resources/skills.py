@@ -76,7 +76,7 @@ class TaskSkillRequirementRepository(ABC):
 
 
 __all__ = [
-    "ResourceSkillRepository",
     "ResourceCertificationRepository",
+    "ResourceSkillRepository",
     "TaskSkillRequirementRepository",
 ]

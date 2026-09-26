@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.application.scheduling.leveling.resource_leveling_planner import (
     ResourceLevelingPlanner,
 )
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 
 

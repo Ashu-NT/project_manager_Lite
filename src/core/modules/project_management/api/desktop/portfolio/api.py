@@ -1,22 +1,42 @@
 """ProjectManagementPortfolioDesktopApi — thin portfolio desktop facade."""
 
 from __future__ import annotations
+
 from datetime import datetime
 
-from src.core.modules.project_management.application.portfolio import PortfolioService
-from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
-    TOP_AT_RISK_PROJECTS_LIMIT,
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
+    coerce_dependency_type,
 )
-from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.resources import PortfolioResourcePoolService
-from src.core.modules.project_management.domain.enums import ProjectStatus
-
-from src.core.modules.project_management.api.desktop.portfolio.models.capacity import PortfolioCapacityResourceDto
+from src.core.modules.project_management.api.desktop.portfolio.builders.capacity_pool_builder import (
+    build_capacity_pool,
+)
+from src.core.modules.project_management.api.desktop.portfolio.builders.option_builder import (
+    build_dependency_type_options,
+    build_intake_status_options,
+    build_project_options,
+)
+from src.core.modules.project_management.api.desktop.portfolio.commands.create_dependency import (
+    PortfolioDependencyCreateCommand,
+)
+from src.core.modules.project_management.api.desktop.portfolio.commands.create_intake import (
+    PortfolioIntakeCreateCommand,
+)
+from src.core.modules.project_management.api.desktop.portfolio.commands.create_scenario import (
+    PortfolioScenarioCreateCommand,
+)
+from src.core.modules.project_management.api.desktop.portfolio.commands.create_template import (
+    PortfolioTemplateCreateCommand,
+)
+from src.core.modules.project_management.api.desktop.portfolio.models.capacity import (
+    PortfolioCapacityResourceDto,
+)
 from src.core.modules.project_management.api.desktop.portfolio.models.dependencies import (
     PortfolioDependencyDesktopDto,
     PortfolioDependencyPageDto,
 )
-from src.core.modules.project_management.api.desktop.portfolio.models.executive import PortfolioExecutiveDesktopSnapshot
+from src.core.modules.project_management.api.desktop.portfolio.models.executive import (
+    PortfolioExecutiveDesktopSnapshot,
+)
 from src.core.modules.project_management.api.desktop.portfolio.models.heatmap import (
     PortfolioHeatmapDesktopDto,
     PortfolioHeatmapPageDto,
@@ -29,35 +49,49 @@ from src.core.modules.project_management.api.desktop.portfolio.models.options im
     PortfolioOptionDescriptor,
     PortfolioProjectOptionDescriptor,
 )
-from src.core.modules.project_management.api.desktop.portfolio.models.recent_actions import PortfolioRecentActionDesktopDto
+from src.core.modules.project_management.api.desktop.portfolio.models.recent_actions import (
+    PortfolioRecentActionDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.portfolio.models.scenarios import (
     PortfolioScenarioComparisonDesktopDto,
     PortfolioScenarioDesktopDto,
     PortfolioScenarioEvaluationDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.portfolio.models.templates import PortfolioTemplateDesktopDto
-from src.core.modules.project_management.api.desktop.portfolio.commands.create_dependency import PortfolioDependencyCreateCommand
-from src.core.modules.project_management.api.desktop.portfolio.commands.create_intake import PortfolioIntakeCreateCommand
-from src.core.modules.project_management.api.desktop.portfolio.commands.create_scenario import PortfolioScenarioCreateCommand
-from src.core.modules.project_management.api.desktop.portfolio.commands.create_template import PortfolioTemplateCreateCommand
-from src.core.modules.project_management.api.desktop.portfolio.builders.option_builder import (
-    build_dependency_type_options,
-    build_intake_status_options,
-    build_project_options,
+from src.core.modules.project_management.api.desktop.portfolio.models.templates import (
+    PortfolioTemplateDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.portfolio.builders.capacity_pool_builder import build_capacity_pool
-from src.core.modules.project_management.api.desktop.portfolio.serializers.template_serializer import serialize_template
-from src.core.modules.project_management.api.desktop.portfolio.serializers.intake_serializer import serialize_intake_item
+from src.core.modules.project_management.api.desktop.portfolio.serializers.dependency_serializer import (
+    serialize_dependency,
+)
+from src.core.modules.project_management.api.desktop.portfolio.serializers.heatmap_serializer import (
+    serialize_heatmap_row,
+)
+from src.core.modules.project_management.api.desktop.portfolio.serializers.intake_serializer import (
+    serialize_intake_item,
+)
+from src.core.modules.project_management.api.desktop.portfolio.serializers.recent_action_serializer import (
+    serialize_recent_action,
+)
 from src.core.modules.project_management.api.desktop.portfolio.serializers.scenario_serializer import (
     serialize_comparison,
     serialize_evaluation,
     serialize_scenario,
 )
-from src.core.modules.project_management.api.desktop.portfolio.serializers.dependency_serializer import serialize_dependency
-from src.core.modules.project_management.api.desktop.portfolio.serializers.heatmap_serializer import serialize_heatmap_row
-from src.core.modules.project_management.api.desktop.portfolio.serializers.recent_action_serializer import serialize_recent_action
-from src.core.modules.project_management.api.desktop.portfolio.utils.intake_status_utils import coerce_intake_status
-from src.core.modules.project_management.api.desktop.common.dependency_presentation import coerce_dependency_type
+from src.core.modules.project_management.api.desktop.portfolio.serializers.template_serializer import (
+    serialize_template,
+)
+from src.core.modules.project_management.api.desktop.portfolio.utils.intake_status_utils import (
+    coerce_intake_status,
+)
+from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
+    TOP_AT_RISK_PROJECTS_LIMIT,
+)
+from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.resources import (
+    PortfolioResourcePoolService,
+)
+from src.core.modules.project_management.domain.enums import ProjectStatus
 
 
 class ProjectManagementPortfolioDesktopApi:

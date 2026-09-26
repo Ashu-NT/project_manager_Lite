@@ -762,7 +762,7 @@ def test_governed_rate_edit_races_labor_post_without_mixed_provenance(
 
         with pytest.raises(BusinessRuleError):
             boundary.rate_card(lambda service: service.update_line(
-                RATE_LINE_RACE, expected_version=2, rate_amount=Decimal("60")
+                RATE_LINE_RACE, expected_version=2, rate_amount=Decimal(60)
             ))
         boundary.rate_card(lambda service: service.update_line(
             RATE_LINE_RACE, expected_version=2, effective_to=max(date.today(), date(2026, 9, 20))
@@ -814,7 +814,7 @@ def test_worker_share_lock_blocks_governed_economic_edit_until_posted(
     def governed_edit():
         editing.set()
         return boundary.rate_card(lambda service: service.update_line(
-            line_id, expected_version=1, rate_amount=Decimal("60")
+            line_id, expected_version=1, rate_amount=Decimal(60)
         ))
 
     try:

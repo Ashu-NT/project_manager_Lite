@@ -132,7 +132,7 @@ def _wire_generation_sources(
             currency_code="USD",
             base_amount=amount,
             base_currency_code="USD",
-            exchange_rate=Decimal("1"),
+            exchange_rate=Decimal(1),
             state=ProjectCommitmentLineState.SENT,
             updated_at=now,
         ))
@@ -232,7 +232,7 @@ def test_automatic_line_requires_reproducible_source_metadata() -> None:
             project_id="project-a",
             cost_code_id="code-a",
             description="Open commitment",
-            amount=Decimal("10"),
+            amount=Decimal(10),
             currency_code="USD",
             source_kind=ForecastLineSourceKind.AUTOMATIC,
             source_type=ForecastLineSourceType.OPEN_COMMITMENT,
@@ -249,7 +249,7 @@ def test_manual_line_cannot_masquerade_as_an_automatic_source() -> None:
             project_id="project-a",
             cost_code_id="code-a",
             description="Invalid",
-            amount=Decimal("10"),
+            amount=Decimal(10),
             currency_code="USD",
             source_kind=ForecastLineSourceKind.MANUAL,
             source_type=ForecastLineSourceType.REMAINING_PLAN,
@@ -394,11 +394,11 @@ def test_generator_nets_actual_adjustments_and_does_not_double_count_commitments
         command_options={"name": "Generated ETC"},
     )
 
-    assert result.posted_actual_offset == Decimal("15")
-    assert result.open_commitment_total == Decimal("30")
-    assert result.remaining_plan_total == Decimal("55")
-    assert result.etc_total == Decimal("85")
-    assert sorted(line.amount for line in result.lines) == [Decimal("30"), Decimal("55")]
+    assert result.posted_actual_offset == Decimal(15)
+    assert result.open_commitment_total == Decimal(30)
+    assert result.remaining_plan_total == Decimal(55)
+    assert result.etc_total == Decimal(85)
+    assert sorted(line.amount for line in result.lines) == [Decimal(30), Decimal(55)]
     assert {
         decision.reason for decision in result.decisions
     } >= {
@@ -432,18 +432,18 @@ def test_manual_etc_replaces_remaining_plan_but_keeps_open_commitments(
             "manual_estimates": (
                 ManualEtcEstimate(
                     cost_code_id=code.id,
-                    amount=Decimal("40"),
+                    amount=Decimal(40),
                     description="Delivery team ETC",
                 ),
             ),
         },
     )
 
-    assert result.remaining_plan_total == Decimal("0")
-    assert result.open_commitment_total == Decimal("30")
-    assert result.manual_etc_total == Decimal("40")
-    assert result.etc_total == Decimal("70")
-    assert sorted(line.amount for line in result.lines) == [Decimal("30"), Decimal("40")]
+    assert result.remaining_plan_total == Decimal(0)
+    assert result.open_commitment_total == Decimal(30)
+    assert result.manual_etc_total == Decimal(40)
+    assert result.etc_total == Decimal(70)
+    assert sorted(line.amount for line in result.lines) == [Decimal(30), Decimal(40)]
 
 
 def test_generator_persists_evidence_backed_zero_etc_forecast(
@@ -460,7 +460,7 @@ def test_generator_persists_evidence_backed_zero_etc_forecast(
         command_options={"name": "Complete ETC"},
     )
 
-    assert result.etc_total == Decimal("0")
+    assert result.etc_total == Decimal(0)
     assert result.lines == ()
     assert result.decisions
     submitted = services["forecast_version_service"].submit_forecast(
@@ -498,15 +498,15 @@ def test_explicit_active_risk_contingency_is_additive(services, monkeypatch) -> 
                 RiskContingencyEstimate(
                     risk_id=risk.id,
                     cost_code_id=code.id,
-                    amount=Decimal("15"),
+                    amount=Decimal(15),
                 ),
             ),
         },
         configure=configure,
     )
 
-    assert result.risk_contingency_total == Decimal("15")
-    assert result.etc_total == Decimal("15")
+    assert result.risk_contingency_total == Decimal(15)
+    assert result.etc_total == Decimal(15)
     assert result.lines[0].source_type is ForecastLineSourceType.RISK
     assert result.lines[0].source_reference_id == risk.id
 

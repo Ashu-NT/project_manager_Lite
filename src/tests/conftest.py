@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.orm.base import Base
-from src.tests.path_rewrites import REPO_ROOT, resolve_repo_path
+from src.tests.path_rewrites import resolve_repo_path
 from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 _ORIGINAL_PATH_READ_TEXT = Path.read_text

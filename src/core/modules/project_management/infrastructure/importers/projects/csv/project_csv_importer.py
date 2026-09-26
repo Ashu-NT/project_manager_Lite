@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.platform.domain.data_operations.importing import ImportPreview, ImportPreviewRow, ImportSummary
 from src.core.modules.project_management.infrastructure.importers.utils.coercion import (
     optional_date,
     optional_project_status,
@@ -12,6 +11,11 @@ from src.core.modules.project_management.infrastructure.importers.utils.coercion
 from src.core.modules.project_management.infrastructure.importers.utils.lookup import (
     build_project_lookup,
     resolve_project,
+)
+from src.core.platform.domain.data_operations.importing import (
+    ImportPreview,
+    ImportPreviewRow,
+    ImportSummary,
 )
 
 

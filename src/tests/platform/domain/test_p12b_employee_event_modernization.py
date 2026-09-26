@@ -10,8 +10,13 @@ from src.core.modules.project_management.domain.enums import WorkerType
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.domain.master_data.employee.events import EmployeeCreated, EmployeeProfileUpdated
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.core.platform.domain.master_data.employee.events import (
+    EmployeeCreated,
+    EmployeeProfileUpdated,
+)
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 _COUNTER = {"n": 0}
@@ -220,7 +225,9 @@ def test_no_forbidden_employee_changed_event_name_exists():
 
 def test_canonical_employee_uow_retained_no_raw_session_commit():
     import src.core.platform.application.master_data.employee.employee_service as employee_service_module
-    from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+    from src.core.platform.application.master_data.employee.employee_service import (
+        EmployeeService,
+    )
 
     source = inspect.getsource(EmployeeService.create_employee) + inspect.getsource(
         EmployeeService.update_employee

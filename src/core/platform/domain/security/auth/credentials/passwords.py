@@ -4,7 +4,6 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from argon2.low_level import Type
 
-
 # OWASP's Argon2id baseline. Keep these explicit so a dependency upgrade does
 # not silently change authentication cost across application environments.
 _TIME_COST = 2

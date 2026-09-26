@@ -16,6 +16,7 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
     FinancialSourceType,
     financial_source_content_hash,
 )
+
 __all__ = [
     "ApprovedTimeFinancialSource",
     "FinancialPostingPurpose",

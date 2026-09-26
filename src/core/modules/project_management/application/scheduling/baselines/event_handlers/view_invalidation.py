@@ -91,9 +91,9 @@ def build_baseline_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_baseline_view_invalidation_handler",
     "BASELINE_CATEGORY",
-    "BASELINE_PROJECT_SCOPE_CODE",
     "BASELINE_MODULE_CODE",
     "BASELINE_PROJECT_ENTITY_TYPE",
+    "BASELINE_PROJECT_SCOPE_CODE",
+    "build_baseline_view_invalidation_handler",
 ]

@@ -7,33 +7,37 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QUrl, Qt, qInstallMessageHandler
-from PySide6.QtQml import QQmlComponent
+from PySide6.QtCore import qInstallMessageHandler
 from PySide6.QtTest import QTest
 
-from src.core.platform.api.desktop.events.notifications.models.notification import NotificationDto
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
+from src.core.platform.api.desktop.events.notifications.models.notification import (
+    NotificationDto,
+)
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
+from src.ui_qml.platform.context import PlatformWorkspaceCatalog
+from src.ui_qml.shell.context import build_shell_context
 from src.ui_qml.shell.controllers.notifications.notifications_controller import (
     NotificationsController,
 )
 from src.ui_qml.shell.controllers.organization.organization_switcher_controller import (
     OrganizationSwitcherController,
 )
+from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.presenters.notifications.notifications_presenter import (
     NotificationsPresenter,
 )
 from src.ui_qml.shell.presenters.organization.organization_switcher_presenter import (
     OrganizationSwitcherPresenter,
 )
-from src.ui_qml.shell.qml_engine import create_qml_engine
-from src.ui_qml.shell.context import build_shell_context
-from src.ui_qml.shell.main_window import build_main_window_navigation
+from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
 from src.ui_qml.shell.qml_registry import build_qml_route_registry
-from src.ui_qml.shell.qml_engine import load_qml
-from src.ui_qml.platform.context import PlatformWorkspaceCatalog
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 
 ROOT = Path(__file__).resolve().parents[3]
 SHELL_HEADER_SOURCE = (ROOT / "ui_qml/shell/qml/ShellHeader.qml").read_text(encoding="utf-8")

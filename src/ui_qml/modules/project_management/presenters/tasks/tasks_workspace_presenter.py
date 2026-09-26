@@ -10,8 +10,14 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
     build_project_management_timesheets_desktop_api,
 )
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
+    task_assignments_page,
+    task_dependencies_page,
+)
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogWorkspaceViewModel,
 )
@@ -38,6 +44,7 @@ from .collaboration_command_handler import (
     remove_task_comment_reaction,
     touch_task_collaboration_presence,
 )
+from .dependencies_builder import build_task_dependencies_state
 from .dependency_command_handler import (
     create_dependency,
     delete_dependency,
@@ -46,7 +53,6 @@ from .dependency_command_handler import (
     preview_update_dependency,
     update_dependency,
 )
-from .dependencies_builder import build_task_dependencies_state
 from .detail_builder import build_task_basic_detail_state, build_task_detail_state
 from .schedule_impact_builder import (
     build_task_schedule_impact_preview_state,
@@ -54,10 +60,6 @@ from .schedule_impact_builder import (
 )
 from .skill_requirements_builder import build_task_skill_requirements_state
 from .task_activity_builder import build_task_activity_page
-from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
-    task_assignments_page,
-    task_dependencies_page,
-)
 from .task_command_handler import (
     apply_bulk_status,
     bulk_delete_tasks,
@@ -68,6 +70,7 @@ from .task_command_handler import (
     update_task,
     update_task_scheduling_constraint,
 )
+from .task_mapper import to_task_record_view_model
 from .time_builder import (
     build_empty_task_time_state,
     build_task_time_entries_refresh,
@@ -79,7 +82,7 @@ from .time_command_handler import (
     update_task_time_entry,
 )
 from .workspace_builder import build_workspace_state
-from .task_mapper import to_task_record_view_model
+
 
 class ProjectTasksWorkspacePresenter:
     def __init__(

@@ -5,7 +5,10 @@ from datetime import date
 
 import pytest
 
-from src.core.modules.project_management.domain.projects.project import Project, ProjectResource
+from src.core.modules.project_management.domain.projects.project import (
+    Project,
+    ProjectResource,
+)
 from src.core.platform.common.exceptions import ValidationError
 
 

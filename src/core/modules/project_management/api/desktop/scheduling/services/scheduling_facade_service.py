@@ -2,7 +2,9 @@
 
 from datetime import date
 
-from src.core.modules.project_management.api.desktop.scheduling.models.schedule import SchedulingTaskDto
+from src.core.modules.project_management.api.desktop.scheduling.models.schedule import (
+    SchedulingTaskDto,
+)
 from src.core.modules.project_management.api.desktop.scheduling.serializers.schedule_serializer import (
     serialize_schedule_item,
     serialize_task_as_schedule_item,

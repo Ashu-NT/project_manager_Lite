@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Mapping
 
 from pydantic import field_validator, model_validator
 
@@ -179,7 +179,7 @@ class ProjectRateCard:
         organization_id: str,
         name: str,
         **values,
-    ) -> "ProjectRateCard":
+    ) -> ProjectRateCard:
         return ProjectRateCard(
             id=generate_id(),
             tenant_id=tenant_id,
@@ -333,7 +333,7 @@ class RateCardLine:
         )
 
     @model_validator(mode="after")
-    def _validate_selection_key_shape(self) -> "RateCardLine":
+    def _validate_selection_key_shape(self) -> RateCardLine:
         if bool(self.customer_party_id) != bool(self.contract_reference):
             raise ValidationError(
                 "Customer and contract reference must be supplied together.",
@@ -391,7 +391,7 @@ class RateCardLine:
         rate_amount: Decimal,
         rate_currency: str,
         **values,
-    ) -> "RateCardLine":
+    ) -> RateCardLine:
         return RateCardLine(
             id=generate_id(),
             tenant_id=tenant_id,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime
+from datetime import timezone as dt_timezone
 
 from pydantic import field_validator
 
@@ -127,7 +128,7 @@ class Department:
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
         notes: str = "",
-    ) -> "Department":
+    ) -> Department:
         now = datetime.now(dt_timezone.utc)
         return Department(
             id=generate_id(),

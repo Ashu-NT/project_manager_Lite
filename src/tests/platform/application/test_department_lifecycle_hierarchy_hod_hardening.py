@@ -14,7 +14,6 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.common.exceptions import ValidationError
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
-
 # --------------------------------------------------------------------------
 # Lifecycle: explicit activate_department/deactivate_department
 # --------------------------------------------------------------------------

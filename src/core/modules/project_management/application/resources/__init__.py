@@ -14,14 +14,6 @@ from src.core.modules.project_management.application.resources.portfolio_resourc
 from src.core.modules.project_management.application.resources.project_resource_service import (
     ProjectResourceService,
 )
-from src.core.modules.project_management.application.resources.resource_service import (
-    ResourceService,
-)
-from src.core.modules.project_management.application.resources.resource_workload_service import (
-    ResourceWorkloadDayFact,
-    ResourceWorkloadFact,
-    ResourceWorkloadService,
-)
 from src.core.modules.project_management.application.resources.resource_load_engine import (
     ResourceLoadEngine,
     ResourceLoadMetric,
@@ -30,6 +22,14 @@ from src.core.modules.project_management.application.resources.resource_load_eng
     is_resource_overloaded,
     resource_utilization_band,
     resource_utilization_status_label,
+)
+from src.core.modules.project_management.application.resources.resource_service import (
+    ResourceService,
+)
+from src.core.modules.project_management.application.resources.resource_workload_service import (
+    ResourceWorkloadDayFact,
+    ResourceWorkloadFact,
+    ResourceWorkloadService,
 )
 
 __all__ = [

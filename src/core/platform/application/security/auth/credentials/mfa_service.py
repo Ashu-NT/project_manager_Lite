@@ -3,19 +3,31 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
-from src.core.platform.domain.security.auth.credentials.mfa import generate_mfa_secret, verify_totp_code
-from src.core.platform.domain.security.auth.events import MfaChangeType, MfaStatusChanged
+from src.core.platform.application.security.auth.audit.security_audit import (
+    add_atomic_security_audit,
+)
+from src.core.platform.application.security.auth.session.session_service import (
+    refresh_current_session_if_user,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+)
+from src.core.platform.application.security.authorization.enforcement.target_user_authorization import (
+    require_target_user_in_active_tenant,
+)
 from src.core.platform.common.exceptions import ValidationError
-
-from src.core.platform.application.security.auth.session.session_service import refresh_current_session_if_user
-from src.core.platform.application.security.auth.audit.security_audit import add_atomic_security_audit
-from src.core.platform.application.security.authorization.enforcement.target_user_authorization import require_target_user_in_active_tenant
+from src.core.platform.domain.security.auth.credentials.mfa import (
+    generate_mfa_secret,
+    verify_totp_code,
+)
+from src.core.platform.domain.security.auth.events import (
+    MfaChangeType,
+    MfaStatusChanged,
+)
 
 if TYPE_CHECKING:
-    from src.core.platform.domain.security.auth import UserAccount
-
     from src.core.platform.application.security.auth.auth_service import AuthService
+    from src.core.platform.domain.security.auth import UserAccount
 
 
 def provision_mfa_secret(service: AuthService, user_id: str) -> str:

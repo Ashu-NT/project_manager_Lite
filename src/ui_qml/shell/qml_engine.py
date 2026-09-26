@@ -4,34 +4,35 @@ import logging
 import os
 from pathlib import Path
 from typing import Any
+
 from PySide6.QtQml import QQmlApplicationEngine
 
 import resources.resources_rc  # noqa: F401
-import src.ui_qml.shared.models.data_table_model  # noqa: F401
-import src.ui_qml.shell.context  # noqa: F401
+import src.ui_qml.modules.project_management.context
+import src.ui_qml.modules.project_management.controllers.collaboration.collaboration_workspace_controller
+import src.ui_qml.modules.project_management.controllers.common.workspace_controller_base
+import src.ui_qml.modules.project_management.controllers.dashboard.dashboard_workspace_controller
+import src.ui_qml.modules.project_management.controllers.financials.financials_workspace_controller
+import src.ui_qml.modules.project_management.controllers.portfolio.portfolio_workspace_controller
+import src.ui_qml.modules.project_management.controllers.projects.projects_workspace_controller
+import src.ui_qml.modules.project_management.controllers.register.register_workspace_controller
+import src.ui_qml.modules.project_management.controllers.resources.resources_workspace_controller
+import src.ui_qml.modules.project_management.controllers.review_queue.timesheets_workspace_controller
+import src.ui_qml.modules.project_management.controllers.scheduling.scheduling_workspace_controller
+import src.ui_qml.modules.project_management.controllers.tasks.tasks_workspace_controller
+import src.ui_qml.platform.context
+import src.ui_qml.platform.controllers.access.access_workspace_controller
+import src.ui_qml.platform.controllers.common.workspace_controller_base
+import src.ui_qml.platform.controllers.control.control_workspace_controller
+import src.ui_qml.platform.controllers.overview.admin_console_controller
+import src.ui_qml.platform.controllers.settings.settings_workspace_controller
+import src.ui_qml.platform.controllers.support.support_workspace_controller
+import src.ui_qml.shared.models.data_table_model
+import src.ui_qml.shell.context
+import src.ui_qml.shell.controllers.global_overview.global_overview_controller
+import src.ui_qml.shell.controllers.notifications.notifications_controller
+import src.ui_qml.shell.controllers.organization.organization_switcher_controller
 import src.ui_qml.shell.login  # noqa: F401
-import src.ui_qml.shell.controllers.global_overview.global_overview_controller  # noqa: F401
-import src.ui_qml.shell.controllers.notifications.notifications_controller  # noqa: F401
-import src.ui_qml.shell.controllers.organization.organization_switcher_controller  # noqa: F401
-import src.ui_qml.platform.context  # noqa: F401
-import src.ui_qml.platform.controllers.common.workspace_controller_base  # noqa: F401
-import src.ui_qml.platform.controllers.overview.admin_console_controller  # noqa: F401
-import src.ui_qml.platform.controllers.access.access_workspace_controller  # noqa: F401
-import src.ui_qml.platform.controllers.support.support_workspace_controller  # noqa: F401
-import src.ui_qml.platform.controllers.control.control_workspace_controller  # noqa: F401
-import src.ui_qml.platform.controllers.settings.settings_workspace_controller  # noqa: F401
-import src.ui_qml.modules.project_management.context  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.common.workspace_controller_base  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.projects.projects_workspace_controller  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.collaboration.collaboration_workspace_controller  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.financials.financials_workspace_controller  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.portfolio.portfolio_workspace_controller  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.scheduling.scheduling_workspace_controller  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.tasks.tasks_workspace_controller  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.resources.resources_workspace_controller  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.register.register_workspace_controller  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.dashboard.dashboard_workspace_controller  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.review_queue.timesheets_workspace_controller  # noqa: F401
 
 os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Basic")
 

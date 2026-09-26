@@ -11,14 +11,23 @@ import inspect
 
 import pytest
 
-from src.core.platform.application.master_data.org import organization_service as organization_service_module
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
+from src.core.platform.application.master_data.org import (
+    organization_service as organization_service_module,
+)
 from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
     ORGANIZATION_LIST_SCOPE_CODE,
 )
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationService,
+)
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+    TenantORM,
+)
 from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWork,
 )

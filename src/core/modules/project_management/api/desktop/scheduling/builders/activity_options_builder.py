@@ -1,5 +1,8 @@
 from datetime import date
-from src.core.modules.project_management.api.desktop.scheduling.models.schedule import SchedulingProjectOptionDescriptor
+
+from src.core.modules.project_management.api.desktop.scheduling.models.schedule import (
+    SchedulingProjectOptionDescriptor,
+)
 
 
 def build_activity_options(

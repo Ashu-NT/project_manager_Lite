@@ -146,14 +146,14 @@ def build_document_links_view_invalidation_handler(channel: ViewInvalidationChan
 
 
 __all__ = [
-    "build_document_list_view_invalidation_handler",
-    "build_document_structure_list_view_invalidation_handler",
-    "build_document_links_view_invalidation_handler",
     "DOCUMENT_CATEGORY",
-    "DOCUMENT_LIST_SCOPE_CODE",
-    "DOCUMENT_STRUCTURE_CATEGORY",
-    "DOCUMENT_STRUCTURE_LIST_SCOPE_CODE",
     "DOCUMENT_LINKS_SCOPE_CODE",
     "DOCUMENT_LINK_OWNER_ENTITY_TYPE",
     "DOCUMENT_LINK_OWNER_MODULE_CODE",
+    "DOCUMENT_LIST_SCOPE_CODE",
+    "DOCUMENT_STRUCTURE_CATEGORY",
+    "DOCUMENT_STRUCTURE_LIST_SCOPE_CODE",
+    "build_document_links_view_invalidation_handler",
+    "build_document_list_view_invalidation_handler",
+    "build_document_structure_list_view_invalidation_handler",
 ]

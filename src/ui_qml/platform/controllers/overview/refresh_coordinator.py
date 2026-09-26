@@ -1,7 +1,10 @@
 
 from __future__ import annotations
 
-from src.ui_qml.platform.controllers.common import WORKSPACE_PERMISSIONS, serialize_workspace_overview
+from src.ui_qml.platform.controllers.common import (
+    WORKSPACE_PERMISSIONS,
+    serialize_workspace_overview,
+)
 
 # entity -> (required permission codes, controller attribute name)
 _ENTITY_CONTROLLERS: dict[str, tuple[tuple[str, ...], str]] = {

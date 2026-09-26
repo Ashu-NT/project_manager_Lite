@@ -11,4 +11,4 @@ def on_cost_entry_actuals_stale(controller, project_id: str) -> None:
         controller._invalidate_destinations("overview", "performance", "commercial")
 
 
-__all__ = ["on_cost_entry_list_stale", "on_cost_entry_actuals_stale"]
+__all__ = ["on_cost_entry_actuals_stale", "on_cost_entry_list_stale"]

@@ -1,27 +1,36 @@
 from __future__ import annotations
 
-import pytest
-
-from src.core.modules.project_management.application.portfolio import PortfolioService
-from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import EnterpriseCalendarService
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
-from src.core.platform.domain.time_management.calendar.enterprise_calendar import PlatformCalendar, ShiftPattern
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.application.master_data.department.department_service import DepartmentService
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.documents.document_service import (
+    DocumentService,
+)
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
+    ShiftPatternService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.master_data.department import Department
-from src.core.platform.application.master_data.documents.document_service import DocumentService
 from src.core.platform.domain.master_data.documents import Document
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.domain.master_data.party import Party
-from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.domain.master_data.site import Site
-from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
+    PlatformCalendar,
+    ShiftPattern,
+)
 
 
 class _TenantRepo:

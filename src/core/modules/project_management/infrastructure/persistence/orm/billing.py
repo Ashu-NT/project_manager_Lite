@@ -101,7 +101,7 @@ class ProjectBillingProfileORM(Base):
     cost_plus_markup_percent: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.PERCENTAGE),
         nullable=False,
-        default=Decimal("0"),
+        default=Decimal(0),
         info=financial_numeric_info(FinancialNumericKind.PERCENTAGE),
     )
     payment_terms_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
@@ -286,7 +286,7 @@ class ProjectBillingPreparationORM(Base):
     total_amount: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.MONEY),
         nullable=False,
-        default=Decimal("0"),
+        default=Decimal(0),
         info=financial_numeric_info(FinancialNumericKind.MONEY),
     )
     correction_of_preparation_id: Mapped[str | None] = mapped_column(String, nullable=True)

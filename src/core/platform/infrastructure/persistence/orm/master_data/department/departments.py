@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infra.persistence.orm.base import Base
@@ -18,7 +26,7 @@ class DepartmentORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
@@ -30,20 +38,20 @@ class DepartmentORM(Base):
     )
     department_code: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    site_id: Mapped[Optional[str]] = mapped_column(
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    site_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("sites.id", ondelete="SET NULL"),
         nullable=True,
     )
-    parent_department_id: Mapped[Optional[str]] = mapped_column(
+    parent_department_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("departments.id", ondelete="SET NULL"),
         nullable=True,
     )
-    department_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    cost_center_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    head_of_department_employee_id: Mapped[Optional[str]] = mapped_column(
+    department_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    cost_center_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    head_of_department_employee_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("employees.id", ondelete="SET NULL"),
         nullable=True,
@@ -51,7 +59,7 @@ class DepartmentORM(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 

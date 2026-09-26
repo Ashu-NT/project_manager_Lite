@@ -1,3 +1,5 @@
-from .resource_timesheets_controller import ProjectManagementResourceTimesheetsController
+from .resource_timesheets_controller import (
+    ProjectManagementResourceTimesheetsController,
+)
 
 __all__ = ["ProjectManagementResourceTimesheetsController"]

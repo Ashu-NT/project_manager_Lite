@@ -121,7 +121,10 @@ class TestGetTaskScheduleOverview:
         from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
             ScheduleChangeImpactService,
         )
-        from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+        from src.core.modules.project_management.domain.tasks.task import (
+            Task,
+            TaskDependency,
+        )
 
         a = Task.create("proj-1", "Task A", start_date=date(2024, 1, 1), duration_days=2)
         b = Task.create(

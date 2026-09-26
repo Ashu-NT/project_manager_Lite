@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 from src.core.platform.domain.events.platform_events.platform_event import PlatformEvent
-from src.core.platform.infrastructure.persistence.orm.events.platform_events.platform_events import PlatformEventORM
+from src.core.platform.infrastructure.persistence.orm.events.platform_events.platform_events import (
+    PlatformEventORM,
+)
 
 
 def _to_json(payload: dict[str, Any]) -> str:
@@ -58,4 +60,4 @@ def platform_event_from_orm(obj: PlatformEventORM) -> PlatformEvent:
     )
 
 
-__all__ = ["platform_event_to_orm", "platform_event_from_orm"]
+__all__ = ["platform_event_from_orm", "platform_event_to_orm"]

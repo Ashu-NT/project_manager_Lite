@@ -9,106 +9,149 @@ from typing import cast
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
-from src.core.platform.domain.tenant.modules import (
-    DEFAULT_ENTERPRISE_MODULES,
-    parse_enabled_module_codes,
-    parse_licensed_module_codes,
+from src.core.modules.project_management.application.resources.resource_master_events import (
+    build_resource_master_changed_for_employee_sync,
 )
-from src.core.platform.application.tenant.modules import ModuleCatalogService
-from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
-from src.core.platform.application.history.activity import ActivityService
+from src.core.modules.project_management.domain.resources.resource import Resource
+from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
+    SqlAlchemyResourceRepository,
+)
+from src.core.platform.access import (
+    AccessControlService,
+    ScopedRolePolicy,
+    ScopedRolePolicyRegistry,
+)
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.approval.event_handlers.view_invalidation import (
     build_approval_view_invalidation_handler,
+)
+from src.core.platform.application.data_operations.runtime_tracking import (
+    RuntimeExecutionService,
+)
+from src.core.platform.application.events.notifications.notification_service import (
+    NotificationService,
+)
+from src.core.platform.application.finance import FinancialPeriodService
+from src.core.platform.application.history.activity import ActivityService
+from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.master_data.data_exchange import (
+    MasterDataExchangeService,
+)
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.department.event_handlers.view_invalidation import (
+    build_department_list_view_invalidation_handler,
+)
+from src.core.platform.application.master_data.documents import (
+    DocumentIntegrationService,
+    DocumentService,
+)
+from src.core.platform.application.master_data.documents.event_handlers.view_invalidation import (
+    build_document_links_view_invalidation_handler,
+    build_document_list_view_invalidation_handler,
+    build_document_structure_list_view_invalidation_handler,
+)
+from src.core.platform.application.master_data.employee.employee_service import (
+    EmployeeService,
+)
+from src.core.platform.application.master_data.employee.event_handlers.view_invalidation import (
+    build_employee_list_view_invalidation_handler,
+)
+from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
+    build_organization_created_view_invalidation_handler,
+    build_organization_profile_view_invalidation_handler,
+)
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationService,
+)
+from src.core.platform.application.master_data.party.event_handlers.view_invalidation import (
+    build_party_list_view_invalidation_handler,
+)
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.master_data.site.event_handlers.view_invalidation import (
+    build_site_list_view_invalidation_handler,
+)
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.platform_runtime import (
+    PlatformRuntimeApplicationService,
+)
+from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.security.auth.event_handlers.view_invalidation import (
+    build_account_security_view_invalidation_handler,
+)
+from src.core.platform.application.security.authorization.roles import (
+    RoleGovernanceService,
+    TenantRoleAdministrationService,
+)
+from src.core.platform.application.security.authorization.roles.event_handlers.view_invalidation import (
+    build_authorization_context_view_invalidation_handler,
+    build_role_binding_view_invalidation_handler,
+)
+from src.core.platform.application.security.identity import ServicePrincipalService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
+    build_module_entitlement_view_invalidation_handler,
+)
+from src.core.platform.application.tenant.tenancy import (
+    TenancyMode,
+    TenantAdminService,
+    TenantContextService,
+    TenantMembershipService,
+    build_tenant_context_policy,
+)
+from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidation import (
+    build_tenant_membership_view_invalidation_handler,
+)
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
+    EnterpriseCalendarResolver,
+)
+from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import (
+    GlobalCalendarShim,
+)
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
+    WorkingTimeCalculator,
+)
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
+    CalendarExceptionService,
+)
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
+    RecurringEventService,
+)
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
+    ShiftPatternService,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.contract.interface.master_data.employee.contracts import (
+    LinkedEmployeeResource,
+)
+from src.core.platform.contract.repositories.master_data.org.contracts import (
+    OrganizationRepository,
+)
+from src.core.platform.contract.repositories.master_data.party.contracts import (
+    PartyRepository,
+)
+from src.core.platform.contract.repositories.master_data.site.contracts import (
+    SiteRepository,
 )
 from src.core.platform.domain.approval.events import (
     ApprovalApproved,
     ApprovalRejected,
     ApprovalRequested,
 )
-from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
-    SqlAlchemyPlatformUnitOfWorkFactory,
-)
-from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
-from src.infra.events.in_process_transactional_event_dispatcher import (
-    InProcessTransactionalEventDispatcher,
-)
-from src.infra.events.in_process_view_invalidation_channel import InProcessViewInvalidationChannel
-from src.core.shared.events.view_invalidation import ViewInvalidationChannel
-from src.core.shared.events.domain_event_publisher import (
-    PostCommitEventPublisher,
-    TransactionalEventDispatcher,
-)
-from src.infra.time.system_clock import SystemClock
-from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.finance import FinancialPeriodService
-from src.core.platform.application.events.notifications.notification_service import NotificationService
-from src.core.platform.application.security.auth import AuthService
-from src.core.platform.application.security.authorization.roles import (
-    RoleGovernanceService,
-    TenantRoleAdministrationService,
-)
-from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.application.master_data.documents import DocumentIntegrationService, DocumentService
-from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
-from src.core.platform.application.master_data.department.department_service import DepartmentService
-from src.core.platform.application.master_data.employee.employee_service import EmployeeService
-from src.core.platform.infrastructure.persistence.read.master_data.employee.employee_headcount_reader import (
-    SqlAlchemyEmployeeHeadcountReader,
-)
-from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
-    SqlAlchemyPlatformOverviewRollupReader,
-)
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
-    build_organization_created_view_invalidation_handler,
-    build_organization_profile_view_invalidation_handler,
-)
-from src.core.platform.domain.master_data.org.events import (
-    OrganizationActivated,
-    OrganizationArchived,
-    OrganizationCreated,
-    OrganizationDeactivated,
-    OrganizationProfileUpdated,
-)
-from src.core.platform.application.master_data.employee.event_handlers.view_invalidation import (
-    build_employee_list_view_invalidation_handler,
-)
-from src.core.platform.domain.master_data.employee.events import (
-    EmployeeCreated,
-    EmployeeProfileUpdated,
-)
-from src.core.platform.application.master_data.department.event_handlers.view_invalidation import (
-    build_department_list_view_invalidation_handler,
-)
 from src.core.platform.domain.master_data.department.events import (
     DepartmentActivated,
     DepartmentCreated,
     DepartmentDeactivated,
     DepartmentProfileUpdated,
-)
-from src.core.platform.application.master_data.site.event_handlers.view_invalidation import (
-    build_site_list_view_invalidation_handler,
-)
-from src.core.platform.domain.master_data.site.events import (
-    SiteActivated,
-    SiteArchived,
-    SiteCreated,
-    SiteDeactivated,
-    SiteProfileUpdated,
-)
-from src.core.platform.application.master_data.party.event_handlers.view_invalidation import (
-    build_party_list_view_invalidation_handler,
-)
-from src.core.platform.domain.master_data.party.events import (
-    PartyCreated,
-    PartyProfileUpdated,
-)
-from src.core.platform.application.master_data.documents.event_handlers.view_invalidation import (
-    build_document_list_view_invalidation_handler,
-    build_document_structure_list_view_invalidation_handler,
-    build_document_links_view_invalidation_handler,
 )
 from src.core.platform.domain.master_data.documents.events import (
     DocumentCreated,
@@ -118,22 +161,41 @@ from src.core.platform.domain.master_data.documents.events import (
     DocumentStructureCreated,
     DocumentStructureProfileUpdated,
 )
-from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
-    build_module_entitlement_view_invalidation_handler,
+from src.core.platform.domain.master_data.employee.events import (
+    EmployeeCreated,
+    EmployeeProfileUpdated,
 )
-from src.core.platform.domain.tenant.modules.events import (
-    ModuleDisabled,
-    ModuleEnabled,
-    ModuleLicenseRevoked,
-    ModuleLicensed,
-    ModuleLifecycleTransitioned,
+from src.core.platform.domain.master_data.org import (
+    ORGANIZATION_STATUS_ACTIVE,
+    Organization,
 )
-from src.core.platform.application.security.authorization.roles.event_handlers.view_invalidation import (
-    build_authorization_context_view_invalidation_handler,
-    build_role_binding_view_invalidation_handler,
+from src.core.platform.domain.master_data.org.access_policy import (
+    ORGANIZATION_SCOPE_ROLE_CHOICES,
+    normalize_organization_scope_role,
+    resolve_organization_scope_permissions,
 )
-from src.core.platform.application.security.auth.event_handlers.view_invalidation import (
-    build_account_security_view_invalidation_handler,
+from src.core.platform.domain.master_data.org.events import (
+    OrganizationActivated,
+    OrganizationArchived,
+    OrganizationCreated,
+    OrganizationDeactivated,
+    OrganizationProfileUpdated,
+)
+from src.core.platform.domain.master_data.party.events import (
+    PartyCreated,
+    PartyProfileUpdated,
+)
+from src.core.platform.domain.master_data.site.access_policy import (
+    SITE_SCOPE_ROLE_CHOICES,
+    normalize_site_scope_role,
+    resolve_site_scope_permissions,
+)
+from src.core.platform.domain.master_data.site.events import (
+    SiteActivated,
+    SiteArchived,
+    SiteCreated,
+    SiteDeactivated,
+    SiteProfileUpdated,
 )
 from src.core.platform.domain.security.auth.events import (
     AccountLocked,
@@ -153,104 +215,103 @@ from src.core.platform.domain.security.auth.events import (
     UserSessionPolicyChanged,
     UserSessionsRevoked,
 )
-from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidation import (
-    build_tenant_membership_view_invalidation_handler,
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.domain.security.authorization.roles.events import (
+    RoleBindingAssigned,
+    RoleBindingRevoked,
 )
+from src.core.platform.domain.tenant.modules import (
+    DEFAULT_ENTERPRISE_MODULES,
+    parse_enabled_module_codes,
+    parse_licensed_module_codes,
+)
+from src.core.platform.domain.tenant.modules.events import (
+    ModuleDisabled,
+    ModuleEnabled,
+    ModuleLicensed,
+    ModuleLicenseRevoked,
+    ModuleLifecycleTransitioned,
+)
+from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
 from src.core.platform.domain.tenant.tenancy.events import (
     TenantMembershipActivated,
     TenantMembershipReactivated,
     TenantMembershipRemoved,
     TenantMembershipSuspended,
 )
-from src.core.platform.domain.security.authorization.roles.events import (
-    RoleBindingAssigned,
-    RoleBindingRevoked,
+from src.core.platform.infrastructure.persistence.read.master_data.employee.employee_headcount_reader import (
+    SqlAlchemyEmployeeHeadcountReader,
 )
-from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
-    SqlAlchemyOrganizationUnitOfWorkFactory,
+from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
+    SqlAlchemyPlatformOverviewRollupReader,
+)
+from src.core.platform.infrastructure.persistence.read.tenant.modules.module_entitlement_reader import (
+    SqlAlchemyModuleEntitlementReader,
+)
+from src.core.platform.infrastructure.persistence.repositories.data_operations.runtime_tracking.runtime_tracking import (
+    SqlAlchemyRuntimeExecutionRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
+    SqlAlchemyOrganizationRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
+    SqlAlchemySiteRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.tenant.modules.modules import (
+    SqlAlchemyModuleEntitlementRepository,
+)
+from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
+    SqlAlchemyPlatformUnitOfWorkFactory,
 )
 from src.core.platform.infrastructure.persistence.uow.department_unit_of_work import (
     SqlAlchemyDepartmentUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.uow.site_unit_of_work import (
-    SqlAlchemySiteUnitOfWorkFactory,
+from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
+    SqlAlchemyDocumentUnitOfWorkFactory,
 )
 from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work import (
     SqlAlchemyEmployeeUnitOfWorkFactory,
 )
+from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
+    SqlAlchemyModuleEntitlementUnitOfWorkFactory,
+)
+from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
+    SqlAlchemyOrganizationUnitOfWorkFactory,
+)
 from src.core.platform.infrastructure.persistence.uow.party_unit_of_work import (
     SqlAlchemyPartyUnitOfWorkFactory,
-)
-from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
-    SqlAlchemyDocumentUnitOfWorkFactory,
-)
-from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
-    SqlAlchemyResourceRepository,
-)
-from src.core.modules.project_management.application.resources.resource_master_events import (
-    build_resource_master_changed_for_employee_sync,
-)
-from src.core.platform.contract.interface.master_data.employee.contracts import (
-    LinkedEmployeeResource,
 )
 from src.core.platform.infrastructure.persistence.uow.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
-    SqlAlchemyModuleEntitlementUnitOfWorkFactory,
-)
 from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWorkFactory,
+)
+from src.core.platform.infrastructure.persistence.uow.site_unit_of_work import (
+    SqlAlchemySiteUnitOfWorkFactory,
 )
 from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWorkFactory,
 )
-from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
-from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
-    SqlAlchemyOrganizationRepository,
+from src.core.shared.events.domain_event_publisher import (
+    PostCommitEventPublisher,
+    TransactionalEventDispatcher,
 )
-from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE, Organization
-from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
-from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
-    SqlAlchemySiteRepository,
-)
-from src.core.platform.domain.master_data.site.access_policy import (
-    SITE_SCOPE_ROLE_CHOICES,
-    normalize_site_scope_role,
-    resolve_site_scope_permissions,
-)
-from src.core.platform.domain.master_data.org.access_policy import (
-    ORGANIZATION_SCOPE_ROLE_CHOICES,
-    normalize_organization_scope_role,
-    resolve_organization_scope_permissions,
-)
-from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
-from src.core.platform.application.tenant.tenancy import (
-    TenantAdminService,
-    TenantMembershipService,
-    TenantContextService,
-    TenancyMode,
-    build_tenant_context_policy,
-)
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
-from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
-from src.core.platform.application.security.identity import ServicePrincipalService
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import EnterpriseCalendarService
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import CalendarExceptionService
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import RecurringEventService
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import CalendarAssignmentService
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import EnterpriseCalendarResolver
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
-from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import GlobalCalendarShim
-from src.core.platform.infrastructure.persistence.repositories.tenant.modules.modules import SqlAlchemyModuleEntitlementRepository
-from src.core.platform.infrastructure.persistence.read.tenant.modules.module_entitlement_reader import SqlAlchemyModuleEntitlementReader
-from src.core.platform.infrastructure.persistence.repositories.data_operations.runtime_tracking.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
+from src.core.shared.events.view_invalidation import ViewInvalidationChannel
 from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
+from src.infra.events.in_process_transactional_event_dispatcher import (
+    InProcessTransactionalEventDispatcher,
+)
+from src.infra.events.in_process_view_invalidation_channel import (
+    InProcessViewInvalidationChannel,
+)
+from src.infra.persistence.db.postgresql_rls import (
+    configure_session_rls_context,
+    validate_postgresql_execution_role,
+)
 from src.infra.platform.operational_support import current_trace_id
 from src.infra.platform.security_audit_recorder import (
     DurableSecurityDenialRecorder,
@@ -259,11 +320,7 @@ from src.infra.platform.security_config import (
     RuntimeSecurityConfiguration,
     load_runtime_security_configuration,
 )
-from src.infra.persistence.db.postgresql_rls import (
-    configure_session_rls_context,
-    validate_postgresql_execution_role,
-)
-
+from src.infra.time.system_clock import SystemClock
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from textwrap import dedent
 
-from PySide6.QtCore import QMetaObject, Q_ARG, Q_RETURN_ARG
+from PySide6.QtCore import Q_ARG, Q_RETURN_ARG, QMetaObject
 from PySide6.QtQml import QQmlComponent
 
 from src.ui_qml.shell.qml_engine import create_qml_engine

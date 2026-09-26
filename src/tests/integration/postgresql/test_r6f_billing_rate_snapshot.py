@@ -88,7 +88,7 @@ def test_billing_rate_race_preserves_complete_immutable_snapshot(postgres_test_e
             repo._tenant_context_service = scope
             profile = ProjectBillingProfile.create(
                 tenant_id=labor.TENANT_A, organization_id=labor.ORG_A, project_id=labor.PROJECT_A,
-                currency_code="USD", contract_reference="Billing race", contract_value=Decimal("10000"),
+                currency_code="USD", contract_reference="Billing race", contract_value=Decimal(10000),
                 customer_party_id="customer", created_by="billing-rate-user",
             )
             profile.activate(actor_id="billing-rate-user", occurred_at=now)
@@ -124,15 +124,15 @@ def test_billing_rate_race_preserves_complete_immutable_snapshot(postgres_test_e
         editing = executor.submit(edit)
         preparation_id, result = preparing.result(timeout=20)
         editing.result(timeout=20)
-    assert (result.rate_card_version, result.rate_line_version, result.unit_rate) == (1, 1, Decimal("120"))
+    assert (result.rate_card_version, result.rate_line_version, result.unit_rate) == (1, 1, Decimal(120))
     assert result.quantity == Decimal("2.3750")
     assert result.net_amount == Decimal("285.00")
     with env.runtime_session(tenant_id=labor.TENANT_A, organization_id=labor.ORG_A) as session:
         repo = SqlAlchemyProjectBillingRepository(session)
         repo._tenant_context_service = scope
         saved = repo.list_preparation_lines(preparation_id)[0]
-        assert (saved.rate_card_version, saved.rate_line_version, saved.unit_rate, saved.net_amount) == (1, 1, Decimal("120"), Decimal("285"))
-        assert session.scalar(text("SELECT rate_amount FROM project_finance_rate_card_lines WHERE id=:id"), {"id": line_id}) == Decimal("240")
+        assert (saved.rate_card_version, saved.rate_line_version, saved.unit_rate, saved.net_amount) == (1, 1, Decimal(120), Decimal(285))
+        assert session.scalar(text("SELECT rate_amount FROM project_finance_rate_card_lines WHERE id=:id"), {"id": line_id}) == Decimal(240)
         preparation = repo.get_preparation(preparation_id)
         version = preparation.row_version
         preparation.submit(

@@ -15,7 +15,11 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.domain.finance import MONEY_STORAGE, PERCENTAGE_STORAGE, CurrencyCode
+from src.core.platform.domain.finance import (
+    MONEY_STORAGE,
+    PERCENTAGE_STORAGE,
+    CurrencyCode,
+)
 
 
 class BillingProfileStatus(str, Enum):
@@ -56,7 +60,7 @@ class ProjectBillingProfile:
     customer_party_id: str | None = None
     external_customer_reference: str | None = None
     purchase_order_reference: str | None = None
-    cost_plus_markup_percent: Decimal = Decimal("0")
+    cost_plus_markup_percent: Decimal = Decimal(0)
     payment_terms_days: int = 30
     retention_years: int = 7
     legal_hold: bool = False
@@ -123,7 +127,7 @@ class ProjectBillingProfile:
     @classmethod
     def _markup(cls, value: object) -> Decimal:
         markup = PERCENTAGE_STORAGE.validate(value)
-        if markup < 0 or markup > Decimal("1000"):
+        if markup < 0 or markup > Decimal(1000):
             raise ValidationError(
                 "Cost-plus markup must be between 0 and 1000 percent.",
                 code="BILLING_PROFILE_MARKUP_INVALID",
@@ -169,7 +173,7 @@ class ProjectBillingProfile:
         return _timestamp(value, code=f"BILLING_PROFILE_{info.field_name.upper()}_INVALID")
 
     @model_validator(mode="after")
-    def _external_customer_pair(self) -> "ProjectBillingProfile":
+    def _external_customer_pair(self) -> ProjectBillingProfile:
         if self.external_customer_reference and not self.customer_party_id:
             raise ValidationError(
                 "An external customer reference requires a customer Party.",
@@ -224,7 +228,7 @@ class ProjectBillingProfile:
         created_by: str,
         created_at: datetime | None = None,
         **values,
-    ) -> "ProjectBillingProfile":
+    ) -> ProjectBillingProfile:
         now = created_at or _utc_now()
         return ProjectBillingProfile(
             id=generate_id(),
@@ -375,7 +379,7 @@ class ProjectBillingScheduleLine:
         created_by: str,
         created_at: datetime | None = None,
         **values,
-    ) -> "ProjectBillingScheduleLine":
+    ) -> ProjectBillingScheduleLine:
         now = created_at or _utc_now()
         return ProjectBillingScheduleLine(
             id=generate_id(),

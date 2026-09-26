@@ -3,8 +3,8 @@ from __future__ import annotations
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastDraftGenerated,
     ForecastLineChanged,
-    ForecastVersionChangeType,
     ForecastVersionChanged,
+    ForecastVersionChangeType,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import (
@@ -94,10 +94,10 @@ def build_forecast_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_forecast_view_invalidation_handler",
-    "FORECAST_CATEGORY",
-    "FORECAST_PLANNING_SCOPE_CODE",
     "FORECAST_APPROVED_BASIS_SCOPE_CODE",
+    "FORECAST_CATEGORY",
     "FORECAST_MODULE_CODE",
+    "FORECAST_PLANNING_SCOPE_CODE",
     "FORECAST_PROJECT_ENTITY_TYPE",
+    "build_forecast_view_invalidation_handler",
 ]

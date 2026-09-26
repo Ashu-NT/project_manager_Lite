@@ -3,10 +3,10 @@ from __future__ import annotations
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
     RateCardCreated,
     RateCardDeactivated,
-    RateCardUpdated,
     RateCardLineAdded,
     RateCardLineDeactivated,
     RateCardLineUpdated,
+    RateCardUpdated,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import (
@@ -153,11 +153,11 @@ def build_rate_card_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_rate_card_view_invalidation_handler",
     "RATE_CARD_CATEGORY",
-    "RATE_CARD_LIST_SCOPE_CODE",
     "RATE_CARD_DETAIL_SCOPE_CODE",
-    "RATE_CARD_MODULE_CODE",
     "RATE_CARD_ENTITY_TYPE",
+    "RATE_CARD_LIST_SCOPE_CODE",
+    "RATE_CARD_MODULE_CODE",
     "RATE_CARD_PROJECT_ENTITY_TYPE",
+    "build_rate_card_view_invalidation_handler",
 ]

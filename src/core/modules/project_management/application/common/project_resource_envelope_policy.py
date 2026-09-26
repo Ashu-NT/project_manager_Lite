@@ -74,7 +74,7 @@ def allocated_to_tasks_hours(
             )
             if a.id != exclude_assignment_id
         ),
-        Decimal("0"),
+        Decimal(0),
     )
 
 
@@ -110,7 +110,7 @@ def actual_hours_total(*, task_repo, assignment_repo, project_id: str, resource_
                 resource_id=resource_id,
             )
         ),
-        Decimal("0"),
+        Decimal(0),
     )
 
 

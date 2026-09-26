@@ -11,10 +11,10 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceActivityReadPage,
     ResourceAssignmentFact,
     ResourceAssignmentReadPage,
-    ResourceProjectFact,
-    ResourceProjectReadPage,
     ResourceCertificationFact,
     ResourceCertificationReadPage,
+    ResourceProjectFact,
+    ResourceProjectReadPage,
     ResourceSkillFact,
     ResourceSkillReadPage,
 )
@@ -27,7 +27,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.project 
     ProjectORM,
     ProjectResourceORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.skills import (
     ResourceCertificationORM,
     ResourceSkillORM,

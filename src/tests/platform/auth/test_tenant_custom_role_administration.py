@@ -1,27 +1,26 @@
 from __future__ import annotations
 
-from dataclasses import replace
 import json
+from dataclasses import replace
 
 import pytest
 from sqlalchemy import select
 
-from src.core.platform.domain.security.authorization.roles import (
-    ROLE_SCOPE_TENANT,
-    RoleBinding,
-)
-from src.core.platform.domain.security.auth import Role
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.domain.security.auth import Role
+from src.core.platform.domain.security.authorization.roles import (
+    ROLE_SCOPE_TENANT,
+    RoleBinding,
+)
+from src.core.platform.domain.tenant.tenancy import Tenant
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
-from src.core.platform.domain.tenant.tenancy import Tenant
-
 
 _PASSWORD = "StrongPass123!"
 

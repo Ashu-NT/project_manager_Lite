@@ -37,6 +37,6 @@ __all__ = [
     "FinancialsObjectList",
     "default_collection",
     "default_commitment_summary",
-    "default_overview",
     "default_detail",
+    "default_overview",
 ]

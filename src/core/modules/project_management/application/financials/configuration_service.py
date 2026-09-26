@@ -8,6 +8,9 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
@@ -25,7 +28,9 @@ from src.core.modules.project_management.contracts.repositories.finance.configur
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
 from src.core.modules.project_management.domain.financials.configuration import (
     BillingMethod,
     BudgetControlMode,
@@ -35,18 +40,20 @@ from src.core.modules.project_management.domain.financials.configuration import 
     ProjectCostCodeRestriction,
     ProjectFinancialProfile,
 )
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-
 
 _UNSET = object()
 

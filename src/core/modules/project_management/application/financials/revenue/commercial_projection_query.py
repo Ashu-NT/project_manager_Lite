@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
-from typing import Callable
 
 from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostControlTotals,

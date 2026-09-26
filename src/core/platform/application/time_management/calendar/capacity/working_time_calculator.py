@@ -29,6 +29,7 @@ def _event_occurs_on(event: CalendarRecurringEvent, target_date: date) -> bool:
         return False
     try:
         from datetime import datetime
+
         from dateutil.rrule import rrulestr
 
         dtstart = datetime.combine(event.effective_from, event.start_time)
@@ -154,7 +155,7 @@ class WorkingTimeCalculator:
                 if exc.start_time and exc.end_time:
                     effective_start = exc.start_time
                     effective_end = exc.end_time
-                    overrides.append(f"EXCEPTION:WORKING_OVERRIDE")
+                    overrides.append("EXCEPTION:WORKING_OVERRIDE")
 
         if is_fully_unavailable:
             return DayCapacity(

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 
 def _login_admin(services):
     auth = services["auth_service"]

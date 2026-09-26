@@ -3,15 +3,17 @@ from __future__ import annotations
 from dataclasses import replace
 from decimal import Decimal
 
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioScenarioChanged,
+    PortfolioScenarioChangeType,
+)
 from src.core.modules.project_management.domain.portfolio import PortfolioScenario
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioScenarioChangeType,
-    PortfolioScenarioChanged,
-)
 
 
 class PortfolioScenarioCommandMixin:

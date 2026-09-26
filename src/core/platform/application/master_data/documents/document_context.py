@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.domain.master_data.documents import Document, DocumentStructure
-from src.core.platform.domain.master_data.documents.support import normalize_optional_text
+from src.core.platform.domain.master_data.documents.support import (
+    normalize_optional_text,
+)
 from src.core.platform.domain.master_data.org import Organization
 
 

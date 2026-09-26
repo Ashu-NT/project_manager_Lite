@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+
 def require_text(payload: dict[str, Any], key: str, message: str) -> str:
     value = str(payload.get(key, "") or "").strip()
     if not value:

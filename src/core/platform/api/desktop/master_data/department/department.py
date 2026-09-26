@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation, serialize_organization
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
-from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentCreateCommand,
     DepartmentDto,
@@ -10,8 +7,19 @@ from src.core.platform.api.desktop.master_data.department.models.department impo
     DepartmentRollupSummaryDto,
     DepartmentUpdateCommand,
 )
-from src.core.platform.application.master_data.department.department_service import DepartmentService
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.support._support import (
+    execute_desktop_operation,
+    serialize_organization,
+)
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
 from src.core.platform.domain.master_data.department import Department
+
 
 class PlatformDepartmentDesktopApi:
     """Desktop-facing adapter for platform department master data."""

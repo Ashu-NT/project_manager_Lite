@@ -6,25 +6,43 @@ import inspect
 from dataclasses import is_dataclass
 from pathlib import Path
 
-from src.core.modules.project_management.application.financials.services.finance_service import (
-    FinanceService,
+from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
+    CollaborationInboxQueryMixin,
+)
+from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
+    CollaborationPresenceQueryMixin,
+)
+from src.core.modules.project_management.application.collaboration.utils.support import (
+    CollaborationSupportMixin,
 )
 from src.core.modules.project_management.application.financials.budgets import (
     BudgetApprovalOutcome,
     BudgetApprovalResult,
     BudgetService,
 )
-from src.core.modules.project_management.application.financials.earned_value.evm_series import (
-    EarnedValueSeriesCalculator,
-)
-from src.core.modules.project_management.application.financials.earned_value.canonical import (
-    CanonicalEarnedValueCalculator,
-)
 from src.core.modules.project_management.application.financials.cost.engines.cost_breakdown_engine import (
     CostBreakdownEngine,
 )
 from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostPolicyEngine,
+)
+from src.core.modules.project_management.application.financials.earned_value.canonical import (
+    CanonicalEarnedValueCalculator,
+)
+from src.core.modules.project_management.application.financials.earned_value.evm_series import (
+    EarnedValueSeriesCalculator,
+)
+from src.core.modules.project_management.application.financials.services.finance_service import (
+    FinanceService,
+)
+from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
+    PortfolioExecutiveQueryMixin,
+)
+from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import (
+    PortfolioScenarioQueryMixin,
+)
+from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
+    PortfolioResourcePoolService,
 )
 from src.core.modules.project_management.infrastructure.reporting.builders.cost_breakdown import (
     ReportingCostBreakdownMixin,
@@ -38,29 +56,10 @@ from src.core.modules.project_management.infrastructure.reporting.builders.evm_c
 from src.core.modules.project_management.infrastructure.reporting.builders.evm_series import (
     ReportingEvmSeriesMixin,
 )
-from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
-    PortfolioResourcePoolService,
-)
-from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import (
-    PortfolioScenarioQueryMixin,
-)
-from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
-    PortfolioExecutiveQueryMixin,
-)
-from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
-    CollaborationInboxQueryMixin,
-)
-from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
-    CollaborationPresenceQueryMixin,
-)
-from src.core.modules.project_management.application.collaboration.utils.support import (
-    CollaborationSupportMixin,
-)
 from src.core.modules.project_management.infrastructure.reporting.builders.kpi import (
     ReportingKpiMixin,
 )
 from src.tests.path_rewrites import REPO_ROOT
-
 
 PM_ROOT = REPO_ROOT / "src/core/modules/project_management"
 CONTRACT_READS = PM_ROOT / "contracts/reads"

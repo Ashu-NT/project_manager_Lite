@@ -1,7 +1,5 @@
 ﻿from __future__ import annotations
 
-from pathlib import Path
-
 from src.tests.path_rewrites import REPO_ROOT
 
 ROOT = REPO_ROOT

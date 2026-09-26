@@ -17,8 +17,8 @@ from __future__ import annotations
 from src.core.platform.domain.tenant.modules.events import (
     ModuleDisabled,
     ModuleEnabled,
-    ModuleLicenseRevoked,
     ModuleLicensed,
+    ModuleLicenseRevoked,
     ModuleLifecycleTransitioned,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -56,7 +56,7 @@ def build_module_entitlement_view_invalidation_handler(channel: ViewInvalidation
 
 
 __all__ = [
-    "build_module_entitlement_view_invalidation_handler",
-    "MODULE_ENTITLEMENT_CATEGORY",
     "MODULE_ENTITLEMENTS_SCOPE_CODE",
+    "MODULE_ENTITLEMENT_CATEGORY",
+    "build_module_entitlement_view_invalidation_handler",
 ]

@@ -5,13 +5,17 @@ from collections.abc import Sequence
 from sqlalchemy import false, or_, select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
+from src.core.platform.contract.repositories.history.audit.contracts import (
+    AuditRepository,
+)
 from src.core.platform.domain.history.audit.audit_entry import AuditEntry
 from src.core.platform.infrastructure.persistence.mappers.history.audit.audit_entry import (
     audit_entry_from_orm,
     audit_entry_to_orm,
 )
-from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
+    AuditEntryORM,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )

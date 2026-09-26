@@ -5,6 +5,9 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+    FinanceOverviewFacts,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
     ApprovedForecastFact,
     CostAggregateFact,
@@ -17,13 +20,11 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     ResourceFact,
     TaskFact,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
-    FinanceOverviewFacts,
-)
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.domain.financials.commitment import (
     open_commitment_amount,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
+
 from .statements.finance_snapshot_statements import (
     actual_cost_facts_statement,
     actual_cost_total_statement,
@@ -218,7 +219,7 @@ class SqlAlchemyFinanceSnapshotReader:
             ProjectResourceFact(
                 project_resource_id=str(row.id),
                 resource_id=str(row.resource_id),
-                planned_hours=row.planned_hours or Decimal("0"),
+                planned_hours=row.planned_hours or Decimal(0),
                 is_active=bool(row.is_active),
             )
             for row in self._session.execute(
@@ -234,7 +235,7 @@ class SqlAlchemyFinanceSnapshotReader:
                 assignment_id=str(row.id),
                 task_id=str(row.task_id),
                 resource_id=str(row.resource_id),
-                hours_logged=row.hours_logged or Decimal("0"),
+                hours_logged=row.hours_logged or Decimal(0),
             )
             for row in self._session.execute(
                 assignment_facts_statement(
@@ -468,7 +469,7 @@ class SqlAlchemyFinanceSnapshotReader:
         buckets: dict[tuple[str, str, str | None], tuple[Decimal, int]] = {}
         for entry in entries:
             key = (entry.stage, entry.cost_type, entry.currency_code)
-            amount, count = buckets.get(key, (Decimal("0"), 0))
+            amount, count = buckets.get(key, (Decimal(0), 0))
             buckets[key] = (amount + entry.amount, count + 1)
         return tuple(
             CostAggregateFact(
@@ -487,7 +488,7 @@ class SqlAlchemyFinanceSnapshotReader:
     def _stage_total(entries: tuple[FinanceLedgerFact, ...], stage: str) -> Decimal:
         return sum(
             (entry.amount for entry in entries if entry.stage == stage),
-            start=Decimal("0"),
+            start=Decimal(0),
         )
 
     @staticmethod

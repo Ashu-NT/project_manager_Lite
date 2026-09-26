@@ -9,7 +9,9 @@ import os
 from PySide6.QtGui import QGuiApplication
 
 from src.application.runtime import build_desktop_api_registry
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.modules.project_management.controllers.dashboard.dashboard_workspace_controller import (
     ProjectManagementDashboardWorkspaceController,
 )
@@ -22,7 +24,6 @@ from src.ui_qml.modules.project_management.controllers.scheduling.scheduling_wor
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.qml_engine import create_qml_engine
-
 
 EXPECTED_DESTINATION_BY_ROUTE = {
     "project_management.dashboard": ("dashboard", "overview", ""),

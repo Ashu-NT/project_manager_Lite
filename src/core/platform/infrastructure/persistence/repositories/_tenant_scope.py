@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     ActiveScopeIds,
     TenantContext,
     TenantContextService,
 )
-
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 _ScopeIds = ActiveScopeIds | TenantContext
 
@@ -87,7 +86,7 @@ class TenantScopedRepositorySupport:
         if hasattr(orm, "organization_id"):
             organization_id = getattr(orm, "organization_id", None)
             if not organization_id:
-                setattr(orm, "organization_id", ctx.organization_id)
+                orm.organization_id = ctx.organization_id
             elif organization_id != ctx.organization_id:
                 raise BusinessRuleError(
                     f"{self._repository_label} organization is outside the active scope.",
@@ -96,7 +95,7 @@ class TenantScopedRepositorySupport:
         if hasattr(orm, "tenant_id"):
             tenant_id = getattr(orm, "tenant_id", None)
             if not tenant_id:
-                setattr(orm, "tenant_id", ctx.tenant_id)
+                orm.tenant_id = ctx.tenant_id
             elif not self._tenant_in_scope(ctx, tenant_id):
                 raise BusinessRuleError(
                     f"{self._repository_label} tenant is outside the active scope.",

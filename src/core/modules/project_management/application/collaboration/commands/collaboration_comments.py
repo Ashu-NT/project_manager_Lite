@@ -1,28 +1,36 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Iterable
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
+from src.core.modules.project_management.application.collaboration.collaboration_events import (
+    TaskCommentChanged,
+    TaskCommentChangeType,
+    TaskCommentReactionChanged,
+    TaskCommentReactionChangeType,
+    TaskCommentReadStateChanged,
+)
 from src.core.modules.project_management.domain.collaboration import (
     TaskComment,
     normalize_task_comment_body,
     resolve_mentions,
 )
-from src.core.modules.project_management.infrastructure.collaboration_attachments import store_task_comment_attachments
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.modules.project_management.application.collaboration.collaboration_events import (
-    TaskCommentChangeType,
-    TaskCommentChanged,
-    TaskCommentReactionChangeType,
-    TaskCommentReactionChanged,
-    TaskCommentReadStateChanged,
+from src.core.modules.project_management.infrastructure.collaboration_attachments import (
+    store_task_comment_attachments,
 )
-from src.core.platform.application.master_data.documents.document_context import active_organization
+from src.core.platform.application.master_data.documents.document_context import (
+    active_organization,
+)
 from src.core.platform.application.master_data.documents.document_integration_service import (
     link_existing_document_in_uow,
     register_entity_attachments_in_uow,
 )
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,

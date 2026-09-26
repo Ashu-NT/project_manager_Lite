@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from .baseline_variance import BaselineVarianceRecordDto
-from .baseline_variance import FinancialBaselineVersionDto
+from .baseline_variance import BaselineVarianceRecordDto, FinancialBaselineVersionDto
 from .snapshots import FinancialPeriodRowDto
 
 

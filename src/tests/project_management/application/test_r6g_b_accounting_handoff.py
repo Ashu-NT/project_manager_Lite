@@ -586,7 +586,7 @@ def test_correction_gets_new_identity_without_changing_parent(
     line = profiles.add_schedule_line(
         approved.project_id,
         name="Correction source",
-        amount=Decimal("100"),
+        amount=Decimal(100),
         due_date=date(2026, 8, 20),
     )
     line = profiles.mark_schedule_line_ready(

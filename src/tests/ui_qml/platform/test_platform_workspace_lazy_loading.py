@@ -142,7 +142,7 @@ def test_related_record_navigation_loads_target_surface_synchronously(services) 
     """openRecord() is called on the target Loader's freshly-created item in
     the same call that switches activeDestination -- the target surface
     must already be instantiated by the time that call runs."""
-    from PySide6.QtCore import QMetaObject, Q_ARG
+    from PySide6.QtCore import Q_ARG, QMetaObject
 
     _engine, root, _catalog = _load_page(services)
 

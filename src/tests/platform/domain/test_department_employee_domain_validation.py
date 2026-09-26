@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.employee.employee_service import (
+    EmployeeService,
+)
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.application.master_data.department.department_service import DepartmentService
 from src.core.platform.domain.master_data.department import Department
-from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.site import Site
@@ -161,7 +165,6 @@ class _FakeEmployeeUnitOfWork:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None and not self._committed:
             self._session.rollback()
-        return None
 
     def record_event(self, event) -> None:
         return None
@@ -208,7 +211,6 @@ class _FakeDepartmentUnitOfWork:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None and not self._committed:
             self._session.rollback()
-        return None
 
     def record_event(self, event) -> None:
         return None

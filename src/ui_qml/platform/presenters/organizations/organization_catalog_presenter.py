@@ -1,28 +1,44 @@
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
-from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
+from src.core.platform.api.desktop.history.activity.activity import (
+    PlatformActivityDesktopApi,
+)
+from src.core.platform.api.desktop.history.activity.models.activity import (
+    ActivityEntryDto,
+)
 from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationDto,
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
 )
-from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
-from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.platform_runtime.runtime import (
+    PlatformRuntimeDesktopApi,
+)
 from src.core.platform.domain.master_data.org import (
     ORGANIZATION_STATUS_ACTIVE,
     ORGANIZATION_STATUS_ARCHIVED,
     ORGANIZATION_STATUS_INACTIVE,
 )
 from src.core.shared.reference_data import country_name_for_code
+from src.ui_qml.platform.presenters.common.calendar_summary_support import (
+    holiday_set_label as _holiday_set_label,
+)
+from src.ui_qml.platform.presenters.common.calendar_summary_support import (
+    working_week_label as _working_week_label,
+)
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     int_value,
     option_item,
     preview_error_result,
     string_value,
     tuple_of_strings,
+)
+from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
+    ORGANIZATION_ACTIVITY_ENTITY_TYPES,
 )
 from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
@@ -36,13 +52,6 @@ from src.ui_qml.shared.models.activity_item import (
     tone_for_action,
 )
 from src.ui_qml.shared.models.currency_options import CURRENCY_OPTIONS
-from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
-    ORGANIZATION_ACTIVITY_ENTITY_TYPES,
-)
-from src.ui_qml.platform.presenters.common.calendar_summary_support import (
-    holiday_set_label as _holiday_set_label,
-    working_week_label as _working_week_label,
-)
 
 # StatusChip tone per lifecycle status -- explicit, presenter-owned mapping.
 # QML never infers a tone from status text (see StatusChip.qml).

@@ -17,7 +17,6 @@ from src.core.platform.common.pydantic import (
     validated_dataclass,
 )
 
-
 _PERIOD_CODE_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9._-]{0,31}$")
 
 
@@ -201,7 +200,7 @@ class FinancialPeriod:
         )
 
     @model_validator(mode="after")
-    def _validate_lifecycle(self) -> "FinancialPeriod":
+    def _validate_lifecycle(self) -> FinancialPeriod:
         if self.end_date < self.start_date:
             raise ValidationError(
                 "Financial period end date cannot be before its start date.",
@@ -250,7 +249,7 @@ class FinancialPeriod:
         end_date: date,
         actor_id: str,
         now: datetime | None = None,
-    ) -> "FinancialPeriod":
+    ) -> FinancialPeriod:
         timestamp = now or _utc_now()
         return cls(
             id=generate_id(),
@@ -376,7 +375,7 @@ class FinancialPeriod:
 
     def _apply_validated_candidate(
         self,
-        candidate: "FinancialPeriod",
+        candidate: FinancialPeriod,
         *field_names: str,
     ) -> None:
         # Pydantic validates assignments one field at a time. Applying a

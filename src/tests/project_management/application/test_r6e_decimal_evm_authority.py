@@ -31,7 +31,7 @@ def _input(*, baseline_id: str | None = "baseline-1", forecast: Decimal | None =
                 baseline_planned_cost=Decimal("0.30"),
             ),
         ),
-        task_progress=(("task-1", Decimal("50")),),
+        task_progress=(("task-1", Decimal(50)),),
         posted_actual=actual,
         approved_forecast_etc=forecast,
     )
@@ -64,13 +64,13 @@ def test_canonical_evm_distinguishes_missing_baseline_from_zero_actual() -> None
         _input(baseline_id=None), working_days_between=_working_days
     )
     zero_actual = calculator.calculate(
-        _input(actual=Decimal("0")), working_days_between=_working_days
+        _input(actual=Decimal(0)), working_days_between=_working_days
     )
 
     assert unavailable.availability == "baseline_unavailable"
     assert unavailable.BAC is None
     assert zero_actual.availability == "available"
-    assert zero_actual.AC == Decimal("0")
+    assert zero_actual.AC == Decimal(0)
     assert zero_actual.CPI is None
 
 

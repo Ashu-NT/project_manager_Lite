@@ -4,10 +4,12 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.application.master_data.org.organization_service import (
+    OrganizationService,
+)
 from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.site import Site
 
 
@@ -114,7 +116,7 @@ class _FakeOrganizationUnitOfWork:
     instances passed to `OrganizationService`'s constructor (not a fresh repo per call), since
     callers assert against `service._organization_repo` directly across sequential calls."""
 
-    def __init__(self, organization_repo: "_FakeOrganizationRepo", enterprise_audit_service) -> None:
+    def __init__(self, organization_repo: _FakeOrganizationRepo, enterprise_audit_service) -> None:
         self.organizations = organization_repo
         self._enterprise_audit_service = enterprise_audit_service
         # OrganizationService.create_organization() seeds the org's default
@@ -122,7 +124,7 @@ class _FakeOrganizationUnitOfWork:
         # rather than through a repository -- needs .add()/.flush() only.
         self.session = _FakeSession()
 
-    def __enter__(self) -> "_FakeOrganizationUnitOfWork":
+    def __enter__(self) -> _FakeOrganizationUnitOfWork:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -136,7 +138,7 @@ class _FakeOrganizationUnitOfWork:
 
 
 class _FakeOrganizationUnitOfWorkFactory:
-    def __init__(self, organization_repo: "_FakeOrganizationRepo", enterprise_audit_service) -> None:
+    def __init__(self, organization_repo: _FakeOrganizationRepo, enterprise_audit_service) -> None:
         self._organization_repo = organization_repo
         self._enterprise_audit_service = enterprise_audit_service
 
@@ -159,11 +161,11 @@ class _FakeTenantContext:
 
 
 class _FakeSiteUnitOfWork:
-    def __init__(self, site_repo: "_FakeSiteRepo", enterprise_audit_service) -> None:
+    def __init__(self, site_repo: _FakeSiteRepo, enterprise_audit_service) -> None:
         self.sites = site_repo
         self._enterprise_audit_service = enterprise_audit_service
 
-    def __enter__(self) -> "_FakeSiteUnitOfWork":
+    def __enter__(self) -> _FakeSiteUnitOfWork:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -177,7 +179,7 @@ class _FakeSiteUnitOfWork:
 
 
 class _FakeSiteUnitOfWorkFactory:
-    def __init__(self, site_repo: "_FakeSiteRepo", enterprise_audit_service) -> None:
+    def __init__(self, site_repo: _FakeSiteRepo, enterprise_audit_service) -> None:
         self._site_repo = site_repo
         self._enterprise_audit_service = enterprise_audit_service
 

@@ -258,7 +258,7 @@ class ProjectForecast:
         revision: int = 1,
         created_at: datetime | None = None,
         **values,
-    ) -> "ProjectForecast":
+    ) -> ProjectForecast:
         now = created_at or _utc_now()
         return ProjectForecast(
             id=generate_id(),
@@ -371,7 +371,7 @@ class ForecastLine:
         return _timestamp(value, code=f"PROJECT_FORECAST_LINE_{info.field_name.upper()}_INVALID")
 
     @model_validator(mode="after")
-    def _validate_source_and_period(self) -> "ForecastLine":
+    def _validate_source_and_period(self) -> ForecastLine:
         manual_types = {
             ForecastLineSourceType.MANUAL_ESTIMATE,
             ForecastLineSourceType.RISK,
@@ -458,7 +458,7 @@ class ForecastLine:
         created_by: str,
         created_at: datetime | None = None,
         **values,
-    ) -> "ForecastLine":
+    ) -> ForecastLine:
         now = created_at or _utc_now()
         return ForecastLine(
             id=generate_id(),
@@ -547,7 +547,7 @@ class ForecastSourceDecision:
         )
 
     @model_validator(mode="after")
-    def _validate_allocation(self) -> "ForecastSourceDecision":
+    def _validate_allocation(self) -> ForecastSourceDecision:
         if self.included_amount + self.excluded_amount != self.source_amount:
             raise ValidationError(
                 "Forecast source-decision included and excluded amounts must reconcile.",
@@ -575,7 +575,7 @@ class ForecastSourceDecision:
         source_snapshot_at: datetime,
         created_at: datetime | None = None,
         **values,
-    ) -> "ForecastSourceDecision":
+    ) -> ForecastSourceDecision:
         return ForecastSourceDecision(
             id=generate_id(),
             tenant_id=tenant_id,

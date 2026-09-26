@@ -33,7 +33,9 @@ from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,
 )
-from src.infra.composition.integration.accounting.accounting_integration import build_accounting_capability
+from src.infra.composition.integration.accounting.accounting_integration import (
+    build_accounting_capability,
+)
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
@@ -283,16 +285,14 @@ def test_handoff_scope_and_database_identity_constraints(
             {"id": str(uuid4())},
             {"id": str(uuid4()), "project_id": "wrong-project"},
         ):
-            with pytest.raises(IntegrityError):
-                with session.begin_nested():
-                    session.execute(insert(table).values(**(saved | changes)))
-        with pytest.raises(DBAPIError):
-            with session.begin_nested():
-                session.execute(
-                    update(ProjectAccountingOutboxORM).values(
-                        project_id="wrong-project"
-                    )
+            with pytest.raises(IntegrityError), session.begin_nested():
+                session.execute(insert(table).values(**(saved | changes)))
+        with pytest.raises(DBAPIError), session.begin_nested():
+            session.execute(
+                update(ProjectAccountingOutboxORM).values(
+                    project_id="wrong-project"
                 )
+            )
         for table, values in (
             (ProjectAccountingHandoffORM, {"payload_hash": "0" * 64}),
             (ProjectAccountingOutboxORM, {"envelope_json": "{}"}),

@@ -7,15 +7,16 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
-    EvmSeriesReader,
-)
 from src.core.modules.project_management.application.financials.earned_value.evm_series import (
     EarnedValueSeriesCalculator,
+)
+from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
+    EvmSeriesReader,
 )
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     EvmSeriesPoint,
 )
+
 
 class ReportingEvmSeriesMixin:
     _evm_series_reader: EvmSeriesReader

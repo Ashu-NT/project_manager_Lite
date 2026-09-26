@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from .error_sanitizer import DEFAULT_SAFE_FAILURE_MESSAGE, safe_exception_message
 from .serializers import serialize_operation_result

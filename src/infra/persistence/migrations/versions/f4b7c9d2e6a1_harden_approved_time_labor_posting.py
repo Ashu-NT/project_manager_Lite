@@ -7,16 +7,15 @@ Create Date: 2026-09-10
 Historical rows remain explicitly incomplete. Their prior monetary facts are
 never revalued or decorated with provenance that was not captured at posting.
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision: str = "f4b7c9d2e6a1"
-down_revision: Union[str, Sequence[str], None] = "e9f2a5b8c4d1"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "e9f2a5b8c4d1"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _ENVELOPE_COLUMNS = (
     "id",

@@ -2,9 +2,9 @@ from src.core.platform.contract.repositories.security.auth.auth_repository impor
     AuthPolicyReconciliationRepository,
     AuthSessionRepository,
     PermissionRepository,
-    RolePermissionRepository,
     RoleBindingRepository,
     RoleDelegationPolicyRepository,
+    RolePermissionRepository,
     RoleRepository,
     UserRepository,
 )
@@ -13,9 +13,9 @@ __all__ = [
     "AuthPolicyReconciliationRepository",
     "AuthSessionRepository",
     "PermissionRepository",
-    "RolePermissionRepository",
     "RoleBindingRepository",
     "RoleDelegationPolicyRepository",
+    "RolePermissionRepository",
     "RoleRepository",
     "UserRepository",
 ]

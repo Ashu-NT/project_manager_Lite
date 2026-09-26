@@ -1,6 +1,8 @@
 """Resource load serializer."""
 
-from src.core.modules.project_management.api.desktop.scheduling.models.resources import SchedulingResourceLoadDto
+from src.core.modules.project_management.api.desktop.scheduling.models.resources import (
+    SchedulingResourceLoadDto,
+)
 
 
 def serialize_resource_load_row(row) -> SchedulingResourceLoadDto:

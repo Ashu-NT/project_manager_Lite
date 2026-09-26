@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from PySide6.QtGui import QGuiApplication
 
@@ -10,7 +9,6 @@ from src.ui_qml.modules.project_management.presenters.tasks.selection import (
     resolve_time_entry_id,
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
-
 
 SECTION_ROOT = (
     REPO_ROOT

@@ -4,14 +4,12 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
     DateTime,
-    Enum as SAEnum,
     Float,
     ForeignKey,
     ForeignKeyConstraint,
@@ -19,6 +17,9 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -59,8 +60,8 @@ class TaskORM(Base):
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
     )
-    task_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    parent_task_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    task_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    parent_task_id: Mapped[str | None] = mapped_column(String, nullable=True)
     wbs_code: Mapped[str] = mapped_column(String(64), nullable=False)
     sort_order: Mapped[int] = mapped_column(
         Integer,
@@ -70,9 +71,9 @@ class TaskORM(Base):
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(String, default="")
-    start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    duration_days: Mapped[Optional[int]] = mapped_column(nullable=True)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    duration_days: Mapped[int | None] = mapped_column(nullable=True)
     status: Mapped[TaskStatus] = mapped_column(
         SAEnum(TaskStatus),
         default=TaskStatus.TODO,
@@ -80,15 +81,15 @@ class TaskORM(Base):
     )
     priority: Mapped[int] = mapped_column(default=0)
     percent_complete: Mapped[float] = mapped_column(Float, default=0.0)
-    actual_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    actual_end: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    deadline: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    constraint_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
-    constraint_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    actual_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    actual_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+    deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
+    constraint_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    constraint_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_milestone: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
-    resource_leveling_not_before: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    resource_leveling_not_before: Mapped[date | None] = mapped_column(Date, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
@@ -115,19 +116,19 @@ class TaskAssignmentORM(Base):
     hours_logged: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.QUANTITY),
         nullable=False,
-        default=Decimal("0"),
+        default=Decimal(0),
         server_default="0",
         info=financial_numeric_info(FinancialNumericKind.QUANTITY),
     )
     allocated_planned_hours: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.QUANTITY),
         nullable=False,
-        default=Decimal("0"),
+        default=Decimal(0),
         server_default="0",
         info=financial_numeric_info(FinancialNumericKind.QUANTITY),
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-    project_resource_id: Mapped[Optional[str]] = mapped_column(
+    project_resource_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("project_resources.id", ondelete="CASCADE"),
         nullable=True,
@@ -135,7 +136,7 @@ class TaskAssignmentORM(Base):
     response_status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="pending", server_default="pending"
     )
-    responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 Index("idx_task_assignments_project_resource", TaskAssignmentORM.project_resource_id)

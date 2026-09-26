@@ -1,4 +1,3 @@
-from .overview import PlatformAdminWorkspaceController
 from .access import PlatformAdminAccessWorkspaceController
 from .common import (
     PlatformWorkspaceControllerBase,
@@ -9,6 +8,7 @@ from .common import (
     serialize_workspace_overview,
 )
 from .control import PlatformControlWorkspaceController
+from .overview import PlatformAdminWorkspaceController
 from .settings import PlatformSettingsWorkspaceController
 from .tenant_management import OrganizationSwitcherController, TenantSwitcherController
 

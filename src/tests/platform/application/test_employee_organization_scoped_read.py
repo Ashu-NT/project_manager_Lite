@@ -8,14 +8,18 @@ organization unchanged (see test_employee_platform_foundation.py)."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 import pytest
 
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
-from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+    OrganizationORM,
+)
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+    TenantORM,
+)
 
 
 def test_viewing_a_non_active_organization_returns_its_own_employees_correctly(services) -> None:

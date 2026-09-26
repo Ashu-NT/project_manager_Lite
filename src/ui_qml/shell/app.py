@@ -1,26 +1,29 @@
 from __future__ import annotations
 
+import logging
 import os
 import sys
-import logging
 from time import perf_counter
 
 from PySide6.QtCore import QEventLoop
 from PySide6.QtGui import QFont, QGuiApplication, QIcon
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.application.security.authorization import get_authorization_engine
-from src.infra.platform.env_loader import load_env_file
+from src.core.platform.application.security.authorization import (
+    get_authorization_engine,
+)
 from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.db.engine import get_db_url
 from src.infra.persistence.db.session_factory import SessionLocal
 from src.infra.persistence.db.unit_of_work import sqlite_write_lock
 from src.infra.persistence.migrations.runner import run_migrations
 from src.infra.platform.app_settings import AppSettingsStore
+from src.infra.platform.env_loader import load_env_file
 from src.infra.platform.logging_config import setup_logging
 from src.infra.platform.resource import resource_path
-
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.context import build_shell_context, update_shell_runtime_state
 from src.ui_qml.shell.controllers.global_overview.global_overview_controller import (
@@ -33,24 +36,27 @@ from src.ui_qml.shell.controllers.organization.organization_switcher_controller 
     OrganizationSwitcherController,
 )
 from src.ui_qml.shell.login import ShellLoginController
+from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.navigation_accessibility import NavigationAccessibilityCoordinator
-from src.ui_qml.shell.presenters.global_overview_presenter import GlobalOverviewPresenter
+from src.ui_qml.shell.presenters.global_overview_presenter import (
+    GlobalOverviewPresenter,
+)
 from src.ui_qml.shell.presenters.navigation.navigation_accessibility_presenter import (
     NavigationAccessibilityPresenter,
 )
-from src.ui_qml.shell.presenters.notifications.notifications_presenter import NotificationsPresenter
+from src.ui_qml.shell.presenters.notifications.notifications_presenter import (
+    NotificationsPresenter,
+)
 from src.ui_qml.shell.presenters.organization.organization_switcher_presenter import (
     OrganizationSwitcherPresenter,
 )
-from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.qml_engine import (
     create_qml_engine,
     load_qml,
 )
 from src.ui_qml.shell.qml_registry import build_qml_route_registry
-from src.ui_qml.shell.runtime_session import ShellRuntimeSessionController
 from src.ui_qml.shell.routes import shell_qml_path
-
+from src.ui_qml.shell.runtime_session import ShellRuntimeSessionController
 
 logger = logging.getLogger(__name__)
 

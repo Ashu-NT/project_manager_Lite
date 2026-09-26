@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from src.ui_qml.modules.project_management.controllers.common import run_mutation
+
 
 class TimesheetsMutationHandler:
     def __init__(

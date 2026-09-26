@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.ui_qml.modules.project_management.view_models.resources import ResourceRecordViewModel
+from src.ui_qml.modules.project_management.view_models.resources import (
+    ResourceRecordViewModel,
+)
 
 
 def to_resource_record_view_model(resource: Any) -> ResourceRecordViewModel:

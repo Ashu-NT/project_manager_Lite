@@ -4,10 +4,12 @@ import logging
 from collections.abc import Iterable
 from typing import NoReturn
 
-from src.core.platform.application.security.authorization import get_authorization_engine
-from src.core.platform.domain.security.authorization import SecurityDenialEvent
+from src.core.platform.application.security.authorization import (
+    get_authorization_engine,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.domain.security.authorization import SecurityDenialEvent
 
 logger = logging.getLogger(__name__)
 

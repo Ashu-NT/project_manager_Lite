@@ -1,18 +1,32 @@
 from __future__ import annotations
 
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
+from src.core.platform.api.desktop.history.audit.audit_enterprise import (
+    PlatformEnterpriseAuditDesktopApi,
+)
 from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
-from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
-from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
-from src.core.platform.api.desktop.master_data.party.party import PlatformPartyDesktopApi
+from src.core.platform.api.desktop.master_data.department.department import (
+    PlatformDepartmentDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.documents.document import (
+    PlatformDocumentDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.party.party import (
+    PlatformPartyDesktopApi,
+)
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
-from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.platform_runtime.runtime import (
+    PlatformRuntimeDesktopApi,
+)
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 from src.core.platform.domain.approval import ApprovalStatus
-from src.ui_qml.platform.presenters.control.control_queue_presenter import PlatformControlQueuePresenter
+from src.ui_qml.platform.presenters.control.control_queue_presenter import (
+    PlatformControlQueuePresenter,
+)
 from src.ui_qml.platform.view_models import (
     PlatformMetricViewModel,
     PlatformWorkspaceOverviewViewModel,
@@ -60,7 +74,7 @@ def _to_audit_preview_item(entry: AuditEntryDto) -> ActivityItemViewModel:
 
 
 class _HeadcountSummary:
-    __slots__ = ("total", "active")
+    __slots__ = ("active", "total")
 
     def __init__(self, *, total: int, active: int) -> None:
         self.total = total
@@ -68,7 +82,7 @@ class _HeadcountSummary:
 
 
 class _SiteSummary:
-    __slots__ = ("total", "active", "sample_names")
+    __slots__ = ("active", "sample_names", "total")
 
     def __init__(self, *, total: int, active: int, sample_names: tuple[str, ...]) -> None:
         self.total = total
@@ -77,7 +91,7 @@ class _SiteSummary:
 
 
 class _DepartmentSummary:
-    __slots__ = ("total", "active")
+    __slots__ = ("active", "total")
 
     def __init__(self, *, total: int, active: int) -> None:
         self.total = total
@@ -85,7 +99,7 @@ class _DepartmentSummary:
 
 
 class _PartySummary:
-    __slots__ = ("total", "active")
+    __slots__ = ("active", "total")
 
     def __init__(self, *, total: int, active: int) -> None:
         self.total = total
@@ -93,7 +107,7 @@ class _PartySummary:
 
 
 class _DocumentSummary:
-    __slots__ = ("total", "current")
+    __slots__ = ("current", "total")
 
     def __init__(self, *, total: int, current: int) -> None:
         self.total = total
@@ -101,7 +115,7 @@ class _DocumentSummary:
 
 
 class _UserSummary:
-    __slots__ = ("total", "active", "locked")
+    __slots__ = ("active", "locked", "total")
 
     def __init__(self, *, total: int, active: int, locked: int) -> None:
         self.total = total

@@ -23,10 +23,10 @@ from src.core.modules.project_management.application.financials.forecasts.event_
 )
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastDraftGenerated,
-    ForecastLineChangeType,
     ForecastLineChanged,
-    ForecastVersionChangeType,
+    ForecastLineChangeType,
     ForecastVersionChanged,
+    ForecastVersionChangeType,
 )
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpactType,
@@ -39,7 +39,9 @@ from src.core.modules.project_management.domain.financials.forecast import (
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ResourceScope
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 _COUNTER = {"n": 0}
 
@@ -267,7 +269,7 @@ def test_update_line_true_no_op_produces_zero_hints(services):
         generation_mode=ForecastGenerationMode.MANUAL, created_by="admin",
     )
     line = forecasts.add_line(
-        forecast.id, cost_code_id=code.id, description="ETC", amount=Decimal("50"),
+        forecast.id, cost_code_id=code.id, description="ETC", amount=Decimal(50),
         source_kind=ForecastLineSourceKind.MANUAL, source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin", expected_forecast_version=forecast.row_version,
     )
@@ -276,7 +278,7 @@ def test_update_line_true_no_op_produces_zero_hints(services):
 
     unchanged = forecasts.update_line(
         line.id, expected_line_version=line.row_version, expected_forecast_version=forecast.row_version,
-        amount=Decimal("50"),
+        amount=Decimal(50),
     )
 
     assert unchanged.row_version == line.row_version, "true no-op: no synthetic version bump"
@@ -285,7 +287,7 @@ def test_update_line_true_no_op_produces_zero_hints(services):
     changed = forecasts.update_line(
         line.id, expected_line_version=unchanged.row_version,
         expected_forecast_version=forecasts.get_forecast(forecast.id).row_version,
-        amount=Decimal("75"),
+        amount=Decimal(75),
     )
     assert changed.row_version != unchanged.row_version
     assert len(_forecast_hints(hints)) == 1
@@ -299,7 +301,7 @@ def test_approve_forecast_produces_exactly_one_planning_and_one_approved_basis_h
         generation_mode=ForecastGenerationMode.MANUAL, created_by="admin",
     )
     forecasts.add_line(
-        forecast.id, cost_code_id=code.id, description="ETC", amount=Decimal("50"),
+        forecast.id, cost_code_id=code.id, description="ETC", amount=Decimal(50),
         source_kind=ForecastLineSourceKind.MANUAL, source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin", expected_forecast_version=forecast.row_version,
     )
@@ -347,7 +349,7 @@ def _seed_approved_finance_for_change(services):
     budgets = services["budget_service"]
     budget = budgets.create_budget(project.id, "Approved control budget")
     budgets.add_line(
-        budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal("100"),
+        budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal(100),
         expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
@@ -360,7 +362,7 @@ def _seed_approved_finance_for_change(services):
         generation_mode=ForecastGenerationMode.MANUAL, created_by="admin",
     )
     forecast_line = forecasts.add_line(
-        forecast.id, cost_code_id=code.id, description="Approved ETC", amount=Decimal("80"),
+        forecast.id, cost_code_id=code.id, description="Approved ETC", amount=Decimal(80),
         source_kind=ForecastLineSourceKind.MANUAL, source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin", expected_forecast_version=forecast.row_version,
     )
@@ -385,7 +387,7 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
     )
     changes.add_impact(
         change.id, impact_type=FinancialChangeImpactType.FORECAST, description="Reduce remaining ETC",
-        amount=Decimal("-15"), cost_code_id=code.id, target_line_id=forecast_line.id,
+        amount=Decimal(-15), cost_code_id=code.id, target_line_id=forecast_line.id,
         expected_change_version=change.row_version,
     )
     change = changes.get_change(change.id)

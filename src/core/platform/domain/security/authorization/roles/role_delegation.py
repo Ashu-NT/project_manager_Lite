@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import re
+from datetime import datetime, timezone
 
 from pydantic import field_validator, model_validator
 
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.domain.security.authorization.roles.role_binding import normalize_role_scope_type
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import (
     normalize_optional_identifier,
     normalize_required_text,
     validated_dataclass,
+)
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.authorization.roles.role_binding import (
+    normalize_role_scope_type,
 )
 
 
@@ -127,7 +129,7 @@ class RoleDelegationPolicy:
         )
 
     @model_validator(mode="after")
-    def _validate_lifecycle(self) -> "RoleDelegationPolicy":
+    def _validate_lifecycle(self) -> RoleDelegationPolicy:
         if self.revoked_at is not None and self.revoked_at < self.created_at:
             raise ValidationError(
                 "Role delegation revocation cannot predate creation.",
@@ -149,7 +151,7 @@ class RoleDelegationPolicy:
         assignable_permission_set_hash: str,
         created_by: str,
         tenant_id: str | None = None,
-    ) -> "RoleDelegationPolicy":
+    ) -> RoleDelegationPolicy:
         return RoleDelegationPolicy(
             id=generate_id(),
             tenant_id=tenant_id,

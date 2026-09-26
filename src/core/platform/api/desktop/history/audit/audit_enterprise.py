@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
-from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
+from src.core.platform.application.history.audit.enterprise_audit_service import (
+    EnterpriseAuditService,
+)
 from src.core.platform.domain.history.audit.audit_entry import AuditEntry
 
 

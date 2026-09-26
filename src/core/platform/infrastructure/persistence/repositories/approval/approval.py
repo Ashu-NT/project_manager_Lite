@@ -3,11 +3,20 @@ from __future__ import annotations
 from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.platform.contract.repositories.approval.contracts import (
+    ApprovalRepository,
+)
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
-from src.core.platform.infrastructure.persistence.mappers.approval.approval import approval_from_orm, approval_to_orm
-from src.core.platform.infrastructure.persistence.orm.approval.approval import ApprovalRequestORM
+from src.core.platform.infrastructure.persistence.mappers.approval.approval import (
+    approval_from_orm,
+    approval_to_orm,
+)
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )

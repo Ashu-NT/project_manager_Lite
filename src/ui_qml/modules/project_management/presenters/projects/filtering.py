@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 def normalize_status_filter(status_filter: str, status_options: Any) -> str:
     normalized_value = (status_filter or "all").strip().lower()
     available_values = {option.value.lower(): option.value for option in status_options}

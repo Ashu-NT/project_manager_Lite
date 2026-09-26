@@ -4,6 +4,7 @@ from datetime import date, time
 
 import pytest
 
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarException,
     CalendarRecurringEvent,
@@ -15,7 +16,6 @@ from src.core.platform.domain.time_management.calendar.enterprise_calendar impor
     ShiftPatternDay,
     SiteCalendarAssignment,
 )
-from src.core.platform.common.exceptions import ValidationError
 
 
 def test_platform_calendar_dto_normalizes_and_validates_fields() -> None:

@@ -14,7 +14,9 @@ from src.core.modules.project_management.api.desktop.projects.commands.project_c
 )
 from src.core.modules.project_management.domain.financials.budget import BudgetStatus
 from src.core.modules.project_management.domain.projects.project import Project
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.ui_qml.modules.project_management.controllers.common.workspace_controller_base import (
     ProjectManagementWorkspaceControllerBase,
@@ -102,7 +104,7 @@ def test_approved_budget_projection_sums_lines_and_uses_budget_currency(services
     catalog_dto = _desktop_api(services).list_project_page().items[0]
     detail_dto = _desktop_api(services).get_project(project.id)
 
-    assert catalog_item.approved_budget == Decimal("100")
+    assert catalog_item.approved_budget == Decimal(100)
     assert catalog_item.approved_budget_currency == "GBP"
     assert detail_item is not None
     assert detail_item.approved_budget == catalog_item.approved_budget
@@ -188,7 +190,7 @@ def test_project_scoped_finance_access_redacts_only_unauthorized_project(service
     by_id = {item.project.id: item for item in page.items}
 
     assert page.approved_budget_visible is True
-    assert by_id[project_a.id].approved_budget == Decimal("100")
+    assert by_id[project_a.id].approved_budget == Decimal(100)
     assert by_id[project_a.id].approved_budget_currency == "USD"
     assert by_id[project_a.id].approved_budget_visible is True
     assert by_id[project_b.id].approved_budget is None
@@ -228,22 +230,22 @@ def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None
     ]
 
     assert [item.approved_budget for item in ascending if item.approved_budget is not None] == [
-        Decimal("9"),
-        Decimal("100"),
-        Decimal("100"),
-        Decimal("1000"),
+        Decimal(9),
+        Decimal(100),
+        Decimal(100),
+        Decimal(1000),
     ]
     assert [item.approved_budget for item in descending if item.approved_budget is not None] == [
-        Decimal("1000"),
-        Decimal("100"),
-        Decimal("100"),
-        Decimal("9"),
+        Decimal(1000),
+        Decimal(100),
+        Decimal(100),
+        Decimal(9),
     ]
     assert {item.project.id for item in ascending} == {project.id for project in projects}
     assert [
-        item.project.id for item in ascending if item.approved_budget == Decimal("100")
+        item.project.id for item in ascending if item.approved_budget == Decimal(100)
     ] == sorted(
-        item.project.id for item in ascending if item.approved_budget == Decimal("100")
+        item.project.id for item in ascending if item.approved_budget == Decimal(100)
     )
 
 
@@ -252,12 +254,12 @@ def test_only_currently_approved_budget_is_projected(services) -> None:
     assert services["project_service"].query_project_detail(project.id).approved_budget is None
 
     first = _approve_budget(services, project.id, "10", currency="USD")
-    assert services["project_service"].query_project_detail(project.id).approved_budget == Decimal("10")
+    assert services["project_service"].query_project_detail(project.id).approved_budget == Decimal(10)
 
     successor = _approve_budget(services, project.id, "25", currency="CAD")
     assert services["budget_service"].get_budget(first.id).status is BudgetStatus.SUPERSEDED
     current = services["project_service"].query_project_detail(project.id)
-    assert current.approved_budget == Decimal("25")
+    assert current.approved_budget == Decimal(25)
     assert current.approved_budget_currency == "CAD"
 
     services["budget_service"].close_budget(

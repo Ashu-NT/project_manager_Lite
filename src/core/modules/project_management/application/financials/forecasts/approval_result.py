@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.modules.project_management.domain.financials.forecast import ForecastStatus
+from src.core.modules.project_management.domain.financials.forecast import (
+    ForecastStatus,
+)
 
 
 @dataclass(frozen=True, slots=True)

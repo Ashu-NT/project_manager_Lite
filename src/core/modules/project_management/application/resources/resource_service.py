@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.resources.commands.resource_commands import (
     ResourceCommandMixin,
 )
 from src.core.modules.project_management.application.resources.commands.skill_commands import (
     SkillCommandMixin,
+)
+from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
+    ResourceContextQueryMixin,
 )
 from src.core.modules.project_management.application.resources.queries.resource_queries import (
     ResourceQueryMixin,
@@ -14,32 +20,38 @@ from src.core.modules.project_management.application.resources.queries.resource_
 from src.core.modules.project_management.application.resources.queries.skill_queries import (
     SkillQueryMixin,
 )
-from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
-    ResourceContextQueryMixin,
-)
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectResourceRepository
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
 from src.core.modules.project_management.contracts.reads.resources import (
-    ResourceCatalogReader,
-    ResourceInspectorReader,
-    ResourceSummaryReader,
     ResourceActivityReader,
     ResourceAssignmentsReader,
-    ResourceProjectsReader,
     ResourceCapabilityReader,
+    ResourceCatalogReader,
+    ResourceInspectorReader,
+    ResourceProjectsReader,
+    ResourceSummaryReader,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resources.skills import (
     ResourceCertificationRepository,
     ResourceSkillRepository,
 )
-from src.core.modules.project_management.contracts.repositories.tasks.task import AssignmentRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+)
 from src.core.modules.project_management.contracts.uow.resources.resource_unit_of_work import (
     ResourceUnitOfWorkFactory,
 )
-from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
-from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.repositories.master_data.employee.contracts import (
+    EmployeeRepository,
+)
+from src.core.platform.contract.repositories.time_management.time.contracts import (
+    TimeEntryRepository,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
 

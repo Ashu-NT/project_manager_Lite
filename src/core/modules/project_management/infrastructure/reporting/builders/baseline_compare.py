@@ -2,14 +2,21 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
-from src.core.modules.project_management.contracts.repositories.scheduling.baseline import BaselineRepository
-from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask, ProjectBaseline
+from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
+    BaselineRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
+from src.core.modules.project_management.domain.scheduling.baseline import (
+    BaselineTask,
+    ProjectBaseline,
+)
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     BaselineComparisonResult,
     BaselineComparisonRow,
 )
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
 class ReportingBaselineCompareMixin:
@@ -112,8 +119,8 @@ class ReportingBaselineCompareMixin:
             b_finish = row_b.baseline_finish if row_b else None
             a_duration = row_a.baseline_duration_days if row_a else None
             b_duration = row_b.baseline_duration_days if row_b else None
-            a_cost = row_a.baseline_planned_cost if row_a else Decimal("0")
-            b_cost = row_b.baseline_planned_cost if row_b else Decimal("0")
+            a_cost = row_a.baseline_planned_cost if row_a else Decimal(0)
+            b_cost = row_b.baseline_planned_cost if row_b else Decimal(0)
 
             start_shift = (b_start - a_start).days if (a_start and b_start) else None
             finish_shift = (b_finish - a_finish).days if (a_finish and b_finish) else None

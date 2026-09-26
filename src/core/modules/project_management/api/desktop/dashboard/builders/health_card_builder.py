@@ -1,12 +1,10 @@
 """Health card builders — schedule, cost, risk, resource and baseline variance cards."""
 
 from __future__ import annotations
+
 from decimal import Decimal
 from typing import Any
 
-from src.core.modules.project_management.api.desktop.dashboard.models.health_cards import (
-    ProjectDashboardHealthCardDescriptor,
-)
 from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
     overloaded_resource_count,
     peak_utilization_percent,
@@ -16,6 +14,9 @@ from src.core.modules.project_management.api.desktop.dashboard.formatters.number
     fmt_int,
     fmt_percent,
     fmt_ratio,
+)
+from src.core.modules.project_management.api.desktop.dashboard.models.health_cards import (
+    ProjectDashboardHealthCardDescriptor,
 )
 
 
@@ -107,8 +108,8 @@ def build_health_cards(
     cost_variance = float(getattr(kpi, "cost_variance", 0.0) or 0.0)
     spi = getattr(evm, "SPI", None)
     cpi = getattr(evm, "CPI", None)
-    schedule_tone = "danger" if late_tasks > 0 or (spi is not None and spi < Decimal("0.95")) else "warning" if critical_tasks > 0 or (spi is not None and spi < Decimal("1")) else "success"
-    cost_tone = "danger" if cost_variance > 0.0 or (cpi is not None and cpi < Decimal("0.95")) else "warning" if cpi is not None and cpi < Decimal("1") else "success"
+    schedule_tone = "danger" if late_tasks > 0 or (spi is not None and spi < Decimal("0.95")) else "warning" if critical_tasks > 0 or (spi is not None and spi < Decimal(1)) else "success"
+    cost_tone = "danger" if cost_variance > 0.0 or (cpi is not None and cpi < Decimal("0.95")) else "warning" if cpi is not None and cpi < Decimal(1) else "success"
     risk_critical = int(getattr(summary, "critical_items", 0) or 0)
     risk_open = int(getattr(summary, "open_risks", 0) or 0)
     risk_tone = "danger" if risk_critical > 0 else "warning" if risk_open > 0 else "success"

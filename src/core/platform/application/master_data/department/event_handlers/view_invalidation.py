@@ -36,7 +36,7 @@ def build_department_list_view_invalidation_handler(channel: ViewInvalidationCha
 
 
 __all__ = [
-    "build_department_list_view_invalidation_handler",
     "DEPARTMENT_CATEGORY",
     "DEPARTMENT_LIST_SCOPE_CODE",
+    "build_department_list_view_invalidation_handler",
 ]

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
     CheckConstraint,
@@ -46,23 +45,23 @@ class UserTenantORM(Base):
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default="active", server_default="active"
     )
-    invited_by_user_id: Mapped[Optional[str]] = mapped_column(
+    invited_by_user_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    invited_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    invitation_expires_at: Mapped[Optional[datetime]] = mapped_column(
+    invited_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    invitation_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True
     )
-    invitation_token_hash: Mapped[Optional[str]] = mapped_column(
+    invitation_token_hash: Mapped[str | None] = mapped_column(
         String(64), nullable=True
     )
-    accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    suspended_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    removed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    joined_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    suspended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     version: Mapped[int] = mapped_column(

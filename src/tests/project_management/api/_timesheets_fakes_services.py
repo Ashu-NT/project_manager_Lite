@@ -2,6 +2,9 @@
 from datetime import date, timedelta
 from types import SimpleNamespace
 
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TimesheetAssignmentContext,
+)
 from src.core.modules.project_management.domain.enums import (
     CostType,
     ProjectStatus,
@@ -9,9 +12,6 @@ from src.core.modules.project_management.domain.enums import (
 )
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    TimesheetAssignmentContext,
-)
 
 
 class _FakeProjectService:

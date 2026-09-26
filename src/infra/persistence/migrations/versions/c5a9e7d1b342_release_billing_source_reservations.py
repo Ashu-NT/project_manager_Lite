@@ -4,15 +4,15 @@ Revision ID: c5a9e7d1b342
 Revises: b7d2e4f9a6c1
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 
 revision: str = "c5a9e7d1b342"
-down_revision: Union[str, Sequence[str], None] = "b7d2e4f9a6c1"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "b7d2e4f9a6c1"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _TABLE = "project_billing_source_locks"
 _COLUMNS = ("tenant_id", "organization_id", "source_type", "source_id")

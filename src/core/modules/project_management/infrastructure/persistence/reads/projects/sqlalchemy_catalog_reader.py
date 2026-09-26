@@ -1,38 +1,25 @@
 from __future__ import annotations
 
 from datetime import date
-
 from decimal import Decimal
 
 from sqlalchemy import and_, case, func, literal, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.reads.projects import (
+    ProjectActivityFact,
+    ProjectActivityPage,
     ProjectCatalogReadItem,
     ProjectCatalogReadPage,
     ProjectCatalogSummary,
-    ProjectActivityFact,
-    ProjectActivityPage,
     ProjectResourceDetailFact,
     ProjectResourceDetailPage,
 )
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
-from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
-    stable_order_by,
-)
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.infrastructure.persistence.mappers.project import (
     project_from_orm,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectResourceORM
-from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskAssignmentORM
-from src.core.platform.infrastructure.persistence.orm.history.activity.activity import ActivityEntryORM
-from src.core.platform.infrastructure.persistence.mappers.history.activity.activity import (
-    activity_payload_from_json,
-)
-from src.core.platform.infrastructure.persistence.orm.time_management.time.time import TimeEntryORM
 from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
     BudgetLineORM,
     ProjectBudgetORM,
@@ -40,8 +27,34 @@ from src.core.modules.project_management.infrastructure.persistence.orm.budget i
 from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
     ProjectFinancialProfileORM,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
-from src.core.platform.infrastructure.persistence.orm.master_data.party.party import PartyORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+    ProjectResourceORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
+    ResourceORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskAssignmentORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
+from src.core.platform.infrastructure.persistence.mappers.history.activity.activity import (
+    activity_payload_from_json,
+)
+from src.core.platform.infrastructure.persistence.orm.history.activity.activity import (
+    ActivityEntryORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.party.party import (
+    PartyORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+    SiteORM,
+)
+from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
+    TimeEntryORM,
+)
 
 
 def _contains_pattern(value: str) -> str:

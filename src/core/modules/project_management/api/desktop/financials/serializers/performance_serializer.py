@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from src.core.modules.project_management.api.desktop.common.financial_formatting import format_money
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_money,
+)
 from src.core.modules.project_management.api.desktop.financials.models.performance import (
     FinancialCostPhasingDto,
     FinancialEvmDto,
@@ -11,7 +13,9 @@ from src.core.modules.project_management.api.desktop.financials.models.performan
     FinancialReportsDto,
     FinancialVarianceWorkspaceDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.snapshots import FinancialPeriodRowDto
+from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
+    FinancialPeriodRowDto,
+)
 from src.core.modules.project_management.api.desktop.financials.serializers.baseline_variance_serializer import (
     serialize_baseline_version,
     serialize_variance_record,

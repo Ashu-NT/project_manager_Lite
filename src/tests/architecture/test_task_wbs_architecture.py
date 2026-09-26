@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
-
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskORM,
+)
 
 PM_ROOT = Path("src/core/modules/project_management")
 TASK_DESKTOP_API = PM_ROOT / "api/desktop/tasks/api.py"

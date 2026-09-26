@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime
+from datetime import timezone as dt_timezone
 
 from pydantic import field_validator, model_validator
 
-from src.core.platform.common.ids import generate_id
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import (
     normalize_optional_text,
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.domain.finance.money.currency import CurrencyCode
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 
 SITE_STATUS_ACTIVE = "active"
 SITE_STATUS_INACTIVE = "inactive"
@@ -165,7 +166,7 @@ class Site:
         return resolved
 
     @model_validator(mode="after")
-    def _validate_site_state(self) -> "Site":
+    def _validate_site_state(self) -> Site:
         if self.opened_at and self.closed_at and self.closed_at < self.opened_at:
             raise ValidationError(
                 "Site closed date cannot be before opened date.",
@@ -202,7 +203,7 @@ class Site:
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
         notes: str = "",
-    ) -> "Site":
+    ) -> Site:
         now = datetime.now(dt_timezone.utc)
         return Site(
             id=generate_id(),

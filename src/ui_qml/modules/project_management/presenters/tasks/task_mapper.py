@@ -6,6 +6,7 @@ from src.ui_qml.modules.project_management.view_models.tasks import TaskRecordVi
 
 from .formatting import format_date, format_date_label
 
+
 # Bucket boundaries kept identical to the Priority filter's own buckets
 # (`build_task_priority_options`) and the SQL reader's predicate
 # (`sqlalchemy_workspace_reader.py`: >=70 high, 30-69 medium, <30 low) --

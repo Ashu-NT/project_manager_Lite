@@ -3,19 +3,18 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.modules.project_management.application.collaboration import (
     CollaborationService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
     FinanceService,
-    ProjectCommitmentService,
     ProjectBillingPreparationService,
     ProjectBillingProfileService,
+    ProjectCommitmentService,
     ProjectCostEntryService,
-    ProjectFinanceWorkspaceQuery,
     ProjectFinancePerformanceQuery,
+    ProjectFinanceWorkspaceQuery,
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
@@ -42,8 +41,15 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.modules.project_management.infrastructure.reporting import (
+    ReportingService,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
 @dataclass(frozen=True)

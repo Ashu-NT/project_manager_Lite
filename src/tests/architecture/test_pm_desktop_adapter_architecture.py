@@ -5,7 +5,6 @@ from pathlib import Path
 
 from src.tests.path_rewrites import REPO_ROOT
 
-
 DESKTOP_ROOT = REPO_ROOT / "src/core/modules/project_management/api/desktop"
 APPLICATION_ROOTS = (
     REPO_ROOT / "src/core/modules/project_management/application",

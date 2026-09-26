@@ -429,12 +429,11 @@ def test_rollback_does_not_later_cause_stale_event_publication(
 
     transactional_dispatcher.subscribe(_EventA, fails)
 
-    with pytest.raises(ValueError):
-        with uow_factory.create(context=_context()) as uow:
-            aggregate = _AggregateA()
-            aggregate._record_event(_EventA())
-            uow.register_touched(aggregate)
-            uow.commit()
+    with pytest.raises(ValueError), uow_factory.create(context=_context()) as uow:
+        aggregate = _AggregateA()
+        aggregate._record_event(_EventA())
+        uow.register_touched(aggregate)
+        uow.commit()
 
     # Nothing about the rolled-back UoW's events is ever published later -- there is no
     # deferred/retry mechanism in this base class that could resurrect them.

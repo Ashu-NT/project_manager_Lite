@@ -3,9 +3,8 @@ import logging
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-from src.infra.persistence.orm import Base
 import src.infra.persistence.orm  # noqa
-
+from src.infra.persistence.orm import Base
 
 config = context.config
 

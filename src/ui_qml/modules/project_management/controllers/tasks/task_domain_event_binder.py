@@ -57,10 +57,10 @@ def on_timesheet_project_stale(controller, project_id: str) -> None:
 
 
 __all__ = [
-    "on_task_list_stale",
-    "on_task_detail_stale",
-    "on_task_schedule_stale",
     "on_task_assignments_for_task_stale",
     "on_task_dependencies_stale",
+    "on_task_detail_stale",
+    "on_task_list_stale",
+    "on_task_schedule_stale",
     "on_timesheet_project_stale",
 ]

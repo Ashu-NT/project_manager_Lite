@@ -6,7 +6,23 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.infra.persistence.orm import Base
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
+    CalendarAssignmentService,
+)
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
+    WorkingRuleService,
+)
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    EnterpriseCalendarService,
+)
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
+    CalendarType,
+)
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -15,15 +31,7 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.domain.time_management.calendar.enterprise_calendar import CalendarType
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
-)
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
-)
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.infra.persistence.orm import Base
 
 
 @pytest.fixture
@@ -54,8 +62,8 @@ def mock_user_session():
 
 @pytest.fixture
 def mock_org_repo(db_session, org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     @dataclass
     class FakeOrg:
@@ -68,8 +76,8 @@ def mock_org_repo(db_session, org_id):
 
 @pytest.fixture
 def tenant_context(org_id):
-    from unittest.mock import MagicMock
     from dataclasses import dataclass
+    from unittest.mock import MagicMock
 
     from src.core.platform.application.tenant.tenancy.tenant_context import (
         ActiveScopeIds,
@@ -140,7 +148,9 @@ def rule_service(db_session, repos, mock_user_session):
 def seeded_assignment_entities(db_session, org_id):
     from datetime import datetime, timezone
 
-    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
+        SiteORM,
+    )
 
     now = datetime.now(timezone.utc)
     db_session.add_all(

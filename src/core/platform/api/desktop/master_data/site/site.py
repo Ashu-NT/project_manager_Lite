@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation, serialize_organization
-from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
-from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
 from src.core.platform.api.desktop.master_data.site.models.site import (
     SiteCreateCommand,
     SiteDto,
     SitePageDto,
     SiteRollupSummaryDto,
     SiteUpdateCommand,
+)
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.support._support import (
+    execute_desktop_operation,
+    serialize_organization,
 )
 from src.core.platform.application.master_data.site.site_service import SiteService
 

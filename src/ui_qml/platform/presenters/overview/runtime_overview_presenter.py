@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.platform_runtime.runtime import (
+    PlatformRuntimeDesktopApi,
+)
 from src.ui_qml.platform.view_models.common.workspace import PlatformMetricViewModel
-from src.ui_qml.platform.view_models.overview.runtime import PlatformRuntimeOverviewViewModel
+from src.ui_qml.platform.view_models.overview.runtime import (
+    PlatformRuntimeOverviewViewModel,
+)
 
 
 class PlatformRuntimePresenter:

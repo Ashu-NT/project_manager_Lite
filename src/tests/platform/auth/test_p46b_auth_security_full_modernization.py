@@ -13,13 +13,13 @@ from src.core.platform.application.security.auth.credentials.authentication_tran
     register_failed_login,
 )
 from src.core.platform.common.exceptions import ConcurrencyError
-from src.core.platform.domain.security.authorization.roles import (
-    ROLE_SCOPE_PLATFORM,
-    ROLE_SCOPE_TENANT,
-)
 from src.core.platform.domain.security.auth.events import (
     AuthenticationFailureRecorded,
     CustomRoleRetired,
+)
+from src.core.platform.domain.security.authorization.roles import (
+    ROLE_SCOPE_PLATFORM,
+    ROLE_SCOPE_TENANT,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
@@ -200,7 +200,9 @@ def test_registration_records_exactly_user_created_membership_provisioned_and_ro
         TenantMembershipProvisioned,
         UserAccountCreated,
     )
-    from src.core.platform.domain.security.authorization.roles.events import RoleBindingAssigned
+    from src.core.platform.domain.security.authorization.roles.events import (
+        RoleBindingAssigned,
+    )
 
     _set_tenant_admin(services)
     auth = services["auth_service"]
@@ -231,7 +233,9 @@ def test_registration_records_exactly_user_created_membership_provisioned_and_ro
 def test_platform_scoped_registration_records_zero_membership_provisioned(services, monkeypatch):
     """A platform-scoped registration (no tenant) must never record a `TenantMembershipProvisioned`
     -- that fact is only true for tenant-scoped registration."""
-    from src.core.platform.domain.security.auth.events import TenantMembershipProvisioned
+    from src.core.platform.domain.security.auth.events import (
+        TenantMembershipProvisioned,
+    )
 
     services["user_session"].set_principal(
         services["auth_service"].build_principal(
@@ -252,7 +256,9 @@ def test_registration_rolls_back_the_entire_transaction_and_records_zero_events_
     from sqlalchemy import func
     from sqlalchemy.exc import IntegrityError
 
-    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
+    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+        UserORM,
+    )
     from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
         SqlAlchemyUserRepository,
     )
@@ -287,7 +293,9 @@ def test_bootstrap_role_repair_records_exactly_one_role_binding_assigned_and_no_
     services, monkeypatch
 ):
     from src.core.platform.domain.security.auth.events import UserAccountCreated
-    from src.core.platform.domain.security.authorization.roles.events import RoleBindingAssigned
+    from src.core.platform.domain.security.authorization.roles.events import (
+        RoleBindingAssigned,
+    )
 
     auth = services["auth_service"]
     admin = auth._user_repo.get_by_username("admin")
@@ -337,7 +345,9 @@ def test_bootstrap_defaults_is_idempotent_and_records_zero_events_when_nothing_c
 def test_custom_role_retirement_revokes_every_active_binding_with_one_event_each(
     services, monkeypatch
 ):
-    from src.core.platform.domain.security.authorization.roles.events import RoleBindingRevoked
+    from src.core.platform.domain.security.authorization.roles.events import (
+        RoleBindingRevoked,
+    )
 
     _set_tenant_admin(services)
     tenant_id = _tenant_id(services)
@@ -384,7 +394,9 @@ def test_custom_role_retirement_rolls_back_all_binding_revocations_on_audit_fail
 ):
     from sqlalchemy import func
 
-    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import RoleBindingORM
+    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+        RoleBindingORM,
+    )
 
     _set_tenant_admin(services)
     tenant_id = _tenant_id(services)

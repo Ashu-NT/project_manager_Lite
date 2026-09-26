@@ -4,24 +4,34 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.infra.persistence.orm.base import Base
 from src.infra.persistence.db.financial_numeric import (
     FinancialNumericKind,
     financial_numeric,
     financial_numeric_info,
 )
+from src.infra.persistence.orm.base import Base
 
 
 class PortfolioScoringTemplateORM(Base):
     __tablename__ = "portfolio_scoring_templates"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
@@ -61,7 +71,7 @@ class PortfolioIntakeItemORM(Base):
     __tablename__ = "portfolio_intake_items"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
@@ -80,7 +90,7 @@ class PortfolioIntakeItemORM(Base):
         financial_numeric(FinancialNumericKind.MONEY),
         info=financial_numeric_info(FinancialNumericKind.MONEY),
         nullable=False,
-        default=Decimal("0"),
+        default=Decimal(0),
         server_default="0",
     )
     requested_capacity_percent: Mapped[float] = mapped_column(
@@ -89,7 +99,7 @@ class PortfolioIntakeItemORM(Base):
         default=0.0,
         server_default="0.0",
     )
-    target_start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    target_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     strategic_score: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
     value_score: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
     urgency_score: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
@@ -122,7 +132,7 @@ class PortfolioScenarioORM(Base):
     __tablename__ = "portfolio_scenarios"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=True,
@@ -135,12 +145,12 @@ class PortfolioScenarioORM(Base):
         server_default="",
     )
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    budget_limit: Mapped[Optional[Decimal]] = mapped_column(
+    budget_limit: Mapped[Decimal | None] = mapped_column(
         financial_numeric(FinancialNumericKind.MONEY),
         info=financial_numeric_info(FinancialNumericKind.MONEY),
         nullable=True,
     )
-    capacity_limit_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    capacity_limit_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
     project_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
     intake_item_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
     notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")

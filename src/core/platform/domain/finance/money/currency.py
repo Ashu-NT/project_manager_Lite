@@ -6,23 +6,13 @@ from types import MappingProxyType
 
 from src.core.platform.common.exceptions import ValidationError
 
-
 # ISO 4217 List One, published by the SIX Maintenance Agency on 2026-01-01.
 # N.A. minor units are represented by None and require an explicit rounding scale.
-_TWO_MINOR_UNIT_CODES = """
-AED AFN ALL AMD AOA ARS AUD AWG AZN BAM BBD BDT BMD BND BOB BOV BRL BSD BTN
-BWP BYN BZD CAD CDF CHF CHE CHW CNY COP COU CRC CUP CVE CZK DKK DOP DZD EGP
-ERN ETB EUR FJD FKP GBP GEL GHS GIP GMD GTQ GYD HKD HNL HTG HUF IDR ILS INR
-IRR JMD KES KGS KHR KPW KYD KZT LAK LBP LKR LRD LSL MAD MDL MGA MKD MMK MNT
-MOP MRU MUR MVR MWK MXN MXV MYR MZN NAD NGN NIO NOK NPR NZD PAB PEN PGK PHP
-PKR PLN QAR RON RSD RUB SAR SBD SCR SDG SEK SGD SHP SLE SOS SRD SSP STN SVC
-SYP SZL THB TJS TMT TOP TRY TTD TWD TZS UAH USD USN UYU UZS VED VES WST XAD
-XCD XCG YER ZAR ZMW ZWG
-""".split()
-_ZERO_MINOR_UNIT_CODES = "BIF CLP DJF GNF ISK JPY KMF KRW PYG RWF UGX UYI VND VUV XAF XOF XPF".split()
-_THREE_MINOR_UNIT_CODES = "BHD IQD JOD KWD LYD OMR TND".split()
-_FOUR_MINOR_UNIT_CODES = "CLF UYW".split()
-_NO_MINOR_UNIT_CODES = "XAG XAU XBA XBB XBC XBD XDR XPD XPT XSU XTS XUA XXX".split()
+_TWO_MINOR_UNIT_CODES = ["AED", "AFN", "ALL", "AMD", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BMD", "BND", "BOB", "BOV", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF", "CHE", "CHW", "CNY", "COP", "COU", "CRC", "CUP", "CVE", "CZK", "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GHS", "GIP", "GMD", "GTQ", "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "IRR", "JMD", "KES", "KGS", "KHR", "KPW", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD", "LSL", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR", "MWK", "MXN", "MXV", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "QAR", "RON", "RSD", "RUB", "SAR", "SBD", "SCR", "SDG", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN", "SVC", "SYP", "SZL", "THB", "TJS", "TMT", "TOP", "TRY", "TTD", "TWD", "TZS", "UAH", "USD", "USN", "UYU", "UZS", "VED", "VES", "WST", "XAD", "XCD", "XCG", "YER", "ZAR", "ZMW", "ZWG"]
+_ZERO_MINOR_UNIT_CODES = ["BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW", "PYG", "RWF", "UGX", "UYI", "VND", "VUV", "XAF", "XOF", "XPF"]
+_THREE_MINOR_UNIT_CODES = ["BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"]
+_FOUR_MINOR_UNIT_CODES = ["CLF", "UYW"]
+_NO_MINOR_UNIT_CODES = ["XAG", "XAU", "XBA", "XBB", "XBC", "XBD", "XDR", "XPD", "XPT", "XSU", "XTS", "XUA", "XXX"]
 
 ISO_4217_PUBLISHED_DATE = "2026-01-01"
 ISO_4217_SOURCE_URL = (
@@ -73,15 +63,15 @@ class CurrencyCode:
                 f"Currency code '{self.code}' has no ISO 4217 minor-unit definition.",
                 code="CURRENCY_MINOR_UNITS_UNDEFINED",
             )
-        return Decimal("1").scaleb(-self.minor_units)
+        return Decimal(1).scaleb(-self.minor_units)
 
     def __str__(self) -> str:
         return self.code
 
 
 __all__ = [
-    "CurrencyCode",
     "ISO_4217_MINOR_UNITS",
     "ISO_4217_PUBLISHED_DATE",
     "ISO_4217_SOURCE_URL",
+    "CurrencyCode",
 ]

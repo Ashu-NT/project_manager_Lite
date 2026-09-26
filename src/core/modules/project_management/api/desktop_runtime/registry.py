@@ -18,8 +18,12 @@ from src.core.modules.project_management.gateway.task.reservation import (
     TaskReservationGateway,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.master_data.department.department_service import DepartmentService
-from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.employee.employee_service import (
+    EmployeeService,
+)
 from src.core.platform.application.master_data.site.site_service import SiteService
 
 

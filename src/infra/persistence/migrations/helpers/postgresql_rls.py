@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import sqlalchemy as sa
-
 
 _SQL_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -278,10 +278,10 @@ def disable_nullable_tenant_audit_rls(operations: Any, bind: Any, table_name: st
 
 
 __all__ = [
-    "build_parent_scoped_rls_disable_statements",
-    "build_parent_scoped_rls_enable_statements",
     "build_nullable_tenant_audit_rls_disable_statements",
     "build_nullable_tenant_audit_rls_enable_statements",
+    "build_parent_scoped_rls_disable_statements",
+    "build_parent_scoped_rls_enable_statements",
     "build_tenant_only_rls_disable_statements",
     "build_tenant_only_rls_enable_statements",
     "build_tenant_organization_rls_disable_statements",

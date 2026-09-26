@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.domain.finance.money.currency_resolution import resolve_currency_code
+from src.core.platform.domain.finance.money.currency_resolution import (
+    resolve_currency_code,
+)
 
 
 def resolve_pm_currency(

@@ -16,7 +16,6 @@ from src.core.modules.project_management.infrastructure.persistence.orm.finance_
 )
 from src.core.platform.integration import APPROVED_TIME_ENTRY_EVENT_TYPE
 
-
 _SORTS = {
     "source": ProjectFinanceInboxORM.aggregate_id,
     "status": ProjectFinanceInboxORM.status,

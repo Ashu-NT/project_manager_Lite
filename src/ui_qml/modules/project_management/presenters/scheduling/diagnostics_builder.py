@@ -7,6 +7,7 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingRecordViewModel,
 )
 
+
 def build_diagnostics_collection(
     *,
     schedule_items: Any,

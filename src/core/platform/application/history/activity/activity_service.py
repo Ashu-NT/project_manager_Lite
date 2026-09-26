@@ -7,14 +7,18 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.repositories.history.activity.contracts import ActivityRepository
-from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_any_permission,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContext, TenantContextService
-
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContext,
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.repositories.history.activity.contracts import (
+    ActivityRepository,
+)
+from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 
 _DEFAULT_ACTIVITY_PAGE_SIZE = 25
 ACTIVITY_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
@@ -298,4 +302,4 @@ class ActivityService:
         )
 
 
-__all__ = ["ActivityService", "ActivityPage", "ACTIVITY_PAGE_SIZE_OPTIONS"]
+__all__ = ["ACTIVITY_PAGE_SIZE_OPTIONS", "ActivityPage", "ActivityService"]

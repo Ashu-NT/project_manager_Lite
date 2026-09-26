@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+
 @dataclass(frozen=True)
 class FinancialsMetricViewModel:
     label: str
@@ -233,8 +234,8 @@ __all__ = [
     "FinancialsCommitmentSummaryViewModel",
     "FinancialsDetailFieldViewModel",
     "FinancialsDetailViewModel",
-    "FinancialsMetricViewModel",
     "FinancialsManualActualDefaultsViewModel",
+    "FinancialsMetricViewModel",
     "FinancialsOverviewViewModel",
     "FinancialsRecordViewModel",
     "FinancialsSelectorOptionViewModel",

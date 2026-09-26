@@ -10,14 +10,13 @@ from src.ui_qml.modules.project_management.controllers.common import (
     serialize_workspace_view_model,
 )
 
-from .panel_hydrator import hydrate_visible_panel_models, serialize_workspace_panels
-from .gantt_selection import set_gantt_selection
 from .gantt_baseline_actions import (
     clear_gantt_baseline,
     restore_gantt_baseline_after_workspace,
 )
+from .gantt_selection import set_gantt_selection
 from .gantt_view_state import refresh_local_gantt_view
-from .state import default_schedule_impact
+from .panel_hydrator import hydrate_visible_panel_models, serialize_workspace_panels
 from .scheduling_property_updates import (
     set_activity_sort_direction,
     set_activity_sort_key,
@@ -34,6 +33,7 @@ from .scheduling_property_updates import (
     set_show_delayed_only,
     set_status_options,
 )
+from .state import default_schedule_impact
 
 logger = logging.getLogger(__name__)
 

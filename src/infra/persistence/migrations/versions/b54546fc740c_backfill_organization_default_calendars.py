@@ -15,19 +15,18 @@ overwrites). Seeds the same Mon-Fri 08:00-17:00 / 60-minute-break default
 working week EnterpriseCalendarService.ensure_global_calendar() seeds for a
 fresh install.
 """
+from collections.abc import Sequence
 from datetime import datetime, time, timezone
-from typing import Sequence, Union
 from uuid import uuid4
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'b54546fc740c'
-down_revision: Union[str, Sequence[str], None] = '5555a14faf88'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = '5555a14faf88'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _WORKING_WEEKDAYS = frozenset({0, 1, 2, 3, 4})
 

@@ -15,7 +15,9 @@ from src.core.modules.project_management.domain.portfolio import (
     PortfolioScenarioComparison,
     PortfolioScenarioEvaluation,
 )
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
@@ -190,11 +192,11 @@ class PortfolioScenarioQueryMixin:
         )
         total_budget = sum(
             (project.approved_budget for project in selected_projects),
-            Decimal("0"),
+            Decimal(0),
         )
         total_budget += sum(
             (item.requested_budget for item in selected_intake),
-            Decimal("0"),
+            Decimal(0),
         )
         total_capacity_percent = sum(
             capacity_by_project.get(project.id, 0.0) for project in selected_projects

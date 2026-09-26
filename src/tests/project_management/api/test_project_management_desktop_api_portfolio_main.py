@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -6,23 +6,8 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_portfolio_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import (
-    DependencyType,
     ProjectStatus,
-    TaskStatus,
 )
-from src.core.modules.project_management.domain.portfolio import (
-    PortfolioExecutiveRow,
-    PortfolioIntakeItem,
-    PortfolioIntakeStatus,
-    PortfolioProjectDependency,
-    PortfolioProjectDependencyView,
-    PortfolioRecentAction,
-    PortfolioScenario,
-    PortfolioScenarioComparison,
-    PortfolioScenarioEvaluation,
-    PortfolioScoringTemplate,
-)
-from src.core.modules.project_management.domain.projects.project import Project
 from src.tests.project_management.api.test_project_management_desktop_api_portfolio_fakes import (
     _FakeProjectService,
 )
@@ -74,7 +59,7 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
             title="Packaging Line Expansion",
             sponsor_name="Operations Director",
             summary="Capacity uplift on the secondary line.",
-            requested_budget=Decimal("180000"),
+            requested_budget=Decimal(180000),
             requested_capacity_percent=40.0,
             target_start_date=date(2026, 6, 1),
             strategic_score=5,
@@ -88,7 +73,7 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
     created_scenario = api.create_scenario(
         SimpleNamespace(
             name="Q3 Balanced Plan",
-            budget_limit=Decimal("500000"),
+            budget_limit=Decimal(500000),
             capacity_limit_percent=280.0,
             project_ids=(project_alpha.id,),
             intake_item_ids=(created_intake.id,),
@@ -98,7 +83,7 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
     comparison_scenario = api.create_scenario(
         SimpleNamespace(
             name="Aggressive Expansion",
-            budget_limit=Decimal("650000"),
+            budget_limit=Decimal(650000),
             capacity_limit_percent=340.0,
             project_ids=(project_alpha.id, project_beta.id),
             intake_item_ids=(created_intake.id,),

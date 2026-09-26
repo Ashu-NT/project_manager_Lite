@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.security.auth.models.user import (
     RoleDto,
@@ -10,6 +9,7 @@ from src.core.platform.api.desktop.security.auth.models.user import (
     UserRollupSummaryDto,
     UserUpdateCommand,
 )
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.application.security.auth import AuthService
 from src.core.platform.domain.security.auth import (
     Role,

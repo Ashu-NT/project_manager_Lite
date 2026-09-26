@@ -3,16 +3,20 @@ from __future__ import annotations
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from src.core.platform.contract.repositories.master_data.department.contracts import (
+    DepartmentRepository,
+)
+from src.core.platform.domain.master_data.department import Department
 from src.core.platform.infrastructure.persistence.mappers.master_data.department.departments import (
     department_from_orm,
     department_to_orm,
 )
-from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
-from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
-from src.core.platform.domain.master_data.department import Department
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

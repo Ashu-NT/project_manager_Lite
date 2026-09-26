@@ -17,10 +17,10 @@ if TYPE_CHECKING:
 
 def auth_unit_of_work(
     *,
-    session: "Session",
-    transactional_dispatcher: "TransactionalEventDispatcher | None",
-    post_commit_bus: "PostCommitEventPublisher | None",
-) -> "SqlAlchemyUnitOfWorkBase":
+    session: Session,
+    transactional_dispatcher: TransactionalEventDispatcher | None,
+    post_commit_bus: PostCommitEventPublisher | None,
+) -> SqlAlchemyUnitOfWorkBase:
     """One physical transaction for an Auth/Security mutation: a bare, canonical
     `SqlAlchemyUnitOfWorkBase` wrapping the caller's own already-shared Session (same
     precedent as Project's `delete_project`, Timesheet's own `_persist_timesheet_transition`,

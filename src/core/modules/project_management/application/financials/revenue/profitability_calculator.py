@@ -165,7 +165,7 @@ class ProjectProfitabilityCalculator:
             Money.of(revenue, inputs.project_currency)
             - Money.of(eac, inputs.cost_currency)
         ).amount
-        percent = None if revenue == 0 else (margin / revenue) * Decimal("100")
+        percent = None if revenue == 0 else (margin / revenue) * Decimal(100)
         return ProfitabilityResult(
             forecast_revenue_at_completion=revenue,
             revenue_basis="contract_value",

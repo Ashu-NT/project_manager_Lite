@@ -5,8 +5,10 @@ from datetime import date
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
 )
+from src.core.platform.api.desktop.master_data.employee.employee import (
+    PlatformEmployeeDesktopApi,
+)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.modules.project_management.presenters.common.activity_log_builder import (
     build_actor_lookup,

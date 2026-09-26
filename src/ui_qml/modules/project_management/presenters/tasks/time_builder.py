@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogWorkspaceViewModel,
-    TaskSelectorOptionViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetDetailFieldViewModel,

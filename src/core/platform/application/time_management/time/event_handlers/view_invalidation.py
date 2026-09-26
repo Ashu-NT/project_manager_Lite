@@ -141,12 +141,12 @@ def build_timesheet_view_invalidation_handler(channel: ViewInvalidationChannel):
 
 
 __all__ = [
-    "build_timesheet_view_invalidation_handler",
     "TIMESHEET_CATEGORY",
-    "TIMESHEET_WORKSPACE_SCOPE_CODE",
-    "TIMESHEET_RESOURCE_SCOPE_CODE",
-    "TIMESHEET_PROJECT_SCOPE_CODE",
     "TIMESHEET_MODULE_CODE",
-    "TIMESHEET_RESOURCE_ENTITY_TYPE",
     "TIMESHEET_PROJECT_ENTITY_TYPE",
+    "TIMESHEET_PROJECT_SCOPE_CODE",
+    "TIMESHEET_RESOURCE_ENTITY_TYPE",
+    "TIMESHEET_RESOURCE_SCOPE_CODE",
+    "TIMESHEET_WORKSPACE_SCOPE_CODE",
+    "build_timesheet_view_invalidation_handler",
 ]

@@ -6,7 +6,6 @@ from uuid import uuid4
 
 from src.tests.path_rewrites import REPO_ROOT
 
-
 TEST_TEMP_ROOT = REPO_ROOT / ".pytest_workspaces"
 
 

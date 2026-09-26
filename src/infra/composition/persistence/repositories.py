@@ -10,89 +10,114 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyTaskCommentRepository,
     SqlAlchemyTaskPresenceRepository,
 )
-from src.core.modules.project_management.infrastructure.persistence.repositories.portfolio.portfolio import (
-    SqlAlchemyPortfolioIntakeRepository,
-    SqlAlchemyPortfolioProjectDependencyRepository,
-    SqlAlchemyPortfolioScoringTemplateRepository,
-    SqlAlchemyPortfolioScenarioRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.baseline import SqlAlchemyBaselineRepository
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.invoicing.billing import (
-    SqlAlchemyProjectBillingRepository,
-)
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import (
     SqlAlchemyProjectBudgetRepository,
 )
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.forecasts.forecast import (
-    SqlAlchemyProjectForecastRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.financial_changes.financial_change import (
-    SqlAlchemyFinancialChangeRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.planned_costs.planned_cost import (
-    SqlAlchemyProjectPlannedCostVersionRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.cost_entries.cost_entry import (
-    SqlAlchemyProjectCostEntryRepository,
-)
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.commitments.commitment import (
     SqlAlchemyProjectCommitmentRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.finance_inbox import (
-    SqlAlchemyProjectFinanceInboxRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.cost_entries.labor_posting import (
-    SqlAlchemyApprovedTimeLaborPostingRepository,
-)
-from src.core.platform.infrastructure.persistence.repositories.time_management.time_financial_outbox import (
-    SqlAlchemyTimeFinancialOutboxRepository,
-)
-from src.core.platform.infrastructure.persistence.repositories.integration.procurement_financial_outbox import (
-    SqlAlchemyProcurementFinancialOutboxRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.configuration.financial_configuration import (
     SqlAlchemyProjectCostCodeRepository,
     SqlAlchemyProjectFinancialProfileRepository,
 )
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.cost_entries.cost_entry import (
+    SqlAlchemyProjectCostEntryRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.cost_entries.labor_posting import (
+    SqlAlchemyApprovedTimeLaborPostingRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.finance_inbox import (
+    SqlAlchemyProjectFinanceInboxRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.financial_changes.financial_change import (
+    SqlAlchemyFinancialChangeRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.forecasts.forecast import (
+    SqlAlchemyProjectForecastRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.invoicing.billing import (
+    SqlAlchemyProjectBillingRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.planned_costs.planned_cost import (
+    SqlAlchemyProjectPlannedCostVersionRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_cards import (
     SqlAlchemyProjectRateCardRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
-    SqlAlchemyCalendarAssignmentRepository,
-    SqlAlchemyCalendarExceptionRepository,
-    SqlAlchemyCalendarRecurringEventRepository,
-    SqlAlchemyCalendarWorkingRuleRepository,
-    SqlAlchemyPlatformCalendarRepository,
-    SqlAlchemyShiftPatternRepository,
-)
-from src.core.platform.infrastructure.persistence.repositories.finance import (
-    SqlAlchemyFinancialPeriodRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.calendar_assignment import (
-    SqlAlchemyProjectCalendarAssignmentRepository,
-    SqlAlchemyResourceCalendarAssignmentRepository,
+from src.core.modules.project_management.infrastructure.persistence.repositories.portfolio.portfolio import (
+    SqlAlchemyPortfolioIntakeRepository,
+    SqlAlchemyPortfolioProjectDependencyRepository,
+    SqlAlchemyPortfolioScenarioRepository,
+    SqlAlchemyPortfolioScoringTemplateRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectRepository,
     SqlAlchemyProjectResourceRepository,
 )
-from src.core.modules.project_management.infrastructure.persistence.repositories.register.register import SqlAlchemyRegisterEntryRepository
-from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import SqlAlchemyResourceRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.register.register import (
+    SqlAlchemyRegisterEntryRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
+    SqlAlchemyResourceRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.resources.skills import (
     SqlAlchemyResourceCertificationRepository,
     SqlAlchemyResourceSkillRepository,
     SqlAlchemyTaskSkillRequirementRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.baseline import (
+    SqlAlchemyBaselineRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.calendar_assignment import (
+    SqlAlchemyProjectCalendarAssignmentRepository,
+    SqlAlchemyResourceCalendarAssignmentRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import SqlAlchemyActivityRepository
-from src.core.platform.infrastructure.persistence.repositories.approval.approval import SqlAlchemyApprovalRepository
-from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import SqlAlchemyAuditRepository
-from src.core.platform.infrastructure.persistence.repositories.events.notifications.notification import SqlAlchemyNotificationRepository
-from src.core.platform.infrastructure.persistence.repositories.events.platform_events.platform_events import SqlAlchemyPlatformEventRepository
+from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
+    SqlAlchemyApprovalRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.events.notifications.notification import (
+    SqlAlchemyNotificationRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.events.platform_events.platform_events import (
+    SqlAlchemyPlatformEventRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.finance import (
+    SqlAlchemyFinancialPeriodRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
+    SqlAlchemyActivityRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
+    SqlAlchemyAuditRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.integration.procurement_financial_outbox import (
+    SqlAlchemyProcurementFinancialOutboxRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import (
+    SqlAlchemyDepartmentRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.documents.documents import (
+    SqlAlchemyDocumentLinkRepository,
+    SqlAlchemyDocumentRepository,
+    SqlAlchemyDocumentStructureRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import (
+    SqlAlchemyEmployeeRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
+    SqlAlchemyOrganizationRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.party.party import (
+    SqlAlchemyPartyRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
+    SqlAlchemySiteRepository,
+)
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyAuthPolicyReconciliationRepository,
     SqlAlchemyAuthSessionRepository,
@@ -103,27 +128,31 @@ from src.core.platform.infrastructure.persistence.repositories.security.auth.aut
     SqlAlchemyRoleRepository,
     SqlAlchemyUserRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.master_data.documents.documents import (
-    SqlAlchemyDocumentLinkRepository,
-    SqlAlchemyDocumentRepository,
-    SqlAlchemyDocumentStructureRepository,
-)
-from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import SqlAlchemyDepartmentRepository
-from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import SqlAlchemyEmployeeRepository
-from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import SqlAlchemyOrganizationRepository
-from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import SqlAlchemyTenantRepository
-from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import SqlAlchemyUserTenantMembershipRepository
-from src.core.platform.infrastructure.persistence.repositories.master_data.party.party import SqlAlchemyPartyRepository
-from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import SqlAlchemySiteRepository
-from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import (
-    SqlAlchemyTimeEntryRepository,
-    SqlAlchemyTimesheetPeriodRepository,
-)
 from src.core.platform.infrastructure.persistence.repositories.security.identity.identity import (
     SqlAlchemyApiKeyCredentialRepository,
     SqlAlchemyServicePrincipalRepository,
 )
-
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
+    SqlAlchemyTenantRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
+    SqlAlchemyUserTenantMembershipRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
+    SqlAlchemyCalendarAssignmentRepository,
+    SqlAlchemyCalendarExceptionRepository,
+    SqlAlchemyCalendarRecurringEventRepository,
+    SqlAlchemyCalendarWorkingRuleRepository,
+    SqlAlchemyPlatformCalendarRepository,
+    SqlAlchemyShiftPatternRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import (
+    SqlAlchemyTimeEntryRepository,
+    SqlAlchemyTimesheetPeriodRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.time_management.time_financial_outbox import (
+    SqlAlchemyTimeFinancialOutboxRepository,
+)
 
 logger = logging.getLogger(__name__)
 

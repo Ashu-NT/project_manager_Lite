@@ -19,9 +19,10 @@ from src.core.platform.integration import (
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 from src.tests.integration.postgresql import (
     test_r6d_d_approved_time_labor_posting as time_case,
+)
+from src.tests.integration.postgresql import (
     test_r6d_e_commitment_projection as procurement_case,
 )
-
 
 pytestmark = pytest.mark.postgresql_integration
 
@@ -152,7 +153,7 @@ def _deliver_legal_paths(environment) -> None:
         project_id=time_case.PROJECT_A,
         command_id="r6df-rls-legal-manual",
         description="Same-scope manual Actual probe",
-        amount=Decimal("25"), currency_code="USD",
+        amount=Decimal(25), currency_code="USD",
         transaction_date=date(2026, 9, 10),
         cost_code_id=time_case.COST_CODE_A,
         resource_id=time_case.RESOURCE_A,

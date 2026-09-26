@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioProjectDependencyChanged,
+    PortfolioProjectDependencyChangeType,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.domain.portfolio import PortfolioProjectDependency
+from src.core.modules.project_management.domain.portfolio import (
+    PortfolioProjectDependency,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioProjectDependencyChangeType,
-    PortfolioProjectDependencyChanged,
-)
 
 
 class PortfolioDependencyCommandMixin:

@@ -203,7 +203,7 @@ class RegisterEntry:
         due_date: date | None = None,
         impact_summary: str = "",
         response_plan: str = "",
-    ) -> "RegisterEntry":
+    ) -> RegisterEntry:
         now = datetime.now(timezone.utc)
         return RegisterEntry(
             id=generate_id(),
@@ -225,10 +225,10 @@ class RegisterEntry:
 
 __all__ = [
     "RegisterEntry",
-    "RegisterEntryType",
     "RegisterEntrySeverity",
     "RegisterEntryStatus",
-    "as_register_entry_type",
+    "RegisterEntryType",
     "as_register_entry_severity",
     "as_register_entry_status",
+    "as_register_entry_type",
 ]

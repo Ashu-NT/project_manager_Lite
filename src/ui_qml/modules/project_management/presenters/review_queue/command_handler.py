@@ -2,13 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.api.desktop import ProjectManagementTimesheetsDesktopApi
+from src.core.modules.project_management.api.desktop import (
+    ProjectManagementTimesheetsDesktopApi,
+)
 
 from .validation import (
     optional_text,
     require_positive_int,
     require_text,
 )
+
 
 def approve_period(
     desktop_api: ProjectManagementTimesheetsDesktopApi,

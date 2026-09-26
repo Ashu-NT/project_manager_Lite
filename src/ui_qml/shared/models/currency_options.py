@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from src.core.platform.domain.finance.money.currency import ISO_4217_MINOR_UNITS
 
-
 DEFAULT_CURRENCY_CODE = "XAF"
 
 # ISO 4217 List One currency names, keyed by the same codes as

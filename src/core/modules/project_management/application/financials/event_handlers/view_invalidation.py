@@ -110,11 +110,11 @@ def build_financial_profile_view_invalidation_handler(channel: ViewInvalidationC
 
 
 __all__ = [
-    "build_financial_profile_view_invalidation_handler",
-    "FINANCIAL_SETUP_CATEGORY",
-    "FINANCIAL_PROFILE_SCOPE_CODE",
     "FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE",
     "FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE",
+    "FINANCIAL_PROFILE_SCOPE_CODE",
+    "FINANCIAL_SETUP_CATEGORY",
     "FINANCIAL_SETUP_MODULE_CODE",
     "FINANCIAL_SETUP_PROJECT_ENTITY_TYPE",
+    "build_financial_profile_view_invalidation_handler",
 ]

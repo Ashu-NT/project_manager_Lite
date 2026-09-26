@@ -244,7 +244,7 @@ class FinancialChangeImpactORM(Base):
     amount: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.MONEY),
         nullable=False,
-        default=Decimal("0"),
+        default=Decimal(0),
         info=financial_numeric_info(FinancialNumericKind.MONEY),
     )
     currency_code: Mapped[str | None] = mapped_column(String(8), nullable=True)

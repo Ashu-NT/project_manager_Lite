@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 WORKSPACE_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "organization": ("settings.manage",),
     "calendar": ("task.read",),

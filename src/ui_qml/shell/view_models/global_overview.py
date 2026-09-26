@@ -101,13 +101,13 @@ def build_context_line(
 
 
 __all__ = [
-    "SectionState",
-    "GlobalOverviewContextViewModel",
-    "AttentionCardViewModel",
     "ActionCenterRowViewModel",
     "ActivityRowViewModel",
+    "AttentionCardViewModel",
+    "GlobalOverviewContextViewModel",
+    "GlobalOverviewViewModel",
     "ModuleCardViewModel",
     "QuickActionViewModel",
-    "GlobalOverviewViewModel",
+    "SectionState",
     "build_context_line",
 ]

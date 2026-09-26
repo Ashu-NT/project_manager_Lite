@@ -15,6 +15,7 @@ from .command_handler import approve_period, lock_period, reject_period, unlock_
 from .review_builder import build_review_detail
 from .workspace_builder import build_workspace_state
 
+
 class ProjectTimesheetsWorkspacePresenter:
     def __init__(
         self,

@@ -79,14 +79,14 @@ def _submitted_preparation(services, session, *, suffix: str):
     profile = billing_profile_service.create_profile(
         project.id,
         contract_reference=f"CONTRACT-{suffix}",
-        contract_value=Decimal("50000"),
+        contract_value=Decimal(50000),
         customer_party_id="party-1",
     )
     profile = billing_profile_service.activate_profile(
         project.id, expected_row_version=profile.row_version
     )
     line = billing_profile_service.add_schedule_line(
-        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+        project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     )
     line = billing_profile_service.mark_schedule_line_ready(
         line.id, expected_row_version=line.row_version
@@ -132,14 +132,14 @@ def test_submit_preparation_uses_a_fresh_uow_session_shared_by_the_approval_requ
     profile = billing_profile_service.create_profile(
         project.id,
         contract_reference="CONTRACT-UOW",
-        contract_value=Decimal("50000"),
+        contract_value=Decimal(50000),
         customer_party_id="party-1",
     )
     profile = billing_profile_service.activate_profile(
         project.id, expected_row_version=profile.row_version
     )
     line = billing_profile_service.add_schedule_line(
-        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+        project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     )
     line = billing_profile_service.mark_schedule_line_ready(
         line.id, expected_row_version=line.row_version
@@ -193,14 +193,14 @@ def test_submit_preparation_audit_failure_rolls_back_preparation_and_approval_re
     profile = billing_profile_service.create_profile(
         project.id,
         contract_reference="CONTRACT-AUDITFAIL",
-        contract_value=Decimal("50000"),
+        contract_value=Decimal(50000),
         customer_party_id="party-1",
     )
     profile = billing_profile_service.activate_profile(
         project.id, expected_row_version=profile.row_version
     )
     line = billing_profile_service.add_schedule_line(
-        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+        project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     )
     line = billing_profile_service.mark_schedule_line_ready(
         line.id, expected_row_version=line.row_version

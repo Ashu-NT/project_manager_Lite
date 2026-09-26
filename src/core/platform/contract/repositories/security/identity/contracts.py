@@ -3,7 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from src.core.platform.domain.security.identity.service_principal import ApiKeyCredential, ServicePrincipal
+from src.core.platform.domain.security.identity.service_principal import (
+    ApiKeyCredential,
+    ServicePrincipal,
+)
 
 
 class ServicePrincipalRepository(ABC):

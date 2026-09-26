@@ -1,6 +1,8 @@
 """Factory for building the portfolio desktop API."""
 
-from src.core.modules.project_management.api.desktop.portfolio.api import ProjectManagementPortfolioDesktopApi
+from src.core.modules.project_management.api.desktop.portfolio.api import (
+    ProjectManagementPortfolioDesktopApi,
+)
 
 
 def build_project_management_portfolio_desktop_api(

@@ -1,7 +1,11 @@
 """Constraint violation view-model assembly."""
 
-from src.core.modules.project_management.api.desktop.scheduling.models.constraints import SchedulingConstraintViolationDto
-from src.core.modules.project_management.api.desktop.scheduling.serializers.constraint_serializer import serialize_constraint_violation
+from src.core.modules.project_management.api.desktop.scheduling.models.constraints import (
+    SchedulingConstraintViolationDto,
+)
+from src.core.modules.project_management.api.desktop.scheduling.serializers.constraint_serializer import (
+    serialize_constraint_violation,
+)
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 
 

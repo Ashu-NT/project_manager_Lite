@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -18,14 +18,14 @@ from src.core.modules.project_management.domain.financials.budget import (
     BudgetStatus,
     ProjectBudget,
 )
-from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
+from src.core.modules.project_management.domain.financials.configuration import (
+    CostCodePolicy,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
-    ValidationError,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -56,7 +56,7 @@ def _budget_line(**overrides) -> BudgetLine:
         budget_id="budget-1",
         project_id="project-1",
         cost_code_id="cost-code-1",
-        amount=Decimal("100"),
+        amount=Decimal(100),
         currency_code="USD",
     )
     values.update(overrides)
@@ -193,7 +193,7 @@ def _submit_with_line(services, budget: ProjectBudget) -> ProjectBudget:
         budget.id,
         cost_code_id=code.id,
         description="Line",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         expected_budget_version=budget.row_version,
     )
     current = budget_service.get_budget(budget.id)
@@ -325,8 +325,8 @@ def test_explicit_budget_approval_request_always_uses_platform_approval(
     assert approved.status is BudgetStatus.APPROVED
     assert sum(
         (line.amount for line in budget_service._budget_repo.list_lines(approved.id)),
-        Decimal("0"),
-    ) == Decimal("10")
+        Decimal(0),
+    ) == Decimal(10)
 
 
 def test_create_budget_requires_financial_profile(services, monkeypatch) -> None:
@@ -452,7 +452,7 @@ def test_submit_budget_requires_current_version(services) -> None:
         budget.id,
         cost_code_id=code.id,
         description="Line",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         expected_budget_version=budget.row_version,
     )
     with pytest.raises(ConcurrencyError):
@@ -469,7 +469,7 @@ def test_line_mutations_blocked_once_submitted(services) -> None:
         budget.id,
         cost_code_id=code.id,
         description="Line",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         expected_budget_version=budget.row_version,
     )
     budget = budget_service.get_budget(budget.id)
@@ -480,7 +480,7 @@ def test_line_mutations_blocked_once_submitted(services) -> None:
             budget.id,
             cost_code_id=code.id,
             description="Another",
-            amount=Decimal("5"),
+            amount=Decimal(5),
             expected_budget_version=budget.row_version,
         )
     assert exc.value.code == "PROJECT_BUDGET_IMMUTABLE"
@@ -490,7 +490,7 @@ def test_line_mutations_blocked_once_submitted(services) -> None:
             line.id,
             expected_line_version=line.row_version,
             expected_budget_version=budget.row_version,
-            amount=Decimal("50"),
+            amount=Decimal(50),
         )
     assert exc.value.code == "PROJECT_BUDGET_IMMUTABLE"
 
@@ -517,7 +517,7 @@ def test_delete_budget_only_succeeds_on_draft_and_cascades_lines(services) -> No
         budget.id,
         cost_code_id=code.id,
         description="Line",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         expected_budget_version=budget.row_version,
     )
     budget = budget_service.get_budget(budget.id)
@@ -570,7 +570,7 @@ def test_add_line_rejects_inactive_cost_code(services) -> None:
             budget.id,
             cost_code_id=code.id,
             description="Line",
-            amount=Decimal("10"),
+            amount=Decimal(10),
             expected_budget_version=budget.row_version,
         )
     assert exc.value.code == "PROJECT_BUDGET_LINE_COST_CODE_INACTIVE"
@@ -598,7 +598,7 @@ def test_add_line_rejects_cost_code_outside_restricted_allow_list(services) -> N
             budget.id,
             cost_code_id=disallowed.id,
             description="Line",
-            amount=Decimal("10"),
+            amount=Decimal(10),
             expected_budget_version=budget.row_version,
         )
     assert exc.value.code == "PROJECT_BUDGET_LINE_COST_CODE_NOT_PERMITTED"
@@ -608,7 +608,7 @@ def test_add_line_rejects_cost_code_outside_restricted_allow_list(services) -> N
         budget.id,
         cost_code_id=allowed.id,
         description="Line",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         expected_budget_version=budget.row_version,
     )
     assert line.cost_code_id == allowed.id
@@ -633,7 +633,7 @@ def test_add_line_rejects_cross_project_task(services) -> None:
             cost_code_id=code.id,
             task_id=other_task.id,
             description="Line",
-            amount=Decimal("10"),
+            amount=Decimal(10),
             expected_budget_version=budget.row_version,
         )
     assert exc.value.code == "PROJECT_BUDGET_LINE_TASK_PROJECT_MISMATCH"
@@ -651,7 +651,7 @@ def test_add_line_rejects_mismatched_currency(services) -> None:
             budget.id,
             cost_code_id=code.id,
             description="Line",
-            amount=Decimal("10"),
+            amount=Decimal(10),
             currency_code="EUR",
             expected_budget_version=budget.row_version,
         )
@@ -682,7 +682,7 @@ def test_add_line_rejects_cross_organization_cost_code(services) -> None:
             budget.id,
             cost_code_id=other_org_code.id,
             description="Line",
-            amount=Decimal("10"),
+            amount=Decimal(10),
             expected_budget_version=budget.row_version,
         )
 
@@ -704,7 +704,7 @@ def test_line_mutations_each_advance_parent_budget_row_version(services) -> None
         budget.id,
         cost_code_id=code.id,
         description="Line",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         expected_budget_version=version_after_create,
     )
     budget = budget_service.get_budget(budget.id)
@@ -715,7 +715,7 @@ def test_line_mutations_each_advance_parent_budget_row_version(services) -> None
         line.id,
         expected_line_version=line.row_version,
         expected_budget_version=version_after_add,
-        amount=Decimal("20"),
+        amount=Decimal(20),
     )
     budget = budget_service.get_budget(budget.id)
     assert budget.row_version != version_after_add
@@ -745,7 +745,7 @@ def test_stale_expected_budget_version_blocks_line_mutation_even_with_current_li
         budget.id,
         cost_code_id=code.id,
         description="Line",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         expected_budget_version=stale_budget_version,
     )
     # budget.row_version has now advanced past stale_budget_version.
@@ -754,7 +754,7 @@ def test_stale_expected_budget_version_blocks_line_mutation_even_with_current_li
             line.id,
             expected_line_version=line.row_version,
             expected_budget_version=stale_budget_version,
-            amount=Decimal("30"),
+            amount=Decimal(30),
         )
 
 
@@ -776,7 +776,7 @@ def test_submit_races_delete_of_last_line_exactly_one_succeeds(services) -> None
         budget.id,
         cost_code_id=code.id,
         description="Line",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         expected_budget_version=budget.row_version,
     )
     budget = budget_service.get_budget(budget.id)
@@ -1126,7 +1126,7 @@ def test_totals_by_cost_code_and_by_task_match_hand_computed_sums(services) -> N
         budget.id,
         cost_code_id=code_a.id,
         description="A1",
-        amount=Decimal("30"),
+        amount=Decimal(30),
         expected_budget_version=budget.row_version,
     )
     budget = budget_service.get_budget(budget.id)
@@ -1135,7 +1135,7 @@ def test_totals_by_cost_code_and_by_task_match_hand_computed_sums(services) -> N
         cost_code_id=code_a.id,
         task_id=task.id,
         description="A2",
-        amount=Decimal("20"),
+        amount=Decimal(20),
         expected_budget_version=budget.row_version,
     )
     budget = budget_service.get_budget(budget.id)
@@ -1143,17 +1143,17 @@ def test_totals_by_cost_code_and_by_task_match_hand_computed_sums(services) -> N
         budget.id,
         cost_code_id=code_b.id,
         description="B1",
-        amount=Decimal("50"),
+        amount=Decimal(50),
         expected_budget_version=budget.row_version,
     )
 
     totals_by_cost_code = budget_service.get_totals_by_cost_code(budget.id)
-    assert totals_by_cost_code[code_a.id] == Decimal("50")
-    assert totals_by_cost_code[code_b.id] == Decimal("50")
+    assert totals_by_cost_code[code_a.id] == Decimal(50)
+    assert totals_by_cost_code[code_b.id] == Decimal(50)
 
     totals_by_task = budget_service.get_totals_by_task(budget.id)
-    assert totals_by_task[task.id] == Decimal("20")
-    assert totals_by_task[""] == Decimal("80")
+    assert totals_by_task[task.id] == Decimal(20)
+    assert totals_by_task[""] == Decimal(80)
 
 
 # ---------------------------------------------------------------------------
@@ -1184,7 +1184,7 @@ def test_line_project_scope_is_enforced_by_the_composite_fk_at_db_level(services
         budget_id=budget.id,
         project_id=project_b.id,  # deliberately mismatched vs. the budget's project
         cost_code_id=code.id,
-        amount=Decimal("10"),
+        amount=Decimal(10),
         currency_code="USD",
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
@@ -1210,11 +1210,13 @@ def test_task_referenced_by_budget_line_cannot_be_hard_deleted(services) -> None
         cost_code_id=code.id,
         task_id=task.id,
         description="Task line",
-        amount=Decimal("10"),
+        amount=Decimal(10),
         expected_budget_version=budget.row_version,
     )
 
-    from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
+    from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+        TaskORM,
+    )
 
     session = services["session"]
     # SQLite enforces FK constraints immediately on the DML statement, not

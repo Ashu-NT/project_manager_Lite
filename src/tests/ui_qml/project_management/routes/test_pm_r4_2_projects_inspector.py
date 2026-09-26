@@ -17,7 +17,9 @@ def _to_py(value):
     return value.toVariant() if isinstance(value, QJSValue) else value
 
 from src.application.runtime import build_desktop_api_registry
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 from src.ui_qml.modules.project_management.routes import project_management_qml_path
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.qml_engine import create_qml_engine

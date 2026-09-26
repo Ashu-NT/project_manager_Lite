@@ -7,7 +7,9 @@ from src.ui_qml.modules.project_management.controllers.common import (
 
 
 def export_resources(controller, columns: list, file_path: str) -> dict[str, object]:
-    from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
+    from src.ui_qml.modules.project_management.utils.table_exporter import (
+        export_to_file,
+    )
 
     controller._set_error_message("")
     try:

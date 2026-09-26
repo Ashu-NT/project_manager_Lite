@@ -25,8 +25,14 @@ from src.core.modules.project_management.domain.financials.rate_cards import (
     RateSelectionSnapshot,
     RateType,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.domain.finance.money.money import Money
 from src.core.platform.domain.finance.money.quantity import MonetaryRate, normalize_unit
 

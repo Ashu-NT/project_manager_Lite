@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import Enum
+
+from pydantic import field_validator, model_validator
 
 from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.common.exceptions import ValidationError
@@ -12,7 +14,6 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from pydantic import field_validator, model_validator
 
 
 class BaselineStatus(str, Enum):
@@ -163,7 +164,7 @@ class ProjectBaseline:
         return normalize_optional_text(value)
 
     @model_validator(mode="after")
-    def _validate_lifecycle_metadata(self) -> "ProjectBaseline":
+    def _validate_lifecycle_metadata(self) -> ProjectBaseline:
         if self.status in {
             BaselineStatus.SUBMITTED,
             BaselineStatus.APPROVED,
@@ -210,7 +211,7 @@ class ProjectBaseline:
         return self.status == BaselineStatus.SUBMITTED
 
     @staticmethod
-    def create(project_id: str, name: str) -> "ProjectBaseline":
+    def create(project_id: str, name: str) -> ProjectBaseline:
         return ProjectBaseline(
             id=generate_id(),
             project_id=project_id,
@@ -283,7 +284,7 @@ class BaselineTask:
     baseline_finish: date | None
     baseline_duration_days: int
     baseline_is_milestone: bool = False
-    baseline_planned_cost: Decimal = Decimal("0")
+    baseline_planned_cost: Decimal = Decimal(0)
 
     @field_validator("id", mode="before")
     @classmethod
@@ -346,7 +347,7 @@ class BaselineTask:
         )
 
     @model_validator(mode="after")
-    def _validate_date_range(self) -> "BaselineTask":
+    def _validate_date_range(self) -> BaselineTask:
         if (
             self.baseline_start is not None
             and self.baseline_finish is not None
@@ -368,7 +369,7 @@ class BaselineTask:
         baseline_duration_days: int,
         baseline_planned_cost: Decimal,
         baseline_is_milestone: bool = False,
-    ) -> "BaselineTask":
+    ) -> BaselineTask:
         return BaselineTask(
             id=generate_id(),
             baseline_id=baseline_id,
@@ -502,7 +503,7 @@ class BaselineVarianceRecord:
         start_variance_days: int,
         finish_variance_days: int,
         cost_variance: Decimal,
-    ) -> "BaselineVarianceRecord":
+    ) -> BaselineVarianceRecord:
         return BaselineVarianceRecord(
             id=generate_id(),
             project_id=project_id,
@@ -519,7 +520,7 @@ class BaselineVarianceRecord:
 
 __all__ = [
     "BaselineStatus",
-    "BaselineVarianceRecord",
     "BaselineTask",
+    "BaselineVarianceRecord",
     "ProjectBaseline",
 ]

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 PM_CANONICAL_ROUTE_ID = "project_management.workspace"
 
 

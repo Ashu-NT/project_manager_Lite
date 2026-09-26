@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from zipfile import ZipFile
 
-import src.infra.platform.diagnostics as diagnostics
+from src.infra.platform import diagnostics
 from src.infra.platform.operational_support import (
     REDACTED,
     REDACTED_EMAIL,

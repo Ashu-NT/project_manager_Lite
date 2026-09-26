@@ -7,12 +7,12 @@ import pytest
 
 from src.application.runtime import build_desktop_api_registry
 from src.core.modules.project_management.application.financials.budgets.budget_events import (
-    BudgetLineChangeType,
     BudgetLineChanged,
+    BudgetLineChangeType,
     BudgetProfileUpdated,
     BudgetRemoved,
-    BudgetStatusChangeType,
     BudgetStatusChanged,
+    BudgetStatusChangeType,
     BudgetVersionCreated,
 )
 from src.core.modules.project_management.application.financials.budgets.event_handlers.view_invalidation import (
@@ -25,7 +25,9 @@ from src.core.modules.project_management.domain.financials.budget import BudgetS
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ResourceScope
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 
 def _pm_catalog(services) -> ProjectManagementWorkspaceCatalog:
@@ -171,7 +173,7 @@ def test_add_update_delete_line_each_produce_hints(services):
     hints = _spy_hints(services)
     line = budgets.add_line(
         budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal("100"), expected_budget_version=budget.row_version,
+        amount=Decimal(100), expected_budget_version=budget.row_version,
     )
     assert len(_budget_hints(hints)) == 2
 
@@ -179,7 +181,7 @@ def test_add_update_delete_line_each_produce_hints(services):
     budget = budgets.get_budget(budget.id)
     budgets.update_line(
         line.id, expected_line_version=line.row_version, expected_budget_version=budget.row_version,
-        amount=Decimal("150"),
+        amount=Decimal(150),
     )
     assert len(_budget_hints(hints)) == 2
 
@@ -222,7 +224,7 @@ def test_submit_and_direct_approve_progression_produces_status_changed_facts(ser
     budget = budgets.create_budget(project.id, "P38B Budget")
     budgets.add_line(
         budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal("100"), expected_budget_version=budget.row_version,
+        amount=Decimal(100), expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
 
@@ -244,7 +246,7 @@ def test_reject_produces_status_changed_fact(services):
     budget = budgets.create_budget(project.id, "P38B Budget")
     budgets.add_line(
         budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal("100"), expected_budget_version=budget.row_version,
+        amount=Decimal(100), expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
     budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
@@ -262,7 +264,7 @@ def test_close_produces_status_changed_fact(services):
     budget = budgets.create_budget(project.id, "P38B Budget")
     budgets.add_line(
         budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal("100"), expected_budget_version=budget.row_version,
+        amount=Decimal(100), expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
     budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
@@ -285,7 +287,7 @@ def test_approving_a_successor_supersedes_the_previous_approved_version(services
     first = budgets.create_budget(project.id, "V1")
     budgets.add_line(
         first.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal("100"), expected_budget_version=first.row_version,
+        amount=Decimal(100), expected_budget_version=first.row_version,
     )
     first = budgets.get_budget(first.id)
     first = budgets.submit_budget(first.id, "admin", expected_version=first.row_version)
@@ -315,7 +317,7 @@ def test_create_successor_alone_does_not_supersede_the_predecessor(services):
     first = budgets.create_budget(project.id, "V1")
     budgets.add_line(
         first.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal("100"), expected_budget_version=first.row_version,
+        amount=Decimal(100), expected_budget_version=first.row_version,
     )
     first = budgets.get_budget(first.id)
     first = budgets.submit_budget(first.id, "admin", expected_version=first.row_version)
@@ -346,7 +348,7 @@ def test_governed_approval_participant_emits_the_same_typed_status_fact(services
     budget = budgets.create_budget(project.id, "P38B Governed")
     budgets.add_line(
         budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal("100"), expected_budget_version=budget.row_version,
+        amount=Decimal(100), expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
     budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
@@ -391,7 +393,7 @@ def test_financial_change_application_produces_budget_and_financial_change_facts
     budget = budgets.create_budget(project.id, "FC Base Budget")
     line = budgets.add_line(
         budget.id, cost_code_id=cost_code.id, description="Scope",
-        amount=Decimal("100"), expected_budget_version=budget.row_version,
+        amount=Decimal(100), expected_budget_version=budget.row_version,
     )
     budget = budgets.get_budget(budget.id)
     budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
@@ -404,7 +406,7 @@ def test_financial_change_application_produces_budget_and_financial_change_facts
     )
     changes.add_impact(
         change.id, impact_type=FinancialChangeImpactType.BUDGET, description="Increase scope",
-        amount=Decimal("25"), cost_code_id=cost_code.id, target_line_id=line.id,
+        amount=Decimal(25), cost_code_id=cost_code.id, target_line_id=line.id,
         expected_change_version=change.row_version,
     )
     change = changes.get_change(change.id)
@@ -450,7 +452,7 @@ def test_add_line_reports_the_command_permission_without_a_boundary_pre_read(ser
     with pytest.raises(BusinessRuleError, match="budget.manage"):
         budgets.add_line(
             budget.id, cost_code_id=cost_code.id, description="Line",
-            amount=Decimal("100"), expected_budget_version=budget.row_version,
+            amount=Decimal(100), expected_budget_version=budget.row_version,
         )
 
 
@@ -507,7 +509,7 @@ def test_concurrent_update_line_second_writer_rejected(services, session):
     budget = budgets.create_budget(project.id, "Concurrency Budget")
     line = budgets.add_line(
         budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal("100"), expected_budget_version=budget.row_version,
+        amount=Decimal(100), expected_budget_version=budget.row_version,
     )
     assert line.row_version == 1
 

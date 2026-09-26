@@ -3,7 +3,6 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     safe_error_message,
@@ -17,23 +16,38 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
     ProjectResourcesWorkspacePresenter,
 )
-
-from .resource_state import (
-    default_overview,
-    default_resource_availability,
-    default_resource_context_page,
-    default_resource_inspector,
-    default_resources,
-    default_selected_resource,
+from src.ui_qml.shared.models.currency_options import (
+    CURRENCY_OPTIONS,
+    DEFAULT_CURRENCY_CODE,
 )
-from .resource_table_models import ResourceTableModels, create_resource_table_models
-from .resource_state_setters import ResourceStateSettersMixin
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
+from .resource_availability_handler import load_resource_availability
+from .resource_context_handler import (
+    load_resource_activity,
+    load_resource_assignments,
+    load_resource_employee_options,
+    load_resource_projects,
+)
 from .resource_domain_event_binder import (
     on_project_stale,
     on_resource_capabilities_stale,
     on_resource_list_stale,
     on_task_assignments_for_resource_stale,
     on_timesheet_resource_stale,
+)
+from .resource_export_handler import export_resources
+from .resource_mutation_handler import (
+    create_resource,
+    deactivate_resource,
+    generate_entity_code,
+    reactivate_resource,
+    update_resource,
+)
+from .resource_read_handler import (
+    load_resource_detail,
+    load_resource_inspector,
+    refresh_selected_resource_reads,
 )
 from .resource_selection_handler import (
     activate_resource,
@@ -44,13 +58,6 @@ from .resource_selection_handler import (
     set_resource_page_size,
     set_resource_sort,
     set_search_text,
-)
-from .resource_mutation_handler import (
-    create_resource,
-    deactivate_resource,
-    generate_entity_code,
-    reactivate_resource,
-    update_resource,
 )
 from .resource_skills_handler import (
     add_certification,
@@ -63,23 +70,16 @@ from .resource_skills_handler import (
     update_certification,
     update_skill,
 )
-from .resource_context_handler import (
-    load_resource_activity,
-    load_resource_assignments,
-    load_resource_employee_options,
-    load_resource_projects,
+from .resource_state import (
+    default_overview,
+    default_resource_availability,
+    default_resource_context_page,
+    default_resource_inspector,
+    default_resources,
+    default_selected_resource,
 )
-from .resource_availability_handler import load_resource_availability
-from .resource_export_handler import export_resources
-from .resource_read_handler import (
-    load_resource_detail,
-    load_resource_inspector,
-    refresh_selected_resource_reads,
-)
-from src.ui_qml.shared.models.currency_options import (
-    CURRENCY_OPTIONS,
-    DEFAULT_CURRENCY_CODE,
-)
+from .resource_state_setters import ResourceStateSettersMixin
+from .resource_table_models import ResourceTableModels, create_resource_table_models
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1

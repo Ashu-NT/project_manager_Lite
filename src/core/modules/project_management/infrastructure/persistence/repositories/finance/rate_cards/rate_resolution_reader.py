@@ -17,7 +17,10 @@ from src.core.modules.project_management.contracts.repositories.finance.rate_car
     RateResolutionCandidate,
     ResourceRateContext,
 )
-from src.core.modules.project_management.domain.financials.rate_cards import RateCardLine, RateType
+from src.core.modules.project_management.domain.financials.rate_cards import (
+    RateCardLine,
+    RateType,
+)
 from src.core.modules.project_management.infrastructure.persistence.mappers.rate_cards import (
     rate_card_line_from_orm,
 )

@@ -3,17 +3,20 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
 from PySide6.QtCore import QSettings
 
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
-from src.core.platform.common.exceptions import DomainError
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
 from src.core.platform.api.desktop.support.models.support import (
     SupportBundleDto,
     SupportEventDto,
@@ -23,8 +26,13 @@ from src.core.platform.api.desktop.support.models.support import (
     SupportSettingsUpdateCommand,
     SupportUpdateStatusDto,
 )
+from src.core.platform.common.exceptions import DomainError
 from src.infra.platform.diagnostics import build_diagnostics_bundle
-from src.infra.platform.operational_support import OperationalSupport, bind_trace_id, get_operational_support
+from src.infra.platform.operational_support import (
+    OperationalSupport,
+    bind_trace_id,
+    get_operational_support,
+)
 from src.infra.platform.path import user_data_dir
 from src.infra.platform.update import check_for_updates, default_update_manifest_source
 from src.infra.platform.updater import (

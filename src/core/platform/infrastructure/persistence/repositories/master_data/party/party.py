@@ -3,14 +3,21 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.core.platform.contract.repositories.master_data.party.contracts import (
+    PartyRepository,
+)
 from src.core.platform.domain.master_data.party import Party
-from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
-from src.core.platform.infrastructure.persistence.orm.master_data.party.party import PartyORM
+from src.core.platform.infrastructure.persistence.mappers.master_data.party.party import (
+    party_from_orm,
+    party_to_orm,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.party.party import (
+    PartyORM,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
 from src.infra.persistence.db.optimistic import update_with_version_check
-from src.core.platform.infrastructure.persistence.mappers.master_data.party.party import party_from_orm, party_to_orm
 
 
 class SqlAlchemyPartyRepository(TenantScopedRepositorySupport, PartyRepository):
