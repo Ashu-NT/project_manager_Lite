@@ -78,7 +78,7 @@ def billing_scope(postgres_test_environment):
             "INSERT INTO tenants (id, tenant_code, display_name, tenant_status, is_active, version) "
             "VALUES (:id, :code, 'Billing race', 'active', true, 1)"
         ), {"id": tenant, "code": suffix})
-        _seed_scope(connection, suffix=suffix, tenant_id=tenant, organization_id=org)
+        _seed_scope(connection, suffix=suffix, tenant_id=tenant, organization_id=org, include_outcome=False)
     return SimpleNamespace(
         tenant=tenant, org=org, project=f"r6b-billing-project-{suffix}",
         preparation=f"r6b-billing-preparation-{suffix}", schedule=f"r6b-billing-schedule-{suffix}",
