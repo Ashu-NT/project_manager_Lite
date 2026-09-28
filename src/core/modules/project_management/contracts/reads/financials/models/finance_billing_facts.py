@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 
+from .accounting_delivery import AccountingDeliveryFact
 from .finance_budget_facts import FinancePageFacts
 
 _SCHEDULE_SORT_KEYS = {"title", "statusLabel", "subtitle", "supportingText", "metaText"}
@@ -298,6 +299,12 @@ class AccountingStatusFact:
     latest_external_message: str
     latest_external_occurred_at: datetime | None
     updated_at: datetime
+    delivery: AccountingDeliveryFact | None = None
+    handoff_eligible: bool = False
+    can_request_accounting_handoff: bool = False
+    handoff_unavailable_reason: str | None = None
+    can_retry_accounting_handoff: bool = False
+    retry_unavailable_reason: str = "manual_retry_not_supported"
 
 
 @dataclass(frozen=True, slots=True)

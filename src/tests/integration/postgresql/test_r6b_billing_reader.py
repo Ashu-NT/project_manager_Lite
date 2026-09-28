@@ -116,7 +116,7 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
     connection.execute(text(
         "INSERT INTO project_billing_external_events "
         "(id, tenant_id, organization_id, project_id, preparation_id, event_type, external_system, external_status, idempotency_key, occurred_at, external_invoice_reference, message, recorded_at) "
-        "VALUES (:id, :tenant, :organization, :project, :preparation, 'delivery_accepted', 'ACCOUNTING', 'accepted', :key, :now, :invoice, '', :now)"
+        "VALUES (:id, :tenant, :organization, :project, :preparation, 'delivery_accepted', 'external_accounting', 'acknowledged', :key, :now, :invoice, '', :now)"
     ), {"id": f"r6b-billing-event-{suffix}", "tenant": tenant_id, "organization": organization_id, "project": project_id, "preparation": preparation_id, "key": f"billing-event-key-{suffix}", "invoice": f"INV-{suffix.upper()}", "now": now})
 
 
@@ -163,7 +163,7 @@ def test_billing_reader_is_bounded_through_runtime_rls_role(postgres_test_enviro
         assert (profile_count, schedule_count, preparation_count, detail_count, line_count) == (1, 2, 2, 1, 2)
         assert profile is not None and profile.contract_value == Decimal("125000.2500")
         assert schedule.total == 1 and schedule.items[0].source_state == "finalized"
-        assert preparations.total == 1 and preparations.items[0].latest_external_status == "accepted"
+        assert preparations.total == 1 and preparations.items[0].latest_external_status == "acknowledged"
         assert detail is not None and detail.finalized_lock_count == 1
         assert lines.total == 1 and lines.items[0].net_amount == Decimal("5000.2500")
     finally:
@@ -183,12 +183,12 @@ def test_accounting_status_reader_is_isolated_and_rls_scoped(postgres_test_envir
                 tenant_id=TENANT_A,
                 organization_id=ORG_A,
                 project_id=PROJECT_A,
-                request=AccountingStatusQuery(page_size=1, search="ACCOUNTING"),
+                request=AccountingStatusQuery(page_size=1, search="BP-A"),
             ),
         )
-        assert query_count == 2
+        assert query_count == 3
         assert page.total == 1
-        assert page.items[0].latest_external_status == "accepted"
+        assert page.items[0].latest_external_status == "acknowledged"
         assert page.items[0].latest_external_invoice_reference == "INV-A"
         assert reader.list_accounting_statuses(
             tenant_id=TENANT_B,

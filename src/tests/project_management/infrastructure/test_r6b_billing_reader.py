@@ -140,7 +140,7 @@ def _seed_billing(services):
         id="external-event-a", tenant_id=scope.tenant_id,
         organization_id=scope.organization_id, project_id=project.id,
         preparation_id="preparation-alpha", event_type="delivery_accepted",
-        external_system="ACCOUNTING", external_status="accepted",
+        external_system="external_accounting", external_status="acknowledged",
         idempotency_key="external-a", occurred_at=now,
         external_invoice_reference="INV-EXT-7", reconciliation_reference=None,
         message="Accepted by Accounting integration.", recorded_at=now,
@@ -169,7 +169,7 @@ def test_billing_readers_are_bounded_sorted_filtered_and_selection_is_explicit(s
     assert schedule.total == 2 and schedule.items[0].id == "schedule-alpha"
     assert schedule.items[0].source_state == "finalized"
     assert preparations.total == 2 and preparations.items[0].id == "preparation-alpha"
-    assert preparations.items[0].latest_external_status == "accepted"
+    assert preparations.items[0].latest_external_status == "acknowledged"
     assert reader.list_schedule(
         tenant_id=scope.tenant_id, organization_id=scope.organization_id,
         project_id=project.id,
@@ -192,6 +192,17 @@ def test_billing_readers_are_bounded_sorted_filtered_and_selection_is_explicit(s
 
 def test_accounting_status_reader_is_bounded_isolated_and_scope_safe(services):
     project, scope = _seed_billing(services)
+    now = datetime(2026, 9, 28, tzinfo=timezone.utc)
+    services["session"].add(ProjectBillingExternalEventORM(
+        id="authenticated-event", tenant_id=scope.tenant_id,
+        organization_id=scope.organization_id, project_id=project.id,
+        preparation_id="preparation-alpha", event_type="delivery_accepted",
+        external_system="external_accounting", external_status="acknowledged",
+        idempotency_key="authenticated-event", occurred_at=now,
+        external_invoice_reference=None, reconciliation_reference=None,
+        message="", recorded_at=now,
+    ))
+    services["session"].commit()
     reader = services["finance_workspace_query"]._billing_reader
 
     with _statement_count(services["session"]) as statements:
@@ -202,15 +213,15 @@ def test_accounting_status_reader_is_bounded_isolated_and_scope_safe(services):
             request=AccountingStatusQuery(page_size=1, search="ACCOUNTING"),
         )
 
-    assert len(statements) == 2
+    assert len(statements) == 3
     normalized_sql = " ".join(statements).lower()
     assert "project_billing_profiles" not in normalized_sql
     assert "project_billing_schedule_lines" not in normalized_sql
     assert "project_billing_preparation_lines" not in normalized_sql
     assert page.total == 1
     assert page.items[0].preparation_number == "BP-0001"
-    assert page.items[0].latest_external_status == "accepted"
-    assert page.items[0].latest_external_invoice_reference == "INV-EXT-7"
+    assert page.items[0].latest_external_status == "acknowledged"
+    assert page.items[0].latest_external_invoice_reference == ""
     assert reader.list_accounting_statuses(
         tenant_id="foreign-tenant",
         organization_id=scope.organization_id,

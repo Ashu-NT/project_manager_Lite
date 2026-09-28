@@ -24,8 +24,10 @@ class AccountingIntegrationCapabilityService:
             reason = AccountingHandoffDenial.MODULE_NOT_ENABLED
         else:
             connector = self._connectors.get(for_update=for_update)
-            if connector is None or not connector.enabled:
+            if connector is None:
                 reason = AccountingHandoffDenial.INTEGRATION_NOT_CONFIGURED
+            elif not connector.enabled:
+                reason = AccountingHandoffDenial.CONNECTION_DISABLED
             elif connector.adapter_id not in self._installed:
                 reason = AccountingHandoffDenial.ADAPTER_NOT_INSTALLED
             elif not eligible:

@@ -169,7 +169,7 @@ def test_handoff_failure_rolls_back_everything_then_retry(
     "state,reason",
     [
         ("module", "module_not_enabled"),
-        ("connector", "integration_not_configured"),
+        ("connector", "connection_disabled"),
         ("adapter", "adapter_not_installed"),
     ],
 )

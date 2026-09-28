@@ -1418,11 +1418,17 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view project Accounting outcomes"
         )
-        return self._billing_reader.list_accounting_statuses(
+        from .accounting_status_capabilities import with_accounting_capabilities
+
+        page = self._billing_reader.list_accounting_statuses(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             project_id=project_id,
             request=request or AccountingStatusQuery(),
+        )
+        return with_accounting_capabilities(
+            page, capability_service=self._accounting_capability,
+            authorized=self._has_project_permission(project_id, "finance.accounting_handoff.request"),
         )
 
     def get_setup_workspace(

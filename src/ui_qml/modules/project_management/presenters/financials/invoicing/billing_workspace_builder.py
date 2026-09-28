@@ -108,10 +108,10 @@ def build_accounting_status_collection(
     source: FinancialAccountingStatusPageDto,
 ) -> FinancialsCollectionViewModel:
     return FinancialsCollectionViewModel(
-        title="Accounting Outcomes",
+        title="Accounting Handoffs & Outcomes",
         subtitle=(
-            "Read-only external outcome evidence. A local handoff request is not "
-            "proof of delivery to Accounting."
+            "Transport delivery is not Accounting acknowledgement. "
+            "Acknowledgement is not invoice issuance; reconciliation is not payment."
         ),
         empty_state="No Accounting outcome evidence is available for this project.",
         items=tuple(_record(item) for item in source.items),

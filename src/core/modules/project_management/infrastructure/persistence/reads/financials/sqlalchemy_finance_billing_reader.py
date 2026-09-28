@@ -43,6 +43,8 @@ from src.core.platform.infrastructure.persistence.orm.approval.approval import (
     ApprovalRequestORM,
 )
 
+from .accounting_delivery_projection import load_accounting_deliveries
+
 _SCHEDULE_STATUSES = {"planned", "ready", "billed", "cancelled"}
 _PREPARATION_STATUSES = {
     "draft", "submitted", "approved", "delivery_pending", "delivered",
@@ -227,6 +229,13 @@ class SqlAlchemyFinanceBillingReader:
                 latest.c.message.label("external_message"),
                 latest.c.occurred_at.label("external_occurred_at"),
                 ProjectBillingPreparationORM.updated_at,
+                and_(
+                    ProjectBillingPreparationORM.status == "approved",
+                    ProjectBillingPreparationORM.line_count > 0,
+                    ProjectBillingPreparationORM.approval_request_id.is_not(None),
+                    ProjectBillingPreparationORM.approved_by.is_not(None),
+                    ProjectBillingPreparationORM.approved_at.is_not(None),
+                ).label("handoff_eligible"),
             )
             .select_from(ProjectBillingPreparationORM)
             .outerjoin(
@@ -266,6 +275,10 @@ class SqlAlchemyFinanceBillingReader:
             .offset(offset)
             .limit(page_size)
         ).all()
+        deliveries = load_accounting_deliveries(
+            self._session, tenant_id=tenant_id, organization_id=organization_id,
+            project_id=project_id, preparation_ids=[str(row.id) for row in rows],
+        )
         return FinancePageFacts(
             items=tuple(
                 AccountingStatusFact(
@@ -284,9 +297,11 @@ class SqlAlchemyFinanceBillingReader:
                     latest_reconciliation_reference=(
                         row.reconciliation_reference or ""
                     ),
-                    latest_external_message=row.external_message or "",
+                    latest_external_message="",
                     latest_external_occurred_at=row.external_occurred_at,
                     updated_at=row.updated_at,
+                    delivery=deliveries.get(str(row.id)),
+                    handoff_eligible=bool(row.handoff_eligible),
                 )
                 for row in rows
             ),
@@ -676,6 +691,14 @@ def _approval_join():
 
 
 def _latest_event_subquery(tenant_id: str, organization_id: str, project_id: str):
+    # Inbound sequence validation establishes monotonic lifecycle transitions;
+    # remote occurrence timestamps do not establish that ordering.
+    lifecycle = case(
+        (ProjectBillingExternalEventORM.external_status == "reconciled", 3),
+        (ProjectBillingExternalEventORM.external_status == "rejected", 2),
+        (ProjectBillingExternalEventORM.external_status == "acknowledged", 1),
+        else_=0,
+    )
     ranked = select(
         ProjectBillingExternalEventORM.id,
         ProjectBillingExternalEventORM.tenant_id,
@@ -687,7 +710,7 @@ def _latest_event_subquery(tenant_id: str, organization_id: str, project_id: str
         ProjectBillingExternalEventORM.external_status,
         ProjectBillingExternalEventORM.external_invoice_reference,
         ProjectBillingExternalEventORM.reconciliation_reference,
-        ProjectBillingExternalEventORM.message,
+        literal("").label("message"),
         ProjectBillingExternalEventORM.occurred_at,
         func.row_number().over(
             partition_by=(
@@ -696,7 +719,8 @@ def _latest_event_subquery(tenant_id: str, organization_id: str, project_id: str
                 ProjectBillingExternalEventORM.preparation_id,
             ),
             order_by=(
-                ProjectBillingExternalEventORM.occurred_at.desc(),
+                lifecycle.desc(),
+                ProjectBillingExternalEventORM.recorded_at.desc(),
                 ProjectBillingExternalEventORM.id.desc(),
             ),
         ).label("row_number"),
@@ -704,6 +728,8 @@ def _latest_event_subquery(tenant_id: str, organization_id: str, project_id: str
         ProjectBillingExternalEventORM.tenant_id == tenant_id,
         ProjectBillingExternalEventORM.organization_id == organization_id,
         ProjectBillingExternalEventORM.project_id == project_id,
+        ProjectBillingExternalEventORM.external_system == "external_accounting",
+        ProjectBillingExternalEventORM.external_status.in_(("acknowledged", "rejected", "reconciled")),
     ).subquery("ranked_billing_events")
     return select(*[ranked.c[name] for name in (
         "id", "tenant_id", "organization_id", "project_id", "preparation_id",
