@@ -321,6 +321,7 @@ Item {
 
                 Flickable {
                     id: contentFlickable
+                    objectName: "sectionDetailContentFlickable"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     contentWidth: width

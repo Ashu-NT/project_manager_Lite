@@ -6,26 +6,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-// Organization Detail's full Activity tab: a paginated, searchable,
-// filterable business-activity workspace for this organization -- distinct
-// from the tenant-wide Platform audit trail (Platform > Control > Audit)
-// and from Overview's small, bounded "Recent Activity" preview (still a
-// separate, unpaginated call -- see AdminOrganizationDetailPage.qml).
-// Renders with the canonical App.Widgets.ActivityFeed; this file owns no
-// activity-domain knowledge of its own -- every title/description/actor/
-// subject/tone/icon is presenter-supplied. All state (catalog/page/search/
-// filters) is owned by the orchestrator; this section is presentational
-// and emits signals for every user action.
-//
-// Layout: fills the page's actual available viewport (set by the
-// orchestrator, same Math.max(420, contentViewportHeight) pattern as
-// Sites/Departments/Employees/Documents) -- a content-driven height here
-// previously left dead space below the pagination footer on tall
-// viewports. The toolbar and pagination bar are pinned to the top/bottom
-// of that space and span its full width; only the feed itself scrolls
-// internally, capped to a readable width and centered, so it doesn't
-// stretch edge-to-edge on a wide monitor while search/filters/pagination
-// still use the full row.
+// This organization's paginated, searchable, filterable activity history.
 Item {
     id: root
 
@@ -48,10 +29,6 @@ Item {
     signal pageSizeRequested(int pageSize)
     signal itemActivated(var item)
 
-    // A readable feed width even on a very wide monitor -- an activity
-    // timeline stays scannable at ~1000px; no shared readable-content-width
-    // token exists yet in App.Theme, so this stays a local constant scoped
-    // to this one file rather than inventing a new global one.
     readonly property int _readableWidth: 1000
     readonly property bool _hasActiveFilter: root.searchText.trim().length > 0
         || root.typeFilter.length > 0 || root.dateFilter.length > 0
@@ -121,7 +98,7 @@ Item {
             AppWidgets.ActivityFeed {
                 id: _feed
                 width: Math.min(parent.width, root._readableWidth)
-                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.left: parent.left
                 items: root._items
                 emptyText: root._emptyText
                 onItemActivated: function(item) { root.itemActivated(item) }

@@ -114,17 +114,10 @@ Item {
             root._departmentsSearch, root._departmentsStatusFilter
         )
     }
-    // NOTE: `totalCount` on a paginated catalog is deliberately the whole-
-    // ORGANIZATION total (unaffected by any filter, including this site_id
-    // scope) -- the same convention `active_only` already follows for
-    // `filteredTotal` vs `totalCount`. `filteredTotal` is the one actually
-    // scoped to this site; using `totalCount` here previously leaked
-    // another site's/the organization's whole department count into this
-    // site's own tab badge and Key Statistics tile.
+    // `totalCount` is the whole-organization total; `filteredTotal` is
+    // scoped to this site.
     readonly property int _departmentCount: root._departmentsCatalog.filteredTotal || 0
 
-    // -- Employees tab: same site_id-scoped, paginated pattern as
-    // Departments above.
     property int _employeesPage: 1
     property int _employeesPageSize: 25
     property string _employeesSearch: ""
@@ -204,16 +197,7 @@ Item {
         )
     }
 
-    // Projects and Documents are deliberately NOT tabs here: Platform has
-    // no approved cross-module Site-scoped project read facade (Platform
-    // -> PM imports are forbidden by architecture) and no real Site<->
-    // Document relationship exists (no site_id association at all). A tab
-    // whose only content is "this is managed elsewhere, open that instead"
-    // is misleading product structure, not a capability -- see
-    // Related Actions below for the real external-navigation affordance.
-    // Entity Detail navigation contains only capabilities with meaningful
-    // entity-scoped content; a new tab is introduced only once a legitimate
-    // scoped capability/read model actually exists.
+    // Projects and Documents are not tabs -- see Related Actions for those.
     readonly property var _sections: [
         { "label": "Overview" },
         { "label": "Departments", "count": root._departmentCount },
@@ -237,21 +221,10 @@ Item {
             return root._subtitle
         case "Calendar":
             return "Working calendar and availability for this site."
-        case "Activity":
-            return "Business activity for this site."
         default:
             return ""
         }
     }
-    // Identity, lifecycle badge, and Edit/Actions live in the persistent
-    // header below (visible across every section) -- the per-section
-    // toolbar is shown for Overview (Refresh), Calendar (its own assignment
-    // actions), and Activity (title/subtitle only, no actions -- Activity's
-    // own embedded TableToolbar already has its own Refresh, so this bar
-    // never duplicates it here). Departments/Employees already render their
-    // own section title via AdminEntityWorkspace's title bar (and would hit
-    // the same duplicate-Refresh problem), so the outer toolbar stays
-    // hidden there too.
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
             return [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
@@ -266,11 +239,8 @@ Item {
         }
         return []
     }
-    readonly property bool _showSectionToolbar: root._activeSectionLabel === "Overview" || root._activeSectionLabel === "Calendar" || root._activeSectionLabel === "Activity"
+    readonly property bool _showSectionToolbar: root._activeSectionLabel === "Overview" || root._activeSectionLabel === "Calendar"
 
-    // -- Overview: Basic Information / Physical Address / Operational
-    // Context field groups, plus Key Statistics / Related Actions sourced
-    // from real, already-fetched (no extra N+1) site-scoped data.
     readonly property var _basicInfoFields: [
         { "label": "Site Name", "value": root._displayValue(root._state.name || root.site.title) },
         { "label": "Site Code", "value": root._displayValue(root._state.siteCode) },
