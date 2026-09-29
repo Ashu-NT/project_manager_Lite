@@ -204,20 +204,23 @@ Item {
         )
     }
 
-    readonly property var _sections: {
-        const sections = [
-            { "label": "Overview" },
-            { "label": "Departments", "count": root._departmentCount },
-            { "label": "Employees", "count": root._employeeCount }
-        ]
-        if (root._pmEnabled) {
-            sections.push({ "label": "Projects" })
-        }
-        sections.push({ "label": "Calendar" })
-        sections.push({ "label": "Documents" })
-        sections.push({ "label": "Activity" })
-        return sections
-    }
+    // Projects and Documents are deliberately NOT tabs here: Platform has
+    // no approved cross-module Site-scoped project read facade (Platform
+    // -> PM imports are forbidden by architecture) and no real Site<->
+    // Document relationship exists (no site_id association at all). A tab
+    // whose only content is "this is managed elsewhere, open that instead"
+    // is misleading product structure, not a capability -- see
+    // Related Actions below for the real external-navigation affordance.
+    // Entity Detail navigation contains only capabilities with meaningful
+    // entity-scoped content; a new tab is introduced only once a legitimate
+    // scoped capability/read model actually exists.
+    readonly property var _sections: [
+        { "label": "Overview" },
+        { "label": "Departments", "count": root._departmentCount },
+        { "label": "Employees", "count": root._employeeCount },
+        { "label": "Calendar" },
+        { "label": "Activity" }
+    ]
     readonly property string _activeSectionLabel: {
         const section = root._sections[root.activeSectionIndex]
         return section ? String(section.label || "") : "Overview"
@@ -247,9 +250,8 @@ Item {
     // own embedded TableToolbar already has its own Refresh, so this bar
     // never duplicates it here). Departments/Employees already render their
     // own section title via AdminEntityWorkspace's title bar (and would hit
-    // the same duplicate-Refresh problem), and Projects/Documents already
-    // render their own section heading via AdminInformationalDetailSection,
-    // so the outer toolbar stays hidden for all four of those.
+    // the same duplicate-Refresh problem), so the outer toolbar stays
+    // hidden there too.
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
             return [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
@@ -292,10 +294,24 @@ Item {
         "departmentCount": root._departmentCount,
         "employeeCount": root._employeeCount
     })
-    readonly property var _relatedActions: [
-        { "id": "departments", "label": "Manage Departments", "icon": "department" },
-        { "id": "employees", "label": "Manage Employees", "icon": "employee" }
-    ]
+    // Manage Departments/Employees are context-preserving local actions
+    // (open this site's own tab). Open Project Management/Open Documents
+    // are optional EXTERNAL actions -- real cross-module navigation, not a
+    // substitute for a scoped tab (see the note on `_sections` above for
+    // why Projects/Documents are not tabs here). Documents' navigation
+    // always works (a real Platform-internal destination); Project
+    // Management is only offered when the module is actually enabled.
+    readonly property var _relatedActions: {
+        const actions = [
+            { "id": "departments", "label": "Manage Departments", "icon": "department" },
+            { "id": "employees", "label": "Manage Employees", "icon": "employee" }
+        ]
+        if (root._pmEnabled) {
+            actions.push({ "id": "open_project_management", "label": "Open Project Management", "icon": "project" })
+        }
+        actions.push({ "id": "open_documents", "label": "Open Documents", "icon": "documents" })
+        return actions
+    }
 
     function _navigateFromOverview(destinationId) {
         const label = destinationId === "departments" ? "Departments" : destinationId === "employees" ? "Employees" : ""
@@ -564,28 +580,6 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Projects" ? projectsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: projectsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Projects"
-                keepLoaded: true
-                loadingMessage: "Loading site project guidance..."
-                sourceComponent: Component {
-                    SiteSections.SiteProjectsSection {
-                        onCtaRequested: root.actionRequested("open_project_management")
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
             implicitHeight: root._activeSectionLabel === "Calendar" ? calendarLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
@@ -608,28 +602,6 @@ Item {
                         busy: root.busy
                         onAssignCalendarRequested: root.actionRequested("assign_calendar")
                         onOpenCalendarManagementRequested: root.actionRequested("open_calendar_mgmt")
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Documents" ? documentsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: documentsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Documents"
-                keepLoaded: true
-                loadingMessage: "Loading site document guidance..."
-                sourceComponent: Component {
-                    SiteSections.SiteDocumentsSection {
-                        onCtaRequested: root.actionRequested("open_documents")
                     }
                 }
             }

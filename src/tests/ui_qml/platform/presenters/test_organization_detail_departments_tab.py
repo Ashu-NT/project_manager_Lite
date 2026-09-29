@@ -145,3 +145,57 @@ def test_departments_tab_controller_slot_applies_status_filter_server_side(servi
     assert result["items"] == []
     assert result["totalCount"] == 2
     assert result["filteredTotal"] == 0
+
+
+def test_departments_section_status_combo_emits_status_filter_requested(qapp) -> None:
+    """Regression: OrganizationDepartmentsSection's status ComboBox used to
+    call `root.statusFilterChanged(...)` (QML's auto-generated, zero-arg
+    property-changed notify signal for `property string statusFilter`) --
+    a typo for the hand-declared `statusFilterRequested(string value)`
+    action signal. Emitting the wrong signal name neither updated
+    `statusFilter` nor reached AdminOrganizationDetailPage.qml's
+    `onStatusFilterRequested` handler, so selecting a different status in
+    the dropdown silently did nothing. Exercises the actual QML ComboBox
+    `activated` signal end-to-end (not just the Python controller slot
+    directly) so this class of QML-only wiring bug is caught."""
+    from PySide6.QtCore import QCoreApplication, QMetaObject, Qt, Q_ARG
+    from PySide6.QtQuick import QQuickItem
+
+    from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
+
+    section_path = Path(
+        "src/ui_qml/platform/qml/workspaces/organizations/sections/OrganizationDepartmentsSection.qml"
+    )
+
+    engine = create_qml_engine()
+    try:
+        load_qml(
+            engine,
+            section_path.resolve(),
+            initial_properties={
+                "statusFilterOptions": [
+                    {"value": "", "label": "All"},
+                    {"value": "active", "label": "Active"},
+                    {"value": "inactive", "label": "Inactive"},
+                ],
+            },
+        )
+        root = engine.rootObjects()[0]
+        for _ in range(20):
+            QCoreApplication.processEvents()
+
+        received: list[str] = []
+        root.statusFilterRequested.connect(lambda value: received.append(value))
+
+        combo = root.findChild(QQuickItem, "organizationDepartmentsStatusFilterCombo")
+        assert combo is not None
+        combo.setProperty("currentIndex", 2)  # "Inactive"
+        QMetaObject.invokeMethod(combo, "activated", Qt.DirectConnection, Q_ARG(int, 2))
+        for _ in range(20):
+            QCoreApplication.processEvents()
+
+        assert received == ["inactive"], received
+    finally:
+        for root_object in engine.rootObjects():
+            root_object.deleteLater()
+        QCoreApplication.processEvents()

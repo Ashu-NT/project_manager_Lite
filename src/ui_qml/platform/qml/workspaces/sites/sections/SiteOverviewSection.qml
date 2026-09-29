@@ -366,10 +366,13 @@ Column {
                     }
                 }
 
-                // -- Related Actions: Departments/Employees are this site's
-                // own local tabs -- no Projects/Documents tile since
-                // neither has a real scoped destination today (see
-                // SiteProjectsSection.qml / SiteDocumentsSection.qml).
+                // -- Related Actions: Manage Departments/Manage Employees
+                // are context-preserving local actions (this site's own
+                // tabs). Open Project Management/Open Documents (when
+                // present in root.relatedActions) are real external
+                // cross-module navigation -- Projects/Documents are
+                // deliberately NOT tabs here (see the note on
+                // AdminSiteDetailPage.qml's `_sections`).
                 AppWidgets.SectionCard {
                     Layout.fillWidth: true
                     visible: root.relatedActions.length > 0

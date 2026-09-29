@@ -71,6 +71,7 @@ Item {
 
         AppControls.ComboBox {
             id: _statusFilterCombo
+            objectName: "organizationDepartmentsStatusFilterCombo"
             Layout.preferredWidth: 150
             model: root.statusFilterOptions
             textRole: "label"
@@ -81,7 +82,7 @@ Item {
                 }
                 return 0
             }
-            onActivated: root.statusFilterChanged(String(currentValue || ""))
+            onActivated: root.statusFilterRequested(String(currentValue || ""))
         }
 
         onCreateRequested: root.createRequested()

@@ -257,10 +257,14 @@ def _open_site_detail(services, api_registry, *, site_id: str):
 
 def _tabs_for(detail_page) -> dict[int, str]:
     """Section index -> name, read from the real _sections array rather
-    than hardcoded -- Projects is only inserted (at index 3, shifting
-    Calendar/Documents/Activity by one) when project_management is
-    enabled, so a fixed index map silently mislabels captures depending on
-    which modules are on."""
+    than hardcoded -- Site Detail's own section set (Overview, Departments,
+    Employees, Calendar, Activity) is otherwise fixed, but reading it live
+    keeps this test honest against `AdminSiteDetailPage.qml`'s actual
+    `_sections` property rather than a copy that can drift. Projects and
+    Documents are deliberately not tabs here (no approved cross-module
+    Site-scoped project read facade, and no real Site<->Document
+    relationship) -- see "Open Project Management"/"Open Documents" in
+    Overview's Related Actions instead."""
     raw = detail_page.property("_sections")
     sections = raw.toVariant() if hasattr(raw, "toVariant") else (raw or [])
     return {i: str(s.get("label", "")).lower() for i, s in enumerate(sections)}

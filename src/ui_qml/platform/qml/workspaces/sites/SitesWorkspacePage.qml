@@ -9,6 +9,7 @@ import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
 import Platform.Dialogs 1.0 as AdminDialogs
 import App.Controls 1.0 as AppControls
+import Shell.Context 1.0 as ShellContexts
 import "sections/SitesColumnConfig.js" as ColumnConfig
 import "sections/SiteDepartmentsColumns.js" as DepartmentColumns
 import "sections/SiteEmployeesColumns.js" as EmployeeColumns
@@ -25,6 +26,13 @@ AppLayouts.WorkspaceFrame {
     property PlatformControllers.PlatformAdminWorkspaceController workspaceController: root.platformCatalog
         ? root.platformCatalog.adminWorkspace
         : null
+    // Threaded straight down from PlatformWorkspacePage -> AdminSiteDetailPage's
+    // Projects bridge, which uses it to switch the top-level module into
+    // Project Management via the shell's own selectRoute() -- the same
+    // cross-module navigation abstraction PM's own dashboard cards already
+    // use in the opposite direction. Never imported by Platform business
+    // logic; just a plain passed-through reference.
+    property ShellContexts.ShellContext shellModel
 
     // Bubbled to PlatformWorkspacePage: plain destination switch (no target
     // row), e.g. a "manage departments" toolbar action.
@@ -335,7 +343,17 @@ AppLayouts.WorkspaceFrame {
         if (actionId === "create_department") { dialogHostLoader.invoke("openDepartmentCreate"); return }
         if (actionId === "create_employee") { dialogHostLoader.invoke("openEmployeeCreate"); return }
         if (actionId === "open_documents") { root.navigateToDestination("documents"); return }
-        if (actionId === "open_project_management") { root.navigateToDestination("project_management"); return }
+        if (actionId === "open_project_management") {
+            // "project_management" is a separate top-level module, not a
+            // Platform-internal destination -- PlatformWorkspacePage's own
+            // router has no such surface and would silently fall back to
+            // Overview. Switch modules the same way PM's own dashboard
+            // cards already do in the opposite direction: the shell's
+            // ShellContext.selectRoute(), never a Platform->PM import or a
+            // fake Platform destination.
+            if (root.shellModel) root.shellModel.selectRoute("project_management.workspace")
+            return
+        }
         if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
         if (actionId === "edit") { root.openEdit(id); return }
         if (actionId === "activate" || actionId === "deactivate" || actionId === "archive") {
