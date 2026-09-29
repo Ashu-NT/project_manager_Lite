@@ -11,11 +11,6 @@ Item {
 
     property bool open: false
     property string title: ""
-    // Opt-in entity lifecycle badge + secondary identity line, rendered next
-    // to/below the title -- e.g. an "Active"/"Inactive"/"Archived" StatusChip
-    // and a "CODE · Country" line. Every existing caller leaves these empty
-    // and the header renders exactly as before (see Organization Detail for
-    // the reference consumer of this pattern).
     property string statusLabel: ""
     property string statusTone: ""
     property string subtitleLine: ""
@@ -83,25 +78,6 @@ Item {
         return item && item.detailPagePinned === true
     }
 
-    // A pinned child's own `visible` binding commonly flips AFTER the
-    // reparent below (e.g. AdminSiteDetailPage.qml's ContextualActionToolbar
-    // toggling with `_showSectionToolbar` as the active section changes).
-    // stickyColumn is a plain Item, not a Column/Row/Grid positioner or a
-    // ColumnLayout: a Positioner does not reliably track a later-reparented
-    // child's visibility/geometry changes at all (its bookkeeping and the
-    // item's effective visibility silently fall out of sync, permanently
-    // freezing stickyHost at zero height); a Layout goes further and can
-    // actively re-assert `visible: false` on a reparented child during its
-    // own relayout pass when the child's `implicitWidth` reads 0 (true for
-    // a bare Rectangle/Item with only an explicit `width` override, since
-    // Layouts size from `implicitWidth`/`Layout.preferredWidth`, not the
-    // literal `width` property) -- confirmed live: even a direct
-    // `setProperty("visible", true)` got silently overwritten back to
-    // false on the very next event-loop tick. Both failure modes are
-    // avoided entirely by never handing size/visibility authority to any
-    // automatic container: `_relayoutStickyColumn()` positions/sizes each
-    // pinned child explicitly (stacked top-to-bottom, skipping invisible
-    // ones) and drives `stickyHost`'s height itself.
     property real _stickyContentHeight: 0
 
     function _relayoutStickyColumn() {
@@ -118,16 +94,6 @@ Item {
         root._stickyContentHeight = y
     }
 
-    // Called exactly once per child, from the one place in _syncPinnedContent
-    // that reparents it for the first time (every later sync pass skips a
-    // child whose `.parent` already equals stickyColumn) -- no separate
-    // "already watched" guard needed, and none is attempted: QQuickItem
-    // does not support attaching new ad-hoc JS properties the way a plain
-    // JS object does (an earlier attempt at `child._watched = true` here
-    // threw "Cannot assign to non-existent property" on every reparent,
-    // silently aborting the rest of _syncPinnedContent -- including the
-    // relayout call below -- which was the actual root cause of the
-    // pinned toolbar staying permanently invisible).
     function _watchPinnedGeometry(child) {
         child.visibleChanged.connect(function() { Qt.callLater(root._relayoutStickyColumn) })
         child.heightChanged.connect(function() { Qt.callLater(root._relayoutStickyColumn) })
@@ -325,48 +291,6 @@ Item {
                 implicitHeight: root._stickyContentHeight
                 clip: true
 
-                // Deliberately a plain Item, not a Column/Row/Grid
-                // positioner and not a Layout: pinned children
-                // (detailPagePinned: true) are reparented in here
-                // imperatively via _syncPinnedContent()/Qt.callLater,
-                // outside normal declarative construction. Three
-                // compounding failure modes were found and fixed (all
-                // reproduced live against a real running Site Detail page,
-                // not just reasoned about):
-                //
-                // 1. A Positioner (Column/Row/Grid) does not reliably track
-                //    a later-reparented child's visibility/geometry changes
-                //    at all, permanently collapsing stickyHost to zero
-                //    height once a pinned child's `visible` binding first
-                //    flips after the reparent (e.g. switching detail page
-                //    tabs) -- this is why the Overview/Calendar section
-                //    toolbar never rendered.
-                // 2. A Layout (ColumnLayout/RowLayout/GridLayout) goes
-                //    further: it can actively re-assert `visible: false` on
-                //    a reparented child during its own relayout pass when
-                //    the child's implicitWidth reads 0 (true for a bare
-                //    Rectangle/Item that only sets an explicit `width`
-                //    override) -- this overrode even a direct
-                //    `setProperty("visible", true)`.
-                // 3. `stickyHost` itself being `visible: implicitHeight > 0`
-                //    -- i.e. explicitly invisible whenever empty -- silently
-                //    suppressed *descendant* visibility-binding evaluation
-                //    entirely while it was invisible: a pinned child's own
-                //    `visible` binding would stop tracking its source
-                //    property and read back stale/false even long after the
-                //    source flipped true again and stickyHost had become
-                //    visible once more. This is why the round-trip
-                //    (hide -> show again) stayed broken even after fixing
-                //    (1) and (2) -- stickyHost must never itself be
-                //    `visible: false`; `implicitHeight: 0` (+ `clip: true`,
-                //    so empty content never visually leaks) already makes
-                //    it take no space.
-                //
-                // Fix: hand size/visibility authority to no automatic
-                // container at all. `_relayoutStickyColumn()` positions and
-                // sizes every pinned child explicitly (stacked top-to-
-                // bottom, skipping invisible ones), and this Item just
-                // hosts the result at whatever height that computed.
                 Item {
                     id: stickyColumn
                     objectName: "stickyColumn"
@@ -400,7 +324,9 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     contentWidth: width
-                    contentHeight: contentColumn.implicitHeight + root.contentBottomPadding
+                    contentHeight: contentColumn.implicitHeight > height
+                        ? contentColumn.implicitHeight + root.contentBottomPadding
+                        : height
                     clip: true
 
                     Column {
