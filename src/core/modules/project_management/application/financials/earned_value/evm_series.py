@@ -22,6 +22,7 @@ from src.core.modules.project_management.contracts.reads.financials.evm_series_r
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
@@ -68,7 +69,7 @@ class EarnedValueSeriesCalculator:
             as_of=as_of,
         )
         if facts is None:
-            return []
+            raise NotFoundError("Project or baseline not found.", code="PROJECT_NOT_FOUND")
         if facts.baseline_id is None or not facts.baseline_tasks:
             return []
 

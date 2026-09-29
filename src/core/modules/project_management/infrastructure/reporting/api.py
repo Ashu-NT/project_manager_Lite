@@ -181,7 +181,7 @@ def _build_excel_context(request: ExcelReportRequest) -> ExcelReportContext:
         else None
     )
     return ExcelReportContext(
-        kpi=reporting_service.get_project_kpis(request.project_id),
+        kpi=reporting_service.get_project_kpis(request.project_id, as_of=as_of),
         gantt=reporting_service.get_gantt_data(request.project_id),
         resources=reporting_service.get_resource_load_summary(request.project_id),
         evm=_available_evm(evm),
@@ -228,7 +228,7 @@ def _build_pdf_context(request: PdfReportRequest, gantt_path: Path | None) -> Pd
         else None
     )
     return PdfReportContext(
-        kpi=reporting_service.get_project_kpis(request.project_id),
+        kpi=reporting_service.get_project_kpis(request.project_id, as_of=as_of),
         gantt_png_path=str(gantt_path) if gantt_path else "",
         resources=reporting_service.get_resource_load_summary(request.project_id),
         evm=_available_evm(evm),

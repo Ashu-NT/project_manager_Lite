@@ -100,6 +100,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         project_id: str,
         *,
         schedule: dict[str, CPMTaskInfo] | None = None,
+        as_of: date | None = None,
     ) -> ProjectKPI:
         self._require_view("view project kpis", project_id=project_id)
         project = self._project_repo.get(project_id)
@@ -143,7 +144,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         cost_variance: Decimal | None = None
         committed_variance: Decimal | None = None
         if financial_detail_included:
-            cost_snapshot = self._build_cost_policy_snapshot(project_id=project_id)
+            cost_snapshot = self._build_cost_policy_snapshot(project_id=project_id, as_of=as_of)
             total_planned = self._sum_bucket_map(
                 cost_snapshot.planned_map,
                 cost_snapshot.project_currency,

@@ -284,7 +284,8 @@ def task_facts_statement(
 
 
 def evm_baseline_statement(
-    *, tenant_id: str, organization_id: str, project_id: str, baseline_id: str | None
+    *, tenant_id: str, organization_id: str, project_id: str, baseline_id: str | None,
+    approved_only: bool = True,
 ) -> SqlSelect:
     stmt = (
         select(ProjectBaselineORM.id)
@@ -295,9 +296,10 @@ def evm_baseline_statement(
                 organization_id=organization_id,
                 project_id=project_id,
             ),
-            ProjectBaselineORM.status == BaselineStatus.APPROVED.value,
         )
     )
+    if approved_only:
+        stmt = stmt.where(ProjectBaselineORM.status == BaselineStatus.APPROVED.value)
     if baseline_id is not None:
         return stmt.where(ProjectBaselineORM.id == baseline_id)
     return stmt.order_by(

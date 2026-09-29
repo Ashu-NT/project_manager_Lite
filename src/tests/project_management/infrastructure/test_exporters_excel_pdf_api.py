@@ -273,7 +273,7 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
     )
 
     class DummyReportingService:
-        def get_project_kpis(self, _project_id):
+        def get_project_kpis(self, _project_id, *, as_of=None):
             return kpi
 
         def get_gantt_data(self, _project_id):

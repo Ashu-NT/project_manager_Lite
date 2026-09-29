@@ -51,7 +51,15 @@ class SqlAlchemyEvmSeriesReader:
             )
         ).scalar_one_or_none()
         if baseline_id is not None and resolved_baseline_id is None:
-            return None
+            scoped_identity = self._session.execute(
+                evm_baseline_statement(
+                    tenant_id=tenant_id, organization_id=organization_id,
+                    project_id=project_id, baseline_id=baseline_id,
+                    approved_only=False,
+                )
+            ).scalar_one_or_none()
+            if scoped_identity is None:
+                return None
         baseline_tasks: tuple[EvmBaselineTaskFact, ...] = ()
         if resolved_baseline_id is not None:
             baseline_tasks = tuple(

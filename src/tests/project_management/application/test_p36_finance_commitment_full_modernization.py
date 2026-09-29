@@ -356,7 +356,6 @@ def test_concurrent_line_update_second_writer_rejected(services, session):
     )
 
     organization, project, cost_code, site, supplier, _period = _setup(services)
-    service = services["commitment_service"]
     line = _apply_source(
         services,
         _commitment_source(

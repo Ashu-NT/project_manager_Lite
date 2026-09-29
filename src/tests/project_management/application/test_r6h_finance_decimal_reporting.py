@@ -1,6 +1,10 @@
 from decimal import Decimal
 from types import SimpleNamespace
 
+from src.core.modules.project_management.api.desktop.financials.serializers.snapshot_serializer import (
+    empty_overview,
+)
+
 from src.core.modules.project_management.application.financials.cost.engines.cost_breakdown_engine import (
     CostBreakdownEngine,
 )
@@ -30,6 +34,13 @@ def test_reporting_breakdown_keeps_exact_money_and_zero_without_baseline_substit
     assert row.planned == Decimal(0)
     snapshot.actual_map.clear()
     assert engine.build_breakdown_from_snapshot(snapshot) == []
+
+
+def test_empty_overview_does_not_manufacture_financial_zero():
+    overview = empty_overview(project_id="")
+    for metric in ("budget", "actual", "committed", "available"):
+        assert getattr(overview, metric) is None
+        assert getattr(overview, f"{metric}_label") == "Not available"
 
 
 def test_labor_diagnostics_multiply_decimal_rate_and_hours_exactly():

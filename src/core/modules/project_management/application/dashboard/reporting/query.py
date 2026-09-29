@@ -21,6 +21,7 @@ from src.core.modules.project_management.application.scheduling.models.cpm impor
 class DashboardReportingQuery(Protocol):
     def get_project_kpis(
         self, project_id: str, *, schedule: dict[str, CPMTaskInfo] | None = None,
+        as_of: date | None = None,
     ) -> ProjectKPI: ...
 
     def get_resource_load_summary(self, project_id: str) -> list[ResourceLoadRow]: ...
