@@ -43,7 +43,7 @@ AppLayouts.WorkspaceFrame {
         { key: "siteName",    label: "Site",        flex: 2.4, minWidth: 180, sortable: true, visible: true },
         { key: "statusLabel", label: "Status",      flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
         { key: "headOfDepartmentDisplay", label: "Head of Department", flex: 2.2, minWidth: 160, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint },
-        { key: "metaText",    label: "Cost Center", flex: 2, minWidth: 120, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint }
+        { key: "metaText",    label: "Cost Center Code", flex: 2, minWidth: 120, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint }
     ]
     readonly property var _employeeColumns: [
         { key: "title",       label: "Name",             flex: 3, minWidth: 160, sortable: true,  visible: true },
@@ -145,7 +145,7 @@ AppLayouts.WorkspaceFrame {
                 "title": "Business Context",
                 "rows": [
                     { "label": "Head of Department", "value": String(state.headOfDepartmentDisplay || "") },
-                    { "label": "Cost Center", "value": String(state.costCenterCode || "") },
+                    { "label": "Cost Center Code", "value": String(state.costCenterCode || "") },
                     { "label": "Notes", "value": String(state.notes || "") }
                 ]
             }

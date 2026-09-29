@@ -17,7 +17,7 @@ function baseColumns(compactBreakpoint) {
         { "key": "departmentCode",       "label": "Code",             "flex": 1.2, "minWidth": 120, "visibleByDefault": true },
         { "key": "departmentType",       "label": "Type",             "flex": 1.4, "minWidth": 120, "hideBelow": compactBreakpoint, "visibleByDefault": true },
         { "key": "statusLabel",          "label": "Status",           "flex": 0,   "minWidth": 90,  "type": "status", "required": true, "visibleByDefault": true },
-        { "key": "costCenterCode",       "label": "Cost Center",      "flex": 1.2, "minWidth": 120, "visibleByDefault": false },
+        { "key": "costCenterCode",       "label": "Cost Center Code",      "flex": 1.2, "minWidth": 120, "visibleByDefault": false },
         { "key": "parentDepartmentName", "label": "Parent Department","flex": 2,   "minWidth": 160, "visibleByDefault": false },
         { "key": "updatedAt",            "label": "Updated",          "flex": 1.6, "minWidth": 140, "visibleByDefault": false }
     ]

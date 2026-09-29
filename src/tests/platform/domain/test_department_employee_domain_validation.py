@@ -288,6 +288,20 @@ def test_department_dto_normalizes_and_validates_fields():
         raise AssertionError("Expected department organization validation error.")
 
 
+def test_department_cost_center_code_rejects_over_length_input():
+    try:
+        Department.create(
+            organization_id="org-1",
+            department_code="OPS",
+            name="Operations",
+            cost_center_code="C" * 65,
+        )
+    except ValidationError as exc:
+        assert exc.code == "DEPARTMENT_COST_CENTER_CODE_TOO_LONG"
+    else:
+        raise AssertionError("Expected cost center code length validation error.")
+
+
 def test_department_service_uses_entity_validation(monkeypatch):
     monkeypatch.setattr(
         "src.core.platform.application.master_data.department.department_commands.require_permission",

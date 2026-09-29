@@ -213,7 +213,7 @@ AppWidgets.EntityDialog {
 
         AppWidgets.FormField {
             Layout.fillWidth: true
-            label: "Cost Center"
+            label: "Cost Center Code"
 
             AppControls.TextField {
                 id: costCenterField

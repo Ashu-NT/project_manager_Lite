@@ -78,7 +78,13 @@ class Department:
     @field_validator("cost_center_code", mode="before")
     @classmethod
     def _normalize_cost_center_code(cls, value: object) -> str:
-        return normalize_optional_text(value).upper()
+        normalized = normalize_optional_text(value).upper()
+        if len(normalized) > 64:
+            raise ValidationError(
+                "Cost center code cannot exceed 64 characters.",
+                code="DEPARTMENT_COST_CENTER_CODE_TOO_LONG",
+            )
+        return normalized
 
     @field_validator("created_at", "updated_at", mode="before")
     @classmethod

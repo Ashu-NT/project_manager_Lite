@@ -145,7 +145,7 @@ Item {
         { "label": "Site", "value": root._state.siteName },
         { "label": "Parent Department", "value": root._state.parentDepartmentName },
         { "label": "Head of Department", "value": root._state.headOfDepartmentDisplay },
-        { "label": "Cost Center", "value": root._state.costCenterCode }
+        { "label": "Cost Center Code", "value": root._state.costCenterCode }
     ]
 
     function _tableHeightForCount(count) {

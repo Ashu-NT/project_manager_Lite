@@ -518,7 +518,10 @@ class PlatformDepartmentCatalogPresenter:
             status_label=_department_status_label(row.is_active),
             subtitle=f"{row.department_code} | {row.department_type or 'Department'}",
             supporting_text=f"Site: {site_label}",
-            meta_text=f"Cost center: {row.cost_center_code or '-'}",
+            # Raw value only -- the "Cost Center Code" column/field label
+            # already provides context; do not re-embed the label inside
+            # the string itself.
+            meta_text=row.cost_center_code or "-",
             can_primary_action=True,
             can_secondary_action=True,
             state={
