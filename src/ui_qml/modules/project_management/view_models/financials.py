@@ -73,7 +73,7 @@ class FinancialsCommitmentSummaryViewModel:
     posted_actual_label: str = ""
     open_commitment_label: str = ""
     available_after_commitment_label: str = ""
-    commitment_rate_pct: float = 0.0
+    commitment_rate_pct: float | None = None
 
 @dataclass(frozen=True)
 class BaselineVarianceRowViewModel:

@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-from datetime import date
+from dataclasses import dataclass, field
 from decimal import Decimal
 
 from src.core.modules.project_management.application.financials.models.finance_models import (
@@ -12,8 +11,6 @@ from src.core.modules.project_management.application.financials.models.finance_m
     LaborDetailsResult,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
-    CostAggregateFact,
-    FinanceLedgerFact,
     FinanceSnapshotFacts,
 )
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
@@ -114,63 +111,6 @@ class CostPolicyEngine:
             source_breakdown=self._source_breakdown_from_facts(
                 facts, project_currency=project_currency
             ),
-        )
-
-    def compose_from_facts_at(
-        self,
-        facts: FinanceSnapshotFacts,
-        labor_details: LaborDetailsResult | None = None,
-        *,
-        as_of: date,
-    ) -> CostPolicyComposition:
-        if as_of == facts.as_of:
-            return self.compose_from_facts(facts, labor_details)
-        entries = tuple(
-            entry
-            for entry in facts.ledger_entries
-            if entry.occurred_on is None or entry.occurred_on <= as_of
-        )
-        forecast = facts.approved_forecast
-        if forecast is not None and forecast.as_of_date > as_of:
-            forecast = None
-        actual = self._sum_stage(entries, "actual")
-        committed = self._sum_stage(entries, "committed")
-        forecast_etc = self._sum_stage(entries, "forecast") if forecast else None
-        return self.compose_from_facts(
-            replace(
-                facts,
-                as_of=as_of,
-                approved_forecast=forecast,
-                control=replace(
-                    facts.control,
-                    posted_actual=actual,
-                    open_commitment=committed,
-                    forecast_etc=forecast_etc,
-                ),
-                ledger_entries=entries,
-                cost_aggregates=self._aggregate_entries(entries),
-            ),
-            labor_details,
-        )
-
-    @staticmethod
-    def _aggregate_entries(
-        entries: tuple[FinanceLedgerFact, ...],
-    ) -> tuple[CostAggregateFact, ...]:
-        buckets: dict[tuple[str, str, str | None], tuple[Decimal, int]] = {}
-        for entry in entries:
-            key = (entry.stage, entry.cost_type, entry.currency_code)
-            amount, count = buckets.get(key, (Decimal(0), 0))
-            buckets[key] = (amount + entry.amount, count + 1)
-        return tuple(
-            CostAggregateFact(
-                stage=stage,
-                cost_type=cost_type,
-                currency_code=currency,
-                total_amount=amount,
-                row_count=count,
-            )
-            for (stage, cost_type, currency), (amount, count) in buckets.items()
         )
 
     def _totals_from_snapshot(
@@ -299,14 +239,6 @@ class CostPolicyEngine:
             ),
             start=Decimal(0),
         )
-
-    @staticmethod
-    def _sum_stage(entries: tuple[FinanceLedgerFact, ...], stage: str) -> Decimal:
-        return sum(
-            (entry.amount for entry in entries if entry.stage == stage),
-            start=Decimal(0),
-        )
-
 
 __all__ = [
     "CostControlTotals",

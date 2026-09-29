@@ -8,10 +8,12 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
     ProjectKPI,
     ResourceLoadRow,
 )
-from src.core.modules.project_management.application.financials.models import CostSourceBreakdown
 from src.core.modules.project_management.application.financials import (
     FinanceLedgerRow,
     FinanceSnapshot,
+)
+from src.core.modules.project_management.application.financials.models import (
+    CostSourceBreakdown,
 )
 
 MAX_FINANCE_LEDGER_EXPORT_ROWS = 500

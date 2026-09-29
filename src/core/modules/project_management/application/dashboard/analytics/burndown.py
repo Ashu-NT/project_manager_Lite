@@ -5,16 +5,18 @@ from datetime import timedelta
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
     BurndownPoint,
 )
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    ProjectKPI,
+)
+from src.core.modules.project_management.application.dashboard.reporting.query import (
+    DashboardReportingQuery,
+)
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
-from src.core.modules.project_management.infrastructure.reporting import (
-    ProjectKPI,
-    ReportingService,
-)
 
 
 class DashboardBurndownMixin:
-    _reporting: ReportingService
+    _reporting: DashboardReportingQuery
     _tasks: TaskService
 
     def _build_burndown(

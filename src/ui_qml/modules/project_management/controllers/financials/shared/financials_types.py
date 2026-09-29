@@ -29,7 +29,7 @@ def default_commitment_summary() -> FinancialsMap:
         "postedActualLabel": "",
         "openCommitmentLabel": "",
         "availableAfterCommitmentLabel": "",
-        "commitmentRatePct": 0.0,
+        "commitmentRatePct": None,
     }
 
 __all__ = [

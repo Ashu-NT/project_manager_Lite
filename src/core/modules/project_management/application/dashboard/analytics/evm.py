@@ -5,15 +5,17 @@ from decimal import Decimal
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
     DashboardEVM,
 )
-from src.core.modules.project_management.infrastructure.reporting import (
+from src.core.modules.project_management.application.dashboard.reporting.query import (
+    DashboardReportingQuery,
+)
+from src.core.modules.project_management.application.financials.models import (
     EarnedValueMetrics,
-    ReportingService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
 class DashboardEvmMixin:
-    _reporting: ReportingService
+    _reporting: DashboardReportingQuery
 
     def _build_evm(self, project_id: str, baseline_id: str | None = None) -> DashboardEVM | None:
         try:

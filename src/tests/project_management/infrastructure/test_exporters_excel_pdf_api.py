@@ -7,21 +7,23 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
-from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.domain.financials.rate_cards import RateType
-from src.core.modules.project_management.infrastructure.reporting import (
-    api as reporting_api,
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    GanttTaskBar,
+    ProjectKPI,
+    ResourceLoadRow,
+    TaskVarianceRow,
 )
-from src.core.modules.project_management.infrastructure.reporting.models import (
+from src.core.modules.project_management.application.financials.models import (
     CostBreakdownRow,
     CostSourceBreakdown,
     CostSourceRow,
     EarnedValueMetrics,
     EvmSeriesPoint,
-    GanttTaskBar,
-    ProjectKPI,
-    ResourceLoadRow,
-    TaskVarianceRow,
+)
+from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.modules.project_management.infrastructure.reporting import (
+    api as reporting_api,
 )
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
     MAX_FINANCE_LEDGER_EXPORT_ROWS,
@@ -271,7 +273,7 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
     )
 
     class DummyReportingService:
-        def get_project_kpis(self, _project_id):
+        def get_project_kpis(self, _project_id, *, as_of=None):
             return kpi
 
         def get_gantt_data(self, _project_id):

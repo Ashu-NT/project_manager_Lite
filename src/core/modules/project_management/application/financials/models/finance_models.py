@@ -135,13 +135,6 @@ class FinanceSnapshot:
     notes: list[str]
     unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = ()
 
-    @property
-    def commitment_rate_percent(self) -> Decimal:
-        if self.budget <= 0:
-            return Decimal(0)
-        return (self.committed / self.budget) * Decimal(100)
-
-
 # ── Cost DTOs ─────────────────────────────────────────────────────────────────
 
 
@@ -213,20 +206,20 @@ class LaborAssignmentRow:
     assignment_id: str
     task_id: str
     task_name: str
-    hours: float
-    hourly_rate: float
+    hours: Decimal
+    hourly_rate: Decimal
     currency_code: str | None
-    cost: float
+    cost: Decimal
 
 
 @dataclass
 class LaborResourceRow:
     resource_id: str
     resource_name: str
-    total_hours: float
-    hourly_rate: float
+    total_hours: Decimal
+    hourly_rate: Decimal
     currency_code: str | None
-    total_cost: float
+    total_cost: Decimal
     assignments: list[LaborAssignmentRow]
 
 
@@ -235,10 +228,10 @@ class PlannedLaborResourceRow:
     project_resource_id: str
     resource_id: str
     resource_name: str
-    planned_hours: float
-    hourly_rate: float
+    planned_hours: Decimal
+    hourly_rate: Decimal
     currency_code: str | None
-    total_cost: float
+    total_cost: Decimal
 
 
 @dataclass(frozen=True)

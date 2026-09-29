@@ -73,7 +73,7 @@ PROJECT_A = "r6b-billing-project-a"
 PROJECT_B = "r6b-billing-project-b"
 
 
-def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str) -> None:
+def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str, include_outcome: bool = True) -> None:
     now = datetime(2026, 8, 28, 12, 0, tzinfo=timezone.utc)
     project_id = f"r6b-billing-project-{suffix}"
     profile_id = f"r6b-billing-profile-{suffix}"
@@ -113,6 +113,8 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
         "(id, tenant_id, organization_id, project_id, source_type, source_id, source_revision, source_content_hash, preparation_id, preparation_line_id, status, reserved_at, finalized_at) "
         "VALUES (:id, :tenant, :organization, :project, 'schedule_line', :source, '1', :hash, :preparation, :line, 'finalized', :now, :now)"
     ), {"id": f"r6b-billing-lock-{suffix}", "tenant": tenant_id, "organization": organization_id, "project": project_id, "source": schedule_id, "hash": (suffix * 64)[:64], "preparation": preparation_id, "line": line_id, "now": now})
+    if not include_outcome:
+        return
     connection.execute(text(
         "INSERT INTO project_billing_external_events "
         "(id, tenant_id, organization_id, project_id, preparation_id, event_type, external_system, external_status, idempotency_key, occurred_at, external_invoice_reference, message, recorded_at) "
@@ -287,8 +289,16 @@ def test_local_billing_child_cannot_attach_foreign_parent(
     with environment.runtime_session(tenant_id=TENANT_A, organization_id=ORG_A) as session:
         validate_postgresql_execution_role(session)
         with pytest.raises(DBAPIError) as error:
-            session.execute(update(table).where(table.c.id == row_id).values({
-                parent_column: f"r6b-billing-{parent_prefix}-{suffix}",
-            }))
+            if table_name == "project_billing_external_events":
+                # Authenticated evidence is immutable. Exercise the scoped FK on
+                # insertion rather than stopping at the immutable-update trigger.
+                candidate = dict(session.execute(select(table).where(table.c.id == row_id)).mappings().one())
+                candidate.update(id=str(uuid4()), idempotency_key=str(uuid4()))
+                candidate[parent_column] = f"r6b-billing-{parent_prefix}-{suffix}"
+                session.execute(insert(table).values(**candidate))
+            else:
+                session.execute(update(table).where(table.c.id == row_id).values({
+                    parent_column: f"r6b-billing-{parent_prefix}-{suffix}",
+                }))
         assert error.value.orig.sqlstate == "23503"
         session.rollback()

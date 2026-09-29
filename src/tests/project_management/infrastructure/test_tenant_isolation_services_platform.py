@@ -164,9 +164,12 @@ class _PlatformScopedRepo:
         *,
         active_only: bool | None = None,
         calendar_type: str | None = None,
+        site_id: str | None = None,
     ):
         self.list_for_organization_calls.append(organization_id)
         rows = [row for row in self.rows if getattr(row, "organization_id", None) == organization_id]
+        if site_id is not None:
+            rows = [row for row in rows if getattr(row, "site_id", None) == site_id]
         if calendar_type is not None:
             rows = [row for row in rows if getattr(row, "calendar_type", None) == calendar_type]
         if active_only is None:

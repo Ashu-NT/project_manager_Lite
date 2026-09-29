@@ -183,6 +183,8 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             (item for item in baselines if getattr(item, "id", "") == selected_baseline_id),
             None,
         )
+        if selected_baseline_id and selected is None:
+            raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
         selected = selected or next(
             (
                 item

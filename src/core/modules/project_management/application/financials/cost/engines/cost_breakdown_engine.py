@@ -6,57 +6,30 @@ Reporting delegates here rather than owning cost breakdown logic.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from decimal import Decimal
 
 from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
-    CostPolicyEngine,
     CostPolicySnapshot,
 )
 from src.core.modules.project_management.application.financials.models.finance_models import (
     CostBreakdownRow,
 )
-from src.core.modules.project_management.domain.enums import CostType
 
 
 class CostBreakdownEngine:
     """
     Build cost breakdown rows (planned vs actual by cost type and currency).
 
-    Uses CostPolicyEngine to ensure consistent labor policy treatment.
-    When no planned data exists, falls back to baseline planned cost totals.
+    Uses canonical cost-policy facts without substituting baseline authority.
     """
-
-    def __init__(
-        self,
-        *,
-        cost_policy_engine: CostPolicyEngine,
-    ) -> None:
-        self._engine = cost_policy_engine
 
     def build_breakdown_from_snapshot(
         self,
         snapshot: CostPolicySnapshot,
-        *,
-        baseline_tasks: Iterable[object] = (),
     ) -> list[CostBreakdownRow]:
-        """Build rows from one policy snapshot and optional baseline facts."""
+        """Build exact Decimal rows from one canonical policy snapshot."""
         planned_map = dict(snapshot.planned_map)
         actual_map = dict(snapshot.actual_map)
-
-        if not planned_map:
-            baseline_total = float(
-                sum(
-                    float(getattr(bt, "baseline_planned_cost", 0.0) or 0.0)
-                    for bt in baseline_tasks
-                )
-            )
-            if baseline_total > 0:
-                self._engine._add_bucket(
-                    planned_map,
-                    cost_type=CostType.OTHER,
-                    currency=self._engine._normalize_currency(snapshot.project_currency),
-                    amount=baseline_total,
-                )
 
         rows: list[CostBreakdownRow] = []
         keys = set(planned_map.keys()) | set(actual_map.keys())
@@ -68,8 +41,8 @@ class CostBreakdownEngine:
                 CostBreakdownRow(
                     cost_type=cost_type.value if hasattr(cost_type, "value") else str(cost_type),
                     currency=currency,
-                    planned=float(planned_map.get((cost_type, currency), 0.0) or 0.0),
-                    actual=float(actual_map.get((cost_type, currency), 0.0) or 0.0),
+                    planned=planned_map.get((cost_type, currency), Decimal(0)),
+                    actual=actual_map.get((cost_type, currency), Decimal(0)),
                 )
             )
         return rows

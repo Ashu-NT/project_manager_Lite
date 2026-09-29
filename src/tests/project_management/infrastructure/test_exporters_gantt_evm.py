@@ -6,11 +6,11 @@ from decimal import Decimal
 from matplotlib.axes import Axes
 from matplotlib.dates import date2num
 
+from src.core.modules.project_management.application.financials.models import (
+    EvmSeriesPoint,
+)
 from src.core.modules.project_management.infrastructure.reporting import (
     api as reporting_api,
-)
-from src.core.modules.project_management.infrastructure.reporting.models import (
-    EvmSeriesPoint,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 

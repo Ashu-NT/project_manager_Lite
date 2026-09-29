@@ -489,6 +489,32 @@ def test_cost_phasing_historical_actual_does_not_query_current_rates(services, m
     assert after.periods == before.periods
 
 
+def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> None:
+    project, *_ = _approved_controls(services)
+    foreign = services["project_service"].create_project("Foreign baseline owner")
+    services["task_service"].create_task(
+        foreign.id, "Foreign task", start_date=date(2026, 8, 3), duration_days=2,
+    )
+    baseline = services["baseline_service"].create_baseline(
+        foreign.id, "Foreign baseline", rate_as_of=date(2026, 8, 1),
+    )
+    reporting = services["reporting_service"]
+    for query in (
+        reporting.get_earned_value, reporting.get_evm_series,
+        reporting.get_cost_breakdown, reporting.get_baseline_schedule_variance,
+    ):
+        with pytest.raises(NotFoundError):
+            query(project.id, baseline_id=baseline.id)
+    with pytest.raises(NotFoundError):
+        services["finance_performance_query"].get_variance(
+            project.id, selected_baseline_id=baseline.id,
+        )
+    with pytest.raises(NotFoundError):
+        services["baseline_service"].list_variance_records(
+            baseline.id, expected_project_id=project.id,
+        )
+
+
 def test_r6e_integrated_performance_uses_one_approved_financial_basis(services) -> None:
     project, _budget, _forecast, _entry, _code = _approved_controls(services)
     tasks = services["task_service"]

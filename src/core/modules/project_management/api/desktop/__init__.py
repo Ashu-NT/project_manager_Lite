@@ -285,6 +285,10 @@ from src.core.modules.project_management.api.desktop.workspaces import (
 )
 
 __all__ = [
+    "FinancialGenerateForecastCommand",
+    "FinancialManualEtcCommand",
+    "FinancialRiskContingencyCommand",
+    "FinancialVersionedForecastCommand",
     "ActualVarianceDto",
     "AssignmentValidationDesktopDto",
     "BaselineVarianceRecordDto",
