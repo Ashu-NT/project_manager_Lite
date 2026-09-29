@@ -1,7 +1,7 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CURRENT; R6G-A COMPLETE; R6G-B COMPLETE; R6G-C COMPLETE; R6G-D COMPLETE; R6G-E COMPLETE; R6G-F IN PROGRESS
-Last updated: 2026-09-28
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CLOSED; R6G-A COMPLETE; R6G-B COMPLETE; R6G-C COMPLETE; R6G-D COMPLETE; R6G-E COMPLETE; R6G-F COMPLETE; R6H NOT STARTED
+Last updated: 2026-09-29
 Scope: Project Management finance plus reusable platform financial foundations
 
 ## R6G Destination Clarification
@@ -45,8 +45,8 @@ concurrency evidence. R6G-C and R6G-D are complete. R6D/E/F remain closed.
 
 ## R6G-F Integrated Architecture and Closure Evidence
 
-R6G-F is the final Accounting-integration phase. Full PM regression classification
-is running; R6G is not marked closed until the final evidence below is complete.
+**R6G-F COMPLETE; R6G FORMALLY CLOSED (2026-09-29).** This is the final
+Accounting-integration phase. Final regression classification is recorded below.
 R6H has not started. The worktree was clean at F entry; legitimate E work had
 already been incorporated. No user changes were discarded.
 
@@ -157,15 +157,72 @@ PM contains neutral future-facing Procurement contracts, NOT Procurement operati
 
 ### Final Validation Record
 
-Pending completion of the full PM run and final quality reruns. Two pre-existing
-stale tests found so far were repaired without changing production behavior:
-the workspace descriptor expectation omitted Review Queue, and the R6C approval
-guard referenced the pre-restructure composition path. Their targeted rerun passed
-10 tests. Final counts and any additional classification will be recorded here.
+| Final gate | Evidence |
+| --- | --- |
+| R6G A-E focused regression, including Accounting Status and all five light/dark viewports | 77 passed; `.r6g_f_ae.log` |
+| Live PostgreSQL R6G B-F, Billing Reader/RLS and Billing concurrency | 109 passed; `.r6g_f_final_postgres.log` |
+| Platform integration, architecture, service identity and module entitlement regression | 279 passed; `.r6g_f_final_platform.log` |
+| New F-specific runtime proofs | 3 passed: connector removal, fresh-worker recovery, bounded claim/network detachment; `.r6g_f_proofs.log` |
+| New architecture guards | 5 passed: transitive neutral dependencies, transport-free schema, scoped single-outbox identity, retired authorities, transaction-neutral persistence |
+| Full Project Management and PM QML suite | 2,520 passed, 5 failed, 2 skipped in 773.16 seconds before fixture repairs; all failures classified and repaired below; `.r6g_f_full_pm.log` |
+| All five affected test files after repairs | 42 passed; `.r6g_f_all_repairs.log` |
+| Accounting QML plus first repaired files | 21 passed; `.r6g_f_repairs_ui.log` |
+| Quality | R6G production and changed-test Ruff F/I, Python compilation, Accounting surface QML lint, architecture guards and git diff --check pass |
+| Schema/RLS | Dedicated PostgreSQL fixture recreated schema through real Alembic; runtime role is non-owner/NOSUPERUSER/NOBYPASSRLS; full PM run included existing migration tests |
+
+Counts overlap and are not summed. The full suite was run once; its original
+result is deliberately preserved, not relabeled as a clean full-suite rerun.
+Every failing test and its containing file passed after repair. No production
+behavior was changed in F, and no unresolved failure remains from that run.
+
+Repository-wide lint is NOT claimed clean: an additional `ruff check --select F,I .`
+reported 66 existing findings outside the R6G changes (unused variables/re-exports,
+nine import-order findings, duplicate test-double method and unresolved type names
+in CPM/global-overview code). Exact diagnostics are in `.r6g_f_repository_lint.log`.
+These files were not modified by F. Explicit R6G production and all F-touched test
+paths were rerun with a nonempty file list: Ruff and compilation pass. The R6G
+quality decision is scoped, not a certification of unrelated repository lint.
+
+Full-suite failure classification and repairs (all pre-existing test drift):
+
+1. `test_project_management_desktop_api_lists_workspace_descriptors`: expected
+   workspace list omitted the already implemented Review Queue; expectation updated.
+2. `test_activity_repository_filters_by_parent_entity_id_and_action_prefix`:
+   direct repository seed omitted organization scope; seed now supplies explicit
+   active tenant/org IDs. Production scope filtering was not weakened.
+3. `test_r6c_approval_participants_have_one_apply_and_reject_registration`:
+   obsolete composition path replaced with `composition/modules/project_registry.py`.
+4. `test_platform_master_data_services_use_runtime_tenant_context`: repository
+   double lacked `site_id`; it now accepts and applies the actual filter contract.
+5. `test_r5g_keeps_frozen_workload_navigation_and_task_time_owner`: source-string
+   assertion targeted the former controller representation; it now verifies the
+   canonical context-navigation view model and retains the Task Time owner assertion.
+
+The two existing skips are `test_large_scale_performance_workflow` (opt-in
+`PM_RUN_PERF_TESTS`) and `test_generate_draft_produces_exactly_one_planning_hint`
+(source-less minimal fixture). Neither is claimed as passed; dedicated R6G query,
+recovery, invalidation and runtime-RLS proofs do not depend on either skip.
+
+F added `test_r6g_accounting_destination_boundary.py` and
+`test_r6g_f_accounting_closure.py`, updated the five stale test files, and updated
+only this active Finance plan. No production files or schema were changed; no
+files were deleted. Searches verified the superseded production authorities are
+already absent, so no speculative cleanup or compatibility layer was introduced.
+
+Closure decision: all R6G gates are satisfied by A-E implementation plus F's
+integrated audit, destination-neutrality/recovery proofs and classified regression
+matrix. Internal Accounting remains unimplemented. No invoice/payment/GL/AR/AP/tax,
+statutory recognition, FX or Procurement/Inventory operations were introduced.
+No commit was made.
+
+R6H remains NOT STARTED: the existing roadmap reserves release-wide 10k/50k
+certification, exhaustive Finance child-table RLS attacks and final Finance
+release/dead-code/documentation closure for R6H. It is not another Accounting
+integration feature phase and has not been started automatically.
 
 ## R6G-E Closure: Accounting Status / Operator UX
 
-**R6G-E COMPLETE (2026-09-28).** R6G-F is NOT STARTED.
+**R6G-E COMPLETE (2026-09-28).** Subsequent R6G-F closure is recorded above.
 
 ### Canonical Read and Presentation
 
@@ -248,8 +305,8 @@ runtime-role PostgreSQL and QML. Existing query/Reader/fact/serializer/presenter
 shared collection, Accounting description and Platform capability files were updated.
 No files were deleted; no parallel API, compatibility builder or new command remains.
 
-R6G-F retains final cross-phase cleanup/regression and full destination-neutrality
-proof. It has not started. Future internal Accounting, invoice/payment/GL/AR/AP/tax,
+R6G-F completed cross-phase audit/regression and the destination-neutrality proof
+recorded above. Future internal Accounting, invoice/payment/GL/AR/AP/tax,
 statutory recognition, FX and Procurement/Inventory operations remain out of scope.
 No commit was made.
 
@@ -405,7 +462,7 @@ superuser shortcuts in ingestion.
 
 R6G-C and R6D/E/F remain CLOSED. R6G-E status is tracked above. Future internal Accounting
 still consumes neutral PM handoff/outbox evidence, not external authentication or
-credentials; the complete destination-neutrality proof is reserved for R6G-F.
+credentials; the complete destination-neutrality proof is recorded in R6G-F above.
 No internal Accounting module, vendor integration, invoice/payment/GL/AR/AP/tax,
 statutory revenue, FX, Procurement or Inventory operations were added. No agent commits.
 
@@ -1046,7 +1103,7 @@ quarantined, transport-delivered and business-acknowledged.
 | R6G-C COMPLETE: worker + external port | Single ExternalAccountingDeliveryPort, runtime host, scoped fresh-UoW claim/network/finalize, destination pinning, injected secrets, canonical leases/retries and terminal ambiguity; old publisher removed. Focused/live PostgreSQL evidence and file map above. No vendor/Accounting aggregate implementation. |
 | R6G-D COMPLETE: authenticated inbound | Production authenticated composition and fresh Finance UoW consumer, canonical inbox/dedup, handoff/connector/source correlation, ordering/state policy, immutable bounded quarantine, atomic outcome/audit/event and narrow invalidation. Old mutation path and dead repository helper removed. Runtime-role PostgreSQL/security/concurrency and focused regression evidence recorded above. No invoice/payment authority manufactured. |
 | R6G-E COMPLETE: status/operator UX | One bounded status path with handoff/transport/correlated inbox metadata, precise server capability/reason/state presentation, safe failure/quarantine visibility, scoped invalidation and responsive verification. Automatic retry is visible; manual requeue is not supported by the current authorization model and was not invented. Final evidence above. |
-| R6G-F: integrated closure | PM-only and enabled-connector matrices; live app_runtime RLS/concurrency, remote crash/restart/idempotency simulation, command atomicity, no lost work, one port/read architecture, payload/secret boundaries, broad PM/Platform regressions, cleanup of any temporary cutover scaffold, active-plan closure. |
+| R6G-F COMPLETE: integrated closure | Destination-neutral dependency/schema/event proofs, connector-removal and restart tests, bounded claim plan, single-destination invariant, live app_runtime RLS/concurrency/recovery, full PM failure classification and repairs, Platform/security/architecture regression and final quality evidence recorded above. R6G CLOSED; R6H NOT STARTED. |
 
 Highest-priority blockers before real delivery: no atomic PM outbox; mutable
 reference rebuild under stable message ID; missing approved-version/hash
