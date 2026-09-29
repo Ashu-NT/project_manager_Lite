@@ -11,10 +11,10 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     ApprovedForecastFact,
     CostAggregateFact,
     FinanceControlFact,
-    FinanceLedgerFact,
     FinanceProjectFact,
     FinanceSnapshotFacts,
     LaborAssignmentFact,
+    ProjectFinanceLedgerFact,
     ProjectResourceFact,
     ResourceFact,
     TaskFact,
@@ -383,11 +383,11 @@ class SqlAlchemyPortfolioHeatmapReader:
             for row in rows:
                 grouped[str(row.project_id)][key].append(row)
 
-        ledger_by_project: dict[str, list[FinanceLedgerFact]] = defaultdict(list)
+        ledger_by_project: dict[str, list[ProjectFinanceLedgerFact]] = defaultdict(list)
         for row in planned_rows:
             currency = project_currency[str(row.project_id)]
             ledger_by_project[str(row.project_id)].append(
-                FinanceLedgerFact(
+                ProjectFinanceLedgerFact(
                     fact_id=str(row.id), task_id=str(row.task_id), resource_id=str(row.resource_id),
                     description=f"Assignment {row.source_assignment_id}", source_key="PLANNED_COST",
                     source_label="Planned Cost", reference_type="planned_cost_line", cost_type="LABOR",
@@ -400,7 +400,7 @@ class SqlAlchemyPortfolioHeatmapReader:
         for row in forecast_line_rows:
             currency = project_currency[str(row.project_id)]
             ledger_by_project[str(row.project_id)].append(
-                FinanceLedgerFact(
+                ProjectFinanceLedgerFact(
                     fact_id=str(row.id),
                     task_id=None if row.task_id is None else str(row.task_id),
                     resource_id=None,
@@ -422,7 +422,7 @@ class SqlAlchemyPortfolioHeatmapReader:
         for row in commitment_rows:
             currency = project_currency[str(row.project_id)]
             ledger_by_project[str(row.project_id)].append(
-                FinanceLedgerFact(
+                ProjectFinanceLedgerFact(
                     fact_id=str(row.id), task_id=None if row.task_id is None else str(row.task_id),
                     resource_id=None, description=f"Purchase order line {row.purchase_order_line_id}",
                     source_key="PROCUREMENT_COMMITMENT", source_label="Procurement Commitment",
@@ -441,7 +441,7 @@ class SqlAlchemyPortfolioHeatmapReader:
                 "receipt_accrual": ("PROCUREMENT_ACTUAL", "Procurement Actual", "MATERIAL"),
             }.get(purpose, ("MANUAL_ACTUAL", "Manual Actual", "OTHER"))
             ledger_by_project[str(row.project_id)].append(
-                FinanceLedgerFact(
+                ProjectFinanceLedgerFact(
                     fact_id=str(row.id), task_id=None if row.task_id is None else str(row.task_id),
                     resource_id=None if row.resource_id is None else str(row.resource_id),
                     description=str(row.description), source_key=source_key, source_label=source_label,
@@ -643,14 +643,14 @@ def _commitment_amount(row, currency: str) -> Decimal:
     )
 
 
-def _stage_total(entries: tuple[FinanceLedgerFact, ...], stage: str) -> Decimal:
+def _stage_total(entries: tuple[ProjectFinanceLedgerFact, ...], stage: str) -> Decimal:
     return sum(
         (entry.amount for entry in entries if entry.stage == stage),
         start=Decimal(0),
     )
 
 
-def _approved_forecast_fact(row, entries: tuple[FinanceLedgerFact, ...]):
+def _approved_forecast_fact(row, entries: tuple[ProjectFinanceLedgerFact, ...]):
     if row is None:
         return None
     return ApprovedForecastFact(

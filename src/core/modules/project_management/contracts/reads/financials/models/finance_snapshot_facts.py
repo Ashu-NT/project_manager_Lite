@@ -32,7 +32,7 @@ class TaskFact:
 
 
 @dataclass(frozen=True, slots=True)
-class FinanceLedgerFact:
+class ProjectFinanceLedgerFact:
     """One planned, committed, or actual row from a canonical authority."""
 
     fact_id: str
@@ -63,6 +63,15 @@ class CostAggregateFact:
     currency_code: str | None
     total_amount: Decimal
     row_count: int
+    source_key: str = ""
+    source_label: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ActualMonthFact:
+    year: int
+    month: int
+    amount: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,21 +157,25 @@ class FinanceSnapshotFacts:
     approved_forecast: ApprovedForecastFact | None
     control: FinanceControlFact
     tasks: tuple[TaskFact, ...]
-    ledger_entries: tuple[FinanceLedgerFact, ...]
+    ledger_entries: tuple[ProjectFinanceLedgerFact, ...]
     cost_aggregates: tuple[CostAggregateFact, ...]
     project_resources: tuple[ProjectResourceFact, ...]
     assignments: tuple[LaborAssignmentFact, ...]
     resources: tuple[ResourceFact, ...]
+    ledger_total: int = 0
+    ledger_offset: int = 0
+    ledger_limit: int = 100
+    actual_months: tuple[ActualMonthFact, ...] = ()
 
     @property
     def ledger_entry_count(self) -> int:
-        return len(self.ledger_entries)
+        return self.ledger_total
 
     @property
     def distinct_cost_currencies(self) -> frozenset[str]:
         return frozenset(
             row.currency_code.strip().upper()
-            for row in self.ledger_entries
+            for row in self.cost_aggregates
             if row.currency_code and row.currency_code.strip()
         )
 

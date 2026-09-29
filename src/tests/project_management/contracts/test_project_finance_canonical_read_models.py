@@ -182,8 +182,8 @@ def test_finance_excel_export_has_bounded_lineage_and_control_parity(
         output,
         finance_service=services["finance_service"],
         as_of=date(2026, 8, 31),
-        finance_ledger_offset=1,
-        finance_ledger_limit=1,
+        project_finance_ledger_offset=1,
+        project_finance_ledger_limit=1,
     )
 
     workbook = load_workbook(output, data_only=True)
@@ -261,7 +261,7 @@ def test_finance_pdf_export_uses_the_same_canonical_read_basis(
         temp_dir=tmp_path / "report-temp",
         finance_service=services["finance_service"],
         as_of=date(2026, 8, 31),
-        finance_ledger_limit=1,
+        project_finance_ledger_limit=1,
     )
 
     assert output.read_bytes().startswith(b"%PDF")

@@ -47,6 +47,11 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskORM,
 )
 
+from .finance_amount_expressions import (
+    actual_amount_expression,
+    commitment_amount_expression,
+)
+
 SqlSelect = Select[tuple[Any, ...]]
 
 
@@ -534,19 +539,9 @@ def actual_cost_total_statement(
     as_of: date,
     project_currency: str,
 ) -> SqlSelect:
-    transaction_matches = (
-        func.upper(ProjectCostEntryORM.currency_code) == project_currency
+    amount, currency_matches = actual_amount_expression(
+        ProjectCostEntryORM, project_currency
     )
-    base_matches = and_(
-        func.upper(ProjectCostEntryORM.base_currency_code) == project_currency,
-        ProjectCostEntryORM.base_amount.is_not(None),
-    )
-    amount = case(
-        (transaction_matches, ProjectCostEntryORM.amount),
-        (base_matches, ProjectCostEntryORM.base_amount),
-        else_=0,
-    )
-    currency_matches = or_(transaction_matches, base_matches)
     return (
         select(
             func.coalesce(func.sum(amount), 0).label("total_amount"),
@@ -585,19 +580,9 @@ def actual_cost_phasing_statement(
     The reader may subsequently roll months into quarters, but it must never
     materialize individual accounting rows merely to build period buckets.
     """
-    transaction_matches = (
-        func.upper(ProjectCostEntryORM.currency_code) == project_currency
+    amount, currency_matches = actual_amount_expression(
+        ProjectCostEntryORM, project_currency
     )
-    base_matches = and_(
-        func.upper(ProjectCostEntryORM.base_currency_code) == project_currency,
-        ProjectCostEntryORM.base_amount.is_not(None),
-    )
-    amount = case(
-        (transaction_matches, ProjectCostEntryORM.amount),
-        (base_matches, ProjectCostEntryORM.base_amount),
-        else_=0,
-    )
-    currency_matches = or_(transaction_matches, base_matches)
     year = func.extract("year", ProjectCostEntryORM.posting_date).label("period_year")
     month = func.extract("month", ProjectCostEntryORM.posting_date).label(
         "period_month"
@@ -745,27 +730,9 @@ def commitment_cost_phasing_statement(
     ``as_of`` limits source knowledge; delivery dates may intentionally be
     later than it when they fall in the requested analytical window.
     """
-    transaction_matches = (
-        func.upper(ProjectCommitmentLineORM.currency_code) == project_currency
+    amount, currency_matches = commitment_amount_expression(
+        ProjectCommitmentLineORM, project_currency
     )
-    base_matches = (
-        func.upper(ProjectCommitmentLineORM.base_currency_code) == project_currency
-    )
-    transaction_remaining = (
-        ProjectCommitmentLineORM.amount - ProjectCommitmentLineORM.matched_amount
-    )
-    base_remaining = ProjectCommitmentLineORM.base_amount - (
-        ProjectCommitmentLineORM.matched_amount * ProjectCommitmentLineORM.exchange_rate
-    )
-    amount = case(
-        (
-            transaction_matches,
-            case((transaction_remaining > 0, transaction_remaining), else_=0),
-        ),
-        (base_matches, case((base_remaining > 0, base_remaining), else_=0)),
-        else_=0,
-    )
-    currency_matches = or_(transaction_matches, base_matches)
     year = func.extract("year", ProjectCommitmentLineORM.expected_delivery_date).label(
         "period_year"
     )
@@ -812,27 +779,9 @@ def commitment_unphased_cost_statement(
     project_currency: str,
 ) -> SqlSelect:
     """Return the current authoritative open amount with no delivery timing."""
-    transaction_matches = (
-        func.upper(ProjectCommitmentLineORM.currency_code) == project_currency
+    amount, currency_matches = commitment_amount_expression(
+        ProjectCommitmentLineORM, project_currency
     )
-    base_matches = (
-        func.upper(ProjectCommitmentLineORM.base_currency_code) == project_currency
-    )
-    transaction_remaining = (
-        ProjectCommitmentLineORM.amount - ProjectCommitmentLineORM.matched_amount
-    )
-    base_remaining = ProjectCommitmentLineORM.base_amount - (
-        ProjectCommitmentLineORM.matched_amount * ProjectCommitmentLineORM.exchange_rate
-    )
-    amount = case(
-        (
-            transaction_matches,
-            case((transaction_remaining > 0, transaction_remaining), else_=0),
-        ),
-        (base_matches, case((base_remaining > 0, base_remaining), else_=0)),
-        else_=0,
-    )
-    currency_matches = or_(transaction_matches, base_matches)
     return (
         select(
             func.coalesce(func.sum(amount), 0).label("total_amount"),
@@ -868,32 +817,9 @@ def commitment_total_statement(
     as_of: date,
     project_currency: str,
 ) -> SqlSelect:
-    transaction_matches = (
-        func.upper(ProjectCommitmentLineORM.currency_code) == project_currency
+    amount, currency_matches = commitment_amount_expression(
+        ProjectCommitmentLineORM, project_currency
     )
-    base_matches = (
-        func.upper(ProjectCommitmentLineORM.base_currency_code) == project_currency
-    )
-    transaction_remaining = (
-        ProjectCommitmentLineORM.amount - ProjectCommitmentLineORM.matched_amount
-    )
-    base_remaining = (
-        ProjectCommitmentLineORM.base_amount
-        - ProjectCommitmentLineORM.matched_amount
-        * ProjectCommitmentLineORM.exchange_rate
-    )
-    amount = case(
-        (
-            transaction_matches,
-            case((transaction_remaining > 0, transaction_remaining), else_=0),
-        ),
-        (
-            base_matches,
-            case((base_remaining > 0, base_remaining), else_=0),
-        ),
-        else_=0,
-    )
-    currency_matches = or_(transaction_matches, base_matches)
     return (
         select(
             func.coalesce(func.sum(amount), 0).label("total_amount"),

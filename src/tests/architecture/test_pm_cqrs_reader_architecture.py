@@ -288,8 +288,10 @@ def test_cost_aggregation_cannot_fan_out_across_independent_sources() -> None:
         assert not (set(expected_authority.values()) - {authority}) & orm_names
 
     reader_source = FINANCE_READER.read_text(encoding="utf-8")
-    assert "return planned + forecasts + commitments + actuals" in reader_source
-    assert "def _aggregate(" in reader_source
+    assert "ledger_aggregates_statement(ledger)" in reader_source
+    assert "ledger_page_statement(visible, ledger_query)" in reader_source
+    assert "def _read_ledger_entries(" not in reader_source
+    assert "def _aggregate(" not in reader_source
 
 
 def test_finance_service_keeps_reader_labor_policy_ownership_and_no_fallback() -> None:

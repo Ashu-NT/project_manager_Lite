@@ -52,10 +52,10 @@ from src.core.modules.project_management.application.financials.invoicing import
 )
 from src.core.modules.project_management.application.financials.models.finance_models import (
     FinanceAnalyticsRow,
-    FinanceLedgerRow,
     FinancePeriodRow,
     FinanceReconciliation,
     FinanceSnapshot,
+    ProjectFinanceLedgerRow,
 )
 from src.core.modules.project_management.application.financials.performance_query import (
     ProjectFinancePerformanceQuery,
@@ -94,7 +94,7 @@ __all__ = [
     "EvmCalculationInput",
     "FinanceAnalyticsRow",
     "FinanceInvalidationScope",
-    "FinanceLedgerRow",
+    "ProjectFinanceLedgerRow",
     "FinancePeriodRow",
     "FinanceReconciliation",
     "FinanceService",

@@ -19,7 +19,7 @@ from src.core.modules.project_management.contracts.repositories.finance.rate_car
 
 
 @dataclass(frozen=True)
-class FinanceLedgerRow:
+class ProjectFinanceLedgerRow:
     project_id: str
     source_key: str
     source_label: str
@@ -125,13 +125,13 @@ class FinanceSnapshot:
     period_granularity: str
     sensitive_detail_included: bool
     reconciliation: FinanceReconciliation
-    ledger: list[FinanceLedgerRow]
+    ledger: list[ProjectFinanceLedgerRow]
     cost_phasing: list[FinancePeriodRow]
     cost_phasing_availability: tuple[CostPhasingSeriesAvailabilityFact, ...]
     by_source: list[FinanceAnalyticsRow]
-    by_cost_type: list[FinanceAnalyticsRow]
-    by_resource: list[FinanceAnalyticsRow]
-    by_task: list[FinanceAnalyticsRow]
+    ledger_total: int
+    ledger_offset: int
+    ledger_limit: int
     notes: list[str]
     unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = ()
 
@@ -294,7 +294,7 @@ class EarnedValueMetrics:
 
 __all__ = [
     # Finance snapshot
-    "FinanceLedgerRow",
+    "ProjectFinanceLedgerRow",
     "FinancePeriodRow",
     "FinanceAnalyticsRow",
     "FinanceReconciliation",
