@@ -51,10 +51,10 @@ def _seed_calendar_scope_rows(services) -> dict[str, str]:
         department_code="DEPT-OTH", name="Other Department", is_active=True,
         created_at=now, updated_at=now, version=1)
     cur_emp = EmployeeORM(id="employee-current", tenant_id=ct, organization_id=cur_org.id,
-        employee_code="EMP-CUR", full_name="Current Employee",
+        department_id=cur_dept.id, employee_code="EMP-CUR", full_name="Current Employee",
         employment_type=EmploymentType.FULL_TIME, is_active=True, version=1)
     oth_emp = EmployeeORM(id="employee-other", tenant_id=ot, organization_id=oth_org.id,
-        employee_code="EMP-OTH", full_name="Other Employee",
+        department_id=oth_dept.id, employee_code="EMP-OTH", full_name="Other Employee",
         employment_type=EmploymentType.FULL_TIME, is_active=True, version=1)
     cur_cal = PlatformCalendarORM(id="calendar-current", tenant_id=ct,
         organization_id=cur_org.id, code="CAL-CUR", name="Current Calendar",

@@ -12,6 +12,9 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
     EmployeeORM,
 )
@@ -38,12 +41,31 @@ def reader_session():
         db.close()
 
 
-def _seed_employee(db, *, id, tenant_id, organization_id, code, is_active):
+def _seed_department(db, *, id, tenant_id, organization_id, code="DEPT", name="Department"):
+    from datetime import datetime, timezone
+
+    db.add(
+        DepartmentORM(
+            id=id,
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            department_code=code,
+            name=name,
+            is_active=True,
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            version=1,
+        )
+    )
+
+
+def _seed_employee(db, *, id, tenant_id, organization_id, code, is_active, department_id):
     db.add(
         EmployeeORM(
             id=id,
             tenant_id=tenant_id,
             organization_id=organization_id,
+            department_id=department_id,
             employee_code=code,
             full_name=f"Employee {code}",
             is_active=is_active,
@@ -69,9 +91,10 @@ def _count_employee_selects(engine, fn):
 
 def test_reader_issues_exactly_one_sql_statement(reader_session):
     db, engine = reader_session
-    _seed_employee(db, id="e1", tenant_id="tenant-a", organization_id="org-a", code="E1", is_active=True)
-    _seed_employee(db, id="e2", tenant_id="tenant-a", organization_id="org-a", code="E2", is_active=True)
-    _seed_employee(db, id="e3", tenant_id="tenant-a", organization_id="org-a", code="E3", is_active=False)
+    _seed_department(db, id="d1", tenant_id="tenant-a", organization_id="org-a")
+    _seed_employee(db, id="e1", tenant_id="tenant-a", organization_id="org-a", code="E1", is_active=True, department_id="d1")
+    _seed_employee(db, id="e2", tenant_id="tenant-a", organization_id="org-a", code="E2", is_active=True, department_id="d1")
+    _seed_employee(db, id="e3", tenant_id="tenant-a", organization_id="org-a", code="E3", is_active=False, department_id="d1")
     db.flush()
 
     reader = SqlAlchemyEmployeeHeadcountReader(db)
@@ -86,10 +109,13 @@ def test_reader_issues_exactly_one_sql_statement(reader_session):
 
 def test_reader_scopes_strictly_by_organization_and_tenant(reader_session):
     db, engine = reader_session
-    _seed_employee(db, id="e1", tenant_id="tenant-a", organization_id="org-a", code="E1", is_active=True)
-    _seed_employee(db, id="e2", tenant_id="tenant-a", organization_id="org-a", code="E2", is_active=False)
-    _seed_employee(db, id="e3", tenant_id="tenant-a", organization_id="org-b", code="E3", is_active=True)
-    _seed_employee(db, id="e4", tenant_id="tenant-b", organization_id="org-a", code="E4", is_active=True)
+    _seed_department(db, id="d1", tenant_id="tenant-a", organization_id="org-a", code="D1")
+    _seed_department(db, id="d2", tenant_id="tenant-a", organization_id="org-b", code="D2")
+    _seed_department(db, id="d3", tenant_id="tenant-b", organization_id="org-a", code="D3")
+    _seed_employee(db, id="e1", tenant_id="tenant-a", organization_id="org-a", code="E1", is_active=True, department_id="d1")
+    _seed_employee(db, id="e2", tenant_id="tenant-a", organization_id="org-a", code="E2", is_active=False, department_id="d1")
+    _seed_employee(db, id="e3", tenant_id="tenant-a", organization_id="org-b", code="E3", is_active=True, department_id="d2")
+    _seed_employee(db, id="e4", tenant_id="tenant-b", organization_id="org-a", code="E4", is_active=True, department_id="d3")
     db.flush()
 
     reader = SqlAlchemyEmployeeHeadcountReader(db)
@@ -124,11 +150,13 @@ def test_reader_empty_summary_when_no_rows(reader_session):
 
 def test_employee_service_headcount_summary_reflects_writes(services):
     employee_service = services["employee_service"]
+    department_service = services["department_service"]
 
+    dept = department_service.create_department(department_code="P6-D1", name="Headcount Dept")
     baseline = employee_service.get_headcount_summary()
 
-    employee_service.create_employee(employee_code="P6-E1", full_name="Employee One", is_active=True)
-    employee_service.create_employee(employee_code="P6-E2", full_name="Employee Two", is_active=False)
+    employee_service.create_employee(employee_code="P6-E1", full_name="Employee One", department_id=dept.id, is_active=True)
+    employee_service.create_employee(employee_code="P6-E2", full_name="Employee Two", department_id=dept.id, is_active=False)
 
     updated = employee_service.get_headcount_summary()
     assert updated.total == baseline.total + 2
@@ -138,9 +166,13 @@ def test_employee_service_headcount_summary_reflects_writes(services):
 def test_employee_headcount_is_isolated_per_organization(services):
     organization_service = services["organization_service"]
     employee_service = services["employee_service"]
+    department_service = services["department_service"]
 
     default_organization = services["tenant_context_service"].get_active_organization()
-    employee_service.create_employee(employee_code="P6-DEF-1", full_name="Default Org Employee", is_active=True)
+    default_dept = department_service.create_department(department_code="P6-DEF-D", name="Default Org Dept")
+    employee_service.create_employee(
+        employee_code="P6-DEF-1", full_name="Default Org Employee", department_id=default_dept.id, is_active=True
+    )
     default_summary = employee_service.get_headcount_summary()
     assert default_summary.total >= 1
 
@@ -155,7 +187,10 @@ def test_employee_headcount_is_isolated_per_organization(services):
     fresh_org_summary = employee_service.get_headcount_summary()
     assert (fresh_org_summary.total, fresh_org_summary.active) == (0, 0)
 
-    employee_service.create_employee(employee_code="P6-SEC-1", full_name="Second Org Employee", is_active=True)
+    second_dept = department_service.create_department(department_code="P6-SEC-D", name="Second Org Dept")
+    employee_service.create_employee(
+        employee_code="P6-SEC-1", full_name="Second Org Employee", department_id=second_dept.id, is_active=True
+    )
     assert employee_service.get_headcount_summary().total == 1
 
     services["tenant_context_service"].set_active_organization(default_organization.id)
@@ -187,12 +222,14 @@ def _instrument_list_for_organization(employee_repo):
 
 def test_get_headcount_summary_never_calls_list_for_organization(services, session):
     employee_service = services["employee_service"]
+    department_service = services["department_service"]
     employee_repo = employee_service._employee_repo
     engine = session.get_bind()
 
+    dept = department_service.create_department(department_code="P6-BULK-D", name="Bulk Dept")
     for i in range(50):
         employee_service.create_employee(
-            employee_code=f"P6-BULK-{i}", full_name=f"Bulk Employee {i}", is_active=(i % 2 == 0)
+            employee_code=f"P6-BULK-{i}", full_name=f"Bulk Employee {i}", department_id=dept.id, is_active=(i % 2 == 0)
         )
 
     counts, restore = _instrument_list_for_organization(employee_repo)
@@ -219,11 +256,13 @@ def test_admin_overview_never_lists_full_employee_collection(services):
     from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
     employee_service = services["employee_service"]
+    department_service = services["department_service"]
     employee_repo = employee_service._employee_repo
 
+    dept = department_service.create_department(department_code="P6-ADMIN-D", name="Admin Overview Dept")
     for i in range(20):
         employee_service.create_employee(
-            employee_code=f"P6-ADMIN-{i}", full_name=f"Admin Overview Employee {i}", is_active=(i % 3 == 0)
+            employee_code=f"P6-ADMIN-{i}", full_name=f"Admin Overview Employee {i}", department_id=dept.id, is_active=(i % 3 == 0)
         )
     expected = employee_service.get_headcount_summary()
 

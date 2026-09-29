@@ -176,6 +176,7 @@ def seeded_assignment_entities(db_session, org_id):
                 id=emp_id,
                 tenant_id=tenant_id,
                 organization_id=org_id,
+                department_id="dept-eng",
                 employee_code=emp_id,
                 full_name=emp_id,
             )

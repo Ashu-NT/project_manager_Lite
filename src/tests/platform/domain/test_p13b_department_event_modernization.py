@@ -176,8 +176,13 @@ def test_cross_org_head_of_department_rejection_produces_zero_event(services):
         base_currency="USD",
     )
     tenant_context_service.set_active_organization(other_organization.id)
+    foreign_department = services["department_service"].create_department(
+        department_code=_unique_code("P13B-FOREIGN-DEPT"), name="Foreign Department"
+    )
     foreign_head_of_department = services["employee_service"].create_employee(
-        employee_code=_unique_code("P13B-FOREIGN-HOD"), full_name="Foreign Head of Department"
+        employee_code=_unique_code("P13B-FOREIGN-HOD"),
+        full_name="Foreign Head of Department",
+        department_id=foreign_department.id,
     )
     tenant_context_service.set_active_organization(default_organization.id)
 
