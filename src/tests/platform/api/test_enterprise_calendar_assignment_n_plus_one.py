@@ -174,7 +174,7 @@ def test_list_calendar_assignments_serializes_all_five_entity_types_correctly(se
         department_code="P5-DEPT", name="P5 Department"
     )
     employee = services["employee_service"].create_employee(
-        employee_code="P5-EMP", full_name="P5 Employee", employment_type="FULL_TIME"
+        employee_code="P5-EMP", full_name="P5 Employee", department_id=department.id, employment_type="FULL_TIME"
     )
     project = services["project_service"].create_project(
         "P5 Project", financial_currency_code=organization.base_currency

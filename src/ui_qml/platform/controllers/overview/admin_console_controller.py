@@ -22,6 +22,7 @@ from src.ui_qml.platform.controllers.calendars.calendar_controller import (
 from src.ui_qml.platform.controllers.calendars.context import (
     calendar_assignment_context,
     calendar_detail_context,
+    department_calendar_summary,
     site_calendar_summary,
 )
 from src.ui_qml.platform.controllers.common import PlatformWorkspaceControllerBase
@@ -572,6 +573,12 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, str, result="QVariantMap")
     def siteCalendarSummary(self, site_id: str, organization_id: str) -> dict[str, object]:
         return site_calendar_summary(self, site_id, organization_id)
+
+    @Slot(str, str, str, result="QVariantMap")
+    def departmentCalendarSummary(
+        self, department_id: str, organization_id: str, site_id: str = ""
+    ) -> dict[str, object]:
+        return department_calendar_summary(self, department_id, organization_id, site_id)
 
     # ── Site slots ────────────────────────────────────────────────────────
 
