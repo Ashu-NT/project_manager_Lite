@@ -51,8 +51,14 @@ def test_employees_tab_loads_real_paginated_data_for_a_non_active_organization(s
     )
     tenant_context_service.set_active_organization(org_a.id)
     employee_service = services["employee_service"]
-    employee_service.create_employee(employee_code="QEMP-1", full_name="Alpha Employee")
-    employee_service.create_employee(employee_code="QEMP-2", full_name="Beta Employee")
+    department_service = services["department_service"]
+    department = department_service.create_department(department_code="QML-EMP-A-DEPT", name="QML Emp Org A Dept")
+    employee_service.create_employee(
+        employee_code="QEMP-1", full_name="Alpha Employee", department_id=department.id
+    )
+    employee_service.create_employee(
+        employee_code="QEMP-2", full_name="Beta Employee", department_id=department.id
+    )
 
     org_b = organization_service.create_organization(
         organization_code="QML-EMP-B", display_name="QML Emp Org B", timezone_name="UTC", base_currency="USD"
@@ -129,8 +135,14 @@ def test_employees_tab_controller_slot_applies_status_filter_server_side(service
     )
     tenant_context_service.set_active_organization(org.id)
     employee_service = services["employee_service"]
-    employee_service.create_employee(employee_code="FIL-ACT-EMP", full_name="Filter Active Employee")
-    inactive = employee_service.create_employee(employee_code="FIL-INA-EMP", full_name="Filter Inactive Employee")
+    department_service = services["department_service"]
+    department = department_service.create_department(department_code="QML-EMP-FILTER-DEPT", name="QML Emp Filter Dept")
+    employee_service.create_employee(
+        employee_code="FIL-ACT-EMP", full_name="Filter Active Employee", department_id=department.id
+    )
+    inactive = employee_service.create_employee(
+        employee_code="FIL-INA-EMP", full_name="Filter Inactive Employee", department_id=department.id
+    )
     employee_service.update_employee(inactive.id, is_active=False)
 
     result = admin.organizationEmployeesPage(org.id, 1, 25, "", "active")

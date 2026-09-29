@@ -114,11 +114,11 @@ def _seed_full_site(services, *, code: str, name: str) -> tuple[str, str]:
         currency_code="XAF",
         site_type="Plant",
     )
-    services["department_service"].create_department(
+    department = services["department_service"].create_department(
         department_code=f"{code}-DEPT-1", name="VQA Department One", site_id=site.id
     )
     services["employee_service"].create_employee(
-        employee_code=f"{code}-EMP-1", full_name="VQA Employee One", site_id=site.id
+        employee_code=f"{code}-EMP-1", full_name="VQA Employee One", site_id=site.id, department_id=department.id
     )
 
     registry = build_desktop_api_registry(services)

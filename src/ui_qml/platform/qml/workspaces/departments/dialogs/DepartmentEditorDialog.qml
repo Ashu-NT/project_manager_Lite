@@ -225,7 +225,11 @@ AppWidgets.EntityDialog {
 
     AppWidgets.FormField {
         Layout.fillWidth: true
-        label: "Head of Department (HOD)"
+        // No department yet exists at Create time, so no employee can
+        // possibly be assigned to it -- HOD assignment is an Edit-only
+        // step, after an employee has been assigned to this department.
+        visible: root.mode === "edit"
+        label: "Head of Department"
 
         AppControls.ComboBox {
             id: headOfDepartmentCombo

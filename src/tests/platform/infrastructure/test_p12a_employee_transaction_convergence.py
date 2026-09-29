@@ -35,7 +35,17 @@ def _spy(services, event_type):
     return calls
 
 
-def test_two_independent_create_employee_calls_use_genuinely_different_sessions(services, monkeypatch):
+@pytest.fixture
+def department_id(services) -> str:
+    """These tests exercise UnitOfWork/transaction behavior, not department
+    semantics -- one throwaway department per test satisfies Employee's
+    required department_id."""
+    return services["department_service"].create_department(
+        department_code=_unique_code("DEPT"), name="Convergence Test Department"
+    ).id
+
+
+def test_two_independent_create_employee_calls_use_genuinely_different_sessions(services, monkeypatch, department_id):
     employee_service = services["employee_service"]
     created_sessions = []
     original_create = type(employee_service._uow_factory).create
@@ -47,15 +57,15 @@ def test_two_independent_create_employee_calls_use_genuinely_different_sessions(
 
     monkeypatch.setattr(type(employee_service._uow_factory), "create", _spy_create)
 
-    employee_service.create_employee(employee_code=_unique_code("FRESH-A"), full_name="Fresh A")
-    employee_service.create_employee(employee_code=_unique_code("FRESH-B"), full_name="Fresh B")
+    employee_service.create_employee(employee_code=_unique_code("FRESH-A"), full_name="Fresh A", department_id=department_id)
+    employee_service.create_employee(employee_code=_unique_code("FRESH-B"), full_name="Fresh B", department_id=department_id)
 
     assert len(created_sessions) == 2
     assert created_sessions[0] is not created_sessions[1]
     assert all(s is not employee_service._session for s in created_sessions)
 
 
-def test_create_employee_repository_and_audit_share_the_uow_session(services, monkeypatch):
+def test_create_employee_repository_and_audit_share_the_uow_session(services, monkeypatch, department_id):
     employee_service = services["employee_service"]
     seen = {}
     original_create = type(employee_service._uow_factory).create
@@ -69,18 +79,20 @@ def test_create_employee_repository_and_audit_share_the_uow_session(services, mo
 
     monkeypatch.setattr(type(employee_service._uow_factory), "create", _spy_create)
 
-    employee_service.create_employee(employee_code=_unique_code("SHARE"), full_name="Shared Session Employee")
+    employee_service.create_employee(
+        employee_code=_unique_code("SHARE"), full_name="Shared Session Employee", department_id=department_id
+    )
 
     assert seen["uow_session"] is seen["employees_repo_session"]
     assert seen["uow_session"] is seen["audit_session"]
 
 
-def test_create_employee_success_commits_and_records_event_only_after_commit(services):
+def test_create_employee_success_commits_and_records_event_only_after_commit(services, department_id):
     employee_service = services["employee_service"]
     calls = _spy(services, EmployeeCreated)
 
     code = _unique_code("CREATE-OK")
-    employee = employee_service.create_employee(employee_code=code, full_name="Create Ok")
+    employee = employee_service.create_employee(employee_code=code, full_name="Create Ok", department_id=department_id)
 
     assert employee.employee_code == code
     assert [e.employee_id for e in calls] == [employee.id]
@@ -89,10 +101,10 @@ def test_create_employee_success_commits_and_records_event_only_after_commit(ser
     assert reloaded.employee_code == code
 
 
-def test_update_employee_success_commits_and_records_event_only_after_commit(services):
+def test_update_employee_success_commits_and_records_event_only_after_commit(services, department_id):
     employee_service = services["employee_service"]
     employee = employee_service.create_employee(
-        employee_code=_unique_code("UPDATE-OK"), full_name="Before Update"
+        employee_code=_unique_code("UPDATE-OK"), full_name="Before Update", department_id=department_id
     )
     calls = _spy(services, EmployeeProfileUpdated)
 
@@ -106,10 +118,10 @@ def test_update_employee_success_commits_and_records_event_only_after_commit(ser
     assert reloaded.full_name == "After Update"
 
 
-def test_create_employee_duplicate_code_validation_failure_rolls_back_and_records_nothing(services, monkeypatch):
+def test_create_employee_duplicate_code_validation_failure_rolls_back_and_records_nothing(services, monkeypatch, department_id):
     employee_service = services["employee_service"]
     code = _unique_code("DUPE")
-    employee_service.create_employee(employee_code=code, full_name="First")
+    employee_service.create_employee(employee_code=code, full_name="First", department_id=department_id)
 
     captured_uow = {}
     original_create = type(employee_service._uow_factory).create
@@ -123,7 +135,7 @@ def test_create_employee_duplicate_code_validation_failure_rolls_back_and_record
     calls = _spy(services, EmployeeCreated)
 
     with pytest.raises(ValidationError, match="Employee code already exists"):
-        employee_service.create_employee(employee_code=code, full_name="Second")
+        employee_service.create_employee(employee_code=code, full_name="Second", department_id=department_id)
 
     uow = captured_uow["uow"]
     assert uow._committed is False
@@ -131,12 +143,12 @@ def test_create_employee_duplicate_code_validation_failure_rolls_back_and_record
     assert calls == []
 
 
-def test_update_employee_duplicate_code_validation_failure_rolls_back_and_records_nothing(services):
+def test_update_employee_duplicate_code_validation_failure_rolls_back_and_records_nothing(services, department_id):
     employee_service = services["employee_service"]
     existing_code = _unique_code("DUPE-UPDATE-EXISTING")
-    employee_service.create_employee(employee_code=existing_code, full_name="Existing")
+    employee_service.create_employee(employee_code=existing_code, full_name="Existing", department_id=department_id)
     employee = employee_service.create_employee(
-        employee_code=_unique_code("DUPE-UPDATE-TARGET"), full_name="Target"
+        employee_code=_unique_code("DUPE-UPDATE-TARGET"), full_name="Target", department_id=department_id
     )
     calls = _spy(services, EmployeeProfileUpdated)
 
@@ -150,10 +162,10 @@ def test_update_employee_duplicate_code_validation_failure_rolls_back_and_record
     assert calls == []
 
 
-def test_update_employee_stale_version_raises_and_does_not_mutate(services):
+def test_update_employee_stale_version_raises_and_does_not_mutate(services, department_id):
     employee_service = services["employee_service"]
     employee = employee_service.create_employee(
-        employee_code=_unique_code("STALE"), full_name="Stale Employee"
+        employee_code=_unique_code("STALE"), full_name="Stale Employee", department_id=department_id
     )
 
     with pytest.raises(ConcurrencyError):
@@ -165,7 +177,7 @@ def test_update_employee_stale_version_raises_and_does_not_mutate(services):
     assert reloaded.full_name == "Stale Employee"
 
 
-def test_create_employee_authorization_failure_opens_no_uow(services, monkeypatch):
+def test_create_employee_authorization_failure_opens_no_uow(services, monkeypatch, department_id):
     employee_service = services["employee_service"]
     original_create = type(employee_service._uow_factory).create
     create_calls = []
@@ -185,15 +197,17 @@ def test_create_employee_authorization_failure_opens_no_uow(services, monkeypatc
     )
 
     with pytest.raises(BusinessRuleError):
-        employee_service.create_employee(employee_code=_unique_code("AUTHFAIL"), full_name="No Access")
+        employee_service.create_employee(
+            employee_code=_unique_code("AUTHFAIL"), full_name="No Access", department_id=department_id
+        )
 
     assert create_calls == []
 
 
-def test_update_employee_authorization_failure_opens_no_uow(services, monkeypatch):
+def test_update_employee_authorization_failure_opens_no_uow(services, monkeypatch, department_id):
     employee_service = services["employee_service"]
     employee = employee_service.create_employee(
-        employee_code=_unique_code("AUTHFAIL-UPDATE"), full_name="Before Deny"
+        employee_code=_unique_code("AUTHFAIL-UPDATE"), full_name="Before Deny", department_id=department_id
     )
 
     original_create = type(employee_service._uow_factory).create
@@ -221,14 +235,14 @@ def test_update_employee_authorization_failure_opens_no_uow(services, monkeypatc
     assert reloaded.full_name == "Before Deny"
 
 
-def test_cross_organization_update_is_denied_as_not_found(services):
+def test_cross_organization_update_is_denied_as_not_found(services, department_id):
     employee_service = services["employee_service"]
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     default_organization = tenant_context_service.get_active_organization()
 
     employee = employee_service.create_employee(
-        employee_code=_unique_code("CROSSORG"), full_name="Home Org Employee"
+        employee_code=_unique_code("CROSSORG"), full_name="Home Org Employee", department_id=department_id
     )
 
     other_organization = organization_service.create_organization(
@@ -248,7 +262,7 @@ def test_cross_organization_update_is_denied_as_not_found(services):
     assert reloaded.full_name == "Home Org Employee"
 
 
-def test_create_employee_audit_failure_rolls_back_and_records_nothing(services, monkeypatch):
+def test_create_employee_audit_failure_rolls_back_and_records_nothing(services, monkeypatch, department_id):
     def _fail_record(self, **kwargs):
         raise RuntimeError("simulated create_employee audit failure")
 
@@ -258,17 +272,17 @@ def test_create_employee_audit_failure_rolls_back_and_records_nothing(services, 
     code = _unique_code("AUDITFAIL-CREATE")
 
     with pytest.raises(RuntimeError, match="simulated create_employee audit failure"):
-        employee_service.create_employee(employee_code=code, full_name="Audit Fail")
+        employee_service.create_employee(employee_code=code, full_name="Audit Fail", department_id=department_id)
 
     monkeypatch.undo()
     assert employee_service._employee_repo.get_by_code(code) is None
     assert calls == []
 
 
-def test_update_employee_audit_failure_rolls_back_and_records_nothing(services, monkeypatch):
+def test_update_employee_audit_failure_rolls_back_and_records_nothing(services, monkeypatch, department_id):
     employee_service = services["employee_service"]
     employee = employee_service.create_employee(
-        employee_code=_unique_code("AUDITFAIL-UPDATE"), full_name="Before Audit Fail"
+        employee_code=_unique_code("AUDITFAIL-UPDATE"), full_name="Before Audit Fail", department_id=department_id
     )
 
     def _fail_record(self, **kwargs):
@@ -288,7 +302,7 @@ def test_update_employee_audit_failure_rolls_back_and_records_nothing(services, 
     assert calls == []
 
 
-def test_create_employee_commit_failure_leaves_no_partial_state_and_records_nothing(services, monkeypatch):
+def test_create_employee_commit_failure_leaves_no_partial_state_and_records_nothing(services, monkeypatch, department_id):
     employee_service = services["employee_service"]
 
     captured_uow = {}
@@ -309,7 +323,7 @@ def test_create_employee_commit_failure_leaves_no_partial_state_and_records_noth
 
     code = _unique_code("COMMITFAIL")
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
-        employee_service.create_employee(employee_code=code, full_name="Commit Fail")
+        employee_service.create_employee(employee_code=code, full_name="Commit Fail", department_id=department_id)
 
     uow = captured_uow["uow"]
     assert uow._committed is False, "commit() failing must never mark the UoW committed"
@@ -318,10 +332,10 @@ def test_create_employee_commit_failure_leaves_no_partial_state_and_records_noth
     assert calls == []
 
 
-def test_update_employee_commit_failure_leaves_no_partial_state_and_records_nothing(services, monkeypatch):
+def test_update_employee_commit_failure_leaves_no_partial_state_and_records_nothing(services, monkeypatch, department_id):
     employee_service = services["employee_service"]
     employee = employee_service.create_employee(
-        employee_code=_unique_code("COMMITFAIL-UPDATE"), full_name="Before Commit Fail"
+        employee_code=_unique_code("COMMITFAIL-UPDATE"), full_name="Before Commit Fail", department_id=department_id
     )
 
     def _fail_commit(self):
@@ -340,21 +354,23 @@ def test_update_employee_commit_failure_leaves_no_partial_state_and_records_noth
     assert calls == []
 
 
-def test_no_global_mutation_session_touch_during_migrated_create(services):
+def test_no_global_mutation_session_touch_during_migrated_create(services, department_id):
     employee_service = services["employee_service"]
     legacy_session = employee_service._session
     legacy_session.commit()
 
-    employee_service.create_employee(employee_code=_unique_code("ISOLATED"), full_name="Isolated Employee")
+    employee_service.create_employee(
+        employee_code=_unique_code("ISOLATED"), full_name="Isolated Employee", department_id=department_id
+    )
 
     assert len(legacy_session.new) == 0
     assert len(legacy_session.dirty) == 0
 
 
-def test_update_employee_uses_a_fresh_uow_distinct_from_the_legacy_session(services, monkeypatch):
+def test_update_employee_uses_a_fresh_uow_distinct_from_the_legacy_session(services, monkeypatch, department_id):
     employee_service = services["employee_service"]
     employee = employee_service.create_employee(
-        employee_code=_unique_code("FRESH-UPDATE"), full_name="Before Update"
+        employee_code=_unique_code("FRESH-UPDATE"), full_name="Before Update", department_id=department_id
     )
 
     seen = {}

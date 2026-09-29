@@ -76,10 +76,24 @@ class Employee:
             code="EMPLOYEE_NAME_REQUIRED",
         )
 
-    @field_validator("organization_id", "department_id", "site_id", "user_id", mode="before")
+    @field_validator("organization_id", "site_id", "user_id", mode="before")
     @classmethod
     def _normalize_optional_ids(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
+
+    @field_validator("department_id", mode="before")
+    @classmethod
+    def _validate_department_id(cls, value: object) -> str:
+        # Every Employee belongs to exactly one Department -- required, not
+        # optional, unlike site_id/user_id above. The annotation stays
+        # `str | None` only to avoid reordering this dataclass's fields
+        # (every real construction site passes keyword args); this
+        # validator is what actually makes it required at runtime.
+        return normalize_required_text(
+            value,
+            message="Employee must be assigned to a department.",
+            code="EMPLOYEE_DEPARTMENT_REQUIRED",
+        )
 
     @field_validator("department", "site_name", "title", mode="before")
     @classmethod

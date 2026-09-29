@@ -88,15 +88,36 @@ def _require_no_ancestry_cycle(
 
 
 def validate_head_of_department_employee_id(
-    employee_repo: EmployeeRepository | None, head_of_department_employee_id: str | None, *, organization_id: str
+    employee_repo: EmployeeRepository | None,
+    head_of_department_employee_id: str | None,
+    *,
+    organization_id: str,
+    current_department_id: str | None = None,
 ) -> str | None:
+    """The Head of Department relationship is itself the canonical HOD
+    designation -- there is no separate eligibility flag on Employee. An
+    assignable employee must exist, belong to this organization, and
+    already be assigned to this exact department (current_department_id);
+    a brand-new department (no employee can yet reference its id) can
+    therefore never accept an HOD at creation time, which is intentional."""
     normalized = normalize_optional_text(head_of_department_employee_id) or None
     if normalized is None or employee_repo is None:
         return normalized
-    if employee_repo.get_for_organization(normalized, organization_id) is None:
+    employee = employee_repo.get_for_organization(normalized, organization_id)
+    if employee is None:
         raise ValidationError(
             "Department Head of Department must reference an existing employee.",
             code="DEPARTMENT_HEAD_OF_DEPARTMENT_INVALID",
+        )
+    if employee.department_id != current_department_id:
+        raise ValidationError(
+            "Department Head of Department must be an employee assigned to this department.",
+            code="DEPARTMENT_HEAD_OF_DEPARTMENT_WRONG_DEPARTMENT",
+        )
+    if not employee.is_active:
+        raise ValidationError(
+            "Department Head of Department must be an active employee.",
+            code="DEPARTMENT_HEAD_OF_DEPARTMENT_INACTIVE",
         )
     return normalized
 

@@ -19,6 +19,14 @@ class DepartmentRepository(ABC):
     def get_by_code(self, organization_id: str, department_code: str) -> Department | None: ...
 
     @abstractmethod
+    def find_by_head_of_department_employee_id(self, employee_id: str) -> Department | None:
+        """The department (if any) that currently lists this employee as
+        its Head of Department -- used to enforce the invariant that a
+        transfer/deactivation of that employee cannot leave the department
+        referencing an employee no longer valid for the assignment."""
+        ...
+
+    @abstractmethod
     def list_for_organization(
         self,
         organization_id: str,

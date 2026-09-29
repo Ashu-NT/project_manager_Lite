@@ -508,8 +508,11 @@ def test_control_workspace_no_longer_reacts_to_resource_events(services):
 def test_employee_update_produces_exactly_one_resource_list_hint_when_resource_linked(services):
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="Original Name", title="Engineer"
+        employee_code=_unique("EMP"), full_name="Original Name", title="Engineer", department_id=department.id
     )
     resource = resource_service.create_resource(
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
@@ -526,8 +529,11 @@ def test_employee_update_produces_exactly_one_resource_list_hint_when_resource_l
 
 def test_employee_update_with_no_linked_resource_produces_zero_resource_hints(services):
     employee_service = services["employee_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="No Resource"
+        employee_code=_unique("EMP"), full_name="No Resource", department_id=department.id
     )
     hints = _spy_hints(services)
 
@@ -541,8 +547,11 @@ def test_resources_workspace_refreshes_once_from_employee_driven_resource_sync(s
     controller = pm_catalog.resourcesWorkspace
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="Sync Name", title="Engineer"
+        employee_code=_unique("EMP"), full_name="Sync Name", title="Engineer", department_id=department.id
     )
     resource_service.create_resource(
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id

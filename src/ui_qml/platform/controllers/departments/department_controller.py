@@ -7,6 +7,9 @@ from src.ui_qml.platform.controllers.common import (
     safe_exception_message,
     serialize_action_list,
 )
+from src.ui_qml.platform.presenters.departments.department_activity_presenter import (
+    PlatformDepartmentActivityPresenter,
+)
 from src.ui_qml.platform.presenters.departments.department_catalog_presenter import (
     PlatformDepartmentCatalogPresenter,
 )
@@ -21,9 +24,16 @@ class PlatformDepartmentController(QObject):
     operationResultChanged = Signal()
     feedbackMessageChanged = Signal()
 
-    def __init__(self, presenter: PlatformDepartmentCatalogPresenter, parent: QObject | None = None) -> None:
+    def __init__(
+        self,
+        presenter: PlatformDepartmentCatalogPresenter,
+        parent: QObject | None = None,
+        *,
+        activity_presenter: PlatformDepartmentActivityPresenter | None = None,
+    ) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._activity_presenter = activity_presenter or PlatformDepartmentActivityPresenter()
         self._table_model = DynamicTableModel(self)
         self._departments: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._department_editor_options: dict[str, object] = {
@@ -223,6 +233,43 @@ class PlatformDepartmentController(QObject):
             set_operation_result=self._set_operation_result,
             set_feedback_message=self._set_feedback_message,
         )
+
+    @Slot(str, str, result="QVariantList")
+    def departmentActivity(self, department_id: str, organization_id: str) -> list[dict[str, object]]:
+        normalized_department_id = department_id.strip()
+        normalized_org_id = organization_id.strip()
+        if not normalized_department_id or not normalized_org_id:
+            return []
+        return self._activity_presenter.build_recent_activity(normalized_department_id, normalized_org_id)
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def departmentActivityPage(
+        self,
+        department_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        normalized_department_id = department_id.strip()
+        normalized_org_id = organization_id.strip()
+        if not normalized_department_id or not normalized_org_id:
+            return {
+                "items": [], "page": page, "pageSize": page_size,
+                "totalCount": 0, "filteredTotal": 0, "emptyState": "", "noResultsState": "",
+            }
+        return self._activity_presenter.build_activity_page_for_department(
+            normalized_department_id, normalized_org_id,
+            page=page, page_size=page_size, search=search, date_range=date_range,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def headOfDepartmentOptionsFor(self, department_id: str) -> dict[str, object]:
+        """Edit-only, computed fresh per call (never cached on this
+        controller) -- HOD candidates are scoped to this exact department,
+        unlike the org-wide site/parent options in departmentEditorOptions."""
+        return {"headOfDepartmentOptions": list(self._presenter.build_head_of_department_options(department_id))}
 
     def _refresh_departments(self) -> None:
         catalog = serialize_action_list(self._presenter.build_catalog())

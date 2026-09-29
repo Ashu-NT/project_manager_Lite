@@ -134,37 +134,46 @@ class EmployeeService:
         tenant_id = self._tenant_context_service.require_active_tenant_id(
             operation_label="create employee"
         )
-        employee = Employee.create(
-            employee_code=employee_code,
-            full_name=full_name,
-            organization_id=organization_id,
-            department_id=department_id,
-            department=department,
-            site_id=site_id,
-            site_name=site_name,
-            title=title,
-            employment_type=employment_type,
-            email=email,
-            phone=phone,
-            is_active=bool(is_active),
-            user_id=user_id,
-        )
         with self._uow_factory.create(context=self._new_context()) as uow:
-            if uow.employees.get_by_code_for_organization(employee.employee_code, organization_id) is not None:
+            normalized_employee_code = (employee_code or "").strip().upper()
+            if uow.employees.get_by_code_for_organization(normalized_employee_code, organization_id) is not None:
                 raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
-            employee.department_id, employee.department = resolve_employee_department_reference(
+            # Resolved before constructing the domain object -- department_id
+            # is a required field on Employee, so the id must already be
+            # known (whether the caller passed an id directly or a name to
+            # match) before Employee.create() can validate it.
+            resolved_department_id, resolved_department_name = resolve_employee_department_reference(
                 department_repo=uow.departments,
                 organization_repo=self._organization_repo,
                 active_organization_id=organization_id,
-                department_id=employee.department_id,
-                department_name=employee.department,
+                department_id=department_id,
+                department_name=department,
             )
-            employee.site_id, employee.site_name = resolve_employee_site_reference(
+            if resolved_department_id is None:
+                raise ValidationError(
+                    "Employee must be assigned to a department.", code="EMPLOYEE_DEPARTMENT_REQUIRED"
+                )
+            resolved_site_id, resolved_site_name = resolve_employee_site_reference(
                 site_repo=uow.sites,
                 organization_repo=self._organization_repo,
                 active_organization_id=organization_id,
-                site_id=employee.site_id,
-                site_name=employee.site_name,
+                site_id=site_id,
+                site_name=site_name,
+            )
+            employee = Employee.create(
+                employee_code=employee_code,
+                full_name=full_name,
+                organization_id=organization_id,
+                department_id=resolved_department_id,
+                department=resolved_department_name,
+                site_id=resolved_site_id,
+                site_name=resolved_site_name,
+                title=title,
+                employment_type=employment_type,
+                email=email,
+                phone=phone,
+                is_active=bool(is_active),
+                user_id=user_id,
             )
             try:
                 uow.employees.add(employee)
@@ -189,7 +198,7 @@ class EmployeeService:
                     entity_id=employee.id,
                     module="platform",
                     organization_id=organization_id,
-                    message=f"Employee assigned — {employee.full_name}",
+                    message=f"Employee assigned - {employee.full_name}",
                     icon="employee",
                     commit=False,
                 )
@@ -249,6 +258,29 @@ class EmployeeService:
                     department_id=department_id if department_id is not None else None,
                     department_name=department if department is not None else employee.department,
                 )
+                if resolved_department_id is None:
+                    raise ValidationError(
+                        "Employee must be assigned to a department.", code="EMPLOYEE_DEPARTMENT_REQUIRED"
+                    )
+                if resolved_department_id != employee.department_id:
+                    current_hod_department = uow.departments.find_by_head_of_department_employee_id(employee.id)
+                    if current_hod_department is not None:
+                        raise ValidationError(
+                            f"{employee.full_name} is the Head of Department for "
+                            f"{current_hod_department.name} and cannot be moved to another department "
+                            "until that department's Head of Department is cleared or reassigned.",
+                            code="EMPLOYEE_TRANSFER_BLOCKED_BY_HOD_ASSIGNMENT",
+                        )
+
+            if is_active is False and employee.is_active is True:
+                current_hod_department = uow.departments.find_by_head_of_department_employee_id(employee.id)
+                if current_hod_department is not None:
+                    raise ValidationError(
+                        f"{employee.full_name} is the Head of Department for "
+                        f"{current_hod_department.name} and cannot be deactivated until that department's "
+                        "Head of Department is cleared or reassigned.",
+                        code="EMPLOYEE_DEACTIVATION_BLOCKED_BY_HOD_ASSIGNMENT",
+                    )
 
             resolved_site_id = employee.site_id
             resolved_site_name = employee.site_name
@@ -332,11 +364,11 @@ class EmployeeService:
                     module="platform",
                     organization_id=organization_id,
                     message=(
-                        f"Employee removed — {candidate.full_name}"
+                        f"Employee removed - {candidate.full_name}"
                         if audit_action == "employee.deactivate"
-                        else f"Employee reinstated — {candidate.full_name}"
+                        else f"Employee reinstated - {candidate.full_name}"
                         if audit_action == "employee.activate"
-                        else f"Employee updated — {candidate.full_name}"
+                        else f"Employee updated - {candidate.full_name}"
                     ),
                     icon="employee",
                     type="warning" if audit_action == "employee.deactivate" else "info",

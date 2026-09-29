@@ -168,7 +168,12 @@ def test_organization_employees_toolbar_responsive(qapp, services, theme) -> Non
             organization_code=f"VQATB-ORG-{theme}", display_name="VQA Toolbar Org", timezone_name="UTC", base_currency="USD"
         )
         services["tenant_context_service"].set_active_organization(org.id)
-        services["employee_service"].create_employee(employee_code="VQATB-OE1", full_name="VQA Toolbar Org Employee")
+        department = services["department_service"].create_department(
+            department_code=f"VQATB-OD1-{theme}", name="VQA Toolbar Org Dept"
+        )
+        services["employee_service"].create_employee(
+            employee_code="VQATB-OE1", full_name="VQA Toolbar Org Employee", department_id=department.id
+        )
 
         api_registry = build_desktop_api_registry(services)
         root, platform_catalog, engine, shell_context, pm_catalog = _new_shell(api_registry)
@@ -220,11 +225,11 @@ def test_site_employees_and_departments_toolbar_responsive(qapp, services, theme
     try:
         site_service = services["site_service"]
         site = site_service.create_site(site_code=f"VQATB-SITE-{theme}", name="VQA Toolbar Site")
-        services["department_service"].create_department(
-            department_code="VQATB-D1", name="VQA Toolbar Dept", site_id=site.id
+        department = services["department_service"].create_department(
+            department_code=f"VQATB-D1-{theme}", name="VQA Toolbar Dept", site_id=site.id
         )
         services["employee_service"].create_employee(
-            employee_code="VQATB-E1", full_name="VQA Toolbar Site Employee", site_id=site.id
+            employee_code="VQATB-E1", full_name="VQA Toolbar Site Employee", site_id=site.id, department_id=department.id
         )
 
         api_registry = build_desktop_api_registry(services)

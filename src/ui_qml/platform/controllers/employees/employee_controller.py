@@ -153,6 +153,31 @@ class PlatformEmployeeController(QObject):
             )
         )
 
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def employeesForDepartmentPage(
+        self,
+        department_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+    ) -> dict[str, object]:
+        """Stateless, paginated counterpart to employeesForDepartment()
+        above, for Department Detail's canonical DataTable Employees tab.
+        Mirrors employeesForSitePage()'s stateless-query shape exactly; no
+        pagination state is stored on this controller."""
+        return serialize_action_list(
+            self._presenter.build_catalog_page_for_department(
+                department_id,
+                organization_id,
+                page=page,
+                page_size=page_size,
+                search=search,
+                status=status,
+            )
+        )
+
     @Slot(str, int, int, str, str, result="QVariantMap")
     def organizationEmployeesPage(
         self,

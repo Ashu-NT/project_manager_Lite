@@ -139,10 +139,10 @@ Item {
         if (root.workspaceController === null) {
             return
         }
-        departmentDialog.openForEdit(
-            state || {},
-            root.workspaceController.departmentEditorOptions || {}
-        )
+        const departmentId = (state && (state.departmentId || state.id)) || ""
+        const scoped = root.workspaceController.headOfDepartmentOptionsFor(departmentId) || {}
+        const options = Object.assign({}, root.workspaceController.departmentEditorOptions || {}, scoped)
+        departmentDialog.openForEdit(state || {}, options)
     }
 
     function openEmployeeCreate() {

@@ -86,6 +86,15 @@ class SqlAlchemyDepartmentRepository(TenantScopedRepositorySupport, DepartmentRe
         obj = self.session.execute(stmt).scalars().first()
         return department_from_orm(obj) if obj else None
 
+    def find_by_head_of_department_employee_id(self, employee_id: str) -> Department | None:
+        ctx = self._context(operation_label="access departments")
+        stmt = select(DepartmentORM).where(
+            DepartmentORM.head_of_department_employee_id == employee_id,
+            DepartmentORM.tenant_id == ctx.tenant_id,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return department_from_orm(obj) if obj else None
+
     def list_for_organization(
         self,
         organization_id: str,

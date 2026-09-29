@@ -66,6 +66,12 @@ class _FakeDepartmentRepo:
                 return row
         return None
 
+    def find_by_head_of_department_employee_id(self, employee_id: str) -> Department | None:
+        for row in self._rows.values():
+            if row.head_of_department_employee_id == employee_id:
+                return row
+        return None
+
     def list_for_organization(
         self,
         organization_id: str,
@@ -419,6 +425,7 @@ def test_employee_dto_normalizes_and_validates_fields():
         Employee.create(
             employee_code="EMP-1",
             full_name="Valid",
+            department_id="dept-1",
             employment_type="invalid",
         )
     except ValidationError as exc:

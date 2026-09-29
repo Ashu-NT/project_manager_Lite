@@ -241,30 +241,31 @@ def test_cross_organization_parent_still_rejected_alongside_cycle_hardening(serv
 # --------------------------------------------------------------------------
 
 
-def test_create_department_with_head_of_department_via_presenter_payload(services) -> None:
+def test_create_department_rejects_head_of_department_because_no_employee_can_belong_yet(services) -> None:
+    """A brand-new department has no id any employee could already
+    reference -- Create intentionally never accepts an HOD; assignment is a
+    post-creation Edit-only step once an employee is scoped to it."""
     employee_service = services["employee_service"]
+    department_service = services["department_service"]
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
     admin = catalog.adminWorkspace
 
-    head_of_department = employee_service.create_employee(employee_code="HOD-1", full_name="Anna Mueller")
+    unrelated_department = department_service.create_department(department_code="HOD-OTHER-1", name="Other Dept")
+    candidate = employee_service.create_employee(
+        employee_code="HOD-1", full_name="Anna Mueller", department_id=unrelated_department.id
+    )
 
     result = admin.createDepartment({
         "departmentCode": "HOD-DEPT-1",
         "name": "Department With HOD",
-        "headOfDepartmentEmployeeId": head_of_department.id,
+        "headOfDepartmentEmployeeId": candidate.id,
     })
-    assert result["ok"] is True
-
-    catalog_result = admin.departments
-    row = next(item for item in catalog_result["items"] if item["state"]["departmentCode"] == "HOD-DEPT-1")
-    assert row["state"]["headOfDepartmentEmployeeId"] == head_of_department.id
-    assert row["state"]["headOfDepartmentDisplay"] == "Anna Mueller"
-    # Never a raw UUID standing in for the display name.
-    assert row["state"]["headOfDepartmentDisplay"] != head_of_department.id
+    assert result["ok"] is False
+    assert result["code"] == "DEPARTMENT_HEAD_OF_DEPARTMENT_WRONG_DEPARTMENT"
 
 
-def test_update_department_head_of_department_via_presenter_payload(services) -> None:
+def test_update_department_head_of_department_accepts_employee_of_this_department(services) -> None:
     department_service = services["department_service"]
     employee_service = services["employee_service"]
     registry = build_desktop_api_registry(services)
@@ -272,7 +273,9 @@ def test_update_department_head_of_department_via_presenter_payload(services) ->
     admin = catalog.adminWorkspace
 
     department = department_service.create_department(department_code="HOD-DEPT-2", name="Dept Two")
-    head_of_department = employee_service.create_employee(employee_code="HOD-2", full_name="John Doe")
+    head_of_department = employee_service.create_employee(
+        employee_code="HOD-2", full_name="John Doe", department_id=department.id
+    )
 
     result = admin.updateDepartment({
         "departmentId": department.id,
@@ -287,6 +290,54 @@ def test_update_department_head_of_department_via_presenter_payload(services) ->
     assert reloaded.head_of_department_employee_id == head_of_department.id
 
 
+def test_update_department_head_of_department_rejects_employee_of_another_department(services) -> None:
+    department_service = services["department_service"]
+    employee_service = services["employee_service"]
+    registry = build_desktop_api_registry(services)
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
+    admin = catalog.adminWorkspace
+
+    department = department_service.create_department(department_code="HOD-DEPT-2B", name="Dept Two B")
+    other_department = department_service.create_department(department_code="HOD-DEPT-2C", name="Dept Two C")
+    outsider = employee_service.create_employee(
+        employee_code="HOD-2B", full_name="Jane Roe", department_id=other_department.id
+    )
+
+    result = admin.updateDepartment({
+        "departmentId": department.id,
+        "departmentCode": department.department_code,
+        "name": department.name,
+        "headOfDepartmentEmployeeId": outsider.id,
+        "expectedVersion": department.version,
+    })
+    assert result["ok"] is False
+    assert result["code"] == "DEPARTMENT_HEAD_OF_DEPARTMENT_WRONG_DEPARTMENT"
+
+
+def test_update_department_head_of_department_rejects_inactive_employee(services) -> None:
+    department_service = services["department_service"]
+    employee_service = services["employee_service"]
+    registry = build_desktop_api_registry(services)
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
+    admin = catalog.adminWorkspace
+
+    department = department_service.create_department(department_code="HOD-DEPT-2D", name="Dept Two D")
+    inactive_employee = employee_service.create_employee(
+        employee_code="HOD-2D", full_name="Retired Person", department_id=department.id
+    )
+    employee_service.update_employee(inactive_employee.id, is_active=False)
+
+    result = admin.updateDepartment({
+        "departmentId": department.id,
+        "departmentCode": department.department_code,
+        "name": department.name,
+        "headOfDepartmentEmployeeId": inactive_employee.id,
+        "expectedVersion": department.version,
+    })
+    assert result["ok"] is False
+    assert result["code"] == "DEPARTMENT_HEAD_OF_DEPARTMENT_INACTIVE"
+
+
 def test_clear_department_head_of_department_via_presenter_payload(services) -> None:
     department_service = services["department_service"]
     employee_service = services["employee_service"]
@@ -294,10 +345,19 @@ def test_clear_department_head_of_department_via_presenter_payload(services) -> 
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
     admin = catalog.adminWorkspace
 
-    head_of_department = employee_service.create_employee(employee_code="HOD-3", full_name="Clear Me")
-    department = department_service.create_department(
-        department_code="HOD-DEPT-3", name="Dept Three", head_of_department_employee_id=head_of_department.id
+    department = department_service.create_department(department_code="HOD-DEPT-3", name="Dept Three")
+    head_of_department = employee_service.create_employee(
+        employee_code="HOD-3", full_name="Clear Me", department_id=department.id
     )
+    assign_result = admin.updateDepartment({
+        "departmentId": department.id,
+        "departmentCode": department.department_code,
+        "name": department.name,
+        "headOfDepartmentEmployeeId": head_of_department.id,
+        "expectedVersion": department.version,
+    })
+    assert assign_result["ok"] is True
+    department = department_service.get_department(department.id)
     assert department.head_of_department_employee_id == head_of_department.id
 
     result = admin.updateDepartment({
@@ -320,31 +380,63 @@ def test_cross_organization_head_of_department_still_rejected(services) -> None:
     tenant_context_service = services["tenant_context_service"]
     default_organization = tenant_context_service.get_active_organization()
 
+    department = department_service.create_department(department_code="HOD-CROSSORG-DEPT", name="Cross Org Dept")
+
     other_organization = organization_service.create_organization(
         organization_code="HOD-CROSSORG", display_name="Other Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(other_organization.id)
-    foreign_employee = employee_service.create_employee(employee_code="HOD-FOREIGN", full_name="Foreign Head of Department")
+    foreign_department = department_service.create_department(
+        department_code="HOD-FOREIGN-DEPT", name="Foreign Dept"
+    )
+    foreign_employee = employee_service.create_employee(
+        employee_code="HOD-FOREIGN", full_name="Foreign Head of Department", department_id=foreign_department.id
+    )
     tenant_context_service.set_active_organization(default_organization.id)
 
     with pytest.raises(ValidationError, match="Department Head of Department must reference an existing employee"):
-        department_service.create_department(
-            department_code="HOD-CROSSORG-DEPT", name="Cross Org Dept", head_of_department_employee_id=foreign_employee.id
-        )
+        department_service.update_department(department.id, head_of_department_employee_id=foreign_employee.id)
 
 
-def test_head_of_department_options_are_real_employee_names_scoped_to_active_organization(services) -> None:
+def test_department_editor_options_never_include_hod_candidates_without_a_department_context(services) -> None:
+    """Create has no department id yet -- the cached, org-wide
+    departmentEditorOptions must never surface HOD candidates (no employee
+    could possibly belong to a not-yet-created department)."""
     employee_service = services["employee_service"]
+    department_service = services["department_service"]
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
     admin = catalog.adminWorkspace
 
-    employee_service.create_employee(employee_code="HOD-OPT-1", full_name="Option Employee One")
+    department = department_service.create_department(department_code="HOD-OPT-DEPT", name="Option Dept")
+    employee_service.create_employee(
+        employee_code="HOD-OPT-1", full_name="Option Employee One", department_id=department.id
+    )
     admin.refresh()
 
-    options = admin.departmentEditorOptions["headOfDepartmentOptions"]
+    assert admin.departmentEditorOptions["headOfDepartmentOptions"] == []
+
+
+def test_head_of_department_options_for_department_are_scoped_to_that_department_only(services) -> None:
+    employee_service = services["employee_service"]
+    department_service = services["department_service"]
+    registry = build_desktop_api_registry(services)
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
+    admin = catalog.adminWorkspace
+
+    department = department_service.create_department(department_code="HOD-OPT-DEPT-2", name="Option Dept Two")
+    other_department = department_service.create_department(department_code="HOD-OPT-DEPT-3", name="Option Dept Three")
+    employee_service.create_employee(
+        employee_code="HOD-OPT-2", full_name="Option Employee Two", department_id=department.id
+    )
+    employee_service.create_employee(
+        employee_code="HOD-OPT-3", full_name="Outsider Employee", department_id=other_department.id
+    )
+
+    options = admin.headOfDepartmentOptionsFor(department.id)["headOfDepartmentOptions"]
     labels = [option["label"] for option in options]
-    assert "Option Employee One" in labels
+    assert "Option Employee Two" in labels
+    assert "Outsider Employee" not in labels
     # Never a bare UUID standing in for a label.
     for option in options:
         assert option["label"] != option["value"]

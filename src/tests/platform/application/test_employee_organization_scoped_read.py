@@ -8,9 +8,14 @@ organization unchanged (see test_employee_platform_foundation.py)."""
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
     EmployeeORM,
 )
@@ -25,20 +30,23 @@ from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant impo
 def test_viewing_a_non_active_organization_returns_its_own_employees_correctly(services) -> None:
     organization_service = services["organization_service"]
     employee_service = services["employee_service"]
+    department_service = services["department_service"]
     tenant_context_service = services["tenant_context_service"]
 
     org_a = organization_service.create_organization(
         organization_code="ORG-A", display_name="Org A", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_a.id)
-    employee_service.create_employee(employee_code="A-EMP-1", full_name="A Employee One")
-    employee_service.create_employee(employee_code="A-EMP-2", full_name="A Employee Two")
+    dept_a = department_service.create_department(department_code="ORG-A-DEPT", name="Org A Dept")
+    employee_service.create_employee(employee_code="A-EMP-1", full_name="A Employee One", department_id=dept_a.id)
+    employee_service.create_employee(employee_code="A-EMP-2", full_name="A Employee Two", department_id=dept_a.id)
 
     org_b = organization_service.create_organization(
         organization_code="ORG-B", display_name="Org B", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_b.id)
-    employee_service.create_employee(employee_code="B-EMP-1", full_name="B Employee One")
+    dept_b = department_service.create_department(department_code="ORG-B-DEPT", name="Org B Dept")
+    employee_service.create_employee(employee_code="B-EMP-1", full_name="B Employee One", department_id=dept_b.id)
 
     # Session-active org is now B; ask for A's employees anyway.
     page = employee_service.list_employees_page_for_organization(org_a.id, page=1, page_size=25)
@@ -54,19 +62,26 @@ def test_viewing_a_non_active_organization_returns_its_own_employees_correctly(s
 def test_no_leakage_from_the_active_organization_into_the_viewed_organization(services) -> None:
     organization_service = services["organization_service"]
     employee_service = services["employee_service"]
+    department_service = services["department_service"]
     tenant_context_service = services["tenant_context_service"]
 
     org_a = organization_service.create_organization(
         organization_code="LEAK-A", display_name="Leak A", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_a.id)
-    employee_service.create_employee(employee_code="LEAK-A-1", full_name="Leak A Employee")
+    dept_a = department_service.create_department(department_code="LEAK-A-DEPT", name="Leak A Dept")
+    employee_service.create_employee(
+        employee_code="LEAK-A-1", full_name="Leak A Employee", department_id=dept_a.id
+    )
 
     org_b = organization_service.create_organization(
         organization_code="LEAK-B", display_name="Leak B", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_b.id)
-    employee_service.create_employee(employee_code="LEAK-B-1", full_name="Leak B Employee")
+    dept_b = department_service.create_department(department_code="LEAK-B-DEPT", name="Leak B Dept")
+    employee_service.create_employee(
+        employee_code="LEAK-B-1", full_name="Leak B Employee", department_id=dept_b.id
+    )
 
     # Still active in B; explicitly ask for B's own employees -- must not
     # also include anything from A, proving the query is genuinely
@@ -107,11 +122,27 @@ def test_cross_tenant_organization_id_is_rejected_not_visible(services) -> None:
         )
     )
     session.commit()
+    now = datetime.now(timezone.utc)
+    session.add(
+        DepartmentORM(
+            id="foreign-department-1",
+            tenant_id=foreign_tenant_id,
+            organization_id=foreign_org_id,
+            department_code="FOREIGN-EMP-DEPT",
+            name="Foreign Department",
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+    )
+    session.commit()
     session.add(
         EmployeeORM(
             id="foreign-employee-1",
             tenant_id=foreign_tenant_id,
             organization_id=foreign_org_id,
+            department_id="foreign-department-1",
             employee_code="FOREIGN-EMP-1",
             full_name="Foreign Employee",
             is_active=True,
@@ -128,13 +159,17 @@ def test_cross_tenant_organization_id_is_rejected_not_visible(services) -> None:
 def test_inactive_and_archived_organizations_still_have_readable_employee_history(services) -> None:
     organization_service = services["organization_service"]
     employee_service = services["employee_service"]
+    department_service = services["department_service"]
     tenant_context_service = services["tenant_context_service"]
 
     org = organization_service.create_organization(
         organization_code="HIST-EMP", display_name="History Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
-    employee_service.create_employee(employee_code="HIST-EMP-1", full_name="History Employee")
+    dept = department_service.create_department(department_code="HIST-EMP-DEPT", name="History Dept")
+    employee_service.create_employee(
+        employee_code="HIST-EMP-1", full_name="History Employee", department_id=dept.id
+    )
 
     other = organization_service.create_organization(
         organization_code="HIST-EMP-OTHER", display_name="History Other", timezone_name="UTC", base_currency="USD"
@@ -156,6 +191,7 @@ def test_mutation_paths_still_use_the_active_organization_not_the_viewed_one(ser
     existing, unchanged domain rule (do not weaken mutation scoping)."""
     organization_service = services["organization_service"]
     employee_service = services["employee_service"]
+    department_service = services["department_service"]
     tenant_context_service = services["tenant_context_service"]
 
     org_a = organization_service.create_organization(
@@ -165,8 +201,11 @@ def test_mutation_paths_still_use_the_active_organization_not_the_viewed_one(ser
         organization_code="MUT-EMP-B", display_name="Mutation B", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_b.id)
+    dept_b = department_service.create_department(department_code="MUT-EMP-DEPT", name="Mutation Dept")
 
-    created = employee_service.create_employee(employee_code="MUT-EMP", full_name="Mutation Employee")
+    created = employee_service.create_employee(
+        employee_code="MUT-EMP", full_name="Mutation Employee", department_id=dept_b.id
+    )
     assert created.organization_id == org_b.id
 
     page_a = employee_service.list_employees_page_for_organization(org_a.id, page=1, page_size=25)

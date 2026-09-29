@@ -475,8 +475,11 @@ def test_no_platform_to_business_module_concrete_infrastructure_import_added():
 def test_employee_update_produces_real_resource_mutation_and_typed_event(services):
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="Alex Doe", title="Engineer"
+        employee_code=_unique("EMP"), full_name="Alex Doe", title="Engineer", department_id=department.id
     )
     resource = resource_service.create_resource(
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
@@ -500,8 +503,11 @@ def test_employee_update_produces_real_resource_mutation_and_typed_event(service
 
 def test_employee_update_with_no_linked_employee_resource_produces_zero_resource_events(services):
     employee_service = services["employee_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="No Resource Person"
+        employee_code=_unique("EMP"), full_name="No Resource Person", department_id=department.id
     )
     master_events = _spy_master_events(services)
 
@@ -520,8 +526,11 @@ def test_employee_update_and_resource_mutation_are_one_atomic_transaction(servic
 
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="Atomic Test", title="Engineer"
+        employee_code=_unique("EMP"), full_name="Atomic Test", title="Engineer", department_id=department.id
     )
     resource = resource_service.create_resource(
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id

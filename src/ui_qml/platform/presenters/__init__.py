@@ -11,6 +11,9 @@ from src.ui_qml.platform.presenters.control.control_presenter import (
 from src.ui_qml.platform.presenters.control.control_queue_presenter import (
     PlatformControlQueuePresenter,
 )
+from src.ui_qml.platform.presenters.departments.department_activity_presenter import (
+    PlatformDepartmentActivityPresenter,
+)
 from src.ui_qml.platform.presenters.departments.department_catalog_presenter import (
     PlatformDepartmentCatalogPresenter,
 )
@@ -70,6 +73,7 @@ __all__ = [
     "PlatformCalendarCatalogPresenter",
     "PlatformControlQueuePresenter",
     "PlatformControlWorkspacePresenter",
+    "PlatformDepartmentActivityPresenter",
     "PlatformDepartmentCatalogPresenter",
     "PlatformDocumentCatalogPresenter",
     "PlatformDocumentManagementPresenter",

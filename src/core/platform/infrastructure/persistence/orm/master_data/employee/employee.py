@@ -26,10 +26,14 @@ class EmployeeORM(Base):
         ForeignKey("organizations.id", ondelete="SET NULL"),
         nullable=True,
     )
-    department_id: Mapped[str | None] = mapped_column(
+    # Required: every Employee belongs to exactly one Department. ondelete
+    # stays SET NULL at the DB level for now (unchanged from before this
+    # column became required) -- Departments are never hard-deleted in this
+    # app (lifecycle is Active/Inactive only), so it never actually fires.
+    department_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("departments.id", ondelete="SET NULL"),
-        nullable=True,
+        nullable=False,
     )
     department: Mapped[str | None] = mapped_column(String(256), nullable=True)
     site_id: Mapped[str | None] = mapped_column(

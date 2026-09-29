@@ -199,8 +199,12 @@ def _seed_full_organization(services, *, code: str, name: str) -> str:
     )
     tenant_context_service.set_active_organization(org.id)
     services["site_service"].create_site(site_code="VQA-SITE-1", name="VQA Site One", city="Lagos", country="Nigeria")
-    services["department_service"].create_department(department_code="VQA-DEPT-1", name="VQA Department One")
-    services["employee_service"].create_employee(employee_code="VQA-EMP-1", full_name="VQA Employee One")
+    department = services["department_service"].create_department(
+        department_code="VQA-DEPT-1", name="VQA Department One"
+    )
+    services["employee_service"].create_employee(
+        employee_code="VQA-EMP-1", full_name="VQA Employee One", department_id=department.id
+    )
     services["document_service"].create_document(
         document_code="VQA-DOC-1", title="VQA Document One", storage_uri="C:/docs/vqa.pdf"
     )

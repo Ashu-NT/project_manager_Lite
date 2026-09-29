@@ -102,6 +102,9 @@ from src.ui_qml.platform.controllers.users.user_controller import (
 from src.ui_qml.platform.presenters.calendars.calendar_catalog_presenter import (
     PlatformCalendarCatalogPresenter,
 )
+from src.ui_qml.platform.presenters.departments.department_activity_presenter import (
+    PlatformDepartmentActivityPresenter,
+)
 from src.ui_qml.platform.presenters.departments.department_catalog_presenter import (
     PlatformDepartmentCatalogPresenter,
 )
@@ -182,6 +185,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         site_presenter: PlatformSiteCatalogPresenter,
         site_activity_presenter: PlatformSiteActivityPresenter | None = None,
         department_presenter: PlatformDepartmentCatalogPresenter,
+        department_activity_presenter: PlatformDepartmentActivityPresenter | None = None,
         employee_presenter: PlatformEmployeeCatalogPresenter,
         user_presenter: PlatformUserCatalogPresenter,
         party_presenter: PlatformPartyCatalogPresenter,
@@ -202,7 +206,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._site_controller = PlatformSiteController(
             site_presenter, self, activity_presenter=site_activity_presenter
         )
-        self._department_controller = PlatformDepartmentController(department_presenter, self)
+        self._department_controller = PlatformDepartmentController(
+            department_presenter, self, activity_presenter=department_activity_presenter
+        )
         self._employee_controller = PlatformEmployeeController(employee_presenter, self)
         self._user_controller = PlatformUserController(user_presenter, self)
         self._party_controller = PlatformPartyController(party_presenter, self)
@@ -650,6 +656,28 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def deactivateDepartment(self, department_id: str) -> dict[str, object]:
         return deactivate_department(self, department_id)
 
+    @Slot(str, result="QVariantMap")
+    def headOfDepartmentOptionsFor(self, department_id: str) -> dict[str, object]:
+        return self._department_controller.headOfDepartmentOptionsFor(department_id)
+
+    @Slot(str, str, result="QVariantList")
+    def departmentActivity(self, department_id: str, organization_id: str) -> list[dict[str, object]]:
+        return self._department_controller.departmentActivity(department_id, organization_id)
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def departmentActivityPage(
+        self,
+        department_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        return self._department_controller.departmentActivityPage(
+            department_id, organization_id, page, page_size, search, date_range
+        )
+
     @Slot(str, int, int, str, str, result="QVariantMap")
     def organizationDepartmentsPage(
         self,
@@ -729,6 +757,20 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     ) -> dict[str, object]:
         return self._employee_controller.employeesForSitePage(
             site_id, organization_id, page, page_size, search, status, department_id
+        )
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def employeesForDepartmentPage(
+        self,
+        department_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+    ) -> dict[str, object]:
+        return self._employee_controller.employeesForDepartmentPage(
+            department_id, organization_id, page, page_size, search, status
         )
 
     # ── User slots ────────────────────────────────────────────────────────

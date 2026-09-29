@@ -84,6 +84,7 @@ def create_department(
             uow.employees,
             department.head_of_department_employee_id,
             organization_id=organization.id,
+            current_department_id=department.id,
         )
         try:
             uow.departments.add(department)
@@ -177,7 +178,10 @@ def update_department(
         target_head_of_department_employee_id = department.head_of_department_employee_id
         if head_of_department_employee_id is not None:
             target_head_of_department_employee_id = validate_head_of_department_employee_id(
-                uow.employees, head_of_department_employee_id, organization_id=organization.id
+                uow.employees,
+                head_of_department_employee_id,
+                organization_id=organization.id,
+                current_department_id=department.id,
             )
 
         candidate = replace(

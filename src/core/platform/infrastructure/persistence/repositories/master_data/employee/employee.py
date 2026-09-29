@@ -151,6 +151,8 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
         ]
         if site_id is not None:
             base_condition.append(EmployeeORM.site_id == site_id)
+        if department_id is not None:
+            base_condition.append(EmployeeORM.department_id == department_id)
         total = self.session.execute(
             select(func.count()).select_from(EmployeeORM).where(*base_condition)
         ).scalar_one()
@@ -159,10 +161,6 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
         filtered_count_stmt = select(func.count()).select_from(EmployeeORM).where(*base_condition)
         if active_only is not None:
             condition = EmployeeORM.is_active == bool(active_only)
-            filtered_stmt = filtered_stmt.where(condition)
-            filtered_count_stmt = filtered_count_stmt.where(condition)
-        if department_id is not None:
-            condition = EmployeeORM.department_id == department_id
             filtered_stmt = filtered_stmt.where(condition)
             filtered_count_stmt = filtered_count_stmt.where(condition)
         normalized_search = (search or "").strip()

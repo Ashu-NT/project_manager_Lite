@@ -490,10 +490,14 @@ def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
 
 def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> None:
     resource_service = services["resource_service"]
+    delivery_department = services["department_service"].create_department(
+        department_code="DEPT-DELIVERY", name="Delivery"
+    )
     employee = services["employee_service"].create_employee(
         employee_code="EMP-RPAGE",
         full_name="Alex Database",
         title="Planner",
+        department_id=delivery_department.id,
         department="Delivery",
         site_name="Berlin",
         email="alex.database@example.com",

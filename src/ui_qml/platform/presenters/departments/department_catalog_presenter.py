@@ -309,15 +309,16 @@ class PlatformDepartmentCatalogPresenter:
             for row in result.data
         )
 
-    def build_head_of_department_options(self) -> tuple[dict[str, str], ...]:
-        """Real Employee options for the Head of Department (HOD) picker --
-        active-organization-scoped, matching build_site_options() above. An
-        HOD may be any active employee in the organization (not restricted
-        to this department), matching the existing service-layer validation
-        (validate_head_of_department_employee_id checks organization membership only)."""
-        if self._employee_api is None:
+    def build_head_of_department_options(self, department_id: str | None = None) -> tuple[dict[str, str], ...]:
+        """HOD candidates are this exact department's own employees, not the
+        organization at large -- head_of_department_employee_id is only
+        valid when employee.department_id == department_id (the relationship
+        itself is the HOD designation; there is no separate eligibility
+        flag). A department with no id yet (Create, before any employee can
+        reference it) has no possible candidates."""
+        if self._employee_api is None or not department_id:
             return ()
-        result = self._employee_api.list_employees(active_only=True)
+        result = self._employee_api.list_employees(active_only=True, department_id=department_id)
         if not result.ok or result.data is None:
             return ()
         return tuple(
@@ -361,14 +362,7 @@ class PlatformDepartmentCatalogPresenter:
                 parent_department_id=optional_string_value(payload, "parentDepartmentId"),
                 department_type=string_value(payload, "departmentType"),
                 cost_center_code=string_value(payload, "costCenterCode"),
-                # Deliberately string_value(), not optional_string_value():
-                # an empty string must still reach create_department() as ""
-                # (normalizes to no Head of Department), which is the same
-                # thing as never having selected one. Using
-                # optional_string_value() here would make no observable
-                # difference on create, but keeping create/update symmetric
-                # matters for update below, where the distinction is
-                # load-bearing (see its comment).
+
                 head_of_department_employee_id=string_value(payload, "headOfDepartmentEmployeeId"),
                 notes=string_value(payload, "notes"),
             )
@@ -389,15 +383,7 @@ class PlatformDepartmentCatalogPresenter:
                 parent_department_id=optional_string_value(payload, "parentDepartmentId"),
                 department_type=string_value(payload, "departmentType"),
                 cost_center_code=string_value(payload, "costCenterCode"),
-                # Deliberately string_value(), not optional_string_value().
-                # update_department() treats head_of_department_employee_id=
-                # None as "leave unchanged" but treats "" as "clear the Head
-                # of Department" (it gates on `is not None`, then
-                # validate_head_of_department_employee_id normalizes "" down
-                # to None) -- optional_string_value() would collapse a real
-                # "clear the Head of Department" request from the dialog
-                # into a no-op None, making it permanently un-clearable once
-                # set.
+
                 head_of_department_employee_id=string_value(payload, "headOfDepartmentEmployeeId"),
                 notes=string_value(payload, "notes"),
                 expected_version=int_value(payload, "expectedVersion"),
