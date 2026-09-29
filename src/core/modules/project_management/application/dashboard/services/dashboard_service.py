@@ -22,6 +22,9 @@ from src.core.modules.project_management.application.dashboard.models.dashboard_
 from src.core.modules.project_management.application.dashboard.reporting.portfolio import (
     DashboardPortfolioMixin,
 )
+from src.core.modules.project_management.application.dashboard.reporting.query import (
+    DashboardReportingQuery,
+)
 from src.core.modules.project_management.application.dashboard.widgets.professional import (
     DashboardProfessionalMixin,
 )
@@ -37,9 +40,6 @@ from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
-from src.core.modules.project_management.infrastructure.reporting import (
-    ReportingService,
-)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -60,7 +60,7 @@ class DashboardService(
 ):
     def __init__(
         self,
-        reporting_service: ReportingService,
+        reporting_service: DashboardReportingQuery,
         task_service: TaskService,
         project_service: ProjectService,
         resource_service: ResourceService,
@@ -70,7 +70,7 @@ class DashboardService(
         user_session=None,
         module_catalog_service=None,
     ):
-        self._reporting: ReportingService = reporting_service
+        self._reporting: DashboardReportingQuery = reporting_service
         self._tasks: TaskService = task_service
         self._projects: ProjectService = project_service
         self._resources: ResourceService = resource_service

@@ -11,7 +11,7 @@ Item {
     property var commitmentSummaryModel: ({
         "approvedBudgetLabel": "", "postedActualLabel": "",
         "openCommitmentLabel": "", "availableAfterCommitmentLabel": "",
-        "commitmentRatePct": 0
+        "commitmentRatePct": null
     })
     property var commitmentsModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var commitmentsTableModel: null
@@ -125,7 +125,7 @@ Item {
                         Layout.fillWidth: true
                         spacing: Theme.AppTheme.spacingXs
                         AppControls.Label { Layout.fillWidth: true; text: "Commitment Rate"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize }
-                        AppControls.Label { Layout.fillWidth: true; text: Number(root.commitmentSummaryModel.commitmentRatePct || 0).toFixed(1) + "%"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.bodySize; font.bold: true }
+                        AppControls.Label { Layout.fillWidth: true; text: root.commitmentSummaryModel.commitmentRatePct === null || root.commitmentSummaryModel.commitmentRatePct === undefined ? "Not applicable" : Number(root.commitmentSummaryModel.commitmentRatePct).toFixed(1) + "%"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.bodySize; font.bold: true }
                     }
 
                     ColumnLayout {

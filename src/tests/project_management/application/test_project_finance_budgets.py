@@ -111,7 +111,6 @@ def test_lifecycle_transitions_are_explicit_and_exhaustive() -> None:
 
 
 def test_ensure_mutable_blocks_every_non_draft_status() -> None:
-    now = datetime.now(timezone.utc)
     for status in BudgetStatus:
         budget = _budget()
         if status != BudgetStatus.DRAFT:
@@ -1327,7 +1326,7 @@ def test_fresh_baseline_creates_budget_tables_and_cascades_line_delete(tmp_path)
             ),
             {"tenant_id": tenant_id, "organization_id": organization_id},
         )
-        cost_code_id = connection.execute(
+        connection.execute(
             sa.text(
                 "INSERT INTO project_finance_cost_codes "
                 "(id, tenant_id, organization_id, code, name, is_active, version, "

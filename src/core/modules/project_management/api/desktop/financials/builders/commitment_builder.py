@@ -42,6 +42,7 @@ def build_commitment_summary_dto(
     available = (
         facts.available_after_commitment if facts.approved_budget_id else None
     )
+    rate = facts.control.commitment_rate_percent if facts.approved_budget_id else None
     return FinancialCommitmentSummaryDto(
         project_id=project_id,
         approved_budget=canonical_decimal_text(facts.approved_budget),
@@ -62,7 +63,7 @@ def build_commitment_summary_dto(
             if available is None
             else format_money(available, resolved_currency)
         ),
-        commitment_rate_pct=round(float(facts.control.commitment_rate_percent), 1),
+        commitment_rate_pct=None if rate is None else round(float(rate), 1),
     )
 
 

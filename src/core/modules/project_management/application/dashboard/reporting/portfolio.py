@@ -15,12 +15,12 @@ from src.core.modules.project_management.application.dashboard.models.portfolio_
     PortfolioProjectRow,
     PortfolioStatusRollupRow,
 )
-from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
-from src.core.modules.project_management.infrastructure.reporting import (
+from src.core.modules.project_management.application.dashboard.models.report_models import (
     ProjectKPI,
     ResourceLoadRow,
 )
+from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )

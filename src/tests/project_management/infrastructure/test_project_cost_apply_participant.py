@@ -103,7 +103,7 @@ def test_participant_apply_approves_entry_on_the_supplied_session(services, sess
     deps = _deps(services, session)
     request = _approval_request(entry, expected_version=entry.row_version)
 
-    result = ProjectCostApprovalParticipant().apply(request, deps)
+    ProjectCostApprovalParticipant().apply(request, deps)
 
     approved = deps.cost_entry_service._entry_repo.get(entry.id)
     assert approved.status == ProjectCostEntryStatus.APPROVED

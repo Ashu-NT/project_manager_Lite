@@ -50,6 +50,8 @@ class SqlAlchemyEvmSeriesReader:
                 baseline_id=baseline_id,
             )
         ).scalar_one_or_none()
+        if baseline_id is not None and resolved_baseline_id is None:
+            return None
         baseline_tasks: tuple[EvmBaselineTaskFact, ...] = ()
         if resolved_baseline_id is not None:
             baseline_tasks = tuple(

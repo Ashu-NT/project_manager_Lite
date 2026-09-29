@@ -1,8 +1,41 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CLOSED; R6G-A COMPLETE; R6G-B COMPLETE; R6G-C COMPLETE; R6G-D COMPLETE; R6G-E COMPLETE; R6G-F COMPLETE; R6H NOT STARTED
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CLOSED; R6G-A COMPLETE; R6G-B COMPLETE; R6G-C COMPLETE; R6G-D COMPLETE; R6G-E COMPLETE; R6G-F COMPLETE; R6H IN PROGRESS
 Last updated: 2026-09-29
 Scope: Project Management finance plus reusable platform financial foundations
+
+## R6H Final Finance Certification
+
+R6H is IN PROGRESS (2026-09-29). R6G stays CLOSED; R7 is not started.
+This section supersedes historical "R6H not started" statements below.
+No release certification is claimed until the final-worktree full PM run,
+PostgreSQL, responsive, architecture and quality gates are reconciled.
+
+Repository audit has identified and corrected concrete Finance defects:
+
+- Dashboard application imports no longer depend on infrastructure reporting.
+  Existing canonical application facts and an application-owned reporting query
+  protocol replace concrete adapter dependencies; composition still supplies the
+  single ReportingService implementation.
+- Deleted the shadowed `infrastructure/reporting/models.py` compatibility shim
+  and redundant model re-exports. Export tests import canonical facts directly.
+- Cost breakdown preserves exact Decimal values and no longer substitutes
+  baseline amounts for missing planned-cost facts. A supplied baseline still
+  undergoes scoped validation, but is not a second planned-cost authority.
+- Labor diagnostics retain Decimal rates/costs and use canonical Reader facts;
+  the parallel repository-backed diagnostic read path and unused historical
+  recalculation methods are retired. Diagnostic valuation is not posted Actual
+  Cost authority. Ledger amounts remain independent of current rate changes.
+- Commitment percentage now distinguishes available zero from an undefined
+  zero/missing Budget denominator through the read fact, desktop DTO and QML.
+- New dependency-direction and exact-money regressions protect these fixes.
+
+Evidence collected so far (not a final closure certificate): PostgreSQL
+Finance/security selection `-k 'r6 or security'`: **173 passed, 4 deselected**;
+dependency/export checks: **17 passed**; Finance/security/architecture checks:
+**218 passed**; subsequent cleanup checks: **199 passed**; exact-money tests:
+**2 passed**. Full PM certification is running and must be repeated after the
+last production/test changes; preliminary runs are not final-worktree evidence.
 
 ## R6G Destination Clarification
 

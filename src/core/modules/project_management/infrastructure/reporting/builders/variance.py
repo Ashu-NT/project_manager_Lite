@@ -10,6 +10,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.platform.common.exceptions import NotFoundError
 
 
 class ReportingVarianceMixin:
@@ -24,6 +25,9 @@ class ReportingVarianceMixin:
         """Compares baseline task dates vs current task dates."""
         self._require_view("view schedule variance", project_id=project_id)
         if baseline_id:
+            baseline = self._baseline_repo.get_baseline(baseline_id)
+            if baseline is None or baseline.project_id != project_id:
+                raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
             b_tasks = self._baseline_repo.list_tasks(baseline_id)
         else:
             latest = self._baseline_repo.get_latest_for_project(project_id)

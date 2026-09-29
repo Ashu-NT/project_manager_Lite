@@ -109,9 +109,9 @@ class FinanceControlFact:
         return self.approved_budget - self.posted_actual - self.open_commitment
 
     @property
-    def commitment_rate_percent(self) -> Decimal:
+    def commitment_rate_percent(self) -> Decimal | None:
         if self.approved_budget <= 0:
-            return Decimal(0)
+            return None
         return (self.open_commitment / self.approved_budget) * Decimal(100)
 
 

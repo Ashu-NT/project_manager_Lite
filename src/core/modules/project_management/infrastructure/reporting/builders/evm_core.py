@@ -7,12 +7,12 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.financials.models import (
-    EarnedValueMetrics,
-)
 from src.core.modules.project_management.application.financials.earned_value.canonical import (
     CanonicalEarnedValueCalculator,
     EvmCalculationInput,
+)
+from src.core.modules.project_management.application.financials.models import (
+    EarnedValueMetrics,
 )
 from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,

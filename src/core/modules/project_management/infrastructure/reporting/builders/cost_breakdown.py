@@ -7,11 +7,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.financials.models import (
-    CostBreakdownRow,
-)
 from src.core.modules.project_management.application.financials.cost.engines.cost_breakdown_engine import (
     CostBreakdownEngine,
+)
+from src.core.modules.project_management.application.financials.models import (
+    CostBreakdownRow,
 )
 from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
@@ -27,16 +27,9 @@ class ReportingCostBreakdownMixin(ReportingCostPolicyMixin):
     ) -> list[CostBreakdownRow]:
         self._require_finance_view("view cost breakdown report", project_id=project_id)
         resolved_as_of = as_of or date.today()
-        facts = self._read_evm_facts(
-            project_id,
-            baseline_id=baseline_id,
-            as_of=resolved_as_of,
-        )
+        if baseline_id is not None:
+            self._read_evm_facts(
+                project_id, baseline_id=baseline_id, as_of=resolved_as_of,
+            )
         _, policy = self._compose_finance_policy(project_id, as_of=resolved_as_of)
-        engine = CostBreakdownEngine(
-            cost_policy_engine=self._make_cost_policy_engine(),
-        )
-        return engine.build_breakdown_from_snapshot(
-            policy.snapshot,
-            baseline_tasks=facts.baseline_tasks,
-        )
+        return CostBreakdownEngine().build_breakdown_from_snapshot(policy.snapshot)
