@@ -233,18 +233,23 @@ Item {
         case "Overview":
             return root._subtitle
         case "Calendar":
-            return "Site-level calendar assignment and working schedule."
+            return "Working calendar and availability for this site."
+        case "Activity":
+            return "Business activity for this site."
         default:
             return ""
         }
     }
     // Identity, lifecycle badge, and Edit/Actions live in the persistent
     // header below (visible across every section) -- the per-section
-    // toolbar is only shown for Overview (Refresh) and Calendar (its own
-    // assignment actions); Departments/Employees/Activity own their own
-    // embedded toolbar+refresh, and Projects/Documents have nothing to
-    // refresh, so the outer toolbar is hidden there entirely (avoids the
-    // duplicate-Refresh problem the previous Activity implementation had).
+    // toolbar is shown for Overview (Refresh), Calendar (its own assignment
+    // actions), and Activity (title/subtitle only, no actions -- Activity's
+    // own embedded TableToolbar already has its own Refresh, so this bar
+    // never duplicates it here). Departments/Employees already render their
+    // own section title via AdminEntityWorkspace's title bar (and would hit
+    // the same duplicate-Refresh problem), and Projects/Documents already
+    // render their own section heading via AdminInformationalDetailSection,
+    // so the outer toolbar stays hidden for all four of those.
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
             return [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
@@ -259,7 +264,7 @@ Item {
         }
         return []
     }
-    readonly property bool _showSectionToolbar: root._activeSectionLabel === "Overview" || root._activeSectionLabel === "Calendar"
+    readonly property bool _showSectionToolbar: root._activeSectionLabel === "Overview" || root._activeSectionLabel === "Calendar" || root._activeSectionLabel === "Activity"
 
     // -- Overview: Basic Information / Physical Address / Operational
     // Context field groups, plus Key Statistics / Related Actions sourced
@@ -572,7 +577,9 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading site project guidance..."
                 sourceComponent: Component {
-                    SiteSections.SiteProjectsSection {}
+                    SiteSections.SiteProjectsSection {
+                        onCtaRequested: root.actionRequested("open_project_management")
+                    }
                 }
             }
         }
@@ -621,7 +628,9 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading site document guidance..."
                 sourceComponent: Component {
-                    SiteSections.SiteDocumentsSection {}
+                    SiteSections.SiteDocumentsSection {
+                        onCtaRequested: root.actionRequested("open_documents")
+                    }
                 }
             }
         }

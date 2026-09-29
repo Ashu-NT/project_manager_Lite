@@ -24,6 +24,15 @@ Item {
     // view. Department/Employee sections leave this at its default empty
     // object and keep today's raw-assignment-only view unchanged.
     property var effectiveCalendarSummary: ({})
+    // Opt-out for the informational banner and the separate "Calendar
+    // Management" explanatory card below -- both stay on by default so
+    // Department's own Calendar tab (which doesn't pass this) renders
+    // exactly as before. Site's Calendar tab turns this off: once the
+    // Effective Calendar card is well-designed, an unconditional banner
+    // plus a whole card devoted to explaining another screen is redundant,
+    // and Site already surfaces the same "open calendar management" action
+    // through its own section toolbar.
+    property bool showGuidanceCard: true
 
     signal assignCalendarRequested()
     signal removeAssignmentRequested(string assignmentId)
@@ -65,6 +74,7 @@ Item {
 
             AppWidgets.InlineMessage {
                 Layout.fillWidth: true
+                visible: root.showGuidanceCard
                 tone: "info"
                 message: "Calendar rules define working hours, holidays, and availability. Manage calendar definitions in Calendar Management."
             }
@@ -228,6 +238,7 @@ Item {
 
             AppWidgets.SectionCard {
                 Layout.fillWidth: true
+                visible: root.showGuidanceCard
                 implicitHeight: root._cardHeight(mgmtContent.implicitHeight)
                 title: "Calendar Management"
                 outlined: true

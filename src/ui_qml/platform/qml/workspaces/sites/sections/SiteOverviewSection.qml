@@ -32,9 +32,7 @@ Column {
     signal viewAllActivityRequested()
     signal manageCalendarRequested()
 
-    readonly property var _calendarFields: root.calendarSummary.hasCalendar ? [
-        { "label": "Effective Calendar", "value": String(root.calendarSummary.calendarName || "-") },
-        { "label": "Source", "value": root.calendarSummary.source === "override" ? "Site override" : "Inherited from Organization" },
+    readonly property var _calendarDetailFields: root.calendarSummary.hasCalendar ? [
         { "label": "Working Week", "value": String(root.calendarSummary.workingWeekLabel || "-") },
         { "label": "Time Zone", "value": String(root.calendarSummary.timeZone || "-") },
         { "label": "Holiday Rules", "value": String(root.calendarSummary.holidaySetLabel || "-") }
@@ -197,7 +195,11 @@ Column {
                 }
             }
 
-            // -- Summary rail: statistics + recent activity (~1/3 width)
+            // -- Summary rail: statistics, operational calendar, recent
+            // activity, and related actions -- one consolidated column
+            // (~1/3 width) rather than separate full-width cards below the
+            // grid, so the page reads as a single summary rail next to the
+            // main profile information.
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.preferredWidth: overviewGrid.columns === 2
@@ -242,6 +244,97 @@ Column {
 
                 AppWidgets.SectionCard {
                     Layout.fillWidth: true
+                    title: "Operational Calendar"
+                    outlined: true
+
+                    ColumnLayout {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: Theme.AppTheme.marginMd
+                        spacing: Theme.AppTheme.spacingSm
+
+                        AppControls.Label {
+                            Layout.fillWidth: true
+                            visible: !root.calendarSummary.hasCalendar
+                            text: "No calendar is configured for this site or its organization."
+                            color: Theme.AppTheme.textMuted
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            visible: root.calendarSummary.hasCalendar
+                            spacing: 2
+
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(root.calendarSummary.calendarName || "-")
+                                color: Theme.AppTheme.textPrimary
+                                font.pixelSize: Theme.AppTheme.bodySize
+                                font.bold: true
+                                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                            }
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: root.calendarSummary.source === "override" ? "Site override" : "Inherited from Organization"
+                                color: Theme.AppTheme.textMuted
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.topMargin: Theme.AppTheme.spacingXs
+                            visible: root.calendarSummary.hasCalendar
+                            spacing: Theme.AppTheme.spacingXs
+
+                            Repeater {
+                                model: root._calendarDetailFields
+
+                                delegate: RowLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: Theme.AppTheme.spacingSm
+
+                                    AppControls.Label {
+                                        text: String(modelData.label || "")
+                                        color: Theme.AppTheme.textMuted
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                    }
+
+                                    Item { Layout.fillWidth: true }
+
+                                    AppControls.Label {
+                                        text: String(modelData.value || "-")
+                                        color: Theme.AppTheme.textPrimary
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        horizontalAlignment: Text.AlignRight
+                                    }
+                                }
+                            }
+                        }
+
+                        AppControls.Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignRight
+                            Layout.topMargin: Theme.AppTheme.spacingXs
+                            horizontalAlignment: Text.AlignRight
+                            text: "Manage Calendar"
+                            color: Theme.AppTheme.accent
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            font.bold: true
+
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: root.manageCalendarRequested() }
+                        }
+                    }
+                }
+
+                AppWidgets.SectionCard {
+                    Layout.fillWidth: true
                     title: "Recent Activity"
                     outlined: true
 
@@ -272,149 +365,37 @@ Column {
                         }
                     }
                 }
-            }
-        }
-    }
 
-    // -- Operational Calendar: this site's effective calendar (its own
-    // override when assigned, otherwise the Organization's default) --
-    // compact + read-only. Full editing (working rules, exceptions, shift
-    // patterns) lives exclusively in Platform > Calendars; "Manage
-    // Calendar" below routes to this site's own Calendar tab.
-    Item {
-        width: root.width
-        implicitHeight: calendarCard.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-        AppWidgets.SectionCard {
-            id: calendarCard
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: Theme.AppTheme.spacingMd
-            title: "Operational Calendar"
-            outlined: true
-
-            ColumnLayout {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: Theme.AppTheme.marginMd
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.Label {
+                // -- Related Actions: Departments/Employees are this site's
+                // own local tabs -- no Projects/Documents tile since
+                // neither has a real scoped destination today (see
+                // SiteProjectsSection.qml / SiteDocumentsSection.qml).
+                AppWidgets.SectionCard {
                     Layout.fillWidth: true
-                    visible: !root.calendarSummary.hasCalendar
-                    text: "No calendar is configured for this site or its organization."
-                    color: Theme.AppTheme.textMuted
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                }
+                    visible: root.relatedActions.length > 0
+                    title: "Related Actions"
+                    outlined: true
 
-                GridLayout {
-                    Layout.fillWidth: true
-                    visible: root.calendarSummary.hasCalendar
-                    columns: root.width < 420 ? 1 : (root.width < 760 ? 2 : 4)
-                    columnSpacing: Theme.AppTheme.spacingLg
-                    rowSpacing: Theme.AppTheme.spacingSm
+                    ColumnLayout {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: Theme.AppTheme.marginMd
+                        spacing: Theme.AppTheme.spacingSm
 
-                    Repeater {
-                        model: root._calendarFields
+                        Repeater {
+                            model: root.relatedActions
 
-                        delegate: ColumnLayout {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            spacing: 2
-
-                            AppControls.Label {
+                            delegate: AppWidgets.ActionTile {
+                                required property var modelData
                                 Layout.fillWidth: true
-                                text: String(modelData.label || "")
-                                color: Theme.AppTheme.textMuted
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.bold: true
-                            }
 
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                text: String(modelData.value || "-")
-                                color: Theme.AppTheme.textPrimary
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                label: String(modelData.label || "")
+                                iconName: String(modelData.icon || "")
+
+                                onActivated: root.navigateToDestination(String(modelData.id || ""))
                             }
                         }
-                    }
-                }
-
-                AppControls.Label {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignRight
-                    horizontalAlignment: Text.AlignRight
-                    text: "Manage Calendar"
-                    color: Theme.AppTheme.accent
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    font.bold: true
-
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: root.manageCalendarRequested() }
-                }
-            }
-        }
-    }
-
-    // -- Related Actions: full content width so its tiles get real room to
-    // lay out horizontally instead of always falling back to a stack.
-    // Departments/Employees are this site's own local tabs -- no Projects/
-    // Documents tile since neither has a real scoped destination today
-    // (see SiteProjectsSection.qml / SiteDocumentsSection.qml).
-    Item {
-        width: root.width
-        implicitHeight: root.relatedActions.length > 0
-            ? relatedActionsCard.implicitHeight + Theme.AppTheme.spacingMd * 2
-            : 0
-        visible: root.relatedActions.length > 0
-
-        AppWidgets.SectionCard {
-            id: relatedActionsCard
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: Theme.AppTheme.spacingMd
-            title: "Related Actions"
-            outlined: true
-
-            GridLayout {
-                id: actionsGrid
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: Theme.AppTheme.marginMd
-                columnSpacing: Theme.AppTheme.spacingSm
-                rowSpacing: Theme.AppTheme.spacingSm
-                readonly property int _minTileWidth: 150
-                readonly property int _actionCount: root.relatedActions.length
-                columns: {
-                    if (actionsGrid._actionCount <= 1) return 1
-                    const perRow = Math.max(
-                        1,
-                        Math.floor(
-                            (actionsGrid.width + actionsGrid.columnSpacing)
-                            / (actionsGrid._minTileWidth + actionsGrid.columnSpacing)
-                        )
-                    )
-                    if (perRow >= actionsGrid._actionCount) return actionsGrid._actionCount
-                    return perRow >= 2 ? 2 : 1
-                }
-
-                Repeater {
-                    model: root.relatedActions
-
-                    delegate: AppWidgets.ActionTile {
-                        required property var modelData
-                        Layout.fillWidth: true
-
-                        label: String(modelData.label || "")
-                        iconName: String(modelData.icon || "")
-
-                        onActivated: root.navigateToDestination(String(modelData.id || ""))
                     }
                 }
             }

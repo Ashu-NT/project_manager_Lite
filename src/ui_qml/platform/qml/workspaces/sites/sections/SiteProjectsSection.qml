@@ -13,8 +13,10 @@ AdminInformationalDetailSection {
     width: parent ? parent.width : 0
     sectionLabel: "Projects"
     cardTitle: "Projects"
+    icon: "project"
+    maxContentWidth: 800
     notes: [
-        "Projects associated with this site are managed in Project Management.",
-        "Open Project Management to review projects, schedules, and delivery records linked to this site."
+        "Projects associated with this site are managed in Project Management."
     ]
+    ctaLabel: "Open Project Management"
 }

@@ -145,16 +145,12 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
         department_id: str | None = None,
         site_id: str | None = None,
     ) -> tuple[list[Employee], int, int]:
-        # Deliberately bypasses self._context()/_organization_in_scope() --
-        # both organization_id and tenant_id are caller-supplied and trusted
-        # (the service layer verifies the organization actually belongs to
-        # this tenant before calling here), not the session's ambient active
-        # organization. See SqlAlchemySiteRepository.list_page_for_organization_in_tenant
-        # for the same pattern.
-        base_condition = (
+        base_condition = [
             EmployeeORM.organization_id == organization_id,
             EmployeeORM.tenant_id == tenant_id,
-        )
+        ]
+        if site_id is not None:
+            base_condition.append(EmployeeORM.site_id == site_id)
         total = self.session.execute(
             select(func.count()).select_from(EmployeeORM).where(*base_condition)
         ).scalar_one()
@@ -167,10 +163,6 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
             filtered_count_stmt = filtered_count_stmt.where(condition)
         if department_id is not None:
             condition = EmployeeORM.department_id == department_id
-            filtered_stmt = filtered_stmt.where(condition)
-            filtered_count_stmt = filtered_count_stmt.where(condition)
-        if site_id is not None:
-            condition = EmployeeORM.site_id == site_id
             filtered_stmt = filtered_stmt.where(condition)
             filtered_count_stmt = filtered_count_stmt.where(condition)
         normalized_search = (search or "").strip()

@@ -432,7 +432,30 @@ def test_employees_page_for_organization_filters_by_site_id(services):
     )
 
     assert page.filtered_total == 3
+    # total must be scoped by site_id too, not the whole-organization count --
+    # otherwise Site Detail's Employees tab sees total>0 (from site_b's
+    # employees) while filtered_total==0 for a site with none, and
+    # incorrectly reports a "filtered empty" state with no filters active.
+    assert page.total == 3
     assert all(row.site_id == site_a.id for row in page.items)
+
+
+def test_employees_page_for_organization_site_scope_total_excludes_zero_employee_site(services):
+    employee_service = services["employee_service"]
+    site_service = services["site_service"]
+    organization_id = services["tenant_context_service"].get_active_organization().id
+
+    site_with_employees = site_service.create_site(site_code="FILT-EMP-PG-SC", name="Emp Page Site C")
+    empty_site = site_service.create_site(site_code="FILT-EMP-PG-SD", name="Emp Page Site D")
+    _seed_employees(employee_service, site_id=site_with_employees.id, count=5, prefix="EMPPGC")
+
+    page = employee_service.list_employees_page_for_organization(
+        organization_id, page=1, page_size=25, site_id=empty_site.id
+    )
+
+    assert page.total == 0
+    assert page.filtered_total == 0
+    assert page.items == []
 
 
 def test_employees_page_for_organization_site_scope_respects_status_filter(services):

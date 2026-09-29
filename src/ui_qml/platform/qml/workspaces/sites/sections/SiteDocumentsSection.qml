@@ -11,8 +11,10 @@ AdminInformationalDetailSection {
     width: parent ? parent.width : 0
     sectionLabel: "Documents"
     cardTitle: "Documents"
+    icon: "documents"
+    maxContentWidth: 800
     notes: [
-        "Documents associated with this site are managed in Documents.",
-        "Open Documents to review and manage governed documents linked to platform records."
+        "Documents are managed centrally in the Documents workspace."
     ]
+    ctaLabel: "Open Documents"
 }

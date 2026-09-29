@@ -12,4 +12,10 @@ AdminCalendarAssignmentSection {
     id: root
     width: parent ? parent.width : 0
     entityType: "site"
+    // The Effective Calendar card already carries the necessary
+    // information (name, source, rules) plus an "Open Calendar" action in
+    // this tab's own section toolbar -- an unconditional banner and a
+    // second card devoted to explaining Calendar Management would be
+    // redundant here.
+    showGuidanceCard: false
 }

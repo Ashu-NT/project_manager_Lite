@@ -334,6 +334,8 @@ AppLayouts.WorkspaceFrame {
         }
         if (actionId === "create_department") { dialogHostLoader.invoke("openDepartmentCreate"); return }
         if (actionId === "create_employee") { dialogHostLoader.invoke("openEmployeeCreate"); return }
+        if (actionId === "open_documents") { root.navigateToDestination("documents"); return }
+        if (actionId === "open_project_management") { root.navigateToDestination("project_management"); return }
         if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
         if (actionId === "edit") { root.openEdit(id); return }
         if (actionId === "activate" || actionId === "deactivate" || actionId === "archive") {
