@@ -25,7 +25,7 @@ def build_source_analytics(source_rows: list[Any]) -> list[FinanceAnalyticsRow]:
                 committed=committed,
                 actual=actual,
                 forecast=forecast,
-                exposure=actual + forecast,
+                exposure=actual + committed,
             )
         )
     rows.sort(key=lambda row: (-(row.exposure), row.label.lower()))
@@ -69,7 +69,7 @@ def build_dimension_analytics(
                 committed=committed,
                 actual=actual,
                 forecast=forecast,
-                exposure=actual + forecast,
+                exposure=actual + committed,
             )
         )
     rows.sort(key=lambda row: (-(row.exposure), row.label.lower()))

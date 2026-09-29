@@ -29,13 +29,99 @@ Repository audit has identified and corrected concrete Finance defects:
 - Commitment percentage now distinguishes available zero from an undefined
   zero/missing Budget denominator through the read fact, desktop DTO and QML.
 - New dependency-direction and exact-money regressions protect these fixes.
+- Explicit foreign baseline selections are rejected in reporting, EVM series,
+  and Variance. An in-scope draft baseline remains unavailable for EVM; it is
+  not confused with a foreign/missing parent. Excel/PDF KPI totals now receive
+  the same requested as-of date as their financial sections.
+- Empty Overview values are null/unavailable rather than fabricated zero.
+  Approved zero Budget remains a valid basis; missing Budget approval cannot
+  produce headroom or available-after-commitment values.
+- Source/dimension analytics now use canonical Exposure = Actual + Open
+  Commitment, not Actual + Forecast. Removed unused `list_cost_ledger`,
+  `get_cost_phasing_by_period`, and `get_expense_analytics` wrapper methods.
 
-Evidence collected so far (not a final closure certificate): PostgreSQL
-Finance/security selection `-k 'r6 or security'`: **173 passed, 4 deselected**;
-dependency/export checks: **17 passed**; Finance/security/architecture checks:
-**218 passed**; subsequent cleanup checks: **199 passed**; exact-money tests:
-**2 passed**. Full PM certification is running and must be repeated after the
-last production/test changes; preliminary runs are not final-worktree evidence.
+### Authority Reconciliation
+
+| Concern | Canonical basis retained during R6H |
+| --- | --- |
+| Budget | Approved Budget version and exact line SUM; Projects consume a permission-governed projection, never a mutable Project budget field. |
+| Forecast | Approved/superseded version selected by explicit as-of date; ETC is not Actual and does not rewrite Budget or baseline. |
+| Financial changes | Governed versioned commands and approval participants; operational schedule effects remain behind Scheduling ownership. |
+| Rates | Decimal COST/BILLING rate-card authority with scoped resolution; posted Actual and approved Billing snapshots are not revalued at today's Rate. |
+| Commitments | Neutral externally supplied Procurement facts projected into managerial open commitment; PM does not own Purchase Orders or supplier operations. |
+| Actuals | Posted/reversed ProjectCostEntry evidence with source identity and version controls. TimeEntry itself is not a cost posting. |
+| Approved Time | Time-owned durable outbox, local delivery, Finance inbox and labor-cost consumer; produces managerial Actuals, not Accounting entries. |
+| EVM / Variance | Approved cost-loaded baseline PV/EV/BAC; ledger AC; approved Forecast ETC; canonical Decimal calculator. VAC uses BAC, Budget Headroom uses approved Budget; schedule monetary variance is not days. |
+| Cost Phasing | Canonical performance Reader; actual posting/as-of rules, approved timed Forecast, open Commitment timing and explicit unphased amounts. Not Cash Flow. |
+| Billing | Governed preparation and immutable approved source/rate evidence; not legal invoice issuance. |
+| Commercial | Fixed-price contract revenue less canonical EAC; typed availability/reasons. T&M and cost-plus projection remain unsupported without their missing governed future authorities; non-billable remains not applicable. |
+| Accounting | Destination-neutral immutable PM handoff, durable outbox, separate external transport, authenticated ingress/inbox/outcomes and bounded status Reader. Internal Accounting remains future and optional. |
+
+Production write ownership remains application-command/domain/repository contracts
+with operation-scoped UoW commit; repositories and Platform inbox/outbox services
+remain transaction-neutral. Desktop presentation consumes server capabilities.
+Application Finance/dashboard no longer imports reporting infrastructure; the
+concrete reporting adapter is assembled outside the application layer.
+
+The one-authoritative-Accounting-destination rule remains unchanged: future
+internal Accounting may consume the PM event through its own inbox. External
+delivery is a destination implementation, not handoff identity; no independent
+internal/external fan-out is introduced. Future Accounting owns statutory,
+invoice, payment, GL, AR/AP and tax authority. Procurement/Inventory operations
+and Payroll expansion remain outside this work. Gateway/Event/Reader meanings
+remain distinct. These boundaries are retained, not new module implementations.
+
+### Measured Runs
+
+These are measured intermediate results, not a final closure certificate:
+
+| Run | Result / evidence |
+| --- | --- |
+| Preliminary full PM | 2,525 passed, 0 failed, 2 skipped; `.r6h_full_pm.log`. This predates subsequent fixes and is NOT final-worktree certification. |
+| PostgreSQL Finance/security subset | 173 passed, 4 deselected; `.r6h_postgresql.log`. |
+| Full PostgreSQL run | 177 passed; `.r6h_postgresql_final.log`. Includes existing 10k/50k workforce fixtures, not a new Finance-volume certificate. |
+| Later PostgreSQL run under concurrent suites | 176 passed, 1 failed; `.r6h_postgresql_final_worktree.log`. Resource catalog 50k p95 was 207.49 ms against 200 ms. Threshold unchanged; isolated rerun required. |
+| Isolated PostgreSQL rerun after final production fixes | 177 passed, 0 failed, 0 skipped in 73.28 s; `.r6h_postgresql_isolated.log`. The 50k resource-catalog timing gate passed without changing its threshold. Prior contention failure retained above for traceability. |
+| Platform/integration/approval/architecture | 302 passed; `.r6h_final_platform_guards.log`. |
+| Desktop API/presenter regression | 445 passed; `.r6h_ui_api.log`. |
+| Baseline draft/foreign identity repair | 25 passed; `.r6h_baseline_repair.log`. |
+| Budget zero/availability and canonical-read regression | 50 passed; `.r6h_zero_budget.log`. |
+| Latest combined focused regression | 94 passed, 0 failed, 0 skipped; `.r6h_final_focused.log`. Includes Budget/Commitment availability, Decimal reporting, as-of KPI equivalence, foreign baseline rejection, canonical snapshot/export parity, destination queries and five-viewport Commitment QML tests. |
+| Exposure/canonical snapshot regression | 18 passed; `.r6h_exposure.log`. |
+| Commitment availability viewport regression | 20 passed: five viewports, light/dark, unavailable/available-zero; `.r6h_commitment_viewports.log`. |
+| Finance QML lint | Exit 0 for all Finance workspace QML; `.r6h_finance_qmllint.log`. |
+| Scoped production / Finance-test Ruff F/I | Green; `.r6h_scoped_ruff.log`, `.r6h_finance_tests_ruff.log`. |
+| Repository Ruff F/I | 49 findings remain outside the corrected Finance scope; `.r6h_repository_ruff_final.log`. Not repository-wide clean. |
+| Compilation / diff | Scoped Python compilation and `git diff --check` pass. |
+
+**Release-blocking repository finding, Parts P/Q/AB:**
+`SqlAlchemyFinanceSnapshotReader.read_facts()` still materializes all scoped
+ledger facts in `_read_ledger_entries()` and aggregates them in Python.
+`FinanceService.get_finance_snapshot()` then builds and sorts the full ledger.
+Reporting `_finance_export_context()` calls that full snapshot before
+`FinanceLedgerExportPage.build()` slices a page in memory. A bounded exported
+row count and stable SELECT count do not prove bounded source materialization.
+This path also feeds EVM series and reporting; a fix must migrate all consumers,
+preserve exact reconciliation/availability and scoped historical semantics, and
+must not simply truncate evidence or impose a silent row cap.
+
+Required continuation: separate authoritative SQL aggregates/series from
+bounded ledger-page acquisition through the existing canonical Reader contracts;
+migrate snapshot/export/report consumers; remove superseded in-memory full-ledger
+aggregation; prove same-basis Decimal totals and page completeness at volume.
+Do not introduce another parallel Finance authority.
+
+Final PM certification remains outstanding. Later full-suite attempts were
+interrupted after further audit fixes made their loaded worktree obsolete;
+`.r6h_final_pm.log` and `.r6h_final_worktree_pm.log` are NOT final evidence.
+The preliminary skips were the opt-in large-scale PM workflow and the minimal
+source-less forecast-generation fixture. They are not passing test evidence.
+After remaining remediation, run full PM again, repeat final PostgreSQL and
+quality gates, reconcile the complete gate matrix, then decide closure.
+
+R6H and R6 remain OPEN. R7 is not started. No Accounting/Procurement/Inventory
+operations, Payroll expansion, invoice/payment/GL/AR/AP/tax or FX were introduced.
+No commit was made by the agent.
 
 ## R6G Destination Clarification
 

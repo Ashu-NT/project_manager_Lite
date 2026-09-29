@@ -489,6 +489,19 @@ def test_cost_phasing_historical_actual_does_not_query_current_rates(services, m
     assert after.periods == before.periods
 
 
+def test_r6h_reporting_kpi_uses_the_requested_financial_as_of_date(services) -> None:
+    project, *_ = _approved_controls(services)
+    reporting = services["reporting_service"]
+    before = reporting.get_project_kpis(project.id, as_of=date(2026, 7, 31))
+    after = reporting.get_project_kpis(project.id, as_of=date(2026, 8, 31))
+    assert before.total_actual_cost == Decimal(0)
+    assert after.total_actual_cost == Decimal(25)
+    snapshot = services["finance_service"].get_finance_snapshot(
+        project.id, as_of=date(2026, 8, 31),
+    )
+    assert after.total_actual_cost == snapshot.actual
+
+
 def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> None:
     project, *_ = _approved_controls(services)
     foreign = services["project_service"].create_project("Foreign baseline owner")

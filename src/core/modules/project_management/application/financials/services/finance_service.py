@@ -20,7 +20,6 @@ from src.core.modules.project_management.application.financials.cost.engines.led
     build_finance_ledger_rows,
 )
 from src.core.modules.project_management.application.financials.models.finance_models import (
-    FinanceAnalyticsRow,
     FinanceLedgerRow,
     FinancePeriodRow,
     FinanceReconciliation,
@@ -413,36 +412,6 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             operation_label="export project finance",
         )
         return self.get_finance_snapshot(project_id, as_of=as_of, period=period)
-
-    def list_cost_ledger(
-        self, project_id: str, *, as_of: date | None = None
-    ) -> list[FinanceLedgerRow]:
-        return self.get_finance_snapshot(project_id, as_of=as_of).ledger
-
-    def get_cost_phasing_by_period(
-        self,
-        project_id: str,
-        *,
-        as_of: date | None = None,
-        period: str = "month",
-    ) -> list[FinancePeriodRow]:
-        return self.get_finance_snapshot(
-            project_id, as_of=as_of, period=period
-        ).cost_phasing
-
-    def get_expense_analytics(
-        self,
-        project_id: str,
-        *,
-        as_of: date | None = None,
-    ) -> dict[str, list[FinanceAnalyticsRow]]:
-        snapshot = self.get_finance_snapshot(project_id, as_of=as_of)
-        return {
-            "source": snapshot.by_source,
-            "cost_type": snapshot.by_cost_type,
-            "resource": snapshot.by_resource,
-            "task": snapshot.by_task,
-        }
 
 
 __all__ = ["FinanceService"]

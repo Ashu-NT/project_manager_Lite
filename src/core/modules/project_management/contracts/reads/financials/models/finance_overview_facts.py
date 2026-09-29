@@ -44,11 +44,11 @@ class FinanceOverviewFacts:
 
     @property
     def budget_headroom(self) -> Decimal | None:
-        return self.control.budget_headroom
+        return self.control.budget_headroom if self.approved_budget_id is not None else None
 
     @property
-    def available_after_commitment(self) -> Decimal:
-        return self.control.committed_available
+    def available_after_commitment(self) -> Decimal | None:
+        return self.control.committed_available if self.approved_budget_id is not None else None
 
 
 __all__ = ["FinanceOverviewFacts"]

@@ -122,7 +122,8 @@ class CostPolicyEngine:
         exposure = actual + committed
         forecast_etc = facts.control.forecast_etc
         estimate_at_completion = facts.control.estimate_at_completion
-        budget_headroom = facts.control.budget_headroom
+        has_approved_budget = facts.project.approved_budget_id is not None
+        budget_headroom = facts.control.budget_headroom if has_approved_budget else None
         return CostControlTotals(
             project_id=snapshot.project_id,
             project_currency=snapshot.project_currency,
@@ -134,7 +135,7 @@ class CostPolicyEngine:
             estimate_at_completion=estimate_at_completion,
             budget_headroom=budget_headroom,
             exposure=exposure,
-            available=(snapshot.budget - exposure if snapshot.budget > 0 else None),
+            available=(snapshot.budget - exposure if has_approved_budget else None),
             unresolved_labor_rates=snapshot.unresolved_labor_rates,
         )
 
