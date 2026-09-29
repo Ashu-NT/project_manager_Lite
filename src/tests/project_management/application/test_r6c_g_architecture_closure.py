@@ -17,7 +17,7 @@ BOUNDARY = (
     / "application/financials/governance/command_boundary.py"
 )
 RUNTIME_RESOLVER = PM_ROOT / "api/desktop_runtime/service_resolver.py"
-PROJECT_REGISTRY = Path("src/infra/composition/project_registry.py")
+PROJECT_REGISTRY = Path("src/infra/composition/modules/project_registry.py")
 FINANCIAL_DIALOG_HOST = Path(
     "src/ui_qml/modules/project_management/qml/workspaces/financials/shared/dialogs/"
     "FinancialsDialogHost.qml"

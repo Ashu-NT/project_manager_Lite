@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CURRENT; R6G-A COMPLETE; R6G-B COMPLETE; R6G-C COMPLETE; R6G-D COMPLETE; R6G-E COMPLETE; R6G-F NOT STARTED
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CURRENT; R6G-A COMPLETE; R6G-B COMPLETE; R6G-C COMPLETE; R6G-D COMPLETE; R6G-E COMPLETE; R6G-F IN PROGRESS
 Last updated: 2026-09-28
 Scope: Project Management finance plus reusable platform financial foundations
 
@@ -42,6 +42,126 @@ event-bus redesign are authorized by this clarification.
 R6G-B is complete: capability/configuration, dedicated authorization,
 immutable scoped handoff and owned outbox, atomic fresh-UoW request, RLS and
 concurrency evidence. R6G-C and R6G-D are complete. R6D/E/F remain closed.
+
+## R6G-F Integrated Architecture and Closure Evidence
+
+R6G-F is the final Accounting-integration phase. Full PM regression classification
+is running; R6G is not marked closed until the final evidence below is complete.
+R6H has not started. The worktree was clean at F entry; legitimate E work had
+already been incorporated. No user changes were discarded.
+
+### Destination-Neutral Authority
+
+`domain/financials/accounting/handoff.py::AccountingHandoffSnapshot` is the sole
+canonical PM handoff contract. Its governed Billing evidence includes approval,
+scope, stable identity, exact Decimal amounts and approved source lines. It has
+no connector/adapter/connection, endpoint, secret, lease, HTTP or vendor field.
+The transitive source dependency guard proves the handoff does not depend on
+application/infrastructure, external transport ports or external ingress contracts.
+External customer reference and payment terms are PM commercial evidence, not
+credentials, payment records or Accounting recognition authority.
+
+The current request use case checks external destination availability because
+external delivery is the only implemented destination. This eligibility check is
+not a dependency of the persisted handoff schema. A live runtime-role test removes
+the connector after claiming, then independently deserializes both handoff and
+outbox event using only neutral contracts and verifies unchanged bytes/hash/version.
+No connector FK can cascade into canonical handoff evidence.
+
+Future internal route: PM handoff -> persisted integration event -> internal
+Accounting inbox/consumer -> Accounting application/domain. This is a dependency
+proof, NOT an implemented internal consumer. Internal Accounting would own its
+invoices, numbering, tax, statutory recognition, ledgers, receivables and payments.
+Its optional outbound synchronization would be Accounting-owned, not a second PM
+financial-effect delivery.
+
+One scoped outbox record exists per handoff, not per adapter. The scoped event
+uniqueness constraint and immutable pinned target protect the current single
+external destination. There is no internal consumer or dual fan-out registration.
+Before any future internal module is enabled, composition must choose ONE
+authoritative destination for that handoff. No speculative routing framework was
+added in F; the existing external route is not advertised as an internal router.
+
+### Integrated Lifecycle and Recovery
+
+Outbound: approved preparation -> governed request -> canonical handoff + outbox
++ Billing state + audit + typed event in one operation UoW -> fresh scoped claim
+-> detached vendor-neutral port call with boundary-only credential injection
+-> fresh scoped finalization of transport result + Billing state + audit + event.
+Repositories and Platform inbox/outbox services do not commit. The request builder
+is private, called only at initial approved-evidence capture; retries replay exact
+persisted bytes and never rebuild from live Billing/Profile data.
+
+Inbound: authenticated ingress -> trusted connector and non-interactive principal
+-> canonical inbox -> dedup/correlation/version/hash/order/transition checks
+-> atomic outcome/status/audit/event. Changed duplicates, foreign scope, malformed
+input, stale/equal sequences and invalid transitions quarantine without becoming
+financial facts. Reconciliation ordering does not depend on provider timestamps.
+
+Recovery proofs cover pre-claim commit failure (no network), committed claim/process
+death (lease recovery by a fresh worker), network failures, remote acceptance with
+local audit/commit rollback, exact durable-idempotent replay, stale finalizer rejection,
+max-attempt expiry and competing SKIP LOCKED workers. Unknown/ambiguous transport
+results are terminal/reconciliation-required rather than blindly retried. No
+distributed exactly-once guarantee is claimed. Installed external adapters must
+honor the durable-idempotency port contract; real vendor certification is not
+fabricated by mock-adapter tests.
+
+### Security, Read Truth and Boundaries
+
+Worker and inbound actors are explicit scoped service principals, not the original
+interactive requester. Production composition rejects superuser/BYPASSRLS/owner
+roles. PostgreSQL tests independently exercise runtime RLS and scoped ORM/Reader
+checks across tenants, organizations, projects, parents, connectors and inboxes.
+Project authorization remains explicit; tenant/org RLS is not misrepresented as
+project-granular database authorization.
+
+Accounting Status uses the sole bounded E query. Queued is local durable work;
+delivered is transport acceptance; acknowledged/rejected/reconciled are authenticated
+business evidence. Acknowledged is not invoiced, reconciled is not paid, and
+configuration failure/attempt exhaustion is not Accounting rejection. Safe category,
+incident and reference metadata is shown; raw messages/payloads/secrets are not.
+Manual retry remains unsupported by the current permission/command model.
+
+Committed transport/outcome invalidation affects only dependent Billing/Accounting
+surfaces for the matching project. Separate commits sharing a correlation ID still
+refresh; late project results remain guarded. No EAC/margin/EVM/phasing/global refresh
+is introduced. PM-only characterization and the ordinary PM fixture exercise Finance
+without operational Accounting/Procurement/Inventory modules.
+
+### Performance and Cleanup Audit
+
+Live claim uses 10 SELECTs, one LIMIT/SKIP LOCKED work query and no checked-out
+connection during provider calls. Runtime-role EXPLAIN (ANALYZE, BUFFERS) has a
+top-level Limit; observed execution was 0.106 ms in the dedicated local fixture
+(not a production SLA). Claim/finalize are operation-scoped; inbound previous-state
+queries are bounded, and receipt/event correlation uses scoped keys. Initial handoff
+construction must serialize all approved lines once; it is not an unbounded history
+read or a per-line repository loop.
+
+E's 40-handoff/400-receipt test retains four status SELECTs at page sizes 1 and 200;
+inbox metadata is projected/aggregated, not materialized as an audit-log dump.
+No speculative index or schema change was justified or added.
+
+Retired publisher, public live delivery builder and unauthenticated outcome command
+searches find no production implementation. Existing request/claim/ingress/status
+paths are single authorities; no compatibility adapter or alternative pull pipeline
+was added. No production files required deletion in F. Guards referring to retired
+symbols are active regression tests, not dead production paths.
+
+`ApprovedTimeFinancialSourceProvider` and `ProcurementFinancialSourceProvider` remain
+zero-implementation speculative declarations, not registered consumers or second
+financial authorities. Their disposition is recorded for future cleanup; they were
+not expanded. `TaskReservationGateway` remains a future synchronous capability only.
+PM contains neutral future-facing Procurement contracts, NOT Procurement operations.
+
+### Final Validation Record
+
+Pending completion of the full PM run and final quality reruns. Two pre-existing
+stale tests found so far were repaired without changing production behavior:
+the workspace descriptor expectation omitted Review Queue, and the R6C approval
+guard referenced the pre-restructure composition path. Their targeted rerun passed
+10 tests. Final counts and any additional classification will be recorded here.
 
 ## R6G-E Closure: Accounting Status / Operator UX
 

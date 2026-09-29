@@ -18,6 +18,7 @@ EXPECTED_PM_WORKSPACE_KEYS = [
     "collaboration",
     "timesheets",
     "dashboard",
+    "review_queue",
 ]
 
 
