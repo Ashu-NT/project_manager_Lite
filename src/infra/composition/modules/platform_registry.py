@@ -429,7 +429,7 @@ class PlatformServiceBundle:
     platform_view_invalidation_channel: ViewInvalidationChannel
    
     platform_transactional_dispatcher: TransactionalEventDispatcher
-    platform_post_commit_bus: PostCommitEventPublisher
+    platform_post_commit_bus: InProcessPostCommitEventBus
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService

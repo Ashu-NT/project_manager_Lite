@@ -8,7 +8,7 @@ from decimal import Decimal
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.infra.persistence.db.financial_numeric import (
+from src.core.platform.infrastructure.persistence.common.financial_numeric import (
     FinancialNumericKind,
     financial_numeric,
     financial_numeric_info,

@@ -38,6 +38,8 @@ class ApprovedScheduleChangePort(Protocol):
         actor_id: str,
         commit: bool = False,
     ) -> list[AppliedTaskScheduleChange]: ...
+    
+    def _take_pending_task_events(self) -> tuple: ...
 
 
 __all__ = [
