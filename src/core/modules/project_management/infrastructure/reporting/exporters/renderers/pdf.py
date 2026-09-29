@@ -294,7 +294,7 @@ class PdfReportRenderer:
                 story.append(table)
                 story.append(Spacer(1, 16))
 
-            ledger_page = ctx.finance_ledger_page
+            ledger_page = ctx.project_finance_ledger_page
             if ledger_page and ledger_page.rows:
                 story.append(Paragraph("Finance Ledger Source Drill-down", styles["Heading3"]))
                 story.append(Spacer(1, 6))

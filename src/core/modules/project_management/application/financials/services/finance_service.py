@@ -16,17 +16,15 @@ from src.core.modules.project_management.application.financials.cost.engines.cos
 from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
     LaborCostEngine,
 )
-from src.core.modules.project_management.application.financials.cost.engines.ledger import (
-    build_finance_ledger_rows,
+from src.core.modules.project_management.application.financials.cost.engines.project_finance_ledger import (
+    build_project_finance_ledger_rows,
 )
 from src.core.modules.project_management.application.financials.models.finance_models import (
-    FinanceLedgerRow,
     FinancePeriodRow,
     FinanceReconciliation,
     FinanceSnapshot,
 )
 from src.core.modules.project_management.application.financials.reporting.analytics import (
-    build_dimension_analytics,
     build_source_analytics,
 )
 from src.core.modules.project_management.application.financials.utils.helpers import (
@@ -50,6 +48,9 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
     FinanceSnapshotFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
+    ProjectFinanceLedgerQuery,
 )
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
@@ -132,6 +133,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         *,
         as_of: date | None = None,
         period: str = "month",
+        ledger_query: ProjectFinanceLedgerQuery | None = None,
     ) -> FinanceSnapshot:
         require_permission(
             self._user_session, "finance.read", operation_label="view finance snapshot"
@@ -146,11 +148,20 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="build finance snapshot"
         )
+        can_read_sensitive = bool(
+            self._user_session is not None
+            and self._user_session.has_project_permission(
+                project_id,
+                "finance.read_sensitive",
+            )
+        )
         facts = self._finance_snapshot_reader.read_facts(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             project_id=project_id,
             as_of=as_of,
+            ledger_query=ledger_query,
+            include_sensitive=can_read_sensitive,
         )
         if facts is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
@@ -164,16 +175,8 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         source_breakdown = policy.source_breakdown
         totals = policy.totals
 
-        ledger = build_finance_ledger_rows(facts=facts)
-        ledger.sort(
-            key=lambda row: (
-                row.occurred_on or date.min,
-                row.source_key,
-                row.stage,
-                row.reference_label.lower(),
-            )
-        )
-        reconciliation = self._build_reconciliation(facts, ledger)
+        ledger = build_project_finance_ledger_rows(facts=facts)
+        reconciliation = self._build_reconciliation(facts)
         if not reconciliation.is_reconciled:
             raise BusinessRuleError(
                 "Finance controls do not reconcile to their canonical ledger sources.",
@@ -199,19 +202,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         notes.append(
             "Cost Phasing uses posting dates for actuals and approved forecast periods for ETC; it is not accounting cash flow."
         )
-        can_read_sensitive = bool(
-            self._user_session is not None
-            and self._user_session.has_project_permission(
-                project_id,
-                "finance.read_sensitive",
-            )
-        )
         if not can_read_sensitive:
-            ledger = self._redact_sensitive_labor_rows(
-                ledger,
-                project_id=project_id,
-                as_of=as_of,
-            )
             notes.append(
                 "Detailed labor finance data is hidden because finance.read_sensitive "
                 "is not granted."
@@ -267,15 +258,9 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             cost_phasing=cost_phasing,
             cost_phasing_availability=cost_phasing_availability,
             by_source=build_source_analytics(source_breakdown.rows),
-            by_cost_type=build_dimension_analytics(
-                ledger=ledger, dimension="cost_type"
-            ),
-            by_resource=(
-                build_dimension_analytics(ledger=ledger, dimension="resource")
-                if can_read_sensitive
-                else []
-            ),
-            by_task=build_dimension_analytics(ledger=ledger, dimension="task"),
+            ledger_total=facts.ledger_total,
+            ledger_offset=facts.ledger_offset,
+            ledger_limit=facts.ledger_limit,
             notes=notes,
             unresolved_labor_rates=totals.unresolved_labor_rates,
         )
@@ -315,70 +300,12 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         )
 
     @staticmethod
-    def _redact_sensitive_labor_rows(
-        ledger: list[FinanceLedgerRow],
-        *,
-        project_id: str,
-        as_of: date,
-    ) -> list[FinanceLedgerRow]:
-        visible: list[FinanceLedgerRow] = []
-        grouped: dict[tuple[str, str, str, str | None], Decimal] = {}
-        for row in ledger:
-            if row.cost_type != "LABOR":
-                visible.append(row)
-                continue
-            key = (row.source_key, row.source_label, row.stage, row.currency)
-            grouped[key] = grouped.get(key, Decimal(0)) + row.amount
-
-        for (source_key, source_label, stage, currency), amount in sorted(
-            grouped.items(),
-            key=lambda item: tuple(value or "" for value in item[0]),
-        ):
-            visible.append(
-                FinanceLedgerRow(
-                    project_id=project_id,
-                    source_key=source_key,
-                    source_label=source_label,
-                    cost_type="LABOR",
-                    stage=stage,
-                    amount=amount,
-                    currency=currency,
-                    occurred_on=as_of,
-                    reference_type="restricted_finance",
-                    reference_id=(
-                        f"restricted:{source_key}:{stage}:{currency or 'none'}"
-                    ),
-                    reference_label="Restricted labor cost",
-                    task_id=None,
-                    task_name=None,
-                    resource_id=None,
-                    resource_name=None,
-                    cost_code_id=None,
-                    source_type="restricted",
-                    financial_period_id=None,
-                    period_start=None,
-                    period_end=None,
-                    included_in_policy=True,
-                )
-            )
-        visible.sort(
-            key=lambda row: (
-                row.occurred_on or date.min,
-                row.source_key,
-                row.stage,
-                row.reference_label.lower(),
-            )
-        )
-        return visible
-
-    @staticmethod
     def _build_reconciliation(
         facts: FinanceSnapshotFacts,
-        ledger: list[FinanceLedgerRow],
     ) -> FinanceReconciliation:
         def stage_total(stage: str) -> Decimal:
             return sum(
-                (row.amount for row in ledger if row.stage == stage),
+                (row.total_amount for row in facts.cost_aggregates if row.stage == stage),
                 start=Decimal(0),
             )
 
@@ -399,6 +326,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         *,
         as_of: date | None = None,
         period: str = "month",
+        ledger_query: ProjectFinanceLedgerQuery | None = None,
     ) -> FinanceSnapshot:
         require_permission(
             self._user_session,
@@ -411,7 +339,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             "finance.export",
             operation_label="export project finance",
         )
-        return self.get_finance_snapshot(project_id, as_of=as_of, period=period)
+        return self.get_finance_snapshot(project_id, as_of=as_of, period=period, ledger_query=ledger_query)
 
 
 __all__ = ["FinanceService"]

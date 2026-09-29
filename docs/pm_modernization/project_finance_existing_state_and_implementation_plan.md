@@ -94,22 +94,30 @@ These are measured intermediate results, not a final closure certificate:
 | Repository Ruff F/I | 49 findings remain outside the corrected Finance scope; `.r6h_repository_ruff_final.log`. Not repository-wide clean. |
 | Compilation / diff | Scoped Python compilation and `git diff --check` pass. |
 
-**Release-blocking repository finding, Parts P/Q/AB:**
-`SqlAlchemyFinanceSnapshotReader.read_facts()` still materializes all scoped
-ledger facts in `_read_ledger_entries()` and aggregates them in Python.
-`FinanceService.get_finance_snapshot()` then builds and sorts the full ledger.
-Reporting `_finance_export_context()` calls that full snapshot before
-`FinanceLedgerExportPage.build()` slices a page in memory. A bounded exported
-row count and stable SELECT count do not prove bounded source materialization.
-This path also feeds EVM series and reporting; a fix must migrate all consumers,
-preserve exact reconciliation/availability and scoped historical semantics, and
-must not simply truncate evidence or impose a silent row cap.
+**Bounded-ledger remediation in the current worktree, Parts P/Q/AB:**
+The previous snapshot Reader hydrated the full ledger, then reporting sliced it
+in memory. The replacement scopes each source before a SQL UNION ALL and applies
+deterministic date/source/stage/description/reference-type/ID ordering with SQL
+LIMIT/OFFSET. Separate SQL aggregates provide full-set amounts and counts; EVM
+uses monthly Actual aggregates instead of ledger detail. Restricted labor is
+grouped before counting/paging. Export semantics remain an explicitly requested
+ledger page, with full-project control totals, not a silently truncated full export.
 
-Required continuation: separate authoritative SQL aggregates/series from
-bounded ledger-page acquisition through the existing canonical Reader contracts;
-migrate snapshot/export/report consumers; remove superseded in-memory full-ledger
-aggregation; prove same-basis Decimal totals and page completeness at volume.
-Do not introduce another parallel Finance authority.
+User-approved naming is `ProjectFinanceLedger`: Query, Fact, Row and ExportPage
+types, `project_finance_ledger_query.py`, `project_finance_ledger_statements.py`,
+and the application `project_finance_ledger.py` projection. Imports, consumers and
+tests move together; no old-name compatibility aliases remain. The superseded
+full-ledger reader, in-memory page builder and unused dimension analytics are
+removed. PostgreSQL and final-worktree certification still need to validate this
+replacement before closure; earlier counts above do not certify these changes.
+
+Post-rename targeted verification: 66 passed, 0 failed, 0 skipped in 41.90 s
+(`.r6h_project_finance_ledger.log`): canonical snapshot/export, bounded ledger
+pages (including 100 and 1,001 additional Actual rows), sensitive-detail access,
+Excel/PDF and CQRS architecture guards. The fixed-size Reader page uses nine
+statements in the unstaffed fixture, at both tested volumes; aggregate/control
+values remain independent of the selected page. Scoped Ruff F/I, changed-file
+compilation and diff checks pass. This is not final R6H certification.
 
 Final PM certification remains outstanding. Later full-suite attempts were
 interrupted after further audit fixes made their loaded worktree obsolete;

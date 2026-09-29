@@ -146,7 +146,7 @@ class CostPolicyEngine:
         project_currency: str | None,
     ) -> CostSourceBreakdown:
         grouped: dict[str, CostSourceRow] = {}
-        for entry in facts.ledger_entries:
+        for entry in facts.cost_aggregates:
             currency = self._normalize_currency(entry.currency_code, project_currency)
             if not self._currency_in_scope(currency, project_currency):
                 continue
@@ -162,7 +162,7 @@ class CostPolicyEngine:
                 ),
             )
             if entry.stage in {"planned", "committed", "actual", "forecast"}:
-                setattr(row, entry.stage, getattr(row, entry.stage) + entry.amount)
+                setattr(row, entry.stage, getattr(row, entry.stage) + entry.total_amount)
         rows = sorted(grouped.values(), key=lambda row: row.source_label.lower())
         return CostSourceBreakdown(
             project_id=facts.project_id,

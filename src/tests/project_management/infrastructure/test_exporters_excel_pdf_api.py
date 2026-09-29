@@ -20,14 +20,16 @@ from src.core.modules.project_management.application.financials.models import (
     EarnedValueMetrics,
     EvmSeriesPoint,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
+    ProjectFinanceLedgerQuery,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.infrastructure.reporting import (
     api as reporting_api,
 )
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
-    MAX_FINANCE_LEDGER_EXPORT_ROWS,
-    FinanceLedgerExportPage,
+    MAX_PROJECT_FINANCE_LEDGER_EXPORT_ROWS,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
@@ -419,13 +421,12 @@ def test_excel_export_omits_finance_sections_without_finance_read(services, tmp_
     assert restricted_value == "Restricted (finance.read required)"
 
 
-def test_finance_ledger_export_page_rejects_unbounded_requests():
+def test_project_finance_ledger_export_page_rejects_unbounded_requests():
     with pytest.raises(ValueError, match="non-negative"):
-        FinanceLedgerExportPage.build([], offset=-1, limit=1)
+        ProjectFinanceLedgerQuery(offset=-1, limit=1)
 
     with pytest.raises(ValueError, match="between 1"):
-        FinanceLedgerExportPage.build(
-            [],
+        ProjectFinanceLedgerQuery(
             offset=0,
-            limit=MAX_FINANCE_LEDGER_EXPORT_ROWS + 1,
+            limit=MAX_PROJECT_FINANCE_LEDGER_EXPORT_ROWS + 1,
         )

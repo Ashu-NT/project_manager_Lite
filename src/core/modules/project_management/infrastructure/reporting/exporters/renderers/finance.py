@@ -11,7 +11,7 @@ from src.core.modules.project_management.infrastructure.reporting.models.context
 
 def finance_metadata_rows(ctx: ReportExportContext) -> tuple[tuple[str, object], ...]:
     snapshot = ctx.finance_snapshot
-    page = ctx.finance_ledger_page
+    page = ctx.project_finance_ledger_page
     if snapshot is None or page is None:
         return ()
     budget_version = _version_label(
@@ -105,7 +105,7 @@ def finance_reconciliation_rows(
     )
 
 
-def finance_ledger_headers() -> tuple[str, ...]:
+def project_finance_ledger_headers() -> tuple[str, ...]:
     return (
         "Date",
         "Period Start",
@@ -128,7 +128,7 @@ def finance_ledger_headers() -> tuple[str, ...]:
     )
 
 
-def finance_ledger_values(row) -> tuple[object, ...]:
+def project_finance_ledger_values(row) -> tuple[object, ...]:
     return (
         row.occurred_on.isoformat() if row.occurred_on else "",
         row.period_start.isoformat() if row.period_start else "",
@@ -170,8 +170,8 @@ def _cost_phasing_availability_label(item) -> str:
 
 
 __all__ = [
-    "finance_ledger_headers",
-    "finance_ledger_values",
+    "project_finance_ledger_headers",
+    "project_finance_ledger_values",
     "finance_metadata_rows",
     "finance_reconciliation_rows",
     "finance_summary_rows",

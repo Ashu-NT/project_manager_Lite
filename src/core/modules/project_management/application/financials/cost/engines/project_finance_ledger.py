@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.modules.project_management.application.financials.models.finance_models import (
-    FinanceLedgerRow,
+    ProjectFinanceLedgerRow,
 )
 from src.core.modules.project_management.application.financials.utils.helpers import (
     normalize_currency,
@@ -11,18 +11,18 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 )
 
 
-def build_finance_ledger_rows(*, facts: FinanceSnapshotFacts) -> list[FinanceLedgerRow]:
+def build_project_finance_ledger_rows(*, facts: FinanceSnapshotFacts) -> list[ProjectFinanceLedgerRow]:
     """Project canonical financial facts into the shared reporting ledger."""
 
     project_currency = normalize_currency(facts.project.currency_code, None)
     task_map = {task.task_id: task for task in facts.tasks}
     resource_map = {resource.resource_id: resource for resource in facts.resources}
-    rows: list[FinanceLedgerRow] = []
+    rows: list[ProjectFinanceLedgerRow] = []
     for fact in facts.ledger_entries:
         task = task_map.get(fact.task_id or "")
         resource = resource_map.get(fact.resource_id or "")
         rows.append(
-            FinanceLedgerRow(
+            ProjectFinanceLedgerRow(
                 project_id=facts.project_id,
                 source_key=fact.source_key,
                 source_label=fact.source_label,
@@ -49,4 +49,4 @@ def build_finance_ledger_rows(*, facts: FinanceSnapshotFacts) -> list[FinanceLed
     return rows
 
 
-__all__ = ["build_finance_ledger_rows"]
+__all__ = ["build_project_finance_ledger_rows"]

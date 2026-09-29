@@ -109,10 +109,8 @@ class EarnedValueSeriesCalculator:
             posted_actual = sum(
                 (
                     entry.amount
-                    for entry in facts.finance.ledger_entries
-                    if entry.stage == "actual"
-                    and entry.occurred_on is not None
-                    and entry.occurred_on <= pe
+                    for entry in facts.finance.actual_months
+                    if (entry.year, entry.month) <= (pe.year, pe.month)
                 ),
                 start=Decimal(0),
             )
