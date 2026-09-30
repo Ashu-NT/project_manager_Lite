@@ -23,6 +23,9 @@ from src.ui_qml.platform.presenters.documents.document_catalog_presenter import 
 from src.ui_qml.platform.presenters.documents.document_management_presenter import (
     PlatformDocumentManagementPresenter,
 )
+from src.ui_qml.platform.presenters.employees.employee_activity_presenter import (
+    PlatformEmployeeActivityPresenter,
+)
 from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
     PlatformEmployeeCatalogPresenter,
 )
@@ -77,6 +80,7 @@ __all__ = [
     "PlatformDepartmentCatalogPresenter",
     "PlatformDocumentCatalogPresenter",
     "PlatformDocumentManagementPresenter",
+    "PlatformEmployeeActivityPresenter",
     "PlatformEmployeeCatalogPresenter",
     "PlatformOrganizationActivityPresenter",
     "PlatformOrganizationCatalogPresenter",

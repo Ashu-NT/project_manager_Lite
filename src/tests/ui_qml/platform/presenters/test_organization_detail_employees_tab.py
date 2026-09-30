@@ -143,7 +143,7 @@ def test_employees_tab_controller_slot_applies_status_filter_server_side(service
     inactive = employee_service.create_employee(
         employee_code="FIL-INA-EMP", full_name="Filter Inactive Employee", department_id=department.id
     )
-    employee_service.update_employee(inactive.id, is_active=False)
+    employee_service.deactivate_employee(inactive.id)
 
     result = admin.organizationEmployeesPage(org.id, 1, 25, "", "active")
     names = [item["title"] for item in result["items"]]

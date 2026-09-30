@@ -31,7 +31,6 @@ def _seed_employees(employee_service, department_service=None, *, department_id=
             full_name=f"{prefix} Employee {i}",
             department_id=department_id,
             site_id=site_id,
-            is_active=True,
         )
         created.append(employee)
     return created
@@ -494,7 +493,7 @@ def test_employees_page_for_organization_site_scope_respects_status_filter(servi
     for employee in _seed_employees(
         employee_service, department_service, site_id=site.id, count=1, prefix="EMPPGC-INACTIVE"
     ):
-        employee_service.update_employee(employee_id=employee.id, is_active=False, expected_version=employee.version)
+        employee_service.deactivate_employee(employee.id)
 
     active_page = employee_service.list_employees_page_for_organization(
         organization_id, page=1, page_size=25, site_id=site.id, active_only=True

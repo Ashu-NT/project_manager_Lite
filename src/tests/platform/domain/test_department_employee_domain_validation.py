@@ -425,6 +425,7 @@ def test_employee_dto_normalizes_and_validates_fields():
         Employee.create(
             employee_code="EMP-1",
             full_name="Valid",
+            organization_id="org-1",
             department_id="dept-1",
             employment_type="invalid",
         )

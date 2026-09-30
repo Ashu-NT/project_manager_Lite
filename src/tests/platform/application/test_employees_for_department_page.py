@@ -50,7 +50,7 @@ def test_employees_for_department_page_search_and_status_filter(services) -> Non
     inactive_employee = employee_service.create_employee(
         employee_code="EFDP-E5", full_name="Someone Else", department_id=department.id
     )
-    employee_service.update_employee(inactive_employee.id, is_active=False)
+    employee_service.deactivate_employee(inactive_employee.id)
 
     search_page = admin.employeesForDepartmentPage(department.id, organization_id, 1, 25, "Findme", "")
     assert [item["title"] for item in search_page["items"]] == ["Findme Active"]

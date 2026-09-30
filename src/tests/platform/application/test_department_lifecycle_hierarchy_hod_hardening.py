@@ -325,7 +325,7 @@ def test_update_department_head_of_department_rejects_inactive_employee(services
     inactive_employee = employee_service.create_employee(
         employee_code="HOD-2D", full_name="Retired Person", department_id=department.id
     )
-    employee_service.update_employee(inactive_employee.id, is_active=False)
+    employee_service.deactivate_employee(inactive_employee.id)
 
     result = admin.updateDepartment({
         "departmentId": department.id,

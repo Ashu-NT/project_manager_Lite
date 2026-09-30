@@ -16,6 +16,7 @@ from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
+from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
     EmployeeORM,
 )
@@ -145,7 +146,7 @@ def test_cross_tenant_organization_id_is_rejected_not_visible(services) -> None:
             department_id="foreign-department-1",
             employee_code="FOREIGN-EMP-1",
             full_name="Foreign Employee",
-            is_active=True,
+            status=EmployeeLifecycleStatus.ACTIVE,
             version=1,
         )
     )

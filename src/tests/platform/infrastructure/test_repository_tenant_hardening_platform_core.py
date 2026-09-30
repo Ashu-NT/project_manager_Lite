@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.core.platform.domain.master_data.employee import EmploymentType
+from src.core.platform.domain.master_data.employee import (
+    EmployeeLifecycleStatus,
+    EmploymentType,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
@@ -91,7 +94,7 @@ def _seed_core_scope_rows(services) -> dict[str, str]:
         employee_code="EMP-CUR",
         full_name="Current Employee",
         employment_type=EmploymentType.FULL_TIME,
-        is_active=True,
+        status=EmployeeLifecycleStatus.ACTIVE,
         version=1,
     )
     other_employee = EmployeeORM(
@@ -102,7 +105,7 @@ def _seed_core_scope_rows(services) -> dict[str, str]:
         employee_code="EMP-OTH",
         full_name="Other Employee",
         employment_type=EmploymentType.FULL_TIME,
-        is_active=True,
+        status=EmployeeLifecycleStatus.ACTIVE,
         version=1,
     )
     current_party = PartyORM(

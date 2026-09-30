@@ -59,7 +59,7 @@ def test_curated_feed_covers_organization_site_department_employee_document_even
     employee = employee_service.update_employee(
         employee.id, title="Senior Engineer", expected_version=employee.version
     )
-    employee_service.update_employee(employee.id, is_active=False, expected_version=employee.version)
+    employee_service.deactivate_employee(employee.id)
 
     # Document: create (added) + a NOISE profile update (must be excluded)
     # + deactivate (removed).
@@ -118,7 +118,7 @@ def test_curated_feed_respects_limit_even_with_noise_ahead_of_it(services):
         employee = employee_service.update_employee(
             employee.id, title=f"Title {i}", expected_version=employee.version
         )
-    employee_service.update_employee(employee.id, is_active=False, expected_version=employee.version)
+    employee_service.deactivate_employee(employee.id)
 
     items = activity_api.list_for_organization_overview(org.id, limit=5)
     titles = [item.human_message for item in items]

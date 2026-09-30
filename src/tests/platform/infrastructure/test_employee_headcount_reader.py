@@ -15,6 +15,7 @@ from sqlalchemy.orm import sessionmaker
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
+from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
     EmployeeORM,
 )
@@ -68,7 +69,7 @@ def _seed_employee(db, *, id, tenant_id, organization_id, code, is_active, depar
             department_id=department_id,
             employee_code=code,
             full_name=f"Employee {code}",
-            is_active=is_active,
+            status=EmployeeLifecycleStatus.ACTIVE if is_active else EmployeeLifecycleStatus.INACTIVE,
             version=1,
         )
     )
@@ -155,8 +156,9 @@ def test_employee_service_headcount_summary_reflects_writes(services):
     dept = department_service.create_department(department_code="P6-D1", name="Headcount Dept")
     baseline = employee_service.get_headcount_summary()
 
-    employee_service.create_employee(employee_code="P6-E1", full_name="Employee One", department_id=dept.id, is_active=True)
-    employee_service.create_employee(employee_code="P6-E2", full_name="Employee Two", department_id=dept.id, is_active=False)
+    employee_service.create_employee(employee_code="P6-E1", full_name="Employee One", department_id=dept.id)
+    inactive = employee_service.create_employee(employee_code="P6-E2", full_name="Employee Two", department_id=dept.id)
+    employee_service.deactivate_employee(inactive.id)
 
     updated = employee_service.get_headcount_summary()
     assert updated.total == baseline.total + 2
@@ -171,7 +173,7 @@ def test_employee_headcount_is_isolated_per_organization(services):
     default_organization = services["tenant_context_service"].get_active_organization()
     default_dept = department_service.create_department(department_code="P6-DEF-D", name="Default Org Dept")
     employee_service.create_employee(
-        employee_code="P6-DEF-1", full_name="Default Org Employee", department_id=default_dept.id, is_active=True
+        employee_code="P6-DEF-1", full_name="Default Org Employee", department_id=default_dept.id
     )
     default_summary = employee_service.get_headcount_summary()
     assert default_summary.total >= 1
@@ -189,7 +191,7 @@ def test_employee_headcount_is_isolated_per_organization(services):
 
     second_dept = department_service.create_department(department_code="P6-SEC-D", name="Second Org Dept")
     employee_service.create_employee(
-        employee_code="P6-SEC-1", full_name="Second Org Employee", department_id=second_dept.id, is_active=True
+        employee_code="P6-SEC-1", full_name="Second Org Employee", department_id=second_dept.id
     )
     assert employee_service.get_headcount_summary().total == 1
 
@@ -228,9 +230,11 @@ def test_get_headcount_summary_never_calls_list_for_organization(services, sessi
 
     dept = department_service.create_department(department_code="P6-BULK-D", name="Bulk Dept")
     for i in range(50):
-        employee_service.create_employee(
-            employee_code=f"P6-BULK-{i}", full_name=f"Bulk Employee {i}", department_id=dept.id, is_active=(i % 2 == 0)
+        employee = employee_service.create_employee(
+            employee_code=f"P6-BULK-{i}", full_name=f"Bulk Employee {i}", department_id=dept.id
         )
+        if i % 2 != 0:
+            employee_service.deactivate_employee(employee.id)
 
     counts, restore = _instrument_list_for_organization(employee_repo)
     try:
@@ -261,9 +265,11 @@ def test_admin_overview_never_lists_full_employee_collection(services):
 
     dept = department_service.create_department(department_code="P6-ADMIN-D", name="Admin Overview Dept")
     for i in range(20):
-        employee_service.create_employee(
-            employee_code=f"P6-ADMIN-{i}", full_name=f"Admin Overview Employee {i}", department_id=dept.id, is_active=(i % 3 == 0)
+        employee = employee_service.create_employee(
+            employee_code=f"P6-ADMIN-{i}", full_name=f"Admin Overview Employee {i}", department_id=dept.id
         )
+        if i % 3 != 0:
+            employee_service.deactivate_employee(employee.id)
     expected = employee_service.get_headcount_summary()
 
     registry = build_desktop_api_registry(services)

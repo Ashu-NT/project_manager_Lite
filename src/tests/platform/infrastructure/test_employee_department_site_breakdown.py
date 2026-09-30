@@ -17,6 +17,7 @@ from sqlalchemy.orm import sessionmaker
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
+from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
     EmployeeORM,
 )
@@ -90,7 +91,7 @@ def _seed_employee(db, *, id, tenant_id, organization_id, code, is_active, depar
             organization_id=organization_id,
             employee_code=code,
             full_name=f"Employee {code}",
-            is_active=is_active,
+            status=EmployeeLifecycleStatus.ACTIVE if is_active else EmployeeLifecycleStatus.INACTIVE,
             department_id=department_id,
             site_id=site_id,
             version=1,
@@ -249,7 +250,8 @@ def test_employee_service_get_department_breakdown_reflects_writes(services):
 
     dept = department_service.create_department(department_code="BRK-D1", name="Breakdown Dept")
     employee_service.create_employee(employee_code="BRK-E1", full_name="Breakdown One", department_id=dept.id)
-    employee_service.create_employee(employee_code="BRK-E2", full_name="Breakdown Two", department_id=dept.id, is_active=False)
+    inactive = employee_service.create_employee(employee_code="BRK-E2", full_name="Breakdown Two", department_id=dept.id)
+    employee_service.deactivate_employee(inactive.id)
 
     rows = employee_service.get_department_breakdown()
     by_name = {row.department_name: row for row in rows}

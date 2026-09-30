@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timezone
 
-from src.core.platform.domain.master_data.employee import EmploymentType
+from src.core.platform.domain.master_data.employee import (
+    EmployeeLifecycleStatus,
+    EmploymentType,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
@@ -52,10 +55,10 @@ def _seed_calendar_scope_rows(services) -> dict[str, str]:
         created_at=now, updated_at=now, version=1)
     cur_emp = EmployeeORM(id="employee-current", tenant_id=ct, organization_id=cur_org.id,
         department_id=cur_dept.id, employee_code="EMP-CUR", full_name="Current Employee",
-        employment_type=EmploymentType.FULL_TIME, is_active=True, version=1)
+        employment_type=EmploymentType.FULL_TIME, status=EmployeeLifecycleStatus.ACTIVE, version=1)
     oth_emp = EmployeeORM(id="employee-other", tenant_id=ot, organization_id=oth_org.id,
         department_id=oth_dept.id, employee_code="EMP-OTH", full_name="Other Employee",
-        employment_type=EmploymentType.FULL_TIME, is_active=True, version=1)
+        employment_type=EmploymentType.FULL_TIME, status=EmployeeLifecycleStatus.ACTIVE, version=1)
     cur_cal = PlatformCalendarORM(id="calendar-current", tenant_id=ct,
         organization_id=cur_org.id, code="CAL-CUR", name="Current Calendar",
         calendar_type="SITE", timezone="UTC", is_default=False, is_active=True,

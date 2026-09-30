@@ -825,7 +825,8 @@ class FakePlatformEmployeeApi:
             employment_type=command.employment_type,
             email=command.email,
             phone=command.phone,
-            is_active=command.is_active,
+            status="active",
+            is_active=True,
             version=1,
         )
         self._rows.append(employee)
@@ -1492,8 +1493,8 @@ def build_connected_platform_registry() -> SimpleNamespace:
         DepartmentDto(id="dep-2", organization_id="org-1", department_code="OPS", name="Operations", description="Operations", site_id="site-2", parent_department_id=None, department_type="functional", cost_center_code="CC-2", head_of_department_employee_id=None, is_active=False, notes="", version=1),
     )
     employee_rows = (
-        EmployeeDto(id="emp-1", employee_code="E-001", full_name="Ada Lovelace", department_id="dep-1", department="Engineering", site_id="site-1", site_name="Berlin Campus", title="Engineer", employment_type="FULL_TIME", email="ada@example.com", phone=None, is_active=True, version=1, organization_id="org-1"),
-        EmployeeDto(id="emp-2", employee_code="E-002", full_name="Grace Hopper", department_id="dep-2", department="Operations", site_id="site-2", site_name="Dubai Yard", title="Manager", employment_type="CONTRACTOR", email="grace@example.com", phone=None, is_active=False, version=1, organization_id="org-1"),
+        EmployeeDto(id="emp-1", employee_code="E-001", full_name="Ada Lovelace", department_id="dep-1", department="Engineering", site_id="site-1", site_name="Berlin Campus", title="Engineer", employment_type="FULL_TIME", email="ada@example.com", phone=None, status="active", is_active=True, version=1, organization_id="org-1"),
+        EmployeeDto(id="emp-2", employee_code="E-002", full_name="Grace Hopper", department_id="dep-2", department="Operations", site_id="site-2", site_name="Dubai Yard", title="Manager", employment_type="CONTRACTOR", email="grace@example.com", phone=None, status="inactive", is_active=False, version=1, organization_id="org-1"),
     )
     site_api = FakePlatformSiteApi(runtime_api=runtime_api, rows=site_rows)
     department_api = FakePlatformDepartmentApi(runtime_api=runtime_api, site_api=site_api, rows=department_rows)

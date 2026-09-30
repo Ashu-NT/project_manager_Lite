@@ -23,6 +23,7 @@ from src.ui_qml.platform.controllers.calendars.context import (
     calendar_assignment_context,
     calendar_detail_context,
     department_calendar_summary,
+    employee_calendar_summary,
     site_calendar_summary,
 )
 from src.ui_qml.platform.controllers.common import PlatformWorkspaceControllerBase
@@ -115,6 +116,9 @@ from src.ui_qml.platform.presenters.documents.document_catalog_presenter import 
 from src.ui_qml.platform.presenters.documents.document_management_presenter import (
     PlatformDocumentManagementPresenter,
 )
+from src.ui_qml.platform.presenters.employees.employee_activity_presenter import (
+    PlatformEmployeeActivityPresenter,
+)
 from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
     PlatformEmployeeCatalogPresenter,
 )
@@ -191,6 +195,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         department_presenter: PlatformDepartmentCatalogPresenter,
         department_activity_presenter: PlatformDepartmentActivityPresenter | None = None,
         employee_presenter: PlatformEmployeeCatalogPresenter,
+        employee_activity_presenter: PlatformEmployeeActivityPresenter | None = None,
         user_presenter: PlatformUserCatalogPresenter,
         party_presenter: PlatformPartyCatalogPresenter,
         document_presenter: PlatformDocumentCatalogPresenter,
@@ -213,7 +218,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._department_controller = PlatformDepartmentController(
             department_presenter, self, activity_presenter=department_activity_presenter
         )
-        self._employee_controller = PlatformEmployeeController(employee_presenter, self)
+        self._employee_controller = PlatformEmployeeController(
+            employee_presenter, self, activity_presenter=employee_activity_presenter
+        )
         self._user_controller = PlatformUserController(user_presenter, self)
         self._party_controller = PlatformPartyController(party_presenter, self)
         self._document_controller = PlatformDocumentController(
@@ -599,6 +606,12 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     ) -> dict[str, object]:
         return department_calendar_summary(self, department_id, organization_id, site_id)
 
+    @Slot(str, str, str, str, result="QVariantMap")
+    def employeeCalendarSummary(
+        self, employee_id: str, organization_id: str, department_id: str = "", site_id: str = ""
+    ) -> dict[str, object]:
+        return employee_calendar_summary(self, employee_id, organization_id, department_id, site_id)
+
     # ── Site slots ────────────────────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -817,6 +830,24 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     ) -> dict[str, object]:
         return self._employee_controller.employeesForDepartmentPage(
             department_id, organization_id, page, page_size, search, status
+        )
+
+    @Slot(str, str, result="QVariantList")
+    def employeeActivity(self, employee_id: str, organization_id: str) -> list[dict[str, object]]:
+        return self._employee_controller.employeeActivity(employee_id, organization_id)
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def employeeActivityPage(
+        self,
+        employee_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        return self._employee_controller.employeeActivityPage(
+            employee_id, organization_id, page, page_size, search, date_range
         )
 
     # ── User slots ────────────────────────────────────────────────────────
