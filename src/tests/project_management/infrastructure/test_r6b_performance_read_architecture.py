@@ -345,7 +345,8 @@ def test_evm_reader_is_bounded_and_rejects_draft_baselines(services, session) ->
         )
 
     assert result.availability == "baseline_unavailable"
-    assert len(statements) <= 10
+    # Includes full-set ledger metadata, independent of the bounded detail page.
+    assert len(statements) <= 11
 
 
 def test_variance_reader_is_bounded_without_per_task_queries(services, session) -> None:
@@ -369,8 +370,8 @@ def test_variance_reader_is_bounded_without_per_task_queries(services, session) 
         )
 
     assert facts.project_id == project.id
-    # Includes bounded entitlement/context checks and one canonical EVM assembly.
-    assert len(statements) <= 17
+    # Includes entitlement/context, canonical EVM and full-set ledger metadata.
+    assert len(statements) <= 18
 
 
 @pytest.mark.parametrize(

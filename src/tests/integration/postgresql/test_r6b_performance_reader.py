@@ -9,17 +9,79 @@ from sqlalchemy import event, text
 from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
     CostPhasingQuery,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
+    ProjectFinanceLedgerQuery,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_performance_reader import (
     SqlAlchemyFinancePerformanceReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_snapshot_reader import (
+    SqlAlchemyFinanceSnapshotReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.statements.finance_snapshot_statements import (
     actual_cost_phasing_statement,
     commitment_cost_phasing_statement,
     forecast_cost_phasing_statement,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.financials.statements.project_finance_ledger_statements import (
+    ledger_page_statement,
+    project_finance_ledger_relation,
+)
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 
 pytestmark = pytest.mark.postgresql_integration
+
+
+@pytest.mark.parametrize("size", [100, 1001])
+def test_project_finance_ledger_runtime_pages_and_explain(postgres_test_environment, size):
+    with postgres_test_environment.runtime_session(tenant_id=TENANT_A, organization_id=ORG_A) as session:
+        validate_postgresql_execution_role(session)
+        session.execute(text("""
+            INSERT INTO project_finance_forecast_lines
+            (id, tenant_id, organization_id, forecast_id, project_id, cost_code_id,
+             description, amount, currency_code, source_kind, source_type,
+             period_start, period_end, created_by, version, created_at, updated_at)
+            SELECT 'r6h-page-' || n, tenant_id, organization_id, forecast_id,
+                   project_id, cost_code_id, 'Ledger page', 0.0100, currency_code,
+                   source_kind, source_type, period_start, period_end, created_by,
+                   version, created_at, updated_at
+            FROM project_finance_forecast_lines CROSS JOIN generate_series(1, :size) AS n
+            WHERE id = 'r6b-performance-forecast-line-a'
+        """), {"size": size})
+        params = dict(tenant_id=TENANT_A, organization_id=ORG_A, project_id=PROJECT_A, as_of=date(2026, 8, 31))
+        reader = SqlAlchemyFinanceSnapshotReader(session=session)
+        first, count = _count_selects(session, lambda: reader.read_facts(
+            **params, ledger_query=ProjectFinanceLedgerQuery(limit=25)))
+        assert count == 9
+        assert len(first.ledger_entries) == 25
+        assert first.ledger_total == size + 1
+        assert first.control.forecast_etc == Decimal("125.25") + size * Decimal("0.01")
+        identities = set()
+        amount = Decimal(0)
+        for offset in range(0, first.ledger_total, 25):
+            page = reader.read_facts(**params, ledger_query=ProjectFinanceLedgerQuery(offset=offset, limit=25))
+            assert page.control == first.control
+            assert page.cost_aggregates == first.cost_aggregates
+            assert len(page.ledger_entries) <= 25
+            for row in page.ledger_entries:
+                assert row.fact_id not in identities
+                identities.add(row.fact_id)
+                amount += row.amount
+        assert len(identities) == first.ledger_total
+        assert amount == first.control.forecast_etc
+        assert reader.read_facts(**{**params, "project_id": PROJECT_B}) is None
+        # Deliberately forge all query scope parameters: database RLS still denies.
+        assert reader.read_facts(**{**params, "tenant_id": TENANT_B,
+                                   "organization_id": ORG_B, "project_id": PROJECT_B}) is None
+        assert session.scalar(text("SELECT count(*) FROM project_finance_forecast_lines WHERE project_id = :id"), {"id": PROJECT_B}) == 0
+        relation = project_finance_ledger_relation(**params, project_currency="USD", forecast_id="r6b-performance-forecast-a")
+        statement = ledger_page_statement(relation, ProjectFinanceLedgerQuery(limit=25))
+        sql = str(statement.compile(dialect=session.bind.dialect, compile_kwargs={"literal_binds": True}))
+        plan = session.execute(text("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) " + sql)).scalar_one()[0]
+        assert plan["Plan"]["Node Type"] == "Limit"
+        assert plan["Plan"]["Actual Rows"] == 25
+        print(f"R6H ledger size={size + 1} statements={count} page=25 plan={plan}")
+        session.rollback()
 
 TENANT_A = "r6b-performance-tenant-a"
 TENANT_B = "r6b-performance-tenant-b"
