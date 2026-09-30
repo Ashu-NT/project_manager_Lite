@@ -35,7 +35,7 @@ def upgrade() -> None:
             FROM employees
             WHERE user_id IS NOT NULL
             GROUP BY user_id
-            HAVING c > 1
+            HAVING COUNT(*) > 1
             """
         )
     ).fetchall()

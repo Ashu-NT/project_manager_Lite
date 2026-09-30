@@ -6,7 +6,8 @@ Audit date: 2026-09-30. R7A is COMPLETE as a characterization and roadmap phase.
 R7 itself is OPEN. R7B has NOT started. This is not a security certification.
 R5 and R6 remain CLOSED; their historical evidence is unchanged. R8 has not started.
 Only this document and three characterization test files were added in R7A.
-No production implementation, schema change, operational module, or commit was made.
+No production implementation, schema change, operational module, or commit was made
+by the R7A audit agent. Concurrent team package moves are preserved, not reverted.
 
 The baseline is the current repository, not earlier product discussions saying
 notifications do not exist. In-app notifications, generic approvals, an Action
@@ -157,6 +158,10 @@ is optional at its command boundary, and duplicate submissions create new commen
 Presence uniqueness uses task/username instead of stable user identity.
 Baseline version CAS protects a row but alone does not prove a single-approved
 baseline invariant under simultaneous approvals of different rows.
+Timesheet periods have versioned transitions but no resource/period unique index
+in the inspected ORM or fresh-schema migration. Existing period lookup is not a
+database uniqueness guarantee; initial-period creation races need characterization
+if R7 changes that identity boundary, without reopening the closed R5 phase.
 
 R7C/R7E require concurrency tests at these boundaries. Do not claim row locks offer
 the same concurrency guarantees on SQLite as PostgreSQL. Typed actors and durable
@@ -297,7 +302,7 @@ Retention means observed lifecycle, not an approved legal retention schedule.
 | project_baselines / PM Scheduling | Project FK cascade; submitted/approved label metadata | version CAS; status lifecycle; no independent immutable decision table; do not infer unique-approved concurrency from version alone | INTENTIONAL_RLS_EXCLUSION; BaselineService/scoped repository |
 | baseline_tasks / PM Scheduling | Baseline/task references; historical schedule/cost evidence | Snapshot facts; no command revision protocol independent of baseline | INTENTIONAL_RLS_EXCLUSION; baseline repository |
 | baseline_variance_records / PM Scheduling | Baseline/previous baseline/task evidence | Append-style comparison history retained with baseline lifecycle | INTENTIONAL_RLS_EXCLUSION; BL1 |
-| timesheet_periods / Platform Time | Tenant/org + resource period identity | Resource/period uniqueness, version CAS, status/decision metadata; lifecycle history not a generic Approval row | TENANT_AND_ORGANIZATION; TS1 + PM review Reader |
+| timesheet_periods / Platform Time | Nullable tenant/org FKs + Resource FK and period dates | version CAS, status/decision metadata; resource/period lookup has no corresponding unique index in inspected schema; lifecycle history not a generic Approval row | TENANT_AND_ORGANIZATION; TS1 + PM review Reader |
 | time_entries / Platform Time | Tenant/org + work allocation/assignment and owner context | version, editable only under permitted period lifecycle; Time owns work evidence | TENANT_AND_ORGANIZATION; Time service, not an Action Center store |
 | documents / document_structures / Platform | Tenant/org FKs; structure/document relationships and uploader User FK | version; organization/code unique; is_active/current/revision metadata; mutable content metadata, not automatically immutable evidence | TENANT_AND_ORGANIZATION; Document service/repositories |
 | document_links / Platform | Org FK + document FK cascade; polymorphic module/entity link | Unique document/module/entity/type/role; nullable role needs duplicate semantics review; no version; target scope not enforced by polymorphic FK | INTENTIONAL_RLS_EXCLUSION; document integration helpers |
@@ -305,7 +310,7 @@ Retention means observed lifecycle, not an approved legal retention schedule.
 | projects, tasks, resources, project_resources, task_assignments / PM | Project/resource membership and task ownership, not User assignment | Existing versioned operational aggregates; do not add quantities to Finance amounts | Projects/resources direct tenant+org; tasks/membership/assignments parent-scoped RLS; existing operational services |
 | role_bindings / user_tenants / users / roles / Platform Identity | Auth bootstrap/effective scoped permissions and membership, not reviewer queue tables | Grant expiry/revocation and principal identity; retain canonical RBAC | Intentional auth-bootstrap exclusions in DB1; authorization engine/identity services |
 | role_delegation_policies / Platform Authorization | Role-grant authority policy | Security administration, NOT substitute approver lifecycle | Intentional auth-bootstrap exclusion; do not reuse as workflow delegation |
-| integration_outbox / integration_inbox and Finance handoff/delivery/outcome evidence | Tenant/org plus source/destination/project correlation under existing R6 contracts | Durable identities, dedup, leases/versions and immutable evidence as defined by R6; operator history, not chat | Existing direct tenant+org classifications; IntegrationOutboxService/IntegrationInboxService and operation UoWs |
+| platform_time_financial_outbox, inventory_procurement_financial_outbox, project_finance_inbox_receipts, project_accounting_outbox and Finance handoff/delivery/outcome evidence | Tenant/org plus source/destination/project correlation under existing R6 contracts; the Procurement-named table is a neutral integration boundary, not an operational module | Durable identities, dedup, leases/versions and immutable evidence as defined by R6; operator history, not chat | Existing direct tenant+org classifications; generic IntegrationOutboxService/IntegrationInboxService operate through their contracts, not separate tables named integration_outbox/integration_inbox |
 | service_principals / service_principal_api_keys / Platform Security | Explicit automated tenant/org identity and credentials | Scoped principal/credential lifecycle, not requesting User impersonation | Principals tenant+org, API keys tenant-only; existing R6 integration identity boundary |
 
 Financial version/line/approval-related tables retain their R6 inventory and
@@ -497,12 +502,13 @@ invoice/payment/GL/tax/FX or operational Procurement/Inventory/Payroll work is p
 | --- | --- |
 | Targeted existing Approval/Action Center/notification/activity/collaboration tests across Platform, global overview, PM and QML | **277 passed, 4 failed**, 112.67s; `.r7a_characterization.log`. All four fail in PM Action Center fixture employee creation before assertions: required department absent |
 | Architecture suite + authorization engine + EnterpriseAuditService tests | **178 passed**, 20.01s; `.r7a_guards.log`. GU1's declared exceptions still apply; not a clean-layering certificate |
+| Final combined regression after concurrent team package/fixture edits | **459 passed, 5 failed**, 99.55s; `.r7a_final_regression.log`. Four Action Center fixture failures now report `EmployeeService.create_employee() got an unexpected keyword argument 'user_id'`; the fifth is the ORM metadata source guard expecting the retired `orm.events.notifications.notification` import. This supersedes the earlier run as the current regression state; not a green architecture-suite claim |
 | New Action Center fan-out and Approval recipient characterizations | **3 passed**; `.r7a_characterization_new.log`. Measured 5/50 baseline calls and foreign binding inclusion |
 | Live PostgreSQL new governance characterization + existing R5H security suite | **24 passed**, 3.49s; `.r7a_postgresql.log`. Fresh Alembic schema; runtime app_runtime NOSUPERUSER/NOBYPASSRLS/nonowner with real session context |
 | PostgreSQL detail | Ten new cases: runtime role, three forced-policy tables, four real exclusions, raw foreign comment vs scoped Reader, deleted comment projection. Fourteen existing role/scope/parent-bypass/CAS cases retained |
 | PostgreSQL first attempt | 10 passed / 14 fixture errors due to imported module-scoped fixture seeding duplicate IDs. Fixed only the new test fixture to own r7a-prefixed records; rerun above green. No production/migration defect masked |
 | QML lint | Six inspected surfaces: OverviewWorkspace, NotificationsPanel, NotificationBell, CollaborationWorkspacePage, ApprovalDecisionDialog, ControlApprovalDetailPage; exit 0 with all shared/shell/platform/PM import roots; `.r7a_qmllint.log` empty |
-| Static quality | New tests scoped Ruff F/I and compilation required green before final report; final result recorded below |
+| Static quality | All three new test files pass Ruff F/I and Python compilation, including after the team's Global Overview package move. Repository-wide Ruff F/I: 92 findings in the final concurrent worktree, versus 58 at audit start. `git diff --check` and new-file whitespace checks pass. No production files modified by this audit |
 
 Characterizations asserting unsafe current behavior are deliberately labeled as such.
 Their green status proves the audit finding, not a completed remediation. Replace
@@ -525,15 +531,34 @@ The historical failures remain required-department fixture failures, not evidenc
 that authorization should accept incomplete Employee records.
 
 - Four PM Action Center contributor failures are now directly relevant to R7
-  identity/action correctness. Reproduced here; repair fixtures in R7D and then
-  execute their actual assertions.
+  identity/action correctness. Initially reproduced as missing-department errors.
+  Concurrent team fixture edits changed the final failure to obsolete `user_id`
+  passed to EmployeeService.create_employee, in `_setup_user_employee_resource`
+  at line 69. Repair fixtures using the canonical identity-link path in R7D and
+  then execute their actual assertions; do not continue calling the current
+  failures missing-department errors.
 - Two Mine-resource and five resource-Timesheet failures are adjacent identity/Time
   boundary coverage. Track with R7D identity parity; do not hide them as unrelated
   if those paths change. They were not independently rerun in this audit selection.
 - Four calendar/employee failures remain inherited calendar fixture work, outside
   R7 unless an implementation actually touches that dependency.
 
-Repository-wide Ruff baseline remains **58 F/I findings**, not clean. New R7A import
+The final combined run also finds one new characterization guard mismatch after
+the concurrent notification package move:
+`src/tests/architecture/test_architecture_guardrails_legacy_orm.py:187`,
+`test_orm_package_root_loads_all_model_packages`, expects
+`src.core.platform.infrastructure.persistence.orm.events.notifications.notification`.
+The production notification package was moved by the team; its old-path source
+assertion is stale. Preserve the move; update that assertion as part of the team's
+restructure validation, not by restoring a compatibility module. This is recorded
+as a current architecture-test failure, not concealed in the R6 baseline or fixed
+incidentally during an audit-only phase.
+
+Repository-wide Ruff was **58 F/I findings** at audit start. Following concurrent
+team package moves, the final run reports **92**: 38 I001, 45 F841, 5 F401, 2 F821,
+1 F811 and 1 F822. The increase is 34 import-order findings; all other code counts
+are unchanged. Logs: `.r7a_ruff_repository.log` and `.r7a_ruff_repository_final.log`.
+Do not describe the final repository as lint-clean. The new R7A test import
 formatting finding was fixed. The Global Overview undefined ActivityRowViewModel
 annotation/export (two findings) intersects R7D; the approval test's unused req1 is
 test hygiene, not proof of a broken decision path. Other inherited findings are not

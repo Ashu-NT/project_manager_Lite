@@ -20,6 +20,8 @@ class CollaborationInboxDesktopDto:
     created_at: datetime
     created_at_label: str
     unread: bool
+    is_deleted: bool = False
+    deleted_at: datetime | None = None
 
 
 @dataclass(frozen=True)

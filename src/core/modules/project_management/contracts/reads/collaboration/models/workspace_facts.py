@@ -19,6 +19,8 @@ class CollaborationCommentFact:
     read_by: tuple[str, ...]
     read_by_user_ids: tuple[str, ...]
     created_at: datetime
+    is_deleted: bool = False
+    deleted_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)

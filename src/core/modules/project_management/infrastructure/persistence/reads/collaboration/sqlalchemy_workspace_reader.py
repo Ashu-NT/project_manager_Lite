@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.reads.collaboration.models.workspace_facts import (
@@ -57,12 +57,14 @@ class SqlAlchemyCollaborationWorkspaceReader:
             project_name=str(project_name or ""),
             author_user_id=(None if row.author_user_id is None else str(row.author_user_id)),
             author_username=row.author_username,
-            body=str(row.body or ""),
-            mentions=_list(row.mentions_json, lowercase=True),
-            mentioned_user_ids=_list(row.mentioned_user_ids_json),
+            body="" if row.deleted_at is not None else str(row.body or ""),
+            mentions=() if row.deleted_at is not None else _list(row.mentions_json, lowercase=True),
+            mentioned_user_ids=() if row.deleted_at is not None else _list(row.mentioned_user_ids_json),
             read_by=_list(row.read_by_json, lowercase=True),
             read_by_user_ids=_list(row.read_by_user_ids_json),
             created_at=_utc(row.created_at),
+            is_deleted=row.deleted_at is not None,
+            deleted_at=_utc(row.deleted_at) if row.deleted_at is not None else None,
         )
 
     def read_comment_authors(
@@ -85,6 +87,7 @@ class SqlAlchemyCollaborationWorkspaceReader:
                 ProjectORM.id.in_(project_ids),
                 TaskCommentORM.author_username.is_not(None),
                 TaskCommentORM.author_username != "",
+                TaskCommentORM.deleted_at.is_(None),
             )
             .distinct()
             .order_by(TaskCommentORM.author_username.asc())
@@ -140,11 +143,13 @@ class SqlAlchemyCollaborationWorkspaceReader:
                 )
             )
         if criteria.principal_mentions_only:
+            filters.append(TaskCommentORM.deleted_at.is_(None))
             if not mention_conditions:
                 return CollaborationCommentReadPage(page=page, page_size=page_size)
             filters.append(or_(*mention_conditions))
 
         if criteria.unread_only:
+            filters.append(TaskCommentORM.deleted_at.is_(None))
             read_conditions = [
                 func.lower(func.coalesce(TaskCommentORM.read_by_json, "")).contains(
                     json.dumps(alias)
@@ -169,7 +174,10 @@ class SqlAlchemyCollaborationWorkspaceReader:
             pattern = f"%{escaped.lower()}%"
             filters.append(
                 or_(
-                    func.lower(TaskCommentORM.body).like(pattern, escape="\\"),
+                    and_(
+                        TaskCommentORM.deleted_at.is_(None),
+                        func.lower(TaskCommentORM.body).like(pattern, escape="\\"),
+                    ),
                     func.lower(func.coalesce(TaskCommentORM.author_username, "")).like(
                         pattern, escape="\\"
                     ),

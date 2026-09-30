@@ -18,9 +18,6 @@ from src.core.modules.project_management.domain.collaboration import (
     normalize_task_comment_body,
     resolve_mentions,
 )
-from src.core.modules.project_management.infrastructure.collaboration_attachments import (
-    store_task_comment_attachments,
-)
 from src.core.platform.application.master_data.documents.document_context import (
     active_organization,
 )
@@ -42,7 +39,6 @@ from src.core.platform.common.pydantic import normalize_optional_text
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.notifications import safe_dispatch_notification
-from src.infra.time.system_clock import SystemClock
 
 
 class CollaborationCommentCommandMixin:
@@ -102,11 +98,13 @@ class CollaborationCommentCommandMixin:
             attachments=[],
             parent_comment_id=parent_id,
         )
-        comment.attachments = store_task_comment_attachments(
-            task_id=task_id,
-            comment_id=comment.id,
-            attachments=list(attachments or []),
-        )
+        attachment_paths = list(attachments or [])
+        if attachment_paths:
+            if self._attachment_store is None:
+                raise RuntimeError("Collaboration attachment storage is not configured.")
+            comment.attachments = self._attachment_store(
+                task_id=task_id, comment_id=comment.id, attachments=attachment_paths,
+            )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="post task collaboration update"
         )
@@ -159,7 +157,7 @@ class CollaborationCommentCommandMixin:
                     entity_type="task_comment",
                     entity_id=comment.id,
                     attachments=comment.attachments,
-                    clock=SystemClock(),
+                    clock=self._clock,
                     source_system="project_management",
                     uploaded_by_user_id=uploader_user_id,
                 )
@@ -173,7 +171,7 @@ class CollaborationCommentCommandMixin:
                         entity_type="task_comment",
                         entity_id=comment.id,
                         document_id=document_id,
-                        clock=SystemClock(),
+                        clock=self._clock,
                         link_role="reference",
                     )
             uow.commit()
@@ -181,8 +179,6 @@ class CollaborationCommentCommandMixin:
         return comment
 
     def _notify_mentioned_users(self, *, task, comment: TaskComment, author_user_id: str | None) -> None:
-        snippet = comment.body if len(comment.body) <= 140 else f"{comment.body[:137]}..."
-        task_name = getattr(task, "name", "") or task.id
         for user_id in comment.mentioned_user_ids:
             if not user_id or user_id == author_user_id:
                 continue
@@ -191,7 +187,7 @@ class CollaborationCommentCommandMixin:
                 recipient_user_id=user_id,
                 category="pm.comment.mentioned.v1",
                 title="You were mentioned in a comment",
-                body=f'On "{task_name}": {snippet}',
+                body="Open the task discussion to view this mention if you still have access.",
                 metadata={"task_id": task.id, "project_id": task.project_id, "comment_id": comment.id},
             )
 

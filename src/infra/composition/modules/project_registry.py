@@ -1515,6 +1515,10 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _task_comment_event_type, _task_comment_view_invalidation_handler
         )
+    from src.core.modules.project_management.infrastructure.collaboration_attachments import (
+        store_task_comment_attachments,
+    )
+
     collaboration_service = CollaborationService(
         session=session,
         comment_repo=repositories.task_comment_repo,
@@ -1532,6 +1536,8 @@ def build_project_management_service_bundle(
         notification_service=platform_services.notification_service,
         view_invalidation_channel=platform_services.platform_view_invalidation_channel,
         uow_factory=collaboration_uow_factory,
+        attachment_store=store_task_comment_attachments,
+        clock=SystemClock(),
     )
     portfolio_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
     portfolio_uow_factory = SqlAlchemyPortfolioUnitOfWorkFactory(

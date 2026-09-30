@@ -67,6 +67,8 @@ class _FakeCollaborationService:
                 project_name="Plant Upgrade",
                 author_username="jamie",
                 body_preview="Please review the updated execution window.",
+                is_deleted=False,
+                deleted_at=None,
                 mentions=["planner"],
                 created_at=datetime(2026, 5, 1, 8, 45),
                 unread=True,

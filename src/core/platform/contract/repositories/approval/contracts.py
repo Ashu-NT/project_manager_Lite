@@ -7,6 +7,13 @@ from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 
 class ApprovalRepository(ABC):
     @abstractmethod
+    def list_notification_recipient_ids(
+        self, request_id: str, *, audience: str, after_user_id: str = "", limit: int = 100,
+    ) -> tuple[str, ...]:
+        """Resolve recipients from persisted scope and active target-covered grants."""
+        ...
+
+    @abstractmethod
     def add(self, request: ApprovalRequest) -> None: ...
 
     @abstractmethod

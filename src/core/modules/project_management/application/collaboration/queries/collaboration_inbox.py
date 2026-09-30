@@ -170,6 +170,8 @@ class CollaborationInboxQueryMixin:
                     project_name=comment.project_name,
                     author_username=comment.author_username or "unknown",
                     body_preview=self._body_preview(comment.body),
+                    is_deleted=comment.is_deleted,
+                    deleted_at=comment.deleted_at,
                     mentions=list(comment.mentions),
                     created_at=comment.created_at,
                     unread=(

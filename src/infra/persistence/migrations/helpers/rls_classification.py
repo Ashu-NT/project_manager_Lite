@@ -106,6 +106,28 @@ def _project_child_predicate(child_table: str) -> str:
 
 
 PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
+    "task_comments": (
+        "EXISTS (SELECT 1 FROM tasks ct JOIN projects cp ON cp.id = ct.project_id "
+        "WHERE ct.id = task_comments.task_id "
+        f"AND cp.tenant_id = {_TENANT_SETTING} "
+        f"AND cp.organization_id = {_ORGANIZATION_SETTING} "
+        "AND EXISTS (SELECT 1 FROM users cu "
+        "JOIN user_tenants cm ON cm.user_id = cu.id AND cm.tenant_id = cp.tenant_id "
+        "JOIN role_bindings cb ON cb.principal_id = cu.id AND cb.tenant_id = cp.tenant_id "
+        "JOIN roles cr ON cr.id = cb.role_id "
+        "JOIN role_permissions crp ON crp.role_id = cr.id "
+        "JOIN permissions cperm ON cperm.id = crp.permission_id "
+        "WHERE cu.id = NULLIF(current_setting('app.user_id', true), '') "
+        "AND cu.is_active AND cm.status = 'active' AND cm.revoked_at IS NULL "
+        "AND cb.principal_type = 'user' AND cb.revoked_at IS NULL "
+        "AND (cb.expires_at IS NULL OR cb.expires_at > CURRENT_TIMESTAMP) "
+        "AND cr.status = 'active' AND cr.allowed_scope_type = cb.actual_scope_type "
+        "AND (cr.tenant_id IS NULL OR cr.tenant_id = cp.tenant_id) "
+        "AND cperm.code IN ('collaboration.read', 'collaboration.manage') "
+        "AND (cb.actual_scope_type = 'tenant' "
+        "OR (cb.actual_scope_type = 'organization' AND cb.actual_scope_id = cp.organization_id) "
+        "OR (cb.actual_scope_type = 'project' AND cb.actual_scope_id = cp.id))))"
+    ),
     "resource_skills": _resource_child_predicate("resource_skills"),
     "resource_certifications": _resource_child_predicate("resource_certifications"),
     "project_resources": (
@@ -165,7 +187,6 @@ INTENTIONAL_RLS_EXCLUSIONS: Mapping[str, str] = {
     "roles": "authorization bootstrap state used to establish tenant context",
     "shift_pattern_days": "shift-pattern child scoped through shift_patterns",
     "site_calendar_assignments": "site/calendar association scoped through protected owners",
-    "task_comments": "task child scoped through RLS-protected projects",
     "task_dependencies": "task child scoped through RLS-protected projects",
     "task_presence": "task child scoped through RLS-protected projects",
     "tenants": "global tenant bootstrap root",

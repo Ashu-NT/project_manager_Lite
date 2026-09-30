@@ -7,6 +7,7 @@ from datetime import datetime
 from sqlalchemy import (
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -20,6 +21,13 @@ from src.infra.persistence.orm.base import Base
 
 class TaskCommentORM(Base):
     __tablename__ = "task_comments"
+    __table_args__ = (
+        UniqueConstraint("id", "task_id", name="uq_task_comments_id_task"),
+        ForeignKeyConstraint(
+            ["parent_comment_id", "task_id"], ["task_comments.id", "task_comments.task_id"],
+            name="fk_task_comments_parent_task", ondelete="RESTRICT",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     task_id: Mapped[str] = mapped_column(
@@ -38,7 +46,6 @@ class TaskCommentORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     parent_comment_id: Mapped[str | None] = mapped_column(
         String,
-        ForeignKey("task_comments.id", ondelete="SET NULL"),
         nullable=True,
     )
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

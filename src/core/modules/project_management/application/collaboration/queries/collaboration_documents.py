@@ -27,6 +27,9 @@ class CollaborationDocumentQueryMixin:
             return {comment.id: [] for comment in comments}
         documents_by_comment: dict[str, list[Document]] = {}
         for comment in comments:
+            if comment.is_deleted:
+                documents_by_comment[comment.id] = []
+                continue
             documents_by_comment[comment.id] = self._document_integration_service.list_documents_for_entity(
                 required_permission="collaboration.read",
                 operation_label="view linked task documents",

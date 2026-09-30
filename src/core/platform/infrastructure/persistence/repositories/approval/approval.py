@@ -20,6 +20,7 @@ from src.core.platform.infrastructure.persistence.orm.approval.approval import (
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
+from src.core.platform.infrastructure.persistence.repositories.approval.recipients import recipient_page
 
 
 class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalRepository):
@@ -35,6 +36,16 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         orm = approval_to_orm(request)
         self._stamp_scope(ctx, orm)
         self.session.add(orm)
+
+    def list_notification_recipient_ids(
+        self, request_id: str, *, audience: str, after_user_id: str = "", limit: int = 100,
+    ) -> tuple[str, ...]:
+        ctx = self._context(operation_label="resolve approval notification recipients")
+        return recipient_page(
+            self.session, request_id=request_id, tenant_id=ctx.tenant_id,
+            organization_id=ctx.organization_id, audience=audience,
+            after_user_id=after_user_id, limit=limit,
+        )
 
     def update(self, request: ApprovalRequest) -> None:
         ctx = self._context(operation_label="access approvals")

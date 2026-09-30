@@ -32,9 +32,6 @@ from src.core.platform.domain.approval import (
     ApprovalStatus,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.domain.security.authorization.roles.role_binding import (
-    ROLE_PRINCIPAL_USER,
-)
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.notifications import safe_dispatch_notification
@@ -56,9 +53,6 @@ class ApprovalService:
         enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
         notification_service: Any = None,
-        role_permission_repo: Any = None,
-        permission_repo: Any = None,
-        role_binding_repo: Any = None,
         clock: Clock | None = None,
     ):
         self._session = session
@@ -68,9 +62,6 @@ class ApprovalService:
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
         self._notification_service = notification_service
-        self._role_permission_repo = role_permission_repo
-        self._permission_repo = permission_repo
-        self._role_binding_repo = role_binding_repo
         self._clock = clock
         self._apply_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
         self._reject_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
@@ -374,39 +365,22 @@ class ApprovalService:
             return None
         return tenant_context.get_active_tenant_id()
 
-    def _list_users_with_permission(self, permission_code: str, *, tenant_id: str | None) -> set[str]:
-        if (
-            self._permission_repo is None
-            or self._role_permission_repo is None
-            or self._role_binding_repo is None
-        ):
-            return set()
-        permission = self._permission_repo.get_by_code(permission_code)
-        if permission is None:
-            return set()
-        user_ids: set[str] = set()
-        role_ids = self._role_permission_repo.list_role_ids_for_permission(
-            permission.id
-        )
-        for role_id in role_ids:
-            bindings = list(
-                self._role_binding_repo.list_active_for_role_across_tenants(role_id)
+    def _notification_recipients(self, request_id: str, *, audience: str):
+        if self._notification_service is None:
+            return
+        after = ""
+        while True:
+            recipients = self._approval_repo.list_notification_recipient_ids(
+                request_id, audience=audience, after_user_id=after, limit=100,
             )
-            if tenant_id:
-                bindings.extend(
-                    self._role_binding_repo.list_active_for_role(
-                        role_id, tenant_id=tenant_id
-                    )
-                )
-            for binding in bindings:
-                if binding.principal_type == ROLE_PRINCIPAL_USER:
-                    user_ids.add(binding.principal_id)
-        return user_ids
+            if not recipients:
+                return
+            yield from recipients
+            after = recipients[-1]
 
     def _notify_approval_requested(self, request: ApprovalRequest) -> None:
         tenant_id = self._active_tenant_id()
-        recipients = self._list_users_with_permission("approval.decide", tenant_id=tenant_id)
-        recipients.discard(request.requested_by_user_id)
+        recipients = self._notification_recipients(request.id, audience="reviewers")
         entity_label = request.entity_type.replace("_", " ")
         for user_id in recipients:
             safe_dispatch_notification(
@@ -425,7 +399,7 @@ class ApprovalService:
             )
 
     def _notify_approval_decided(self, request: ApprovalRequest, *, decided: str) -> None:
-        if not request.requested_by_user_id:
+        if request.requested_by_user_id not in self._notification_recipients(request.id, audience="requester"):
             return
         entity_label = request.entity_type.replace("_", " ")
         body = f"Your {entity_label} request was {decided}."

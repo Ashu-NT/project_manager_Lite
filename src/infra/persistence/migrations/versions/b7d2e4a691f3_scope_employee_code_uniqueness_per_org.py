@@ -78,7 +78,7 @@ def upgrade() -> None:
             SELECT organization_id, employee_code, COUNT(*) AS c
             FROM employees
             GROUP BY organization_id, employee_code
-            HAVING c > 1
+            HAVING COUNT(*) > 1
             """
         )
     ).fetchall()
@@ -112,7 +112,7 @@ def downgrade() -> None:
     connection = op.get_bind()
 
     duplicates = connection.execute(
-        sa.text("SELECT employee_code, COUNT(*) AS c FROM employees GROUP BY employee_code HAVING c > 1")
+        sa.text("SELECT employee_code, COUNT(*) AS c FROM employees GROUP BY employee_code HAVING COUNT(*) > 1")
     ).fetchall()
     if duplicates:
         rows = ", ".join(f"{row[0]} ({row[1]} rows)" for row in duplicates)

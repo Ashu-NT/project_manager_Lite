@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
@@ -53,6 +54,7 @@ from src.core.platform.application.master_data.documents import (
 from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.repositories.security.auth import UserRepository
 from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.time.clock import Clock
 
 
 class CollaborationService(
@@ -85,8 +87,12 @@ class CollaborationService(
         notification_service=None,
         view_invalidation_channel=None,
         uow_factory: CollaborationUnitOfWorkFactory | None = None,
+        attachment_store: Callable[..., list[str]] | None = None,
+        clock: Clock | None = None,
     ) -> None:
         self._session = session
+        self._attachment_store = attachment_store
+        self._clock = clock
         self._comment_repo = comment_repo
         self._presence_repo = presence_repo
         self._task_repo = task_repo
