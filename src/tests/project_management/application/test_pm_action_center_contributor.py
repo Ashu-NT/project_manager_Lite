@@ -63,9 +63,13 @@ def _setup_user_employee_resource(services, *, suffix: str):
     user = services["auth_service"].register_user(
         f"pm-action-center-{suffix}", "StrongPass123", role_names=["viewer"]
     )
+    department = services["department_service"].create_department(
+        department_code=f"AC-DEPT-{suffix}", name=f"Action Center Department {suffix}"
+    )
     employee = services["employee_service"].create_employee(
         employee_code=f"EMP-AC-{suffix}",
         full_name=f"Action Center {suffix}",
+        department_id=department.id,
         user_id=user.id,
     )
     resource = services["resource_service"].create_resource(

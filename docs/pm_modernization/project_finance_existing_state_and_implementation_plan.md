@@ -175,13 +175,13 @@ availability presentation. The ledger remediation changes no QML-facing shape.
 
 ### Classified Non-Finance Exceptions
 
-The final 15 failures are stale fixtures for the existing mandatory employee
-department contract. They fail while creating employee setup data, before any
+The final 15 failures were stale fixtures for the existing mandatory employee
+department contract. They failed while creating employee setup data, before any
 Finance ledger read. Neither EmployeeService/ORM nor these fixtures was modified
-by this remediation. Isolated diagnosis reproduces the same cause in
-`.r6h_failure_diagnosis.log`; the final full log records every failing test ID.
+by the R6 remediation itself. Isolated diagnosis reproduced the same cause in
+`.r6h_failure_diagnosis.log`; the final full log recorded every failing test ID.
 
-| Unchanged test file | Failed cases | Cause |
+| Unchanged test file (at R6H closure) | Failed cases | Cause |
 | --- | --- | --- |
 | `application/test_enterprise_calendar_pm_integration_resource_employee.py` | 4: calendar inheritance, vacation, training capacity, no duplicate rules | `_seed_employee` inserts `department_id=None`; SQLite rejects the required column. |
 | `application/test_pm_action_center_contributor.py` | 4: tasks, baselines, timesheets, category parity | `_setup_user_employee_resource` omits the department; EmployeeService rejects setup. |
@@ -189,9 +189,23 @@ by this remediation. Isolated diagnosis reproduces the same cause in
 | `src/tests/ui_qml/project_management/controllers/test_r5f1_resource_timesheets.py` | 5: scoped reads, mutation target, submit, eligibility, reviewer edit denial | `_build_resource_timesheet` omits required department. |
 
 The first three paths are relative to `src/tests/project_management`.
-These unrelated fixtures remain untouched, per scope. They must be corrected
-before claiming a green whole-product release suite; R6 Finance closure does
-not waive that separate product-release concern.
+These unrelated fixtures remained untouched at R6H closure, per scope, with the
+explicit note that they had to be corrected before claiming a green
+whole-product release suite; R6 Finance closure did not waive that separate
+product-release concern.
+
+**Resolved 2026-09-30**: all 15 cases fixed as a follow-up, not a reopening of
+R6 Finance. Each listed fixture was given a real Department (via
+`department_service.create_department(...)`, or a raw `DepartmentORM` row for
+the two files that seed ORM rows directly) and now passes `department_id` into
+`create_employee`/`EmployeeORM`, matching the mandatory-department contract
+introduced for the Department/HOD hardening. No test assertions changed and no
+production code was touched; all 15 were legitimate coverage, not stale tests,
+so none were removed. Verified: all 4 files green together
+(23 passed, 0 failed) — `application/test_enterprise_calendar_pm_integration_resource_employee.py`,
+`application/test_pm_action_center_contributor.py`,
+`infrastructure/test_timesheet_workspace_reader_resolve_mine_resource.py`,
+`src/tests/ui_qml/project_management/controllers/test_r5f1_resource_timesheets.py`.
 
 The earlier Gantt density timing failure (73 ms versus 50 ms) **passed in the
 final complete rerun**, without code or threshold changes. Both stale Finance

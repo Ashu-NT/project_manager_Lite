@@ -236,6 +236,35 @@ def global_cal(cal_service, org_id, rule_service):
     return cal
 
 
+def _seed_department(db_session, tenant_context) -> str:
+    from datetime import datetime, timezone
+
+    from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+        DepartmentORM,
+    )
+
+    ctx = tenant_context.require_organization_context()
+    department_id = "dept-pm-calendar-integration"
+    if db_session.get(DepartmentORM, department_id) is not None:
+        return department_id
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        DepartmentORM(
+            id=department_id,
+            tenant_id=ctx.tenant_id,
+            organization_id=ctx.organization_id,
+            department_code=department_id,
+            name="PM Calendar Integration Department",
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+    )
+    db_session.commit()
+    return department_id
+
+
 def _seed_employee(db_session, tenant_context, employee_id: str) -> None:
     from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
         EmployeeORM,
@@ -244,11 +273,13 @@ def _seed_employee(db_session, tenant_context, employee_id: str) -> None:
     ctx = tenant_context.require_organization_context()
     if db_session.get(EmployeeORM, employee_id) is not None:
         return
+    department_id = _seed_department(db_session, tenant_context)
     db_session.add(
         EmployeeORM(
             id=employee_id,
             tenant_id=ctx.tenant_id,
             organization_id=ctx.organization_id,
+            department_id=department_id,
             employee_code=employee_id,
             full_name=employee_id,
         )
