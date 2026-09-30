@@ -1,21 +1,45 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
-import Platform.Components 1.0
-import workspaces.calendars 1.0
+import Platform.Controllers 1.0 as PlatformControllers
+import Shell.Context 1.0 as ShellContexts
+import workspaces.employees.sections 1.0 as EmployeeSections
 
+// Orchestrator only: owns employee identity/lifecycle, per-tab state
+// (page/search/filter) and data fetching. Each tab's own markup lives in
+// workspaces/employees/sections/ -- see that folder's files for the
+// Overview/Calendar/Activity presentational components this page wires up
+// below. Modernized to the same shape as AdminDepartmentDetailPage.qml;
+// final section set is exactly Overview/Calendar/Activity -- no User
+// Account/Assignments/Timesheets/Certifications/Documents/Audit tabs (see
+// Related Actions for optional cross-module navigation, and Overview's
+// System Access card for the real Employee<->User relationship).
 Item {
     id: root
+    objectName: "adminEmployeeDetailPage"
 
+    property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property var employee: ({})
-    property bool pmEnabled: false
+    property var breadcrumb: []
+    // Bubbled straight down from EmployeesWorkspacePage.qml -> the shell's
+    // own selectRoute(), the same cross-module navigation abstraction
+    // Department's/Site's own Related Actions already use. Never imported
+    // by Platform business logic; just a plain passed-through reference.
+    property ShellContexts.ShellContext shellModel
     property var empCalendarAssignment: ({})
     property var calendarSourceChain: []
-    property bool canWrite: true          // employee.manage -- edit/toggle-active
-    property bool canManageCalendar: true // task.manage -- assign/clear calendar
+    property var empCalendarSummary: ({
+        "hasCalendar": false, "calendarId": "", "calendarName": "", "source": "",
+        "workingWeekLabel": "No working days configured", "timeZone": "", "holidaySetLabel": "No holidays configured"
+    })
+    // { "linked": bool, "identity": "", "isActive": bool }
+    property var systemAccess: ({ "linked": false, "identity": "", "isActive": false })
+    property bool canWrite: true              // employee.manage -- edit/lifecycle
+    property bool canManageSystemAccess: true // employee.manage AND auth.manage -- link/unlink User account
+    property bool canManageCalendar: true     // task.manage -- assign/clear calendar
     property bool busy: false
     property string errorMessage: ""
     property string feedbackMessage: ""
@@ -23,6 +47,7 @@ Item {
 
     signal backRequested()
     signal actionRequested(string actionId)
+    signal relatedRowActivated(string sectionId, string rowId)
 
     readonly property var _state: (root.employee && root.employee.state) ? root.employee.state : ({})
     readonly property string _title: String(root.employee && root.employee.title ? root.employee.title : "Employee")
@@ -32,117 +57,198 @@ Item {
         : String(root._statusLabelValue || "")
     readonly property string _subtitle: String(root.employee && root.employee.subtitle ? root.employee.subtitle : "")
     readonly property bool _isActive: root._state.isActive === true
+    readonly property string _statusTone: root._isActive ? "success" : "neutral"
+    readonly property string _employeeId: String(root._state.employeeId || root._state.id || root.employee.id || "")
+    readonly property string _organizationId: String(root._state.organizationId || "")
     readonly property bool _hasCalendarAssignment: String(root.empCalendarAssignment && root.empCalendarAssignment.assignmentId ? root.empCalendarAssignment.assignmentId : "").length > 0
-    readonly property var _sections: {
-        const sections = [
-            { "label": "Overview" },
-            { "label": "User Account" },
-            { "label": "Assignments" }
-        ]
-        if (root.pmEnabled) {
-            sections.push({ "label": "Timesheets" })
-            sections.push({ "label": "Certifications" })
-        }
-        sections.push({ "label": "Calendar" })
-        sections.push({ "label": "Documents" })
-        sections.push({ "label": "Audit" })
-        return sections
+
+    readonly property string _employeeCode: String(root._state.employeeCode || "")
+    readonly property string _jobTitle: String(root._state.jobTitle || "")
+    readonly property string _departmentName: String(root._state.departmentName || "")
+    readonly property string _headerSubtitle: root._joinNonEmpty([root._employeeCode, root._jobTitle, root._departmentName], "  ·  ")
+
+    function _joinNonEmpty(parts, sep) {
+        return parts.filter(function(p) { return String(p || "").trim().length > 0 }).join(sep)
     }
+    function _displayValue(value) {
+        const text = String(value || "").trim()
+        return text.length > 0 ? text : "—"
+    }
+
+    // -- Header lifecycle menu: Employee's own 2-state lifecycle (Active/
+    // Inactive only -- no Archive; see activate_employee/deactivate_
+    // employee, a distinct, guarded command pair, not the generic profile
+    // update). Mutations bubble up via actionRequested() to
+    // EmployeesWorkspacePage.qml's handleDetailAction, which owns the
+    // shared confirm dialog (this page has no direct workspaceController of
+    // its own).
+    readonly property var _lifecycleMenuItems: {
+        const items = [
+            { "id": "edit", "label": "Edit employee", "icon": "edit", "enabled": root.canWrite },
+            { "separator": true }
+        ]
+        if (root._isActive) {
+            items.push({ "id": "deactivate", "label": "Deactivate employee", "icon": "reject", "enabled": root.canWrite })
+        } else {
+            items.push({ "id": "activate", "label": "Activate employee", "icon": "approve", "enabled": root.canWrite })
+        }
+        return items
+    }
+
+    // -- Overview: bounded (~5 item) recent activity, distinct from the
+    // full paginated Activity tab's own state below.
+    property var _recentActivity: []
+    function _refreshRecentActivity() {
+        if (root._employeeId.length === 0 || root._organizationId.length === 0
+            || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            root._recentActivity = []
+            return
+        }
+        root._recentActivity = root.platformCatalog.adminWorkspace.employeeActivity(root._employeeId, root._organizationId) || []
+    }
+
+    // -- Activity tab: this employee's own paginated, searchable
+    // business-activity history.
+    property int _activityPage: 1
+    property int _activityPageSize: 25
+    property string _activitySearch: ""
+    property string _activityDateFilter: ""
+    property var _activityCatalog: ({
+        "items": [], "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0,
+        "emptyState": "", "noResultsState": ""
+    })
+    readonly property var _activityDateFilterOptions: [
+        { "value": "", "label": "All time" },
+        { "value": "today", "label": "Today" },
+        { "value": "7d", "label": "Last 7 days" },
+        { "value": "30d", "label": "Last 30 days" }
+    ]
+    function _refreshActivityPage() {
+        if (root._employeeId.length === 0 || root._organizationId.length === 0
+            || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            return
+        }
+        root._activityCatalog = root.platformCatalog.adminWorkspace.employeeActivityPage(
+            root._employeeId, root._organizationId, root._activityPage, root._activityPageSize,
+            root._activitySearch, root._activityDateFilter
+        )
+    }
+
+    // User Account/Assignments/Timesheets/Certifications/Documents/Audit
+    // are not tabs -- see Related Actions and Overview's System Access
+    // card for the real relationships and optional cross-module navigation
+    // instead.
+    readonly property var _sections: [
+        { "label": "Overview" },
+        { "label": "Calendar" },
+        { "label": "Activity" }
+    ]
     readonly property string _activeSectionLabel: {
         const section = root._sections[root.activeSectionIndex]
         return section ? String(section.label || "") : "Overview"
+    }
+    function _indexOfSection(label) {
+        for (let i = 0; i < root._sections.length; i += 1) {
+            if (root._sections[i].label === label) return i
+        }
+        return -1
     }
     readonly property string _toolbarSubtitle: {
         switch (root._activeSectionLabel) {
         case "Overview":
             return root._subtitle
-        case "User Account":
-            return "Identity accounts remain governed by the shared Users workspace."
-        case "Assignments":
-            return "Project assignments and staffing usage remain governed by Project Management."
-        case "Timesheets":
-            return "Time-entry workflows remain governed by shared timesheet and PM execution surfaces."
-        case "Certifications":
-            return "Skill and certification posture remains governed by Project Management resource controls."
         case "Calendar":
-            return "Employee calendar assignment — governs working hours, vacation, and recurring availability."
-        case "Documents":
-            return "Employee-linked document governance stays in the shared document workspace."
-        case "Audit":
-            return "Entity-level audit detail stays in the shared audit workspace."
+            return "Working calendar and availability for this employee."
         default:
             return ""
         }
     }
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
-            return [
-                { "id": "edit", "label": "Edit", "icon": "edit", "enabled": root.canWrite },
-                { "id": "toggle_active", "label": root._isActive ? "Set Inactive" : "Set Active", "icon": "approve", "enabled": root.canWrite },
-                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
-            ]
-        }
-        if (root._activeSectionLabel === "User Account") {
-            return [
-                { "id": "show_users", "label": "Open Users", "icon": "chevron_right" }
-            ]
-        }
-        if (root._activeSectionLabel === "Assignments" || root._activeSectionLabel === "Certifications") {
-            return [
-                { "id": "open_resources", "label": "Open Resources", "icon": "chevron_right" }
-            ]
-        }
-        if (root._activeSectionLabel === "Timesheets") {
-            return [
-                { "id": "open_timesheets", "label": "Open Timesheets", "icon": "chevron_right" }
-            ]
+            return [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
         }
         if (root._activeSectionLabel === "Calendar") {
             return [
-                { "id": "assign_calendar", "label": root._hasCalendarAssignment ? "Change Calendar" : "Assign Calendar", "icon": "calendar", "enabled": root.canManageCalendar },
-                { "id": "clear_calendar_assignment", "label": "Clear Assignment", "icon": "delete", "danger": true, "enabled": root._hasCalendarAssignment && root.canManageCalendar },
-                { "id": "open_calendar_mgmt", "label": "Calendar Management", "icon": "chevron_right" },
+                { "id": "assign_calendar", "label": root._hasCalendarAssignment ? "Change Calendar" : "Assign Employee Override", "icon": "calendar", "enabled": root.canManageCalendar },
+                { "id": "clear_calendar_assignment", "label": "Remove Override", "icon": "delete", "danger": true, "enabled": root._hasCalendarAssignment && root.canManageCalendar },
+                { "id": "open_calendar_mgmt", "label": root._hasCalendarAssignment ? "Open Calendar" : "Open Calendar Management", "icon": "chevron_right" },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
-        if (root._activeSectionLabel === "Documents") {
-            return [
-                { "id": "show_documents", "label": "Open Documents", "icon": "chevron_right" }
-            ]
-        }
-        if (root._activeSectionLabel === "Audit") {
-            return [
-                { "id": "show_audit", "label": "Open Audit", "icon": "chevron_right" }
-            ]
-        }
-        return [
-            { "id": "refresh", "label": "Refresh", "icon": "refresh" }
-        ]
+        return []
     }
-    readonly property var _overviewFields: [
-        { "label": "Employee Code", "value": root._state.employeeCode },
-        { "label": "Full Name", "value": root._state.fullName || root.employee.title },
-        { "label": "Job Title", "value": root._state.title },
-        { "label": "Employment Type", "value": root._state.employmentType },
-        { "label": "Status", "value": root._status },
-        { "label": "Version", "value": root._state.version },
-        { "label": "Department", "value": root._state.departmentName },
-        { "label": "Site", "value": root._state.siteName },
-        { "label": "Email", "value": root._state.email },
-        { "label": "Phone", "value": root._state.phone }
+    readonly property bool _showSectionToolbar: root._activeSectionLabel === "Overview" || root._activeSectionLabel === "Calendar"
+
+    readonly property var _employeeInformationFields: [
+        { "label": "Employee Name", "value": root._displayValue(root._state.fullName || root.employee.title) },
+        { "label": "Employee Number", "value": root._displayValue(root._employeeCode) }
     ]
+    readonly property var _employmentFields: [
+        { "label": "Job Title", "value": root._displayValue(root._jobTitle) },
+        { "label": "Employment Type", "value": root._displayValue(String(root._state.employmentType || "").replace(/_/g, " ")) }
+    ]
+    readonly property var _organizationalAssignmentFields: [
+        { "label": "Organization", "value": root._displayValue(root._state.organizationName) },
+        { "label": "Department", "value": root._displayValue(root._departmentName) },
+        { "label": "Site", "value": root._displayValue(root._state.siteName) }
+    ]
+    readonly property var _contactFields: [
+        { "label": "Email", "value": root._displayValue(root._state.email) },
+        { "label": "Phone", "value": root._displayValue(root._state.phone) }
+    ]
+    // Manage Calendar is a context-preserving local action (this employee's
+    // own tab). Open User Account (when linked) is real cross-module
+    // navigation to the Users workspace -- a PM "Open Resource" action is
+    // deliberately not offered here: no approved Employee -> PM Resource
+    // navigation target currently resolves, and inventing one would mean
+    // either a fake link or a Platform -> PM import, both out of scope.
+    readonly property var _relatedActions: {
+        const actions = [
+            { "id": "calendar", "label": "Manage Calendar", "icon": "calendar" }
+        ]
+        if (root.systemAccess.linked) {
+            actions.push({ "id": "open_user_account", "label": "Open User Account", "icon": "chevron_right" })
+        }
+        return actions
+    }
+
+    function _navigateFromOverview(destinationId) {
+        const label = destinationId === "calendar" ? "Calendar" : ""
+        const index = label.length > 0 ? root._indexOfSection(label) : -1
+        if (index >= 0) {
+            detailPage.scrollToSection(index)
+            return
+        }
+        root.actionRequested(destinationId)
+    }
+
+    onEmployeeChanged: {
+        root._refreshActivityPage()
+        root._refreshRecentActivity()
+    }
+    Component.onCompleted: {
+        root._refreshActivityPage()
+        root._refreshRecentActivity()
+    }
 
     AppWidgets.SectionDetailPage {
         id: detailPage
         anchors.fill: parent
         open: true
         title: root._title
+        statusLabel: root._status
+        statusTone: root._statusTone
+        subtitleLine: root._headerSubtitle
+        breadcrumb: root.breadcrumb
         isBusy: root.busy
-        showEdit: false
+        showEdit: root.canWrite
         showDelete: false
+        menuActions: root._lifecycleMenuItems
         sections: root._sections
 
         onBackRequested: root.backRequested()
+        onEditRequested: root.actionRequested("edit")
+        onMenuActionTriggered: function(id) { root.actionRequested(id) }
         onSectionChanged: function(index) {
             root.activeSectionIndex = index
         }
@@ -163,6 +269,8 @@ Item {
 
         AppWidgets.ContextualActionToolbar {
             detailPagePinned: true
+            visible: root._showSectionToolbar
+            height: visible ? implicitHeight : 0
             width: parent ? parent.width : root.width
             title: root._activeSectionLabel
             subtitle: root._toolbarSubtitle
@@ -175,7 +283,7 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Overview" ? overviewLoader.implicitHeight : 0
+            implicitHeight: root.activeSectionIndex === 0 ? overviewLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -184,104 +292,35 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root._activeSectionLabel === "Overview"
+                active: root.activeSectionIndex === 0
                 keepLoaded: true
                 loadingMessage: "Loading employee overview..."
                 sourceComponent: Component {
-                    Column {
-                        width: parent ? parent.width : 0
-                        spacing: 0
+                    EmployeeSections.EmployeeOverviewSection {
+                        employeeInformationFields: root._employeeInformationFields
+                        employmentFields: root._employmentFields
+                        organizationalAssignmentFields: root._organizationalAssignmentFields
+                        contactFields: root._contactFields
+                        relatedActions: root._relatedActions
+                        recentActivity: root._recentActivity
+                        calendarSummary: root.empCalendarSummary
+                        systemAccess: root.systemAccess
+                        canManageSystemAccess: root.canManageSystemAccess
 
-                        AppWidgets.SectionHeading {
-                            width: parent.width
-                            label: "Overview"
+                        onNavigateToDestination: function(destinationId) {
+                            root._navigateFromOverview(destinationId)
                         }
-
-                        Item {
-                            width: parent.width
-                            implicitHeight: overviewColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                            ColumnLayout {
-                                id: overviewColumn
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.topMargin: Theme.AppTheme.spacingMd
-                                anchors.leftMargin: Theme.AppTheme.spacingMd
-                                anchors.rightMargin: Theme.AppTheme.spacingMd
-                                spacing: Theme.AppTheme.spacingMd
-
-                                AppWidgets.SectionCard {
-                                    Layout.fillWidth: true
-                                    implicitHeight: overviewGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Employment Summary"
-                                    outlined: true
-
-                                    GridLayout {
-                                        id: overviewGrid
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        columns: 2
-                                        columnSpacing: Theme.AppTheme.spacingLg
-                                        rowSpacing: Theme.AppTheme.spacingSm
-
-                                        Repeater {
-                                            model: root._overviewFields
-
-                                            delegate: ColumnLayout {
-                                                required property var modelData
-                                                Layout.fillWidth: true
-                                                spacing: 2
-
-                                                AppControls.Label {
-                                                    Layout.fillWidth: true
-                                                    text: String(modelData.label || "")
-                                                    color: Theme.AppTheme.textMuted
-                                                    font.pixelSize: Theme.AppTheme.captionSize
-                                                    font.bold: true
-                                                }
-
-                                                AppControls.Label {
-                                                    Layout.fillWidth: true
-                                                    text: modelData.value === undefined || modelData.value === null || String(modelData.value).length === 0
-                                                        ? "-"
-                                                        : String(modelData.value)
-                                                    color: Theme.AppTheme.textPrimary
-                                                    font.pixelSize: Theme.AppTheme.smallSize
-                                                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                AppWidgets.SectionCard {
-                                    Layout.fillWidth: true
-                                    implicitHeight: notesColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Platform Boundary"
-                                    outlined: true
-
-                                    ColumnLayout {
-                                        id: notesColumn
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        spacing: Theme.AppTheme.spacingSm
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: String(root.employee.supportingText || root.employee.metaText || "Employees remain platform-owned master records. Downstream modules should reference them through shared staffing and identity integrations.")
-                                            color: Theme.AppTheme.textSecondary
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                        }
-                                    }
-                                }
-                            }
+                        onManageCalendarRequested: {
+                            const index = root._indexOfSection("Calendar")
+                            if (index >= 0) detailPage.scrollToSection(index)
                         }
+                        onViewAllActivityRequested: {
+                            const index = root._indexOfSection("Activity")
+                            if (index >= 0) detailPage.scrollToSection(index)
+                        }
+                        onLinkUserAccountRequested: root.actionRequested("link_user_account")
+                        onUnlinkUserAccountRequested: root.actionRequested("unlink_user_account")
+                        onOpenUserAccountRequested: root.actionRequested("open_user_account")
                     }
                 }
             }
@@ -289,124 +328,12 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "User Account" ? userLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Calendar" ? calendarLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
             AppWidgets.LazySectionLoader {
-                id: userLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "User Account"
-                keepLoaded: true
-                loadingMessage: "Loading user-account guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "User Account"
-                        infoMessage: "Identity accounts remain governed by the shared Users workspace."
-                        cardTitle: "Identity Boundary"
-                        notes: [
-                            "Use the Users workspace for credential, role, and activation governance.",
-                            "Employee records should stay linked to identity and staffing workflows by reference instead of duplicating user-account state here."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Assignments" ? assignmentsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: assignmentsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Assignments"
-                keepLoaded: true
-                loadingMessage: "Loading assignment guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Assignments"
-                        infoMessage: "Project and task assignments remain governed by the Project Management resource model."
-                        cardTitle: "PM Staffing Boundary"
-                        notes: [
-                            "Open the Project Management Resources workspace to inspect allocations, assignments, and utilization.",
-                            "Platform Admin should not duplicate PM staffing ledgers inside the employee detail page."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Timesheets" ? timesheetsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: timesheetsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Timesheets"
-                keepLoaded: true
-                loadingMessage: "Loading timesheet guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Timesheets"
-                        infoMessage: "Time-entry workflows remain governed by PM and shared timesheet services."
-                        cardTitle: "Timesheet Boundary"
-                        notes: [
-                            "Open the PM Timesheets workspace to review submitted hours, approvals, and task-linked labor usage.",
-                            "Employee detail pages should not duplicate timesheet approval or entry-management workflows."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Certifications" ? certificationsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: certificationsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Certifications"
-                keepLoaded: true
-                loadingMessage: "Loading certification guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Certifications"
-                        infoMessage: "Resource skills and certifications remain governed by Project Management resource controls."
-                        cardTitle: "Certification Boundary"
-                        notes: [
-                            "Open the PM Resources workspace to manage certifications, skills, and assignment-readiness.",
-                            "Platform employee records should stay focused on shared master data rather than duplicating PM qualification ledgers."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Calendar" ? empCalendarLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: empCalendarLoader
+                id: calendarLoader
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
@@ -414,13 +341,12 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading employee calendar..."
                 sourceComponent: Component {
-                    AdminCalendarAssignmentSection {
-                        width: parent ? parent.width : 0
-                        entityType: "employee"
-                        entityId: String(root._state.employeeId || root._state.id || "")
+                    EmployeeSections.EmployeeCalendarSection {
+                        entityId: root._employeeId
                         entityLabel: root._title
                         assignedCalendar: root.empCalendarAssignment
                         sourceChain: root.calendarSourceChain
+                        effectiveCalendarSummary: root.empCalendarSummary
                         busy: root.busy
                         onAssignCalendarRequested: root.actionRequested("assign_calendar")
                         onOpenCalendarManagementRequested: root.actionRequested("open_calendar_mgmt")
@@ -431,55 +357,51 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Documents" ? documentsLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Activity"
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
             AppWidgets.LazySectionLoader {
-                id: documentsLoader
+                id: activityLoader
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root._activeSectionLabel === "Documents"
+                active: root._activeSectionLabel === "Activity"
                 keepLoaded: true
-                loadingMessage: "Loading document guidance..."
+                loadingMessage: "Loading employee activity..."
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Documents"
-                        infoMessage: "Employee-linked document governance stays in the shared document workspace."
-                        cardTitle: "Document Governance"
-                        notes: [
-                            "Use the shared Documents workspace for attachment, revision, and access workflows.",
-                            "Platform Admin should not duplicate document lifecycle controls in the employee detail page."
-                        ]
-                    }
-                }
-            }
-        }
+                    EmployeeSections.EmployeeActivitySection {
+                        width: parent ? parent.width : 0
+                        height: Math.max(420, detailPage.contentViewportHeight)
+                        catalog: root._activityCatalog
+                        busy: root.busy
+                        searchText: root._activitySearch
+                        dateFilterOptions: root._activityDateFilterOptions
+                        dateFilter: root._activityDateFilter
 
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Audit" ? auditLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: auditLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Audit"
-                keepLoaded: true
-                loadingMessage: "Loading audit guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Audit"
-                        infoMessage: "Employee audit trails stay centralized in the shared audit workspace."
-                        cardTitle: "Audit Boundary"
-                        notes: [
-                            "Use the Audit workspace for actor history, change payloads, and export workflows.",
-                            "Employee detail pages should link into shared audit flows rather than duplicate audit storage."
-                        ]
+                        onRefreshRequested: root._refreshActivityPage()
+                        onSearchChanged: function(text) {
+                            root._activitySearch = text
+                            root._activityPage = 1
+                            root._refreshActivityPage()
+                        }
+                        onDateFilterRequested: function(value) {
+                            root._activityDateFilter = value
+                            root._activityPage = 1
+                            root._refreshActivityPage()
+                        }
+                        onPageRequested: function(page) {
+                            root._activityPage = page
+                            root._refreshActivityPage()
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            root._activityPageSize = pageSize
+                            root._activityPage = 1
+                            root._refreshActivityPage()
+                        }
                     }
                 }
             }

@@ -195,6 +195,7 @@ class PlatformWorkspaceCatalog(QObject):
                 employee_api=employee_api,
                 site_api=site_api,
                 department_api=department_api,
+                user_api=user_api,
             ),
             employee_activity_presenter=PlatformEmployeeActivityPresenter(
                 activity_api=activity_api,

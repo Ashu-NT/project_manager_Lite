@@ -162,6 +162,10 @@ Item {
         )
     }
 
+    function openEmployeeUserLink(employeeId, employeeLabel, userOptions) {
+        userLinkDialog.openForLink(employeeId || "", employeeLabel || "", userOptions || [])
+    }
+
     function openUserCreate() {
         if (root.workspaceController === null) {
             return
@@ -301,6 +305,20 @@ Item {
                 ? root.workspaceController.createEmployee(payload)
                 : root.workspaceController.updateEmployee(payload)
             root._handleResult(employeeDialog, result)
+        }
+    }
+
+    EmployeeDialogs.UserLinkDialog {
+        id: userLinkDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.linkEmployeeUserAccount(payload.employeeId, payload.userId)
+            root._handleResult(userLinkDialog, result)
         }
     }
 

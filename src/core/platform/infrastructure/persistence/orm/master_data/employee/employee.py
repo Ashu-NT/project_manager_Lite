@@ -65,7 +65,14 @@ class EmployeeORM(Base):
     # boolean alongside it (see EmployeeLifecycleStatus.is_active, a
     # computed domain property, not a column).
     status: Mapped[EmployeeLifecycleStatus] = mapped_column(
-        SAEnum(EmployeeLifecycleStatus),
+        # values_callable is required here: the migration backfilled this
+        # column (a plain VARCHAR, not a native SQL enum type) with the
+        # enum's lowercase VALUES ("active"/"inactive"), matching every
+        # other consumer's own use of `.value` (audit trails, EmployeeDto
+        # serialization) -- SQLAlchemy's Enum type defaults to storing/
+        # reading by member NAME ("ACTIVE"/"INACTIVE") instead, which would
+        # silently mismatch the real persisted data.
+        SAEnum(EmployeeLifecycleStatus, values_callable=lambda enum_cls: [member.value for member in enum_cls]),
         nullable=False,
         default=EmployeeLifecycleStatus.ACTIVE,
         server_default=EmployeeLifecycleStatus.ACTIVE.value,

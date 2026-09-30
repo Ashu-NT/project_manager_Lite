@@ -16,9 +16,17 @@ from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 
+_EMPLOYEE_PAGE_SIZE_OPTIONS = (25, 50, 100)
+_DEFAULT_EMPLOYEE_PAGE_SIZE = 25
+
+
 class PlatformEmployeeController(QObject):
     employeesChanged = Signal()
     employeeEditorOptionsChanged = Signal()
+    employeeSearchTextChanged = Signal()
+    employeeStatusFilterChanged = Signal()
+    employeeDepartmentFilterChanged = Signal()
+    employeeSiteFilterChanged = Signal()
     isBusyChanged = Signal()
     errorMessageChanged = Signal()
     operationResultChanged = Signal()
@@ -49,10 +57,36 @@ class PlatformEmployeeController(QObject):
             "message": "",
         }
         self._feedback_message = ""
+        self._page = 1
+        self._page_size = _DEFAULT_EMPLOYEE_PAGE_SIZE
+        self._search_text = ""
+        self._status_filter = ""
+        self._department_filter = ""
+        self._site_filter = ""
 
     @Property("QVariantMap", notify=employeesChanged)
     def employees(self) -> dict[str, object]:
         return self._employees
+
+    @Property(str, notify=employeeSearchTextChanged)
+    def employeeSearchText(self) -> str:
+        return self._search_text
+
+    @Property(str, notify=employeeStatusFilterChanged)
+    def employeeStatusFilter(self) -> str:
+        return self._status_filter
+
+    @Property(str, notify=employeeDepartmentFilterChanged)
+    def employeeDepartmentFilter(self) -> str:
+        return self._department_filter
+
+    @Property(str, notify=employeeSiteFilterChanged)
+    def employeeSiteFilter(self) -> str:
+        return self._site_filter
+
+    @Property("QVariantList", constant=True)
+    def employeePageSizeOptions(self) -> list[int]:
+        return list(_EMPLOYEE_PAGE_SIZE_OPTIONS)
 
     @Property(QObject, constant=True)
     def tableModel(self) -> DynamicTableModel:
@@ -126,6 +160,68 @@ class PlatformEmployeeController(QObject):
 
     @Slot()
     def refresh(self) -> None:
+        self._refresh_employees()
+
+    @Slot(int)
+    def setEmployeePage(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized == self._page:
+            return
+        self._page = normalized
+        self._refresh_employees()
+
+    @Slot(int)
+    def setEmployeePageSize(self, page_size: int) -> None:
+        normalized = (
+            int(page_size) if int(page_size) in _EMPLOYEE_PAGE_SIZE_OPTIONS else _DEFAULT_EMPLOYEE_PAGE_SIZE
+        )
+        if normalized == self._page_size:
+            return
+        self._page_size = normalized
+        # Changing the page size while positioned deep in the result set
+        # could land past the new last page -- resetting to page 1 keeps
+        # the result always valid without a second round-trip to clamp it.
+        self._page = 1
+        self._refresh_employees()
+
+    @Slot(str)
+    def setEmployeeSearchText(self, text: str) -> None:
+        normalized = str(text or "")
+        if normalized == self._search_text:
+            return
+        self._search_text = normalized
+        self._page = 1
+        self.employeeSearchTextChanged.emit()
+        self._refresh_employees()
+
+    @Slot(str)
+    def setEmployeeStatusFilter(self, status: str) -> None:
+        normalized = str(status or "").strip().lower()
+        if normalized == self._status_filter:
+            return
+        self._status_filter = normalized
+        self._page = 1
+        self.employeeStatusFilterChanged.emit()
+        self._refresh_employees()
+
+    @Slot(str)
+    def setEmployeeDepartmentFilter(self, department_id: str) -> None:
+        normalized = str(department_id or "").strip()
+        if normalized == self._department_filter:
+            return
+        self._department_filter = normalized
+        self._page = 1
+        self.employeeDepartmentFilterChanged.emit()
+        self._refresh_employees()
+
+    @Slot(str)
+    def setEmployeeSiteFilter(self, site_id: str) -> None:
+        normalized = str(site_id or "").strip()
+        if normalized == self._site_filter:
+            return
+        self._site_filter = normalized
+        self._page = 1
+        self.employeeSiteFilterChanged.emit()
         self._refresh_employees()
 
     @Slot(str, result="QVariantMap")
@@ -267,6 +363,72 @@ class PlatformEmployeeController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot(str, result="QVariantMap")
+    def activateEmployee(self, employee_id: str) -> dict[str, object]:
+        normalized_id = employee_id.strip()
+        if not normalized_id:
+            return dict(self.operationResult)
+        return run_mutation(
+            operation=lambda: self._presenter.toggle_employee_active(
+                employee_id=normalized_id, is_active=False,
+            ),
+            success_message="Employee activated.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def deactivateEmployee(self, employee_id: str) -> dict[str, object]:
+        normalized_id = employee_id.strip()
+        if not normalized_id:
+            return dict(self.operationResult)
+        return run_mutation(
+            operation=lambda: self._presenter.toggle_employee_active(
+                employee_id=normalized_id, is_active=True,
+            ),
+            success_message="Employee deactivated.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, str, result="QVariantMap")
+    def linkEmployeeUserAccount(self, employee_id: str, user_id: str) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.link_employee_user_account(employee_id, user_id),
+            success_message="User account linked.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def unlinkEmployeeUserAccount(self, employee_id: str) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.unlink_employee_user_account(employee_id),
+            success_message="User account unlinked.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def resolveLinkedUser(self, user_id: str) -> dict[str, object]:
+        return self._presenter.resolve_linked_user(user_id) or {}
+
+    @Slot(str, result="QVariantList")
+    def linkableUserOptions(self, employee_id: str) -> list[dict[str, str]]:
+        return list(self._presenter.build_linkable_user_options(employee_id))
+
     @Slot(str, str, result="QVariantList")
     def employeeActivity(self, employee_id: str, organization_id: str) -> list[dict[str, object]]:
         normalized_employee_id = employee_id.strip()
@@ -298,7 +460,16 @@ class PlatformEmployeeController(QObject):
         )
 
     def _refresh_employees(self) -> None:
-        catalog = serialize_action_list(self._presenter.build_catalog())
+        catalog = serialize_action_list(
+            self._presenter.build_catalog_page(
+                page=self._page,
+                page_size=self._page_size,
+                search=self._search_text,
+                status=self._status_filter,
+                department_id=self._department_filter,
+                site_id=self._site_filter,
+            )
+        )
         self._set_employees(catalog)
         self._set_employee_editor_options(
             {

@@ -54,8 +54,12 @@ from src.ui_qml.platform.controllers.documents.document_structure_controller imp
     PlatformDocumentStructureController,
 )
 from src.ui_qml.platform.controllers.employees.actions import (
+    activate_employee,
     create_employee,
+    deactivate_employee,
+    link_employee_user_account,
     toggle_employee_active,
+    unlink_employee_user_account,
     update_employee,
 )
 from src.ui_qml.platform.controllers.employees.employee_controller import (
@@ -177,6 +181,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     departmentStatusFilterChanged = Signal()
     departmentSiteFilterChanged = Signal()
     departmentEditorOptionsChanged = Signal()
+    employeeSearchTextChanged = Signal()
+    employeeStatusFilterChanged = Signal()
+    employeeDepartmentFilterChanged = Signal()
+    employeeSiteFilterChanged = Signal()
     employeeEditorOptionsChanged = Signal()
     userEditorOptionsChanged = Signal()
     partyEditorOptionsChanged = Signal()
@@ -300,6 +308,26 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantMap", notify=employeesChanged)
     def employees(self) -> dict[str, object]:
         return self._employee_controller.employees
+
+    @Property(str, notify=employeeSearchTextChanged)
+    def employeeSearchText(self) -> str:
+        return self._employee_controller.employeeSearchText
+
+    @Property(str, notify=employeeStatusFilterChanged)
+    def employeeStatusFilter(self) -> str:
+        return self._employee_controller.employeeStatusFilter
+
+    @Property(str, notify=employeeDepartmentFilterChanged)
+    def employeeDepartmentFilter(self) -> str:
+        return self._employee_controller.employeeDepartmentFilter
+
+    @Property(str, notify=employeeSiteFilterChanged)
+    def employeeSiteFilter(self) -> str:
+        return self._employee_controller.employeeSiteFilter
+
+    @Property("QVariantList", constant=True)
+    def employeePageSizeOptions(self) -> list[int]:
+        return self._employee_controller.employeePageSizeOptions
 
     @Property("QVariantMap", notify=usersChanged)
     def users(self) -> dict[str, object]:
@@ -781,6 +809,54 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, result="QVariantMap")
     def toggleEmployeeActive(self, employee_id: str) -> dict[str, object]:
         return toggle_employee_active(self, employee_id)
+
+    @Slot(str, result="QVariantMap")
+    def activateEmployee(self, employee_id: str) -> dict[str, object]:
+        return activate_employee(self, employee_id)
+
+    @Slot(str, result="QVariantMap")
+    def deactivateEmployee(self, employee_id: str) -> dict[str, object]:
+        return deactivate_employee(self, employee_id)
+
+    @Slot(str, str, result="QVariantMap")
+    def linkEmployeeUserAccount(self, employee_id: str, user_id: str) -> dict[str, object]:
+        return link_employee_user_account(self, employee_id, user_id)
+
+    @Slot(str, result="QVariantMap")
+    def unlinkEmployeeUserAccount(self, employee_id: str) -> dict[str, object]:
+        return unlink_employee_user_account(self, employee_id)
+
+    @Slot(str, result="QVariantMap")
+    def resolveLinkedUser(self, user_id: str) -> dict[str, object]:
+        return self._employee_controller.resolveLinkedUser(user_id)
+
+    @Slot(str, result="QVariantList")
+    def linkableUserOptions(self, employee_id: str) -> list[dict[str, str]]:
+        return self._employee_controller.linkableUserOptions(employee_id)
+
+    @Slot(int)
+    def setEmployeePage(self, page: int) -> None:
+        self._employee_controller.setEmployeePage(page)
+
+    @Slot(int)
+    def setEmployeePageSize(self, page_size: int) -> None:
+        self._employee_controller.setEmployeePageSize(page_size)
+
+    @Slot(str)
+    def setEmployeeSearchText(self, text: str) -> None:
+        self._employee_controller.setEmployeeSearchText(text)
+
+    @Slot(str)
+    def setEmployeeStatusFilter(self, status: str) -> None:
+        self._employee_controller.setEmployeeStatusFilter(status)
+
+    @Slot(str)
+    def setEmployeeDepartmentFilter(self, department_id: str) -> None:
+        self._employee_controller.setEmployeeDepartmentFilter(department_id)
+
+    @Slot(str)
+    def setEmployeeSiteFilter(self, site_id: str) -> None:
+        self._employee_controller.setEmployeeSiteFilter(site_id)
 
     @Slot(str, int, int, str, str, result="QVariantMap")
     def organizationEmployeesPage(

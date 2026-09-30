@@ -9,8 +9,14 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeSiteBreakdownRowDto,
     EmployeeUpdateCommand,
 )
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.api.desktop.support._support import execute_desktop_operation
+from src.core.platform.api.desktop.support._support import (
+    execute_desktop_operation,
+    serialize_organization,
+)
 from src.core.platform.application.master_data.employee.employee_service import (
     EmployeeService,
 )
@@ -21,6 +27,11 @@ class PlatformEmployeeDesktopApi:
 
     def __init__(self, *, employee_service: EmployeeService) -> None:
         self._employee_service = employee_service
+
+    def get_context(self) -> DesktopApiResult[OrganizationDto]:
+        return execute_desktop_operation(
+            lambda: serialize_organization(self._employee_service.get_context_organization())
+        )
 
     def list_employees(
         self,

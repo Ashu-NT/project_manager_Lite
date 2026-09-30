@@ -56,6 +56,7 @@ from src.core.platform.contract.uow.employee_unit_of_work import (
     EmployeeUnitOfWorkFactory,
 )
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.employee.events import (
     EmployeeCreated,
     EmployeeProfileUpdated,
@@ -580,6 +581,24 @@ class EmployeeService:
         if employee is None:
             raise NotFoundError("Employee not found.", code="EMPLOYEE_NOT_FOUND")
         return employee
+
+    def get_context_organization(self) -> Organization:
+        """The caller's active Organization, for the standalone Employees
+        workspace's breadcrumb/subtitle -- mirrors DepartmentService's own
+        get_context_organization() exactly."""
+        require_permission(self._user_session, "employee.read", operation_label="view employee context")
+        if self._tenant_context_service is None:
+            raise ValidationError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        organization = self._tenant_context_service.get_active_organization()
+        if organization is None:
+            raise ValidationError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return organization
 
     def _active_organization_id(self, *, operation_label: str) -> str:
         if self._tenant_context_service is None:

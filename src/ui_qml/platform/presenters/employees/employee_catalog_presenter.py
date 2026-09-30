@@ -15,6 +15,7 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     int_value,
     option_item,
@@ -44,10 +45,12 @@ class PlatformEmployeeCatalogPresenter:
         employee_api: PlatformEmployeeDesktopApi | None = None,
         site_api: PlatformSiteDesktopApi | None = None,
         department_api: PlatformDepartmentDesktopApi | None = None,
+        user_api: PlatformUserDesktopApi | None = None,
     ) -> None:
         self._employee_api = employee_api
         self._site_api = site_api
         self._department_api = department_api
+        self._user_api = user_api
 
     def build_catalog(self) -> PlatformWorkspaceActionListViewModel:
         if self._employee_api is None:
@@ -119,6 +122,91 @@ class PlatformEmployeeCatalogPresenter:
             subtitle="Employees aligned to this site through the shared employee master.",
             empty_state="This site does not currently have employees assigned.",
             items=tuple(self._serialize_employee(row) for row in result.data),
+        )
+
+    def build_catalog_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        status: str = "",
+        department_id: str = "",
+        site_id: str = "",
+    ) -> PlatformWorkspaceActionListViewModel:
+        """Server-side paginated Employees page for the primary Platform >
+        Employees destination, scoped to the caller's currently active
+        organization -- the ambient-context counterpart to
+        build_catalog_page_for_organization above (Organization Detail's
+        explicit-organization_id variant). Optional department_id/site_id
+        narrow to a single Department/Site, the same real backend filters
+        build_catalog_page_for_department/build_catalog_page_for_site use --
+        never a client-side filter of an already-fetched page."""
+        if self._employee_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Employees",
+                subtitle="Employees appear here once the platform employee API is connected.",
+                empty_state="Platform employee API is not connected in this QML preview.",
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+        context_result = self._employee_api.get_context()
+        if not context_result.ok or context_result.data is None:
+            message = context_result.error.message if context_result.error is not None else "Unable to load employees."
+            return PlatformWorkspaceActionListViewModel(
+                title="Employees",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        organization_id = context_result.data.id
+        active_only: bool | None
+        if status == "active":
+            active_only = True
+        elif status == "inactive":
+            active_only = False
+        else:
+            active_only = None
+
+        result = self._employee_api.list_employees_page_for_organization(
+            organization_id,
+            page=page,
+            page_size=page_size,
+            search=search.strip(),
+            active_only=active_only,
+            department_id=department_id or None,
+            site_id=site_id or None,
+        )
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load employees."
+            return PlatformWorkspaceActionListViewModel(
+                title="Employees",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        employee_page = result.data
+        return PlatformWorkspaceActionListViewModel(
+            title="Employees",
+            subtitle=f"Workforce records for {context_result.data.display_name}.",
+            empty_state="No employees yet. Create the first employee for this organization.",
+            no_results_state="No employees match your current filters.",
+            items=tuple(
+                self._serialize_employee(row, organization_name=context_result.data.display_name)
+                for row in employee_page.items
+            ),
+            paginated=True,
+            page=employee_page.page,
+            page_size=employee_page.page_size,
+            total_count=employee_page.total,
+            filtered_total=employee_page.filtered_total,
         )
 
     def build_catalog_page_for_organization(
@@ -340,18 +428,80 @@ class PlatformEmployeeCatalogPresenter:
         )
 
     def build_department_options(self) -> tuple[dict[str, str], ...]:
+        """Each option also carries the Department's own siteId/siteName
+        (blank when the Department is organization-wide) -- the Create/Edit
+        dialog uses this to resolve/preselect or restrict the Site field the
+        moment a Department is chosen, matching the backend's own Site/
+        Department consistency invariant (resolve_employee_site_for_
+        department) client-side, before submission ever occurs."""
         if self._department_api is None:
             return ()
         result = self._department_api.list_departments(active_only=True)
         if not result.ok or result.data is None:
             return ()
+        site_lookup = self._site_lookup()
         return tuple(
-            option_item(
-                label=row.name,
-                value=row.id,
-                supporting_text=row.department_code,
-            )
+            {
+                "label": row.name,
+                "value": row.id,
+                "supportingText": row.department_code,
+                "siteId": row.site_id or "",
+                "siteName": site_lookup.get(row.site_id or "", ""),
+            }
             for row in result.data
+        )
+
+    def _site_lookup(self) -> dict[str, str]:
+        if self._site_api is None:
+            return {}
+        result = self._site_api.list_sites(active_only=None)
+        if not result.ok or result.data is None:
+            return {}
+        return {row.id: row.name for row in result.data}
+
+    def resolve_linked_user(self, user_id: str) -> dict[str, object] | None:
+        """Resolves a linked User account's display identity + account
+        status for the System Access card -- one on-demand lookup (not a
+        batch/N+1 concern, since only the single selected/opened Employee's
+        linked account is ever shown at a time, in the Inspector or Detail
+        Overview)."""
+        normalized_user_id = (user_id or "").strip()
+        if not normalized_user_id or self._user_api is None:
+            return None
+        result = self._user_api.list_users()
+        if not result.ok or result.data is None:
+            return None
+        for row in result.data:
+            if row.id == normalized_user_id:
+                return {
+                    "userId": row.id,
+                    "identity": row.email or row.username,
+                    "isActive": row.is_active,
+                }
+        return None
+
+    def build_linkable_user_options(self, employee_id: str = "") -> tuple[dict[str, str], ...]:
+        """User accounts eligible to link to this Employee through the
+        System Access relationship UI -- excludes accounts already linked
+        to a DIFFERENT employee and non-human (service) accounts, and never
+        exposes a raw id as the visible label. This is a UX narrowing only;
+        link_employee_user_account's own backend validation remains the
+        authoritative source of truth."""
+        if self._user_api is None or self._employee_api is None:
+            return ()
+        users_result = self._user_api.list_users()
+        if not users_result.ok or users_result.data is None:
+            return ()
+        employees_result = self._employee_api.list_employees(active_only=None)
+        linked_user_ids: set[str] = set()
+        if employees_result.ok and employees_result.data is not None:
+            for row in employees_result.data:
+                if row.user_id and row.id != employee_id:
+                    linked_user_ids.add(row.user_id)
+        return tuple(
+            option_item(label=row.email or row.username, value=row.id)
+            for row in users_result.data
+            if row.account_type == "human" and row.id not in linked_user_ids
         )
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
@@ -443,7 +593,7 @@ class PlatformEmployeeCatalogPresenter:
         return self._employee_api.unlink_employee_user_account(employee_id)
 
     @staticmethod
-    def _serialize_employee(row: EmployeeDto) -> PlatformWorkspaceActionItemViewModel:
+    def _serialize_employee(row: EmployeeDto, *, organization_name: str = "") -> PlatformWorkspaceActionItemViewModel:
         contact_label = row.email or row.phone or "No contact details"
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
@@ -458,6 +608,7 @@ class PlatformEmployeeCatalogPresenter:
                 "id": row.id,
                 "employeeId": row.id,
                 "organizationId": row.organization_id or "",
+                "organizationName": organization_name,
                 "employeeCode": row.employee_code,
                 "fullName": row.full_name,
                 "departmentId": row.department_id or "",
@@ -475,7 +626,9 @@ class PlatformEmployeeCatalogPresenter:
                 "employmentType": row.employment_type,
                 "email": row.email or "",
                 "phone": row.phone or "",
+                "status": row.status,
                 "isActive": row.is_active,
+                "userId": row.user_id or "",
                 "version": row.version,
             },
         )
