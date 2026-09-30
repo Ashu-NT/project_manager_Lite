@@ -35,6 +35,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
 from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
     stable_order_by,
 )
+from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.domain.time_management.time import (
     TimesheetPeriodStatus,
     coerce_timesheet_period_status,
@@ -135,7 +136,7 @@ class SqlAlchemyTimesheetWorkspaceReader:
                 ResourceORM.organization_id == organization_id,
                 EmployeeORM.tenant_id == tenant_id,
                 EmployeeORM.organization_id == organization_id,
-                EmployeeORM.is_active.is_(True),
+                EmployeeORM.status == EmployeeLifecycleStatus.ACTIVE,
                 *self._eligibility_filters(),
             )
         ).one_or_none()

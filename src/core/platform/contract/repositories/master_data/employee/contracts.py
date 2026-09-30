@@ -30,6 +30,13 @@ class EmployeeRepository(ABC):
     def get_by_code_for_organization(self, employee_code: str, organization_id: str) -> Employee | None: ...
 
     @abstractmethod
+    def find_by_user_id(self, user_id: str) -> Employee | None:
+        """The one Employee (if any) already linked to this User account --
+        enforces the optional one-to-one Employee<->User invariant at the
+        application layer, on top of the DB's own partial unique index."""
+        ...
+
+    @abstractmethod
     def list_for_organization(
         self,
         organization_id: str,

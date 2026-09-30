@@ -102,8 +102,6 @@ class PlatformEmployeeDesktopApi:
                     employment_type=command.employment_type,
                     email=command.email,
                     phone=command.phone,
-                    is_active=command.is_active,
-                    user_id=command.user_id,
                 )
             )
         )
@@ -123,10 +121,32 @@ class PlatformEmployeeDesktopApi:
                     employment_type=command.employment_type,
                     email=command.email,
                     phone=command.phone,
-                    is_active=command.is_active,
-                    user_id=command.user_id,
                     expected_version=command.expected_version,
                 )
+            )
+        )
+
+    def activate_employee(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_employee(self._employee_service.activate_employee(employee_id))
+        )
+
+    def deactivate_employee(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_employee(self._employee_service.deactivate_employee(employee_id))
+        )
+
+    def link_employee_user_account(self, employee_id: str, user_id: str) -> DesktopApiResult[EmployeeDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_employee(
+                self._employee_service.link_employee_user_account(employee_id, user_id)
+            )
+        )
+
+    def unlink_employee_user_account(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_employee(
+                self._employee_service.unlink_employee_user_account(employee_id)
             )
         )
 
@@ -175,6 +195,7 @@ class PlatformEmployeeDesktopApi:
             employment_type=employee.employment_type.value,
             email=employee.email,
             phone=employee.phone,
+            status=employee.status.value,
             is_active=employee.is_active,
             user_id=employee.user_id,
             version=employee.version,

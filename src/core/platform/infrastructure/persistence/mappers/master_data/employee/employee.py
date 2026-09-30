@@ -20,7 +20,7 @@ def employee_to_orm(employee: Employee) -> EmployeeORM:
         employment_type=employee.employment_type,
         email=employee.email,
         phone=employee.phone,
-        is_active=employee.is_active,
+        status=employee.status,
         user_id=employee.user_id,
         version=getattr(employee, "version", 1),
     )
@@ -40,7 +40,7 @@ def employee_from_orm(obj: EmployeeORM) -> Employee:
         employment_type=obj.employment_type,
         email=obj.email,
         phone=obj.phone,
-        is_active=obj.is_active,
+        status=obj.status,
         user_id=getattr(obj, "user_id", None),
         version=getattr(obj, "version", 1),
     )

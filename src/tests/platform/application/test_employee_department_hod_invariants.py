@@ -62,12 +62,12 @@ def test_deactivating_the_current_hod_is_rejected(services) -> None:
     department_service.update_department(department.id, head_of_department_employee_id=hod.id)
 
     with pytest.raises(ValidationError) as exc_info:
-        employee_service.update_employee(hod.id, is_active=False)
+        employee_service.deactivate_employee(hod.id)
     assert exc_info.value.code == "EMPLOYEE_DEACTIVATION_BLOCKED_BY_HOD_ASSIGNMENT"
 
     # Clearing the HOD first unblocks deactivation.
     department_service.update_department(department.id, head_of_department_employee_id="")
-    deactivated = employee_service.update_employee(hod.id, is_active=False)
+    deactivated = employee_service.deactivate_employee(hod.id)
     assert deactivated.is_active is False
 
 
@@ -79,7 +79,7 @@ def test_deactivating_an_ordinary_employee_who_is_not_hod_of_anything_succeeds(s
     employee = employee_service.create_employee(
         employee_code="INV-EMP-2", full_name="Ordinary Employee", department_id=department.id
     )
-    deactivated = employee_service.update_employee(employee.id, is_active=False)
+    deactivated = employee_service.deactivate_employee(employee.id)
     assert deactivated.is_active is False
 
 

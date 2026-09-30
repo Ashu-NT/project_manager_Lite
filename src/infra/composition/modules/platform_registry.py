@@ -1132,6 +1132,8 @@ def build_platform_service_bundle(
         site_repo=repositories.site_repo,
         department_repo=repositories.department_repo,
         organization_repo=repositories.organization_repo,
+        user_repo=repositories.user_repo,
+        user_tenant_repo=repositories.user_tenant_repo,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,

@@ -6,9 +6,10 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.platform.application.master_data.employee import employee_commands as _cmd
 from src.core.platform.application.master_data.employee.employee_support import (
     resolve_employee_department_reference,
-    resolve_employee_site_reference,
+    resolve_employee_site_for_department,
     sync_linked_employee_resources,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -44,6 +45,12 @@ from src.core.platform.contract.repositories.master_data.org.contracts import (
 )
 from src.core.platform.contract.repositories.master_data.site.contracts import (
     SiteRepository,
+)
+from src.core.platform.contract.repositories.security.auth.auth_repository import (
+    UserRepository,
+)
+from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
+    UserTenantMembershipRepository,
 )
 from src.core.platform.contract.uow.employee_unit_of_work import (
     EmployeeUnitOfWorkFactory,
@@ -88,6 +95,8 @@ class EmployeeService:
         site_repo: SiteRepository | None = None,
         department_repo: DepartmentRepository | None = None,
         organization_repo: OrganizationRepository | None = None,
+        user_repo: UserRepository | None = None,
+        user_tenant_repo: UserTenantMembershipRepository | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
@@ -102,6 +111,14 @@ class EmployeeService:
         self._site_repo = site_repo
         self._department_repo = department_repo
         self._organization_repo = organization_repo
+        # Identity & Access contracts, used only by link_employee_user_
+        # account/unlink_employee_user_account -- Employee never touches
+        # credentials, roles, sessions, or MFA; these two read-only lookups
+        # (does the User exist, does it belong to this tenant) are the only
+        # coupling, and only for validating a relationship, never for
+        # mutating User/RBAC state.
+        self._user_repo = user_repo
+        self._user_tenant_repo = user_tenant_repo
         self._headcount_reader = headcount_reader
         self._resource_master_event_factory = resource_master_event_factory
         self._uow_factory = uow_factory
@@ -112,6 +129,18 @@ class EmployeeService:
 
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
+
+    def activate_employee(self, employee_id: str) -> Employee:
+        return _cmd.activate_employee(self, employee_id)
+
+    def deactivate_employee(self, employee_id: str) -> Employee:
+        return _cmd.deactivate_employee(self, employee_id)
+
+    def link_employee_user_account(self, employee_id: str, user_id: str) -> Employee:
+        return _cmd.link_employee_user_account(self, employee_id, user_id)
+
+    def unlink_employee_user_account(self, employee_id: str) -> Employee:
+        return _cmd.unlink_employee_user_account(self, employee_id)
 
     def create_employee(
         self,
@@ -126,9 +155,12 @@ class EmployeeService:
         employment_type: EmploymentType | str = EmploymentType.FULL_TIME,
         email: str | None = None,
         phone: str | None = None,
-        is_active: bool = True,
-        user_id: str | None = None,
     ) -> Employee:
+        # No `is_active`/`status` parameter -- every new Employee starts
+        # ACTIVE (see EmployeeLifecycleStatus). Use activate_employee/
+        # deactivate_employee afterward to change it. No `user_id` parameter
+        # either -- System Access is a relationship operation
+        # (link_employee_user_account), never ordinary profile Create.
         require_permission(self._user_session, "employee.manage", operation_label="create employee")
         organization_id = self._active_organization_id(operation_label="create employee")
         tenant_id = self._tenant_context_service.require_active_tenant_id(
@@ -153,7 +185,19 @@ class EmployeeService:
                 raise ValidationError(
                     "Employee must be assigned to a department.", code="EMPLOYEE_DEPARTMENT_REQUIRED"
                 )
-            resolved_site_id, resolved_site_name = resolve_employee_site_reference(
+            resolved_department = uow.departments.get(resolved_department_id)
+            if resolved_department is None or resolved_department.organization_id != organization_id:
+                # Structurally unreachable through the public API today --
+                # resolve_employee_department_reference() already rejects a
+                # department outside the active organization -- kept as an
+                # explicit, defense-in-depth assertion of the invariant
+                # rather than a silently-trusted implication.
+                raise ValidationError(
+                    "Employee department must belong to the same organization as the employee.",
+                    code="EMPLOYEE_DEPARTMENT_ORGANIZATION_MISMATCH",
+                )
+            resolved_site_id, resolved_site_name = resolve_employee_site_for_department(
+                department=resolved_department,
                 site_repo=uow.sites,
                 organization_repo=self._organization_repo,
                 active_organization_id=organization_id,
@@ -172,8 +216,6 @@ class EmployeeService:
                 employment_type=employment_type,
                 email=email,
                 phone=phone,
-                is_active=bool(is_active),
-                user_id=user_id,
             )
             try:
                 uow.employees.add(employee)
@@ -229,10 +271,12 @@ class EmployeeService:
         employment_type: EmploymentType | str | None = None,
         email: str | None = None,
         phone: str | None = None,
-        is_active: bool | None = None,
-        user_id: str | None = None,
         expected_version: int | None = None,
     ) -> Employee:
+        # No `is_active`/`status` parameter -- lifecycle is command-only
+        # (activate_employee/deactivate_employee in employee_commands.py).
+        # No `user_id` parameter either -- see link_employee_user_account/
+        # unlink_employee_user_account.
         require_permission(self._user_session, "employee.manage", operation_label="update employee")
         organization_id = self._active_organization_id(operation_label="update employee")
         tenant_id = self._tenant_context_service.require_active_tenant_id(
@@ -248,9 +292,10 @@ class EmployeeService:
                     code="STALE_WRITE",
                 )
 
+            department_changing = department_id is not None or department is not None
             resolved_department_id = employee.department_id
             resolved_department_name = employee.department
-            if department_id is not None or department is not None:
+            if department_changing:
                 resolved_department_id, resolved_department_name = resolve_employee_department_reference(
                     department_repo=uow.departments,
                     organization_repo=self._organization_repo,
@@ -272,25 +317,32 @@ class EmployeeService:
                             code="EMPLOYEE_TRANSFER_BLOCKED_BY_HOD_ASSIGNMENT",
                         )
 
-            if is_active is False and employee.is_active is True:
-                current_hod_department = uow.departments.find_by_head_of_department_employee_id(employee.id)
-                if current_hod_department is not None:
-                    raise ValidationError(
-                        f"{employee.full_name} is the Head of Department for "
-                        f"{current_hod_department.name} and cannot be deactivated until that department's "
-                        "Head of Department is cleared or reassigned.",
-                        code="EMPLOYEE_DEACTIVATION_BLOCKED_BY_HOD_ASSIGNMENT",
-                    )
-
+            department_transferred = resolved_department_id != employee.department_id
+            site_touched = site_id is not None or site_name is not None
             resolved_site_id = employee.site_id
             resolved_site_name = employee.site_name
-            if site_id is not None or site_name is not None:
-                resolved_site_id, resolved_site_name = resolve_employee_site_reference(
+            if department_transferred or site_touched:
+                resolved_department = uow.departments.get(resolved_department_id)
+                if resolved_department is None or resolved_department.organization_id != organization_id:
+                    raise ValidationError(
+                        "Employee department must belong to the same organization as the employee.",
+                        code="EMPLOYEE_DEPARTMENT_ORGANIZATION_MISMATCH",
+                    )
+                resolved_site_id, resolved_site_name = resolve_employee_site_for_department(
+                    department=resolved_department,
                     site_repo=uow.sites,
                     organization_repo=self._organization_repo,
                     active_organization_id=organization_id,
-                    site_id=site_id if site_id is not None else None,
-                    site_name=site_name if site_name is not None else employee.site_name,
+                    # Only pass through an explicit override when the caller
+                    # actually touched site this call -- a bare department
+                    # transfer must never be misread as "an empty site was
+                    # explicitly requested" (see resolve_employee_site_for_
+                    # department's own current_site_id/name preservation for
+                    # an organization-wide department).
+                    site_id=site_id if site_touched else None,
+                    site_name=(site_name or "") if site_touched else "",
+                    current_site_id=employee.site_id,
+                    current_site_name=employee.site_name,
                 )
 
             candidate = replace(
@@ -305,10 +357,8 @@ class EmployeeService:
                 employment_type=employment_type if employment_type is not None else employee.employment_type,
                 email=email if email is not None else employee.email,
                 phone=phone if phone is not None else employee.phone,
-                is_active=bool(is_active) if is_active is not None else employee.is_active,
-                user_id=user_id if user_id is not None else employee.user_id,
             )
-            other_fields_changed = (
+            profile_changed = (
                 candidate.employee_code != employee.employee_code
                 or candidate.full_name != employee.full_name
                 or candidate.department_id != employee.department_id
@@ -319,10 +369,7 @@ class EmployeeService:
                 or candidate.employment_type != employee.employment_type
                 or candidate.email != employee.email
                 or candidate.phone != employee.phone
-                or candidate.user_id != employee.user_id
             )
-            active_state_changed = candidate.is_active != employee.is_active
-            profile_changed = other_fields_changed or active_state_changed
             if not profile_changed:
                 return employee
             if employee_code is not None:
@@ -336,13 +383,7 @@ class EmployeeService:
             try:
                 uow.employees.update(candidate)
                 touched_resources = sync_linked_employee_resources(candidate, uow.resources)
-                # A pure active-state transition (no other field changed) gets its
-                # own distinct action so the curated Organization Activity feed can
-                # tell "removed" (deactivated) apart from an ordinary profile edit.
-                if active_state_changed and not other_fields_changed:
-                    audit_action = "employee.activate" if candidate.is_active else "employee.deactivate"
-                else:
-                    audit_action = "employee.update"
+                audit_action = "employee.update"
                 record_audit_entry(
                     uow,
                     operation="update",
@@ -363,15 +404,9 @@ class EmployeeService:
                     entity_id=candidate.id,
                     module="platform",
                     organization_id=organization_id,
-                    message=(
-                        f"Employee removed - {candidate.full_name}"
-                        if audit_action == "employee.deactivate"
-                        else f"Employee reinstated - {candidate.full_name}"
-                        if audit_action == "employee.activate"
-                        else f"Employee updated - {candidate.full_name}"
-                    ),
+                    message=f"Employee updated - {candidate.full_name}",
                     icon="employee",
-                    type="warning" if audit_action == "employee.deactivate" else "info",
+                    type="info",
                     commit=False,
                 )
                 uow.record_event(

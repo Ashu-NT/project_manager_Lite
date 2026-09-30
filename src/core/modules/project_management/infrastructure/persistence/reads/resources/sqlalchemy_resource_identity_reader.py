@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
     ResourceORM,
 )
+from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
     EmployeeORM,
 )
@@ -42,7 +43,7 @@ class SqlAlchemyResourceIdentityReader:
                 EmployeeORM.tenant_id == tenant_id,
                 EmployeeORM.organization_id == organization_id,
                 EmployeeORM.user_id == user_id,
-                EmployeeORM.is_active.is_(True),
+                EmployeeORM.status == EmployeeLifecycleStatus.ACTIVE,
             )
             .order_by(ResourceORM.id.asc())
             .limit(2)

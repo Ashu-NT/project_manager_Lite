@@ -74,6 +74,78 @@ def resolve_employee_site_reference(
     return None, normalized_name
 
 
+def resolve_employee_site_for_department(
+    *,
+    department: Department,
+    site_repo: SiteRepository | None,
+    organization_repo: OrganizationRepository | None,
+    active_organization_id: str | None = None,
+    site_id: str | None,
+    site_name: str,
+    current_site_id: str | None = None,
+    current_site_name: str = "",
+) -> tuple[str | None, str]:
+    """Resolve an Employee's site against its (already-resolved) Department,
+    enforcing the final invariant: when a Department is itself bound to a
+    Site, every one of its Employees must share that exact Site -- derived
+    automatically when not explicitly given, and rejected outright if an
+    explicit override contradicts it. When a Department has no Site (an
+    organization-wide Department), an Employee may have any Site in the
+    same organization, or none -- `current_site_id`/`current_site_name`
+    (the employee's own existing values, empty for Create) are preserved
+    when the caller supplies nothing this call, so a Department transfer
+    into an organization-wide Department never silently invents or clears
+    a Site that wasn't part of the request."""
+    department_site_id = getattr(department, "site_id", None)
+    requested_id = (site_id or "").strip() or None
+    requested_name = (site_name or "").strip()
+
+    if department_site_id:
+        if requested_id and requested_id != department_site_id:
+            raise ValidationError(
+                "Employee site must match the selected department's site.",
+                code="EMPLOYEE_SITE_DEPARTMENT_MISMATCH",
+            )
+        if requested_name and not requested_id:
+            # A free-text site name was given with no id -- it must still
+            # resolve to the department's own site, never a different one.
+            resolved_id, _resolved_name = resolve_employee_site_reference(
+                site_repo=site_repo,
+                organization_repo=organization_repo,
+                active_organization_id=active_organization_id,
+                site_id=None,
+                site_name=requested_name,
+            )
+            if resolved_id and resolved_id != department_site_id:
+                raise ValidationError(
+                    "Employee site must match the selected department's site.",
+                    code="EMPLOYEE_SITE_DEPARTMENT_MISMATCH",
+                )
+        # Derive/default from the department -- covers both "nothing
+        # provided" and "the same site explicitly provided" in one branch.
+        # Department has no cached site_name of its own, so resolve the
+        # real Site row for a display-ready name.
+        department_site = _load_site(
+            site_repo=site_repo,
+            active_organization_id=active_organization_id,
+            site_id=department_site_id,
+        )
+        return department_site_id, (department_site.name if department_site is not None else "")
+
+    # Organization-wide department: any same-organization site is allowed,
+    # or none. Only re-resolve when the caller actually supplied something
+    # this call; otherwise preserve the current value untouched.
+    if requested_id is not None or requested_name:
+        return resolve_employee_site_reference(
+            site_repo=site_repo,
+            organization_repo=organization_repo,
+            active_organization_id=active_organization_id,
+            site_id=requested_id,
+            site_name=requested_name,
+        )
+    return current_site_id, current_site_name
+
+
 def resolve_employee_department_reference(
     *,
     department_repo: DepartmentRepository | None,
@@ -184,6 +256,7 @@ def _belongs_to_active_organization(
 
 __all__ = [
     "resolve_employee_department_reference",
+    "resolve_employee_site_for_department",
     "resolve_employee_site_reference",
     "sync_linked_employee_resources",
 ]

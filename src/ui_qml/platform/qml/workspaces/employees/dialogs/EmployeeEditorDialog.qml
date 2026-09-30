@@ -51,8 +51,7 @@ AppWidgets.EntityDialog {
         title: titleField.text.trim(),
         employmentType: _currentValue(employmentTypeModel, employmentTypeCombo) || "FULL_TIME",
         email: emailField.text.trim(),
-        phone: phoneField.text.trim(),
-        isActive: activeCheck.checked
+        phone: phoneField.text.trim()
     })
 
     function openForCreate(options) {
@@ -96,7 +95,6 @@ AppWidgets.EntityDialog {
         titleField.text = root.draft.title || ""
         emailField.text = root.draft.email || ""
         phoneField.text = root.draft.phone || ""
-        activeCheck.checked = root.draft.isActive !== undefined ? root.draft.isActive : true
         _setCurrentIndex(siteModel, siteCombo, root.draft.siteId || "")
         _setCurrentIndex(departmentModel, departmentCombo, root.draft.departmentId || "")
         _setCurrentIndex(employmentTypeModel, employmentTypeCombo, root.draft.employmentType || "FULL_TIME")
@@ -245,11 +243,5 @@ AppWidgets.EntityDialog {
                 placeholderText: "+1 555 0100"
             }
         }
-    }
-
-    AppControls.CheckBox {
-        id: activeCheck
-
-        text: "Active employee"
     }
 }

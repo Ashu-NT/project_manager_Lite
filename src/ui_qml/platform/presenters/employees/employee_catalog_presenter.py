@@ -16,7 +16,6 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
-    bool_value,
     int_value,
     option_item,
     optional_string_value,
@@ -387,7 +386,6 @@ class PlatformEmployeeCatalogPresenter:
                 employment_type=string_value(payload, "employmentType", default="FULL_TIME"),
                 email=optional_string_value(payload, "email"),
                 phone=optional_string_value(payload, "phone"),
-                is_active=bool_value(payload, "isActive", default=True),
             )
         )
 
@@ -407,7 +405,6 @@ class PlatformEmployeeCatalogPresenter:
                 employment_type=string_value(payload, "employmentType", default="FULL_TIME"),
                 email=optional_string_value(payload, "email"),
                 phone=optional_string_value(payload, "phone"),
-                is_active=bool_value(payload, "isActive", default=True),
                 expected_version=int_value(payload, "expectedVersion"),
             )
         )
@@ -417,17 +414,33 @@ class PlatformEmployeeCatalogPresenter:
         *,
         employee_id: str,
         is_active: bool,
-        expected_version: int | None,
+        expected_version: int | None = None,
     ) -> DesktopApiResult[EmployeeDto]:
+        """Routes through the dedicated activate_employee/deactivate_
+        employee commands -- never the generic update_employee, which no
+        longer accepts a lifecycle field at all. `expected_version` is kept
+        in the signature only for source compatibility with existing
+        callers; the dedicated commands re-fetch the row themselves and
+        don't need it."""
         if self._employee_api is None:
             return preview_error_result("Platform employee API is not connected in this QML preview.")
-        return self._employee_api.update_employee(
-            EmployeeUpdateCommand(
-                employee_id=employee_id,
-                is_active=not is_active,
-                expected_version=expected_version,
-            )
-        )
+        if is_active:
+            return self._employee_api.deactivate_employee(employee_id)
+        return self._employee_api.activate_employee(employee_id)
+
+    def link_employee_user_account(self, employee_id: str, user_id: str) -> DesktopApiResult[EmployeeDto]:
+        """System Access relationship operation -- never ordinary profile
+        editing. No QML surface calls this yet (deferred to Employee's own
+        QML modernization pass); wired here so the vertical slice is
+        already complete when that pass begins."""
+        if self._employee_api is None:
+            return preview_error_result("Platform employee API is not connected in this QML preview.")
+        return self._employee_api.link_employee_user_account(employee_id, user_id)
+
+    def unlink_employee_user_account(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
+        if self._employee_api is None:
+            return preview_error_result("Platform employee API is not connected in this QML preview.")
+        return self._employee_api.unlink_employee_user_account(employee_id)
 
     @staticmethod
     def _serialize_employee(row: EmployeeDto) -> PlatformWorkspaceActionItemViewModel:

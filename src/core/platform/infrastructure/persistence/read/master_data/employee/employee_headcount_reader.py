@@ -16,6 +16,7 @@ from src.core.platform.contract.read.master_data.employee.employee_headcount_rea
     EmployeeHeadcountSummary,
     EmployeeSiteBreakdownRow,
 )
+from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
@@ -35,7 +36,7 @@ class SqlAlchemyEmployeeHeadcountReader:
         total, active = self._session.execute(
             select(
                 func.count(EmployeeORM.id),
-                func.sum(case((EmployeeORM.is_active.is_(True), 1), else_=0)),
+                func.sum(case((EmployeeORM.status == EmployeeLifecycleStatus.ACTIVE, 1), else_=0)),
             ).where(
                 EmployeeORM.organization_id == organization_id,
                 EmployeeORM.tenant_id == tenant_id,
@@ -51,7 +52,7 @@ class SqlAlchemyEmployeeHeadcountReader:
                 EmployeeORM.department_id,
                 DepartmentORM.name,
                 func.count(EmployeeORM.id),
-                func.sum(case((EmployeeORM.is_active.is_(True), 1), else_=0)),
+                func.sum(case((EmployeeORM.status == EmployeeLifecycleStatus.ACTIVE, 1), else_=0)),
             )
             .select_from(EmployeeORM)
             .outerjoin(DepartmentORM, DepartmentORM.id == EmployeeORM.department_id)
@@ -80,7 +81,7 @@ class SqlAlchemyEmployeeHeadcountReader:
                 EmployeeORM.site_id,
                 SiteORM.name,
                 func.count(EmployeeORM.id),
-                func.sum(case((EmployeeORM.is_active.is_(True), 1), else_=0)),
+                func.sum(case((EmployeeORM.status == EmployeeLifecycleStatus.ACTIVE, 1), else_=0)),
             )
             .select_from(EmployeeORM)
             .outerjoin(SiteORM, SiteORM.id == EmployeeORM.site_id)
