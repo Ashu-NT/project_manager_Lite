@@ -46,6 +46,23 @@ Item {
     readonly property var _chainItems: Array.isArray(root.sourceChain) ? root.sourceChain : []
     readonly property bool _hasEffectiveSummary: String(root.effectiveCalendarSummary && root.effectiveCalendarSummary.calendarName ? root.effectiveCalendarSummary.calendarName : "").length > 0
     readonly property bool _effectiveIsOverride: root.effectiveCalendarSummary && root.effectiveCalendarSummary.source === "override"
+    // Site's own resolver only distinguishes two states ("override"/
+    // "inherited"), synthesized below into an entity-labeled string.
+    // Department's resolver already returns a fully display-ready, 3-way
+    // label ("Department override" / "Inherited from Site" / "Inherited
+    // from Organization" -- see department_calendar_summary()) since it
+    // must distinguish which level actually resolved the calendar, not just
+    // whether it did -- used verbatim instead of being collapsed back down
+    // to Site's binary vocabulary.
+    readonly property string _effectiveSourceLabel: {
+        const raw = String(root.effectiveCalendarSummary.source || "")
+        if (raw === "override" || raw === "inherited" || raw.length === 0) {
+            return root._effectiveIsOverride
+                ? (root.entityType.length > 0 ? root.entityType.charAt(0).toUpperCase() + root.entityType.slice(1) + " override" : "Override")
+                : "Inherited from Organization"
+        }
+        return raw
+    }
     readonly property real _cardHeaderHeight: Theme.AppTheme.sectionTitleSize + Theme.AppTheme.spacingMd * 2 + Theme.AppTheme.spacingSm
 
     implicitHeight: contentColumn.implicitHeight
@@ -103,9 +120,7 @@ Item {
                         Repeater {
                             model: [
                                 { "label": "Effective Calendar", "value": String(root.effectiveCalendarSummary.calendarName || "") },
-                                { "label": "Source", "value": root._effectiveIsOverride
-                                    ? (root.entityType.length > 0 ? root.entityType.charAt(0).toUpperCase() + root.entityType.slice(1) + " override" : "Override")
-                                    : "Inherited from Organization" },
+                                { "label": "Source", "value": root._effectiveSourceLabel },
                                 { "label": "Working Week", "value": String(root.effectiveCalendarSummary.workingWeekLabel || "-") },
                                 { "label": "Time Zone", "value": String(root.effectiveCalendarSummary.timeZone || "-") },
                                 { "label": "Holiday Rules", "value": String(root.effectiveCalendarSummary.holidaySetLabel || "-") }

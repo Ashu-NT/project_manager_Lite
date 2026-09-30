@@ -13,6 +13,7 @@ from src.core.platform.api.desktop.approval.models.approval import ApprovalReque
 from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentDto,
+    DepartmentPageDto,
     DepartmentRollupSummaryDto,
 )
 from src.core.platform.api.desktop.master_data.documents.models.document import (
@@ -25,6 +26,7 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeDepartmentBreakdownRowDto,
     EmployeeDto,
     EmployeeHeadcountSummaryDto,
+    EmployeePageDto,
     EmployeeSiteBreakdownRowDto,
 )
 from src.core.platform.api.desktop.master_data.org.models.organization import (
@@ -620,6 +622,38 @@ class FakePlatformDepartmentApi:
             ),
         )
 
+    def list_departments_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+        site_id: str | None = None,
+    ) -> DesktopApiResult[DepartmentPageDto]:
+        rows = [row for row in self._rows if row.organization_id == organization_id]
+        total = len(rows)
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        if site_id:
+            rows = [row for row in rows if row.site_id == site_id]
+        normalized_search = (search or "").strip().lower()
+        if normalized_search:
+            rows = [
+                row for row in rows
+                if normalized_search in row.name.lower() or normalized_search in row.department_code.lower()
+            ]
+        filtered_total = len(rows)
+        start = max(0, (page - 1) * page_size)
+        page_rows = rows[start:start + page_size]
+        return DesktopApiResult(
+            ok=True,
+            data=DepartmentPageDto(
+                items=tuple(page_rows), total=total, filtered_total=filtered_total, page=page, page_size=page_size,
+            ),
+        )
+
     def create_department(self, command) -> DesktopApiResult[DepartmentDto]:
         active_organization = self._runtime_api.get_runtime_context().data.active_organization
         department = DepartmentDto(
@@ -709,6 +743,38 @@ class FakePlatformEmployeeApi:
             data=EmployeeHeadcountSummaryDto(
                 total=len(self._rows),
                 active=sum(1 for row in self._rows if row.is_active),
+            ),
+        )
+
+    def list_employees_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+        site_id: str | None = None,
+        department_id: str | None = None,
+    ) -> DesktopApiResult[EmployeePageDto]:
+        rows = [row for row in self._rows if row.organization_id == organization_id]
+        total = len(rows)
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        if site_id is not None:
+            rows = [row for row in rows if row.site_id == site_id]
+        if department_id is not None:
+            rows = [row for row in rows if row.department_id == department_id]
+        normalized_search = (search or "").strip().lower()
+        if normalized_search:
+            rows = [row for row in rows if normalized_search in row.full_name.lower()]
+        filtered_total = len(rows)
+        start = max(0, (page - 1) * page_size)
+        page_rows = rows[start:start + page_size]
+        return DesktopApiResult(
+            ok=True,
+            data=EmployeePageDto(
+                items=tuple(page_rows), total=total, filtered_total=filtered_total, page=page, page_size=page_size,
             ),
         )
 
@@ -1426,8 +1492,8 @@ def build_connected_platform_registry() -> SimpleNamespace:
         DepartmentDto(id="dep-2", organization_id="org-1", department_code="OPS", name="Operations", description="Operations", site_id="site-2", parent_department_id=None, department_type="functional", cost_center_code="CC-2", head_of_department_employee_id=None, is_active=False, notes="", version=1),
     )
     employee_rows = (
-        EmployeeDto(id="emp-1", employee_code="E-001", full_name="Ada Lovelace", department_id="dep-1", department="Engineering", site_id="site-1", site_name="Berlin Campus", title="Engineer", employment_type="FULL_TIME", email="ada@example.com", phone=None, is_active=True, version=1),
-        EmployeeDto(id="emp-2", employee_code="E-002", full_name="Grace Hopper", department_id="dep-2", department="Operations", site_id="site-2", site_name="Dubai Yard", title="Manager", employment_type="CONTRACTOR", email="grace@example.com", phone=None, is_active=False, version=1),
+        EmployeeDto(id="emp-1", employee_code="E-001", full_name="Ada Lovelace", department_id="dep-1", department="Engineering", site_id="site-1", site_name="Berlin Campus", title="Engineer", employment_type="FULL_TIME", email="ada@example.com", phone=None, is_active=True, version=1, organization_id="org-1"),
+        EmployeeDto(id="emp-2", employee_code="E-002", full_name="Grace Hopper", department_id="dep-2", department="Operations", site_id="site-2", site_name="Dubai Yard", title="Manager", employment_type="CONTRACTOR", email="grace@example.com", phone=None, is_active=False, version=1, organization_id="org-1"),
     )
     site_api = FakePlatformSiteApi(runtime_api=runtime_api, rows=site_rows)
     department_api = FakePlatformDepartmentApi(runtime_api=runtime_api, site_api=site_api, rows=department_rows)

@@ -169,6 +169,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     selectedOrganizationIdsChanged = Signal()
     siteSearchTextChanged = Signal()
     siteStatusFilterChanged = Signal()
+    departmentSearchTextChanged = Signal()
+    departmentStatusFilterChanged = Signal()
+    departmentSiteFilterChanged = Signal()
     departmentEditorOptionsChanged = Signal()
     employeeEditorOptionsChanged = Signal()
     userEditorOptionsChanged = Signal()
@@ -270,6 +273,22 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantMap", notify=departmentsChanged)
     def departments(self) -> dict[str, object]:
         return self._department_controller.departments
+
+    @Property(str, notify=departmentSearchTextChanged)
+    def departmentSearchText(self) -> str:
+        return self._department_controller.departmentSearchText
+
+    @Property(str, notify=departmentStatusFilterChanged)
+    def departmentStatusFilter(self) -> str:
+        return self._department_controller.departmentStatusFilter
+
+    @Property(str, notify=departmentSiteFilterChanged)
+    def departmentSiteFilter(self) -> str:
+        return self._department_controller.departmentSiteFilter
+
+    @Property("QVariantList", constant=True)
+    def departmentPageSizeOptions(self) -> list[int]:
+        return self._department_controller.departmentPageSizeOptions
 
     @Property("QVariantMap", notify=employeesChanged)
     def employees(self) -> dict[str, object]:
@@ -662,6 +681,26 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, result="QVariantMap")
     def deactivateDepartment(self, department_id: str) -> dict[str, object]:
         return deactivate_department(self, department_id)
+
+    @Slot(int)
+    def setDepartmentPage(self, page: int) -> None:
+        self._department_controller.setDepartmentPage(page)
+
+    @Slot(int)
+    def setDepartmentPageSize(self, page_size: int) -> None:
+        self._department_controller.setDepartmentPageSize(page_size)
+
+    @Slot(str)
+    def setDepartmentSearchText(self, text: str) -> None:
+        self._department_controller.setDepartmentSearchText(text)
+
+    @Slot(str)
+    def setDepartmentStatusFilter(self, status: str) -> None:
+        self._department_controller.setDepartmentStatusFilter(status)
+
+    @Slot(str)
+    def setDepartmentSiteFilter(self, site_id: str) -> None:
+        self._department_controller.setDepartmentSiteFilter(site_id)
 
     @Slot(str, result="QVariantMap")
     def headOfDepartmentOptionsFor(self, department_id: str) -> dict[str, object]:

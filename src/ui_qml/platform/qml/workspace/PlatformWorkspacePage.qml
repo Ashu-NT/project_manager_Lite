@@ -540,6 +540,7 @@ Item {
                         DepartmentsOrg.DepartmentsWorkspacePage {
                             platformCatalog: root.platformCatalog
                             breadcrumb: root.breadcrumb
+                            shellModel: root.shellModel
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                             onRelatedRecordRequested: function(destinationId, rowId) {
                                 root._onRelatedRecordRequested(destinationId, rowId)

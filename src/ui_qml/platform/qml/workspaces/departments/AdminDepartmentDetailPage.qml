@@ -1,22 +1,41 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
-import Platform.Components 1.0
-import workspaces.calendars 1.0
+import Shell.Context 1.0 as ShellContexts
+import workspaces.departments.sections 1.0 as DepartmentSections
 
+// Orchestrator only: owns department identity/lifecycle, per-tab state
+// (page/search/filter) and data fetching. Each tab's own markup lives in
+// workspaces/departments/sections/ -- see that folder's files for the
+// Overview/Employees/Calendar/Activity presentational components this page
+// wires up below. Modernized to the same shape as AdminSiteDetailPage.qml;
+// final section set is exactly Overview/Employees/Calendar/Activity -- no
+// Users/Projects/Documents/Audit tabs (see Related Actions for optional
+// cross-module navigation instead).
 Item {
     id: root
+    objectName: "adminDepartmentDetailPage"
 
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property var department: ({})
-    property var employeeCatalog: ({ "items": [], "emptyState": "No employees are available yet." })
+    property var breadcrumb: []
+    // Bubbled straight down from DepartmentsWorkspacePage.qml -> the shell's
+    // own selectRoute(), the same cross-module navigation abstraction PM's
+    // own dashboard cards already use in the opposite direction. Never
+    // imported by Platform business logic; just a plain passed-through
+    // reference.
+    property ShellContexts.ShellContext shellModel
     property var employeeColumns: []
     property var deptCalendarAssignment: ({})
     property var calendarSourceChain: []
+    property var deptCalendarSummary: ({
+        "hasCalendar": false, "calendarId": "", "calendarName": "", "source": "",
+        "workingWeekLabel": "No working days configured", "timeZone": "", "holidaySetLabel": "No holidays configured"
+    })
     property bool canWrite: true
     property bool canManageEmployees: true
     property bool canManageCalendar: true
@@ -37,120 +56,223 @@ Item {
         : String(root._statusLabelValue || "")
     readonly property string _subtitle: String(root.department && root.department.subtitle ? root.department.subtitle : "")
     readonly property bool _isActive: root._state.isActive === true
+    readonly property string _statusTone: root._isActive ? "success" : "neutral"
     readonly property bool _pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
     readonly property string _departmentId: String(root._state.departmentId || root._state.id || root.department.id || "")
+    readonly property string _organizationId: String(root._state.organizationId || "")
     readonly property bool _hasCalendarAssignment: String(root.deptCalendarAssignment && root.deptCalendarAssignment.assignmentId ? root.deptCalendarAssignment.assignmentId : "").length > 0
-    readonly property var _employeeRows: {
-        // Depend on employeeCatalog so this re-fetches whenever the shared
-        // employee catalog changes (create/update/toggle-active elsewhere),
-        // but query only this department's rows via SQL rather than
-        // filtering the full organization's employee list client-side.
-        const _refreshToken = root.employeeCatalog
-        const departmentId = root._departmentId
-        if (departmentId.length === 0 || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
-            return []
-        }
-        const result = root.platformCatalog.adminWorkspace.employeesForDepartment(departmentId)
-        return (result && result.items) || []
+
+    readonly property string _departmentCode: String(root._state.departmentCode || "")
+    readonly property string _departmentType: String(root._state.departmentType || "")
+    readonly property string _siteName: String(root._state.siteName || "")
+    readonly property string _headerSubtitle: root._joinNonEmpty([root._departmentCode, root._departmentType, root._siteName], "  ·  ")
+
+    function _joinNonEmpty(parts, sep) {
+        return parts.filter(function(p) { return String(p || "").trim().length > 0 }).join(sep)
     }
-    readonly property var _sections: {
-        const sections = [
-            { "label": "Overview" },
-            { "label": "Employees", "count": root._employeeRows.length },
-            { "label": "Users" }
+    function _displayValue(value) {
+        const text = String(value || "").trim()
+        return text.length > 0 ? text : "—"
+    }
+
+    // -- Header lifecycle menu: Department's own 2-state lifecycle (Active/
+    // Inactive only -- no Archive; see activate_department/
+    // deactivate_department, a distinct, guarded command pair, not the
+    // generic profile update). Mutations bubble up via actionRequested() to
+    // DepartmentsWorkspacePage.qml's handleDetailAction, which owns the
+    // shared confirm dialog (this page has no direct workspaceController of
+    // its own).
+    readonly property var _lifecycleMenuItems: {
+        const items = [
+            { "id": "edit", "label": "Edit department", "icon": "edit", "enabled": root.canWrite },
+            { "separator": true }
         ]
-        if (root._pmEnabled) {
-            sections.push({ "label": "Projects" })
+        if (root._isActive) {
+            items.push({ "id": "deactivate", "label": "Deactivate department", "icon": "reject", "enabled": root.canWrite })
+        } else {
+            items.push({ "id": "activate", "label": "Activate department", "icon": "approve", "enabled": root.canWrite })
         }
-        sections.push({ "label": "Calendar" })
-        sections.push({ "label": "Documents" })
-        sections.push({ "label": "Audit" })
-        return sections
+        return items
     }
+
+    property int _employeesPage: 1
+    property int _employeesPageSize: 25
+    property string _employeesSearch: ""
+    property string _employeesStatusFilter: ""
+    property var _employeesCatalog: ({
+        "title": "Employees", "items": [], "emptyState": "This department does not currently have employees assigned.",
+        "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
+    })
+    property string _employeesSelectedRowId: ""
+    function _refreshEmployees() {
+        if (root._departmentId.length === 0 || root._organizationId.length === 0
+            || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            return
+        }
+        root._employeesCatalog = root.platformCatalog.adminWorkspace.employeesForDepartmentPage(
+            root._departmentId, root._organizationId, root._employeesPage, root._employeesPageSize,
+            root._employeesSearch, root._employeesStatusFilter
+        )
+    }
+    // `totalCount` is the whole-organization total; `filteredTotal` is
+    // scoped to this department.
+    readonly property int _employeeCount: root._employeesCatalog.filteredTotal || 0
+
+    // -- Overview: bounded (~5 item) recent activity, distinct from the
+    // full paginated Activity tab's own state below.
+    property var _recentActivity: []
+    function _refreshRecentActivity() {
+        if (root._departmentId.length === 0 || root._organizationId.length === 0
+            || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            root._recentActivity = []
+            return
+        }
+        root._recentActivity = root.platformCatalog.adminWorkspace.departmentActivity(root._departmentId, root._organizationId) || []
+    }
+
+    // -- Activity tab: this department's own paginated, searchable
+    // business-activity history.
+    property int _activityPage: 1
+    property int _activityPageSize: 25
+    property string _activitySearch: ""
+    property string _activityDateFilter: ""
+    property var _activityCatalog: ({
+        "items": [], "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0,
+        "emptyState": "", "noResultsState": ""
+    })
+    readonly property var _activityDateFilterOptions: [
+        { "value": "", "label": "All time" },
+        { "value": "today", "label": "Today" },
+        { "value": "7d", "label": "Last 7 days" },
+        { "value": "30d", "label": "Last 30 days" }
+    ]
+    function _refreshActivityPage() {
+        if (root._departmentId.length === 0 || root._organizationId.length === 0
+            || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            return
+        }
+        root._activityCatalog = root.platformCatalog.adminWorkspace.departmentActivityPage(
+            root._departmentId, root._organizationId, root._activityPage, root._activityPageSize,
+            root._activitySearch, root._activityDateFilter
+        )
+    }
+
+    // Users/Projects/Documents/Audit are not tabs -- see Related Actions
+    // for optional cross-module navigation instead.
+    readonly property var _sections: [
+        { "label": "Overview" },
+        { "label": "Employees", "count": root._employeeCount },
+        { "label": "Calendar" },
+        { "label": "Activity" }
+    ]
     readonly property string _activeSectionLabel: {
         const section = root._sections[root.activeSectionIndex]
         return section ? String(section.label || "") : "Overview"
+    }
+    function _indexOfSection(label) {
+        for (let i = 0; i < root._sections.length; i += 1) {
+            if (root._sections[i].label === label) return i
+        }
+        return -1
     }
     readonly property string _toolbarSubtitle: {
         switch (root._activeSectionLabel) {
         case "Overview":
             return root._subtitle
-        case "Employees":
-            return "Employees aligned to this department through the shared employee master."
         case "Calendar":
-            return "Department-level calendar assignment and working schedule."
-        case "Users":
-            return "Identity accounts remain governed by the shared platform user workspace."
-        case "Projects":
-            return "Project ownership and staffing remain governed by the Project Management module."
-        case "Documents":
-            return "Department-linked document governance stays in the shared document workspace."
-        case "Audit":
-            return "Entity-level audit detail is routed through the shared audit workspace."
+            return "Working calendar and availability for this department."
         default:
             return ""
         }
     }
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
-            return [
-                { "id": "edit", "label": "Edit", "icon": "edit", "enabled": root.canWrite },
-                root._isActive
-                    ? { "id": "deactivate", "label": "Deactivate", "icon": "reject", "enabled": root.canWrite }
-                    : { "id": "activate", "label": "Activate", "icon": "approve", "enabled": root.canWrite },
-                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
-            ]
-        }
-        if (root._activeSectionLabel === "Employees") {
-            return [
-                { "id": "create_employee", "label": "New Employee", "icon": "add", "enabled": root.canManageEmployees },
-                { "id": "show_employees", "label": "Open Employees", "icon": "chevron_right" }
-            ]
+            return [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
         }
         if (root._activeSectionLabel === "Calendar") {
             return [
-                { "id": "assign_calendar", "label": root._hasCalendarAssignment ? "Change Calendar" : "Assign Calendar", "icon": "calendar", "enabled": root.canManageCalendar },
-                { "id": "clear_calendar_assignment", "label": "Clear Assignment", "icon": "delete", "danger": true, "enabled": root._hasCalendarAssignment && root.canManageCalendar },
-                { "id": "open_calendar_mgmt", "label": "Calendar Management", "icon": "chevron_right" },
+                { "id": "assign_calendar", "label": root._hasCalendarAssignment ? "Change Calendar" : "Assign Department Override", "icon": "calendar", "enabled": root.canManageCalendar },
+                { "id": "clear_calendar_assignment", "label": "Remove Override", "icon": "delete", "danger": true, "enabled": root._hasCalendarAssignment && root.canManageCalendar },
+                { "id": "open_calendar_mgmt", "label": root._hasCalendarAssignment ? "Open Calendar" : "Open Calendar Management", "icon": "chevron_right" },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
-        if (root._activeSectionLabel === "Users") {
-            return [
-                { "id": "show_users", "label": "Open Users", "icon": "chevron_right" }
-            ]
-        }
-        if (root._activeSectionLabel === "Documents") {
-            return [
-                { "id": "show_documents", "label": "Open Documents", "icon": "chevron_right" }
-            ]
-        }
-        if (root._activeSectionLabel === "Audit") {
-            return [
-                { "id": "show_audit", "label": "Open Audit", "icon": "chevron_right" }
-            ]
-        }
-        return [
-            { "id": "refresh", "label": "Refresh", "icon": "refresh" }
-        ]
+        return []
     }
+    readonly property bool _showSectionToolbar: root._activeSectionLabel === "Overview" || root._activeSectionLabel === "Calendar"
+
     // Lifecycle status lives in the header/toolbar badge only -- never
     // duplicated here as a second "Status"/"Active" row. IDs are never
-    // shown as primary values; Site/Parent Department/Head of Department all resolve
-    // to their real display names (already provided by the presenter).
-    readonly property var _overviewFields: [
-        { "label": "Department Code", "value": root._state.departmentCode },
-        { "label": "Display Name", "value": root._state.name || root.department.title },
-        { "label": "Department Type", "value": root._state.departmentType },
-        { "label": "Site", "value": root._state.siteName },
-        { "label": "Parent Department", "value": root._state.parentDepartmentName },
-        { "label": "Head of Department", "value": root._state.headOfDepartmentDisplay },
-        { "label": "Cost Center Code", "value": root._state.costCenterCode }
+    // shown as primary values; Site/Parent Department/Head of Department
+    // all resolve to their real display names (already provided by the
+    // presenter). Description is included only when it actually has
+    // content -- no placeholder row for a field that is simply unset.
+    readonly property var _basicInfoFields: {
+        const fields = [
+            { "label": "Department Name", "value": root._displayValue(root._state.name || root.department.title) },
+            { "label": "Department Code", "value": root._displayValue(root._state.departmentCode) },
+            { "label": "Department Type", "value": root._displayValue(root._state.departmentType) },
+            { "label": "Organization", "value": root._displayValue(root._state.organizationName) }
+        ]
+        const description = String(root._state.description || "").trim()
+        if (description.length > 0) {
+            fields.push({ "label": "Description", "value": description })
+        }
+        return fields
+    }
+    readonly property var _structureFields: [
+        { "label": "Site", "value": root._displayValue(root._state.siteName) },
+        { "label": "Head of Department", "value": root._displayValue(root._state.headOfDepartmentDisplay) },
+        { "label": "Parent Department", "value": root._displayValue(root._state.parentDepartmentName) }
     ]
+    // Notes is a plain field here (with the same "—" placeholder every
+    // other Overview field uses when unset) rather than its own
+    // always-visible card with generic filler text -- there is no such
+    // thing as an empty "Operational Notes" shell to render.
+    readonly property var _operationalContextFields: [
+        { "label": "Cost Center Code", "value": root._displayValue(root._state.costCenterCode) },
+        { "label": "Notes", "value": root._displayValue(root._state.notes) }
+    ]
+    readonly property var _statistics: ({
+        "employeeCount": root._employeeCount
+    })
+    // Manage Employees/Manage Calendar are context-preserving local
+    // actions (open this department's own tab). Open Project Management/
+    // Open Documents are optional EXTERNAL actions -- real cross-module
+    // navigation, not a substitute for a scoped tab. Documents' navigation
+    // always works (a real Platform-internal destination); Project
+    // Management is only offered when the module is actually enabled.
+    readonly property var _relatedActions: {
+        const actions = [
+            { "id": "employees", "label": "Manage Employees", "icon": "employee" },
+            { "id": "calendar", "label": "Manage Calendar", "icon": "calendar" }
+        ]
+        if (root._pmEnabled) {
+            actions.push({ "id": "open_project_management", "label": "Open Project Management", "icon": "project" })
+        }
+        actions.push({ "id": "open_documents", "label": "Open Documents", "icon": "documents" })
+        return actions
+    }
 
-    function _tableHeightForCount(count) {
-        const visibleRows = Math.max(1, Math.min(count, 8))
-        return Theme.AppTheme.headerHeight + (visibleRows * Theme.AppTheme.normalRowHeight) + Theme.AppTheme.spacingLg
+    function _navigateFromOverview(destinationId) {
+        const label = destinationId === "employees" ? "Employees" : destinationId === "calendar" ? "Calendar" : ""
+        const index = label.length > 0 ? root._indexOfSection(label) : -1
+        if (index >= 0) {
+            detailPage.scrollToSection(index)
+            return
+        }
+        root.actionRequested(destinationId)
+    }
+
+    onDepartmentChanged: {
+        root._refreshEmployees()
+        root._refreshActivityPage()
+        root._refreshRecentActivity()
+    }
+    Component.onCompleted: {
+        root._refreshEmployees()
+        root._refreshActivityPage()
+        root._refreshRecentActivity()
     }
 
     AppWidgets.SectionDetailPage {
@@ -158,12 +280,19 @@ Item {
         anchors.fill: parent
         open: true
         title: root._title
+        statusLabel: root._status
+        statusTone: root._statusTone
+        subtitleLine: root._headerSubtitle
+        breadcrumb: root.breadcrumb
         isBusy: root.busy
-        showEdit: false
+        showEdit: root.canWrite
         showDelete: false
+        menuActions: root._lifecycleMenuItems
         sections: root._sections
 
         onBackRequested: root.backRequested()
+        onEditRequested: root.actionRequested("edit")
+        onMenuActionTriggered: function(id) { root.actionRequested(id) }
         onSectionChanged: function(index) {
             root.activeSectionIndex = index
         }
@@ -184,6 +313,8 @@ Item {
 
         AppWidgets.ContextualActionToolbar {
             detailPagePinned: true
+            visible: root._showSectionToolbar
+            height: visible ? implicitHeight : 0
             width: parent ? parent.width : root.width
             title: root._activeSectionLabel
             subtitle: root._toolbarSubtitle
@@ -209,99 +340,25 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading department overview..."
                 sourceComponent: Component {
-                    Column {
-                        width: parent ? parent.width : 0
-                        spacing: 0
+                    DepartmentSections.DepartmentOverviewSection {
+                        basicInfoFields: root._basicInfoFields
+                        structureFields: root._structureFields
+                        operationalContextFields: root._operationalContextFields
+                        statistics: root._statistics
+                        relatedActions: root._relatedActions
+                        recentActivity: root._recentActivity
+                        calendarSummary: root.deptCalendarSummary
 
-                        AppWidgets.SectionHeading {
-                            width: parent.width
-                            label: "Overview"
+                        onNavigateToDestination: function(destinationId) {
+                            root._navigateFromOverview(destinationId)
                         }
-
-                        Item {
-                            width: parent.width
-                            implicitHeight: overviewColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                            ColumnLayout {
-                                id: overviewColumn
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.topMargin: Theme.AppTheme.spacingMd
-                                anchors.leftMargin: Theme.AppTheme.spacingMd
-                                anchors.rightMargin: Theme.AppTheme.spacingMd
-                                spacing: Theme.AppTheme.spacingMd
-
-                                AppWidgets.SectionCard {
-                                    Layout.fillWidth: true
-                                    implicitHeight: overviewGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Department Summary"
-                                    outlined: true
-
-                                    GridLayout {
-                                        id: overviewGrid
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        columns: 2
-                                        columnSpacing: Theme.AppTheme.spacingLg
-                                        rowSpacing: Theme.AppTheme.spacingSm
-
-                                        Repeater {
-                                            model: root._overviewFields
-
-                                            delegate: ColumnLayout {
-                                                required property var modelData
-                                                Layout.fillWidth: true
-                                                spacing: 2
-
-                                                AppControls.Label {
-                                                    Layout.fillWidth: true
-                                                    text: String(modelData.label || "")
-                                                    color: Theme.AppTheme.textMuted
-                                                    font.pixelSize: Theme.AppTheme.captionSize
-                                                    font.bold: true
-                                                }
-
-                                                AppControls.Label {
-                                                    Layout.fillWidth: true
-                                                    text: modelData.value === undefined || modelData.value === null || String(modelData.value).length === 0
-                                                        ? "-"
-                                                        : (typeof modelData.value === "boolean" ? (modelData.value ? "Yes" : "No") : String(modelData.value))
-                                                    color: Theme.AppTheme.textPrimary
-                                                    font.pixelSize: Theme.AppTheme.smallSize
-                                                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                AppWidgets.SectionCard {
-                                    Layout.fillWidth: true
-                                    implicitHeight: notesColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Operational Notes"
-                                    outlined: true
-
-                                    ColumnLayout {
-                                        id: notesColumn
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        spacing: Theme.AppTheme.spacingSm
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: String(root._state.description || root._state.notes || root.department.supportingText || "Department hierarchy and site alignment stay in the shared platform master data.")
-                                            color: Theme.AppTheme.textSecondary
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                        }
-                                    }
-                                }
-                            }
+                        onManageCalendarRequested: {
+                            const index = root._indexOfSection("Calendar")
+                            if (index >= 0) detailPage.scrollToSection(index)
+                        }
+                        onViewAllActivityRequested: {
+                            const index = root._indexOfSection("Activity")
+                            if (index >= 0) detailPage.scrollToSection(index)
                         }
                     }
                 }
@@ -310,7 +367,9 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root.activeSectionIndex === 1 ? employeesLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Employees"
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -319,21 +378,59 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root.activeSectionIndex === 1
+                active: root._activeSectionLabel === "Employees"
                 keepLoaded: true
                 loadingMessage: "Loading department employees..."
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
-                    AdminDetailTableSection {
-                        sectionLabel: "Employees"
-                        infoMessage: "Employee assignment remains sourced from the shared employee master."
-                        emptyTitle: "No employees mapped"
-                        emptyMessage: "This department does not currently have employees assigned."
-                        rows: root._employeeRows
+                    DepartmentSections.DepartmentEmployeesSection {
+                        platformCatalog: root.platformCatalog
+                        canWrite: root.canManageEmployees
+                        busy: root.busy
+                        errorMessage: root.errorMessage
+                        feedbackMessage: root.feedbackMessage
+                        viewportHeight: Math.max(420, detailPage.contentViewportHeight)
+
+                        catalog: root._employeesCatalog
                         columns: root.employeeColumns
-                        loading: root.busy
-                        tableHeight: root._tableHeightForCount(root._employeeRows.length)
-                        onRowActivated: function(rowId) {
-                            root.relatedRowActivated("employees", rowId)
+                        canCreate: root.canManageEmployees
+                        selectedRowId: root._employeesSelectedRowId
+                        searchText: root._employeesSearch
+                        statusFilterOptions: [
+                            { "value": "", "label": "All" },
+                            { "value": "active", "label": "Active" },
+                            { "value": "inactive", "label": "Inactive" }
+                        ]
+                        statusFilter: root._employeesStatusFilter
+
+                        onCreateRequested: root.actionRequested("create_employee")
+                        onRowSelected: function(id) { root._employeesSelectedRowId = id }
+                        onRowActivated: function(id) { root.relatedRowActivated("employees", id) }
+                        onRefreshRequested: root._refreshEmployees()
+                        onSearchChanged: function(text) {
+                            root._employeesSearch = text
+                            root._employeesPage = 1
+                            root._refreshEmployees()
+                        }
+                        onPageRequested: function(page) {
+                            root._employeesPage = page
+                            root._refreshEmployees()
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            root._employeesPageSize = pageSize
+                            root._employeesPage = 1
+                            root._refreshEmployees()
+                        }
+                        onClearFiltersRequested: {
+                            root._employeesSearch = ""
+                            root._employeesStatusFilter = ""
+                            root._employeesPage = 1
+                            root._refreshEmployees()
+                        }
+                        onStatusFilterRequested: function(value) {
+                            root._employeesStatusFilter = value
+                            root._employeesPage = 1
+                            root._refreshEmployees()
                         }
                     }
                 }
@@ -342,69 +439,12 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Users" ? usersLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Calendar" ? calendarLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
             AppWidgets.LazySectionLoader {
-                id: usersLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Users"
-                keepLoaded: true
-                loadingMessage: "Loading user access guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Users"
-                        infoMessage: "Department-to-user alignment remains indirect through employee records and scoped access assignments."
-                        cardTitle: "Platform Identity Boundary"
-                        notes: [
-                            "User accounts remain owned by the shared platform identity workspace.",
-                            "Use the Users workspace for credential, role, session, and access-governance operations.",
-                            "Department context should be inferred from employee and scope assignments rather than duplicated here."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Projects" ? projectsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: projectsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Projects"
-                keepLoaded: true
-                loadingMessage: "Loading project integration guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Projects"
-                        infoMessage: "Project staffing and cost ownership stay inside the Project Management module."
-                        cardTitle: "Project Management Boundary"
-                        notes: [
-                            "Departments should be referenced by PM resources and project metadata rather than re-managed here.",
-                            "Cross-module project views should open the PM module instead of duplicating task or schedule data in Platform."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Calendar" ? deptCalendarLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: deptCalendarLoader
+                id: calendarLoader
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
@@ -412,13 +452,12 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading department calendar..."
                 sourceComponent: Component {
-                    AdminCalendarAssignmentSection {
-                        width: parent ? parent.width : 0
-                        entityType: "department"
+                    DepartmentSections.DepartmentCalendarSection {
                         entityId: root._departmentId
                         entityLabel: root._title
                         assignedCalendar: root.deptCalendarAssignment
                         sourceChain: root.calendarSourceChain
+                        effectiveCalendarSummary: root.deptCalendarSummary
                         busy: root.busy
                         onAssignCalendarRequested: root.actionRequested("assign_calendar")
                         onOpenCalendarManagementRequested: root.actionRequested("open_calendar_mgmt")
@@ -429,55 +468,51 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Documents" ? documentsLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Activity"
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
             AppWidgets.LazySectionLoader {
-                id: documentsLoader
+                id: activityLoader
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root._activeSectionLabel === "Documents"
+                active: root._activeSectionLabel === "Activity"
                 keepLoaded: true
-                loadingMessage: "Loading document guidance..."
+                loadingMessage: "Loading department activity..."
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Documents"
-                        infoMessage: "Department-linked document governance stays in the shared document workspace."
-                        cardTitle: "Document Governance"
-                        notes: [
-                            "Platform Admin should not duplicate document metadata, revisions, or permission management here.",
-                            "Use the shared Documents workspace for attachment, revision, and lifecycle operations."
-                        ]
-                    }
-                }
-            }
-        }
+                    DepartmentSections.DepartmentActivitySection {
+                        width: parent ? parent.width : 0
+                        height: Math.max(420, detailPage.contentViewportHeight)
+                        catalog: root._activityCatalog
+                        busy: root.busy
+                        searchText: root._activitySearch
+                        dateFilterOptions: root._activityDateFilterOptions
+                        dateFilter: root._activityDateFilter
 
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Audit" ? auditLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: auditLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Audit"
-                keepLoaded: true
-                loadingMessage: "Loading audit guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Audit"
-                        infoMessage: "Entity-level audit trails stay centralized in the shared audit workspace."
-                        cardTitle: "Audit Boundary"
-                        notes: [
-                            "Use the Audit workspace for actor history, change payloads, and export workflows.",
-                            "Department detail pages should link into the shared audit workflow instead of duplicating event storage."
-                        ]
+                        onRefreshRequested: root._refreshActivityPage()
+                        onSearchChanged: function(text) {
+                            root._activitySearch = text
+                            root._activityPage = 1
+                            root._refreshActivityPage()
+                        }
+                        onDateFilterRequested: function(value) {
+                            root._activityDateFilter = value
+                            root._activityPage = 1
+                            root._refreshActivityPage()
+                        }
+                        onPageRequested: function(page) {
+                            root._activityPage = page
+                            root._refreshActivityPage()
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            root._activityPageSize = pageSize
+                            root._activityPage = 1
+                            root._refreshActivityPage()
+                        }
                     }
                 }
             }

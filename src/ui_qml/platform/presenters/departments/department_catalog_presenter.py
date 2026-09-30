@@ -125,6 +125,98 @@ class PlatformDepartmentCatalogPresenter:
             ),
         )
 
+    def build_catalog_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        status: str = "",
+        site_id: str = "",
+    ) -> PlatformWorkspaceActionListViewModel:
+        """Server-side paginated Departments page for the primary Platform >
+        Departments destination, scoped to the caller's currently active
+        organization -- the ambient-context counterpart to
+        build_catalog_page_for_organization below (Organization Detail's
+        explicit-organization_id variant). Optional site_id narrows to a
+        single Site, the same real backend filter build_catalog_page_for_site
+        uses for Site Detail's own Departments tab -- never a client-side
+        filter of an already-fetched page."""
+        if self._department_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle="Departments appear here once the platform department API is connected.",
+                empty_state="Platform department API is not connected in this QML preview.",
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+        context_result = self._department_api.get_context()
+        if not context_result.ok or context_result.data is None:
+            message = context_result.error.message if context_result.error is not None else "Unable to load departments."
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        organization_id = context_result.data.id
+        active_only: bool | None
+        if status == "active":
+            active_only = True
+        elif status == "inactive":
+            active_only = False
+        else:
+            active_only = None
+
+        result = self._department_api.list_departments_page_for_organization(
+            organization_id,
+            page=page,
+            page_size=page_size,
+            search=search.strip(),
+            active_only=active_only,
+            site_id=site_id or None,
+        )
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load departments."
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        department_page = result.data
+        site_lookup = self._site_lookup_for_organization(organization_id)
+        department_lookup = self._department_lookup_for_organization(organization_id)
+        employee_lookup = self._employee_lookup_for_organization(organization_id)
+        return PlatformWorkspaceActionListViewModel(
+            title="Departments",
+            subtitle=f"Operational departments for {context_result.data.display_name}.",
+            empty_state="No departments yet. Add the first department for this organization.",
+            no_results_state="No departments match your current filters.",
+            items=tuple(
+                self._serialize_department(
+                    row,
+                    site_lookup=site_lookup,
+                    department_lookup=department_lookup,
+                    employee_lookup=employee_lookup,
+                    organization_name=context_result.data.display_name,
+                )
+                for row in department_page.items
+            ),
+            paginated=True,
+            page=department_page.page,
+            page_size=department_page.page_size,
+            total_count=department_page.total,
+            filtered_total=department_page.filtered_total,
+        )
+
     def build_catalog_page_for_organization(
         self,
         organization_id: str,
@@ -494,6 +586,7 @@ class PlatformDepartmentCatalogPresenter:
         site_lookup: dict[str, str],
         department_lookup: dict[str, str] | None = None,
         employee_lookup: dict[str, str] | None = None,
+        organization_name: str = "",
     ) -> PlatformWorkspaceActionItemViewModel:
         site_label = site_lookup.get(row.site_id or "", "No site")
         parent_label = (department_lookup or {}).get(row.parent_department_id or "", "")
@@ -514,6 +607,7 @@ class PlatformDepartmentCatalogPresenter:
                 "id": row.id,
                 "departmentId": row.id,
                 "organizationId": row.organization_id,
+                "organizationName": organization_name,
                 "departmentCode": row.department_code,
                 "name": row.name,
                 "description": row.description,

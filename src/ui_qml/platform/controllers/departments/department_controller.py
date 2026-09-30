@@ -16,9 +16,16 @@ from src.ui_qml.platform.presenters.departments.department_catalog_presenter imp
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 
+_DEPARTMENT_PAGE_SIZE_OPTIONS = (25, 50, 100)
+_DEFAULT_DEPARTMENT_PAGE_SIZE = 25
+
+
 class PlatformDepartmentController(QObject):
     departmentsChanged = Signal()
     departmentEditorOptionsChanged = Signal()
+    departmentSearchTextChanged = Signal()
+    departmentStatusFilterChanged = Signal()
+    departmentSiteFilterChanged = Signal()
     isBusyChanged = Signal()
     errorMessageChanged = Signal()
     operationResultChanged = Signal()
@@ -50,10 +57,31 @@ class PlatformDepartmentController(QObject):
             "message": "",
         }
         self._feedback_message = ""
+        self._page = 1
+        self._page_size = _DEFAULT_DEPARTMENT_PAGE_SIZE
+        self._search_text = ""
+        self._status_filter = ""
+        self._site_filter = ""
 
     @Property("QVariantMap", notify=departmentsChanged)
     def departments(self) -> dict[str, object]:
         return self._departments
+
+    @Property(str, notify=departmentSearchTextChanged)
+    def departmentSearchText(self) -> str:
+        return self._search_text
+
+    @Property(str, notify=departmentStatusFilterChanged)
+    def departmentStatusFilter(self) -> str:
+        return self._status_filter
+
+    @Property(str, notify=departmentSiteFilterChanged)
+    def departmentSiteFilter(self) -> str:
+        return self._site_filter
+
+    @Property("QVariantList", constant=True)
+    def departmentPageSizeOptions(self) -> list[int]:
+        return list(_DEPARTMENT_PAGE_SIZE_OPTIONS)
 
     @Property(QObject, constant=True)
     def tableModel(self) -> DynamicTableModel:
@@ -112,6 +140,58 @@ class PlatformDepartmentController(QObject):
 
     @Slot()
     def refresh(self) -> None:
+        self._refresh_departments()
+
+    @Slot(int)
+    def setDepartmentPage(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized == self._page:
+            return
+        self._page = normalized
+        self._refresh_departments()
+
+    @Slot(int)
+    def setDepartmentPageSize(self, page_size: int) -> None:
+        normalized = (
+            int(page_size) if int(page_size) in _DEPARTMENT_PAGE_SIZE_OPTIONS else _DEFAULT_DEPARTMENT_PAGE_SIZE
+        )
+        if normalized == self._page_size:
+            return
+        self._page_size = normalized
+        # Changing the page size while positioned deep in the result set
+        # could land past the new last page -- resetting to page 1 keeps
+        # the result always valid without a second round-trip to clamp it.
+        self._page = 1
+        self._refresh_departments()
+
+    @Slot(str)
+    def setDepartmentSearchText(self, text: str) -> None:
+        normalized = str(text or "")
+        if normalized == self._search_text:
+            return
+        self._search_text = normalized
+        self._page = 1
+        self.departmentSearchTextChanged.emit()
+        self._refresh_departments()
+
+    @Slot(str)
+    def setDepartmentStatusFilter(self, status: str) -> None:
+        normalized = str(status or "").strip().lower()
+        if normalized == self._status_filter:
+            return
+        self._status_filter = normalized
+        self._page = 1
+        self.departmentStatusFilterChanged.emit()
+        self._refresh_departments()
+
+    @Slot(str)
+    def setDepartmentSiteFilter(self, site_id: str) -> None:
+        normalized = str(site_id or "").strip()
+        if normalized == self._site_filter:
+            return
+        self._site_filter = normalized
+        self._page = 1
+        self.departmentSiteFilterChanged.emit()
         self._refresh_departments()
 
     @Slot(str, int, int, str, str, result="QVariantMap")
@@ -272,7 +352,15 @@ class PlatformDepartmentController(QObject):
         return {"headOfDepartmentOptions": list(self._presenter.build_head_of_department_options(department_id))}
 
     def _refresh_departments(self) -> None:
-        catalog = serialize_action_list(self._presenter.build_catalog())
+        catalog = serialize_action_list(
+            self._presenter.build_catalog_page(
+                page=self._page,
+                page_size=self._page_size,
+                search=self._search_text,
+                status=self._status_filter,
+                site_id=self._site_filter,
+            )
+        )
         self._set_departments(catalog)
         self._set_department_editor_options(
             {

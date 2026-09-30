@@ -130,6 +130,16 @@ AppWidgets.EntityDialog {
     ListModel { id: parentModel }
     ListModel { id: headOfDepartmentModel }
 
+    // ── IDENTITY ─────────────────────────────────────────────────────────
+    // Required markers reflect backend truth exactly (Department domain
+    // validators): Name and Code are normalize_required_text; Type is
+    // normalize_optional_text, so it is never marked required here even
+    // though earlier drafts of this dialog assumed otherwise.
+    AppWidgets.SectionHeading {
+        Layout.fillWidth: true
+        label: "Identity"
+    }
+
     AppWidgets.CodeFieldRow {
         Layout.fillWidth: true
         label: "Department Code"
@@ -163,6 +173,17 @@ AppWidgets.EntityDialog {
 
     AppWidgets.FormField {
         Layout.fillWidth: true
+        label: "Department Type"
+
+        AppControls.TextField {
+            id: departmentTypeField
+            Layout.fillWidth: true
+            placeholderText: "e.g. Operations"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
         label: "Description"
 
         AppControls.TextField {
@@ -170,6 +191,16 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             placeholderText: "Short description of the department"
         }
+    }
+
+    // ── STRUCTURE ────────────────────────────────────────────────────────
+    // Site and Parent Department are optional relationships (both
+    // normalize_optional_identifier). Head of Department is Edit-only --
+    // structurally impossible at Create time, since no Employee can yet
+    // belong to a department that does not exist.
+    AppWidgets.SectionHeading {
+        Layout.fillWidth: true
+        label: "Structure"
     }
 
     AppWidgets.FormField {
@@ -196,33 +227,6 @@ AppWidgets.EntityDialog {
         }
     }
 
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
-
-        AppWidgets.FormField {
-            Layout.fillWidth: true
-            label: "Department Type"
-
-            AppControls.TextField {
-                id: departmentTypeField
-                Layout.fillWidth: true
-                placeholderText: "e.g. Operations"
-            }
-        }
-
-        AppWidgets.FormField {
-            Layout.fillWidth: true
-            label: "Cost Center Code"
-
-            AppControls.TextField {
-                id: costCenterField
-                Layout.fillWidth: true
-                placeholderText: "e.g. CC-1042"
-            }
-        }
-    }
-
     AppWidgets.FormField {
         Layout.fillWidth: true
         // No department yet exists at Create time, so no employee can
@@ -236,6 +240,23 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             model: headOfDepartmentModel
             textRole: "label"
+        }
+    }
+
+    // ── OPERATIONAL CONTEXT ──────────────────────────────────────────────
+    AppWidgets.SectionHeading {
+        Layout.fillWidth: true
+        label: "Operational Context"
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Cost Center Code"
+
+        AppControls.TextField {
+            id: costCenterField
+            Layout.fillWidth: true
+            placeholderText: "e.g. CC-1042"
         }
     }
 
