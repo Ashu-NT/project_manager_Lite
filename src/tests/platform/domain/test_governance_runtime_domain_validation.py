@@ -12,7 +12,7 @@ from src.core.platform.application.data_operations.runtime_tracking.runtime_exec
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 from src.core.platform.domain.data_operations.runtime_tracking import RuntimeExecution
-from src.core.platform.domain.events.platform_events.platform_event import PlatformEvent
+from src.core.platform.domain.history.platform_events.platform_event import PlatformEvent
 from src.core.platform.domain.tenant.tenancy.tenant import (
     TENANT_STATUS_ACTIVE,
     TENANT_STATUS_SUSPENDED,

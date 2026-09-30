@@ -376,8 +376,8 @@ def test_notification_and_platform_event_remain_distinct_from_domain_event():
     governance/audit record) are each their own class, neither inherits from `DomainEvent`'s
     Protocol, and they are not the same class as each other -- never merged into one universal
     "event" type."""
-    from src.core.platform.domain.events.notifications.notification import Notification
-    from src.core.platform.domain.events.platform_events.platform_event import (
+    from src.core.platform.domain.notifications.notification import Notification
+    from src.core.platform.domain.history.platform_events.platform_event import (
         PlatformEvent,
     )
     from src.core.shared.events.domain_event import DomainEvent

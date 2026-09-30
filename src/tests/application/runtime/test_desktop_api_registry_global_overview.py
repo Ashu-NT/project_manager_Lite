@@ -4,7 +4,7 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.application.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
-from src.core.platform.api.desktop.events.notifications.notification import (
+from src.core.platform.api.desktop.notifications.notification import (
     PlatformNotificationDesktopApi,
 )
 

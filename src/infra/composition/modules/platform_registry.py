@@ -28,7 +28,7 @@ from src.core.platform.application.approval.event_handlers.view_invalidation imp
 from src.core.platform.application.data_operations.runtime_tracking import (
     RuntimeExecutionService,
 )
-from src.core.platform.application.events.notifications.notification_service import (
+from src.core.platform.application.notifications.notification_service import (
     NotificationService,
 )
 from src.core.platform.application.finance import FinancialPeriodService

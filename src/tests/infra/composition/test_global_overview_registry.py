@@ -14,7 +14,7 @@ from src.core.application.global_overview.services.global_overview_service impor
 from src.core.modules.project_management.application.global_overview.pm_action_center_contributor import (
     ProjectManagementActionCenterContributor,
 )
-from src.core.platform.api.desktop.events.notifications.notification import (
+from src.core.platform.api.desktop.notifications.notification import (
     PlatformNotificationDesktopApi,
 )
 from src.core.platform.application.global_overview.platform_action_center_contributor import (

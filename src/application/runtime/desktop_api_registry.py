@@ -25,7 +25,7 @@ from src.core.modules.project_management.api.desktop_runtime import (
 from src.core.platform.access import AccessControlService
 from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.events.notifications.notification import (
+from src.core.platform.api.desktop.notifications.notification import (
     PlatformNotificationDesktopApi,
 )
 from src.core.platform.api.desktop.finance import FinancialPeriodDesktopApi

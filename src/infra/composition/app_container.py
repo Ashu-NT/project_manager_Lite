@@ -83,14 +83,14 @@ from src.core.modules.project_management.infrastructure.reporting import (
     ReportingService,
 )
 from src.core.platform.access import AccessControlService
-from src.core.platform.api.desktop.events.notifications.notification import (
+from src.core.platform.api.desktop.notifications.notification import (
     PlatformNotificationDesktopApi,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.data_operations.runtime_tracking import (
     RuntimeExecutionService,
 )
-from src.core.platform.application.events.notifications.notification_service import (
+from src.core.platform.application.notifications.notification_service import (
     NotificationService,
 )
 from src.core.platform.application.finance import FinancialPeriodService

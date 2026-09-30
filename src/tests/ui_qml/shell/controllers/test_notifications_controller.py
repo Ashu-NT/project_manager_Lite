@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.core.platform.api.desktop.events.notifications.models.notification import (
+from src.core.platform.api.desktop.notifications.models.notification import (
     NotificationDto,
 )
 from src.core.platform.api.desktop.models.common import (

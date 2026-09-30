@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.platform.api.desktop.events.notifications.models.notification import (
+from src.core.platform.api.desktop.notifications.models.notification import (
     NotificationDto,
 )
-from src.core.platform.api.desktop.events.notifications.notification import (
+from src.core.platform.api.desktop.notifications.notification import (
     PlatformNotificationDesktopApi,
 )
 

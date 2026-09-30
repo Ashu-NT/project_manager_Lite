@@ -7,7 +7,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from src.core.platform.application.events.notifications.notification_service import (
+from src.core.platform.application.notifications.notification_service import (
     NotificationService,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (

@@ -25,7 +25,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.resour
 from src.core.modules.project_management.infrastructure.persistence.reads.timesheets import (
     SqlAlchemyTimesheetWorkspaceReader,
 )
-from src.core.platform.api.desktop.events.notifications.notification import (
+from src.core.platform.api.desktop.notifications.notification import (
     PlatformNotificationDesktopApi,
 )
 from src.core.platform.application.global_overview.platform_action_center_contributor import (

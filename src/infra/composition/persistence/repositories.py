@@ -80,10 +80,10 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
     SqlAlchemyApprovalRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.events.notifications.notification import (
+from src.core.platform.infrastructure.persistence.repositories.notifications.notification import (
     SqlAlchemyNotificationRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.events.platform_events.platform_events import (
+from src.core.platform.infrastructure.persistence.repositories.history.platform_events.platform_events import (
     SqlAlchemyPlatformEventRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.finance import (

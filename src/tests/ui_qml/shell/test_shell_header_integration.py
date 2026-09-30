@@ -10,7 +10,7 @@ import pytest
 from PySide6.QtCore import qInstallMessageHandler
 from PySide6.QtTest import QTest
 
-from src.core.platform.api.desktop.events.notifications.models.notification import (
+from src.core.platform.api.desktop.notifications.models.notification import (
     NotificationDto,
 )
 from src.core.platform.api.desktop.master_data.org.models.organization import (
