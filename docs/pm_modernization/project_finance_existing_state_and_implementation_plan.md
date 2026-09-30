@@ -1,15 +1,18 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CLOSED; R6G-A COMPLETE; R6G-B COMPLETE; R6G-C COMPLETE; R6G-D COMPLETE; R6G-E COMPLETE; R6G-F COMPLETE; R6H IN PROGRESS
-Last updated: 2026-09-29
+Status: R6C CLOSED; R6D CLOSED; R6E CLOSED; R6F CLOSED; R6G CLOSED; R6H COMPLETE; R6 PROJECT FINANCE FORMALLY CLOSED (classified unrelated regression exceptions below)
+Last updated: 2026-09-30
 Scope: Project Management finance plus reusable platform financial foundations
 
 ## R6H Final Finance Certification
 
-R6H is IN PROGRESS (2026-09-29). R6G stays CLOSED; R7 is not started.
-This section supersedes historical "R6H not started" statements below.
-No release certification is claimed until the final-worktree full PM run,
-PostgreSQL, responsive, architecture and quality gates are reconciled.
+R6H is COMPLETE (2026-09-30). R6 Project Finance is FORMALLY CLOSED.
+R6G stays CLOSED; R7 is not started. This section supersedes historical status
+statements below. Closure applies to R6 Finance, not to an assertion that the
+entire repository is release-clean: the final full PM run has 15 classified
+unrelated employee-fixture failures and repository-wide Ruff has 58 findings.
+The requested exception policy for unrelated/pre-existing failures is applied
+explicitly below; none is hidden, skipped, or represented as a passing test.
 
 Repository audit has identified and corrected concrete Finance defects:
 
@@ -108,8 +111,8 @@ types, `project_finance_ledger_query.py`, `project_finance_ledger_statements.py`
 and the application `project_finance_ledger.py` projection. Imports, consumers and
 tests move together; no old-name compatibility aliases remain. The superseded
 full-ledger reader, in-memory page builder and unused dimension analytics are
-removed. PostgreSQL and final-worktree certification still need to validate this
-replacement before closure; earlier counts above do not certify these changes.
+removed. Final PostgreSQL and full-worktree evidence below supersedes the earlier
+intermediate counts for this replacement.
 
 Post-rename targeted verification: 66 passed, 0 failed, 0 skipped in 41.90 s
 (`.r6h_project_finance_ledger.log`): canonical snapshot/export, bounded ledger
@@ -119,15 +122,105 @@ statements in the unstaffed fixture, at both tested volumes; aggregate/control
 values remain independent of the selected page. Scoped Ruff F/I, changed-file
 compilation and diff checks pass. This is not final R6H certification.
 
-Final PM certification remains outstanding. Later full-suite attempts were
-interrupted after further audit fixes made their loaded worktree obsolete;
-`.r6h_final_pm.log` and `.r6h_final_worktree_pm.log` are NOT final evidence.
-The preliminary skips were the opt-in large-scale PM workflow and the minimal
-source-less forecast-generation fixture. They are not passing test evidence.
-After remaining remediation, run full PM again, repeat final PostgreSQL and
-quality gates, reconcile the complete gate matrix, then decide closure.
+### Final Certification Evidence
 
-R6H and R6 remain OPEN. R7 is not started. No Accounting/Procurement/Inventory
+| Gate | Final measured result |
+| --- | --- |
+| Full PM, final worktree | **2,548 passed, 15 failed, 2 skipped**, 1167.41 s; `.r6h_final_worktree_certification_pm.log`. All failures classified below; no R6 Finance failure remains. Entire `src/tests/project_management` and `src/tests/ui_qml/project_management` trees were run, with no deselection. |
+| Prior broad run | 2,545 passed, 18 failed, 2 skipped; `.r6h_certification_pm.log`. Retained as diagnostic evidence, not substituted for the final run. |
+| PostgreSQL, final Finance code | **179 passed, 0 failed, 0 skipped**, 78.73 s; `.r6h_certification_postgresql.log`. Fresh Alembic bootstrap; real `app_runtime` role/context; RLS, concurrency, rollback, retry/recovery, inbox/outbox and bounded ledger coverage. |
+| Focused contracts/security/architecture | 227 passed; `.r6h_ledger_regression.log`. |
+| EVM/reporting/portfolio consumers | 29 passed; `.r6h_ledger_consumers.log`. |
+| Platform integration/approval/security | 134 passed; `.r6h_closure_platform.log`. |
+| Final architecture guards | 168 passed, 0 failed, 0 skipped; `.r6h_closure_architecture.log`. |
+| Repaired Finance query-budget guards | 29 passed; `.r6h_query_budget_repair.log`; also passed in the final full PM run. |
+| Static quality | Scoped Finance production/UI and changed-test Ruff F/I green; Python compilation green; all Finance QML lint exit 0 (`.r6h_closure_qmllint.log`); diff checks green. |
+| Repository-wide Ruff F/I | **58 findings**, `.r6h_closure_repository_ruff.log`; NOT repository-wide clean. Current unrelated findings supersede earlier counts of 49 and 57. |
+
+The full PM run includes Budget, Forecast, Rates, Actuals, Commitments,
+approved-Time, EVM/Variance, Cost Phasing, Billing, Commercial and Accounting
+regressions, schema/migration guards, project-switch/invalidation tests and
+Finance viewport tests. The relevant dialog/collection tests cover 1024x640,
+1280x720, 1366x768, 1440x900 and 1920x1080, including light/dark Accounting and
+availability presentation. The ledger remediation changes no QML-facing shape.
+
+### Bounded Read And PostgreSQL Proof
+
+- The canonical Reader accepts `ProjectFinanceLedgerQuery` (offset >= 0,
+  1 <= limit <= 500). Each of the four authoritative source projections applies
+  tenant, organization, project, as-of and lifecycle predicates before UNION,
+  ordering and SQL pagination. Reference type plus source ID supplies the final
+  stable tie-breaker. Restricted labor grouping precedes count and pagination.
+- Full-set SQL aggregates supply control amounts, source/type totals and row
+  counts; EVM uses SQL monthly Actual aggregates, never page-only Actuals.
+  Independent page metadata survives an empty/out-of-range page. Export metadata
+  explicitly exposes offset, limit, total and has-more. No complete-artifact
+  streaming feature was needed because these exports explicitly export a page.
+- SQLite tests cover empty trailing pages, single-page boundaries, multiple
+  pages, 100 and 1,001 additional Actuals, exact Decimal traversal, future Actual
+  exclusion and snapshot/export reconciliation. Existing canonical regressions
+  retain reversal, historical Rate independence and lifecycle behavior.
+- Live PostgreSQL tests use **101 and 1,002 total ledger rows**, page size 25,
+  and **nine SELECT statements** at both volumes. Only 25 detail facts, bounded
+  source aggregates and monthly aggregates are materialized per request. Every
+  page retains identical full-set totals; traversed IDs are unique and summed
+  amounts reconcile exactly. Forged cross-tenant query scope and raw foreign
+  SQL reads both fail closed under runtime RLS.
+- `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` is recorded in the PostgreSQL log:
+  root node `Limit`, Actual Rows 25 at both volumes. No speculative index was
+  added. Request/read paths remain read-only with no repository commit.
+- The extra full-set metadata query changes the measured EVM/Variance budgets
+  from 10/17 to **11/18**. Guards were updated to the measured bounded architecture,
+  not disabled; the volume tests independently prove constant query count.
+
+### Classified Non-Finance Exceptions
+
+The final 15 failures are stale fixtures for the existing mandatory employee
+department contract. They fail while creating employee setup data, before any
+Finance ledger read. Neither EmployeeService/ORM nor these fixtures was modified
+by this remediation. Isolated diagnosis reproduces the same cause in
+`.r6h_failure_diagnosis.log`; the final full log records every failing test ID.
+
+| Unchanged test file | Failed cases | Cause |
+| --- | --- | --- |
+| `application/test_enterprise_calendar_pm_integration_resource_employee.py` | 4: calendar inheritance, vacation, training capacity, no duplicate rules | `_seed_employee` inserts `department_id=None`; SQLite rejects the required column. |
+| `application/test_pm_action_center_contributor.py` | 4: tasks, baselines, timesheets, category parity | `_setup_user_employee_resource` omits the department; EmployeeService rejects setup. |
+| `infrastructure/test_timesheet_workspace_reader_resolve_mine_resource.py` | 2: eligible and ineligible resource resolution | Employee creation omits required department. |
+| `src/tests/ui_qml/project_management/controllers/test_r5f1_resource_timesheets.py` | 5: scoped reads, mutation target, submit, eligibility, reviewer edit denial | `_build_resource_timesheet` omits required department. |
+
+The first three paths are relative to `src/tests/project_management`.
+These unrelated fixtures remain untouched, per scope. They must be corrected
+before claiming a green whole-product release suite; R6 Finance closure does
+not waive that separate product-release concern.
+
+The earlier Gantt density timing failure (73 ms versus 50 ms) **passed in the
+final complete rerun**, without code or threshold changes. Both stale Finance
+query-budget failures were repaired and passed in the final complete rerun.
+The two final skips are the opt-in large-scale PM workflow (`PM_RUN_PERF_TESTS`)
+and the source-less Forecast generation fixture. PostgreSQL 10k/50k fixtures did
+run; these two skips are not counted as passes.
+
+Repository Ruff findings are outside the corrected Finance scope (runtime,
+Scheduling, Platform/employee tests and shell code). The latest additional
+finding is import ordering in
+`src/tests/platform/application/test_department_calendar_summary.py`.
+No unrelated lint cleanup was performed.
+
+### Closure And Scope
+
+R6H COMPLETE; R6 PROJECT FINANCE FORMALLY CLOSED under the explicitly requested
+unrelated-regression exception policy. One canonical path per Finance authority
+is retained; the old full-ledger hydration and in-memory paging paths are absent.
+The final read architecture is scoped SQL -> immutable facts -> application
+composition -> desktop/report consumers. Money stays Decimal; unavailable is
+not zero; Forecast, Commitments, Actuals and commercial evidence remain distinct.
+Canonical handoff evidence remains destination-neutral, with external delivery
+separate and future internal Accounting optional. No Accounting operations are
+manufactured by PM. Existing UoW atomicity, one-effect concurrency and narrow
+post-commit invalidation proofs remain green in the recorded suites.
+
+R7 requires its own separately authorized scope and execution brief; it is not
+started or implemented here. No Accounting/Procurement/Inventory
 operations, Payroll expansion, invoice/payment/GL/AR/AP/tax or FX were introduced.
 No commit was made by the agent.
 
