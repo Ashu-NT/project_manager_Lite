@@ -195,17 +195,28 @@ Rectangle {
         }
     }
 
-    // Recompute row positions whenever a control's own geometry actually
-    // changes -- a tier switch already re-triggers via _arrangeToolbar().
-    // This watches each control's own visible/width signals directly
-    // (not an upstream `showX` flag) because reading a control's
-    // `visible` from a handler on a *different* derived property can
-    // observe a stale value while both are still settling from the same
-    // underlying change; a control's own change signal never has that
-    // problem for its own property.
+    property var _geometryWatchers: []
+
     function _watchGeometry(item) {
-        item.visibleChanged.connect(function() { root._relayoutRows() })
-        item.widthChanged.connect(function() { root._relayoutRows() })
+        const relayout = function() { root._relayoutRows() }
+        item.visibleChanged.connect(relayout)
+        item.widthChanged.connect(relayout)
+        root._geometryWatchers.push({ "item": item, "handler": relayout })
+    }
+
+    Component.onDestruction: {
+        for (let i = 0; i < root._geometryWatchers.length; i += 1) {
+            const watcher = root._geometryWatchers[i]
+            try {
+                watcher.item.visibleChanged.disconnect(watcher.handler)
+                watcher.item.widthChanged.disconnect(watcher.handler)
+            } catch (error) {
+                // The watched item may already be destroyed alongside this
+                // toolbar (e.g. both torn down by the same Loader) -- that
+                // is exactly the case this cleanup exists to make safe, not
+                // an error to propagate.
+            }
+        }
     }
 
     readonly property var _overflowItems: {
