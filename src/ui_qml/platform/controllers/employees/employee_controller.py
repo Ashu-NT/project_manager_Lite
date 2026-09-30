@@ -369,9 +369,7 @@ class PlatformEmployeeController(QObject):
         if not normalized_id:
             return dict(self.operationResult)
         return run_mutation(
-            operation=lambda: self._presenter.toggle_employee_active(
-                employee_id=normalized_id, is_active=False,
-            ),
+            operation=lambda: self._presenter.activate_employee(normalized_id),
             success_message="Employee activated.",
             on_success=self.refresh,
             set_is_busy=self._set_is_busy,
@@ -386,9 +384,7 @@ class PlatformEmployeeController(QObject):
         if not normalized_id:
             return dict(self.operationResult)
         return run_mutation(
-            operation=lambda: self._presenter.toggle_employee_active(
-                employee_id=normalized_id, is_active=True,
-            ),
+            operation=lambda: self._presenter.deactivate_employee(normalized_id),
             success_message="Employee deactivated.",
             on_success=self.refresh,
             set_is_busy=self._set_is_busy,

@@ -578,6 +578,16 @@ class PlatformEmployeeCatalogPresenter:
             return self._employee_api.deactivate_employee(employee_id)
         return self._employee_api.activate_employee(employee_id)
 
+    def activate_employee(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
+        if self._employee_api is None:
+            return preview_error_result("Platform employee API is not connected in this QML preview.")
+        return self._employee_api.activate_employee(employee_id)
+
+    def deactivate_employee(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
+        if self._employee_api is None:
+            return preview_error_result("Platform employee API is not connected in this QML preview.")
+        return self._employee_api.deactivate_employee(employee_id)
+
     def link_employee_user_account(self, employee_id: str, user_id: str) -> DesktopApiResult[EmployeeDto]:
         """System Access relationship operation -- never ordinary profile
         editing. No QML surface calls this yet (deferred to Employee's own
