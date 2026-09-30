@@ -45,10 +45,16 @@ def _spy(services, event_type):
     return calls
 
 
+def _dept(services):
+    return services["department_service"].create_department(
+        department_code=_unique_code("P12B-DEPT"), name="P12B Department"
+    )
+
+
 def test_create_produces_exactly_one_employee_created(services):
     calls = _spy(services, EmployeeCreated)
     employee = services["employee_service"].create_employee(
-        employee_code=_unique_code("P12B-CREATE"), full_name="Ada Lovelace"
+        employee_code=_unique_code("P12B-CREATE"), full_name="Ada Lovelace", department_id=_dept(services).id
     )
     assert [e.employee_id for e in calls] == [employee.id]
     assert calls[0].organization_id == employee.organization_id
@@ -57,7 +63,7 @@ def test_create_produces_exactly_one_employee_created(services):
 def test_real_update_produces_exactly_one_employee_profile_updated(services):
     employee_service = services["employee_service"]
     employee = employee_service.create_employee(
-        employee_code=_unique_code("P12B-UPDATE"), full_name="Before"
+        employee_code=_unique_code("P12B-UPDATE"), full_name="Before", department_id=_dept(services).id
     )
     calls = _spy(services, EmployeeProfileUpdated)
 
@@ -71,7 +77,7 @@ def test_real_update_produces_exactly_one_employee_profile_updated(services):
 def test_no_op_update_produces_zero_events_zero_write_zero_audit(services, monkeypatch):
     employee_service = services["employee_service"]
     employee = employee_service.create_employee(
-        employee_code=_unique_code("P12B-NOOP"), full_name="Same Name", title="Planner"
+        employee_code=_unique_code("P12B-NOOP"), full_name="Same Name", title="Planner", department_id=_dept(services).id
     )
     calls = _spy(services, EmployeeProfileUpdated)
     audit_calls = []
@@ -103,7 +109,7 @@ def test_admin_console_employee_sub_controller_refreshes_after_committed_create(
     )
 
     services["employee_service"].create_employee(
-        employee_code=_unique_code("P12B-ADMIN"), full_name="Admin Refresh Employee"
+        employee_code=_unique_code("P12B-ADMIN"), full_name="Admin Refresh Employee", department_id=_dept(services).id
     )
 
     assert refresh_calls == ["admin-employees"]
@@ -120,12 +126,12 @@ def test_admin_console_refresh_does_not_fire_before_commit_or_on_rollback(servic
 
     employee_service = services["employee_service"]
     code = _unique_code("P12B-ADMIN-ROLLBACK")
-    employee_service.create_employee(employee_code=code, full_name="First")
+    employee_service.create_employee(employee_code=code, full_name="First", department_id=_dept(services).id)
 
     from src.core.platform.common.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
-        employee_service.create_employee(employee_code=code, full_name="Second")
+        employee_service.create_employee(employee_code=code, full_name="Second", department_id=_dept(services).id)
 
     assert refresh_calls == ["admin-employees"]
 
@@ -140,7 +146,7 @@ def test_pm_resources_narrow_refresh_after_committed_employee_create_with_no_lin
     resources_workspace.refresh = lambda: full_calls.append("full")
 
     services["employee_service"].create_employee(
-        employee_code=_unique_code("P12B-PM-NARROW"), full_name="No Linked Resource Employee"
+        employee_code=_unique_code("P12B-PM-NARROW"), full_name="No Linked Resource Employee", department_id=_dept(services).id
     )
 
     assert narrow_calls == ["narrow"]
@@ -151,7 +157,7 @@ def test_no_duplicate_pm_refresh_when_employee_update_touches_a_linked_resource(
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
     employee = employee_service.create_employee(
-        employee_code=_unique_code("P12B-LINKED"), full_name="Linked Employee", title="Planner"
+        employee_code=_unique_code("P12B-LINKED"), full_name="Linked Employee", title="Planner", department_id=_dept(services).id
     )
     resource_service.create_resource(
         "", hourly_rate=100.0, worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
@@ -189,12 +195,12 @@ def test_failed_employee_transaction_produces_zero_ui_refresh(services):
 
     employee_service = services["employee_service"]
     code = _unique_code("P12B-FAILED")
-    employee_service.create_employee(employee_code=code, full_name="Existing")
+    employee_service.create_employee(employee_code=code, full_name="Existing", department_id=_dept(services).id)
 
     from src.core.platform.common.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
-        employee_service.create_employee(employee_code=code, full_name="Duplicate")
+        employee_service.create_employee(employee_code=code, full_name="Duplicate", department_id=_dept(services).id)
 
     assert admin_calls == ["admin"]
     assert pm_narrow_calls == ["narrow"]
