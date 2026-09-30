@@ -18,9 +18,13 @@ from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 def _build_resource_timesheet(services):
     principal = services["user_session"].principal
+    department = services["department_service"].create_department(
+        department_code="R5F1-DEPT", name="R5F1 Department"
+    )
     employee = services["employee_service"].create_employee(
         employee_code="R5F1-OWNER",
         full_name="Timesheet Owner",
+        department_id=department.id,
         user_id=principal.user_id,
     )
     resource = services["resource_service"].create_resource(
