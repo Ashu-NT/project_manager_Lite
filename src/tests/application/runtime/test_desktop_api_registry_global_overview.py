@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.application.global_overview.api.desktop.global_overview import (
+from src.core.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
 from src.core.platform.api.desktop.notifications.notification import (

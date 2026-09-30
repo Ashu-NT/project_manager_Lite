@@ -2,23 +2,23 @@ from __future__ import annotations
 
 import logging
 
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
     ActionCenterContribution,
 )
-from src.core.application.global_overview.contracts.module_summary import (
+from src.core.global_overview.contract.module_summary import (
     ModuleSummaryContributor,
     ModuleSummaryDto,
 )
-from src.core.application.global_overview.contracts.overview import (
+from src.core.global_overview.contract.overview import (
     AttentionSummaryDto,
     GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
 )
-from src.core.application.global_overview.services.action_center_service import (
+from src.core.global_overview.application.action_center_service import (
     ActionCenterService,
 )
-from src.core.application.global_overview.services.activity_visibility import (
+from src.core.global_overview.application.activity_visibility import (
     is_activity_visible,
 )
 from src.core.platform.application.history.activity.activity_service import (

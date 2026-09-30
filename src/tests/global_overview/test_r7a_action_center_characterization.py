@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
 )
 from src.core.modules.project_management.application.global_overview.pm_action_center_contributor import (

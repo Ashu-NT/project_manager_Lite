@@ -4,14 +4,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
     ActionCenterContribution,
     ActionCenterSummaryDto,
 )
-from src.core.application.global_overview.contracts.module_summary import (
+from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
 )
-from src.core.application.global_overview.services.global_overview_service import (
+from src.core.global_overview.application.global_overview_service import (
     GlobalOverviewService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError

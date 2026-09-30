@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.application.global_overview.services.activity_visibility import (
+from src.core.global_overview.application.activity_visibility import (
     is_activity_visible,
 )
 

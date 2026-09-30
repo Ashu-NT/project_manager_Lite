@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.application.global_overview.contracts import (
+from src.core.global_overview.contract import (
     ActionCenterContext,
     ActionCenterContribution,
     ActionCenterItemDto,

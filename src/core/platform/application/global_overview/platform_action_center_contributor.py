@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
     ActionCenterContribution,
     ActionCenterItemDto,
     ActionCenterSummaryDto,
 )
-from src.core.application.global_overview.services.ordering import (
+from src.core.global_overview.application.ordering import (
     sort_action_center_items,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService

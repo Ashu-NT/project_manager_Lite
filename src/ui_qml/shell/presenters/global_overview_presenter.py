@@ -5,16 +5,16 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Generic, TypeVar
 
-from src.core.application.global_overview.api.desktop.global_overview import (
+from src.core.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
     ActionCenterItemDto,
 )
-from src.core.application.global_overview.contracts.module_summary import (
+from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
 )
-from src.core.application.global_overview.contracts.overview import (
+from src.core.global_overview.contract.overview import (
     GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
 )

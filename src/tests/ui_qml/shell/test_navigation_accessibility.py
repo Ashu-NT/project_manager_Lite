@@ -353,7 +353,7 @@ def test_navigation_and_global_overview_capabilities_read_the_identical_source_m
     policy copy."""
     import inspect
 
-    from src.core.application.global_overview.services.global_overview_service import (
+    from src.core.global_overview.application.global_overview_service import (
         GlobalOverviewService,
     )
     from src.core.modules.project_management.application.global_overview.pm_module_overview_contributor import (

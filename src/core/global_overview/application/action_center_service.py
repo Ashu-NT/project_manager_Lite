@@ -3,13 +3,13 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import date
 
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
     ActionCenterContribution,
     ActionCenterContributor,
     ActionCenterSummaryDto,
 )
-from src.core.application.global_overview.services.ordering import (
+from src.core.global_overview.application.ordering import (
     sort_action_center_items,
 )
 

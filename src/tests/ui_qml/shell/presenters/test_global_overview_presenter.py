@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
     ActionCenterContribution,
     ActionCenterItemDto,
     ActionCenterSummaryDto,
 )
-from src.core.application.global_overview.contracts.module_summary import (
+from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
 )
-from src.core.application.global_overview.contracts.overview import (
+from src.core.global_overview.contract.overview import (
     GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
 )

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
     ActionCenterContribution,
     ActionCenterItemDto,
     ActionCenterSummaryDto,
 )
-from src.core.application.global_overview.services.action_center_service import (
+from src.core.global_overview.application.action_center_service import (
     ActionCenterService,
 )
 

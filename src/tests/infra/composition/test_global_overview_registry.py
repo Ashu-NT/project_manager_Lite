@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import inspect
 
-from src.core.application.global_overview.api.desktop.global_overview import (
+from src.core.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
-from src.core.application.global_overview.services.action_center_service import (
+from src.core.global_overview.application.action_center_service import (
     ActionCenterService,
 )
-from src.core.application.global_overview.services.global_overview_service import (
+from src.core.global_overview.application.global_overview_service import (
     GlobalOverviewService,
 )
 from src.core.modules.project_management.application.global_overview.pm_action_center_contributor import (
