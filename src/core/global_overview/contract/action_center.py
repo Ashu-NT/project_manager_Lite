@@ -33,6 +33,7 @@ class ActionCenterItemDto:
     # "when this became actionable." Read-model field, not a domain change
     # -- see `services/ordering.py`.
     sort_at: datetime | None = None
+    destination_id: str = ""
 
 
 @dataclass(frozen=True, slots=True)

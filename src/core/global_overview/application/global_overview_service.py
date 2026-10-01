@@ -2,6 +2,12 @@ from __future__ import annotations
 
 import logging
 
+from src.core.global_overview.application.action_center_service import (
+    ActionCenterService,
+)
+from src.core.global_overview.application.activity_visibility import (
+    is_activity_visible,
+)
 from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
     ActionCenterContribution,
@@ -15,12 +21,6 @@ from src.core.global_overview.contract.overview import (
     AttentionSummaryDto,
     GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
-)
-from src.core.global_overview.application.action_center_service import (
-    ActionCenterService,
-)
-from src.core.global_overview.application.activity_visibility import (
-    is_activity_visible,
 )
 from src.core.platform.application.history.activity.activity_service import (
     ActivityService,

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -27,14 +26,9 @@ def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
 
 
 def _become_independent_decider(services) -> None:
-    user_session = services["user_session"]
-    user_session.set_principal(
-        replace(
-            user_session.principal,
-            user_id="desktop-independent-cost-decider",
-            username="desktop-independent-cost-decider",
-        )
-    )
+    auth = services["auth_service"]
+    user = auth.register_user("desktop-independent-cost-decider", "StrongPass123", role_names=["finance_controller"])
+    services["user_session"].set_principal(auth.build_principal(user))
 
 
 def _setup_project(services):

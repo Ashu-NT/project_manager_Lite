@@ -10,6 +10,9 @@ from src.core.platform.contract.repositories.approval.contracts import (
     ApprovalRepository,
 )
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
+from src.core.platform.infrastructure.persistence.common.approval_eligibility import (
+    approval_reviewer_eligibility,
+)
 from src.core.platform.infrastructure.persistence.mappers.approval.approval import (
     approval_from_orm,
     approval_to_orm,
@@ -38,6 +41,15 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         orm = approval_to_orm(request)
         self._stamp_scope(ctx, orm)
         self.session.add(orm)
+
+    def is_reviewer_eligible(self, request_id: str, user_id: str) -> bool:
+        ctx = self._context(operation_label="decide approval request")
+        return bool(self.session.scalar(select(select(ApprovalRequestORM.id).where(
+            ApprovalRequestORM.id == request_id,
+            ApprovalRequestORM.tenant_id == ctx.tenant_id,
+            ApprovalRequestORM.organization_id == ctx.organization_id,
+            approval_reviewer_eligibility(user_id),
+        ).exists())))
 
     def list_notification_recipient_ids(
         self,

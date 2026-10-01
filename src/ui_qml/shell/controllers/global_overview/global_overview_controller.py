@@ -85,6 +85,7 @@ def _serialize_action_center_row(vm: ActionCenterRowViewModel) -> dict[str, obje
         "dueLabel": vm.due_label or "",
         "routeId": vm.route_id,
         "kind": vm.kind,
+        "destinationId": vm.destination_id,
     }
 
 
@@ -120,11 +121,13 @@ class GlobalOverviewController(QObject):
         *,
         presenter: GlobalOverviewPresenter,
         shell_context: ShellContext | None = None,
+        action_navigator: Callable[[dict[str, object]], None] | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._presenter = presenter
         self._shell_context = shell_context
+        self._action_navigator = action_navigator
         self._context: dict[str, object] = dict(_EMPTY_CONTEXT)
         self._context_state: dict[str, object] = dict(_EMPTY_STATE)
         self._attention: list[dict[str, object]] = []
@@ -328,6 +331,13 @@ class GlobalOverviewController(QObject):
         )
 
     # -- navigation ----------------------------------------------------------
+
+    @Slot(str, str)
+    def activateAction(self, action_id: str, kind: str) -> None:
+        item = next((row for row in self._action_center if row["id"] == action_id and row["kind"] == kind), None)
+        if item is None or self._action_navigator is None:
+            return
+        self._action_navigator(item)
 
     @Slot(str)
     def selectRoute(self, route_id: str) -> None:

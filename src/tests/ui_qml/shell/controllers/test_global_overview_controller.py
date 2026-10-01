@@ -69,7 +69,7 @@ class _FakePresenter:
         self.calls.append("recent_activity")
         return self.recent_activity_result
 
-    def load_action_center(self, *, limit: int = 50):
+    def load_action_center(self, *, limit: int = 50, after=None):
         self.calls.append("action_center")
         return self.action_center_result
 
@@ -335,3 +335,70 @@ def test_shell_context_does_not_import_global_overview_controller():
         if isinstance(node, ast.ImportFrom) and node.module
     }
     assert not any("global_overview" in module_path for module_path in imported_modules)
+
+
+def test_action_pagination_preserves_cursor_and_refresh_resets_it():
+    presenter = _FakePresenter()
+    cursor = object()
+    requested = []
+
+    def load(*, after=None):
+        requested.append(after)
+        return SectionResult(ok=True, data=(), next_cursor=cursor if after is None else None)
+
+    presenter.load_action_center = load
+    controller = _controller(presenter)
+    controller.previousActionPage()
+    assert requested == []
+    controller.reloadActionCenter()
+    assert controller.actionPage == {"hasPrevious": False, "hasNext": True, "page": 1}
+    controller.nextActionPage()
+    assert requested == [None, cursor]
+    assert controller.actionPage == {"hasPrevious": True, "hasNext": False, "page": 2}
+    controller.nextActionPage()
+    assert requested == [None, cursor]
+    controller.previousActionPage()
+    assert requested == [None, cursor, None]
+    controller.nextActionPage()
+    controller.reloadActionCenter()
+    assert requested[-1] is None
+    assert controller.actionPage["page"] == 1
+
+
+def test_late_action_result_cannot_replace_new_scope_result():
+    presenter = _FakePresenter()
+    shell = _FakeShellContext()
+    controller = _controller(presenter, shell)
+    entered = False
+
+    def load(*, after=None):
+        nonlocal entered
+        if not entered:
+            entered = True
+            shell.scopeChanged.emit()
+            return SectionResult(ok=False, error_message="Old organization failure")
+        return SectionResult(ok=True, data=(), empty=True)
+
+    presenter.load_action_center = load
+    controller.reloadActionCenter()
+    assert controller.actionCenterState == {"loading": False, "empty": True, "errorMessage": ""}
+    assert controller.actionPage == {"hasPrevious": False, "hasNext": False, "page": 1}
+
+
+def test_newer_action_refresh_wins_over_reentrant_old_result():
+    presenter = _FakePresenter()
+    controller = _controller(presenter)
+    entered = False
+
+    def load(*, after=None):
+        nonlocal entered
+        if not entered:
+            entered = True
+            controller.reloadActionCenter()
+            return SectionResult(ok=True, data=(), next_cursor=object())
+        return SectionResult(ok=True, data=(), empty=True)
+
+    presenter.load_action_center = load
+    controller.reloadActionCenter()
+    assert controller.actionPage["hasNext"] is False
+    assert controller.actionCenterState["empty"] is True

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from src.ui_qml.shared.models.activity_item import ActivityItemViewModel
+
 
 @dataclass(frozen=True)
 class SectionState:
@@ -55,6 +57,7 @@ class ActionCenterRowViewModel:
     due_label: str | None
     route_id: str
     kind: str
+    destination_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -85,7 +88,7 @@ class GlobalOverviewViewModel:
     context: GlobalOverviewContextViewModel | None
     attention: tuple[AttentionCardViewModel, ...] = field(default_factory=tuple)
     modules: tuple[ModuleCardViewModel, ...] = field(default_factory=tuple)
-    recent_activity: tuple[ActivityRowViewModel, ...] = field(default_factory=tuple)
+    recent_activity: tuple[ActivityItemViewModel, ...] = field(default_factory=tuple)
     action_center: tuple[ActionCenterRowViewModel, ...] = field(default_factory=tuple)
     quick_actions: tuple[QuickActionViewModel, ...] = field(default_factory=tuple)
 
@@ -102,7 +105,6 @@ def build_context_line(
 
 __all__ = [
     "ActionCenterRowViewModel",
-    "ActivityRowViewModel",
     "AttentionCardViewModel",
     "GlobalOverviewContextViewModel",
     "GlobalOverviewViewModel",

@@ -63,7 +63,7 @@ class _FakeGlobalOverviewService:
         self._maybe_raise()
         return self.capabilities_result
 
-    def list_action_center(self, *, limit: int = 50):
+    def list_action_center(self, *, limit: int = 50, after=None):
         self._maybe_raise()
         self.last_action_center_limit = limit
         return self.action_center_result

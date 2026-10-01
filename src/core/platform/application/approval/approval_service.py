@@ -216,6 +216,7 @@ class ApprovalService:
         with self._uow_factory.create(context=self._new_context(causation_id=request_id)) as uow:
             request = self._require_pending_using(uow.approvals, request_id)
             self._ensure_not_self_decision(request)
+            self._require_reviewer_eligibility(uow.approvals, request.id)
             principal = self._user_session.principal if self._user_session else None
             request.status = ApprovalStatus.REJECTED
             request.decided_at = datetime.now(timezone.utc)
@@ -272,6 +273,7 @@ class ApprovalService:
         with self._uow_factory.create(context=self._new_context(causation_id=request_id)) as uow:
             request = self._require_pending_using(uow.approvals, request_id)
             self._ensure_not_self_decision(request)
+            self._require_reviewer_eligibility(uow.approvals, request.id)
             handler, dependencies_factory = self._apply_handlers.get(
                 request.request_type, (None, None)
             )
@@ -334,6 +336,14 @@ class ApprovalService:
                 code="APPROVAL_ALREADY_DECIDED",
             )
         return request
+
+    def _require_reviewer_eligibility(self, approval_repo: ApprovalRepository, request_id: str) -> None:
+        principal = self._user_session.principal if self._user_session else None
+        if principal is None or not approval_repo.is_reviewer_eligible(request_id, principal.user_id):
+            raise BusinessRuleError(
+                "You are not eligible to decide this approval request.",
+                code="APPROVAL_REVIEWER_NOT_ELIGIBLE",
+            )
 
     def _ensure_not_self_decision(self, request: ApprovalRequest) -> None:
         principal = self._user_session.principal if self._user_session else None

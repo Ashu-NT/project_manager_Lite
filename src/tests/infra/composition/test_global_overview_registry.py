@@ -59,3 +59,20 @@ def test_platform_global_overview_contributors_never_import_project_management()
     for module in (platform_action_center_module, platform_module_overview_module):
         source = inspect.getsource(module)
         assert "project_management" not in source
+
+
+def test_overview_composes_without_pm_service_bundle(session, services):
+    from types import SimpleNamespace
+
+    from src.infra.composition.global_overview_registry import (
+        build_global_overview_service_bundle,
+    )
+
+    platform = SimpleNamespace(**{name: services[name] for name in (
+        "tenant_context_service", "platform_runtime_application_service", "activity_service",
+        "approval_service", "user_session", "notification_service",
+    )})
+    bundle = build_global_overview_service_bundle(session, platform, None)
+    assert len(bundle.action_center_service._contributors) == 1
+    assert isinstance(bundle.action_center_service._contributors[0], PlatformActionCenterContributor)
+    assert bundle.global_overview_desktop_api.list_action_center(limit=10).ok

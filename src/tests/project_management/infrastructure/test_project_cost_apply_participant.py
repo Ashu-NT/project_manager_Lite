@@ -3,7 +3,6 @@ caller-supplied Session without opening or completing its own transaction."""
 
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -37,14 +36,9 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _become_independent_decider(services) -> None:
-    user_session = services["user_session"]
-    user_session.set_principal(
-        replace(
-            user_session.principal,
-            user_id="independent-cost-decider",
-            username="independent-cost-decider",
-        )
-    )
+    auth = services["auth_service"]
+    user = auth.register_user("independent-cost-decider", "StrongPass123", role_names=["finance_controller"])
+    services["user_session"].set_principal(auth.build_principal(user))
 
 
 def _submitted_entry(services, session):

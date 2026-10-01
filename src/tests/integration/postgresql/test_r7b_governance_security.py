@@ -26,6 +26,9 @@ pytestmark = pytest.mark.postgresql_integration
 def governance_rows(postgres_test_environment):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     with postgres_test_environment.admin_engine.begin() as connection:
+        # Shared by the R7C regression matrix in the same dedicated database.
+        if connection.scalar(text("SELECT count(*) FROM projects WHERE id='r7a-project-a'")):
+            return
         for suffix in ("a", "b", "o", "p"):
             scope = {
                 "tenant": "r7a-tenant-b" if suffix == "b" else "r7a-tenant-a",

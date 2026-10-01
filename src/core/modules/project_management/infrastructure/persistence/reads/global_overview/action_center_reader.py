@@ -1,19 +1,36 @@
 """PM-owned actionable-work projections. Counts and windows share SQL predicates."""
 
-from datetime import date, datetime
+from datetime import date
 
 from sqlalchemy import Date, DateTime, String, cast, func, literal, null, select
 
 from src.core.global_overview.application.ordering import sort_action_center_items
-from src.core.global_overview.contract.action_center import ActionCenterContribution, ActionCenterItemDto, ActionCenterSummaryDto
+from src.core.global_overview.contract.action_center import (
+    ActionCenterContribution,
+    ActionCenterItemDto,
+    ActionCenterSummaryDto,
+)
+from src.core.global_overview.infrastructure.persistence.reads.action_center import (
+    action_window,
+)
 from src.core.modules.project_management.domain.enums import TaskStatus
-from src.core.modules.project_management.infrastructure.persistence.orm.baseline import ProjectBaselineORM
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskAssignmentORM, TaskORM
+from src.core.modules.project_management.infrastructure.persistence.orm.baseline import (
+    ProjectBaselineORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskAssignmentORM,
+    TaskORM,
+)
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
-from src.core.platform.infrastructure.persistence.common.scoped_permission import scoped_permission
-from src.core.platform.infrastructure.persistence.orm.time_management.time.time import TimesheetPeriodORM
-from src.core.global_overview.infrastructure.persistence.reads.action_center import action_window
+from src.core.platform.infrastructure.persistence.common.scoped_permission import (
+    scoped_permission,
+)
+from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
+    TimesheetPeriodORM,
+)
 
 _MODULE = "Project Management"
 
@@ -68,7 +85,7 @@ class SqlAlchemyProjectManagementActionCenterReader:
             items.extend(ActionCenterItemDto(id=row.id, kind="pm_task", title=row.name,
                 module=_MODULE, subject_type="task", subject_id=row.id,
                 subject_display=row.project_name, action_state=row.status.value.lower(),
-                route_id="project_management.tasks", due_at=row.deadline, sort_at=row.recency) for row in rows)
+                route_id="project_management.workspace", destination_id="tasks", due_at=row.deadline, sort_at=row.recency) for row in rows)
 
         baseline = ProjectBaselineORM
         recency = self._datetime(baseline.submitted_at)
@@ -82,7 +99,7 @@ class SqlAlchemyProjectManagementActionCenterReader:
             recency=recency, identity=baseline.id, limit=limit, after=after)
         items.extend(ActionCenterItemDto(id=row.id, kind="baseline_review", title="Review project baseline",
             module=_MODULE, subject_type="baseline", subject_id=row.id, subject_display=row.project_name,
-            action_state="awaiting_review", route_id="project_management.scheduling", sort_at=row.recency) for row in rows)
+            action_state="awaiting_review", route_id="project_management.workspace", destination_id="scheduling", sort_at=row.recency) for row in rows)
 
         timesheet_items, timesheet_count = self._submissions(context, limit, after)
         items.extend(timesheet_items)
@@ -125,4 +142,4 @@ class SqlAlchemyProjectManagementActionCenterReader:
             title="Submit timesheet" if state == "open" else "Correct and resubmit timesheet",
             subject_type="timesheet_period", subject_id=row.id,
             subject_display=row.period_start.strftime("%b %Y"), action_state=state,
-            route_id="project_management.timesheets", sort_at=row.recency)
+            route_id="project_management.workspace", destination_id="timesheets", sort_at=row.recency)

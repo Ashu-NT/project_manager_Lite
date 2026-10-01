@@ -13,6 +13,9 @@ from src.core.platform.application.security.authorization import (
     get_authorization_engine,
 )
 from src.infra.composition.app_container import build_service_dict
+from src.infra.composition.global_overview_invalidation import (
+    ACTION_CENTER_INVALIDATION_TARGETS,
+)
 from src.infra.persistence.db.engine import get_db_url
 from src.infra.persistence.db.session_factory import SessionLocal
 from src.infra.persistence.db.unit_of_work import sqlite_write_lock
@@ -25,6 +28,9 @@ from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
+from src.ui_qml.shell.adapters.action_center_view_invalidation_adapter import (
+    ActionCenterViewInvalidationAdapter,
+)
 from src.ui_qml.shell.context import build_shell_context, update_shell_runtime_state
 from src.ui_qml.shell.controllers.global_overview.global_overview_controller import (
     GlobalOverviewController,
@@ -242,11 +248,41 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         else None
     )
     if global_overview_api is not None:
+        def navigate_overview_action(item):
+            route = item["routeId"]
+            destination = item["destinationId"]
+            if route == "platform.workspace":
+                platform_workspace_catalog.selectDestination(destination)
+            elif route == "project_management.workspace":
+                pm_workspace_catalog.pmNavigation.selectWorkspace(destination)
+            else:
+                return
+            shell_context.selectRoute(route)
         global_overview_controller = GlobalOverviewController(
             presenter=GlobalOverviewPresenter(api=global_overview_api),
             shell_context=shell_context,
+            action_navigator=navigate_overview_action,
         )
         logger.debug("Global Overview controller created.")
+        if services is not None:
+            overview_invalidation = ActionCenterViewInvalidationAdapter(
+                channel=services.get("platform_view_invalidation_channel"),
+                targets=ACTION_CENTER_INVALIDATION_TARGETS,
+                parent=global_overview_controller,
+            )
+
+            def scope_overview_invalidation():
+                session = services["user_session"]
+                overview_invalidation.set_active_scope(
+                    tenant_id=session.active_tenant_id or "",
+                    organization_id=session.active_organization_id or "",
+                )
+
+            overview_invalidation.actionsStale.connect(global_overview_controller.reloadActionCenter)
+            overview_invalidation.actionsStale.connect(global_overview_controller.reloadAttention)
+            shell_context.scopeChanged.connect(scope_overview_invalidation)
+            app.aboutToQuit.connect(overview_invalidation.dispose)
+            scope_overview_invalidation()
 
     organization_switcher_controller = OrganizationSwitcherController(
         presenter=OrganizationSwitcherPresenter(

@@ -61,7 +61,7 @@ class _FakeGlobalOverviewApi:
     def list_recent_activity(self, *, limit: int = 50):
         return self.recent_activity_result
 
-    def list_action_center(self, *, limit: int = 50):
+    def list_action_center(self, *, limit: int = 50, after=None):
         return self.action_center_result
 
     def get_capabilities(self):

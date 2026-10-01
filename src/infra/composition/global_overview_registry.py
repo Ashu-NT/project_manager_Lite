@@ -5,11 +5,6 @@ from dataclasses import dataclass
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.modules.project_management.infrastructure.persistence.reads.global_overview.action_center_reader import SqlAlchemyProjectManagementActionCenterReader
-from src.core.platform.infrastructure.persistence.orm.approval.approval import ApprovalRequestORM
-from src.core.platform.infrastructure.persistence.read.global_overview.action_center_reader import SqlAlchemyPlatformActionCenterReader
-
 from src.core.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
@@ -25,6 +20,12 @@ from src.core.modules.project_management.application.global_overview.pm_action_c
 from src.core.modules.project_management.application.global_overview.pm_module_overview_contributor import (
     ProjectManagementModuleOverviewContributor,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.global_overview.action_center_reader import (
+    SqlAlchemyProjectManagementActionCenterReader,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
     SqlAlchemyResourceIdentityReader,
 )
@@ -39,6 +40,12 @@ from src.core.platform.application.global_overview.platform_action_center_contri
 )
 from src.core.platform.application.global_overview.platform_module_overview_contributor import (
     PlatformModuleOverviewContributor,
+)
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
+from src.core.platform.infrastructure.persistence.read.global_overview.action_center_reader import (
+    SqlAlchemyPlatformActionCenterReader,
 )
 from src.infra.composition.modules.platform_registry import PlatformServiceBundle
 from src.infra.composition.modules.project_registry import (
@@ -61,10 +68,22 @@ class GlobalOverviewServiceBundle:
     platform_notification_desktop_api: PlatformNotificationDesktopApi
 
 
+def approval_action_target_scope():
+    """Reject inconsistent project parents without making Platform depend on PM."""
+    return or_(
+        ApprovalRequestORM.project_id.is_(None),
+        select(ProjectORM.id).where(
+            ProjectORM.id == ApprovalRequestORM.project_id,
+            ProjectORM.tenant_id == ApprovalRequestORM.tenant_id,
+            ProjectORM.organization_id == ApprovalRequestORM.organization_id,
+        ).exists(),
+    )
+
+
 def build_global_overview_service_bundle(
     session: Session,
     platform_services: PlatformServiceBundle,
-    project_management_services: ProjectManagementServiceBundle,
+    project_management_services: ProjectManagementServiceBundle | None,
 ) -> GlobalOverviewServiceBundle:
     resource_identity_reader = SqlAlchemyResourceIdentityReader(session=session)
     timesheet_workspace_reader = SqlAlchemyTimesheetWorkspaceReader(
@@ -76,15 +95,23 @@ def build_global_overview_service_bundle(
         contributors=(
             PlatformActionCenterContributor(
                 reader=SqlAlchemyPlatformActionCenterReader(session=session,
-                    target_scope_predicate=or_(ApprovalRequestORM.project_id.is_(None),
-                        select(ProjectORM.id).where(ProjectORM.id == ApprovalRequestORM.project_id,
-                            ProjectORM.tenant_id == ApprovalRequestORM.tenant_id,
-                            ProjectORM.organization_id == ApprovalRequestORM.organization_id).exists())),
+                    target_scope_predicate=approval_action_target_scope()),
             ),
             ProjectManagementActionCenterContributor(
+                is_accessible=lambda: any(
+                    module.code == "project_management"
+                    for module in platform_services.platform_runtime_application_service.list_accessible_modules()
+                ),
                 reader=SqlAlchemyProjectManagementActionCenterReader(session=session,
                     resource_identity_reader=resource_identity_reader,
                     timesheet_workspace_reader=timesheet_workspace_reader),
+            ),
+        ) if project_management_services is not None else (
+            PlatformActionCenterContributor(
+                reader=SqlAlchemyPlatformActionCenterReader(
+                    session=session,
+                    target_scope_predicate=ApprovalRequestORM.project_id.is_(None),
+                ),
             ),
         )
     )
@@ -106,6 +133,8 @@ def build_global_overview_service_bundle(
                 dashboard_service=project_management_services.dashboard_service,
                 project_service=project_management_services.project_service,
             ),
+        ) if project_management_services is not None else (
+            PlatformModuleOverviewContributor(approval_service=platform_services.approval_service),
         ),
         user_session=platform_services.user_session,
     )

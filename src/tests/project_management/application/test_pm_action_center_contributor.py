@@ -12,7 +12,9 @@ from src.core.modules.project_management.domain.enums import TaskStatus, WorkerT
 from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineStatus,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.global_overview.action_center_reader import SqlAlchemyProjectManagementActionCenterReader
+from src.core.modules.project_management.infrastructure.persistence.reads.global_overview.action_center_reader import (
+    SqlAlchemyProjectManagementActionCenterReader,
+)
 from src.core.shared.resource_identity.contracts import ResourceIdentityReader
 
 
@@ -30,6 +32,7 @@ def _contributor(services, resource_identity_reader: ResourceIdentityReader):
     )
 
     return ProjectManagementActionCenterContributor(
+        is_accessible=lambda: True,
         reader=SqlAlchemyProjectManagementActionCenterReader(session=services["session"],
         resource_identity_reader=resource_identity_reader,
         timesheet_workspace_reader=SqlAlchemyTimesheetWorkspaceReader(
@@ -130,7 +133,8 @@ def test_tasks_resolve_through_resource_identity_and_include_only_open_states(se
 
     todo_item = next(item for item in contribution.items if item.subject_id == todo.id)
     assert todo_item.due_at == date(2026, 9, 20)
-    assert todo_item.route_id == "project_management.tasks"
+    assert todo_item.route_id == "project_management.workspace"
+    assert todo_item.destination_id == "tasks"
 
 
 # -- B. Baselines --------------------------------------------------------------

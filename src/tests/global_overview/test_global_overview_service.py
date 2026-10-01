@@ -4,15 +4,15 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.core.global_overview.application.global_overview_service import (
+    GlobalOverviewService,
+)
 from src.core.global_overview.contract.action_center import (
     ActionCenterContribution,
     ActionCenterSummaryDto,
 )
 from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
-)
-from src.core.global_overview.application.global_overview_service import (
-    GlobalOverviewService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
@@ -70,7 +70,7 @@ class _FakeActionCenterService:
         self._contribution = contribution
         self.calls: list[int] = []
 
-    def build(self, context, *, preview_limit: int = 50, today=None) -> ActionCenterContribution:
+    def build(self, context, *, preview_limit: int = 50, today=None, after=None) -> ActionCenterContribution:
         self.calls.append(preview_limit)
         return self._contribution
 

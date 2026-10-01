@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
@@ -83,14 +82,9 @@ def _create_draft(services, project, cost_code, *, command_id="p37-manual-1", am
 
 
 def _become_independent_decider(services) -> None:
-    user_session = services["user_session"]
-    user_session.set_principal(
-        replace(
-            user_session.principal,
-            user_id="p37-independent-finance-decider",
-            username="p37-independent-finance-decider",
-        )
-    )
+    auth = services["auth_service"]
+    user = auth.register_user("p37-independent-finance-decider", "StrongPass123", role_names=["finance_controller"])
+    services["user_session"].set_principal(auth.build_principal(user))
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from src.core.global_overview.application.global_overview_service import (
+    GlobalOverviewService,
+)
 from src.core.global_overview.contract.action_center import (
     ActionCenterContribution,
     ActionCenterCursor,
@@ -11,9 +14,6 @@ from src.core.global_overview.contract.overview import (
     AttentionSummaryDto,
     GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
-)
-from src.core.global_overview.application.global_overview_service import (
-    GlobalOverviewService,
 )
 from src.core.platform.api.desktop.history.activity.models.activity import (
     ActivityEntryDto,

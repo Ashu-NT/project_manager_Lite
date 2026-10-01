@@ -328,7 +328,29 @@ AppLayouts.WorkspaceFrame {
                                 && root._actionCenter.length > 0
                             items: root._actionCenter
                             onItemActivated: function (item) {
-                                root._selectRoute(String(item.routeId || ""))
+                                if (root.globalOverviewController)
+                                    root.globalOverviewController.activateAction(String(item.id || ""), String(item.kind || ""))
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: !!root.globalOverviewController
+                                && (root.globalOverviewController.actionPage.hasPrevious
+                                    || root.globalOverviewController.actionPage.hasNext)
+                            Item { Layout.fillWidth: true }
+                            AppControls.SecondaryButton {
+                                text: "Previous"
+                                enabled: !!root.globalOverviewController
+                                    && root.globalOverviewController.actionPage.hasPrevious
+                                    && !root._actionCenterState.loading
+                                onClicked: root.globalOverviewController.previousActionPage()
+                            }
+                            AppControls.SecondaryButton {
+                                text: "Next"
+                                enabled: !!root.globalOverviewController
+                                    && root.globalOverviewController.actionPage.hasNext
+                                    && !root._actionCenterState.loading
+                                onClicked: root.globalOverviewController.nextActionPage()
                             }
                         }
                     }

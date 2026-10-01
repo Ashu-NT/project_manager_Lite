@@ -1,9 +1,19 @@
 from sqlalchemy import Date, cast, func, null, select
 
-from src.core.global_overview.contract.action_center import ActionCenterContribution, ActionCenterItemDto, ActionCenterSummaryDto
-from src.core.platform.infrastructure.persistence.common.approval_eligibility import approval_reviewer_eligibility
-from src.core.platform.infrastructure.persistence.orm.approval.approval import ApprovalRequestORM
-from src.core.global_overview.infrastructure.persistence.reads.action_center import action_window
+from src.core.global_overview.contract.action_center import (
+    ActionCenterContribution,
+    ActionCenterItemDto,
+    ActionCenterSummaryDto,
+)
+from src.core.global_overview.infrastructure.persistence.reads.action_center import (
+    action_window,
+)
+from src.core.platform.infrastructure.persistence.common.approval_eligibility import (
+    approval_reviewer_eligibility,
+)
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
 
 
 class SqlAlchemyPlatformActionCenterReader:
@@ -28,6 +38,6 @@ class SqlAlchemyPlatformActionCenterReader:
             id=row.id, kind="approval", title="Review " + row.entity_type.replace("_", " "),
             module="Platform", subject_type=row.entity_type, subject_id=row.entity_id,
             subject_display=row.entity_type.replace("_", " ").title(), action_state="awaiting_decision",
-            route_id="control_approvals", sort_at=row.requested_at,
+            route_id="platform.workspace", destination_id="control_approvals", sort_at=row.requested_at,
         ) for row in rows)
         return ActionCenterContribution(items, ActionCenterSummaryDto(total, total, 0, 0))

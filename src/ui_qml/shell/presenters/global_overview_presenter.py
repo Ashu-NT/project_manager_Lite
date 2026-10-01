@@ -9,8 +9,8 @@ from src.core.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
 from src.core.global_overview.contract.action_center import (
-    ActionCenterItemDto,
     ActionCenterCursor,
+    ActionCenterItemDto,
 )
 from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
@@ -312,6 +312,7 @@ def _build_action_center_row(item: ActionCenterItemDto, *, today: date) -> Actio
         # deep link is invented here (see routing limitation, item 13).
         route_id=item.route_id,
         kind=item.kind,
+        destination_id=item.destination_id,
     )
 
 

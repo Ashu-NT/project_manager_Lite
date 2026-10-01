@@ -1,19 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
 from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
 )
 from src.core.platform.application.global_overview.platform_action_center_contributor import (
     PlatformActionCenterContributor,
 )
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
+from src.core.platform.infrastructure.persistence.read.global_overview.action_center_reader import (
+    SqlAlchemyPlatformActionCenterReader,
+)
 
 
 def _contributor(services) -> PlatformActionCenterContributor:
     return PlatformActionCenterContributor(
-        approval_service=services["approval_service"],
-        platform_runtime_application_service=services["platform_runtime_application_service"],
+        reader=SqlAlchemyPlatformActionCenterReader(session=services["session"], target_scope_predicate=ApprovalRequestORM.project_id.is_(None)),
     )
 
 
@@ -27,22 +30,17 @@ def _context(services) -> ActionCenterContext:
 
 
 def _become_decider(services) -> None:
-    user_session = services["user_session"]
-    user_session.set_principal(
-        replace(
-            user_session.principal,
-            permissions=frozenset({"approval.decide", "approval.request"}),
-        )
-    )
+    auth = services["auth_service"]
+    reviewer = auth.register_user("action-reviewer", "StrongPass123", role_names=["approver"])
+    services["user_session"].set_principal(auth.build_principal(reviewer))
 
 
 def _become_non_decider(services) -> None:
     """Holds approval.request (so ApprovalService.list_requests/count_pending
     would still succeed if called) but not approval.decide."""
-    user_session = services["user_session"]
-    user_session.set_principal(
-        replace(user_session.principal, permissions=frozenset({"approval.request"}))
-    )
+    auth = services["auth_service"]
+    viewer = auth.register_user("action-viewer", "StrongPass123", role_names=["viewer"])
+    services["user_session"].set_principal(auth.build_principal(viewer))
 
 
 def _create_pending_approval(services, *, entity_id: str = "org-request-1"):
@@ -80,7 +78,8 @@ def test_approval_decide_permission_includes_pending_approvals(services):
     assert item.kind == "approval"
     assert item.module == "Platform"
     assert item.action_state == "awaiting_decision"
-    assert item.route_id == "control_approvals"
+    assert item.route_id == "platform.workspace"
+    assert item.destination_id == "control_approvals"
     assert item.subject_id == "org-request-2"
 
 

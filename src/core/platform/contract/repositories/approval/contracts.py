@@ -7,6 +7,11 @@ from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 
 class ApprovalRepository(ABC):
     @abstractmethod
+    def is_reviewer_eligible(self, request_id: str, user_id: str) -> bool:
+        """Recheck persisted pending state, membership and target-covered grant."""
+        ...
+
+    @abstractmethod
     def list_notification_recipient_ids(
         self, request_id: str, *, audience: str, after_user_id: str = "", limit: int = 100,
     ) -> tuple[str, ...]:

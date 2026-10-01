@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
@@ -40,15 +39,10 @@ def _login(services, username: str, password: str) -> None:
     services["user_session"].set_principal(auth.build_principal(user))
 
 
-def _become_independent_decider(services) -> None:
-    user_session = services["user_session"]
-    user_session.set_principal(
-        replace(
-            user_session.principal,
-            user_id="independent-cost-decider",
-            username="independent-cost-decider",
-        )
-    )
+def _become_independent_decider(services, *, role="finance_controller") -> None:
+    auth = services["auth_service"]
+    user = auth.register_user("independent-cost-decider", "StrongPass123", role_names=[role])
+    services["user_session"].set_principal(auth.build_principal(user))
 
 
 def _source(*, command_id: str = "command-1", content_hash: str = "a" * 64):
@@ -397,7 +391,7 @@ def test_governed_cost_approval_applies_as_deciding_principal(
     requester_id = request.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
-    _become_independent_decider(services)
+    _become_independent_decider(services, role="approver")
     approver_id = services["user_session"].principal.user_id
     services["approval_service"].approve_and_apply(request.id, note="Approved actual")
     approved = service.get_entry(submitted.id)
