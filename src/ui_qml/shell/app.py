@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from functools import partial
 from time import perf_counter
 
 from PySide6.QtCore import QEventLoop
@@ -41,6 +42,7 @@ from src.ui_qml.shell.controllers.notifications.notifications_controller import 
 from src.ui_qml.shell.controllers.organization.organization_switcher_controller import (
     OrganizationSwitcherController,
 )
+from src.ui_qml.shell.global_overview_navigation import navigate_action
 from src.ui_qml.shell.login import ShellLoginController
 from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.navigation_accessibility import NavigationAccessibilityCoordinator
@@ -120,8 +122,12 @@ def build_services() -> dict[str, object]:
     return services
 
 
-def _configure_runtime_environment(app: QGuiApplication, *, settings_store: AppSettingsStore) -> tuple[str, str]:
-    startup_theme = settings_store.load_theme_mode(default_mode=os.getenv("PM_THEME", "light"))
+def _configure_runtime_environment(
+    app: QGuiApplication, *, settings_store: AppSettingsStore
+) -> tuple[str, str]:
+    startup_theme = settings_store.load_theme_mode(
+        default_mode=os.getenv("PM_THEME", "light")
+    )
     startup_governance = settings_store.load_governance_mode(
         default_mode=os.getenv("PM_GOVERNANCE_MODE", "off")
     )
@@ -132,7 +138,9 @@ def _configure_runtime_environment(app: QGuiApplication, *, settings_store: AppS
     return startup_theme, startup_governance
 
 
-def _prompt_for_login_qml(*, auth_service, user_session, username: str = "admin") -> bool:
+def _prompt_for_login_qml(
+    *, auth_service, user_session, username: str = "admin"
+) -> bool:
     controller = ShellLoginController(
         auth_service=auth_service,
         user_session=user_session,
@@ -164,9 +172,13 @@ def _prompt_for_login_qml(*, auth_service, user_session, username: str = "admin"
     return accepted["value"]
 
 
-def main(argv: list[str] | None = None, desktop_api_registry: object | None = None) -> int:
+def main(
+    argv: list[str] | None = None, desktop_api_registry: object | None = None
+) -> int:
     log_file = setup_logging()
-    logger.info("App startup begin argv_count=%s log_file=%s", len(argv or sys.argv), log_file)
+    logger.info(
+        "App startup begin argv_count=%s log_file=%s", len(argv or sys.argv), log_file
+    )
     app = QGuiApplication(argv or sys.argv)
     settings_store = AppSettingsStore()
     startup_theme, _startup_governance = _configure_runtime_environment(
@@ -174,7 +186,11 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         settings_store=settings_store,
     )
     startup_density = settings_store.load_density_mode()
-    logger.info("Runtime environment configured theme=%s density=%s", startup_theme, startup_density)
+    logger.info(
+        "Runtime environment configured theme=%s density=%s",
+        startup_theme,
+        startup_density,
+    )
     services: dict[str, object] | None = None
     if desktop_api_registry is None:
         services = build_services()
@@ -210,7 +226,9 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             shell_context,
             theme_mode=startup_theme,
             density_mode=startup_density,
-            user_display_name=principal.display_name or principal.username if principal else "",
+            user_display_name=principal.display_name or principal.username
+            if principal
+            else "",
         )
         logger.info(
             "Shell runtime state updated authenticated=%s user_present=%s",
@@ -218,16 +236,21 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             principal is not None,
         )
     else:
-        update_shell_runtime_state(shell_context, theme_mode=startup_theme, density_mode=startup_density)
+        update_shell_runtime_state(
+            shell_context, theme_mode=startup_theme, density_mode=startup_density
+        )
     logger.debug("Creating workspace catalogs.")
     if hasattr(app, "setProperty"):
         app.setProperty(
             "platformRuntimeApi",
             getattr(desktop_api_registry, "platform_runtime", None)
-            if desktop_api_registry is not None else None,
+            if desktop_api_registry is not None
+            else None,
         )
     platform_workspace_catalog = PlatformWorkspaceCatalog(
-        getattr(desktop_api_registry, "platform_runtime", None) if desktop_api_registry is not None else None,
+        getattr(desktop_api_registry, "platform_runtime", None)
+        if desktop_api_registry is not None
+        else None,
         desktop_api_registry=desktop_api_registry,
     )
     logger.debug("Platform workspace catalog created.")
@@ -235,9 +258,7 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         desktop_api_registry=desktop_api_registry,
         auth_engine=get_authorization_engine() if services is not None else None,
         user_session_provider=(
-            (lambda: services["user_session"])
-            if services is not None
-            else None
+            (lambda: services["user_session"]) if services is not None else None
         ),
     )
     logger.debug("Project Management workspace catalog created.")
@@ -248,20 +269,12 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         else None
     )
     if global_overview_api is not None:
-        def navigate_overview_action(item):
-            route = item["routeId"]
-            destination = item["destinationId"]
-            if route == "platform.workspace":
-                platform_workspace_catalog.selectDestination(destination)
-            elif route == "project_management.workspace":
-                pm_workspace_catalog.pmNavigation.selectWorkspace(destination)
-            else:
-                return
-            shell_context.selectRoute(route)
+
         global_overview_controller = GlobalOverviewController(
             presenter=GlobalOverviewPresenter(api=global_overview_api),
             shell_context=shell_context,
-            action_navigator=navigate_overview_action,
+            action_navigator=partial(navigate_action, shell_context=shell_context,
+                                     platform_catalog=platform_workspace_catalog, pm_catalog=pm_workspace_catalog),
         )
         logger.debug("Global Overview controller created.")
         if services is not None:
@@ -278,8 +291,12 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
                     organization_id=session.active_organization_id or "",
                 )
 
-            overview_invalidation.actionsStale.connect(global_overview_controller.reloadActionCenter)
-            overview_invalidation.actionsStale.connect(global_overview_controller.reloadAttention)
+            overview_invalidation.actionsStale.connect(
+                global_overview_controller.reloadActionCenter
+            )
+            overview_invalidation.actionsStale.connect(
+                global_overview_controller.reloadAttention
+            )
             shell_context.scopeChanged.connect(scope_overview_invalidation)
             app.aboutToQuit.connect(overview_invalidation.dispose)
             scope_overview_invalidation()
@@ -321,7 +338,9 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         # Not QML-exposed (the drawer only ever reads shellModel.navigationItems)
         # -- kept alive here purely so its scopeChanged connection survives for
         # the life of the app, same as runtimeSessionController below.
-        app.setProperty("navigationAccessibilityCoordinator", navigation_accessibility_coordinator)
+        app.setProperty(
+            "navigationAccessibilityCoordinator", navigation_accessibility_coordinator
+        )
     logger.debug("Shell navigation accessibility coordinator created.")
 
     platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(

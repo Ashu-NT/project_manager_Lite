@@ -5,8 +5,16 @@ from datetime import datetime, timezone
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import aliased
 
-from src.core.platform.infrastructure.persistence.orm.security.auth.auth import PermissionORM, RoleBindingORM, RoleORM, RolePermissionORM, UserORM
-from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+    PermissionORM,
+    RoleBindingORM,
+    RoleORM,
+    RolePermissionORM,
+    UserORM,
+)
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
+    UserTenantORM,
+)
 
 
 def scoped_permission(*, user_id, tenant_id, organization_id, project_id=None, permissions):

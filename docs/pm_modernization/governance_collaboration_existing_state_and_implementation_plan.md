@@ -3,7 +3,10 @@
 ## Status and Scope
 
 Audit date: 2026-09-30. R7A is COMPLETE as a characterization and roadmap phase.
-R7 itself is OPEN. R7B is COMPLETE; implementation and final verification are recorded below.
+R7 itself is OPEN. R7B and R7C are COMPLETE; implementation and verification are recorded below.
+The approved R7C brief supersedes the original phase numbering: R7C is Action
+Center bounded reads/eligibility consistency. The original broader Approval
+lifecycle proposal is deferred, not implicitly certified by this closure.
 The R7A findings below are historical characterization, not current acceptance behavior.
 R5 and R6 remain CLOSED; their historical evidence is unchanged. R8 has not started.
 Only this document and three characterization test files were added in R7A.
@@ -394,7 +397,7 @@ security/correctness expectations, not preserved as permanent acceptance behavio
 - Exit: scoped recipient matrix, comment RLS, privacy, concurrency, migration and quality gates green. This is not certification of unrelated excluded child tables.
 - Dependencies: R7A only. No production implementation authorized by R7A itself.
 
-### R7C - Approval Eligibility, Lifecycle and Decision Hardening
+### Deferred Approval Lifecycle Proposal (Original R7C Roadmap)
 
 - Problem/evidence: GOV-04/08, AP1-4; generic decision safety exists but request identity/replay and read actionability diverge.
 - Authority: Platform mechanics, module eligibility/effect participants; preserve distinct baseline/Time/Finance states.
@@ -407,7 +410,7 @@ security/correctness expectations, not preserved as permanent acceptance behavio
 - Exit: all eleven registrations characterized; same-transaction atomicity and duplicate/stale decision matrix pass; no finance recalculation authority added.
 - Dependencies: R7B.
 
-### R7D - Bounded Action Center and Authorized Deep Links
+### R7C - Bounded Action Center and Eligibility Consistency (Approved Scope)
 
 - Problem/evidence: GOV-05, AC2/AC3 and four blocked employee-fixture tests.
 - Authority: neutral aggregator, business-specific Reader contracts; no persistent Action Center workflow table.
@@ -418,7 +421,7 @@ security/correctness expectations, not preserved as permanent acceptance behavio
 - Concurrency: item disappears or permission revoked between preview and open; scope switch/late result cannot cross projects.
 - UI: existing Global Overview links carry authorized target identity; keep noninteractive summary honest unless full destination is implemented deliberately.
 - Exit: count and ordering equivalence, bounded service/SQL work, four existing Action Center tests green, context-switch/deep-link tests pass.
-- Dependencies: R7B/C.
+- Dependencies: R7B. Implemented evidence and the exact navigation scope follow below.
 
 ### R7E - Task Collaboration, Mentions and Evidence Lifecycle
 
@@ -721,3 +724,144 @@ and regression evidence. R7 remains OPEN; R7C has not started. R6 remains CLOSED
 R8, Action Center optimization and durable notification delivery were not started.
 No future operational module was implemented. Concurrent team work was preserved;
 the implementation agent made no commit.
+
+## R7C Implementation and Closure - 2026-10-01
+
+This section supersedes the original R7A sequencing and the historical R7B
+statement that Action Center work had not started. R7C is the approved bounded
+Action Center/eligibility phase, not the entire deferred Approval product redesign.
+
+### Authority and Contributor Inventory
+
+Action Center projects current actionable work. It is not persisted workflow,
+Activity, Audit, Notifications, or Timesheet Review Queue. Two module-owned
+contributors implement the neutral `ActionCenterContributor` contract:
+
+| Owner | Action | Eligibility/source authority |
+| --- | --- | --- |
+| PM | Assigned open task | Active linked resource, non-declined assignment, open task state, scoped project/task permission |
+| PM | Submitted baseline review | Submitted baseline, scoped baseline approval and project read authority |
+| PM | Own open/rejected timesheet | Canonical Mine resource resolution, own-entry read/submit authority, rejected correction permission; no reviewer queue aggregation |
+| Platform | Pending approval | Pending request, active human/membership, nonexpired/nonrevoked target-covered grant, valid project parent, requester excluded |
+
+Platform recipient selection, Action Center approval reads, and decision-time
+eligibility reuse the same SQL reviewer predicate. Approve/reject recheck this
+predicate inside the fresh operation UoW after locking the request, before the
+participant effect. Cached principal permissions alone cannot authorize a revoked
+reviewer. Existing self-decision, terminal-state, participant and audit rollback
+rules remain intact. The deferred broader Approval workspace/read-product work is
+not replaced or certified here.
+
+Canonical identity is `(module, kind, authoritative object ID)`. Open timesheet
+identity is resource plus period start. EXISTS predicates prevent duplicate grants
+and assignments from multiplying items/counts. Duplicate ownership across
+contributors fails explicitly instead of silently inflating totals. UI activation
+also matches kind and ID rather than ID alone.
+
+### Bounded Read and Pagination Architecture
+
+Desktop API -> GlobalOverviewService -> ActionCenterService -> contributor
+contract -> module SQL Reader -> immutable facts. The aggregator has no module
+ORM imports. Only top-level composition assembles concrete contributors and
+cross-module parent-scope SQL. Generic ordering/seek SQL lives under
+`src/core/global_overview/infrastructure/persistence/reads`, as requested; it
+contains no module table knowledge.
+
+The requested page is capped at 100. Contributors supply at most page size plus
+one candidates, with exact eligible SQL counts independent of the page. PM merges
+four bounded source windows; aggregation never loads the full candidate set.
+Counts use the same business/scope predicates as rows. Global keyset pagination
+uses actual due date ascending, then undated timestamp descending, then stable
+module/kind/ID ties. Microseconds, NULL timestamps, minimum timestamps and date
+boundaries have SQL-versus-canonical-order regression coverage. No synthetic due
+dates are introduced.
+
+Cursors include user/tenant/org context and reject cross-context reuse. Paging is
+a live query, not a frozen historical snapshot: completed actions disappear,
+counts reflect current state, and explicit refresh restarts page one. The
+controller owns Previous/Next cursor history. Failures remain errors, not empty
+or zero-count successes. Request generations discard older reentrant/scope-switched
+results, including errors and stale next-page cursors.
+
+Timesheet open-month discovery is SQL GROUP BY with a correlated existing-period
+exclusion. It no longer loads every entry date or queries each month separately.
+The Action Center reuses this canonical month statement rather than recalculating
+period eligibility. Baseline reads no longer enumerate projects; task reads use
+assignment EXISTS rather than loading resource task collections.
+
+### Optional Modules, Navigation and Invalidation
+
+Composition accepts an absent PM service bundle and registers only Platform in
+that case. An installed PM contributor rechecks current module accessibility
+before reading. Accounting, Procurement, Inventory and Payroll are not required
+contributors or operational dependencies.
+
+Navigation uses `platform.workspace`/`control_approvals` and the canonical
+`project_management.workspace` PM-local destinations. Tasks use the existing
+task entity deep link. Baseline and time actions enter their owning workflow;
+they do not silently change the pinned project or impersonate a resource.
+There is no new direct baseline/period detail-route implementation in this phase.
+Unknown retired workspace routes are not dispatched. Owning commands always
+revalidate authority/state; a previously rendered row is not authorization.
+
+A scoped adapter subscribes to committed contributor, identity, membership,
+grant and entitlement invalidations. It refreshes Action Center and its attention
+counts, not all Overview/Finance surfaces. Accounting transport hints do not
+match. Scope replacement disposes the old subscriptions. Separate committed hints
+are not discarded through a correlation-ID cache. Events trigger requery and are
+never stored as Action Center truth. Durable Notifications remain deferred.
+
+### Security, Performance and Cleanup Evidence
+
+PostgreSQL tests use the existing dedicated integration environment and real
+runtime tenant/org context. Runtime-role policy checks remain in its shared
+fixture; no owner/superuser shortcut is used for tested reads or decisions.
+Hostile users cover foreign tenant/org/project grants, disabled identity,
+suspended membership, revoked/expired grants and missing authority. Independent
+raw SQL verifies RLS hides foreign tenant/org requests. Corrupt/foreign project
+parents fail closed through production composition's parent predicate.
+
+Two concurrent reviewers use the real locking repository/eligibility predicate;
+one pending outcome commits and the other loses eligibility. Application tests
+prove revoked-after-read denial, completed-action removal and stale-command
+rejection. Existing Approval UoW tests retain participant/audit/commit rollback
+coverage.
+
+At 10, 100 and 1,000 submitted baselines plus one Platform approval, a fixed
+10-item page performs six SQL statements, and the next page performs six more.
+Materialized candidates stay bounded and adjacent pages do not overlap. These
+query-count figures specifically describe that fixture, not every resource/time
+configuration. No speculative index or universal latency claim is made.
+
+Removed/replaced: unbounded task/project-baseline contributor implementations,
+full-date/per-month open-period discovery, unsafe R7A fan-out characterization,
+obsolete employee `user_id` fixture setup, and undefined ActivityRowViewModel
+annotation/export. Activity remains the shared ActivityItemViewModel contract.
+Approval-related fixtures now use persisted appropriately scoped reviewers;
+Finance regression fixtures preserve separation of duties rather than synthesizing
+administrator identities. Distinct module summaries/activity reads are not
+misclassified as duplicate Action Center authority.
+
+### Verification and Exit
+
+| Gate | Result |
+| --- | --- |
+| Action Center/API/controller/presenter/composition, Approval and Timesheet/Review Queue focused matrix | 164 passed |
+| Affected cost/Finance participant, read-model and Desktop command fixtures | 47 passed |
+| PostgreSQL R7C plus R7B security regression, including reviewer race | 49 passed |
+| Architecture guards | 168 passed |
+| Touched Overview QML lint | Passed, empty diagnostics |
+| Scoped Ruff F/I | Passed |
+| Python compilation | Passed |
+| `git diff --check` | Passed |
+| Repository-wide Ruff F/I | 80 findings; not repository-wide clean |
+
+The repository-wide findings outside this cutover remain classified as existing
+or concurrent work, not hidden by the scoped result. No schema migration was
+introduced by R7C. No full PM-suite result is claimed for this targeted phase.
+
+**R7C COMPLETE.** R7 remains OPEN. R7D requires its own approved next-phase brief;
+durable notification delivery and the remaining Approval/collaboration lifecycle
+roadmap are not automatically started. R5/R6 remain CLOSED. R8 and future
+operational modules were not implemented. Unrelated team work is preserved.
+The implementation agent made no commit.

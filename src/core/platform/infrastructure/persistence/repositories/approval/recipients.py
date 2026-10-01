@@ -2,10 +2,12 @@
 
 from sqlalchemy import select
 
-from src.core.platform.infrastructure.persistence.common.approval_eligibility import approval_reviewer_eligibility
-
-from src.core.platform.infrastructure.persistence.common.scoped_permission import scoped_permission
-
+from src.core.platform.infrastructure.persistence.common.approval_eligibility import (
+    approval_reviewer_eligibility,
+)
+from src.core.platform.infrastructure.persistence.common.scoped_permission import (
+    scoped_permission,
+)
 from src.core.platform.infrastructure.persistence.orm.approval.approval import (
     ApprovalRequestORM,
 )

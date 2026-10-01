@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+from src.core.global_overview.application.action_center_service import (
+    ActionCenterService,
+)
 from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
     ActionCenterContribution,
     ActionCenterItemDto,
     ActionCenterSummaryDto,
-)
-from src.core.global_overview.application.action_center_service import (
-    ActionCenterService,
 )
 
 _TODAY = date(2026, 9, 10)
@@ -23,7 +23,9 @@ class _FakeContributor:
 
     def collect(self, context: ActionCenterContext, preview_limit: int, *, after=None) -> ActionCenterContribution:
         self.calls.append(preview_limit)
-        from src.core.global_overview.application.ordering import sort_action_center_items
+        from src.core.global_overview.application.ordering import (
+            sort_action_center_items,
+        )
         ordered = sort_action_center_items(self._contribution.items, today=_TODAY)
         if after:
             index = next(i for i, item in enumerate(ordered) if item.id == after.id)

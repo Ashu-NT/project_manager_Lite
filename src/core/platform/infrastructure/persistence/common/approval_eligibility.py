@@ -2,8 +2,12 @@
 
 from sqlalchemy import and_, or_
 
-from src.core.platform.infrastructure.persistence.common.scoped_permission import scoped_permission
-from src.core.platform.infrastructure.persistence.orm.approval.approval import ApprovalRequestORM
+from src.core.platform.infrastructure.persistence.common.scoped_permission import (
+    scoped_permission,
+)
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
 
 
 def approval_reviewer_eligibility(user_id):

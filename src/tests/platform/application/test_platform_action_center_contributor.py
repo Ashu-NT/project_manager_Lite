@@ -16,7 +16,10 @@ from src.core.platform.infrastructure.persistence.read.global_overview.action_ce
 
 def _contributor(services) -> PlatformActionCenterContributor:
     return PlatformActionCenterContributor(
-        reader=SqlAlchemyPlatformActionCenterReader(session=services["session"], target_scope_predicate=ApprovalRequestORM.project_id.is_(None)),
+        reader=SqlAlchemyPlatformActionCenterReader(
+            session=services["session"],
+            target_scope_predicate=ApprovalRequestORM.project_id.is_(None),
+        ),
     )
 
 
@@ -31,7 +34,9 @@ def _context(services) -> ActionCenterContext:
 
 def _become_decider(services) -> None:
     auth = services["auth_service"]
-    reviewer = auth.register_user("action-reviewer", "StrongPass123", role_names=["approver"])
+    reviewer = auth.register_user(
+        "action-reviewer", "StrongPass123", role_names=["approver"]
+    )
     services["user_session"].set_principal(auth.build_principal(reviewer))
 
 
@@ -50,6 +55,56 @@ def _create_pending_approval(services, *, entity_id: str = "org-request-1"):
         entity_id=entity_id,
         project_id=None,
     )
+
+
+def test_revoked_reviewer_cannot_act_on_a_previously_visible_action(services):
+    from datetime import datetime, timezone
+
+    import pytest
+    from sqlalchemy import update
+
+    from src.core.platform.common.exceptions import BusinessRuleError
+    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
+        RoleBindingORM,
+    )
+
+    request = _create_pending_approval(services)
+    _become_decider(services)
+    context = _context(services)
+    assert _contributor(services).collect(context, 10).summary.all_action_items == 1
+    session = services["session"]
+    session.execute(
+        update(RoleBindingORM)
+        .where(RoleBindingORM.principal_id == context.user_id)
+        .values(revoked_at=datetime.now(timezone.utc))
+    )
+    session.commit()
+    with pytest.raises(BusinessRuleError) as error:
+        services["approval_service"].reject(request.id)
+    assert error.value.code in {"APPROVAL_REVIEWER_NOT_ELIGIBLE", "PERMISSION_DENIED"}
+    assert _contributor(services).collect(context, 10).summary.all_action_items == 0
+    assert session.get(ApprovalRequestORM, request.id).status == "PENDING"
+
+
+def test_completed_action_disappears_and_repeated_command_cannot_apply(services):
+    import pytest
+
+    from src.core.platform.common.exceptions import BusinessRuleError
+
+    request = _create_pending_approval(services)
+    _become_decider(services)
+    assert (
+        _contributor(services).collect(_context(services), 10).summary.all_action_items
+        == 1
+    )
+    services["approval_service"].reject(request.id)
+    assert (
+        _contributor(services).collect(_context(services), 10).summary.all_action_items
+        == 0
+    )
+    with pytest.raises(BusinessRuleError) as error:
+        services["approval_service"].reject(request.id)
+    assert error.value.code == "APPROVAL_ALREADY_DECIDED"
 
 
 def test_no_approval_decide_permission_contributes_no_items_or_count(services):

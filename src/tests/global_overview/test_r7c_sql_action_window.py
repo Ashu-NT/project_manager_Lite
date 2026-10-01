@@ -1,10 +1,25 @@
 from datetime import date, datetime
 
-from sqlalchemy import Column, Date, DateTime, MetaData, String, Table, create_engine, select
+from sqlalchemy import (
+    Column,
+    Date,
+    DateTime,
+    MetaData,
+    String,
+    Table,
+    create_engine,
+    select,
+)
 
 from src.core.global_overview.application.ordering import sort_action_center_items
-from src.core.global_overview.contract.action_center import ActionCenterContext, ActionCenterCursor, ActionCenterItemDto
-from src.core.global_overview.infrastructure.persistence.reads.action_center import action_window
+from src.core.global_overview.contract.action_center import (
+    ActionCenterContext,
+    ActionCenterCursor,
+    ActionCenterItemDto,
+)
+from src.core.global_overview.infrastructure.persistence.reads.action_center import (
+    action_window,
+)
 
 
 def test_sql_seek_matches_canonical_order_for_dates_nulls_minimum_and_microseconds():
