@@ -98,7 +98,12 @@ class _FakeCollaborationService:
                 not search_text
                 or search_text.casefold()
                 in " ".join(
-                    (row.task_name, row.project_name, row.author_username, row.body_preview)
+                    (
+                        row.task_name,
+                        row.project_name,
+                        row.author_username,
+                        row.body_preview,
+                    )
                 ).casefold()
             )
         ]
@@ -123,6 +128,8 @@ class _FakeCollaborationService:
                 project_name="Plant Upgrade",
                 author_username="morgan",
                 body_preview="Draft punchlist is now linked for review.",
+                is_deleted=False,
+                deleted_at=None,
                 mentions=[],
                 created_at=datetime(2026, 5, 1, 8, 15),
                 unread=False,
@@ -169,14 +176,22 @@ class _FakeCollaborationService:
             return []
         return [
             SimpleNamespace(handle="planner", label="@planner  Alex Taylor  Planner"),
-            SimpleNamespace(handle="supervisor", label="@supervisor  Jordan Blake  Supervisor"),
+            SimpleNamespace(
+                handle="supervisor", label="@supervisor  Jordan Blake  Supervisor"
+            ),
         ]
 
-    def list_available_documents(self, *, active_only: bool = True) -> list[SimpleNamespace]:
+    def list_available_documents(
+        self, *, active_only: bool = True
+    ) -> list[SimpleNamespace]:
         assert active_only is True
         return [
-            SimpleNamespace(id="doc-1", document_code="PM-LINK-001", title="Shared Method Statement"),
-            SimpleNamespace(id="doc-2", document_code="PM-LINK-002", title="Commissioning Checklist"),
+            SimpleNamespace(
+                id="doc-1", document_code="PM-LINK-001", title="Shared Method Statement"
+            ),
+            SimpleNamespace(
+                id="doc-2", document_code="PM-LINK-002", title="Commissioning Checklist"
+            ),
         ]
 
     def list_task_presence(self, task_id: str) -> list[SimpleNamespace]:
@@ -209,9 +224,22 @@ class _FakeCollaborationService:
             can_manage=bool(task_id),
         )
 
-    def post_comment(self, *, task_id, body, attachments=(), linked_document_ids=(), parent_comment_id=None) -> SimpleNamespace:
+    def post_comment(
+        self,
+        *,
+        task_id,
+        body,
+        attachments=(),
+        linked_document_ids=(),
+        parent_comment_id=None,
+    ) -> SimpleNamespace:
         self.posted_comments.append(
-            {"task_id": task_id, "body": body, "attachments": tuple(attachments), "linked_document_ids": tuple(linked_document_ids)}
+            {
+                "task_id": task_id,
+                "body": body,
+                "attachments": tuple(attachments),
+                "linked_document_ids": tuple(linked_document_ids),
+            }
         )
         comment = SimpleNamespace(
             id="comment-posted-1",
@@ -237,7 +265,9 @@ class _FakeCollaborationService:
         return comment
 
 
-def test_project_management_workspace_catalog_exposes_typed_collaboration_controller() -> None:
+def test_project_management_workspace_catalog_exposes_typed_collaboration_controller() -> (
+    None
+):
     collaboration_api = build_project_management_collaboration_desktop_api(
         collaboration_service=_FakeCollaborationService()
     )
@@ -277,7 +307,9 @@ def test_project_management_workspace_catalog_exposes_typed_collaboration_contro
 
 def test_collaboration_presenter_skips_null_approval_rows() -> None:
     class _FakeApprovalApi:
-        def list_requests(self, *, status=None, project_id=None, limit: int = 200) -> DesktopApiResult[tuple[ApprovalRequestDto | None, ...]]:
+        def list_requests(
+            self, *, status=None, project_id=None, limit: int = 200
+        ) -> DesktopApiResult[tuple[ApprovalRequestDto | None, ...]]:
             return DesktopApiResult(
                 ok=True,
                 data=(

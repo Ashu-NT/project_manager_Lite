@@ -25,14 +25,15 @@ none are expected (the app-layer check was already organization-scoped),
 but this is verified against the real data before the schema changes,
 never assumed.
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'b7d2e4a691f3'
-down_revision: str | Sequence[str] | None = 'a3f6b1d9c852'
+revision: str = "b7d2e4a691f3"
+down_revision: str | Sequence[str] | None = "a3f6b1d9c852"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -83,28 +84,54 @@ def upgrade() -> None:
         )
     ).fetchall()
     if duplicates:
-        rows = ", ".join(f"org {row[0]} / code {row[1]} ({row[2]} rows)" for row in duplicates)
+        rows = ", ".join(
+            f"org {row[0]} / code {row[1]} ({row[2]} rows)" for row in duplicates
+        )
         raise RuntimeError(
             "Cannot scope employee_code uniqueness to (organization_id, employee_code): the "
             f"following duplicate pairs already exist -- resolve them manually, then re-run this "
             f"migration: {rows}"
         )
 
+    if connection.dialect.name == "postgresql":
+        for constraint in sa.inspect(connection).get_unique_constraints(_OLD_TABLE):
+            if constraint["column_names"] == ["employee_code"]:
+                op.drop_constraint(constraint["name"], _OLD_TABLE, type_="unique")
+        for index in sa.inspect(connection).get_indexes(_OLD_TABLE):
+            if index["name"] == "idx_employees_code":
+                op.drop_index(index["name"], table_name=_OLD_TABLE)
+        op.create_index(
+            "idx_employees_org_code",
+            _OLD_TABLE,
+            ["organization_id", "employee_code"],
+            unique=True,
+        )
+        return
+
     connection.execute(sa.text(f"CREATE TABLE {_NEW_TABLE} ({_COLUMNS_DDL})"))
     connection.execute(
-        sa.text(f"INSERT INTO {_NEW_TABLE} ({_COPY_COLUMNS}) SELECT {_COPY_COLUMNS} FROM {_OLD_TABLE}")
+        sa.text(
+            f"INSERT INTO {_NEW_TABLE} ({_COPY_COLUMNS}) SELECT {_COPY_COLUMNS} FROM {_OLD_TABLE}"
+        )
     )
     connection.execute(sa.text(f"DROP TABLE {_OLD_TABLE}"))
     connection.execute(sa.text(f"ALTER TABLE {_NEW_TABLE} RENAME TO {_OLD_TABLE}"))
 
     op.create_index("idx_employees_tenant", _OLD_TABLE, ["tenant_id"], unique=False)
-    op.create_index("idx_employees_organization", _OLD_TABLE, ["organization_id"], unique=False)
-    op.create_index("idx_employees_department", _OLD_TABLE, ["department_id"], unique=False)
+    op.create_index(
+        "idx_employees_organization", _OLD_TABLE, ["organization_id"], unique=False
+    )
+    op.create_index(
+        "idx_employees_department", _OLD_TABLE, ["department_id"], unique=False
+    )
     op.create_index("idx_employees_site", _OLD_TABLE, ["site_id"], unique=False)
     op.create_index("idx_employees_active", _OLD_TABLE, ["is_active"], unique=False)
     op.create_index("idx_employees_user", _OLD_TABLE, ["user_id"], unique=False)
     op.create_index(
-        "idx_employees_org_code", _OLD_TABLE, ["organization_id", "employee_code"], unique=True
+        "idx_employees_org_code",
+        _OLD_TABLE,
+        ["organization_id", "employee_code"],
+        unique=True,
     )
 
 
@@ -112,7 +139,9 @@ def downgrade() -> None:
     connection = op.get_bind()
 
     duplicates = connection.execute(
-        sa.text("SELECT employee_code, COUNT(*) AS c FROM employees GROUP BY employee_code HAVING COUNT(*) > 1")
+        sa.text(
+            "SELECT employee_code, COUNT(*) AS c FROM employees GROUP BY employee_code HAVING COUNT(*) > 1"
+        )
     ).fetchall()
     if duplicates:
         rows = ", ".join(f"{row[0]} ({row[1]} rows)" for row in duplicates)
@@ -122,18 +151,36 @@ def downgrade() -> None:
             f"downgrade: {rows}"
         )
 
+    if connection.dialect.name == "postgresql":
+        op.drop_index("idx_employees_org_code", table_name=_OLD_TABLE)
+        op.create_unique_constraint(
+            "employees_employee_code_key", _OLD_TABLE, ["employee_code"]
+        )
+        op.create_index(
+            "idx_employees_code", _OLD_TABLE, ["employee_code"], unique=True
+        )
+        return
+
     connection.execute(
-        sa.text(f"CREATE TABLE {_NEW_TABLE} ({_COLUMNS_DDL.replace('employee_code VARCHAR(64) NOT NULL,', 'employee_code VARCHAR(64) NOT NULL UNIQUE,')})")
+        sa.text(
+            f"CREATE TABLE {_NEW_TABLE} ({_COLUMNS_DDL.replace('employee_code VARCHAR(64) NOT NULL,', 'employee_code VARCHAR(64) NOT NULL UNIQUE,')})"
+        )
     )
     connection.execute(
-        sa.text(f"INSERT INTO {_NEW_TABLE} ({_COPY_COLUMNS}) SELECT {_COPY_COLUMNS} FROM {_OLD_TABLE}")
+        sa.text(
+            f"INSERT INTO {_NEW_TABLE} ({_COPY_COLUMNS}) SELECT {_COPY_COLUMNS} FROM {_OLD_TABLE}"
+        )
     )
     connection.execute(sa.text(f"DROP TABLE {_OLD_TABLE}"))
     connection.execute(sa.text(f"ALTER TABLE {_NEW_TABLE} RENAME TO {_OLD_TABLE}"))
 
     op.create_index("idx_employees_tenant", _OLD_TABLE, ["tenant_id"], unique=False)
-    op.create_index("idx_employees_organization", _OLD_TABLE, ["organization_id"], unique=False)
-    op.create_index("idx_employees_department", _OLD_TABLE, ["department_id"], unique=False)
+    op.create_index(
+        "idx_employees_organization", _OLD_TABLE, ["organization_id"], unique=False
+    )
+    op.create_index(
+        "idx_employees_department", _OLD_TABLE, ["department_id"], unique=False
+    )
     op.create_index("idx_employees_site", _OLD_TABLE, ["site_id"], unique=False)
     op.create_index("idx_employees_active", _OLD_TABLE, ["is_active"], unique=False)
     op.create_index("idx_employees_user", _OLD_TABLE, ["user_id"], unique=False)

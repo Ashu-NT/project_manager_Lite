@@ -128,9 +128,13 @@ def test_notify_mentioned_users_dispatches_to_each_mentioned_user_excluding_auth
     recipients = {call["recipient_user_id"] for call in notification_service.dispatched}
     assert recipients == {"user-bob", "user-carol"}
     assert all(
-        call["category"] == "pm.comment.mentioned.v1" for call in notification_service.dispatched
+        call["category"] == "pm.comment.mentioned.v1"
+        for call in notification_service.dispatched
     )
-    assert all("Cable Pull" in call["body"] for call in notification_service.dispatched)
+    for call in notification_service.dispatched:
+        assert "Cable Pull" not in call["body"]
+        assert comment.body not in call["body"]
+        assert call["metadata"] == {}
 
 
 def test_notify_mentioned_users_noop_when_no_mentions():

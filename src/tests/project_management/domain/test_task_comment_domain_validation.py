@@ -86,7 +86,9 @@ class _FakeCommentRepo:
             if comment.task_id == task_id
         ]
 
-    def list_recent_for_tasks(self, task_ids: list[str], limit: int = 200) -> list[TaskComment]:
+    def list_recent_for_tasks(
+        self, task_ids: list[str], limit: int = 200
+    ) -> list[TaskComment]:
         selected = [
             comment
             for comment in self._comments.values()
@@ -142,7 +144,9 @@ class _FakeRoleRepo:
 
 
 class _FakeRoleBinding:
-    def __init__(self, principal_id: str, actual_scope_type: str, actual_scope_id: str) -> None:
+    def __init__(
+        self, principal_id: str, actual_scope_type: str, actual_scope_id: str
+    ) -> None:
         self.principal_id = principal_id
         self.actual_scope_type = actual_scope_type
         self.actual_scope_id = actual_scope_id
@@ -152,7 +156,9 @@ class _FakeRoleBindingRepo:
     def __init__(self, bindings_by_role: dict[str, list[_FakeRoleBinding]]) -> None:
         self._bindings_by_role = bindings_by_role
 
-    def list_active_for_role(self, role_id: str, *, tenant_id: str) -> list[_FakeRoleBinding]:
+    def list_active_for_role(
+        self, role_id: str, *, tenant_id: str
+    ) -> list[_FakeRoleBinding]:
         return list(self._bindings_by_role.get(role_id, []))
 
 
@@ -212,16 +218,11 @@ def _make_service(
         "src.core.modules.project_management.application.collaboration.commands.collaboration_comments.require_project_permission",
         lambda *args, **kwargs: None,
     )
-    monkeypatch.setattr(
-        "src.core.modules.project_management.application.collaboration.commands.collaboration_comments.store_task_comment_attachments",
-        lambda **kwargs: [
-            str(item).strip()
-            for item in (kwargs.get("attachments") or [])
-            if str(item).strip()
-        ],
-    )
     comment_repo = _FakeCommentRepo()
     return CollaborationService(
+        attachment_store=lambda **kwargs: [
+            str(item).strip() for item in kwargs["attachments"] if str(item).strip()
+        ],
         session=_FakeSession(),
         comment_repo=comment_repo,
         presence_repo=object(),
@@ -236,7 +237,9 @@ def _make_service(
             display_name=display_name,
         ),
         tenant_context_service=_FakeTenantContextService(),
-        role_repo=_FakeRoleRepo({"project_viewer": _FakeRole("role-viewer", "project_viewer")}),
+        role_repo=_FakeRoleRepo(
+            {"project_viewer": _FakeRole("role-viewer", "project_viewer")}
+        ),
         role_binding_repo=_FakeRoleBindingRepo(
             {"role-viewer": [_FakeRoleBinding("user-2", "project", "proj-1")]}
         ),
@@ -299,7 +302,9 @@ def test_task_comment_dto_rejects_invalid_local_fields():
     assert exc_timestamp.value.code == "COLLABORATION_TIMESTAMP_INVALID"
 
 
-def test_collaboration_service_post_comment_uses_domain_validation(monkeypatch: pytest.MonkeyPatch):
+def test_collaboration_service_post_comment_uses_domain_validation(
+    monkeypatch: pytest.MonkeyPatch,
+):
     service = _make_service(monkeypatch)
 
     comment = service.post_comment(
@@ -423,7 +428,12 @@ def test_edit_comment_rejects_non_author(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
     comment = service.post_comment(task_id="task-1", body="Original text")
 
-    other_service = _make_service(monkeypatch, user_id="user-2", username="planner", display_name="Project Planner")
+    other_service = _make_service(
+        monkeypatch,
+        user_id="user-2",
+        username="planner",
+        display_name="Project Planner",
+    )
     other_service._comment_repo = service._comment_repo
 
     from src.core.platform.common.exceptions import OperationNotPermittedError
@@ -454,7 +464,9 @@ def test_delete_comment_is_soft_and_idempotent(monkeypatch: pytest.MonkeyPatch):
     )
     assert deleted.is_deleted is True
     assert deleted.deleted_at is not None
-    assert deleted.body == "Will be removed"  # original text preserved for audit, masked only at serialization
+    assert (
+        deleted.body == "Will be removed"
+    )  # original text preserved for audit, masked only at serialization
     assert deleted.deleted_by_user_id == "user-1"
     assert deleted.deletion_reason == "Contains superseded instructions"
 
@@ -466,14 +478,18 @@ def test_post_comment_with_parent_creates_reply_thread(monkeypatch: pytest.Monke
     service = _make_service(monkeypatch)
     root = service.post_comment(task_id="task-1", body="Root comment")
 
-    reply = service.post_comment(task_id="task-1", body="Reply comment", parent_comment_id=root.id)
+    reply = service.post_comment(
+        task_id="task-1", body="Reply comment", parent_comment_id=root.id
+    )
 
     assert reply.parent_comment_id == root.id
     assert reply.is_reply is True
     assert root.is_reply is False
 
 
-def test_post_comment_rejects_parent_from_different_task(monkeypatch: pytest.MonkeyPatch):
+def test_post_comment_rejects_parent_from_different_task(
+    monkeypatch: pytest.MonkeyPatch,
+):
     service = _make_service(
         monkeypatch,
     )
@@ -486,7 +502,9 @@ def test_post_comment_rejects_parent_from_different_task(monkeypatch: pytest.Mon
     root = service.post_comment(task_id="task-1", body="Root on task 1")
 
     with pytest.raises(NotFoundError):
-        service.post_comment(task_id="task-2", body="Reply from wrong task", parent_comment_id=root.id)
+        service.post_comment(
+            task_id="task-2", body="Reply from wrong task", parent_comment_id=root.id
+        )
 
 
 def test_react_and_remove_reaction_round_trip(monkeypatch: pytest.MonkeyPatch):

@@ -28,9 +28,6 @@ from src.core.platform.application.approval.event_handlers.view_invalidation imp
 from src.core.platform.application.data_operations.runtime_tracking import (
     RuntimeExecutionService,
 )
-from src.core.platform.application.notifications.notification_service import (
-    NotificationService,
-)
 from src.core.platform.application.finance import FinancialPeriodService
 from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.application.history.audit import EnterpriseAuditService
@@ -73,6 +70,9 @@ from src.core.platform.application.master_data.site.event_handlers.view_invalida
     build_site_list_view_invalidation_handler,
 )
 from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.notifications.notification_service import (
+    NotificationService,
+)
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
 )
@@ -294,7 +294,6 @@ from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_
     SqlAlchemyTenantMembershipUnitOfWorkFactory,
 )
 from src.core.shared.events.domain_event_publisher import (
-    PostCommitEventPublisher,
     TransactionalEventDispatcher,
 )
 from src.core.shared.events.view_invalidation import ViewInvalidationChannel

@@ -3,7 +3,8 @@
 ## Status and Scope
 
 Audit date: 2026-09-30. R7A is COMPLETE as a characterization and roadmap phase.
-R7 itself is OPEN. R7B has NOT started. This is not a security certification.
+R7 itself is OPEN. R7B implementation and final verification are recorded below.
+The R7A findings below are historical characterization, not current acceptance behavior.
 R5 and R6 remain CLOSED; their historical evidence is unchanged. R8 has not started.
 Only this document and three characterization test files were added in R7A.
 No production implementation, schema change, operational module, or commit was made
@@ -86,7 +87,7 @@ CO1 soft-deletes without erasing body. CO2 neither excludes deleted rows nor exp
 a tombstone field in CollaborationCommentFact, and maps the retained body directly.
 Live characterization proves the deleted body's continued presence in read output.
 Deletion history may be retained for audit, but ordinary inbox/mention/search/count
-surfaces must not present it as a live comment. R7E must make tombstone/redaction
+surfaces must not present it as a live comment. The approved R7B scope brings tombstone/redaction
 semantics consistent across Task Detail and Collaboration, including replies and
 mentions. This does not authorize destructive audit deletion.
 
@@ -382,15 +383,15 @@ security/correctness expectations, not preserved as permanent acceptance behavio
 
 ### R7B - Governance Scope and Isolation
 
-- Problem/evidence: GOV-01/02/04; raw child access and foreign recipient selection are proven.
-- Authority: effective Platform authorization plus module target-scope contract; PostgreSQL enforces row isolation independently.
-- Scope: target-scoped recipients; pending/read target visibility; child parent policies, missing scoped relationships; bootstrap vs business notification classification; explicit-org history authorization contract.
+- Approved scope supersedes the broader R7A proposal: GOV-01, comment protection in GOV-02, and GOV-03 only.
+- Authority: persisted Approval request scope and effective recipient grants; task/project ancestry and active collaboration grants for comment RLS.
+- Scope: scoped Approval notification recipients, comment parent integrity/RLS, and deleted-content privacy across reads and downstream presentation.
 - Non-goals: no workflow engine, new delegation, notification delivery feature or Finance redesign.
-- Migration/deletion: update RLS manifest/migration with raw tests; remove organization-or-project fallback and PM ORM coupling only after equivalent target contract is wired; update GU1 exception deliberately with ADR citation.
-- PostgreSQL: runtime nonowner hostile tenant/org/project/parent SELECT/INSERT/UPDATE/DELETE tests, no context, foreign reply/document link; separately test service/ORM authorization.
+- Migration/deletion: replace unscoped recipient helper and unsafe characterizations; install comment policy and same-task reply FK. Generic approval target visibility/fallbacks and the existing allowlisted Platform repository/PM ORM dependency remain R7C contract work, not closed by B.
+- PostgreSQL: runtime nonowner hostile tenant/org/project/parent SELECT/INSERT/UPDATE/DELETE tests, no context and foreign replies; independently test service/ORM authorization. Broader document-link hardening remains R7E.
 - Concurrency: scope change/revoked membership between read and command; no cached authorization grants.
 - UI: truthful unavailable/denied actions, no foreign count/payload/recipient leaks.
-- Exit: scoped recipient and target matrix green; chosen notification bootstrap contract documented; excluded sensitive child data either protected or explicitly justified and tested. No cross-scope repair via UI-only checks.
+- Exit: scoped recipient matrix, comment RLS, privacy, concurrency, migration and quality gates green. This is not certification of unrelated excluded child tables.
 - Dependencies: R7A only. No production implementation authorized by R7A itself.
 
 ### R7C - Approval Eligibility, Lifecycle and Decision Hardening
@@ -478,10 +479,10 @@ permission to delete different business semantics. Track each removal in its pha
 
 | Candidate | Classification / disposition |
 | --- | --- |
-| Platform Approval's concrete ProjectORM dependency | Active architectural debt, not dead code; R7B contract cutover then remove allowlist exception |
+| Platform Approval's concrete ProjectORM dependency | Active architectural debt, not dead code; R7C target contract cutover then remove allowlist exception; outside the approved narrow R7B scope |
 | Approval hasattr list/count scope fallbacks | Compatibility candidates; prove repository registration parity and remove in R7C |
 | Full-list PM Action Center paths | Active but superseded by R7D bounded Reader; delete only after equivalent behavior/tests |
-| Comment workspace raw deleted-body projection | Conflicting active projection; repair in R7E, retain audit history |
+| Comment workspace raw deleted-body projection | Replaced in R7B by typed redacted facts; retained persistence is not ordinary collaboration content |
 | Empty collaboration package placeholders | D/E candidates, inspect actual imports; no speculative future hierarchy |
 | Direct business notification dispatch helper usages | Active but nondurable; R7F caller migration then delete superseded paths, not all notification channels by name |
 | Global Overview ActivityRowViewModel undefined annotation/export | Existing two Ruff findings relevant to R7D; future annotations explain why some runtime tests still pass |
@@ -573,4 +574,97 @@ minimal extension of existing Approval plus canonical Readers and existing durab
 events, not a generic workflow engine.
 
 R7A COMPLETE. R7 GOVERNANCE / COLLABORATION ROADMAP ESTABLISHED.
-R7B requires a subsequent instruction. R6 remains closed. R8 is not started.
+R7B was subsequently authorized with the narrow security/privacy scope above.
+R6 remains closed. R8 is not started.
+
+## R7B Implementation and Closure Evidence
+
+### Approval Recipient Authority
+
+The retired `_list_users_with_permission` combined broad user/role discovery with
+insufficient target scope. One repository projection now resolves recipient IDs
+from the persisted request, ambient tenant/org, a verified project ancestry, active
+human identity, active/non-revoked tenant membership, and active/non-expired scoped
+role bindings. Reviewer grants require `approval.decide`; requester outcome notices
+require `approval.request` or `approval.decide` and the persisted requester ID.
+Tenant-wide grants intentionally cover their tenant; organization/project grants
+must cover the request's exact organization/project. Platform-only/global grants
+are not business-recipient membership. No new reviewer assignment or approval
+decision policy was invented. Pending reviewer notices exclude the requester,
+matching existing separation of duties.
+
+SQL DISTINCT plus stable user-ID seek pagination produces unique recipients in
+pages capped at 100. The service uses only this repository contract; obsolete
+permission/role repository constructor dependencies and the broad helper are gone.
+The live query-count test proves one SQL statement per page and rechecks revoked
+membership on a subsequent resolution. This is dispatch-time eligibility, not a
+durable notification/revocation delivery guarantee; that remains R7F.
+
+### Comment Scope and Privacy
+
+`task_comments` moves from intentional exclusion to the repository's existing
+**parent-scoped RLS** taxonomy: task -> project -> tenant/organization. This is
+tenant-and-organization ownership inherited from the canonical parent rather than
+duplicated mutable child scope columns. Policy additionally requires an active
+user/member and a non-revoked/non-expired effective collaboration grant covering
+the parent project. PostgreSQL ENABLE/FORCE RLS uses the real transaction-local
+`app.tenant_id`, `app.organization_id`, and `app.user_id` context. No context denies
+access. RLS protects row scope; application command permissions/author checks
+remain authoritative for edit/delete/reaction policy.
+
+The composite reply FK `(parent_comment_id, task_id) -> (id, task_id)` prevents
+cross-task replies even within the same project. Soft deletion is retained; no
+destructive content purge or restore/admin authority was introduced. Migration
+`a7b19c32d405` installs the constraint/policy and redacts old mention notification
+body previews and navigation metadata. Downgrade restores the old FK/policy shape
+but intentionally cannot reconstruct redacted notification content.
+
+Workspace facts carry `is_deleted`/`deleted_at`, an empty body and no mentions.
+Deleted rows retain their activity position but do not match body searches,
+mention/unread counts, or author options. Desktop serializers render the tombstone
+label and suppress attachments, linked documents, mentions and reactions. QML
+receives no deleted body to reconstruct. Task document reads skip deleted comments.
+Mention notifications contain generic text and no task/project/comment metadata;
+they do not retain a separate private-content preview. Authorized contextual
+notification deep links remain future R7D/F work.
+
+Audit records preserve actor/scope/entity/action/time, not comment body. Existing
+Activity intents carry IDs only. The current collaboration UoW installs audit but
+not an Activity writer, so R7B does not claim a persisted Activity row per comment
+operation or introduce one. Collaboration recent-activity facts are redacted.
+Historical command persistence retains the body; it is not exposed by ordinary
+Desktop/workspace reads and is not a new audit-content API.
+
+### Transactions, Dependencies and Migration Prerequisites
+
+Fresh operation UoWs retain commit ownership; comment mutation, audit and events
+remain atomic, and user notifications remain after commit. Existing rollback,
+repeated-delete and stale-revision proofs are retained. A live two-session test
+loads an old revision, commits deletion elsewhere, rejects the stale writer, then
+reads only a tombstone. Edit authorization now precedes disclosure of deletion or
+revision status. No repository commits were added.
+
+Attachment storage and clock are injected from composition, removing the touched
+application's concrete infrastructure imports. No new attachment lifecycle or
+delivery pipeline was implemented. The existing Platform repository ProjectORM
+allowlist is unchanged, pending the R7C target-contract work.
+
+Fresh PostgreSQL bootstrap exposed pre-existing employee migrations using a SELECT
+alias in HAVING and rebuilding a referenced employee table. The prerequisite fix
+uses `HAVING COUNT(*)` and native PostgreSQL unique-constraint/index alterations,
+preserving incoming FKs and RLS. SQLite retains its established rebuild path. No
+PostgreSQL installation, production DB reset or alternative test stack was added.
+
+### Boundedness and Remaining Roadmap
+
+Recipient filtering is SQL-side, one statement per capped page. Existing
+collaboration query measurements stay at two comment statements (count/page),
+four total query-path statements at both five and twelve projects, without new
+per-comment queries. Task detail/thread list boundedness and mention-candidate
+optimization remain explicitly R7E, not claimed solved by this privacy patch.
+
+R7C retains Approval eligibility/lifecycle/target contracts; R7D bounded Action
+Center/identity/deep links; R7E remaining collaboration/evidence lifecycle; R7F
+durable in-app delivery; R7G/H integration and closure. None was started here.
+Notifications, presence and document links retain their documented RLS exclusions;
+comment certification must not be misreported as their certification.

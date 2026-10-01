@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import ast
 from pathlib import Path
@@ -42,7 +42,9 @@ def test_legacy_infra_platform_runtime_package_is_removed():
             if legacy_from in text or legacy_import in text:
                 violations.append(str(path.relative_to(ROOT)))
 
-    assert not violations, f"Runtime code still imports legacy infra.platform: {violations}"
+    assert not violations, (
+        f"Runtime code still imports legacy infra.platform: {violations}"
+    )
 
 
 def test_legacy_platform_import_export_packages_are_removed():
@@ -124,69 +126,230 @@ def test_legacy_platform_admin_ui_package_is_removed():
 
 
 def test_composition_imports_focused_persistence_adapters():
-    repo_path = ROOT / "src" / "infra" / "composition" / "persistence" / "repositories.py"
+    repo_path = (
+        ROOT / "src" / "infra" / "composition" / "persistence" / "repositories.py"
+    )
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
 
     assert not (ROOT / "src" / "infra" / "persistence" / "db" / "platform").exists()
     assert "from infra.platform.db.repositories import" not in text
     assert "from infra.platform.db.mappers import" not in text
-    assert "from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import" in text
+    assert (
+        "from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import"
+        in text
+    )
+    assert (
+        "from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import"
+        in text
+    )
+    assert (
+        "from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import"
+        in text
+    )
+    assert (
+        "from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import"
+        in text
+    )
+    assert (
+        "from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import"
+        in text
+    )
+    assert (
+        "from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import"
+        in text
+    )
+    assert (
+        "from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import"
+        in text
+    )
 
 
 def test_project_management_persistence_imports_project_management_orm_models():
-    assert not (ROOT / "core" / "modules" / "project_management" / "interfaces.py").exists()
-    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "project.py").exists()
-    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "task.py").exists()
-    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "resource.py").exists()
-    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "cost.py").exists()
-    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "calendar.py").exists()
-    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "baseline.py").exists()
-    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "register.py").exists()
+    assert not (
+        ROOT / "core" / "modules" / "project_management" / "interfaces.py"
+    ).exists()
+    assert not (
+        ROOT / "core" / "modules" / "project_management" / "domain" / "project.py"
+    ).exists()
+    assert not (
+        ROOT / "core" / "modules" / "project_management" / "domain" / "task.py"
+    ).exists()
+    assert not (
+        ROOT / "core" / "modules" / "project_management" / "domain" / "resource.py"
+    ).exists()
+    assert not (
+        ROOT / "core" / "modules" / "project_management" / "domain" / "cost.py"
+    ).exists()
+    assert not (
+        ROOT / "core" / "modules" / "project_management" / "domain" / "calendar.py"
+    ).exists()
+    assert not (
+        ROOT / "core" / "modules" / "project_management" / "domain" / "baseline.py"
+    ).exists()
+    assert not (
+        ROOT / "core" / "modules" / "project_management" / "domain" / "register.py"
+    ).exists()
     assert not (ROOT / "infra" / "modules" / "project_management" / "db").exists()
-    assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "project_management").exists()
-    assert not (ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "orm" / "models.py").exists()
+    assert not (
+        ROOT / "src" / "infra" / "persistence" / "orm" / "project_management"
+    ).exists()
+    assert not (
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "infrastructure"
+        / "persistence"
+        / "orm"
+        / "models.py"
+    ).exists()
     checked_files = [
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "projects" / "project.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "tasks" / "task.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "resources" / "resource.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "scheduling" / "baseline.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "finance" / "cost_entries" / "cost_entry.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "finance" / "planned_costs" / "planned_cost.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "portfolio" / "portfolio.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "collaboration" / "collaboration.py",
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "infrastructure"
+        / "persistence"
+        / "repositories"
+        / "projects"
+        / "project.py",
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "infrastructure"
+        / "persistence"
+        / "repositories"
+        / "tasks"
+        / "task.py",
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "infrastructure"
+        / "persistence"
+        / "repositories"
+        / "resources"
+        / "resource.py",
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "infrastructure"
+        / "persistence"
+        / "repositories"
+        / "scheduling"
+        / "baseline.py",
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "infrastructure"
+        / "persistence"
+        / "repositories"
+        / "finance"
+        / "cost_entries"
+        / "cost_entry.py",
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "infrastructure"
+        / "persistence"
+        / "repositories"
+        / "finance"
+        / "planned_costs"
+        / "planned_cost.py",
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "infrastructure"
+        / "persistence"
+        / "repositories"
+        / "portfolio"
+        / "portfolio.py",
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "infrastructure"
+        / "persistence"
+        / "repositories"
+        / "collaboration"
+        / "collaboration.py",
     ]
 
     for path in checked_files:
         text = path.read_text(encoding="utf-8", errors="ignore")
-        assert "from src.core.modules.project_management.infrastructure.persistence.orm.models import" not in text
-        assert "from src.core.modules.project_management.infrastructure.persistence.orm." in text
-        assert "from src.core.modules.project_management.infrastructure.persistence.mappers." in text
+        assert (
+            "from src.core.modules.project_management.infrastructure.persistence.orm.models import"
+            not in text
+        )
+        assert (
+            "from src.core.modules.project_management.infrastructure.persistence.orm."
+            in text
+        )
+        assert (
+            "from src.core.modules.project_management.infrastructure.persistence.mappers."
+            in text
+        )
         assert "from src.infra.persistence.orm.platform.models import" not in text
 
 
 def test_orm_package_root_loads_all_model_packages():
     package_path = ROOT / "src" / "infra" / "persistence" / "orm" / "__init__.py"
-    migration_env_path = ROOT / "src" / "infra" / "persistence" / "migrations" / "env.py"
+    migration_env_path = (
+        ROOT / "src" / "infra" / "persistence" / "migrations" / "env.py"
+    )
     package_text = package_path.read_text(encoding="utf-8", errors="ignore")
     migration_env_text = migration_env_path.read_text(encoding="utf-8", errors="ignore")
 
     assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "platform").exists()
     assert "from src.infra.persistence.orm.base import Base" in package_text
     platform_orm_modules = (
-        "tenant.modules.modules", "time_management.time.time", "security.auth.auth", "events.notifications.notification", "history.audit.audit_entry", "approval.approval", "data_operations.runtime_tracking.runtime_tracking",
-        "master_data.employee.employee", "master_data.site.sites", "master_data.department.departments",
-        "master_data.org.org", "master_data.documents.documents", "master_data.party.party",
+        "tenant.modules.modules",
+        "time_management.time.time",
+        "security.auth.auth",
+        "notifications.notification",
+        "history.audit.audit_entry",
+        "approval.approval",
+        "data_operations.runtime_tracking.runtime_tracking",
+        "master_data.employee.employee",
+        "master_data.site.sites",
+        "master_data.department.departments",
+        "master_data.org.org",
+        "master_data.documents.documents",
+        "master_data.party.party",
     )
     for module in platform_orm_modules:
-        assert f"import src.core.platform.infrastructure.persistence.orm.{module}" in package_text
-    for module in ("project", "resource", "task", "cost", "baseline", "register", "collaboration", "portfolio"):
-        assert f"import src.core.modules.project_management.infrastructure.persistence.orm.{module}" in package_text
+        assert (
+            f"import src.core.platform.infrastructure.persistence.orm.{module}"
+            in package_text
+        )
+    for module in (
+        "project",
+        "resource",
+        "task",
+        "cost",
+        "baseline",
+        "register",
+        "collaboration",
+        "portfolio",
+    ):
+        assert (
+            f"import src.core.modules.project_management.infrastructure.persistence.orm.{module}"
+            in package_text
+        )
     assert "from src.infra.persistence.orm import Base" in migration_env_text
     assert "import src.infra.persistence.orm" in migration_env_text
 
@@ -205,13 +368,48 @@ def test_legacy_inventory_persistence_and_reporting_packages_are_removed():
 
 def test_legacy_infra_repository_wrappers_are_removed():
     removed = [
-        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_project.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_task.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_resource.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_cost_calendar.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_baseline.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_register.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_timesheet.py",
+        ROOT
+        / "infra"
+        / "modules"
+        / "project_management"
+        / "db"
+        / "repositories_project.py",
+        ROOT
+        / "infra"
+        / "modules"
+        / "project_management"
+        / "db"
+        / "repositories_task.py",
+        ROOT
+        / "infra"
+        / "modules"
+        / "project_management"
+        / "db"
+        / "repositories_resource.py",
+        ROOT
+        / "infra"
+        / "modules"
+        / "project_management"
+        / "db"
+        / "repositories_cost_calendar.py",
+        ROOT
+        / "infra"
+        / "modules"
+        / "project_management"
+        / "db"
+        / "repositories_baseline.py",
+        ROOT
+        / "infra"
+        / "modules"
+        / "project_management"
+        / "db"
+        / "repositories_register.py",
+        ROOT
+        / "infra"
+        / "modules"
+        / "project_management"
+        / "db"
+        / "repositories_timesheet.py",
         ROOT / "infra" / "platform" / "db" / "repositories_approval.py",
         ROOT / "infra" / "platform" / "db" / "repositories_audit.py",
         ROOT / "infra" / "platform" / "db" / "repositories_auth.py",
@@ -226,8 +424,19 @@ def test_legacy_common_models_facade_is_removed():
 
 
 def test_qml_shell_controller_module_is_registered():
-    qmldir_path = ROOT / "src" / "ui_qml" / "shell" / "qml" / "Shell" / "Controllers" / "qmldir"
-    qmltypes_path = ROOT / "src" / "ui_qml" / "shell" / "qml" / "Shell" / "Controllers" / "plugins.qmltypes"
+    qmldir_path = (
+        ROOT / "src" / "ui_qml" / "shell" / "qml" / "Shell" / "Controllers" / "qmldir"
+    )
+    qmltypes_path = (
+        ROOT
+        / "src"
+        / "ui_qml"
+        / "shell"
+        / "qml"
+        / "Shell"
+        / "Controllers"
+        / "plugins.qmltypes"
+    )
     text = qmldir_path.read_text(encoding="utf-8", errors="ignore")
     qmltypes_text = qmltypes_path.read_text(encoding="utf-8", errors="ignore")
 
@@ -246,14 +455,14 @@ def test_qml_platform_controller_packages_exist():
 
 
 def test_qml_module_workspace_roots_exist():
-    for rel_path in (
-        "src/ui_qml/modules/project_management/qml/workspaces",
-    ):
+    for rel_path in ("src/ui_qml/modules/project_management/qml/workspaces",):
         assert (ROOT / rel_path).is_dir()
 
 
 def test_legacy_platform_common_interfaces_facade_is_removed():
-    assert not (ROOT / "src" / "core" / "platform" / "common" / "interfaces.py").exists()
+    assert not (
+        ROOT / "src" / "core" / "platform" / "common" / "interfaces.py"
+    ).exists()
 
 
 def test_legacy_rbac_runtime_dependencies_are_removed():
@@ -318,7 +527,9 @@ def test_core_platform_does_not_import_module_contracts():
                 if mod == "core.modules" or mod.startswith("core.modules."):
                     violations.append((str(path.relative_to(ROOT)), mod))
 
-    assert not violations, f"Core platform layer imports module code directly: {violations}"
+    assert not violations, (
+        f"Core platform layer imports module code directly: {violations}"
+    )
 
 
 def test_platform_calendar_does_not_import_project_management_at_module_scope():
@@ -331,12 +542,55 @@ def test_platform_calendar_does_not_import_project_management_at_module_scope():
     """
     calendar_roots = [
         ROOT / "src" / "core" / "platform" / "domain" / "time_management" / "calendar",
-        ROOT / "src" / "core" / "platform" / "contract" / "time_management" / "calendar",
-        ROOT / "src" / "core" / "platform" / "application" / "time_management" / "calendar",
-        ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence" / "mappers" / "time_management" / "calendar",
-        ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence" / "orm" / "time_management" / "calendar",
-        ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence" / "repositories" / "time_management" / "calendar",
-        ROOT / "src" / "core" / "platform" / "api" / "desktop" / "time_management" / "calendar",
+        ROOT
+        / "src"
+        / "core"
+        / "platform"
+        / "contract"
+        / "time_management"
+        / "calendar",
+        ROOT
+        / "src"
+        / "core"
+        / "platform"
+        / "application"
+        / "time_management"
+        / "calendar",
+        ROOT
+        / "src"
+        / "core"
+        / "platform"
+        / "infrastructure"
+        / "persistence"
+        / "mappers"
+        / "time_management"
+        / "calendar",
+        ROOT
+        / "src"
+        / "core"
+        / "platform"
+        / "infrastructure"
+        / "persistence"
+        / "orm"
+        / "time_management"
+        / "calendar",
+        ROOT
+        / "src"
+        / "core"
+        / "platform"
+        / "infrastructure"
+        / "persistence"
+        / "repositories"
+        / "time_management"
+        / "calendar",
+        ROOT
+        / "src"
+        / "core"
+        / "platform"
+        / "api"
+        / "desktop"
+        / "time_management"
+        / "calendar",
     ]
     violations: list[tuple[str, str]] = []
 
@@ -348,8 +602,9 @@ def test_platform_calendar_does_not_import_project_management_at_module_scope():
                 if isinstance(node, ast.Import):
                     for alias in node.names:
                         name = alias.name
-                        if name == "src.core.modules.project_management" or name.startswith(
-                            "src.core.modules.project_management."
+                        if (
+                            name == "src.core.modules.project_management"
+                            or name.startswith("src.core.modules.project_management.")
                         ):
                             violations.append((str(path.relative_to(ROOT)), name))
                 elif isinstance(node, ast.ImportFrom):
@@ -359,4 +614,6 @@ def test_platform_calendar_does_not_import_project_management_at_module_scope():
                     ):
                         violations.append((str(path.relative_to(ROOT)), mod))
 
-    assert not violations, f"Platform calendar module imports project_management at module scope: {violations}"
+    assert not violations, (
+        f"Platform calendar module imports project_management at module scope: {violations}"
+    )

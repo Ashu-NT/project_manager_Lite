@@ -43,7 +43,9 @@ from src.core.shared.notifications import safe_dispatch_notification
 
 class CollaborationCommentCommandMixin:
     @staticmethod
-    def _require_comment_revision(comment: TaskComment, expected_revision: int | None) -> None:
+    def _require_comment_revision(
+        comment: TaskComment, expected_revision: int | None
+    ) -> None:
         if expected_revision is None:
             return
         if comment.version != int(expected_revision):
@@ -62,7 +64,11 @@ class CollaborationCommentCommandMixin:
         parent_comment_id: str | None = None,
     ) -> TaskComment:
         task = self._require_task(task_id)
-        require_permission(self._user_session, "collaboration.manage", operation_label="post task collaboration update")
+        require_permission(
+            self._user_session,
+            "collaboration.manage",
+            operation_label="post task collaboration update",
+        )
         require_project_permission(
             self._user_session,
             task.project_id,
@@ -79,15 +85,21 @@ class CollaborationCommentCommandMixin:
                 )
         text = normalize_task_comment_body(body)
         mention_candidates = self._list_mention_candidates_for_project(task.project_id)
-        mentions, mentioned_user_ids, unresolved = resolve_mentions(text=text, candidates=mention_candidates)
+        mentions, mentioned_user_ids, unresolved = resolve_mentions(
+            text=text, candidates=mention_candidates
+        )
         if unresolved:
             preview = ", ".join(f"@{token}" for token in unresolved[:4])
             raise ValidationError(
                 f"Unknown mention handle(s): {preview}. Mention project collaborators with access to this task.",
                 code="COLLABORATION_MENTION_UNKNOWN",
             )
-        principal = self._user_session.principal if self._user_session is not None else None
-        normalized_linked_document_ids = self._normalize_linked_document_ids(linked_document_ids)
+        principal = (
+            self._user_session.principal if self._user_session is not None else None
+        )
+        normalized_linked_document_ids = self._normalize_linked_document_ids(
+            linked_document_ids
+        )
         comment = TaskComment.create(
             task_id=task_id,
             author_user_id=getattr(principal, "user_id", None),
@@ -101,16 +113,22 @@ class CollaborationCommentCommandMixin:
         attachment_paths = list(attachments or [])
         if attachment_paths:
             if self._attachment_store is None:
-                raise RuntimeError("Collaboration attachment storage is not configured.")
+                raise RuntimeError(
+                    "Collaboration attachment storage is not configured."
+                )
             comment.attachments = self._attachment_store(
-                task_id=task_id, comment_id=comment.id, attachments=attachment_paths,
+                task_id=task_id,
+                comment_id=comment.id,
+                attachments=attachment_paths,
             )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="post task collaboration update"
         )
         uploader_user_id = getattr(principal, "user_id", None)
 
-        with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+        with self._require_collaboration_uow_factory().create(
+            context=self._new_context()
+        ) as uow:
             uow.comments.add(comment)
             record_audit_entry(
                 uow,
@@ -161,7 +179,10 @@ class CollaborationCommentCommandMixin:
                     source_system="project_management",
                     uploaded_by_user_id=uploader_user_id,
                 )
-            if self._document_integration_service is not None and normalized_linked_document_ids:
+            if (
+                self._document_integration_service is not None
+                and normalized_linked_document_ids
+            ):
                 organization = active_organization(self)
                 for document_id in normalized_linked_document_ids:
                     link_existing_document_in_uow(
@@ -175,10 +196,14 @@ class CollaborationCommentCommandMixin:
                         link_role="reference",
                     )
             uow.commit()
-        self._notify_mentioned_users(task=task, comment=comment, author_user_id=comment.author_user_id)
+        self._notify_mentioned_users(
+            task=task, comment=comment, author_user_id=comment.author_user_id
+        )
         return comment
 
-    def _notify_mentioned_users(self, *, task, comment: TaskComment, author_user_id: str | None) -> None:
+    def _notify_mentioned_users(
+        self, *, task, comment: TaskComment, author_user_id: str | None
+    ) -> None:
         for user_id in comment.mentioned_user_ids:
             if not user_id or user_id == author_user_id:
                 continue
@@ -188,19 +213,25 @@ class CollaborationCommentCommandMixin:
                 category="pm.comment.mentioned.v1",
                 title="You were mentioned in a comment",
                 body="Open the task discussion to view this mention if you still have access.",
-                metadata={"task_id": task.id, "project_id": task.project_id, "comment_id": comment.id},
+                metadata={},
             )
 
     def mark_task_mentions_read(self, task_id: str) -> None:
         task = self._require_task(task_id)
-        require_permission(self._user_session, "collaboration.read", operation_label="mark collaboration updates read")
+        require_permission(
+            self._user_session,
+            "collaboration.read",
+            operation_label="mark collaboration updates read",
+        )
         require_project_permission(
             self._user_session,
             task.project_id,
             "collaboration.read",
             operation_label="mark collaboration updates read",
         )
-        principal = self._user_session.principal if self._user_session is not None else None
+        principal = (
+            self._user_session.principal if self._user_session is not None else None
+        )
         principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
         aliases = self._principal_aliases()
         if not principal_user_id and not aliases:
@@ -209,12 +240,18 @@ class CollaborationCommentCommandMixin:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="mark collaboration updates read"
         )
-        with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+        with self._require_collaboration_uow_factory().create(
+            context=self._new_context()
+        ) as uow:
             for comment in uow.comments.list_by_task(task_id):
                 if not self._comment_mentions_principal(comment):
                     continue
 
-                user_reads = {str(item).strip() for item in comment.read_by_user_ids if str(item).strip()}
+                user_reads = {
+                    str(item).strip()
+                    for item in comment.read_by_user_ids
+                    if str(item).strip()
+                }
                 alias_reads = {item.lower() for item in comment.read_by}
                 already_read = False
                 if principal_user_id and principal_user_id in user_reads:
@@ -225,7 +262,9 @@ class CollaborationCommentCommandMixin:
                     continue
 
                 if principal_user_id:
-                    comment.read_by_user_ids = sorted(user_reads.union({principal_user_id}))
+                    comment.read_by_user_ids = sorted(
+                        user_reads.union({principal_user_id})
+                    )
                 primary_alias = self._principal_primary_alias()
                 if primary_alias:
                     comment.read_by = sorted(alias_reads.union({primary_alias}))
@@ -241,7 +280,10 @@ class CollaborationCommentCommandMixin:
                     severity="low",
                     workspace_id=task.project_id,
                     entity_parent_id=task_id,
-                    metadata={"action": "collaboration.comment.mark_read", "task_id": task_id},
+                    metadata={
+                        "action": "collaboration.comment.mark_read",
+                        "task_id": task_id,
+                    },
                     commit=False,
                     fail_closed=True,
                 )
@@ -266,29 +308,41 @@ class CollaborationCommentCommandMixin:
     ) -> TaskComment:
         comment = self._comment_repo.get(comment_id)
         if comment is None:
-            raise NotFoundError("Comment not found.", code="COLLABORATION_COMMENT_NOT_FOUND")
-        if comment.is_deleted:
-            raise BusinessRuleError(
-                "A deleted comment cannot be edited.", code="COLLABORATION_COMMENT_DELETED"
+            raise NotFoundError(
+                "Comment not found.", code="COLLABORATION_COMMENT_NOT_FOUND"
             )
-        self._require_comment_revision(comment, expected_revision)
         task = self._require_task(comment.task_id)
-        require_permission(self._user_session, "collaboration.manage", operation_label="edit task collaboration update")
+        require_permission(
+            self._user_session,
+            "collaboration.manage",
+            operation_label="edit task collaboration update",
+        )
         require_project_permission(
             self._user_session,
             task.project_id,
             "collaboration.manage",
             operation_label="edit task collaboration update",
         )
-        principal = self._user_session.principal if self._user_session is not None else None
+        principal = (
+            self._user_session.principal if self._user_session is not None else None
+        )
         principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
         if not principal_user_id or comment.author_user_id != principal_user_id:
             raise OperationNotPermittedError(
-                "You can only edit your own comments.", code="COLLABORATION_COMMENT_NOT_OWNER"
+                "You can only edit your own comments.",
+                code="COLLABORATION_COMMENT_NOT_OWNER",
             )
+        if comment.is_deleted:
+            raise BusinessRuleError(
+                "A deleted comment cannot be edited.",
+                code="COLLABORATION_COMMENT_DELETED",
+            )
+        self._require_comment_revision(comment, expected_revision)
         text = normalize_task_comment_body(body)
         mention_candidates = self._list_mention_candidates_for_project(task.project_id)
-        mentions, mentioned_user_ids, unresolved = resolve_mentions(text=text, candidates=mention_candidates)
+        mentions, mentioned_user_ids, unresolved = resolve_mentions(
+            text=text, candidates=mention_candidates
+        )
         if unresolved:
             preview = ", ".join(f"@{token}" for token in unresolved[:4])
             raise ValidationError(
@@ -302,7 +356,9 @@ class CollaborationCommentCommandMixin:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="edit task collaboration update"
         )
-        with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+        with self._require_collaboration_uow_factory().create(
+            context=self._new_context()
+        ) as uow:
             uow.comments.update(comment)
             record_audit_entry(
                 uow,
@@ -353,9 +409,15 @@ class CollaborationCommentCommandMixin:
     ) -> TaskComment:
         comment = self._comment_repo.get(comment_id)
         if comment is None:
-            raise NotFoundError("Comment not found.", code="COLLABORATION_COMMENT_NOT_FOUND")
+            raise NotFoundError(
+                "Comment not found.", code="COLLABORATION_COMMENT_NOT_FOUND"
+            )
         task = self._require_task(comment.task_id)
-        require_permission(self._user_session, "collaboration.manage", operation_label="delete task collaboration update")
+        require_permission(
+            self._user_session,
+            "collaboration.manage",
+            operation_label="delete task collaboration update",
+        )
         require_project_permission(
             self._user_session,
             task.project_id,
@@ -364,14 +426,18 @@ class CollaborationCommentCommandMixin:
         )
         if not comment.is_deleted:
             self._require_comment_revision(comment, expected_revision)
-            principal = self._user_session.principal if self._user_session is not None else None
+            principal = (
+                self._user_session.principal if self._user_session is not None else None
+            )
             comment.deleted_at = datetime.now(timezone.utc)
             comment.deleted_by_user_id = getattr(principal, "user_id", None)
             comment.deletion_reason = reason
             scope = self._tenant_context_service.require_active_scope_ids(
                 operation_label="delete task collaboration update"
             )
-            with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+            with self._require_collaboration_uow_factory().create(
+                context=self._new_context()
+            ) as uow:
                 uow.comments.update(comment)
                 record_audit_entry(
                     uow,
@@ -384,7 +450,10 @@ class CollaborationCommentCommandMixin:
                     severity="low",
                     workspace_id=task.project_id,
                     entity_parent_id=task.id,
-                    metadata={"action": "collaboration.comment.delete", "task_id": task.id},
+                    metadata={
+                        "action": "collaboration.comment.delete",
+                        "task_id": task.id,
+                    },
                     commit=False,
                     fail_closed=True,
                 )
@@ -413,16 +482,25 @@ class CollaborationCommentCommandMixin:
                 uow.commit()
         return comment
 
-    def _require_comment_for_reaction(self, comment_id: str) -> tuple[TaskComment, object]:
+    def _require_comment_for_reaction(
+        self, comment_id: str
+    ) -> tuple[TaskComment, object]:
         comment = self._comment_repo.get(comment_id)
         if comment is None:
-            raise NotFoundError("Comment not found.", code="COLLABORATION_COMMENT_NOT_FOUND")
+            raise NotFoundError(
+                "Comment not found.", code="COLLABORATION_COMMENT_NOT_FOUND"
+            )
         if comment.is_deleted:
             raise BusinessRuleError(
-                "Cannot react to a deleted comment.", code="COLLABORATION_COMMENT_DELETED"
+                "Cannot react to a deleted comment.",
+                code="COLLABORATION_COMMENT_DELETED",
             )
         task = self._require_task(comment.task_id)
-        require_permission(self._user_session, "collaboration.read", operation_label="react to task collaboration update")
+        require_permission(
+            self._user_session,
+            "collaboration.read",
+            operation_label="react to task collaboration update",
+        )
         require_project_permission(
             self._user_session,
             task.project_id,
@@ -432,7 +510,9 @@ class CollaborationCommentCommandMixin:
         return comment, task
 
     def _principal_user_id_for_reaction(self) -> str:
-        principal = self._user_session.principal if self._user_session is not None else None
+        principal = (
+            self._user_session.principal if self._user_session is not None else None
+        )
         principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
         if not principal_user_id:
             raise BusinessRuleError(
@@ -446,7 +526,10 @@ class CollaborationCommentCommandMixin:
         principal_user_id = self._principal_user_id_for_reaction()
         emoji_key = normalize_optional_text(emoji)
         if not emoji_key:
-            raise ValidationError("Reaction emoji is required.", code="COLLABORATION_REACTION_EMOJI_REQUIRED")
+            raise ValidationError(
+                "Reaction emoji is required.",
+                code="COLLABORATION_REACTION_EMOJI_REQUIRED",
+            )
         reactions = {key: list(value) for key, value in comment.reactions.items()}
         reactors = set(reactions.get(emoji_key, []))
         reactors.add(principal_user_id)
@@ -455,7 +538,9 @@ class CollaborationCommentCommandMixin:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="react to task collaboration update"
         )
-        with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+        with self._require_collaboration_uow_factory().create(
+            context=self._new_context()
+        ) as uow:
             uow.comments.update(comment)
             uow.record_event(
                 TaskCommentReactionChanged(
@@ -476,7 +561,10 @@ class CollaborationCommentCommandMixin:
         principal_user_id = self._principal_user_id_for_reaction()
         emoji_key = normalize_optional_text(emoji)
         if not emoji_key:
-            raise ValidationError("Reaction emoji is required.", code="COLLABORATION_REACTION_EMOJI_REQUIRED")
+            raise ValidationError(
+                "Reaction emoji is required.",
+                code="COLLABORATION_REACTION_EMOJI_REQUIRED",
+            )
         reactions = {key: list(value) for key, value in comment.reactions.items()}
         reactors = set(reactions.get(emoji_key, []))
         reactors.discard(principal_user_id)
@@ -488,7 +576,9 @@ class CollaborationCommentCommandMixin:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="remove reaction from task collaboration update"
         )
-        with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+        with self._require_collaboration_uow_factory().create(
+            context=self._new_context()
+        ) as uow:
             uow.comments.update(comment)
             uow.record_event(
                 TaskCommentReactionChanged(
