@@ -5,6 +5,7 @@ import logging
 from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
     ActionCenterContribution,
+    ActionCenterCursor,
 )
 from src.core.global_overview.contract.module_summary import (
     ModuleSummaryContributor,
@@ -85,9 +86,9 @@ class GlobalOverviewService:
         context = self._build_action_center_context()
         return self._action_center_service.build(context, preview_limit=0).summary
 
-    def list_action_center(self, *, limit: int = 50) -> ActionCenterContribution:
+    def list_action_center(self, *, limit: int = 50, after: ActionCenterCursor | None = None) -> ActionCenterContribution:
         context = self._build_action_center_context()
-        return self._action_center_service.build(context, preview_limit=limit)
+        return self._action_center_service.build(context, preview_limit=limit, after=after)
 
     def list_module_summaries(self) -> tuple[ModuleSummaryDto, ...]:
         context = self._build_action_center_context()

@@ -7,6 +7,7 @@ from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
     ActionCenterContribution,
     ActionCenterContributor,
+    ActionCenterCursor,
     ActionCenterSummaryDto,
 )
 from src.core.global_overview.application.ordering import (
@@ -54,14 +55,28 @@ class ActionCenterService:
         *,
         preview_limit: int = 50,
         today: date | None = None,
+        after: ActionCenterCursor | None = None,
     ) -> ActionCenterContribution:
-        contributions = tuple(
-            contributor.collect(context, preview_limit) for contributor in self._contributors
-        )
+        limit = min(100, max(0, int(preview_limit)))
+        if after is not None and after.context != context:
+            raise ValueError("Action Center cursor belongs to a different user or scope.")
+        window = limit + 1 if limit else 0
+        contributions = tuple(contributor.collect(context, window, after=after)
+                              for contributor in self._contributors)
+        if any(len(part.items) > window for part in contributions):
+            raise ValueError("Action Center contributor exceeded its bounded query contract.")
         summary = _sum_summaries(contribution.summary for contribution in contributions)
         merged_items = [item for contribution in contributions for item in contribution.items]
+        identities = {(item.module, item.kind, item.id) for item in merged_items}
+        if len(identities) != len(merged_items):
+            raise ValueError("Duplicate Action Center ownership: action contributed more than once.")
         ordered = sort_action_center_items(merged_items, today=today or date.today())
-        return ActionCenterContribution(items=ordered[:preview_limit], summary=summary)
+        items = ordered[:limit]
+        cursor = None
+        if items and len(ordered) > limit:
+            last = items[-1]
+            cursor = ActionCenterCursor(context, last.due_at, last.sort_at, last.module, last.kind, last.id)
+        return ActionCenterContribution(items=items, summary=summary, next_cursor=cursor)
 
 
 __all__ = ["ActionCenterService"]

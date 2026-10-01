@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
+
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.reads.global_overview.action_center_reader import SqlAlchemyProjectManagementActionCenterReader
+from src.core.platform.infrastructure.persistence.orm.approval.approval import ApprovalRequestORM
+from src.core.platform.infrastructure.persistence.read.global_overview.action_center_reader import SqlAlchemyPlatformActionCenterReader
 
 from src.core.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
@@ -69,18 +75,16 @@ def build_global_overview_service_bundle(
     action_center_service = ActionCenterService(
         contributors=(
             PlatformActionCenterContributor(
-                approval_service=platform_services.approval_service,
-                platform_runtime_application_service=(
-                    platform_services.platform_runtime_application_service
-                ),
+                reader=SqlAlchemyPlatformActionCenterReader(session=session,
+                    target_scope_predicate=or_(ApprovalRequestORM.project_id.is_(None),
+                        select(ProjectORM.id).where(ProjectORM.id == ApprovalRequestORM.project_id,
+                            ProjectORM.tenant_id == ApprovalRequestORM.tenant_id,
+                            ProjectORM.organization_id == ApprovalRequestORM.organization_id).exists())),
             ),
             ProjectManagementActionCenterContributor(
-                task_service=project_management_services.task_service,
-                baseline_service=project_management_services.baseline_service,
-                project_service=project_management_services.project_service,
-                resource_identity_reader=resource_identity_reader,
-                timesheet_workspace_reader=timesheet_workspace_reader,
-                user_session=platform_services.user_session,
+                reader=SqlAlchemyProjectManagementActionCenterReader(session=session,
+                    resource_identity_reader=resource_identity_reader,
+                    timesheet_workspace_reader=timesheet_workspace_reader),
             ),
         )
     )

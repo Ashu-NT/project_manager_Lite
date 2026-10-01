@@ -12,7 +12,7 @@ from src.core.modules.project_management.domain.enums import TaskStatus, WorkerT
 from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineStatus,
 )
-from src.core.platform.domain.security.auth.session import UserSessionPrincipal
+from src.core.modules.project_management.infrastructure.persistence.reads.global_overview.action_center_reader import SqlAlchemyProjectManagementActionCenterReader
 from src.core.shared.resource_identity.contracts import ResourceIdentityReader
 
 
@@ -30,14 +30,12 @@ def _contributor(services, resource_identity_reader: ResourceIdentityReader):
     )
 
     return ProjectManagementActionCenterContributor(
-        task_service=services["task_service"],
-        baseline_service=services["baseline_service"],
-        project_service=services["project_service"],
+        reader=SqlAlchemyProjectManagementActionCenterReader(session=services["session"],
         resource_identity_reader=resource_identity_reader,
         timesheet_workspace_reader=SqlAlchemyTimesheetWorkspaceReader(
             session=services["session"], resource_identity_reader=resource_identity_reader
         ),
-        user_session=services["user_session"],
+        ),
     )
 
 
@@ -61,7 +59,7 @@ def _resource_identity_reader(services):
 def _setup_user_employee_resource(services, *, suffix: str):
     organization = services["tenant_context_service"].get_active_organization()
     user = services["auth_service"].register_user(
-        f"pm-action-center-{suffix}", "StrongPass123", role_names=["viewer"]
+        f"pm-action-center-{suffix}", "StrongPass123", role_names=["project_manager"]
     )
     department = services["department_service"].create_department(
         department_code=f"AC-DEPT-{suffix}", name=f"Action Center Department {suffix}"
@@ -70,8 +68,8 @@ def _setup_user_employee_resource(services, *, suffix: str):
         employee_code=f"EMP-AC-{suffix}",
         full_name=f"Action Center {suffix}",
         department_id=department.id,
-        user_id=user.id,
     )
+    services["employee_service"].link_employee_user_account(employee.id, user.id)
     resource = services["resource_service"].create_resource(
         f"Action Center Resource {suffix}",
         worker_type=WorkerType.EMPLOYEE,
@@ -198,19 +196,10 @@ def _reviewer_context_and_contributor(services, *, project_id: str, permissions:
     reviewer = services["auth_service"].register_user(
         f"baseline-reviewer-{'-'.join(sorted(permissions)) or 'none'}",
         "StrongPass123",
-        role_names=["viewer"],
+        role_names=["approver"] if "baseline.approve" in permissions else ["viewer"],
     )
     services["user_session"].set_principal(
-        UserSessionPrincipal(
-            user_id=reviewer.id,
-            username=reviewer.username,
-            display_name="Baseline Reviewer",
-            role_names=frozenset(),
-            permissions=permissions,
-            scoped_access={"project": {project_id: permissions}},
-            active_tenant_id=active_tenant_id,
-            active_organization_id=organization.id,
-        )
+        services["auth_service"].build_principal(reviewer)
     )
     services["user_session"].set_active_organization_id(organization.id)
     reader = _resource_identity_reader(services)

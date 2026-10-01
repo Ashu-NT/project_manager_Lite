@@ -111,6 +111,7 @@ class GlobalOverviewController(QObject):
     recentActivityStateChanged = Signal()
     actionCenterChanged = Signal()
     actionCenterStateChanged = Signal()
+    actionPageChanged = Signal()
     quickActionsChanged = Signal()
     quickActionsStateChanged = Signal()
 
@@ -134,6 +135,11 @@ class GlobalOverviewController(QObject):
         self._recent_activity_state: dict[str, object] = dict(_EMPTY_STATE)
         self._action_center: list[dict[str, object]] = []
         self._action_center_state: dict[str, object] = dict(_EMPTY_STATE)
+        self._scope_generation = 0
+        self._action_generation = 0
+        self._action_cursor = None
+        self._action_next_cursor = None
+        self._action_history = []
         self._quick_actions: list[dict[str, object]] = []
         self._quick_actions_state: dict[str, object] = dict(_EMPTY_STATE)
         if shell_context is not None:
@@ -258,17 +264,54 @@ class GlobalOverviewController(QObject):
 
     @Slot()
     def reloadActionCenter(self) -> None:
-        self._run_section_load(
-            loading_setter=lambda: self._set_action_center_state(
-                dict(_EMPTY_STATE) | {"loading": True}
-            ),
-            load=self._presenter.load_action_center,
-            on_success=lambda data: self._set_action_center(
-                [_serialize_action_center_row(row) for row in data]
-            ),
-            set_state=self._set_action_center_state,
-            clear_data=lambda: self._set_action_center([]),
-        )
+        self._action_cursor = None
+        self._action_history = []
+        self._load_action_page()
+
+    @Property("QVariantMap", notify=actionPageChanged)
+    def actionPage(self):
+        return {"hasPrevious": bool(self._action_history), "hasNext": self._action_next_cursor is not None,
+                "page": len(self._action_history) + 1}
+
+    @Slot()
+    def nextActionPage(self):
+        if self._action_next_cursor is None or self._action_center_state["loading"]:
+            return
+        self._action_history.append(self._action_cursor)
+        self._action_cursor = self._action_next_cursor
+        self._load_action_page()
+
+    @Slot()
+    def previousActionPage(self):
+        if not self._action_history or self._action_center_state["loading"]:
+            return
+        self._action_cursor = self._action_history.pop()
+        self._load_action_page()
+
+    def _load_action_page(self):
+        self._action_generation += 1
+        generation = (self._scope_generation, self._action_generation)
+        self._action_next_cursor = None
+        self.actionPageChanged.emit()
+        self._set_action_center_state(dict(_EMPTY_STATE) | {"loading": True})
+        try:
+            result = self._presenter.load_action_center(after=self._action_cursor)
+        except Exception:
+            logger.exception("Action Center page load failed")
+            if generation == (self._scope_generation, self._action_generation):
+                self._set_action_center([])
+                self._set_action_center_state({"loading": False, "empty": False, "errorMessage": "Action items could not be loaded."})
+            return
+        if generation != (self._scope_generation, self._action_generation):
+            return
+        if not result.ok:
+            self._set_action_center([])
+            self._set_action_center_state({"loading": False, "empty": False, "errorMessage": result.error_message or "Action items could not be loaded."})
+            return
+        self._action_next_cursor = result.next_cursor
+        self._set_action_center([_serialize_action_center_row(row) for row in result.data])
+        self._set_action_center_state({"loading": False, "empty": result.empty, "errorMessage": ""})
+        self.actionPageChanged.emit()
 
     @Slot()
     def reloadQuickActions(self) -> None:
@@ -306,6 +349,7 @@ class GlobalOverviewController(QObject):
         current while (or after) the reload runs. Reads authoritative
         tenant/org state only through the Desktop API on reload -- never
         from a locally-cached id."""
+        self._scope_generation += 1
         self._set_context(dict(_EMPTY_CONTEXT))
         self._set_attention([])
         self._set_modules([])
@@ -325,13 +369,18 @@ class GlobalOverviewController(QObject):
         set_state: Callable[[dict[str, object]], None],
         clear_data: Callable[[], None],
     ) -> None:
+        generation = self._scope_generation
         loading_setter()
         try:
             result = load()
         except Exception:
             logger.exception("Global Overview section load raised unexpectedly")
+            if generation != self._scope_generation:
+                return
             clear_data()
             set_state({"loading": False, "errorMessage": "This section could not be loaded.", "empty": False})
+            return
+        if generation != self._scope_generation:
             return
         if not result.ok:
             clear_data()

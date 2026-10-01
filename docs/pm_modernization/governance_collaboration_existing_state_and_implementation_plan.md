@@ -3,7 +3,7 @@
 ## Status and Scope
 
 Audit date: 2026-09-30. R7A is COMPLETE as a characterization and roadmap phase.
-R7 itself is OPEN. R7B implementation and final verification are recorded below.
+R7 itself is OPEN. R7B is COMPLETE; implementation and final verification are recorded below.
 The R7A findings below are historical characterization, not current acceptance behavior.
 R5 and R6 remain CLOSED; their historical evidence is unchanged. R8 has not started.
 Only this document and three characterization test files were added in R7A.
@@ -668,3 +668,56 @@ Center/identity/deep links; R7E remaining collaboration/evidence lifecycle; R7F
 durable in-app delivery; R7G/H integration and closure. None was started here.
 Notifications, presence and document links retain their documented RLS exclusions;
 comment certification must not be misreported as their certification.
+
+### Final Verification and Exit Decision (2026-10-01)
+
+All commands used conda `pmenv`. Counts below are separate selections and overlap;
+they must not be summed as a unique suite total.
+
+| Selection | Final result |
+| --- | --- |
+| PM, Platform and PM QML tests selected by `collaboration or task_comment or approval or mention_notifications or r7b` | 253 passed, 0 failed, 0 skipped; 3960 deselected |
+| Live PostgreSQL `test_r7b_governance_security.py` plus existing `test_r5h1_postgresql_security.py` | 45 passed, 0 failed, 0 skipped |
+| Architecture directory, PostgreSQL context guards and retained R7A Action Center characterization | 179 passed, 0 failed, 0 skipped |
+| New privacy/API/migration tests plus collaboration rollback/full-modernization and Approval UoW tests | 54 passed, 0 failed, 0 skipped; subsequently covered by the final focused selection |
+| Notification service/Desktop API/QML controller, priority/no-context repositories and initial service privacy selection | 39 passed, 0 failed, 0 skipped |
+
+PostgreSQL ran against the existing dedicated Docker test database with fresh
+Alembic bootstrap. Tests used `app_runtime`, asserting LOGIN, NOSUPERUSER,
+NOBYPASSRLS and no protected-table ownership. Tests assert forced policies and
+independently exercise raw SQL without ORM scope predicates. Covered denied
+tenant/org/project reads, inserts, updates, deletes, foreign reply parents,
+context absence, inactive/revoked/expired principals, exact recipient dedup,
+revocation recheck, stale-edit-after-delete, and redacted search/count behavior.
+SQLite service/Reader tests independently prove scope enforcement without RLS.
+SQLite upgrade/downgrade/re-upgrade preserves the irreversible preview redaction.
+
+Scoped Ruff F/I passes for all worktree Python changes and the earlier R7B
+application/contracts/Reader/API/ORM/composition/manifest changes. `compileall -q
+src` passes. QML lint passes for CollaborationWorkspacePage, OverviewWorkspace,
+NotificationsPanel, NotificationBell, ApprovalDecisionDialog and
+ControlApprovalDetailPage with the canonical import roots. No QML production
+changes or visual redesign were necessary. Architecture/schema/RLS guards and
+`git diff --check` pass. Retired recipient-helper search has no production hit.
+
+Repository-wide Ruff is **not clean**: **90 F/I findings** (45 F841, 37 I001,
+4 F401, 2 F821, 1 F811, 1 F822). This is down from the recorded 92 after fixing
+the touched composition import block and unused import. Unrelated findings were
+not swept into R7B. R7A's four obsolete Action Center employee-fixture failures
+remain historical unresolved evidence, not rerun or claimed fixed here. Its stale
+notification ORM-path guard was repaired and the architecture selection passes.
+The full PM suite was not required or run for this scoped phase; R6 evidence is
+unchanged.
+
+Cleanup replaces unsafe R7A PostgreSQL expectations with the R7B security matrix
+and removes the retired broad-recipient characterization/helper/dependencies.
+There is one Approval recipient query and one canonical workspace comment Reader;
+serializers perform defensive presentation redaction rather than calculate scope.
+The existing transaction model and non-durable post-commit notification dispatch
+are preserved, not represented as a new durable delivery guarantee.
+
+**R7B COMPLETE.** The approved three security/privacy findings have implementation
+and regression evidence. R7 remains OPEN; R7C has not started. R6 remains CLOSED;
+R8, Action Center optimization and durable notification delivery were not started.
+No future operational module was implemented. Concurrent team work was preserved;
+the implementation agent made no commit.

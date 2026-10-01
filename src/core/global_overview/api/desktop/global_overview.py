@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.core.global_overview.contract.action_center import (
     ActionCenterContribution,
+    ActionCenterCursor,
 )
 from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
@@ -51,9 +52,10 @@ class GlobalOverviewDesktopApi:
         self,
         *,
         limit: int = 50,
+        after: ActionCenterCursor | None = None,
     ) -> DesktopApiResult[ActionCenterContribution]:
         return execute_desktop_operation(
-            lambda: self._global_overview_service.list_action_center(limit=limit)
+            lambda: self._global_overview_service.list_action_center(limit=limit, after=after)
         )
 
     def list_recent_activity(

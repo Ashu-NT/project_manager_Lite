@@ -44,6 +44,16 @@ class ActionCenterSummaryDto:
 
 
 @dataclass(frozen=True, slots=True)
+class ActionCenterCursor:
+    context: ActionCenterContext
+    due_at: date | None
+    sort_at: datetime | None
+    module: str
+    kind: str
+    id: str
+
+
+@dataclass(frozen=True, slots=True)
 class ActionCenterContribution:
     """One contributor's exact answer for its own actionable items.
 
@@ -57,6 +67,7 @@ class ActionCenterContribution:
 
     items: tuple[ActionCenterItemDto, ...]
     summary: ActionCenterSummaryDto
+    next_cursor: ActionCenterCursor | None = None
 
 
 class ActionCenterContributor(Protocol):
@@ -64,11 +75,14 @@ class ActionCenterContributor(Protocol):
         self,
         context: ActionCenterContext,
         preview_limit: int,
+        *,
+        after: ActionCenterCursor | None = None,
     ) -> ActionCenterContribution: ...
 
 
 __all__ = [
     "ActionCenterContext",
+    "ActionCenterCursor",
     "ActionCenterContribution",
     "ActionCenterContributor",
     "ActionCenterItemDto",

@@ -1,17 +1,15 @@
 """Bounded recipient projection over persisted request and effective scoped grants."""
 
-from datetime import datetime, timezone
+from sqlalchemy import select
 
-from sqlalchemy import and_, or_, select
+from src.core.platform.infrastructure.persistence.common.approval_eligibility import approval_reviewer_eligibility
+
+from src.core.platform.infrastructure.persistence.common.scoped_permission import scoped_permission
 
 from src.core.platform.infrastructure.persistence.orm.approval.approval import (
     ApprovalRequestORM,
 )
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
-    PermissionORM,
-    RoleBindingORM,
-    RoleORM,
-    RolePermissionORM,
     UserORM,
 )
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
@@ -33,42 +31,10 @@ def recipient_page(
     if audience not in {"reviewers", "requester"}:
         raise ValueError("Unknown approval notification audience")
     request = ApprovalRequestORM
-    binding = RoleBindingORM
-    now = datetime.now(timezone.utc)
-    covered_scope = or_(
-        binding.actual_scope_type == "tenant",
-        and_(
-            binding.actual_scope_type == "organization",
-            binding.actual_scope_id == request.organization_id,
-        ),
-        and_(
-            binding.actual_scope_type == "project",
-            binding.actual_scope_id == request.project_id,
-        ),
-    )
-    authority = (
-        select(binding.id)
-        .join(RoleORM, RoleORM.id == binding.role_id)
-        .join(RolePermissionORM, RolePermissionORM.role_id == RoleORM.id)
-        .join(PermissionORM, PermissionORM.id == RolePermissionORM.permission_id)
-        .where(
-            binding.principal_type == "user",
-            binding.principal_id == UserORM.id,
-            binding.tenant_id == request.tenant_id,
-            binding.revoked_at.is_(None),
-            or_(binding.expires_at.is_(None), binding.expires_at > now),
-            RoleORM.allowed_scope_type == binding.actual_scope_type,
-            RoleORM.status == "active",
-            or_(RoleORM.tenant_id.is_(None), RoleORM.tenant_id == request.tenant_id),
-            PermissionORM.code.in_(
-                ("approval.decide",)
-                if audience == "reviewers"
-                else ("approval.request", "approval.decide")
-            ),
-            covered_scope,
-        )
-        .correlate(UserORM, request)
-        .exists()
+    authority = approval_reviewer_eligibility(UserORM.id) if audience == "reviewers" else scoped_permission(
+        user_id=UserORM.id, tenant_id=request.tenant_id,
+        organization_id=request.organization_id, project_id=request.project_id,
+        permissions=("approval.request", "approval.decide"),
     )
     stmt = (
         select(UserORM.id)
@@ -87,15 +53,7 @@ def recipient_page(
             authority,
         )
     )
-    if audience == "reviewers":
-        stmt = stmt.where(
-            request.status == "PENDING",
-            or_(
-                request.requested_by_user_id.is_(None),
-                UserORM.id != request.requested_by_user_id,
-            ),
-        )
-    else:
+    if audience == "requester":
         stmt = stmt.where(UserORM.id == request.requested_by_user_id)
     return tuple(
         session.scalars(

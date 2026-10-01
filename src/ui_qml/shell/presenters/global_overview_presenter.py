@@ -10,6 +10,7 @@ from src.core.global_overview.api.desktop.global_overview import (
 )
 from src.core.global_overview.contract.action_center import (
     ActionCenterItemDto,
+    ActionCenterCursor,
 )
 from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
@@ -124,6 +125,7 @@ class SectionResult(Generic[_ResultT]):
     data: _ResultT | None
     error_message: str | None = None
     empty: bool = False
+    next_cursor: ActionCenterCursor | None = None
 
 
 class GlobalOverviewPresenter:
@@ -190,14 +192,14 @@ class GlobalOverviewPresenter:
         rows = tuple(_build_activity_row(entry) for entry in result.data)
         return SectionResult(ok=True, data=rows, empty=not rows)
 
-    def load_action_center(self, *, limit: int = 10) -> SectionResult:
-        result = self._api.list_action_center(limit=limit)
+    def load_action_center(self, *, limit: int = 10, after: ActionCenterCursor | None = None) -> SectionResult:
+        result = self._api.list_action_center(limit=limit, after=after)
         if not result.ok or result.data is None:
             self._log_failure("action_center", result)
             return SectionResult(ok=False, data=None, error_message=_ACTION_CENTER_LOAD_ERROR)
         today = date.today()
         rows = tuple(_build_action_center_row(item, today=today) for item in result.data.items)
-        return SectionResult(ok=True, data=rows, empty=not rows)
+        return SectionResult(ok=True, data=rows, empty=not rows, next_cursor=result.data.next_cursor)
 
     def load_quick_actions(self) -> SectionResult:
         """Derives Quick Actions only from GlobalOverviewDesktopApi

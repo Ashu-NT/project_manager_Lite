@@ -21,9 +21,14 @@ class _FakeContributor:
         self._contribution = contribution
         self.calls: list[int] = []
 
-    def collect(self, context: ActionCenterContext, preview_limit: int) -> ActionCenterContribution:
+    def collect(self, context: ActionCenterContext, preview_limit: int, *, after=None) -> ActionCenterContribution:
         self.calls.append(preview_limit)
-        return self._contribution
+        from src.core.global_overview.application.ordering import sort_action_center_items
+        ordered = sort_action_center_items(self._contribution.items, today=_TODAY)
+        if after:
+            index = next(i for i, item in enumerate(ordered) if item.id == after.id)
+            ordered = ordered[index + 1:]
+        return ActionCenterContribution(ordered[:preview_limit], self._contribution.summary)
 
 
 def _item(
@@ -181,5 +186,5 @@ def test_each_contributor_is_asked_for_the_requested_preview_limit():
 
     service.build(_CONTEXT, preview_limit=15, today=_TODAY)
 
-    assert platform.calls == [15]
-    assert pm.calls == [15]
+    assert platform.calls == [16]
+    assert pm.calls == [16]

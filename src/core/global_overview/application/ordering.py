@@ -27,7 +27,7 @@ def _recency_rank(sort_at: datetime | None) -> float:
     ordinal_seconds = sort_at.toordinal() * 86400 + (
         sort_at.hour * 3600 + sort_at.minute * 60 + sort_at.second
     )
-    return -float(ordinal_seconds)
+    return -(ordinal_seconds * 1_000_000 + sort_at.microsecond)
 
 
 def _sort_key(item: ActionCenterItemDto, *, today: date) -> tuple:
