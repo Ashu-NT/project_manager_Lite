@@ -39,7 +39,7 @@ class PlatformApprovalDesktopApi:
     def _list_requests(self, *, status, project_id, entity_type, limit):
         requests = tuple(self._approval_service.list_requests(
             status=status, project_id=project_id,
-            limit=limit, entity_type=entity_type,
+            limit=max(1, min(int(limit), 500)), entity_type=entity_type,
         ))
         eligible_ids = self._approval_service.eligible_request_ids(requests)
         return tuple(

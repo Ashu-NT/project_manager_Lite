@@ -9,6 +9,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.core.platform.domain.notifications import Notification
+from src.core.platform.infrastructure.persistence.common.approval_eligibility import (
+    approval_reviewer_eligibility,
+)
+from src.core.platform.infrastructure.persistence.common.scoped_permission import (
+    scoped_permission,
+)
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
     UserTenantORM,
@@ -30,9 +39,11 @@ class NotificationDispatcher:
         *,
         session_factory: Callable[[], Session],
         on_delivered: Callable[[str, str | None, str], None] | None = None,
+        recipient_policy: Callable[[Session, object], bool] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._on_delivered = on_delivered
+        self._recipient_policy = recipient_policy
 
     def drain(self, *, tenant_id: str, organization_id: str | None, limit: int = 50) -> int:
         processed = 0
@@ -58,7 +69,10 @@ class NotificationDispatcher:
                     )
                     if work is None or work.recipient_user_id != recipient_user_id:
                         continue
-                    if not self._recipient_is_current(session, work):
+                    if not self._recipient_is_current(session, work) or (
+                        self._recipient_policy is not None
+                        and not self._recipient_policy(session, work)
+                    ):
                         work.status = "quarantined"
                         work.last_error_code = "RECIPIENT_NO_LONGER_ELIGIBLE"
                         session.commit()
@@ -117,4 +131,36 @@ class NotificationDispatcher:
         ))
         if membership is None:
             return False
-        return membership.status == "active" and membership.revoked_at is None
+        if membership.status != "active" or membership.revoked_at is not None:
+            return False
+        if not work.category.startswith("approval."):
+            return True
+        try:
+            request_id = json.loads(work.metadata_json)["request_id"]
+        except (KeyError, TypeError, ValueError):
+            return False
+        request = ApprovalRequestORM
+        conditions = [
+            request.id == request_id,
+            request.tenant_id == work.tenant_id,
+            request.organization_id == work.organization_id,
+        ]
+        if work.category == "approval.requested.v1":
+            conditions.append(approval_reviewer_eligibility(work.recipient_user_id))
+        elif work.category in {"approval.approved.v1", "approval.rejected.v1"}:
+            conditions.extend((
+                request.status == (
+                    "APPROVED" if work.category == "approval.approved.v1" else "REJECTED"
+                ),
+                request.requested_by_user_id == work.recipient_user_id,
+                scoped_permission(
+                    user_id=work.recipient_user_id,
+                    tenant_id=request.tenant_id,
+                    organization_id=request.organization_id,
+                    project_id=request.project_id,
+                    permissions=("approval.request", "approval.decide"),
+                ),
+            ))
+        else:
+            return False
+        return bool(session.scalar(select(request.id).where(*conditions)))

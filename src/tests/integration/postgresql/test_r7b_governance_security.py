@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.exc import DBAPIError
 
 from src.core.modules.project_management.contracts.reads.collaboration.models.workspace_facts import (
@@ -208,6 +208,92 @@ def test_runtime_role_has_no_rls_bypass(postgres_test_environment):
             )
             == 0
         )
+
+
+def test_approval_delivery_rechecks_specific_reviewer_permission(
+    postgres_test_environment, governance_rows,
+):
+    from src.infra.integration.notification_dispatcher import NotificationDispatcher
+
+    work = SimpleNamespace(
+        recipient_user_id="r7b-reviewer",
+        tenant_id="r7a-tenant-a",
+        organization_id="r7a-org-a",
+        category="approval.requested.v1",
+        metadata_json='{"request_id": "r7b-request"}',
+    )
+    with runtime(postgres_test_environment) as session:
+        assert NotificationDispatcher._recipient_is_current(session, work)
+        work.recipient_user_id = "r7b-generic"
+        assert not NotificationDispatcher._recipient_is_current(session, work)
+
+
+def test_approval_page_eligibility_is_one_set_based_query(
+    postgres_test_environment, governance_rows,
+):
+    with runtime(postgres_test_environment) as session:
+        repo = SqlAlchemyApprovalRepository(session)
+        repo._tenant_context_service = SimpleNamespace(
+            require_active_scope_ids=lambda **kw: SimpleNamespace(
+                tenant_id="r7a-tenant-a", organization_id="r7a-org-a",
+            )
+        )
+        statements = []
+
+        def record(_connection, _cursor, statement, _parameters, _context, _executemany):
+            if statement.lstrip().upper().startswith("SELECT") and "FROM approval_requests" in statement:
+                statements.append(statement)
+
+        event.listen(session.bind, "before_cursor_execute", record)
+        try:
+            request_ids = ("r7b-request",) + tuple(f"missing-{i}" for i in range(299))
+            assert repo.eligible_request_ids(request_ids, "r7b-reviewer") == frozenset({
+                "r7b-request"
+            })
+        finally:
+            event.remove(session.bind, "before_cursor_execute", record)
+        assert len(statements) == 1
+
+
+def test_delayed_mention_requires_current_project_collaboration_grant(
+    postgres_test_environment, governance_rows,
+):
+    from src.infra.composition.notifications import pm_notification_recipient_policy
+
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(text(
+            "INSERT INTO task_comments "
+            "(id, task_id, body, mentioned_user_ids_json, created_at) "
+            "VALUES ('r7d-delayed-mention', 'r7a-task-a', 'Private', "
+            "'[\"r7b-reviewer\", \"r7b-generic\"]', CURRENT_TIMESTAMP) "
+            "ON CONFLICT (id) DO NOTHING"
+        ))
+    work = SimpleNamespace(
+        recipient_user_id="r7b-reviewer",
+        tenant_id="r7a-tenant-a",
+        organization_id="r7a-org-a",
+        category="pm.comment.mentioned.v1",
+        metadata_json=(
+            '{"comment_id":"r7d-delayed-mention",'
+            '"task_id":"r7a-task-a","project_id":"r7a-project-a"}'
+        ),
+    )
+    try:
+        with runtime(postgres_test_environment) as session:
+            assert pm_notification_recipient_policy(session, work)
+            work.recipient_user_id = "r7b-unauthorized"
+            assert not pm_notification_recipient_policy(session, work)
+            work.recipient_user_id = "r7b-reviewer"
+            work.metadata_json = (
+                '{"comment_id":"r7d-delayed-mention",'
+                '"task_id":"r7a-task-a","project_id":"r7a-project-p"}'
+            )
+            assert not pm_notification_recipient_policy(session, work)
+    finally:
+        with postgres_test_environment.admin_engine.begin() as connection:
+            connection.execute(text(
+                "DELETE FROM task_comments WHERE id='r7d-delayed-mention'"
+            ))
 
 
 @pytest.mark.parametrize(

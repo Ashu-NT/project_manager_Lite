@@ -55,8 +55,10 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         if not request_ids:
             return frozenset()
         ctx = self._context(operation_label="view approval decision eligibility")
+        if len(request_ids) > 500:
+            raise ValueError("Approval eligibility query exceeds the bounded page size")
         return frozenset(self.session.scalars(select(ApprovalRequestORM.id).where(
-            ApprovalRequestORM.id.in_(request_ids[:200]),
+            ApprovalRequestORM.id.in_(request_ids),
             ApprovalRequestORM.tenant_id == ctx.tenant_id,
             ApprovalRequestORM.organization_id == ctx.organization_id,
             approval_reviewer_eligibility(user_id),

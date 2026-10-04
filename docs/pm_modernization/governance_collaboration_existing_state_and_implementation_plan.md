@@ -947,3 +947,34 @@ R7D certification still requires the full retry/crash/concurrency matrix,
 bounded-volume/read query evidence, all relevant integration/architecture/schema
 guards and the consolidated final regression run. R7D remains IN PROGRESS;
 R7E/R8 have not started.
+
+### R7D Approval Audience And Query Reconciliation - 2026-10-04
+
+Platform Approval remains the reusable lifecycle, persistence, recipient-query,
+and decision-eligibility boundary. Each Approval request persists its required
+decision permission; Platform checks both that scoped permission and
+`approval.decide` against current membership and role bindings. The PM module
+owns the mapping of its 11 registered request types to action-specific grants:
+baseline, dependency/constraint/leveling, budget, forecast, project cost,
+financial change, and billing preparation. A future module must provide its own
+mapping at registration, not add its approval vocabulary to Platform. A generic
+`approval.decide` grant alone does not make a salesperson a baseline reviewer.
+
+The same database eligibility predicate drives PM reviewer notification
+selection, Action Center actions, decision commands, and the Control queue's
+`can_decide` presentation. Delivery rechecks pending reviewer eligibility or
+requester outcome authority before materializing delayed Approval work; stale
+or revoked audiences are quarantined. The Control desktop page caps approval
+rows at 500 and performs one set-based eligibility query for the page (not a
+query per row or a first-200-only partial check). PM mention recipient lookup
+likewise resolves active tenant members with current project-scoped
+`collaboration.read` in one set-based query before staging per-recipient work.
+Delayed mention delivery rechecks that grant and the live task/comment scope;
+tenant membership alone does not authorize a mention notification.
+
+Evidence: all 11 PM handler registrations match the PM permission map; 30
+Approval view-invalidation tests and 31 PostgreSQL R7B security tests pass;
+one PostgreSQL regression asserts a 300-ID approval page is checked in a
+single Approval data query. A PostgreSQL mention regression covers authorized,
+unauthorized and foreign-project delivery. This is audience hardening, not a claim
+that the full R7D retry/concurrency/read-volume closure matrix has passed.

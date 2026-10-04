@@ -116,12 +116,19 @@ def test_mention_policy_deduplicates_and_does_not_archive_comment_body(monkeypat
         mentioned_user_ids_json='["author", "mentioned", "mentioned"]',
         body="Secret private comment body",
     )
-    session = SimpleNamespace(get=lambda model, id: comment, scalar=lambda query: "mentioned")
+    recipient_queries = []
+
+    def eligible_recipients(query):
+        recipient_queries.append(query)
+        return ("mentioned",)
+
+    session = SimpleNamespace(get=lambda model, id: comment, scalars=eligible_recipients)
     dispatcher.dispatch(TaskCommentChanged(
         tenant_id="tenant-1", organization_id="org-1", project_id="project-1",
         task_id="task-1", comment_id="comment-1",
         change_type=TaskCommentChangeType.CREATED, occurred_at=NOW,
     ), SimpleNamespace(_session=session))
     assert len(writes) == 1
+    assert len(recipient_queries) == 1
     assert writes[0]["recipient_user_id"] == "mentioned"
     assert "Secret private comment body" not in str(writes[0])

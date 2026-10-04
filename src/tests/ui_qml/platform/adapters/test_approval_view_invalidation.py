@@ -67,6 +67,14 @@ def _login_as_fresh_requester(services) -> None:
     _login(services, username, "StrongPass123")
 
 
+def _login_as_scoped_approver(services) -> None:
+    organization_id = services["tenant_context_service"].get_active_organization_id()
+    username = _unique("viewinv-approver")
+    services["auth_service"].register_user(username, "StrongPass123", role_names=["approver"])
+    _login(services, username, "StrongPass123")
+    services["user_session"].set_active_organization_id(organization_id)
+
+
 def _submitted_budget(services, session):
     _login(services, "admin", "ChangeMe123!")
     project = services["project_service"].create_project(
@@ -302,6 +310,7 @@ def test_approve_and_apply_refreshes_control_workspace_exactly_once_no_legacy_si
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     refresh_calls.clear()
+    _login_as_scoped_approver(services)
 
     decided = services["approval_service"].approve_and_apply(request.id, note="Approved")
 
@@ -318,6 +327,7 @@ def test_reject_refreshes_control_workspace_exactly_once(services, session):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     refresh_calls.clear()
+    _login_as_scoped_approver(services)
 
     decided = services["approval_service"].reject(request.id, note="Rejected")
 
@@ -795,6 +805,7 @@ def test_apply_handler_failure_produces_zero_ui_refresh(services, session):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     refresh_calls.clear()
+    _login_as_scoped_approver(services)
     approvals = services["approval_service"]
 
     def _failing_handler(request, deps):
@@ -822,6 +833,7 @@ def test_reject_handler_failure_produces_zero_ui_refresh(services, session):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     refresh_calls.clear()
+    _login_as_scoped_approver(services)
     approvals = services["approval_service"]
 
     def _failing_reject_handler(request, deps):

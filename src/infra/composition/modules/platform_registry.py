@@ -519,6 +519,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
     )
+    from src.infra.composition.notifications import pm_notification_recipient_policy
     from src.infra.integration.notification_dispatcher import NotificationDispatcher
 
     notification_session_factory = sessionmaker(bind=session.bind, future=True)
@@ -547,6 +548,7 @@ def build_platform_service_bundle(
         delivery=NotificationDispatcher(
             session_factory=_notification_session,
             on_delivered=_notification_delivered,
+            recipient_policy=pm_notification_recipient_policy,
         ),
     )
     activity_service = ActivityService(
