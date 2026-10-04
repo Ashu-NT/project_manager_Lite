@@ -108,6 +108,8 @@ def load_selected_task_collaboration(controller) -> None:
         controller._clear_section_error("discussion")
         ws = controller._tasks_workspace_presenter.build_task_collaboration_state(
             task_id=controller._selected_task_id,
+            page=controller._collab_ctrl._comments_page,
+            page_size=controller._collab_ctrl._comments_page_size,
         )
         controller._collab_ctrl._update(ws)
         controller._set_collaboration_section_loaded_for_task_id(controller._selected_task_id)

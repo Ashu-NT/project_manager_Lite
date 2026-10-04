@@ -64,7 +64,7 @@ Index("idx_task_comments_parent", TaskCommentORM.parent_comment_id)
 class TaskPresenceORM(Base):
     __tablename__ = "task_presence"
     __table_args__ = (
-        UniqueConstraint("task_id", "username", name="ux_task_presence_task_username"),
+        UniqueConstraint("task_id", "user_id", name="ux_task_presence_task_user"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -73,7 +73,9 @@ class TaskPresenceORM(Base):
         ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=False,
     )
-    user_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     username: Mapped[str] = mapped_column(String(128), nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     activity: Mapped[str] = mapped_column(String(32), nullable=False, default="reviewing", server_default="reviewing")

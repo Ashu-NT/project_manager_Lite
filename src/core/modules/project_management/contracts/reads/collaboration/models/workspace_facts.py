@@ -3,6 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from src.core.platform.domain.master_data.documents import (
+    DocumentStorageKind,
+    DocumentType,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class CollaborationCommentFact:
@@ -56,4 +61,42 @@ class CollaborationCommentReadPage:
     page_size: int = 25
 
 
-__all__ = [name for name in globals() if name.startswith("Collaboration")]
+@dataclass(frozen=True, slots=True)
+class TaskDetailCommentFact:
+    id: str
+    task_id: str
+    author_user_id: str | None
+    author_username: str | None
+    body: str
+    mentions: tuple[str, ...]
+    attachments: tuple[str, ...]
+    created_at: datetime
+    parent_comment_id: str | None
+    parent_author_username: str
+    reply_count: int
+    updated_at: datetime | None
+    deleted_at: datetime | None
+    deletion_reason: str | None
+    reactions: tuple[tuple[str, tuple[str, ...]], ...]
+    version: int
+
+
+@dataclass(frozen=True, slots=True)
+class TaskDetailCommentReadPage:
+    items: tuple[TaskDetailCommentFact, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
+@dataclass(frozen=True, slots=True)
+class TaskDetailLinkedDocumentFact:
+    id: str
+    file_name: str | None
+    title: str
+    document_code: str
+    document_type: DocumentType
+    storage_kind: DocumentStorageKind
+
+
+__all__ = [name for name in globals() if name.startswith(("Collaboration", "TaskDetail"))]

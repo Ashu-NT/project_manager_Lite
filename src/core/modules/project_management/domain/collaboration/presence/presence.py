@@ -8,7 +8,6 @@ from pydantic import field_validator, model_validator
 from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.pydantic import (
-    normalize_optional_identifier,
     normalize_optional_text,
     normalize_required_text,
     validated_dataclass,
@@ -27,7 +26,7 @@ def _coerce_presence_datetime(value: object, *, code: str) -> datetime:
 class TaskPresence:
     id: str
     task_id: str
-    user_id: str | None
+    user_id: str
     username: str
     display_name: str | None = None
     activity: str = "reviewing"
@@ -54,8 +53,12 @@ class TaskPresence:
 
     @field_validator("user_id", mode="before")
     @classmethod
-    def _normalize_user_id(cls, value: object) -> str | None:
-        return normalize_optional_identifier(value)
+    def _normalize_user_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Authenticated user ID is required for task presence.",
+            code="TASK_PRESENCE_USER_REQUIRED",
+        )
 
     @field_validator("username", mode="before")
     @classmethod
@@ -92,7 +95,7 @@ class TaskPresence:
         return self
 
     @staticmethod
-    def create(*, task_id: str, user_id: str | None, username: str, display_name: str | None = None, activity: str = "reviewing") -> TaskPresence:
+    def create(*, task_id: str, user_id: str, username: str, display_name: str | None = None, activity: str = "reviewing") -> TaskPresence:
         now = datetime.now(timezone.utc)
         return TaskPresence(
             id=generate_id(), task_id=task_id, user_id=user_id,
@@ -114,6 +117,7 @@ class TaskPresenceStatusItem:
     activity: str = "reviewing"
     last_seen_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     is_self: bool = False
+    user_id: str = ""
 
 
 __all__ = ["TaskPresence", "TaskPresenceStatusItem"]

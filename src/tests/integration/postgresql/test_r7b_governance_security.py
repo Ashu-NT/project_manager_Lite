@@ -328,7 +328,7 @@ def test_delayed_mention_requires_current_project_collaboration_grant(
 
 @pytest.mark.parametrize(
     "table",
-    ["approval_requests", "activity_entries", "timesheet_periods", "task_comments"],
+    ["approval_requests", "activity_entries", "timesheet_periods", "task_comments", "task_presence"],
 )
 def test_governed_tables_force_rls(postgres_test_environment, table):
     with postgres_test_environment.runtime_session(
@@ -351,7 +351,7 @@ def test_governed_tables_force_rls(postgres_test_environment, table):
         )
 
 
-@pytest.mark.parametrize("table", ["task_presence", "document_links"])
+@pytest.mark.parametrize("table", ["document_links"])
 def test_current_intentional_exclusions_are_not_rls_protected(
     postgres_test_environment, table
 ):
@@ -388,6 +388,62 @@ def test_raw_foreign_comment_and_scoped_reader_both_deny_access(
         )
         assert page.total == 0
         assert page.items == ()
+
+
+@pytest.mark.parametrize("suffix", ["b", "o", "p"])
+def test_presence_raw_foreign_scope_and_impersonation_denied(
+    postgres_test_environment, governance_rows, suffix,
+):
+    presence_id = f"r7e-presence-{suffix}"
+    owner = {"b": "foreign", "o": "wrongorg", "p": "wrongproject"}[suffix]
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO task_presence "
+                "(id, task_id, user_id, username, started_at, last_seen_at) "
+                "VALUES (:id, :task, :user, :user, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {
+                "id": presence_id,
+                "task": f"r7a-task-{suffix}",
+                "user": f"r7b-{owner}",
+            },
+        )
+    try:
+        with runtime(postgres_test_environment) as session:
+            assert session.scalar(
+                text("SELECT id FROM task_presence WHERE id=:id"), {"id": presence_id}
+            ) is None
+            assert session.execute(
+                text("DELETE FROM task_presence WHERE id=:id"), {"id": presence_id}
+            ).rowcount == 0
+            with pytest.raises(DBAPIError):
+                session.execute(
+                    text(
+                        "INSERT INTO task_presence "
+                        "(id, task_id, user_id, username, started_at, last_seen_at) "
+                        "VALUES (:id, :task, :user, 'attack', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                    ),
+                    {
+                        "id": f"r7e-attack-{suffix}",
+                        "task": f"r7a-task-{suffix}",
+                        "user": "r7b-reviewer",
+                    },
+                )
+        with runtime(postgres_test_environment) as session:
+            with pytest.raises(DBAPIError):
+                session.execute(
+                    text(
+                        "INSERT INTO task_presence "
+                        "(id, task_id, user_id, username, started_at, last_seen_at) "
+                        "VALUES (:id, 'r7a-task-a', 'r7b-generic', 'attack', "
+                        "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                    ),
+                    {"id": f"r7e-impersonate-{suffix}"},
+                )
+    finally:
+        with postgres_test_environment.admin_engine.begin() as connection:
+            connection.execute(text("DELETE FROM task_presence WHERE id=:id"), {"id": presence_id})
 
 
 def test_deleted_comment_is_a_redacted_tombstone(

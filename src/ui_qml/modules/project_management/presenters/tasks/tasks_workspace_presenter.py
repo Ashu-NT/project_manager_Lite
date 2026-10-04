@@ -296,11 +296,15 @@ class ProjectTasksWorkspacePresenter:
         self,
         *,
         task_id: str,
+        page: int = 1,
+        page_size: int = 25,
     ) -> TaskCatalogWorkspaceViewModel:
         return build_task_collaboration_state(
             self._desktop_api,
             self._collaboration_desktop_api,
             task_id=task_id,
+            page=page,
+            page_size=page_size,
         )
 
     def build_task_schedule_overview_state(

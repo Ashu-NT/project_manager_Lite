@@ -31,14 +31,14 @@ class TaskPresenceRepository(ABC):
         self,
         *,
         task_id: str,
-        user_id: str | None,
+        user_id: str,
         username: str,
         display_name: str | None,
         activity: str,
     ) -> TaskPresence: ...
 
     @abstractmethod
-    def clear(self, *, task_id: str, username: str) -> None: ...
+    def clear(self, *, task_id: str, user_id: str) -> None: ...
 
     @abstractmethod
     def list_recent_for_tasks(

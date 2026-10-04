@@ -105,19 +105,10 @@ def _project_child_predicate(child_table: str) -> str:
     )
 
 
-PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
-    "notifications": (
-        "recipient_user_id = NULLIF(current_setting('app.user_id', true), '') "
-        f"AND tenant_id = {_TENANT_SETTING} AND "
-        f"(organization_id IS NULL OR organization_id = {_ORGANIZATION_SETTING})"
-    ),
-    "notification_work": (
-        f"tenant_id = {_TENANT_SETTING} AND "
-        f"(organization_id IS NULL OR organization_id = {_ORGANIZATION_SETTING})"
-    ),
-    "task_comments": (
+def _collaboration_child_predicate(child_table: str) -> str:
+    return (
         "EXISTS (SELECT 1 FROM tasks ct JOIN projects cp ON cp.id = ct.project_id "
-        "WHERE ct.id = task_comments.task_id "
+        f"WHERE ct.id = {child_table}.task_id "
         f"AND cp.tenant_id = {_TENANT_SETTING} "
         f"AND cp.organization_id = {_ORGANIZATION_SETTING} "
         "AND EXISTS (SELECT 1 FROM users cu "
@@ -136,7 +127,21 @@ PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
         "AND (cb.actual_scope_type = 'tenant' "
         "OR (cb.actual_scope_type = 'organization' AND cb.actual_scope_id = cp.organization_id) "
         "OR (cb.actual_scope_type = 'project' AND cb.actual_scope_id = cp.id))))"
+    )
+
+
+PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
+    "notifications": (
+        "recipient_user_id = NULLIF(current_setting('app.user_id', true), '') "
+        f"AND tenant_id = {_TENANT_SETTING} AND "
+        f"(organization_id IS NULL OR organization_id = {_ORGANIZATION_SETTING})"
     ),
+    "notification_work": (
+        f"tenant_id = {_TENANT_SETTING} AND "
+        f"(organization_id IS NULL OR organization_id = {_ORGANIZATION_SETTING})"
+    ),
+    "task_comments": _collaboration_child_predicate("task_comments"),
+    "task_presence": _collaboration_child_predicate("task_presence"),
     "resource_skills": _resource_child_predicate("resource_skills"),
     "resource_certifications": _resource_child_predicate("resource_certifications"),
     "project_resources": (
@@ -168,6 +173,12 @@ PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
     ),
 }
 PARENT_SCOPED_RLS_TABLES = frozenset(PARENT_SCOPED_RLS_PREDICATES)
+PARENT_SCOPED_RLS_WRITE_PREDICATES: Mapping[str, str] = {
+    "task_presence": (
+        f"({PARENT_SCOPED_RLS_PREDICATES['task_presence']}) "
+        "AND user_id = NULLIF(current_setting('app.user_id', true), '')"
+    ),
+}
 
 # These tables are intentionally outside direct RLS. Parent-scoped children are
 # reachable only through repositories that join to an RLS-protected owner.
@@ -196,7 +207,6 @@ INTENTIONAL_RLS_EXCLUSIONS: Mapping[str, str] = {
     "shift_pattern_days": "shift-pattern child scoped through shift_patterns",
     "site_calendar_assignments": "site/calendar association scoped through protected owners",
     "task_dependencies": "task child scoped through RLS-protected projects",
-    "task_presence": "task child scoped through RLS-protected projects",
     "tenants": "global tenant bootstrap root",
     "user_tenants": "membership bootstrap state used to establish tenant context",
     "users": "global identity bootstrap root",
@@ -267,6 +277,7 @@ def enable_baseline_rls(operations: Any, bind: Any) -> None:
             bind,
             table,
             PARENT_SCOPED_RLS_PREDICATES[table],
+            write_predicate=PARENT_SCOPED_RLS_WRITE_PREDICATES.get(table),
         )
 
 

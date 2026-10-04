@@ -35,18 +35,22 @@ def test_task_presence_dto_normalizes_and_validates_fields():
 
 def test_task_presence_dto_rejects_missing_identity_and_invalid_timestamps():
     with pytest.raises(ValidationError) as exc_task:
-        TaskPresence.create(task_id=" ", user_id=None, username="alice")
+        TaskPresence.create(task_id=" ", user_id="user-1", username="alice")
     assert exc_task.value.code == "TASK_PRESENCE_TASK_REQUIRED"
 
+    with pytest.raises(ValidationError) as exc_user:
+        TaskPresence.create(task_id="task-1", user_id=" ", username="alice")
+    assert exc_user.value.code == "TASK_PRESENCE_USER_REQUIRED"
+
     with pytest.raises(ValidationError) as exc_username:
-        TaskPresence.create(task_id="task-1", user_id=None, username=" ")
+        TaskPresence.create(task_id="task-1", user_id="user-1", username=" ")
     assert exc_username.value.code == "TASK_PRESENCE_USERNAME_REQUIRED"
 
     with pytest.raises(ValidationError) as exc_range:
         TaskPresence(
             id="presence-2",
             task_id="task-1",
-            user_id=None,
+            user_id="user-1",
             username="alice",
             started_at=datetime(2026, 7, 1, 9, 5, 0, tzinfo=timezone.utc),
             last_seen_at=datetime(2026, 7, 1, 9, 0, 0, tzinfo=timezone.utc),
@@ -77,3 +81,38 @@ def test_collaboration_service_uses_presence_dto_normalization(services):
 
     collaboration_service.clear_task_presence(task.id)
     assert collaboration_service.list_task_presence(task.id) == []
+
+
+def test_presence_username_change_keeps_one_user_identity(services):
+    collaboration = services["collaboration_service"]
+    principal = services["user_session"].principal
+    project = services["project_service"].create_project("Stable presence identity")
+    task = services["task_service"].create_task(project.id, "Presence rename")
+
+    with collaboration._uow_factory.create(context=collaboration._new_context()) as uow:
+        first = uow.presence.touch(
+            task_id=task.id,
+            user_id=principal.user_id,
+            username="before-rename",
+            display_name="Same Person",
+            activity="reviewing",
+        )
+        uow.commit()
+    with collaboration._uow_factory.create(context=collaboration._new_context()) as uow:
+        renamed = uow.presence.touch(
+            task_id=task.id,
+            user_id=principal.user_id,
+            username="after-rename",
+            display_name="Same Person",
+            activity="editing",
+        )
+        uow.commit()
+
+    rows = collaboration._presence_repo.list_recent_for_tasks(
+        [task.id], since=datetime(2020, 1, 1, tzinfo=timezone.utc)
+    )
+    assert len(rows) == 1
+    assert first.id == renamed.id == rows[0].id
+    assert rows[0].user_id == principal.user_id
+    assert rows[0].username == "after-rename"
+    assert rows[0].activity == "editing"

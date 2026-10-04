@@ -62,6 +62,7 @@ def reset_task_lazy_sections(controller) -> None:
     controller._set_selected_time_entry_id("")
     controller._set_time_section_loaded_for_task_id("")
     controller._set_collaboration_section_loaded_for_task_id("")
+    controller._collab_ctrl.reset_comment_page()
     controller._assignments_section_loaded_for_task_id = ""
     controller._dependencies_section_loaded_for_task_id = ""
     controller._skill_requirements_section_loaded_for_task_id = ""

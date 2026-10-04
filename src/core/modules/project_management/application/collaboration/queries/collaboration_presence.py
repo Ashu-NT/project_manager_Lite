@@ -58,6 +58,7 @@ class CollaborationPresenceQueryMixin:
                 activity=row.activity,
                 last_seen_at=row.last_seen_at,
                 is_self=bool(principal_user_id and row.user_id == principal_user_id),
+                user_id=str(row.user_id),
             )
             for row in rows
         ]
@@ -93,6 +94,7 @@ class CollaborationPresenceQueryMixin:
                     activity=row.activity,
                     last_seen_at=row.last_seen_at,
                     is_self=bool(principal_user_id and row.user_id == principal_user_id),
+                    user_id=row.user_id,
                 )
             )
         return items

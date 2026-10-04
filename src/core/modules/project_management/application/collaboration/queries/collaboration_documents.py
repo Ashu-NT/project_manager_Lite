@@ -9,11 +9,16 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_permission,
 )
 from src.core.platform.common.exceptions import ValidationError
+from src.core.modules.project_management.contracts.reads.collaboration.models.workspace_facts import (
+    TaskDetailLinkedDocumentFact,
+)
 from src.core.platform.domain.master_data.documents import Document
 
 
 class CollaborationDocumentQueryMixin:
-    def list_comment_documents(self, task_id: str) -> dict[str, list[Document]]:
+    def list_comment_documents_for_ids(
+        self, task_id: str, comment_ids: tuple[str, ...]
+    ) -> dict[str, tuple[TaskDetailLinkedDocumentFact, ...]]:
         task = self._require_task(task_id)
         require_permission(self._user_session, "collaboration.read", operation_label="view linked task documents")
         require_project_permission(
@@ -22,23 +27,22 @@ class CollaborationDocumentQueryMixin:
             "collaboration.read",
             operation_label="view linked task documents",
         )
-        comments = self._comment_repo.list_by_task(task_id)
-        if self._document_integration_service is None or not comments:
-            return {comment.id: [] for comment in comments}
-        documents_by_comment: dict[str, list[Document]] = {}
-        for comment in comments:
-            if comment.is_deleted:
-                documents_by_comment[comment.id] = []
-                continue
-            documents_by_comment[comment.id] = self._document_integration_service.list_documents_for_entity(
-                required_permission="collaboration.read",
-                operation_label="view linked task documents",
-                module_code="project_management",
-                entity_type="task_comment",
-                entity_id=comment.id,
-                active_only=True,
+        if self._document_integration_service is None or not comment_ids:
+            return {}
+        if len(comment_ids) > 100:
+            raise ValidationError(
+                "At most 100 comment document references can be read at once.",
+                code="COLLABORATION_DOCUMENT_PAGE_TOO_LARGE",
             )
-        return documents_by_comment
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view linked task documents"
+        )
+        return self._workspace_reader.read_task_comment_documents(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            task_id=task_id,
+            comment_ids=comment_ids,
+        )
 
     def list_available_documents(self, *, active_only: bool | None = True) -> list[Document]:
         require_permission(self._user_session, "collaboration.read", operation_label="view shared document library")

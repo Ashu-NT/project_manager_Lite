@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.core.modules.project_management.application.common.pagination import (
+    PageRequest,
+    normalize_page_for_total,
+)
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
@@ -25,6 +29,39 @@ class TaskCommentActionContext:
 
 
 class CollaborationCommentQueryMixin:
+    def query_task_comments_page(
+        self, task_id: str, *, page: int = 1, page_size: int = 25
+    ):
+        task = self._require_task(task_id)
+        require_permission(
+            self._user_session, "collaboration.read", operation_label="view task collaboration"
+        )
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "collaboration.read",
+            operation_label="view task collaboration",
+        )
+        request = PageRequest(page=page, page_size=min(page_size, 100))
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view task collaboration"
+        )
+
+        def read(page_number: int):
+            return self._workspace_reader.read_task_comment_page(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                task_id=task_id,
+                page=page_number,
+                page_size=request.page_size,
+            )
+
+        result = read(request.page)
+        normalized_page = normalize_page_for_total(
+            page=result.page, page_size=result.page_size, total=result.total
+        )
+        return read(normalized_page) if normalized_page != result.page else result
+
     def list_comments(self, task_id: str) -> list[TaskComment]:
         task = self._require_task(task_id)
         require_permission(self._user_session, "collaboration.read", operation_label="view task collaboration")
