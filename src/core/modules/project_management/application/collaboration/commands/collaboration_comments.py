@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from src.core.modules.project_management.access.scope_permissions import (
@@ -15,6 +17,7 @@ from src.core.modules.project_management.application.collaboration.collaboration
 )
 from src.core.modules.project_management.domain.collaboration import (
     TaskComment,
+    extract_mention_tokens,
     normalize_task_comment_body,
     resolve_mentions,
 )
@@ -39,14 +42,32 @@ from src.core.platform.common.pydantic import normalize_optional_text
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
+logger = logging.getLogger(__name__)
+
 
 class CollaborationCommentCommandMixin:
+    @contextmanager
+    def _compensate_uncommitted_attachments(self, paths: list[str]):
+        state = {"uow": None}
+        try:
+            yield state
+        except BaseException:
+            if paths and self._attachment_cleanup is not None and not getattr(state["uow"], "committed", False):
+                try:
+                    self._attachment_cleanup(paths)
+                except Exception:
+                    logger.exception("Failed to compensate uncommitted task comment attachments")
+            raise
+
     @staticmethod
     def _require_comment_revision(
         comment: TaskComment, expected_revision: int | None
     ) -> None:
         if expected_revision is None:
-            return
+            raise ValidationError(
+                "The current comment revision is required. Refresh the discussion and try again.",
+                code="COLLABORATION_COMMENT_REVISION_REQUIRED",
+            )
         if comment.version != int(expected_revision):
             raise ConcurrencyError(
                 "This comment changed after it was loaded. Refresh the discussion and try again.",
@@ -83,9 +104,12 @@ class CollaborationCommentCommandMixin:
                     code="COLLABORATION_PARENT_COMMENT_NOT_FOUND",
                 )
         text = normalize_task_comment_body(body)
-        mention_candidates = self._list_mention_candidates_for_project(task.project_id)
-        mentions, mentioned_user_ids, unresolved = resolve_mentions(
-            text=text, candidates=mention_candidates
+        mentions, mentioned_user_ids, unresolved = (
+            resolve_mentions(
+                text=text,
+                candidates=self._list_mention_candidates_for_project(task.project_id),
+            )
+            if extract_mention_tokens(text) else ([], [], [])
         )
         if unresolved:
             preview = ", ".join(f"@{token}" for token in unresolved[:4])
@@ -109,9 +133,12 @@ class CollaborationCommentCommandMixin:
             attachments=[],
             parent_comment_id=parent_id,
         )
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="post task collaboration update"
+        )
         attachment_paths = list(attachments or [])
         if attachment_paths:
-            if self._attachment_store is None:
+            if self._attachment_store is None or self._attachment_cleanup is None:
                 raise RuntimeError(
                     "Collaboration attachment storage is not configured."
                 )
@@ -120,14 +147,12 @@ class CollaborationCommentCommandMixin:
                 comment_id=comment.id,
                 attachments=attachment_paths,
             )
-        scope = self._tenant_context_service.require_active_scope_ids(
-            operation_label="post task collaboration update"
-        )
         uploader_user_id = getattr(principal, "user_id", None)
 
-        with self._require_collaboration_uow_factory().create(
+        with self._compensate_uncommitted_attachments(comment.attachments) as attachment_state, self._require_collaboration_uow_factory().create(
             context=self._new_context()
         ) as uow:
+            attachment_state["uow"] = uow
             uow.comments.add(comment)
             record_audit_entry(
                 uow,
@@ -320,9 +345,12 @@ class CollaborationCommentCommandMixin:
             )
         self._require_comment_revision(comment, expected_revision)
         text = normalize_task_comment_body(body)
-        mention_candidates = self._list_mention_candidates_for_project(task.project_id)
-        mentions, mentioned_user_ids, unresolved = resolve_mentions(
-            text=text, candidates=mention_candidates
+        mentions, mentioned_user_ids, unresolved = (
+            resolve_mentions(
+                text=text,
+                candidates=self._list_mention_candidates_for_project(task.project_id),
+            )
+            if extract_mention_tokens(text) else ([], [], [])
         )
         if unresolved:
             preview = ", ".join(f"@{token}" for token in unresolved[:4])

@@ -72,7 +72,7 @@ def test_deleted_comment_is_redacted_in_activity_dto_audit_and_read_marks(
     service = services["collaboration_service"]
     secret = "PRIVATE-CONTENT @admin"
     comment = service.post_comment(task_id=task.id, body=secret)
-    service.delete_comment(comment.id)
+    service.delete_comment(comment.id, expected_revision=comment.version)
     service.mark_task_mentions_read(task.id)
     assert service.query_mentions_page(project_id=project.id).total == 0
     item = next(

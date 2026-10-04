@@ -4,6 +4,7 @@ from typing import Protocol
 
 from src.core.modules.project_management.contracts.repositories.collaboration.collaboration import (
     TaskCommentRepository,
+    TaskPresenceRepository,
 )
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
@@ -19,6 +20,7 @@ from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFacto
 class CollaborationUnitOfWork(UnitOfWork, Protocol):
 
     comments: TaskCommentRepository
+    presence: TaskPresenceRepository
     documents: DocumentRepository
     links: DocumentLinkRepository
     structures: DocumentStructureRepository

@@ -95,6 +95,10 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
         self._committed = False
         self._closed = False
 
+    @property
+    def committed(self) -> bool:
+        return self._committed
+
     # -- context manager --------------------------------------------------------------
 
     def __enter__(self) -> Self:

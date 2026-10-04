@@ -87,10 +87,12 @@ class CollaborationService(
         view_invalidation_channel=None,
         uow_factory: CollaborationUnitOfWorkFactory | None = None,
         attachment_store: Callable[..., list[str]] | None = None,
+        attachment_cleanup: Callable[[list[str]], None] | None = None,
         clock: Clock | None = None,
     ) -> None:
         self._session = session
         self._attachment_store = attachment_store
+        self._attachment_cleanup = attachment_cleanup
         self._clock = clock
         self._comment_repo = comment_repo
         self._presence_repo = presence_repo

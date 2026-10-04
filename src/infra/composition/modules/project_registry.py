@@ -1506,6 +1506,7 @@ def build_project_management_service_bundle(
             _task_comment_event_type, _task_comment_view_invalidation_handler
         )
     from src.core.modules.project_management.infrastructure.collaboration_attachments import (
+        cleanup_task_comment_attachments,
         store_task_comment_attachments,
     )
 
@@ -1526,6 +1527,7 @@ def build_project_management_service_bundle(
         view_invalidation_channel=platform_services.platform_view_invalidation_channel,
         uow_factory=collaboration_uow_factory,
         attachment_store=store_task_comment_attachments,
+        attachment_cleanup=cleanup_task_comment_attachments,
         clock=SystemClock(),
     )
     portfolio_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)

@@ -19,7 +19,11 @@ from src.core.modules.project_management.application.collaboration.event_handler
     TASK_COMMENT_SCOPE_CODE,
     build_task_comment_view_invalidation_handler,
 )
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 # ---------------------------------------------------------------------------
@@ -169,13 +173,45 @@ def test_delete_comment_produces_hints_and_audit(services):
     comment = services["collaboration_service"].post_comment(task_id=task.id, body="Delete me")
     hints = _spy_hints(services)
 
-    deleted = services["collaboration_service"].delete_comment(comment.id)
+    deleted = services["collaboration_service"].delete_comment(
+        comment.id, expected_revision=comment.version,
+    )
 
     comment_hints = _comment_hints(hints)
     assert {h.scope_code for h in comment_hints} == {TASK_COMMENT_SCOPE_CODE, COLLABORATION_WORKSPACE_SCOPE_CODE}
     assert deleted.is_deleted is True
     rows = _audit_rows_for(services, comment.id)
     assert sorted(row.operation for row in rows) == ["create", "delete"]
+
+
+def test_mutable_comment_requires_revision_before_edit_or_first_delete(services):
+    _, task = _setup(services)
+    comment = services["collaboration_service"].post_comment(
+        task_id=task.id, body="Keep this revision",
+    )
+    service = services["collaboration_service"]
+    with pytest.raises(ValidationError) as edit_error:
+        service.edit_comment(comment.id, "Unsafe overwrite")
+    assert edit_error.value.code == "COLLABORATION_COMMENT_REVISION_REQUIRED"
+    with pytest.raises(ValidationError) as delete_error:
+        service.delete_comment(comment.id)
+    assert delete_error.value.code == "COLLABORATION_COMMENT_REVISION_REQUIRED"
+    assert service.list_comments(task.id)[0].body == "Keep this revision"
+
+
+def test_plain_comment_post_and_edit_do_not_scan_mention_candidates(monkeypatch, services):
+    _, task = _setup(services)
+    service = services["collaboration_service"]
+
+    def unexpected_lookup(_project_id):
+        raise AssertionError("Plain comments must not load project mention candidates")
+
+    monkeypatch.setattr(service, "_list_mention_candidates_for_project", unexpected_lookup)
+    comment = service.post_comment(task_id=task.id, body="No mentions here")
+    edited = service.edit_comment(
+        comment.id, "Still no mentions", expected_revision=comment.version,
+    )
+    assert edited.mentioned_user_ids == []
 
 
 def test_react_and_remove_reaction_produce_task_scoped_hints_only(services):
@@ -227,7 +263,9 @@ def test_mark_task_mentions_read_is_a_true_no_op_when_already_read(services):
 def test_delete_comment_is_a_true_no_op_when_already_deleted(services):
     _, task = _setup(services)
     comment = services["collaboration_service"].post_comment(task_id=task.id, body="Delete me once")
-    services["collaboration_service"].delete_comment(comment.id)
+    services["collaboration_service"].delete_comment(
+        comment.id, expected_revision=comment.version,
+    )
 
     hints = _spy_hints(services)
     redeleted = services["collaboration_service"].delete_comment(comment.id)

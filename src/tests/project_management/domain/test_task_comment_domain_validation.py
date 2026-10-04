@@ -37,6 +37,7 @@ class _FakeCollaborationUnitOfWork:
         self.comments = comments
         self.context = context
         self._enterprise_audit_service = _FakeAuditService()
+        self.committed = False
 
     def __enter__(self):
         return self
@@ -49,6 +50,7 @@ class _FakeCollaborationUnitOfWork:
 
     def commit(self) -> None:
         self._factory.commit_calls += 1
+        self.committed = True
 
 
 class _FakeCollaborationUnitOfWorkFactory:
@@ -223,6 +225,7 @@ def _make_service(
         attachment_store=lambda **kwargs: [
             str(item).strip() for item in kwargs["attachments"] if str(item).strip()
         ],
+        attachment_cleanup=lambda paths: None,
         session=_FakeSession(),
         comment_repo=comment_repo,
         presence_repo=object(),
@@ -447,7 +450,7 @@ def test_edit_comment_rejects_deleted_comment(monkeypatch: pytest.MonkeyPatch):
 
     service = _make_service(monkeypatch)
     comment = service.post_comment(task_id="task-1", body="Original text")
-    service.delete_comment(comment.id)
+    service.delete_comment(comment.id, expected_revision=comment.version)
 
     with pytest.raises(BusinessRuleError):
         service.edit_comment(comment.id, "Edit after delete")
@@ -521,12 +524,49 @@ def test_react_and_remove_reaction_round_trip(monkeypatch: pytest.MonkeyPatch):
     assert cleared.reactions == {}
 
 
+def test_post_comment_cleans_staged_attachments_when_write_fails(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    service = _make_service(monkeypatch)
+    cleaned: list[list[str]] = []
+    service._attachment_cleanup = lambda paths: cleaned.append(list(paths))
+
+    def fail_add(_comment):
+        raise RuntimeError("repository failed")
+
+    monkeypatch.setattr(service._comment_repo, "add", fail_add)
+    with pytest.raises(RuntimeError, match="repository failed"):
+        service.post_comment(task_id="task-1", body="Evidence", attachments=["evidence.pdf"])
+
+    assert cleaned == [["evidence.pdf"]]
+
+
+def test_post_comment_preserves_attachments_after_committed_event_failure(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    service = _make_service(monkeypatch)
+    cleaned: list[list[str]] = []
+    service._attachment_cleanup = lambda paths: cleaned.append(list(paths))
+    original_commit = _FakeCollaborationUnitOfWork.commit
+
+    def fail_after_commit(uow):
+        original_commit(uow)
+        raise RuntimeError("post-commit handler failed")
+
+    monkeypatch.setattr(_FakeCollaborationUnitOfWork, "commit", fail_after_commit)
+    with pytest.raises(RuntimeError, match="post-commit handler failed"):
+        service.post_comment(task_id="task-1", body="Evidence", attachments=["evidence.pdf"])
+
+    assert cleaned == []
+    assert len(service._comment_repo.list_by_task("task-1")) == 1
+
+
 def test_react_to_deleted_comment_raises(monkeypatch: pytest.MonkeyPatch):
     from src.core.platform.common.exceptions import BusinessRuleError
 
     service = _make_service(monkeypatch)
     comment = service.post_comment(task_id="task-1", body="Will be removed")
-    service.delete_comment(comment.id)
+    service.delete_comment(comment.id, expected_revision=comment.version)
 
     with pytest.raises(BusinessRuleError):
         service.react_to_comment(comment.id, "👍")

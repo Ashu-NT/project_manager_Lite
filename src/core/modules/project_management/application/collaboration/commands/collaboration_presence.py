@@ -28,18 +28,17 @@ class CollaborationPresenceCommandMixin:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="update task presence"
         )
-        try:
-            self._presence_repo.touch(
+        with self._require_collaboration_uow_factory().create(
+            context=self._new_context()
+        ) as uow:
+            uow.presence.touch(
                 task_id=task_id,
                 user_id=str(getattr(principal, "user_id", "") or "").strip() or None,
                 username=username,
                 display_name=getattr(principal, "display_name", None),
                 activity=activity,
             )
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.commit()
         notify_task_presence_stale(
             getattr(self, "_view_invalidation_channel", None),
             tenant_id=scope.tenant_id,
@@ -62,12 +61,11 @@ class CollaborationPresenceCommandMixin:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="clear task presence"
         )
-        try:
-            self._presence_repo.clear(task_id=task_id, username=username)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
+        with self._require_collaboration_uow_factory().create(
+            context=self._new_context()
+        ) as uow:
+            uow.presence.clear(task_id=task_id, username=username)
+            uow.commit()
         notify_task_presence_stale(
             getattr(self, "_view_invalidation_channel", None),
             tenant_id=scope.tenant_id,

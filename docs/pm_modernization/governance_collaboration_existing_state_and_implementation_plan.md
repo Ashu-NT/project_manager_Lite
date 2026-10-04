@@ -3,12 +3,13 @@
 ## Status and Scope
 
 Audit date: 2026-09-30. R7A is COMPLETE as a characterization and roadmap phase.
-R7 itself is OPEN. R7B and R7C are COMPLETE; implementation and verification are recorded below.
+R7 itself is OPEN. R7B, R7C, and R7D are COMPLETE; implementation and verification are recorded below.
 The approved R7C brief supersedes the original phase numbering: R7C is Action
 Center bounded reads/eligibility consistency. The original broader Approval
 lifecycle proposal is deferred, not implicitly certified by this closure.
-R7D is now IN PROGRESS under the approved Durable Notifications / Deduplication /
-Delivery Reliability brief. R7D is not complete and R7E has not started.
+R7E is IN PROGRESS under the approved Task Collaboration / Mentions / Evidence
+Lifecycle brief. R7D closed durable Notifications; its old planned R7F
+notification phase must not be repeated.
 The R7A findings below are historical characterization, not current acceptance behavior.
 R5 and R6 remain CLOSED; their historical evidence is unchanged. R8 has not started.
 Only this document and three characterization test files were added in R7A.
@@ -1046,4 +1047,36 @@ The shell drawer intentionally offers read-state actions only. Its DTO does
 not expose a route, so no Notification row acts as a navigation authorization
 token or misleading deep link. Out-of-app invitation delivery, email/SMS/push
 and navigable Notification destinations require separate product designs; none
-is claimed here. R7E/R8 have not started. No commit was made by the agent.
+is claimed here. R7E began after this closure; R8 has not started. No commit was made by the agent.
+
+### R7E Active Implementation - 2026-10-04
+
+**R7E remains OPEN.** The current worktree has hardened the existing Task
+collaboration path, without creating a parallel comment or notification system:
+
+- Initial comment edits and deletes now require an explicit revision; stale
+  writes continue through the repository's version check. Repeat deletion
+  remains idempotent. Plain comments no longer scan mention candidates when
+  their body contains no mention token.
+- Presence touch/clear now use a fresh collaboration UoW transaction and emit
+  a narrow presence hint after commit rather than committing the shared UI
+  session. This does not yet change username-based presence identity.
+- Physical attachment paths use a unique storage identity, even for two
+  same-name files on one comment. Source validation completes before copying;
+  partial copy and pre-commit SQL failures compensate staged files. The UoW
+  exposes committed state so a failure in post-commit publication cannot
+  delete already-committed attachment bytes. Storage remains injected into
+  the PM application service, not imported from infrastructure there.
+- The final-worktree collaboration-focused selection passed **117 tests**;
+  the real-UoW rollback test verifies no durable comment row or physical
+  attachment after a forced repository failure. Scoped Ruff F/I, Python
+  compilation, and `git diff --check` pass. These are targeted checks, not
+  R7E closure; PostgreSQL, viewport, and full PM regressions remain open.
+
+Outstanding R7E gates include stable submission replay identity, bounded
+SQL-backed Task Detail thread reads and counts, targeted mention read updates,
+effective-grant bounded mention search, stable User-based presence identity,
+attachment open/download authorization, full document-link/RLS hostile-scope
+proof, concurrency and large-volume query-shape tests, complete UI/viewport
+proof, broad regressions, and final quality/architecture/schema gates. Do not
+mark R7E complete or begin R7G/R8 on the current evidence.
