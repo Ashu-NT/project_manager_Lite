@@ -809,9 +809,9 @@ def test_approval_decision_read_serializes_concurrent_runtime_transactions(
             text(
                 "INSERT INTO approval_requests "
                 "(id, tenant_id, request_type, entity_type, entity_id, organization_id, "
-                "project_id, payload_json, status, requested_at) VALUES "
+                "project_id, payload_json, status, requested_at, decision_permission) VALUES "
                 "(:id, :tenant, 'budget.approve', 'project_budget', 'budget-race', "
-                ":organization, :project, '{}', 'PENDING', :now)"
+                ":organization, :project, '{}', 'PENDING', :now, 'budget.approve')"
             ),
             {
                 "id": request_id,

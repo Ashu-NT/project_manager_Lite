@@ -1718,8 +1718,18 @@ def _register_project_management_approval_handlers(
     calendar_assignment_service=None,
     financial_period_service=None,
 ) -> None:
+    from src.core.modules.project_management.contracts.approval import (
+        pm_reviewer_permission,
+    )
+
+    def register_apply(request_type, handler, *, dependencies_factory):
+        approval_service.register_apply_handler(
+            request_type, handler, dependencies_factory=dependencies_factory,
+            reviewer_permission=pm_reviewer_permission(request_type),
+        )
+
     baseline_participant = BaselineApprovalParticipant()
-    approval_service.register_apply_handler(
+    register_apply(
         "baseline.create",
         baseline_participant.apply,
         dependencies_factory=lambda uow_session: build_baseline_approval_deps(
@@ -1741,27 +1751,27 @@ def _register_project_management_approval_handlers(
         enterprise_calendar_resolver=enterprise_calendar_resolver,
         calendar_assignment_service=calendar_assignment_service,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "dependency.add",
         task_participant.apply_dependency_add,
         dependencies_factory=task_dependencies_factory,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "dependency.remove",
         task_participant.apply_dependency_remove,
         dependencies_factory=task_dependencies_factory,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "dependency.update",
         task_participant.apply_dependency_update,
         dependencies_factory=task_dependencies_factory,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "task.constraint.update",
         task_participant.apply_task_constraint_update,
         dependencies_factory=task_dependencies_factory,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "scheduling.leveling.apply",
         task_participant.apply_resource_leveling_plan,
         dependencies_factory=task_dependencies_factory,
@@ -1774,7 +1784,7 @@ def _register_project_management_approval_handlers(
         tenant_context_service=tenant_context_service,
         module_catalog_service=module_catalog_service,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "budget.approve",
         budget_participant.apply,
         dependencies_factory=budget_dependencies_factory,
@@ -1792,7 +1802,7 @@ def _register_project_management_approval_handlers(
         tenant_context_service=tenant_context_service,
         module_catalog_service=module_catalog_service,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "forecast.approve",
         forecast_participant.apply,
         dependencies_factory=forecast_dependencies_factory,
@@ -1811,7 +1821,7 @@ def _register_project_management_approval_handlers(
         financial_period_service=financial_period_service,
         module_catalog_service=module_catalog_service,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "project_cost.approve",
         project_cost_participant.apply,
         dependencies_factory=project_cost_dependencies_factory,
@@ -1830,7 +1840,7 @@ def _register_project_management_approval_handlers(
         work_calendar_engine=work_calendar_engine,
         module_catalog_service=module_catalog_service,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "financial_change.apply",
         financial_change_participant.apply,
         dependencies_factory=financial_change_dependencies_factory,
@@ -1850,7 +1860,7 @@ def _register_project_management_approval_handlers(
             module_catalog_service=module_catalog_service,
         )
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "project_billing_preparation.approve",
         billing_preparation_participant.apply,
         dependencies_factory=billing_preparation_dependencies_factory,

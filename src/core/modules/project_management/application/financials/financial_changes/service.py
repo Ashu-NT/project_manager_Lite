@@ -14,6 +14,7 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.contracts.approval import pm_reviewer_permission
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
@@ -535,6 +536,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             clock=self._clock,
             record_event=self._record_event,
             request_type="financial_change.apply",
+            decision_permission=pm_reviewer_permission("financial_change.apply"),
             entity_type="financial_change_request",
             entity_id=change.id,
             tenant_id=scope.tenant_id,

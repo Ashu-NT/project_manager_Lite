@@ -26,6 +26,9 @@ class ApprovalRequestORM(Base):
         nullable=True,
     )
     request_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    decision_permission: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="approval.decide", server_default="approval.decide",
+    )
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
     entity_id: Mapped[str] = mapped_column(String, nullable=False)
     organization_id: Mapped[str] = mapped_column(

@@ -77,6 +77,7 @@ class ApprovalRequest:
     entity_id: str
     project_id: str | None
     payload: dict[str, Any]
+    decision_permission: str = "approval.decide"
     organization_id: str | None = None
     status: ApprovalStatus = ApprovalStatus.PENDING
     requested_by_user_id: str | None = None
@@ -94,6 +95,15 @@ class ApprovalRequest:
             value,
             message="Approval request type is required.",
             code="APPROVAL_REQUEST_TYPE_REQUIRED",
+        ).lower()
+
+    @field_validator("decision_permission", mode="before")
+    @classmethod
+    def _validate_decision_permission(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Approval decision permission is required.",
+            code="APPROVAL_DECISION_PERMISSION_REQUIRED",
         ).lower()
 
     @field_validator("tenant_id", mode="before")
@@ -178,6 +188,7 @@ class ApprovalRequest:
         payload: dict[str, Any] | None = None,
         requested_by_user_id: str | None = None,
         requested_by_username: str | None = None,
+        decision_permission: str = "approval.decide",
     ) -> ApprovalRequest:
         return ApprovalRequest(
             id=generate_id(),
@@ -190,6 +201,7 @@ class ApprovalRequest:
             organization_id=organization_id,
             requested_by_user_id=requested_by_user_id,
             requested_by_username=requested_by_username,
+            decision_permission=decision_permission,
         )
 
 

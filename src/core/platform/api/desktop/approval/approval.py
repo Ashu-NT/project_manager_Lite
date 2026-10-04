@@ -30,15 +30,21 @@ class PlatformApprovalDesktopApi:
         limit: int = 500,
     ) -> DesktopApiResult[tuple[ApprovalRequestDto, ...]]:
         return execute_desktop_operation(
-            lambda: tuple(
-                self._serialize_request(request)
-                for request in self._approval_service.list_requests(
-                    status=status,
-                    project_id=project_id,
-                    limit=limit,
-                    entity_type=entity_type,
-                )
+            lambda: self._list_requests(
+                status=status, project_id=project_id,
+                entity_type=entity_type, limit=limit,
             )
+        )
+
+    def _list_requests(self, *, status, project_id, entity_type, limit):
+        requests = tuple(self._approval_service.list_requests(
+            status=status, project_id=project_id,
+            limit=limit, entity_type=entity_type,
+        ))
+        eligible_ids = self._approval_service.eligible_request_ids(requests)
+        return tuple(
+            self._serialize_request(request, can_decide=request.id in eligible_ids)
+            for request in requests
         )
 
     def approve_and_apply(
@@ -59,7 +65,7 @@ class PlatformApprovalDesktopApi:
         )
 
     @staticmethod
-    def _serialize_request(request: ApprovalRequest) -> ApprovalRequestDto:
+    def _serialize_request(request: ApprovalRequest, *, can_decide: bool = False) -> ApprovalRequestDto:
         return ApprovalRequestDto(
             id=request.id,
             request_type=request.request_type,
@@ -78,6 +84,7 @@ class PlatformApprovalDesktopApi:
             module_label=approval_module_label(request),
             context_label=approval_context_label(request),
             display_label=approval_display_label(request),
+            can_decide=can_decide,
         )
 
 

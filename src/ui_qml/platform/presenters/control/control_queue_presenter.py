@@ -225,11 +225,12 @@ class PlatformControlQueuePresenter:
                 f"{row.module_label} | requested by {row.requested_by_username or 'system'}"
             ).strip(),
             meta_text=" | ".join(part for part in meta_parts if part),
-            can_primary_action=row.status == ApprovalStatus.PENDING,
-            can_secondary_action=row.status == ApprovalStatus.PENDING,
+            can_primary_action=bool(getattr(row, "can_decide", False)),
+            can_secondary_action=bool(getattr(row, "can_decide", False)),
             state={
                 "status": row.status.value,
                 "decisionNote": note_text,
+                "canDecide": bool(getattr(row, "can_decide", False)),
             },
         )
 

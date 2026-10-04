@@ -86,7 +86,9 @@ def governance_rows(postgres_test_environment):
 
 
 def _seed_identities(connection, now):
-    for code in ("collaboration.read", "collaboration.manage", "approval.decide"):
+    for code in (
+        "collaboration.read", "collaboration.manage", "approval.decide", "baseline.approve",
+    ):
         connection.execute(
             text(
                 "INSERT INTO permissions (id, code, description) VALUES (:id, :code, '') ON CONFLICT DO NOTHING"
@@ -95,6 +97,7 @@ def _seed_identities(connection, now):
         )
     for user, tenant, kind, target, active, member, revoked, expired in (
         ("reviewer", "a", "project", "r7a-project-a", True, "active", False, False),
+        ("generic", "a", "project", "r7a-project-a", True, "active", False, False),
         ("foreign", "b", "project", "r7a-project-b", True, "active", False, False),
         ("wrongorg", "a", "organization", "r7a-org-o", True, "active", False, False),
         ("wrongproject", "a", "project", "r7a-project-p", True, "active", False, False),
@@ -144,8 +147,9 @@ def _seed_identities(connection, now):
                 "collaboration.read",
                 "collaboration.manage",
                 "approval.decide",
+                "baseline.approve",
             ):
-                if user == "unauthorized":
+                if user == "unauthorized" or (user == "generic" and permission == "baseline.approve"):
                     continue
                 connection.execute(
                     text(
@@ -165,9 +169,9 @@ def _seed_identities(connection, now):
     connection.execute(
         text(
             "INSERT INTO approval_requests (id, tenant_id, organization_id, project_id, request_type, "
-            "entity_type, entity_id, payload_json, status, requested_at) VALUES "
+            "entity_type, entity_id, payload_json, status, requested_at, decision_permission) VALUES "
             "('r7b-request', 'r7a-tenant-a', 'r7a-org-a', 'r7a-project-a', 'baseline.create', "
-            "'project_baseline', 'r7b-target', '{}', 'PENDING', :now)"
+            "'project_baseline', 'r7b-target', '{}', 'PENDING', :now, 'baseline.approve')"
         ),
         {"now": now},
     )
@@ -373,6 +377,7 @@ def test_only_active_scoped_reviewers_are_notified_once(
         assert repo.list_notification_recipient_ids(
             "r7b-request", audience="reviewers"
         ) == ("r7b-reviewer",)
+        assert not repo.is_reviewer_eligible("r7b-request", "r7b-generic")
         assert (
             repo.list_notification_recipient_ids(
                 "r7b-request", audience="reviewers", after_user_id="r7b-reviewer"

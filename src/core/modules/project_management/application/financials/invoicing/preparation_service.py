@@ -14,6 +14,7 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.contracts.approval import pm_reviewer_permission
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     BillingPreparationCreated,
     BillingPreparationLineAdded,
@@ -445,6 +446,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             clock=self._clock,
             record_event=self._record_event,
             request_type="project_billing_preparation.approve",
+            decision_permission=pm_reviewer_permission("project_billing_preparation.approve"),
             entity_type="project_billing_preparation",
             entity_id=preparation.id,
             tenant_id=preparation.tenant_id,

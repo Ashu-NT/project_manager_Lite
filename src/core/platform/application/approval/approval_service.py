@@ -62,6 +62,7 @@ class ApprovalService:
         self._clock = clock
         self._apply_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
         self._reject_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
+        self._review_permissions: dict[str, str] = {}
 
     def _require_clock(self) -> Clock:
         if self._clock is None:
@@ -77,8 +78,11 @@ class ApprovalService:
         handler: ApplyHandler,
         *,
         dependencies_factory: DependenciesFactory,
+        reviewer_permission: str = "approval.decide",
     ) -> None:
-        self._apply_handlers[request_type.strip().lower()] = (handler, dependencies_factory)
+        normalized_type = request_type.strip().lower()
+        self._apply_handlers[normalized_type] = (handler, dependencies_factory)
+        self._review_permissions[normalized_type] = reviewer_permission.strip().lower()
 
     def register_reject_handler(
         self,
@@ -140,6 +144,9 @@ class ApprovalService:
                 payload=payload,
                 requested_by_user_id=principal.user_id if principal else None,
                 requested_by_username=principal.username if principal else None,
+                decision_permission=self._review_permissions.get(
+                    request_type.strip().lower(), "approval.decide"
+                ),
             )
             uow.commit()
         return request
@@ -175,6 +182,14 @@ class ApprovalService:
             project_id=project_id,
             entity_type=entity_type,
             entity_id=None,
+        )
+
+    def eligible_request_ids(self, requests: tuple[ApprovalRequest, ...]) -> frozenset[str]:
+        principal = self._user_session.principal if self._user_session else None
+        if principal is None or not requests:
+            return frozenset()
+        return self._approval_repo.eligible_request_ids(
+            tuple(request.id for request in requests), principal.user_id,
         )
 
     def list_pending(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:
