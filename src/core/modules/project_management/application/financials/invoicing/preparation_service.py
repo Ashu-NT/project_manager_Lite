@@ -123,7 +123,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         # instance. None means "not governed-composition-wired" (e.g. the approval
         # participant's own fresh instance, which never calls submit_preparation).
         self._approval_repo = None
-        self._approval_requested_staged: Callable[[object], None] | None = None
 
     def get_preparation(self, preparation_id: str) -> ProjectBillingPreparation:
         preparation = self._require_preparation(preparation_id)
@@ -470,8 +469,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         )
         self._record_event(event)
         self._session.flush()
-        if self._approval_requested_staged is not None:
-            self._approval_requested_staged(request)
         return preparation
 
     def _apply_approval_decision(

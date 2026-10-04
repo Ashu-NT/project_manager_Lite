@@ -9,14 +9,15 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.contract.port.notifications.notification_delivery import (
     NotificationDelivery,
 )
-from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
-    UserTenantMembershipRepository,
-)
 from src.core.platform.contract.repositories.notifications.contracts import (
     NotificationRepository,
 )
+from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
+    UserTenantMembershipRepository,
+)
 from src.core.platform.domain.notifications import Notification
 from src.core.platform.domain.security.auth.session import UserSessionContext
+
 
 class NotificationService:
     """Authenticated personal reads; writes come only from committed delivery work."""
@@ -99,17 +100,9 @@ class NotificationService:
     def _drain_pending(self, user_id: str) -> None:
         if self._delivery is None or self._user_session is None:
             return
-        active_tenant = self._user_session.stored_active_tenant_id()
-        active_org = self._user_session.stored_active_organization_id()
-        tenant_ids = {active_tenant} if active_tenant else set()
-        if self._memberships is not None:
-            tenant_ids.update(
-                membership.tenant_id
-                for membership in self._memberships.list_memberships_for_user(user_id)
-                if membership.status in {"active", "invited"}
-            )
-        for tenant_id in sorted(tenant_ids):
-            self._delivery.drain(tenant_id=tenant_id, organization_id=None)
+        active_tenant, active_org = self._scope(user_id)
+        if active_tenant:
+            self._delivery.drain(tenant_id=active_tenant, organization_id=None)
         if active_tenant and active_org:
             self._delivery.drain(tenant_id=active_tenant, organization_id=active_org)
 

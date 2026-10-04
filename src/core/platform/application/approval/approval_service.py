@@ -51,7 +51,6 @@ class ApprovalService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
-        notification_service: Any = None,
         clock: Clock | None = None,
     ):
         self._session = session
@@ -60,7 +59,6 @@ class ApprovalService:
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
-        self._notification_service = notification_service
         self._clock = clock
         self._apply_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
         self._reject_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
@@ -361,12 +359,6 @@ class ApprovalService:
             )
         return result
 
-
-    def _active_tenant_id(self) -> str | None:
-        tenant_context = getattr(self, "_tenant_context_service", None)
-        if tenant_context is None:
-            return None
-        return tenant_context.get_active_tenant_id()
 
     def _active_organization_id(self, *, operation_label: str) -> str | None:
         tenant_context = getattr(self, "_tenant_context_service", None)

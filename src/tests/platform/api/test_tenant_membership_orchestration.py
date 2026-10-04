@@ -369,14 +369,11 @@ def test_invitation_expiry_is_bounded(
     assert expiry_error.value.code == "TENANT_INVITATION_EXPIRY_INVALID"
 
 
-def test_issuing_invitation_notifies_invitee_without_leaking_the_token(
+def test_issuing_invitation_uses_pending_invitations_not_in_app_notifications(
     services,
 ) -> None:
     membership_service = services["tenant_membership_service"]
     notifications = services["notification_service"]
-    tenant_id = services["tenant_context_service"].require_active_tenant_id(
-        operation_label="test invitation notification"
-    )
     target = _register_user(services, "notified_invitee")
 
     issued = membership_service.issue_invitation(
@@ -385,15 +382,12 @@ def test_issuing_invitation_notifies_invitee_without_leaking_the_token(
     )
 
     _set_user_principal(services, target.username)
-    mine = notifications.list_my_notifications()
-    assert len(mine) == 1
-    assert mine[0].category == "tenant.invitation.issued"
-    assert issued.token not in mine[0].body
-    assert issued.token not in json.dumps(mine[0].metadata)
-    assert mine[0].metadata.get("membership_id") == issued.membership.id
+    assert notifications.list_my_notifications() == []
+    pending = membership_service.list_my_pending_invitations()
+    assert [row.id for row in pending] == [issued.membership.id]
 
 
-def test_revoking_invitation_notifies_invitee(services) -> None:
+def test_revoking_invitation_does_not_create_in_app_notification(services) -> None:
     membership_service = services["tenant_membership_service"]
     notifications = services["notification_service"]
     target = _register_user(services, "revoke_notified_invitee")
@@ -405,8 +399,8 @@ def test_revoking_invitation_notifies_invitee(services) -> None:
     membership_service.revoke_invitation(target.id)
 
     _set_user_principal(services, target.username)
-    categories = {n.category for n in notifications.list_my_notifications()}
-    assert "tenant.invitation.revoked" in categories
+    assert notifications.list_my_notifications() == []
+    assert membership_service.list_my_pending_invitations() == []
 
 
 def test_list_my_pending_invitations_is_self_scoped_and_excludes_expired(

@@ -84,7 +84,6 @@ class CollaborationService(
         tenant_context_service=None,
         role_repo=None,
         role_binding_repo=None,
-        notification_service=None,
         view_invalidation_channel=None,
         uow_factory: CollaborationUnitOfWorkFactory | None = None,
         attachment_store: Callable[..., list[str]] | None = None,
@@ -105,7 +104,6 @@ class CollaborationService(
         self._tenant_context_service = tenant_context_service
         self._role_repo = role_repo
         self._role_binding_repo = role_binding_repo
-        self._notification_service = notification_service
         self._view_invalidation_channel = view_invalidation_channel
         self._uow_factory: CollaborationUnitOfWorkFactory | None = uow_factory
         self._presence_ttl_seconds = max(int(os.getenv("PM_TASK_PRESENCE_TTL_SECONDS", "900") or 900), 60)

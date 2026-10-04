@@ -679,7 +679,6 @@ def build_project_management_service_bundle(
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_catalog_service,
-        notification_service=platform_services.notification_service,
         employee_repo=repositories.employee_repo,
         assignment_skill_validator=assignment_skill_validator,
         tenant_context_service=platform_services.tenant_context_service,
@@ -1139,7 +1138,6 @@ def build_project_management_service_bundle(
     )
 
     def build_finance_governance_operations(uow):
-        post_commit_actions = []
         budget_operations = BudgetService(
             session=uow._session,
             budget_repo=uow.budgets,
@@ -1310,7 +1308,6 @@ def build_project_management_service_bundle(
             cost_entries=cost_entry_operations,
             billing_profiles=billing_profile_operations,
             billing_preparations=billing_preparation_operations,
-            post_commit_actions=post_commit_actions,
         )
 
     finance_governance_commands = FinanceGovernanceCommandBoundary(
@@ -1526,7 +1523,6 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         role_repo=repositories.role_repo,
         role_binding_repo=repositories.role_binding_repo,
-        notification_service=platform_services.notification_service,
         view_invalidation_channel=platform_services.platform_view_invalidation_channel,
         uow_factory=collaboration_uow_factory,
         attachment_store=store_task_comment_attachments,

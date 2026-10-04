@@ -108,11 +108,8 @@ def _project_child_predicate(child_table: str) -> str:
 PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
     "notifications": (
         "recipient_user_id = NULLIF(current_setting('app.user_id', true), '') "
-        "AND tenant_id IS NOT NULL AND ("
-        f"(tenant_id = {_TENANT_SETTING} AND "
-        f"(organization_id IS NULL OR organization_id = {_ORGANIZATION_SETTING})) "
-        "OR (organization_id IS NULL AND category IN "
-        "('tenant.invitation.issued', 'tenant.invitation.revoked')))"
+        f"AND tenant_id = {_TENANT_SETTING} AND "
+        f"(organization_id IS NULL OR organization_id = {_ORGANIZATION_SETTING})"
     ),
     "notification_work": (
         f"tenant_id = {_TENANT_SETTING} AND "

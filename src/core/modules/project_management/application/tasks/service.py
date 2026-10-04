@@ -141,7 +141,6 @@ class TaskService(
         activity_service: ActivityService | None = None,
         approval_service: ApprovalService | None = None,
         module_catalog_service=None,
-        notification_service=None,
         employee_repo=None,
         assignment_skill_validator=None,
         tenant_context_service=None,
@@ -166,7 +165,6 @@ class TaskService(
         self._activity_service: ActivityService | None = activity_service
         self._approval_service: ApprovalService | None = approval_service
         self._module_catalog_service = module_catalog_service
-        self._notification_service = notification_service
         self._employee_repo = employee_repo
         self._assignment_skill_validator = assignment_skill_validator
         self._tenant_context_service = tenant_context_service

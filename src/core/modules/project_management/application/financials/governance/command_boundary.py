@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from typing import Any, TypeVar
+from dataclasses import dataclass
+from typing import TypeVar
 
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
@@ -42,7 +41,6 @@ from src.core.modules.project_management.contracts.uow.finance.finance_governanc
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
 
-logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
@@ -60,7 +58,6 @@ class FinanceGovernanceOperations:
     cost_entries: ProjectCostEntryService
     billing_profiles: ProjectBillingProfileService
     billing_preparations: ProjectBillingPreparationService
-    post_commit_actions: list[Callable[[], None]] = field(default_factory=list)
 
 
 class FinanceGovernanceCommandBoundary:
@@ -157,23 +154,11 @@ class FinanceGovernanceCommandBoundary:
         if self._prepare_command is not None:
             self._prepare_command()
         context = DomainEventContext(correlation_id=generate_id())
-        post_commit_actions: tuple[Callable[[], None], ...]
         with self._uow_factory.create(context=context) as uow:
             operations = self._operations_factory(uow)
             result = command(operations)
-            post_commit_actions = tuple(operations.post_commit_actions)
             uow.commit()
-
-        for action in post_commit_actions:
-            self._run_post_commit(action)
         return result
-
-    @classmethod
-    def _run_post_commit(cls, callback: Callable[..., None], *args: Any) -> None:
-        try:
-            callback(*args)
-        except Exception:
-            logger.exception("Finance governance post-commit reaction failed")
 
 
 class FinanceGovernedServicePort:

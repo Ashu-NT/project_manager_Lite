@@ -11,6 +11,9 @@ from src.core.platform.infrastructure.persistence.orm.notifications.notification
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
     TenantORM,
 )
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
+    UserTenantORM,
+)
 
 PASSWORD = "StrongPass123!"
 TENANT = "notification-test-tenant"
@@ -24,6 +27,7 @@ def principal(services, username):
     auth = services["auth_service"]
     user = auth.authenticate(username, PASSWORD)
     services["user_session"].set_principal(auth.build_principal(user))
+    services["user_session"].set_active_tenant_id(TENANT)
     return user
 
 
@@ -31,10 +35,18 @@ def seed(session, *, recipient, notification_id, tenant=TENANT):
     if session.get(TenantORM, tenant) is None:
         session.add(TenantORM(id=tenant, tenant_code=tenant, display_name=tenant))
         session.flush()
+    membership_id = f"notification-membership-{recipient}"
+    if session.get(UserTenantORM, membership_id) is None:
+        now = datetime.now(timezone.utc)
+        session.add(UserTenantORM(
+            id=membership_id, user_id=recipient, tenant_id=tenant,
+            status="active", accepted_at=now, joined_at=now,
+            created_at=now, updated_at=now,
+        ))
     row = NotificationORM(
         id=notification_id, recipient_user_id=recipient, tenant_id=tenant,
-        organization_id=None, source_event_id=None, category="tenant.invitation.issued",
-        title="Invitation", body="You have a workspace invitation.",
+        organization_id=None, source_event_id=None, category="platform.notice.v1",
+        title="Notice", body="You have a workspace notice.",
         created_at=datetime(2026, 10, 3, tzinfo=timezone.utc), metadata_json="{}",
     )
     session.add(row)
@@ -65,6 +77,18 @@ def test_personal_visibility_excludes_another_recipient(services, session):
         services["notification_service"].mark_read("owner-invitation")
 
 
+def test_signed_in_user_without_active_tenant_cannot_read_in_app_notifications(services, session):
+    owner = register(services, "notify-no-tenant")
+    seed(session, recipient=owner.id, notification_id="tenant-notice")
+    principal(services, owner.username)
+    services["user_session"].set_active_tenant_id(None)
+    notifications = services["notification_service"]
+    assert notifications.list_my_notifications() == []
+    assert notifications.count_my_unread() == 0
+    with pytest.raises(NotFoundError):
+        notifications.mark_read("tenant-notice")
+
+
 def test_authentication_is_required(anonymous_services):
     service = anonymous_services["notification_service"]
     with pytest.raises(BusinessRuleError, match="Authentication"):
@@ -92,17 +116,9 @@ def test_other_organization_is_hidden_by_repository_even_on_sqlite(services, ses
     from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
         OrganizationORM,
     )
-    from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
-        UserTenantORM,
-    )
-
     owner = register(services, "scoped-notification-owner")
-    seed(session, recipient=owner.id, notification_id="invitation")
+    seed(session, recipient=owner.id, notification_id="tenant-notice")
     now = datetime.now(timezone.utc)
-    session.add(UserTenantORM(
-        id="notification-membership", user_id=owner.id, tenant_id=TENANT,
-        status="active", created_at=now, updated_at=now,
-    ))
     for org in ("a", "b"):
         session.add(OrganizationORM(
             id=f"notification-org-{org}", tenant_id=TENANT,
@@ -122,7 +138,7 @@ def test_other_organization_is_hidden_by_repository_even_on_sqlite(services, ses
     services["user_session"].set_active_tenant_id(TENANT)
     services["user_session"].set_active_organization_id("notification-org-a")
     notifications = services["notification_service"]
-    assert {row.id for row in notifications.list_my_notifications()} == {"invitation", "org-a-only"}
+    assert {row.id for row in notifications.list_my_notifications()} == {"tenant-notice", "org-a-only"}
     with pytest.raises(NotFoundError):
         notifications.mark_read("org-b-only")
     assert notifications.mark_all_read() == 2

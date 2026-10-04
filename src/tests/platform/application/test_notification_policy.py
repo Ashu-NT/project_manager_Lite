@@ -21,7 +21,6 @@ from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
 
-
 NOW = datetime(2026, 10, 3, tzinfo=timezone.utc)
 
 
@@ -75,16 +74,13 @@ def test_decided_approval_stages_only_requester_without_private_note(monkeypatch
     assert writes[0]["category"] == "approval.approved.v1"
 
 
-def test_invitation_stages_tenant_only_work_without_token(monkeypatch):
+def test_invitation_does_not_stage_in_app_work(monkeypatch):
     event = TenantInvitationChanged(
         membership_id="member-1", tenant_id="tenant-1", recipient_user_id="invitee",
         change_type="issued", occurred_at=NOW,
     )
     writes = _platform_dispatch(monkeypatch, event)
-    assert len(writes) == 1
-    assert writes[0]["organization_id"] is None
-    assert writes[0]["metadata"] == {"membership_id": "member-1"}
-    assert "token" not in writes[0]["body"].lower()
+    assert writes == []
 
 
 def test_assignment_policy_requires_assigned_transition(monkeypatch):

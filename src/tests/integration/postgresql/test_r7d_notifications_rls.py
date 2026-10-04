@@ -32,12 +32,17 @@ def notification_rows(postgres_test_environment):
                 "INSERT INTO users (id, username, password_hash, account_type, is_active, created_at, updated_at) "
                 "VALUES (:id, :id, 'not-used', 'human', true, :now, :now)"
             ), {"id": user_id, "now": now})
+        connection.execute(text(
+            "INSERT INTO user_tenants "
+            "(id, user_id, tenant_id, status, accepted_at, joined_at, created_at, updated_at) "
+            "VALUES ('r7d-member-a', 'r7d-user-a', 'r7d-tenant-a', 'active', "
+            ":now, :now, :now, :now)"
+        ), {"now": now})
         for row_id, tenant, org, recipient, category in (
             ("r7d-own", "r7d-tenant-a", "r7d-org-a", "r7d-user-a", "pm.task.assigned.v1"),
             ("r7d-other-org", "r7d-tenant-a", "r7d-org-other", "r7d-user-a", "pm.task.assigned.v1"),
             ("r7d-other-tenant", "r7d-tenant-b", "r7d-org-b", "r7d-user-a", "pm.task.assigned.v1"),
             ("r7d-other-user", "r7d-tenant-a", "r7d-org-a", "r7d-user-other", "pm.task.assigned.v1"),
-            ("r7d-invite", "r7d-tenant-b", None, "r7d-user-a", "tenant.invitation.issued"),
         ):
             connection.execute(text(
                 "INSERT INTO notifications "
@@ -70,7 +75,7 @@ def test_hostile_scope_and_personal_notification_mutation_denied(postgres_test_e
     with postgres_test_environment.runtime_session(tenant_id="r7d-tenant-a", organization_id="r7d-org-a") as session:
         _identity(session, "r7d-user-a")
         visible = set(session.scalars(text("SELECT id FROM notifications")))
-        assert visible == {"r7d-own", "r7d-invite"}
+        assert visible == {"r7d-own"}
         for foreign_id in ("r7d-other-org", "r7d-other-tenant", "r7d-other-user"):
             assert session.execute(text(
                 "UPDATE notifications SET read_at=CURRENT_TIMESTAMP WHERE id=:id"
@@ -81,10 +86,10 @@ def test_hostile_scope_and_personal_notification_mutation_denied(postgres_test_e
         session.rollback()
 
 
-def test_invitation_is_visible_to_recipient_without_active_tenant(postgres_test_environment, notification_rows):
+def test_notifications_are_not_visible_without_active_tenant(postgres_test_environment, notification_rows):
     with postgres_test_environment.runtime_session(tenant_id=None, organization_id=None) as session:
         _identity(session, "r7d-user-a")
-        assert set(session.scalars(text("SELECT id FROM notifications"))) == {"r7d-invite"}
+        assert set(session.scalars(text("SELECT id FROM notifications"))) == set()
 
 
 def test_notification_work_is_tenant_and_org_scoped(postgres_test_environment, notification_rows):

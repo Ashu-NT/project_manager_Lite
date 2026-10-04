@@ -1,5 +1,5 @@
-from src.core.platform.contract.port.notifications.notification_channel import (
-    NotificationChannel,
+from src.core.platform.contract.port.notifications.notification_delivery import (
+    NotificationDelivery,
 )
 
-__all__ = ["NotificationChannel"]
+__all__ = ["NotificationDelivery"]

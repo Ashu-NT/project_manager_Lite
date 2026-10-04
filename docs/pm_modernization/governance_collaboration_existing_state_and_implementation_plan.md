@@ -875,7 +875,7 @@ recipients, deterministic deduplication, retry/recovery, bounded reads and relat
 regressions. R7C remains closed. No durable Notifications closure is claimed by
 the existing in-memory post-commit callbacks.
 
-### Verified Starting Architecture
+### Verified Starting Architecture (superseded by the current cutover)
 
 - `NotificationService.dispatch` currently persists a randomly identified row and
   optionally commits a shared session. Channel fan-out is immediate; no concrete
@@ -883,10 +883,11 @@ the existing in-memory post-commit callbacks.
 - Approval requested/decided, task assignment and comment mention call the shared
   `safe_dispatch_notification` helper after the business transaction. Failures are
   logged/swallowed, so successful business commits can lose notifications.
-- Tenant invitation issued/revoked has a separate swallowing dispatch helper and
-  the same post-commit durability gap. Invitations intentionally have tenant scope;
-  an invitee need not already be an active tenant member. This is not permission
-  to expose project notifications across organizations.
+- Tenant invitation issued/revoked originally used the same swallowing dispatch
+  helper. Product correction: an invitee without application access cannot receive
+  an in-app notification. R7D must not stage invitation bell work or open a
+  cross-tenant notification visibility exception. Invitation delivery/onboarding
+  is a separate out-of-app product concern; no SMTP or other transport is added here.
 - `notifications` lacks organization/source-event/deduplication columns and a
   logical uniqueness constraint. Repository predicates currently scope by user
   only. These are outstanding security/schema gates, not fixed by UI generation
@@ -920,18 +921,29 @@ Approval notification and PM assignment/mention tests passed. Scoped Ruff F/I,
 Python compilation and diff checks passed. This does not constitute durable
 delivery, deduplication, migration or PostgreSQL certification.
 
-### Required Cutover Before Closure
+### Current Durable Cutover And Remaining Certification
 
-Persist explicit notification-relevant source evidence inside the authoritative
-business transaction; consume through one notification UoW with database-backed
-identity/uniqueness. Recipient policy stays module-owned and explicitly scoped.
-Define first-consumption/replay recipient semantics, invitation exceptions and
-scope-aware RLS. Migrate all four current source families and remove both
-swallowing helpers, direct dispatch publication and speculative channel fan-out
-when the canonical replacement is proven. Add immutable read facts/query Reader,
-SQL pagination, scoped personal read-state writes, post-commit invalidation,
-Alembic/schema/RLS changes, recovery/concurrency tests and live PostgreSQL evidence.
+Approval and PM assignment/mention events now stage per-recipient durable work in
+their source UoW. A local fresh-session worker inserts the notification and marks
+work processed atomically, with database uniqueness on source event/kind/recipient,
+bounded retry and poison quarantine. Direct post-commit notification helpers and
+the unused channel contract were removed. Alembic installs the work table,
+provenance/deduplication columns and forced PostgreSQL RLS for notifications and
+work; runtime-role hostile-scope tests pass. A committed delivery emits a
+recipient-only presentation hint; the shell bell subscribes for its signed-in
+user and queues refresh to avoid reentrant reads. No business state is inferred
+from a notification row.
 
-The current dispatch path is marked superseded-for-removal, not retained as a
-compatibility architecture. No source event is durable yet merely because these
-initial read/UI protections passed. R7D remains IN PROGRESS.
+Invitation events remain business facts but have no in-app notification policy.
+In-app reads require an active tenant; the prior cross-tenant invitation exception
+was removed from repository and RLS predicates. The existing invitation workflow
+and token issuance remain intact, but actual invitation delivery outside the app
+must be designed separately before customer onboarding. This is not a reason to
+expose the notification bell to unauthenticated invitees.
+
+Focused SQLite notification/controller tests, R7B/R7C security tests and the live
+PostgreSQL notification RLS tests have passed during this continuation. Final
+R7D certification still requires the full retry/crash/concurrency matrix,
+bounded-volume/read query evidence, all relevant integration/architecture/schema
+guards and the consolidated final regression run. R7D remains IN PROGRESS;
+R7E/R8 have not started.

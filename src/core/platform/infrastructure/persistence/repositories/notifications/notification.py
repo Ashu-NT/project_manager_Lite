@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, false, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
@@ -23,9 +23,6 @@ from src.core.platform.infrastructure.persistence.orm.notifications.notification
 class SqlAlchemyNotificationRepository(NotificationRepository):
     def __init__(self, session: Session) -> None:
         self.session = session
-
-    def add(self, notification: Notification) -> None:
-        self.session.add(notification_to_orm(notification))
 
     def add_idempotent(self, notification: Notification) -> tuple[Notification, bool]:
         if not notification.tenant_id or not notification.source_event_id:
@@ -72,23 +69,16 @@ class SqlAlchemyNotificationRepository(NotificationRepository):
 
     @staticmethod
     def _visibility(user_id: str, tenant_id: str | None, organization_id: str | None):
-        invitation = and_(
-            NotificationORM.organization_id.is_(None),
-            NotificationORM.tenant_id.is_not(None),
-            NotificationORM.category.in_(("tenant.invitation.issued", "tenant.invitation.revoked")),
+        if not tenant_id:
+            return false()
+        return and_(
+            NotificationORM.recipient_user_id == user_id,
+            NotificationORM.tenant_id == tenant_id,
+            or_(
+                NotificationORM.organization_id.is_(None),
+                NotificationORM.organization_id == organization_id,
+            ),
         )
-        if tenant_id:
-            scoped = and_(
-                NotificationORM.tenant_id == tenant_id,
-                or_(
-                    NotificationORM.organization_id.is_(None),
-                    NotificationORM.organization_id == organization_id,
-                ),
-            )
-            scope = or_(scoped, invitation)
-        else:
-            scope = invitation
-        return and_(NotificationORM.recipient_user_id == user_id, scope)
 
     def get_for_user(
         self, notification_id: str, *, user_id: str,

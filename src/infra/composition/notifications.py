@@ -9,7 +9,6 @@ from src.core.platform.domain.approval.events import (
     ApprovalRejected,
     ApprovalRequested,
 )
-from src.core.platform.domain.tenant.tenancy.events import TenantInvitationChanged
 from src.core.platform.infrastructure.persistence.repositories.notifications.notification_work import (
     enqueue_notification_work,
 )
@@ -57,25 +56,6 @@ def register_platform_notification_policy(dispatcher) -> None:
 
     for event_type in (ApprovalRequested, ApprovalApproved, ApprovalRejected):
         dispatcher.subscribe(event_type, approval)
-
-    def invitation(event: TenantInvitationChanged, uow) -> None:
-        if event.change_type not in {"issued", "revoked"}:
-            raise ValueError("Unknown invitation notification event")
-        issued = event.change_type == "issued"
-        enqueue_notification_work(
-            uow._session, tenant_id=event.tenant_id, organization_id=None,
-            source_event_id=event.event_id,
-            recipient_user_id=event.recipient_user_id,
-            category=f"tenant.invitation.{event.change_type}",
-            title=("You've been invited to join a workspace" if issued
-                   else "Your workspace invitation was revoked"),
-            body=("You have a pending workspace invitation." if issued
-                  else "A pending workspace invitation was revoked."),
-            metadata={"membership_id": event.membership_id},
-        )
-
-    dispatcher.subscribe(TenantInvitationChanged, invitation)
-
 
 def register_pm_notification_policy(dispatcher) -> None:
     from src.core.modules.project_management.application.collaboration.collaboration_events import (

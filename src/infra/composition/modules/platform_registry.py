@@ -296,7 +296,11 @@ from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_
 from src.core.shared.events.domain_event_publisher import (
     TransactionalEventDispatcher,
 )
-from src.core.shared.events.view_invalidation import ViewInvalidationChannel
+from src.core.shared.events.view_invalidation import (
+    RecipientScope,
+    ViewInvalidationChannel,
+    ViewInvalidationHint,
+)
 from src.infra.composition.persistence.repositories import RepositoryBundle
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
@@ -524,12 +528,26 @@ def build_platform_service_bundle(
         configure_session_rls_context(delivery_session, user_session=user_session)
         return delivery_session
 
+    platform_view_invalidation_channel = InProcessViewInvalidationChannel()
+
+    def _notification_delivered(tenant_id: str, organization_id: str | None, recipient_id: str) -> None:
+        platform_view_invalidation_channel.notify(ViewInvalidationHint(
+            scope=RecipientScope(tenant_id, organization_id, recipient_id),
+            category="notification",
+            scope_code="notification",
+            entity_type="notification",
+            entity_id=recipient_id,
+        ))
+
     notification_service = NotificationService(
         session=session,
         notification_repo=repositories.notification_repo,
         user_session=user_session,
         memberships=repositories.user_tenant_repo,
-        delivery=NotificationDispatcher(session_factory=_notification_session),
+        delivery=NotificationDispatcher(
+            session_factory=_notification_session,
+            on_delivered=_notification_delivered,
+        ),
     )
     activity_service = ActivityService(
         session=session,
@@ -538,11 +556,12 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
     )
     platform_transactional_dispatcher = InProcessTransactionalEventDispatcher()
-    from src.infra.composition.notifications import register_platform_notification_policy
+    from src.infra.composition.notifications import (
+        register_platform_notification_policy,
+    )
 
     register_platform_notification_policy(platform_transactional_dispatcher)
     platform_post_commit_bus = InProcessPostCommitEventBus()
-    platform_view_invalidation_channel = InProcessViewInvalidationChannel()
 
     platform_post_commit_bus.subscribe(
         OrganizationCreated,
@@ -728,7 +747,6 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
-        notification_service=notification_service,
         clock=SystemClock(),
     )
     overview_rollup_reader = SqlAlchemyPlatformOverviewRollupReader(session)

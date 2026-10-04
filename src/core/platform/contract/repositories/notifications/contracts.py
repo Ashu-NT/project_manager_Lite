@@ -8,9 +8,6 @@ from src.core.platform.domain.notifications import Notification
 
 class NotificationRepository(ABC):
     @abstractmethod
-    def add(self, notification: Notification) -> None: ...
-
-    @abstractmethod
     def add_idempotent(self, notification: Notification) -> tuple[Notification, bool]: ...
 
     @abstractmethod
