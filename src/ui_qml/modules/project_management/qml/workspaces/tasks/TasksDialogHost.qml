@@ -182,6 +182,8 @@ Item {
             root.taskPresenceStarted(String(state.taskId || state.id), "commenting")
         }
         collaborationComposerDialog.mode = "create"
+        collaborationComposerDialog.submissionId = root.workspaceController
+            ? root.workspaceController.newTaskCommentSubmissionId() : ""
         collaborationComposerDialog.taskData = root.collaborationTarget
         collaborationComposerDialog.commentData = ({})
         collaborationComposerDialog.errorMessage = ""
@@ -206,6 +208,8 @@ Item {
             root.taskPresenceStarted(String(state.taskId || state.id), "commenting")
         }
         collaborationComposerDialog.mode = "reply"
+        collaborationComposerDialog.submissionId = root.workspaceController
+            ? root.workspaceController.newTaskCommentSubmissionId() : ""
         collaborationComposerDialog.taskData = root.collaborationTarget
         collaborationComposerDialog.commentData = root.collaborationCommentTarget
         collaborationComposerDialog.errorMessage = ""
@@ -379,6 +383,22 @@ Item {
         mentionOptions: root.collaborationMentionOptions
         documentOptions: root.collaborationDocumentOptions
         busy: root.workspaceController ? root.workspaceController.isBusy : false
+
+        onMentionSearchRequested: function(query) {
+            if (root.workspaceController === null) return
+            const state = root.collaborationTarget && root.collaborationTarget.state
+                ? root.collaborationTarget.state : (root.collaborationTarget || {})
+            const taskId = String(state.taskId || state.id || "")
+            if (taskId) root.workspaceController.searchTaskMentionOptions(taskId, query)
+        }
+
+        onDocumentSearchRequested: function(query) {
+            if (root.workspaceController === null) return
+            const state = root.collaborationTarget && root.collaborationTarget.state
+                ? root.collaborationTarget.state : (root.collaborationTarget || {})
+            const taskId = String(state.taskId || state.id || "")
+            if (taskId) root.workspaceController.searchTaskDocumentOptions(taskId, query)
+        }
 
         onClosed: {
             const state = root.collaborationTarget && root.collaborationTarget.state

@@ -14,6 +14,10 @@ from src.core.modules.project_management.contracts.reads.collaboration.models.wo
     TaskDetailCommentFact,
     TaskDetailCommentReadPage,
     TaskDetailLinkedDocumentFact,
+    TaskDocumentOptionFact,
+)
+from src.core.modules.project_management.domain.collaboration import (
+    CollaborationMentionCandidate,
 )
 from src.core.modules.project_management.infrastructure.persistence.mappers.collaboration import (
     _decode_reactions,
@@ -32,10 +36,17 @@ from src.core.platform.domain.master_data.documents import (
     DocumentStorageKind,
     DocumentType,
 )
+from src.core.platform.infrastructure.persistence.common.scoped_permission import (
+    scoped_permission,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import (
     DocumentLinkORM,
     DocumentORM,
 )
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+    OrganizationORM,
+)
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
 
 
 def _utc(value: datetime) -> datetime:
@@ -60,6 +71,90 @@ class SqlAlchemyCollaborationWorkspaceReader:
 
     def __init__(self, *, session: Session) -> None:
         self._session = session
+
+    def read_document_options(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        query: str = "",
+        limit: int = 50,
+    ) -> tuple[TaskDocumentOptionFact, ...]:
+        stmt = (
+            select(DocumentORM.id, DocumentORM.document_code, DocumentORM.title)
+            .join(OrganizationORM, OrganizationORM.id == DocumentORM.organization_id)
+            .where(
+                OrganizationORM.tenant_id == tenant_id,
+                OrganizationORM.id == organization_id,
+                DocumentORM.is_active.is_(True),
+            )
+        )
+        if query:
+            escaped = query.lower().replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
+            pattern = f"%{escaped}%"
+            stmt = stmt.where(
+                or_(
+                    func.lower(DocumentORM.document_code).like(pattern, escape="\\"),
+                    func.lower(DocumentORM.title).like(pattern, escape="\\"),
+                )
+            )
+        rows = self._session.execute(
+            stmt.order_by(
+                func.lower(DocumentORM.document_code), DocumentORM.id
+            ).limit(max(1, min(limit, 100)))
+        ).all()
+        return tuple(
+            TaskDocumentOptionFact(id=str(id_), document_code=str(code), title=str(title))
+            for id_, code, title in rows
+        )
+
+    def read_mention_candidates(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        query: str = "",
+        handles: tuple[str, ...] = (),
+        offset: int = 0,
+        limit: int = 50,
+    ) -> tuple[CollaborationMentionCandidate, ...]:
+        stmt = select(UserORM.id, UserORM.username, UserORM.display_name).where(
+            UserORM.is_active.is_(True),
+            UserORM.account_type == "human",
+            scoped_permission(
+                user_id=UserORM.id,
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+                permissions=("collaboration.read", "collaboration.manage"),
+                include_platform=True,
+            ),
+        )
+        if handles:
+            stmt = stmt.where(func.lower(UserORM.username).in_(handles))
+        elif query:
+            pattern = f"%{query.lower().replace('%', r'\%').replace('_', r'\_')}%"
+            stmt = stmt.where(
+                or_(
+                    func.lower(UserORM.username).like(pattern, escape="\\"),
+                    func.lower(UserORM.display_name).like(pattern, escape="\\"),
+                )
+            )
+        rows = self._session.execute(
+            stmt.order_by(func.lower(UserORM.username), UserORM.id)
+            .offset(max(0, offset))
+            .limit(max(1, min(limit, 500)))
+        ).all()
+        return tuple(
+            CollaborationMentionCandidate(
+                user_id=str(user_id),
+                username=str(username),
+                display_name=display_name,
+                scope_role=None,
+            )
+            for user_id, username, display_name in rows
+        )
 
     def read_task_comment_page(
         self,

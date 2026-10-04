@@ -33,3 +33,23 @@ def test_task_list_selection_does_not_start_review_presence(monkeypatch) -> None
 
     assert sync_calls == []
 
+
+def test_task_discussion_pager_forwards_through_workspace_facade(monkeypatch) -> None:
+    controller = ProjectManagementWorkspaceCatalog().tasksWorkspace
+    calls: list[tuple[str, str, int]] = []
+
+    def page(task_id: str, number: int) -> dict[str, object]:
+        calls.append(("page", task_id, number))
+        return {"ok": True}
+
+    def size(task_id: str, number: int) -> dict[str, object]:
+        calls.append(("size", task_id, number))
+        return {"ok": True}
+
+    monkeypatch.setattr(controller.collaborationController, "requestCommentPage", page)
+    monkeypatch.setattr(controller.collaborationController, "requestCommentPageSize", size)
+
+    assert controller.requestCommentPage("task-1", 2) == {"ok": True}
+    assert controller.requestCommentPageSize("task-1", 50) == {"ok": True}
+    assert calls == [("page", "task-1", 2), ("size", "task-1", 50)]
+

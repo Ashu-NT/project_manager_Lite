@@ -9,6 +9,7 @@ def select_project(controller, project_id: str) -> None:
         return
     controller._set_selected_project_id(normalized)
     controller._set_selected_task_id("")
+    controller._collab_ctrl.reset_comment_page()
     controller._set_selected_assignment_id("")
     controller._set_time_resource_filter("")
     controller._set_time_page(1)

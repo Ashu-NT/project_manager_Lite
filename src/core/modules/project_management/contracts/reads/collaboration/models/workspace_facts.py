@@ -90,6 +90,13 @@ class TaskDetailCommentReadPage:
 
 
 @dataclass(frozen=True, slots=True)
+class TaskDocumentOptionFact:
+    id: str
+    document_code: str
+    title: str
+
+
+@dataclass(frozen=True, slots=True)
 class TaskDetailLinkedDocumentFact:
     id: str
     file_name: str | None
@@ -99,4 +106,7 @@ class TaskDetailLinkedDocumentFact:
     storage_kind: DocumentStorageKind
 
 
-__all__ = [name for name in globals() if name.startswith(("Collaboration", "TaskDetail"))]
+__all__ = [
+    name for name in globals()
+    if name.startswith(("Collaboration", "TaskDetail", "TaskDocument"))
+]

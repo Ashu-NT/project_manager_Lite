@@ -12,12 +12,15 @@ AppWidgets.EntityDialog {
     property var taskData: ({})
     property var commentData: ({})
     property string mode: "create"
+    property string submissionId: ""
     property var mentionOptions: []
     property var documentOptions: []
     property var pendingAttachments: []
     property var pendingDocuments: []
 
     signal submitted(var payload)
+    signal mentionSearchRequested(string query)
+    signal documentSearchRequested(string query)
 
     modal: true
     width: 640
@@ -82,6 +85,8 @@ AppWidgets.EntityDialog {
             : ""
         mentionCombo.currentIndex = 0
         documentCombo.currentIndex = 0
+        mentionSearch.text = ""
+        documentSearch.text = ""
         root.pendingAttachments = []
         root.pendingDocuments = []
     }
@@ -126,6 +131,7 @@ AppWidgets.EntityDialog {
         const payload = {
             "taskId": String(state.taskId || state.id || ""),
             "body": commentArea.text,
+            "submissionId": root.submissionId,
             "attachments": root.pendingAttachments.slice(),
             "linkedDocumentIds": root.pendingDocuments.map(function(item) { return String(item.id || "") })
         }
@@ -138,7 +144,35 @@ AppWidgets.EntityDialog {
         return payload
     }
 
-    onOpened: root.resetDraft()
+    onOpened: {
+        root.resetDraft()
+        mentionSearchTimer.stop()
+        documentSearchTimer.stop()
+        root.mentionSearchRequested("")
+        root.documentSearchRequested("")
+    }
+    onClosed: {
+        mentionSearchTimer.stop()
+        documentSearchTimer.stop()
+    }
+
+    Timer {
+        id: mentionSearchTimer
+        interval: 250
+        repeat: false
+        onTriggered: {
+            if (root.visible) root.mentionSearchRequested(mentionSearch.text)
+        }
+    }
+
+    Timer {
+        id: documentSearchTimer
+        interval: 250
+        repeat: false
+        onTriggered: {
+            if (root.visible) root.documentSearchRequested(documentSearch.text)
+        }
+    }
 
     FileDialog {
         id: attachmentDialog
@@ -170,22 +204,34 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             label: "Insert mention"
 
-            RowLayout {
+            ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
 
-                AppControls.ComboBox {
-                    id: mentionCombo
+                AppControls.TextField {
+                    id: mentionSearch
                     Layout.fillWidth: true
-                    model: root.mentionOptions || []
-                    textRole: "label"
+                    placeholderText: "Search collaborators..."
+                    onTextChanged: mentionSearchTimer.restart()
                 }
 
-                AppControls.PrimaryButton {
-                    text: "Insert"
-                    iconName: "collaboration"
-                    enabled: (root.mentionOptions || []).length > 0
-                    onClicked: root.insertSelectedMention()
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.AppTheme.spacingSm
+
+                    AppControls.ComboBox {
+                        id: mentionCombo
+                        Layout.fillWidth: true
+                        model: root.mentionOptions || []
+                        textRole: "label"
+                    }
+
+                    AppControls.PrimaryButton {
+                        text: "Insert"
+                        iconName: "collaboration"
+                        enabled: (root.mentionOptions || []).length > 0
+                        onClicked: root.insertSelectedMention()
+                    }
                 }
             }
         }
@@ -195,22 +241,34 @@ AppWidgets.EntityDialog {
             label: "Link shared document"
             visible: root.mode !== "edit"
 
-            RowLayout {
+            ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
 
-                AppControls.ComboBox {
-                    id: documentCombo
+                AppControls.TextField {
+                    id: documentSearch
                     Layout.fillWidth: true
-                    model: root.documentOptions || []
-                    textRole: "label"
+                    placeholderText: "Search documents..."
+                    onTextChanged: documentSearchTimer.restart()
                 }
 
-                AppControls.PrimaryButton {
-                    text: "Queue"
-                    iconName: "collaboration"
-                    enabled: (root.documentOptions || []).length > 0
-                    onClicked: root.queueSelectedDocument()
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.AppTheme.spacingSm
+
+                    AppControls.ComboBox {
+                        id: documentCombo
+                        Layout.fillWidth: true
+                        model: root.documentOptions || []
+                        textRole: "label"
+                    }
+
+                    AppControls.PrimaryButton {
+                        text: "Queue"
+                        iconName: "collaboration"
+                        enabled: (root.documentOptions || []).length > 0
+                        onClicked: root.queueSelectedDocument()
+                    }
                 }
             }
         }

@@ -196,7 +196,7 @@ def test_mutable_comment_requires_revision_before_edit_or_first_delete(services)
     with pytest.raises(ValidationError) as delete_error:
         service.delete_comment(comment.id)
     assert delete_error.value.code == "COLLABORATION_COMMENT_REVISION_REQUIRED"
-    assert service.list_comments(task.id)[0].body == "Keep this revision"
+    assert service.query_task_comments_page(task.id).items[0].body == "Keep this revision"
 
 
 def test_plain_comment_post_and_edit_do_not_scan_mention_candidates(monkeypatch, services):
@@ -311,7 +311,7 @@ def test_audit_failure_rolls_back_post_comment_permanently(services, monkeypatch
 
     assert _comment_hints(hints) == []
     monkeypatch.undo()
-    assert services["collaboration_service"].list_comments(task.id) == []
+    assert services["collaboration_service"].query_task_comments_page(task.id).items == ()
 
 
 def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
@@ -329,7 +329,7 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
         services["collaboration_service"].post_comment(task_id=task.id, body="Should never persist either")
 
     assert _comment_hints(hints) == []
-    assert services["collaboration_service"].list_comments(task.id) == []
+    assert services["collaboration_service"].query_task_comments_page(task.id).items == ()
 
 
 # ---------------------------------------------------------------------------

@@ -53,6 +53,7 @@ class TaskCommentORM(Base):
     deleted_by_user_id: Mapped[str | None] = mapped_column(String, nullable=True)
     deletion_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     reactions_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
+    submission_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 

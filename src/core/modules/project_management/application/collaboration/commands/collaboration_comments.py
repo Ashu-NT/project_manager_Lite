@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import json
+from hashlib import sha256
 from collections.abc import Iterable
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -82,6 +84,7 @@ class CollaborationCommentCommandMixin:
         attachments: Iterable[str] | None = None,
         linked_document_ids: Iterable[str] | None = None,
         parent_comment_id: str | None = None,
+        submission_id: str | None = None,
     ) -> TaskComment:
         task = self._require_task(task_id)
         require_permission(
@@ -104,10 +107,47 @@ class CollaborationCommentCommandMixin:
                     code="COLLABORATION_PARENT_COMMENT_NOT_FOUND",
                 )
         text = normalize_task_comment_body(body)
+        principal = (
+            self._user_session.principal if self._user_session is not None else None
+        )
+        principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
+        normalized_linked_document_ids = self._normalize_linked_document_ids(
+            linked_document_ids
+        )
+        attachment_paths = [str(path).strip() for path in (attachments or []) if str(path).strip()]
+        normalized_submission_id = (
+            normalize_optional_text(submission_id) if submission_id is not None else None
+        )
+        if submission_id is not None and (
+            not normalized_submission_id or len(normalized_submission_id) > 128
+        ):
+            raise ValidationError(
+                "Comment submission ID is invalid.", code="COLLABORATION_SUBMISSION_ID_INVALID"
+            )
+        submission_hash = sha256(
+            json.dumps(
+                [task_id, principal_user_id, parent_id, text, attachment_paths,
+                 normalized_linked_document_ids],
+                ensure_ascii=True, separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        if normalized_submission_id:
+            existing = self._comment_repo.get(normalized_submission_id)
+            if existing is not None:
+                if (
+                    existing.task_id == task_id
+                    and existing.author_user_id == principal_user_id
+                    and existing.submission_hash == submission_hash
+                ):
+                    return existing
+                raise ValidationError(
+                    "This comment submission ID was already used for different content.",
+                    code="COLLABORATION_SUBMISSION_CONFLICT",
+                )
         mentions, mentioned_user_ids, unresolved = (
             resolve_mentions(
                 text=text,
-                candidates=self._list_mention_candidates_for_project(task.project_id),
+                candidates=self._mention_candidates_for_text(task.project_id, text),
             )
             if extract_mention_tokens(text) else ([], [], [])
         )
@@ -117,12 +157,6 @@ class CollaborationCommentCommandMixin:
                 f"Unknown mention handle(s): {preview}. Mention project collaborators with access to this task.",
                 code="COLLABORATION_MENTION_UNKNOWN",
             )
-        principal = (
-            self._user_session.principal if self._user_session is not None else None
-        )
-        normalized_linked_document_ids = self._normalize_linked_document_ids(
-            linked_document_ids
-        )
         comment = TaskComment.create(
             task_id=task_id,
             author_user_id=getattr(principal, "user_id", None),
@@ -132,11 +166,12 @@ class CollaborationCommentCommandMixin:
             mentioned_user_ids=mentioned_user_ids,
             attachments=[],
             parent_comment_id=parent_id,
+            submission_id=normalized_submission_id,
+            submission_hash=submission_hash,
         )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="post task collaboration update"
         )
-        attachment_paths = list(attachments or [])
         if attachment_paths:
             if self._attachment_store is None or self._attachment_cleanup is None:
                 raise RuntimeError(
@@ -249,60 +284,71 @@ class CollaborationCommentCommandMixin:
         with self._require_collaboration_uow_factory().create(
             context=self._new_context()
         ) as uow:
-            for comment in uow.comments.list_by_task(task_id):
-                if not self._comment_mentions_principal(comment):
-                    continue
-
-                user_reads = {
-                    str(item).strip()
-                    for item in comment.read_by_user_ids
-                    if str(item).strip()
-                }
-                alias_reads = {item.lower() for item in comment.read_by}
-                already_read = False
-                if principal_user_id and principal_user_id in user_reads:
-                    already_read = True
-                if not already_read and aliases and not alias_reads.isdisjoint(aliases):
-                    already_read = True
-                if already_read:
-                    continue
-
-                if principal_user_id:
-                    comment.read_by_user_ids = sorted(
-                        user_reads.union({principal_user_id})
-                    )
-                primary_alias = self._principal_primary_alias()
-                if primary_alias:
-                    comment.read_by = sorted(alias_reads.union({primary_alias}))
-                uow.comments.update(comment)
-                record_audit_entry(
-                    uow,
-                    operation="update",
-                    entity_type="task_comment",
-                    entity_id=comment.id,
-                    module="project_management",
-                    organization_id=scope.organization_id,
-                    category="MASTER_DATA",
-                    severity="low",
-                    workspace_id=task.project_id,
-                    entity_parent_id=task_id,
-                    metadata={
-                        "action": "collaboration.comment.mark_read",
-                        "task_id": task_id,
-                    },
-                    commit=False,
-                    fail_closed=True,
+            while True:
+                batch = uow.comments.list_unread_mentions_for_task(
+                    task_id,
+                    user_id=principal_user_id,
+                    aliases=tuple(sorted(aliases)),
+                    limit=100,
                 )
-                uow.record_event(
-                    TaskCommentReadStateChanged(
-                        tenant_id=scope.tenant_id,
+                if not batch:
+                    break
+                updated_in_batch = 0
+                for comment in batch:
+                    if not self._comment_mentions_principal(comment):
+                        continue
+
+                    user_reads = {
+                        str(item).strip()
+                        for item in comment.read_by_user_ids
+                        if str(item).strip()
+                    }
+                    alias_reads = {item.lower() for item in comment.read_by}
+                    already_read = principal_user_id in user_reads or (
+                        bool(aliases) and not alias_reads.isdisjoint(aliases)
+                    )
+                    if already_read:
+                        continue
+
+                    if principal_user_id:
+                        comment.read_by_user_ids = sorted(
+                            user_reads.union({principal_user_id})
+                        )
+                    primary_alias = self._principal_primary_alias()
+                    if primary_alias:
+                        comment.read_by = sorted(alias_reads.union({primary_alias}))
+                    uow.comments.update(comment)
+                    updated_in_batch += 1
+                    record_audit_entry(
+                        uow,
+                        operation="update",
+                        entity_type="task_comment",
+                        entity_id=comment.id,
+                        module="project_management",
                         organization_id=scope.organization_id,
-                        project_id=task.project_id,
-                        task_id=task_id,
-                        comment_id=comment.id,
-                        occurred_at=datetime.now(timezone.utc),
+                        category="MASTER_DATA",
+                        severity="low",
+                        workspace_id=task.project_id,
+                        entity_parent_id=task_id,
+                        metadata={
+                            "action": "collaboration.comment.mark_read",
+                            "task_id": task_id,
+                        },
+                        commit=False,
+                        fail_closed=True,
                     )
-                )
+                    uow.record_event(
+                        TaskCommentReadStateChanged(
+                            tenant_id=scope.tenant_id,
+                            organization_id=scope.organization_id,
+                            project_id=task.project_id,
+                            task_id=task_id,
+                            comment_id=comment.id,
+                            occurred_at=datetime.now(timezone.utc),
+                        )
+                    )
+                if updated_in_batch == 0:
+                    break
             uow.commit()
 
     def edit_comment(
@@ -348,7 +394,7 @@ class CollaborationCommentCommandMixin:
         mentions, mentioned_user_ids, unresolved = (
             resolve_mentions(
                 text=text,
-                candidates=self._list_mention_candidates_for_project(task.project_id),
+                candidates=self._mention_candidates_for_text(task.project_id, text),
             )
             if extract_mention_tokens(text) else ([], [], [])
         )

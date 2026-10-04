@@ -1080,3 +1080,41 @@ attachment open/download authorization, full document-link/RLS hostile-scope
 proof, concurrency and large-volume query-shape tests, complete UI/viewport
 proof, broad regressions, and final quality/architecture/schema gates. Do not
 mark R7E complete or begin R7G/R8 on the current evidence.
+
+#### R7E continuation: Presence identity and Task Detail read cutover
+
+- Presence now keys ephemeral rows by stable `(task_id, user_id)` with a user FK,
+  database uniqueness, atomic upsert, and a scoped delete. A fresh Alembic
+  migration discards obsolete ephemeral username-keyed rows and moves Presence
+  into forced parent-scoped PostgreSQL RLS with a user-identity write predicate.
+  The focused live PostgreSQL security selection passed 37 tests; migration and
+  guard selection passed 10 tests. This does not certify all R7E RLS gates.
+- Task Detail uses a SQL-counted, newest-first flat discussion timeline with
+  deterministic `(created_at DESC, id ASC)` ordering, bounded page sizes up to
+  100, reply-author context, and one batched linked-document query for page
+  IDs. The old threaded assembly is removed from the desktop snapshot. The
+  shared pagination footer is wired through the Tasks facade; project/task
+  changes reset the page. The user approved the flat timeline rather than
+  unbounded root-thread grouping.
+- A 1,000-comment regression proves a fixed two-query count/page shape and
+  25-row first/last pages with no duplicate IDs. The focused collaboration
+  selection passed 96 tests, the new paging tests passed 2, and the affected
+  Task QML files passed `pyside6-qmllint` with project import paths.
+- Mention candidates now use one scoped SQL projection over active User,
+  membership and effective collaboration grants. Picker search is bounded to
+  50 candidates with a debounced dialog search; command-time resolution
+  rechecks canonical grants, and a revoked-grant regression passed. The wider
+  collaboration selection passed 103 tests after this cutover. Shared-document
+  options likewise use a task-authorized, organization-scoped SQL search capped
+  at 50; a 150-document regression proved one query per search. The combined
+  collaboration selection passed 106 tests after both selector cutovers.
+- Task mention-read now queries only the recipient's unread comment IDs in
+  bounded 100-row batches inside the existing collaboration UoW. A 1,100-row
+  regression proves three bounded selects for 101 mentions and no full-thread
+  materialization. The expanded focused collaboration/domain selection passed
+  127 tests; the live PostgreSQL R7B/R7E security selection passed 37 tests.
+- R7E remains OPEN. The old production `list_comments` query method has been
+  deleted and direct test assertions use the paged query; remaining test
+  doubles need to follow the new contract. Complete remaining
+  hostile-scope/document-link proofs, replay/concurrency, UI viewports, broad
+  regressions, and final quality gates before claiming closure.

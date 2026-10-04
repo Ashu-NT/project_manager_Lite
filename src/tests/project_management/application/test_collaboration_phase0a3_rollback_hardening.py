@@ -130,7 +130,9 @@ def test_post_comment_real_attachment_is_stored_and_registered(
 
     assert len(comment.attachments) == 1
     assert Path(comment.attachments[0]).read_text() == "approved evidence"
-    assert len(collaboration.list_comment_documents(task.id)[comment.id]) == 1
+    assert len(
+        collaboration.list_comment_documents_for_ids(task.id, (comment.id,))[comment.id]
+    ) == 1
     collaboration_attachments.cleanup_task_comment_attachments(comment.attachments)
 
 

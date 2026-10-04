@@ -204,7 +204,7 @@ class ProjectManagementCollaborationDesktopApi:
                     label=candidate.label,
                 )
                 for candidate in sorted(
-                    service.list_mention_candidates(normalized_task_id),
+                    service.list_mention_candidates(normalized_task_id, limit=50),
                     key=lambda item: item.label.casefold(),
                 )
             ),
@@ -214,7 +214,7 @@ class ProjectManagementCollaborationDesktopApi:
                     label=format_document_option_label(document),
                 )
                 for document in sorted(
-                    service.list_available_documents(active_only=True),
+                    service.search_available_documents(normalized_task_id, limit=50),
                     key=lambda item: (
                         str(getattr(item, "document_code", "") or "").casefold(),
                         str(getattr(item, "title", "") or "").casefold(),
@@ -224,6 +224,43 @@ class ProjectManagementCollaborationDesktopApi:
             comment_total=comments.total,
             comment_page=comments.page,
             comment_page_size=comments.page_size,
+        )
+
+    def search_task_mention_options(
+        self, task_id: str, query: str
+    ) -> tuple[TaskCollaborationMentionOptionDescriptor, ...]:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            return ()
+        candidates = self._require_collaboration_service().list_mention_candidates(
+            normalized_task_id, query=(query or "").strip()[:128], limit=50
+        )
+        return (
+            TaskCollaborationMentionOptionDescriptor(
+                value="everyone",
+                label="@everyone  Mention everyone with access to this task",
+            ),
+        ) + tuple(
+            TaskCollaborationMentionOptionDescriptor(
+                value=candidate.handle, label=candidate.label
+            )
+            for candidate in candidates
+        )
+
+    def search_task_document_options(
+        self, task_id: str, query: str
+    ) -> tuple[TaskCollaborationDocumentOptionDescriptor, ...]:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            return ()
+        documents = self._require_collaboration_service().search_available_documents(
+            normalized_task_id, query=(query or "").strip()[:128], limit=50
+        )
+        return tuple(
+            TaskCollaborationDocumentOptionDescriptor(
+                value=document.id, label=format_document_option_label(document)
+            )
+            for document in documents
         )
 
     def post_task_comment(
@@ -240,6 +277,7 @@ class ProjectManagementCollaborationDesktopApi:
             attachments=command.attachments,
             linked_document_ids=command.linked_document_ids,
             parent_comment_id=getattr(command, "parent_comment_id", None),
+            submission_id=command.submission_id,
         )
         linked_documents = service.list_comment_documents_for_ids(
             normalized_task_id, (comment.id,)

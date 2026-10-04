@@ -5,14 +5,14 @@ from collections.abc import Iterable
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.contracts.reads.collaboration.models.workspace_facts import (
+    TaskDetailLinkedDocumentFact,
+    TaskDocumentOptionFact,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
 from src.core.platform.common.exceptions import ValidationError
-from src.core.modules.project_management.contracts.reads.collaboration.models.workspace_facts import (
-    TaskDetailLinkedDocumentFact,
-)
-from src.core.platform.domain.master_data.documents import Document
 
 
 class CollaborationDocumentQueryMixin:
@@ -44,14 +44,27 @@ class CollaborationDocumentQueryMixin:
             comment_ids=comment_ids,
         )
 
-    def list_available_documents(self, *, active_only: bool | None = True) -> list[Document]:
+    def search_available_documents(
+        self, task_id: str, *, query: str = "", limit: int = 50
+    ) -> tuple[TaskDocumentOptionFact, ...]:
+        task = self._require_task(task_id)
         require_permission(self._user_session, "collaboration.read", operation_label="view shared document library")
-        if self._document_integration_service is None:
-            return []
-        return self._document_integration_service.list_available_documents(
-            required_permission="collaboration.read",
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "collaboration.read",
             operation_label="view shared document library",
-            active_only=active_only,
+        )
+        if self._document_integration_service is None:
+            return ()
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view shared document library"
+        )
+        return self._workspace_reader.read_document_options(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            query=(query or "").strip()[:128],
+            limit=max(1, min(limit, 100)),
         )
 
     def _normalize_linked_document_ids(self, linked_document_ids: Iterable[str] | None) -> list[str]:

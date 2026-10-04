@@ -20,6 +20,7 @@ from src.ui_qml.modules.project_management.presenters.common.detail_table_pages 
 )
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogWorkspaceViewModel,
+    TaskSelectorOptionViewModel,
 )
 
 from .assignment_command_handler import (
@@ -305,6 +306,26 @@ class ProjectTasksWorkspacePresenter:
             task_id=task_id,
             page=page,
             page_size=page_size,
+        )
+
+    def search_task_mention_options(
+        self, task_id: str, query: str
+    ) -> tuple[TaskSelectorOptionViewModel, ...]:
+        return tuple(
+            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+            for option in self._collaboration_desktop_api.search_task_mention_options(
+                task_id, query
+            )
+        )
+
+    def search_task_document_options(
+        self, task_id: str, query: str
+    ) -> tuple[TaskSelectorOptionViewModel, ...]:
+        return tuple(
+            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+            for option in self._collaboration_desktop_api.search_task_document_options(
+                task_id, query
+            )
         )
 
     def build_task_schedule_overview_state(

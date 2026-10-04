@@ -7,7 +7,10 @@ import pytest
 from src.core.modules.project_management.application.collaboration.services.collaboration_service import (
     CollaborationService,
 )
-from src.core.modules.project_management.domain.collaboration import TaskComment
+from src.core.modules.project_management.domain.collaboration import (
+    CollaborationMentionCandidate,
+    TaskComment,
+)
 from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
@@ -87,6 +90,17 @@ class _FakeCommentRepo:
             )
             if comment.task_id == task_id
         ]
+
+    def list_unread_mentions_for_task(
+        self, task_id: str, *, user_id: str, aliases: tuple[str, ...], limit: int = 100
+    ) -> list[TaskComment]:
+        return [
+            comment for comment in self.list_by_task(task_id)
+            if not comment.is_deleted
+            and (user_id in comment.mentioned_user_ids or bool(set(aliases) & set(comment.mentions)))
+            and user_id not in comment.read_by_user_ids
+            and not set(aliases).intersection(comment.read_by)
+        ][:limit]
 
     def list_recent_for_tasks(
         self, task_ids: list[str], limit: int = 200
@@ -232,7 +246,13 @@ def _make_service(
         task_repo=_FakeTaskRepo(),
         project_repo=object(),
         user_repo=_FakeUserRepo(),
-        workspace_reader=object(),
+        workspace_reader=SimpleNamespace(
+            read_mention_candidates=lambda **kwargs: (
+                CollaborationMentionCandidate(
+                    user_id="user-2", username="planner", display_name="Project Planner"
+                ),
+            ) if "planner" in kwargs.get("handles", ()) else (),
+        ),
         document_integration_service=None,
         user_session=_FakeUserSession(
             user_id=user_id,

@@ -328,7 +328,7 @@ def test_delayed_mention_requires_current_project_collaboration_grant(
 
 @pytest.mark.parametrize(
     "table",
-    ["approval_requests", "activity_entries", "timesheet_periods", "task_comments", "task_presence"],
+    ["approval_requests", "activity_entries", "timesheet_periods", "task_comments", "task_presence", "document_links"],
 )
 def test_governed_tables_force_rls(postgres_test_environment, table):
     with postgres_test_environment.runtime_session(
@@ -351,19 +351,72 @@ def test_governed_tables_force_rls(postgres_test_environment, table):
         )
 
 
-@pytest.mark.parametrize("table", ["document_links"])
-def test_current_intentional_exclusions_are_not_rls_protected(
-    postgres_test_environment, table
+def test_document_link_rls_rejects_foreign_document_and_comment_parent(
+    postgres_test_environment, governance_rows
 ):
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    with postgres_test_environment.admin_engine.begin() as connection:
+        for suffix in ("a", "b"):
+            connection.execute(
+                text(
+                    "INSERT INTO documents "
+                    "(id, tenant_id, organization_id, document_code, title, document_type, "
+                    "storage_kind, storage_uri, uploaded_at) "
+                    "VALUES (:id, :tenant, :org, :code, :title, 'GENERAL', 'REFERENCE', :uri, :now)"
+                ),
+                {
+                    "id": f"r7e-document-{suffix}",
+                    "tenant": f"r7a-tenant-{suffix}",
+                    "org": f"r7a-org-{suffix}",
+                    "code": f"R7E-{suffix}",
+                    "title": f"R7E document {suffix}",
+                    "uri": f"ref-{suffix}",
+                    "now": now,
+                },
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO document_links "
+                    "(id, organization_id, document_id, module_code, entity_type, entity_id) "
+                    "VALUES (:id, :org, :document, 'project_management', 'task_comment', :comment)"
+                ),
+                {
+                    "id": f"r7e-link-{suffix}",
+                    "org": f"r7a-org-{suffix}",
+                    "document": f"r7e-document-{suffix}",
+                    "comment": f"r7a-comment-{suffix}",
+                },
+            )
+        connection.execute(
+            text(
+                "INSERT INTO document_links "
+                "(id, organization_id, document_id, module_code, entity_type, entity_id) "
+                "VALUES ('r7e-hostile-parent', 'r7a-org-a', 'r7e-document-a', "
+                "'project_management', 'task_comment', 'r7a-comment-b')"
+            )
+        )
+
+    with runtime(postgres_test_environment) as session:
+        assert session.scalars(text("SELECT id FROM document_links ORDER BY id")).all() == [
+            "r7e-link-a"
+        ]
+    with runtime(postgres_test_environment, user="foreign", tenant="b", org="b") as session:
+        assert session.scalars(text("SELECT id FROM document_links ORDER BY id")).all() == [
+            "r7e-link-b"
+        ]
     with postgres_test_environment.runtime_session(
         tenant_id=None, organization_id=None
     ) as session:
-        assert session.execute(
+        assert session.scalar(text("SELECT count(*) FROM document_links")) == 0
+    with pytest.raises(DBAPIError), runtime(postgres_test_environment) as session:
+        session.execute(
             text(
-                "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid=to_regclass(:name)"
-            ),
-            {"name": table},
-        ).one() == (False, False)
+                "INSERT INTO document_links "
+                "(id, organization_id, document_id, module_code, entity_type, entity_id) "
+                "VALUES ('r7e-rejected-link', 'r7a-org-a', 'r7e-document-a', "
+                "'project_management', 'task_comment', 'r7a-comment-b')"
+            )
+        )
 
 
 def test_raw_foreign_comment_and_scoped_reader_both_deny_access(

@@ -131,6 +131,23 @@ def _collaboration_child_predicate(child_table: str) -> str:
 
 
 PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
+    "document_links": (
+        "document_links.organization_id = " + _ORGANIZATION_SETTING + " AND "
+        "EXISTS (SELECT 1 FROM documents rls_document "
+        "JOIN organizations rls_org ON rls_org.id = rls_document.organization_id "
+        "WHERE rls_document.id = document_links.document_id "
+        "AND rls_document.organization_id = document_links.organization_id "
+        f"AND rls_org.tenant_id = {_TENANT_SETTING} "
+        f"AND (rls_document.tenant_id IS NULL OR rls_document.tenant_id = {_TENANT_SETTING})) "
+        "AND (document_links.module_code <> 'project_management' "
+        "OR document_links.entity_type <> 'task_comment' "
+        "OR EXISTS (SELECT 1 FROM task_comments rls_comment "
+        "JOIN tasks rls_task ON rls_task.id = rls_comment.task_id "
+        "JOIN projects rls_project ON rls_project.id = rls_task.project_id "
+        "WHERE rls_comment.id = document_links.entity_id "
+        f"AND rls_project.tenant_id = {_TENANT_SETTING} "
+        f"AND rls_project.organization_id = {_ORGANIZATION_SETTING}))"
+    ),
     "notifications": (
         "recipient_user_id = NULLIF(current_setting('app.user_id', true), '') "
         f"AND tenant_id = {_TENANT_SETTING} AND "
@@ -191,7 +208,6 @@ INTENTIONAL_RLS_EXCLUSIONS: Mapping[str, str] = {
     "calendar_recurring_events": "calendar child scoped through platform_calendars",
     "calendar_working_rules": "calendar child scoped through platform_calendars",
     "department_calendar_assignments": "calendar assignment scoped through department and calendar owners",
-    "document_links": "document child scoped through documents",
     "employee_calendar_assignments": "calendar assignment scoped through employee and calendar owners",
     "organizations": "tenant-context bootstrap root",
     "permissions": "global canonical permission catalog",

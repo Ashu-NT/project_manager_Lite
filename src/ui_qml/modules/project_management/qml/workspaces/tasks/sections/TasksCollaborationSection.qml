@@ -24,6 +24,8 @@ Item {
     signal reactionRemovalRequested(var payload)
     signal markReadRequested(string taskId)
     signal refreshRequested()
+    signal commentPageRequested(int page)
+    signal commentPageSizeRequested(int pageSize)
 
     readonly property var _feedItems: root.commentsModel.items || []
     readonly property var _presence:  root.presenceModel.items  || []
@@ -41,7 +43,8 @@ Item {
         AppWidgets.ContextualActionToolbar {
             Layout.fillWidth: true
             title:    "Discussion"
-            subtitle: root._feedItems.length > 0 ? String(root._feedItems.length) : ""
+            subtitle: Number(root.commentsModel.totalCount || 0) > 0
+                ? String(root.commentsModel.totalCount) : ""
             busy:     root.isBusy
             createLabel: root.canCompose ? "Post Update" : ""
             actions: [
@@ -92,10 +95,6 @@ Item {
                         required property var modelData
 
                         Layout.fillWidth: true
-                        Layout.leftMargin: Math.min(
-                            Number((commentCard.modelData.state || {}).threadDepth || 0),
-                            3
-                        ) * 24
                         commentData: commentCard.modelData
                         isBusy: root.isBusy
 
@@ -109,6 +108,18 @@ Item {
                     }
                 }
             }
+        }
+
+        AppWidgets.TablePaginationBar {
+            Layout.fillWidth: true
+            visible: Number(root.commentsModel.totalCount || 0) > Number(root.commentsModel.pageSize || 25)
+            currentPage: Number(root.commentsModel.page || 1)
+            pageSize: Number(root.commentsModel.pageSize || 25)
+            totalItems: Number(root.commentsModel.totalCount || 0)
+            pageSizeOptions: [25, 50, 100]
+            busy: root.isBusy
+            onPageRequested: function(page) { root.commentPageRequested(page) }
+            onPageSizeRequested: function(pageSize) { root.commentPageSizeRequested(pageSize) }
         }
 
         // ── Active presence ───────────────────────────────────────────

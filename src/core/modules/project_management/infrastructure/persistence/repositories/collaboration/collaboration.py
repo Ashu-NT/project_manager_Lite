@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
@@ -127,6 +127,36 @@ class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
             .order_by(TaskCommentORM.created_at.asc())
         )
         rows = self.session.execute(stmt).scalars().all()
+        return [task_comment_from_orm(row) for row in rows]
+
+    def list_unread_mentions_for_task(
+        self,
+        task_id: str,
+        *,
+        user_id: str,
+        aliases: tuple[str, ...],
+        limit: int = 100,
+    ) -> list[TaskComment]:
+        mention_predicates = [
+            TaskCommentORM.mentioned_user_ids_json.like(f'%"{user_id}"%')
+        ]
+        read_predicates = [
+            TaskCommentORM.read_by_user_ids_json.like(f'%"{user_id}"%')
+        ]
+        for alias in aliases:
+            mention_predicates.append(TaskCommentORM.mentions_json.like(f'%"{alias}"%'))
+            read_predicates.append(TaskCommentORM.read_by_json.like(f'%"{alias}"%'))
+        rows = self.session.execute(
+            self._project_scoped_stmt()
+            .where(
+                TaskCommentORM.task_id == task_id,
+                TaskCommentORM.deleted_at.is_(None),
+                or_(*mention_predicates),
+                ~or_(*read_predicates),
+            )
+            .order_by(TaskCommentORM.created_at.asc(), TaskCommentORM.id.asc())
+            .limit(max(1, min(limit, 500)))
+        ).scalars().all()
         return [task_comment_from_orm(row) for row in rows]
 
     def list_recent_for_tasks(self, task_ids: list[str], limit: int = 200) -> list[TaskComment]:

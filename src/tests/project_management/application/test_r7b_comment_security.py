@@ -18,7 +18,7 @@ def test_service_rejects_foreign_scope_without_database_rls(services, operation)
         if operation == "create":
             service.post_comment(task_id=seeded["task_b1"], body="attack")
         elif operation == "read":
-            service.list_comments(seeded["task_b1"])
+            service.query_task_comments_page(seeded["task_b1"])
         elif operation == "edit":
             service.edit_comment(seeded["comment_b"], "attack")
         else:
@@ -42,7 +42,7 @@ def test_same_organization_foreign_project_rejected_by_service(services):
         auth.build_principal(auth.authenticate("r7b-reader", "StrongPass123"))
     )
     for operation in (
-        lambda: service.list_comments(task.id),
+        lambda: service.query_task_comments_page(task.id),
         lambda: service.post_comment(task_id=task.id, body="attack"),
         lambda: service.edit_comment(comment.id, "attack"),
         lambda: service.delete_comment(comment.id),

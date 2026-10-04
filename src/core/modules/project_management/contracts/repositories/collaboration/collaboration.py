@@ -22,6 +22,16 @@ class TaskCommentRepository(ABC):
     def list_by_task(self, task_id: str) -> list[TaskComment]: ...
 
     @abstractmethod
+    def list_unread_mentions_for_task(
+        self,
+        task_id: str,
+        *,
+        user_id: str,
+        aliases: tuple[str, ...],
+        limit: int = 100,
+    ) -> list[TaskComment]: ...
+
+    @abstractmethod
     def list_recent_for_tasks(self, task_ids: list[str], limit: int = 200) -> list[TaskComment]: ...
 
 
