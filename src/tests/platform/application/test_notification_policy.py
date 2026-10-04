@@ -1,5 +1,6 @@
 """Only supported business events stage safe, scoped notification work."""
 
+import inspect
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -20,8 +21,13 @@ from src.infra.composition.notifications import (
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
+from src.infra.integration import notification_dispatcher
 
 NOW = datetime(2026, 10, 3, tzinfo=timezone.utc)
+
+
+def test_shared_notification_runtime_does_not_import_pm_implementation():
+    assert "modules.project_management" not in inspect.getsource(notification_dispatcher)
 
 
 class _ApprovalRepo:

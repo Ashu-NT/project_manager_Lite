@@ -1,5 +1,6 @@
 """Personal notification RLS, independently of application repository filters."""
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import pytest
@@ -139,3 +140,83 @@ def test_live_runtime_worker_processes_and_replays_once(postgres_test_environmen
         assert session.scalar(text(
             "SELECT status FROM notification_work WHERE id='r7d-work-live'"
         )) == "processed"
+
+
+def test_two_runtime_workers_produce_one_notification(postgres_test_environment, notification_rows):
+    from sqlalchemy.orm import sessionmaker
+
+    from src.core.platform.domain.security.auth.session import UserSessionContext
+    from src.infra.integration.notification_dispatcher import NotificationDispatcher
+    from src.infra.persistence.db.postgresql_rls import configure_session_rls_context
+
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(text(
+            "INSERT INTO notification_work "
+            "(id, tenant_id, organization_id, source_event_id, recipient_user_id, "
+            "category, title, body, available_at, created_at) "
+            "VALUES ('r7d-work-race', 'r7d-tenant-a', 'r7d-org-other', "
+            "'event-race', 'r7d-user-a', 'pm.task.assigned.v1', "
+            "'Task assignment', 'Open task if authorized.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+        ))
+
+    factory = sessionmaker(bind=postgres_test_environment.runtime_engine, future=True)
+
+    def drain_one():
+        def scoped_session():
+            session = factory()
+            configure_session_rls_context(session, user_session=UserSessionContext())
+            return session
+
+        return NotificationDispatcher(session_factory=scoped_session).drain(
+            tenant_id="r7d-tenant-a", organization_id="r7d-org-other", limit=1,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: drain_one(), range(2)))
+    assert sum(results) == 1
+    with postgres_test_environment.runtime_session(
+        tenant_id="r7d-tenant-a", organization_id="r7d-org-other",
+    ) as session:
+        _identity(session, "r7d-user-a")
+        assert session.scalar(text(
+            "SELECT count(*) FROM notifications WHERE source_event_id='event-race'"
+        )) == 1
+
+
+def test_concurrent_runtime_mark_read_is_idempotent(postgres_test_environment, notification_rows):
+    from src.core.platform.infrastructure.persistence.repositories.notifications.notification import (
+        SqlAlchemyNotificationRepository,
+    )
+
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(text(
+            "INSERT INTO notifications "
+            "(id, tenant_id, organization_id, recipient_user_id, category, title, "
+            "body, created_at, metadata_json) "
+            "VALUES ('r7d-read-race', 'r7d-tenant-a', 'r7d-org-other', "
+            "'r7d-user-a', 'platform.notice.v1', 'Notice', 'Safe', "
+            "CURRENT_TIMESTAMP, '{}')"
+        ))
+
+    def mark_once(_):
+        with postgres_test_environment.runtime_session(
+            tenant_id="r7d-tenant-a", organization_id="r7d-org-other",
+        ) as session:
+            _identity(session, "r7d-user-a")
+            repo = SqlAlchemyNotificationRepository(session)
+            repo.mark_read(
+                "r7d-read-race", user_id="r7d-user-a",
+                tenant_id="r7d-tenant-a", organization_id="r7d-org-other",
+                read_at=datetime.now(timezone.utc),
+            )
+            session.commit()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(mark_once, range(2)))
+    with postgres_test_environment.runtime_session(
+        tenant_id="r7d-tenant-a", organization_id="r7d-org-other",
+    ) as session:
+        _identity(session, "r7d-user-a")
+        assert session.scalar(text(
+            "SELECT read_at IS NOT NULL FROM notifications WHERE id='r7d-read-race'"
+        )) is True

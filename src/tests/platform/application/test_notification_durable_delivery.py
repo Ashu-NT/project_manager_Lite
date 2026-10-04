@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import func, select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
     OrganizationORM,
@@ -20,6 +20,9 @@ from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant impo
 )
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
     UserTenantORM,
+)
+from src.core.platform.infrastructure.persistence.repositories.notifications.notification import (
+    SqlAlchemyNotificationRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.notifications.notification_work import (
     enqueue_notification_work,
@@ -179,10 +182,6 @@ def test_retryable_insert_failure_preserves_pending_effect(monkeypatch, services
     recipient = _setup(session, services)
     _enqueue(session, recipient)
     session.commit()
-    from src.core.platform.infrastructure.persistence.repositories.notifications.notification import (
-        SqlAlchemyNotificationRepository,
-    )
-
     original = SqlAlchemyNotificationRepository.add_idempotent
     attempts = 0
 
@@ -204,6 +203,189 @@ def test_retryable_insert_failure_preserves_pending_effect(monkeypatch, services
     session.commit()
     assert worker.drain(tenant_id="durable-notification-tenant", organization_id=None) == 1
     assert _count(session, NotificationORM) == 1
+
+
+def test_failure_after_notification_insert_rolls_back_before_retry(
+    monkeypatch, services, session,
+):
+    recipient = _setup(session, services)
+    _enqueue(session, recipient, event_id="insert-then-fail")
+    session.commit()
+    original = SqlAlchemyNotificationRepository.add_idempotent
+    attempts = 0
+
+    def fail_after_insert(self, notification):
+        nonlocal attempts
+        attempts += 1
+        original(self, notification)
+        if attempts == 1:
+            raise RuntimeError("crash after notification insert")
+
+    monkeypatch.setattr(
+        SqlAlchemyNotificationRepository, "add_idempotent", fail_after_insert,
+    )
+    worker = NotificationDispatcher(session_factory=sessionmaker(bind=session.bind, future=True))
+    assert worker.drain(tenant_id="durable-notification-tenant", organization_id=None) == 0
+    session.expire_all()
+    assert _count(session, NotificationORM) == 0
+    work = session.scalar(select(NotificationWorkORM))
+    assert work.status == "retry"
+    work.available_at = datetime.now(timezone.utc)
+    session.commit()
+    assert worker.drain(tenant_id="durable-notification-tenant", organization_id=None) == 1
+    assert _count(session, NotificationORM) == 1
+
+
+def test_commit_failure_does_not_commit_notification_with_retry_state(services, session):
+    recipient = _setup(session, services)
+    _enqueue(session, recipient, event_id="commit-failure")
+    session.commit()
+    fail_next_commit = True
+
+    class FailOnceSession(Session):
+        def commit(self):
+            nonlocal fail_next_commit
+            if fail_next_commit:
+                fail_next_commit = False
+                raise RuntimeError("commit interrupted before database commit")
+            return super().commit()
+
+    worker = NotificationDispatcher(session_factory=sessionmaker(
+        bind=session.bind, future=True, class_=FailOnceSession,
+    ))
+    assert worker.drain(tenant_id="durable-notification-tenant", organization_id=None) == 0
+    session.expire_all()
+    assert _count(session, NotificationORM) == 0
+    work = session.scalar(select(NotificationWorkORM))
+    assert work.status == "retry"
+    work.available_at = datetime.now(timezone.utc)
+    session.commit()
+    assert NotificationDispatcher(session_factory=sessionmaker(
+        bind=session.bind, future=True,
+    )).drain(tenant_id="durable-notification-tenant", organization_id=None) == 1
+    assert _count(session, NotificationORM) == 1
+
+
+def test_poison_after_insert_quarantines_without_partial_notification(
+    monkeypatch, services, session,
+):
+    recipient = _setup(session, services)
+    _enqueue(session, recipient, event_id="poison-after-insert")
+    session.commit()
+    original = SqlAlchemyNotificationRepository.add_idempotent
+
+    def invalid_after_insert(self, notification):
+        original(self, notification)
+        raise ValueError("invalid notification content")
+
+    monkeypatch.setattr(
+        SqlAlchemyNotificationRepository, "add_idempotent", invalid_after_insert,
+    )
+    worker = NotificationDispatcher(session_factory=sessionmaker(bind=session.bind, future=True))
+    assert worker.drain(tenant_id="durable-notification-tenant", organization_id=None) == 0
+    session.expire_all()
+    assert _count(session, NotificationORM) == 0
+    assert session.scalar(select(NotificationWorkORM.status)) == "quarantined"
+
+
+def test_fresh_worker_replay_after_commit_keeps_one_effect(services, session):
+    recipient = _setup(session, services)
+    _enqueue(session, recipient, event_id="restart-replay")
+    session.commit()
+    factory = sessionmaker(bind=session.bind, future=True)
+    assert NotificationDispatcher(session_factory=factory).drain(
+        tenant_id="durable-notification-tenant", organization_id=None,
+    ) == 1
+    _enqueue(session, recipient, event_id="restart-replay")
+    session.commit()
+    assert NotificationDispatcher(session_factory=factory).drain(
+        tenant_id="durable-notification-tenant", organization_id=None,
+    ) == 0
+    assert _count(session, NotificationORM) == 1
+
+
+def test_one_event_fans_out_once_per_recipient_across_replay(services, session):
+    first = _setup(session, services)
+    second = services["auth_service"].register_user(
+        "durable-notification-second", "StrongPass123!", display_name="Second",
+    )
+    now = datetime.now(timezone.utc)
+    session.add(UserTenantORM(
+        id="durable-member-second", user_id=second.id,
+        tenant_id="durable-notification-tenant", status="active",
+        accepted_at=now, joined_at=now, created_at=now, updated_at=now,
+    ))
+    session.commit()
+    _enqueue(session, first, event_id="shared-source-event")
+    _enqueue(session, second.id, event_id="shared-source-event")
+    _enqueue(session, first, event_id="shared-source-event")
+    session.commit()
+    factory = sessionmaker(bind=session.bind, future=True)
+    assert NotificationDispatcher(session_factory=factory).drain(
+        tenant_id="durable-notification-tenant", organization_id=None,
+    ) == 2
+    _enqueue(session, first, event_id="shared-source-event")
+    _enqueue(session, second.id, event_id="shared-source-event")
+    session.commit()
+    assert NotificationDispatcher(session_factory=factory).drain(
+        tenant_id="durable-notification-tenant", organization_id=None,
+    ) == 0
+    rows = session.scalars(select(NotificationORM).where(
+        NotificationORM.source_event_id == "shared-source-event"
+    )).all()
+    assert {row.recipient_user_id for row in rows} == {first, second.id}
+    assert len(rows) == 2
+
+
+def test_interruption_after_work_lock_before_insert_is_recoverable(
+    monkeypatch, services, session,
+):
+    recipient = _setup(session, services)
+    _enqueue(session, recipient, event_id="before-insert-crash")
+    session.commit()
+    original = NotificationDispatcher._recipient_is_current
+    calls = 0
+
+    def interrupt_once(worker_session, work):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError("interrupted after claim")
+        return original(worker_session, work)
+
+    monkeypatch.setattr(NotificationDispatcher, "_recipient_is_current", staticmethod(interrupt_once))
+    factory = sessionmaker(bind=session.bind, future=True)
+    with pytest.raises(RuntimeError, match="interrupted after claim"):
+        NotificationDispatcher(session_factory=factory).drain(
+            tenant_id="durable-notification-tenant", organization_id=None,
+        )
+    session.expire_all()
+    assert _count(session, NotificationORM) == 0
+    assert session.scalar(select(NotificationWorkORM.status)) == "pending"
+    assert NotificationDispatcher(session_factory=factory).drain(
+        tenant_id="durable-notification-tenant", organization_id=None,
+    ) == 1
+    assert _count(session, NotificationORM) == 1
+
+
+def test_post_commit_hint_failure_does_not_replay_business_effect(services, session):
+    recipient = _setup(session, services)
+    _enqueue(session, recipient, event_id="hint-failure")
+    session.commit()
+    factory = sessionmaker(bind=session.bind, future=True)
+
+    def failed_hint(_tenant_id, _organization_id, _recipient_id):
+        raise RuntimeError("presentation channel unavailable")
+
+    assert NotificationDispatcher(
+        session_factory=factory, on_delivered=failed_hint,
+    ).drain(tenant_id="durable-notification-tenant", organization_id=None) == 1
+    session.expire_all()
+    assert session.scalar(select(NotificationWorkORM.status)) == "processed"
+    assert _count(session, NotificationORM) == 1
+    assert NotificationDispatcher(session_factory=factory).drain(
+        tenant_id="durable-notification-tenant", organization_id=None,
+    ) == 0
 
 
 def test_conflicting_event_payload_fails_closed(services, session):

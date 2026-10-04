@@ -78,18 +78,17 @@ class NotificationDispatcher:
                         session.commit()
                         continue
                     try:
-                        with session.begin_nested():
-                            notification = Notification.create(
-                                recipient_user_id=work.recipient_user_id,
-                                tenant_id=work.tenant_id,
-                                organization_id=work.organization_id,
-                                source_event_id=work.source_event_id,
-                                category=work.category,
-                                title=work.title,
-                                body=work.body,
-                                metadata=json.loads(work.metadata_json),
-                            )
-                            SqlAlchemyNotificationRepository(session).add_idempotent(notification)
+                        notification = Notification.create(
+                            recipient_user_id=work.recipient_user_id,
+                            tenant_id=work.tenant_id,
+                            organization_id=work.organization_id,
+                            source_event_id=work.source_event_id,
+                            category=work.category,
+                            title=work.title,
+                            body=work.body,
+                            metadata=json.loads(work.metadata_json),
+                        )
+                        SqlAlchemyNotificationRepository(session).add_idempotent(notification)
                         work.status = "processed"
                         work.processed_at = datetime.now(timezone.utc)
                         delivered_scope = (
@@ -103,18 +102,37 @@ class NotificationDispatcher:
                             except Exception:
                                 logger.exception("Notification delivery hint failed")
                     except (ValueError, TypeError, json.JSONDecodeError):
-                        work.status = "quarantined"
-                        work.last_error_code = "INVALID_NOTIFICATION_WORK"
-                        session.commit()
+                        session.rollback()
+                        quarantine_work = next_notification_work(
+                            session, tenant_id=tenant_id,
+                            organization_id=organization_id, work_id=work_id,
+                        )
+                        if quarantine_work is not None:
+                            quarantine_work.status = "quarantined"
+                            quarantine_work.last_error_code = "INVALID_NOTIFICATION_WORK"
+                            session.commit()
                     except Exception:
                         logger.exception("Notification delivery failed work_id=%s", work.id)
-                        work.attempt_count += 1
-                        work.status = "dead_letter" if work.attempt_count >= 8 else "retry"
-                        work.available_at = datetime.now(timezone.utc) + timedelta(
-                            seconds=min(900, 5 * (2 ** (work.attempt_count - 1)))
-                        )
-                        work.last_error_code = "DELIVERY_FAILED"
-                        session.commit()
+                        session.rollback()
+                        try:
+                            retry_work = next_notification_work(
+                                session, tenant_id=tenant_id,
+                                organization_id=organization_id, work_id=work_id,
+                            )
+                            if retry_work is None:
+                                continue
+                            retry_work.attempt_count += 1
+                            retry_work.status = (
+                                "dead_letter" if retry_work.attempt_count >= 8 else "retry"
+                            )
+                            retry_work.available_at = datetime.now(timezone.utc) + timedelta(
+                                seconds=min(900, 5 * (2 ** (retry_work.attempt_count - 1)))
+                            )
+                            retry_work.last_error_code = "DELIVERY_FAILED"
+                            session.commit()
+                        except Exception:
+                            session.rollback()
+                            logger.exception("Notification retry bookkeeping failed work_id=%s", work_id)
         return processed
 
     @staticmethod

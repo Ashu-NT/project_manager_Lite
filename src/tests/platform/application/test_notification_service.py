@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 import pytest
+from sqlalchemy import event
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.orm.notifications.notification import (
@@ -65,6 +66,41 @@ def test_notification_list_is_bounded_and_stably_ordered(services, session):
     assert [row.id for row in page] == [f"notification-{index:04d}" for index in range(124, 24, -1)]
     assert notifications.count_my_unread() == 125
     assert notifications.list_my_notifications(limit=0) == []
+
+
+def test_thousand_notification_read_stays_bounded_and_uses_two_data_queries(
+    services, session,
+):
+    user = register(services, "volume-notifications")
+    seed(session, recipient=user.id, notification_id="volume-0000")
+    created = datetime(2026, 10, 3, tzinfo=timezone.utc)
+    session.add_all(NotificationORM(
+        id=f"volume-{index:04d}", recipient_user_id=user.id,
+        tenant_id=TENANT, organization_id=None, source_event_id=None,
+        category="platform.notice.v1", title="Notice", body="Safe notice",
+        created_at=created, metadata_json="{}",
+    ) for index in range(1, 1001))
+    session.commit()
+    from src.core.platform.infrastructure.persistence.repositories.notifications.notification import (
+        SqlAlchemyNotificationRepository,
+    )
+
+    repo = SqlAlchemyNotificationRepository(session)
+    statements = []
+
+    def record(_connection, _cursor, statement, _parameters, _context, _executemany):
+        if statement.lstrip().upper().startswith("SELECT") and "FROM notifications" in statement:
+            statements.append(statement)
+
+    event.listen(session.bind, "before_cursor_execute", record)
+    try:
+        page = repo.list_for_user(user.id, tenant_id=TENANT, organization_id=None, limit=10000)
+        unread = repo.count_unread_for_user(user.id, tenant_id=TENANT, organization_id=None)
+    finally:
+        event.remove(session.bind, "before_cursor_execute", record)
+    assert len(page) == 100
+    assert unread == 1001
+    assert len(statements) == 2
 
 
 def test_personal_visibility_excludes_another_recipient(services, session):

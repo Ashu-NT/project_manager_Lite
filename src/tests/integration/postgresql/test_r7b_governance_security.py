@@ -228,6 +228,36 @@ def test_approval_delivery_rechecks_specific_reviewer_permission(
         assert not NotificationDispatcher._recipient_is_current(session, work)
 
 
+def test_reviewer_revocation_before_delivery_blocks_pending_notice(
+    postgres_test_environment, governance_rows,
+):
+    from src.infra.integration.notification_dispatcher import NotificationDispatcher
+
+    work = SimpleNamespace(
+        recipient_user_id="r7b-reviewer",
+        tenant_id="r7a-tenant-a",
+        organization_id="r7a-org-a",
+        category="approval.requested.v1",
+        metadata_json='{"request_id": "r7b-request"}',
+    )
+    with runtime(postgres_test_environment) as session:
+        assert NotificationDispatcher._recipient_is_current(session, work)
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(text(
+            "UPDATE role_bindings SET revoked_at=CURRENT_TIMESTAMP "
+            "WHERE principal_id='r7b-reviewer'"
+        ))
+    try:
+        with runtime(postgres_test_environment) as session:
+            assert not NotificationDispatcher._recipient_is_current(session, work)
+    finally:
+        with postgres_test_environment.admin_engine.begin() as connection:
+            connection.execute(text(
+                "UPDATE role_bindings SET revoked_at=NULL "
+                "WHERE principal_id='r7b-reviewer'"
+            ))
+
+
 def test_approval_page_eligibility_is_one_set_based_query(
     postgres_test_environment, governance_rows,
 ):

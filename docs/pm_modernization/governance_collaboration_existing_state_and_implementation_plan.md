@@ -973,8 +973,77 @@ Delayed mention delivery rechecks that grant and the live task/comment scope;
 tenant membership alone does not authorize a mention notification.
 
 Evidence: all 11 PM handler registrations match the PM permission map; 30
-Approval view-invalidation tests and 31 PostgreSQL R7B security tests pass;
+Approval view-invalidation tests and the PostgreSQL R7B security tests pass;
 one PostgreSQL regression asserts a 300-ID approval page is checked in a
 single Approval data query. A PostgreSQL mention regression covers authorized,
 unauthorized and foreign-project delivery. This is audience hardening, not a claim
 that the full R7D retry/concurrency/read-volume closure matrix has passed.
+
+### R7D Continued Durability Evidence - 2026-10-04
+
+- The generic dispatcher accepts an optional composition-supplied recipient
+  policy; PM mention checks stay in PM composition rather than importing PM
+  ORM classes into the shared runtime. Production composition wires the policy.
+- A failure after notification insertion but before the consumer commit rolls
+  back the notification, leaves work retryable, and succeeds once on retry.
+  The commit-boundary failure regression exposed and removed an unsafe nested
+  savepoint; retry bookkeeping now starts only after a full rollback. Poison
+  validation after insertion also rolls back before quarantining the work.
+  A fresh worker replay after commit creates no second effect. One event can
+  fan out to two recipients, each exactly once, across replay.
+- Two live PostgreSQL runtime workers concurrently draining one committed
+  work item produce one durable Notification. Two concurrent runtime mark-read
+  operations leave one consistent read state. Reviewer revocation between
+  staging and delivery removes notification eligibility under the runtime role.
+- At 1,001 Notification rows, the list remains capped at 100 while unread
+  count remains exact; list plus count issue two Notification data queries.
+  Mention recipient staging uses one set-based query; approval eligibility
+  uses one set-based query for a bounded 300-ID page.
+- Focused integrated approval/notification tests: **84 passed**. PostgreSQL
+  R7B/R7D selection: **38 passed** before the added race/revocation tests;
+  the subsequent complete R7B module run passed **34** and R7D module passed
+  **7**. Finance approval/R7C
+  PostgreSQL selection: **56 passed**. R7C read/navigation and durable
+  rollback/replay selection: **26 passed**. Architecture/controller selection:
+  **75 passed**. The durable delivery module after final crash and fan-out
+  coverage: **15 passed**. The consolidated final-worktree R7D/R7B/R7C/Finance
+  selection passed **153 tests** before the last isolated revocation regression;
+  that regression and the complete R7B module then passed **34 tests**. These
+  are overlapping selections, not one deduplicated total.
+- Scoped Ruff F/I and compilation pass; NotificationBell and
+  NotificationsPanel QML lint pass with `src/ui_qml/shared/qml` as an import
+  path. Repository-wide Ruff F/I reports **85 findings** (43 F841, 36 I001,
+  4 F401, 1 F811, 1 F821); touched files are clean. No unrelated Ruff cleanup
+  was performed.
+
+### R7D Closure - 2026-10-04
+
+**R7D COMPLETE for durable in-app Notifications.** The final-worktree
+R7D/R7B/R7C/Finance/architecture selection passed **217 tests**, including
+PostgreSQL runtime-role RLS, two-worker delivery, concurrent read state,
+reviewer revocation before delivery, rollback/commit-failure/poison/replay,
+duplicate recipient fan-out, bounded 1,001-row reads and project-scoped
+mentions. The PostgreSQL test fixture upgrades a fresh database through the
+single Alembic head (`b1d7c2f4a96e`); notification/work RLS classification,
+forced policies and runtime non-owner behavior are exercised in the live suite.
+Scoped Ruff F/I, Python compilation, NotificationBell/NotificationsPanel QML
+lint with the shared import path, architecture guards and `git diff --check`
+pass. Repository-wide Ruff's 85 unrelated findings are not represented as a
+green repository-wide check.
+
+Canonical path: business UoW stages per-recipient work under the committed
+event ID; the local dispatcher uses fresh scoped transactions, current
+recipient authority, DB-backed logical uniqueness, bounded retry/quarantine
+and a post-commit recipient-only UI hint. A failed UI hint does not undo or
+replay the committed Notification. Each recipient's work commits atomically;
+fan-out to multiple recipients is independently retryable, so recipients may
+observe the event at different times without duplicate final effects. This
+does not claim distributed exactly-once delivery or cross-recipient atomic
+visibility. Notification history remains separate from Approval, Action Center,
+Activity and Audit authority.
+
+The shell drawer intentionally offers read-state actions only. Its DTO does
+not expose a route, so no Notification row acts as a navigation authorization
+token or misleading deep link. Out-of-app invitation delivery, email/SMS/push
+and navigable Notification destinations require separate product designs; none
+is claimed here. R7E/R8 have not started. No commit was made by the agent.
