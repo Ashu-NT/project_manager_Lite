@@ -1,4 +1,5 @@
 from src.core.platform.domain.tenant.tenancy.events import (
+    TenantInvitationChanged,
     TenantMembershipActivated,
     TenantMembershipReactivated,
     TenantMembershipRemoved,
@@ -15,6 +16,7 @@ from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
 )
 
 __all__ = [
+    "TenantInvitationChanged",
     "MEMBERSHIP_STATUSES",
     "MEMBERSHIP_STATUS_ACTIVE",
     "MEMBERSHIP_STATUS_INVITED",

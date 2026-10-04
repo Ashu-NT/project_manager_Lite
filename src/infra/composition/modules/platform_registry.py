@@ -515,10 +515,21 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
     )
+    from src.infra.integration.notification_dispatcher import NotificationDispatcher
+
+    notification_session_factory = sessionmaker(bind=session.bind, future=True)
+
+    def _notification_session():
+        delivery_session = notification_session_factory()
+        configure_session_rls_context(delivery_session, user_session=user_session)
+        return delivery_session
+
     notification_service = NotificationService(
         session=session,
         notification_repo=repositories.notification_repo,
         user_session=user_session,
+        memberships=repositories.user_tenant_repo,
+        delivery=NotificationDispatcher(session_factory=_notification_session),
     )
     activity_service = ActivityService(
         session=session,
@@ -527,6 +538,9 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
     )
     platform_transactional_dispatcher = InProcessTransactionalEventDispatcher()
+    from src.infra.composition.notifications import register_platform_notification_policy
+
+    register_platform_notification_policy(platform_transactional_dispatcher)
     platform_post_commit_bus = InProcessPostCommitEventBus()
     platform_view_invalidation_channel = InProcessViewInvalidationChannel()
 
@@ -1048,7 +1062,6 @@ def build_platform_service_bundle(
         clock=SystemClock(),
         user_session=user_session,
         tenant_context_service=tenant_context_service,
-        notification_service=notification_service,
         # P5D-1: the SAME resolver dict `RoleGovernanceService` uses -- membership's own
         # removal cascade can revoke resource-scoped bindings too, so it needs the same
         # organization-ownership derivation, not just the tenant-wide default grant's.

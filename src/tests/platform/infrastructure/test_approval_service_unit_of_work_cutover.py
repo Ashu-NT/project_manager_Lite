@@ -273,7 +273,8 @@ def test_shared_legacy_session_is_not_touched_by_approval_mutation(services, ses
 
     # The shared session must not have picked up an implicit transaction as a side effect of
     # the approval mutation, which ran entirely on its own fresh UoW Session.
-    assert not session.in_transaction() or session.in_transaction().nested is False
+    transaction = session.get_transaction()
+    assert transaction is None or transaction.nested is False
 
 
 def test_apply_handler_missing_does_not_open_or_leak_a_session(services, session, monkeypatch):

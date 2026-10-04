@@ -57,6 +57,8 @@ class NotificationsController(QObject):
         self._notifications: list[dict[str, object]] = []
         self._is_loading = False
         self._error_message = ""
+        self._scope_generation = 0
+        self._refresh_generation = 0
         if shell_context is not None:
             shell_context.scopeChanged.connect(self._on_scope_changed)
 
@@ -82,10 +84,23 @@ class NotificationsController(QObject):
 
     @Slot()
     def refresh(self) -> None:
+        self._refresh_generation += 1
+        generation = (self._scope_generation, self._refresh_generation)
         self._set_is_loading(True)
         self._set_error_message("")
-        count_result = self._presenter.load_unread_count()
-        list_result = self._presenter.load_notifications()
+        try:
+            count_result = self._presenter.load_unread_count()
+            if generation != (self._scope_generation, self._refresh_generation):
+                return
+            list_result = self._presenter.load_notifications()
+        except Exception:
+            logger.exception("Notification refresh failed")
+            if generation == (self._scope_generation, self._refresh_generation):
+                self._set_is_loading(False)
+                self._set_error_message("Notifications could not be loaded.")
+            return
+        if generation != (self._scope_generation, self._refresh_generation):
+            return
         self._set_is_loading(False)
 
         # Independent-ish, but both are read from the same underlying store
@@ -109,7 +124,10 @@ class NotificationsController(QObject):
         normalized = str(notification_id or "").strip()
         if not normalized:
             return False
+        generation = self._scope_generation
         result = self._presenter.mark_read(normalized)
+        if generation != self._scope_generation:
+            return False
         if not result.ok:
             self._set_error_message(result.error_message or "")
             return False
@@ -121,7 +139,10 @@ class NotificationsController(QObject):
 
     @Slot(result=bool)
     def markAllRead(self) -> bool:
+        generation = self._scope_generation
         result = self._presenter.mark_all_read()
+        if generation != self._scope_generation:
+            return False
         if not result.ok:
             self._set_error_message(result.error_message or "")
             return False
@@ -132,6 +153,7 @@ class NotificationsController(QObject):
     # -- scope change ----------------------------------------------------------
 
     def _on_scope_changed(self) -> None:
+        self._scope_generation += 1
         self._set_unread_count(0)
         self._set_notifications([])
         self.refresh()

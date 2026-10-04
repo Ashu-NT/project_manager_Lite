@@ -106,6 +106,18 @@ def _project_child_predicate(child_table: str) -> str:
 
 
 PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
+    "notifications": (
+        "recipient_user_id = NULLIF(current_setting('app.user_id', true), '') "
+        "AND tenant_id IS NOT NULL AND ("
+        f"(tenant_id = {_TENANT_SETTING} AND "
+        f"(organization_id IS NULL OR organization_id = {_ORGANIZATION_SETTING})) "
+        "OR (organization_id IS NULL AND category IN "
+        "('tenant.invitation.issued', 'tenant.invitation.revoked')))"
+    ),
+    "notification_work": (
+        f"tenant_id = {_TENANT_SETTING} AND "
+        f"(organization_id IS NULL OR organization_id = {_ORGANIZATION_SETTING})"
+    ),
     "task_comments": (
         "EXISTS (SELECT 1 FROM tasks ct JOIN projects cp ON cp.id = ct.project_id "
         "WHERE ct.id = task_comments.task_id "
@@ -173,7 +185,6 @@ INTENTIONAL_RLS_EXCLUSIONS: Mapping[str, str] = {
     "department_calendar_assignments": "calendar assignment scoped through department and calendar owners",
     "document_links": "document child scoped through documents",
     "employee_calendar_assignments": "calendar assignment scoped through employee and calendar owners",
-    "notifications": "recipient-owned bootstrap data read before tenant context is established",
     "organizations": "tenant-context bootstrap root",
     "permissions": "global canonical permission catalog",
     "portfolio_project_dependencies": "portfolio child scoped through RLS-protected projects",
@@ -243,6 +254,7 @@ def validate_rls_classification(
 _POST_BASELINE_SCOPED_TABLES = frozenset({
     "organization_accounting_connectors", "project_accounting_handoffs", "project_accounting_outbox",
 })
+_POST_BASELINE_PARENT_SCOPED_TABLES = frozenset({"notifications", "notification_work"})
 
 
 def enable_baseline_rls(operations: Any, bind: Any) -> None:
@@ -252,7 +264,7 @@ def enable_baseline_rls(operations: Any, bind: Any) -> None:
         enable_tenant_only_rls(operations, bind, table)
     for table in sorted(NULLABLE_TENANT_AUDIT_TABLES):
         enable_nullable_tenant_audit_rls(operations, bind, table)
-    for table in sorted(PARENT_SCOPED_RLS_TABLES):
+    for table in sorted(PARENT_SCOPED_RLS_TABLES - _POST_BASELINE_PARENT_SCOPED_TABLES):
         enable_parent_scoped_rls(
             operations,
             bind,
@@ -262,7 +274,7 @@ def enable_baseline_rls(operations: Any, bind: Any) -> None:
 
 
 def disable_baseline_rls(operations: Any, bind: Any) -> None:
-    for table in sorted(PARENT_SCOPED_RLS_TABLES, reverse=True):
+    for table in sorted(PARENT_SCOPED_RLS_TABLES - _POST_BASELINE_PARENT_SCOPED_TABLES, reverse=True):
         disable_parent_scoped_rls(operations, bind, table)
     for table in sorted(NULLABLE_TENANT_AUDIT_TABLES, reverse=True):
         disable_nullable_tenant_audit_rls(operations, bind, table)

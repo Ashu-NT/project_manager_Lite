@@ -641,6 +641,9 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
+    from src.infra.composition.notifications import register_pm_notification_policy
+
+    register_pm_notification_policy(platform_services.platform_transactional_dispatcher)
     _task_view_invalidation_handler = build_task_view_invalidation_handler(
         platform_services.platform_view_invalidation_channel
     )
@@ -1196,11 +1199,6 @@ def build_project_management_service_bundle(
         change_operations = change_deps.financial_change_service
         change_operations._approval_repo = uow.approvals
         change_operations._record_event = uow.record_event
-        change_operations._approval_requested_staged = lambda approval: (
-            post_commit_actions.append(
-                lambda: platform_services.approval_service.publish_requested(approval)
-            )
-        )
         setup_operations = FinancialConfigurationService(
             session=uow._session,
             profile_repo=uow.profiles,
@@ -1300,11 +1298,6 @@ def build_project_management_service_bundle(
                 session=uow._session, tenant_context_service=platform_services.tenant_context_service,
                 user_session=platform_services.user_session, installed_adapters=accounting_adapter_ids,
             ),
-        )
-        billing_preparation_operations._approval_requested_staged = lambda request: (
-            post_commit_actions.append(
-                lambda: platform_services.approval_service.publish_requested(request)
-            )
         )
         return FinanceGovernanceOperations(
             budgets=budget_operations,

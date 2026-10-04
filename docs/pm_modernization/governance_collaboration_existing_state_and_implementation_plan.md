@@ -7,6 +7,8 @@ R7 itself is OPEN. R7B and R7C are COMPLETE; implementation and verification are
 The approved R7C brief supersedes the original phase numbering: R7C is Action
 Center bounded reads/eligibility consistency. The original broader Approval
 lifecycle proposal is deferred, not implicitly certified by this closure.
+R7D is now IN PROGRESS under the approved Durable Notifications / Deduplication /
+Delivery Reliability brief. R7D is not complete and R7E has not started.
 The R7A findings below are historical characterization, not current acceptance behavior.
 R5 and R6 remain CLOSED; their historical evidence is unchanged. R8 has not started.
 Only this document and three characterization test files were added in R7A.
@@ -860,8 +862,76 @@ The repository-wide findings outside this cutover remain classified as existing
 or concurrent work, not hidden by the scoped result. No schema migration was
 introduced by R7C. No full PM-suite result is claimed for this targeted phase.
 
-**R7C COMPLETE.** R7 remains OPEN. R7D requires its own approved next-phase brief;
+**R7C COMPLETE.** R7 remains OPEN. At this closure R7D required its own next-phase brief;
 durable notification delivery and the remaining Approval/collaboration lifecycle
 roadmap are not automatically started. R5/R6 remain CLOSED. R8 and future
 operational modules were not implemented. Unrelated team work is preserved.
 The implementation agent made no commit.
+
+## R7D Current Implementation - 2026-10-03
+
+The approved R7D brief authorizes durable in-app notification consumption, scoped
+recipients, deterministic deduplication, retry/recovery, bounded reads and related
+regressions. R7C remains closed. No durable Notifications closure is claimed by
+the existing in-memory post-commit callbacks.
+
+### Verified Starting Architecture
+
+- `NotificationService.dispatch` currently persists a randomly identified row and
+  optionally commits a shared session. Channel fan-out is immediate; no concrete
+  email/SMS/push adapter is registered in production composition.
+- Approval requested/decided, task assignment and comment mention call the shared
+  `safe_dispatch_notification` helper after the business transaction. Failures are
+  logged/swallowed, so successful business commits can lose notifications.
+- Tenant invitation issued/revoked has a separate swallowing dispatch helper and
+  the same post-commit durability gap. Invitations intentionally have tenant scope;
+  an invitee need not already be an active tenant member. This is not permission
+  to expose project notifications across organizations.
+- `notifications` lacks organization/source-event/deduplication columns and a
+  logical uniqueness constraint. Repository predicates currently scope by user
+  only. These are outstanding security/schema gates, not fixed by UI generation
+  checks or bounded list reads.
+- R7B mention copy contains no comment body or private metadata. Preserve this;
+  durable delivery must not create a deleted-content archive.
+- Existing IntegrationOutbox/Inbox services provide transaction-neutral delivery,
+  leases, retries and quarantine. Their current record/ORM contracts mandate
+  organization scope (the record explicitly validates financial integration
+  organization presence). Tenant-wide invitations cannot be forced into an
+  arbitrary organization just to reuse that concrete schema. Reuse canonical
+  delivery infrastructure with explicit scope support rather than introduce a
+  competing business-event bus or weaken Finance scope validation.
+
+### Implemented Hardening
+
+- Notification list materialization is capped at 100 and ordered by
+  `created_at DESC, id DESC`; zero requested rows returns none. Exact unread
+  count remains SQL COUNT, independent of the bounded result size.
+- Notification controller generations discard old-scope and superseded refresh
+  responses before updating the badge/list. Read/read-all mutation responses from
+  a previous scope cannot publish errors or refresh the new scope.
+- Unexpected refresh exceptions clear loading and show a safe message rather
+  than exposing a raw exception to QML.
+- Regression tests cover equal-timestamp ordering, the hard cap, independent
+  unread count, scope switches during count/list, reentrant refresh and stale
+  mutation errors.
+
+Initial targeted verification: 44 notification controller/service/Desktop API,
+Approval notification and PM assignment/mention tests passed. Scoped Ruff F/I,
+Python compilation and diff checks passed. This does not constitute durable
+delivery, deduplication, migration or PostgreSQL certification.
+
+### Required Cutover Before Closure
+
+Persist explicit notification-relevant source evidence inside the authoritative
+business transaction; consume through one notification UoW with database-backed
+identity/uniqueness. Recipient policy stays module-owned and explicitly scoped.
+Define first-consumption/replay recipient semantics, invitation exceptions and
+scope-aware RLS. Migrate all four current source families and remove both
+swallowing helpers, direct dispatch publication and speculative channel fan-out
+when the canonical replacement is proven. Add immutable read facts/query Reader,
+SQL pagination, scoped personal read-state writes, post-commit invalidation,
+Alembic/schema/RLS changes, recovery/concurrency tests and live PostgreSQL evidence.
+
+The current dispatch path is marked superseded-for-removal, not retained as a
+compatibility architecture. No source event is durable yet merely because these
+initial read/UI protections passed. R7D remains IN PROGRESS.

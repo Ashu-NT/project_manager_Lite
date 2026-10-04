@@ -231,7 +231,7 @@ def test_governed_tables_force_rls(postgres_test_environment, table):
         )
 
 
-@pytest.mark.parametrize("table", ["task_presence", "notifications", "document_links"])
+@pytest.mark.parametrize("table", ["task_presence", "document_links"])
 def test_current_intentional_exclusions_are_not_rls_protected(
     postgres_test_environment, table
 ):

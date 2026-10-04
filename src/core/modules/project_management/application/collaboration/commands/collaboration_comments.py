@@ -38,7 +38,6 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.common.pydantic import normalize_optional_text
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.notifications import safe_dispatch_notification
 
 
 class CollaborationCommentCommandMixin:
@@ -196,25 +195,7 @@ class CollaborationCommentCommandMixin:
                         link_role="reference",
                     )
             uow.commit()
-        self._notify_mentioned_users(
-            task=task, comment=comment, author_user_id=comment.author_user_id
-        )
         return comment
-
-    def _notify_mentioned_users(
-        self, *, task, comment: TaskComment, author_user_id: str | None
-    ) -> None:
-        for user_id in comment.mentioned_user_ids:
-            if not user_id or user_id == author_user_id:
-                continue
-            safe_dispatch_notification(
-                self,
-                recipient_user_id=user_id,
-                category="pm.comment.mentioned.v1",
-                title="You were mentioned in a comment",
-                body="Open the task discussion to view this mention if you still have access.",
-                metadata={},
-            )
 
     def mark_task_mentions_read(self, task_id: str) -> None:
         task = self._require_task(task_id)
