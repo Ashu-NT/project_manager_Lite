@@ -77,7 +77,7 @@ def test_post_comment_repository_failure_rolls_back_with_no_partial_row(services
         collaboration.post_comment(task_id=task.id, body="Hello")
 
     monkeypatch.undo()
-    assert collaboration._comment_repo.list_by_task(task.id) == []
+    assert collaboration._comment_repo.list_recent_for_tasks([task.id]) == []
     assert _comment_hints(hints) == []
 
 
@@ -104,7 +104,7 @@ def test_post_comment_repository_failure_removes_physical_attachment(
         )
 
     monkeypatch.undo()
-    assert collaboration._comment_repo.list_by_task(task.id) == []
+    assert collaboration._comment_repo.list_recent_for_tasks([task.id]) == []
     assert list(storage_root.rglob("evidence.txt")) == []
 
 
@@ -147,7 +147,7 @@ def test_post_comment_missing_attachment_never_creates_comment(services, tmp_pat
             attachments=[str(tmp_path / "not-here.txt")],
         )
 
-    assert collaboration._comment_repo.list_by_task(task.id) == []
+    assert collaboration._comment_repo.list_recent_for_tasks([task.id]) == []
 
 
 def test_post_comment_commit_failure_rolls_back_with_no_partial_row(services, monkeypatch):
@@ -164,7 +164,7 @@ def test_post_comment_commit_failure_rolls_back_with_no_partial_row(services, mo
         collaboration.post_comment(task_id=task.id, body="Hello")
 
     monkeypatch.undo()
-    assert collaboration._comment_repo.list_by_task(task.id) == []
+    assert collaboration._comment_repo.list_recent_for_tasks([task.id]) == []
     assert _comment_hints(hints) == []
 
 
@@ -179,7 +179,7 @@ def test_session_remains_usable_after_post_comment_repository_failure(services, 
     created = collaboration.post_comment(task_id=task.id, body="Hello again")
 
     assert created is not None
-    assert [c.id for c in collaboration._comment_repo.list_by_task(task.id)] == [created.id]
+    assert [c.id for c in collaboration._comment_repo.list_recent_for_tasks([task.id])] == [created.id]
 
 
 def test_post_comment_successful_write_produces_a_durable_hint(services):
@@ -191,7 +191,7 @@ def test_post_comment_successful_write_produces_a_durable_hint(services):
 
     assert created is not None
     assert created.body == "Hello"
-    assert [c.id for c in collaboration._comment_repo.list_by_task(task.id)] == [created.id]
+    assert [c.id for c in collaboration._comment_repo.list_recent_for_tasks([task.id])] == [created.id]
     assert len(_comment_hints(hints)) == 2, "task-scoped + org-wide workspace target"
 
 

@@ -5,7 +5,37 @@ from PySide6.QtCore import QObject, QUrl
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QSignalSpy, QTest
 
+from src.ui_qml.modules.project_management.controllers.tasks.pm_collaboration_controller import (
+    PMCollaborationController,
+)
 from src.ui_qml.shell.qml_engine import create_qml_engine
+
+
+def test_task_switch_clears_previous_collaboration_scope(qapp) -> None:
+    controller = PMCollaborationController(
+        presenter=None,
+        facade_refresh=lambda: None,
+        set_is_busy=lambda busy: None,
+        set_error_message=lambda message: None,
+        set_feedback_message=lambda message: None,
+    )
+    controller._comments_task_id = "old-task"
+    controller._mention_query = "old mention"
+    controller._document_query = "old document"
+    controller._set_collaboration_mention_options([{"id": "old-user"}])
+    controller._set_collaboration_document_options([{"id": "old-document"}])
+    controller._set_collaboration_presence({"items": [{"id": "old-user"}]})
+
+    controller.reset_comment_page()
+
+    assert controller._comments_task_id == ""
+    assert controller._mention_query == ""
+    assert controller._document_query == ""
+    assert controller.collaborationMentionOptions == []
+    assert controller.collaborationDocumentOptions == []
+    assert controller.collaborationPresence["items"] == []
+    assert controller.requestCommentPage("old-task", 2)["ok"] is False
+    assert controller.searchTaskMentionOptions("old-task", "old")["ok"] is False
 
 
 @pytest.mark.parametrize(

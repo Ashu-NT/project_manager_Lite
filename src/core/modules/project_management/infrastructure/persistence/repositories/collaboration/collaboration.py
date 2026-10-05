@@ -120,14 +120,10 @@ class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
         row = self.session.execute(stmt).scalar_one_or_none()
         return task_comment_from_orm(row) if row else None
 
-    def list_by_task(self, task_id: str) -> list[TaskComment]:
-        stmt = (
-            self._project_scoped_stmt()
-            .where(TaskCommentORM.task_id == task_id)
-            .order_by(TaskCommentORM.created_at.asc())
-        )
-        rows = self.session.execute(stmt).scalars().all()
-        return [task_comment_from_orm(row) for row in rows]
+    def get_for_reply(self, comment_id: str) -> TaskComment | None:
+        stmt = self._project_scoped_stmt().where(TaskCommentORM.id == comment_id).with_for_update(of=TaskCommentORM)
+        row = self.session.execute(stmt).scalar_one_or_none()
+        return task_comment_from_orm(row) if row else None
 
     def list_unread_mentions_for_task(
         self,

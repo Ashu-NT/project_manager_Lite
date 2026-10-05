@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import logging
 import json
-from hashlib import sha256
+import logging
 from collections.abc import Iterable
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from hashlib import sha256
 
 from sqlalchemy.exc import IntegrityError
 
@@ -195,6 +195,18 @@ class CollaborationCommentCommandMixin:
             context=self._new_context()
         ) as uow:
             attachment_state["uow"] = uow
+            if parent_id:
+                locked_parent = uow.comments.get_for_reply(parent_id)
+                if locked_parent is None or locked_parent.task_id != task_id:
+                    raise NotFoundError(
+                        "The comment you are replying to could not be found on this task.",
+                        code="COLLABORATION_PARENT_COMMENT_NOT_FOUND",
+                    )
+                if locked_parent.is_deleted:
+                    raise BusinessRuleError(
+                        "Cannot reply to a deleted comment.",
+                        code="COLLABORATION_PARENT_COMMENT_DELETED",
+                    )
             uow.comments.add(comment)
             record_audit_entry(
                 uow,

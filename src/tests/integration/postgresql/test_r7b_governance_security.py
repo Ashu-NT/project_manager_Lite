@@ -499,6 +499,32 @@ def test_presence_raw_foreign_scope_and_impersonation_denied(
             connection.execute(text("DELETE FROM task_presence WHERE id=:id"), {"id": presence_id})
 
 
+def test_presence_username_change_keeps_one_stable_user_identity(
+    postgres_test_environment, governance_rows
+):
+    from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
+        SqlAlchemyTaskPresenceRepository,
+    )
+
+    with runtime(postgres_test_environment) as session:
+        repo = SqlAlchemyTaskPresenceRepository(session)
+        repo._tenant_context_service = _comments(session)._tenant_context_service
+        first = repo.touch(
+            task_id="r7a-task-a", user_id="r7b-reviewer", username="reviewer-old",
+            display_name="Same Name", activity="reviewing",
+        )
+        renamed = repo.touch(
+            task_id="r7a-task-a", user_id="r7b-reviewer", username="reviewer-new",
+            display_name="Same Name", activity="reviewing",
+        )
+        assert first.id == renamed.id
+        assert renamed.username == "reviewer-new"
+        assert session.scalar(text(
+            "SELECT count(*) FROM task_presence "
+            "WHERE task_id='r7a-task-a' AND user_id='r7b-reviewer'"
+        )) == 1
+
+
 def test_deleted_comment_is_a_redacted_tombstone(
     postgres_test_environment, governance_rows
 ):
@@ -587,6 +613,43 @@ def test_active_comment_read_and_creation(postgres_test_environment, governance_
         )
         active = next(row for row in page.items if row.comment_id == "r7b-active")
         assert active.body == "Visible" and not active.is_deleted
+
+
+def test_large_task_discussion_page_is_bounded_on_postgresql(
+    postgres_test_environment, governance_rows
+):
+    with runtime(postgres_test_environment) as session:
+        session.execute(
+            text(
+                "INSERT INTO task_comments (id, task_id, body, created_at) "
+                "VALUES (:id, 'r7a-task-a', 'Paged', CURRENT_TIMESTAMP)"
+            ),
+            [{"id": f"r7e-page-{index:04d}"} for index in range(1000)],
+        )
+        connection = session.connection()
+        statements = []
+
+        def capture(connection, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(connection, "before_cursor_execute", capture)
+        try:
+            reader = SqlAlchemyCollaborationWorkspaceReader(session=session)
+            first = reader.read_task_comment_page(
+                tenant_id="r7a-tenant-a", organization_id="r7a-org-a",
+                task_id="r7a-task-a", page=1, page_size=25,
+            )
+            second = reader.read_task_comment_page(
+                tenant_id="r7a-tenant-a", organization_id="r7a-org-a",
+                task_id="r7a-task-a", page=2, page_size=25,
+            )
+        finally:
+            event.remove(connection, "before_cursor_execute", capture)
+        assert first.total == second.total == 1001
+        assert len(first.items) == len(second.items) == 25
+        assert not {item.id for item in first.items} & {item.id for item in second.items}
+        assert len(statements) == 4
+        assert sum("LIMIT" in statement.upper() for statement in statements) == 2
 
 
 def test_only_active_scoped_reviewers_are_notified_once(
@@ -728,6 +791,36 @@ def test_stale_writer_cannot_resurrect_committed_tombstone(
         )
         row = next(item for item in page.items if item.comment_id == comment.id)
         assert row.is_deleted and row.body == ""
+
+
+def test_reply_parent_lock_targets_comment_row_on_postgresql(
+    postgres_test_environment, governance_rows
+):
+    from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
+        SqlAlchemyTaskCommentRepository,
+    )
+
+    with runtime(postgres_test_environment) as session:
+        session.execute(text(
+            "INSERT INTO task_comments (id, task_id, body, created_at) "
+            "VALUES ('r7e-parent-lock', 'r7a-task-a', 'Parent', CURRENT_TIMESTAMP)"
+        ))
+        repo = SqlAlchemyTaskCommentRepository(session)
+        repo._tenant_context_service = _comments(session)._tenant_context_service
+        statements = []
+        connection = session.connection()
+
+        def capture(connection, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(connection, "before_cursor_execute", capture)
+        try:
+            parent = repo.get_for_reply("r7e-parent-lock")
+        finally:
+            event.remove(connection, "before_cursor_execute", capture)
+        assert parent is not None and parent.body == "Parent"
+        assert len(statements) == 1
+        assert "FOR UPDATE OF task_comments" in statements[0]
 
 
 def test_scope_change_cannot_move_comment_to_foreign_project(

@@ -76,3 +76,27 @@ def test_deleted_parent_rejects_reply_and_repeated_reactions_are_no_ops(services
         service.post_comment(task_id=task.id, body="Late reply", parent_comment_id=parent.id)
     assert exc.value.code == "COLLABORATION_PARENT_COMMENT_DELETED"
     assert service.query_task_comments_page(task.id).total == 1
+
+
+def test_parent_deleted_between_precheck_and_write_rejects_reply(services, monkeypatch) -> None:
+    project = services["project_service"].create_project("Reply race")
+    task = services["task_service"].create_task(project.id, "Discuss")
+    service = services["collaboration_service"]
+    parent = service.post_comment(task_id=task.id, body="Parent")
+    factory = service._require_collaboration_uow_factory()
+    original_create = factory.create
+    interleaved = False
+
+    def create_after_delete(*, context):
+        nonlocal interleaved
+        if not interleaved:
+            interleaved = True
+            service.delete_comment(parent.id, expected_revision=parent.version)
+        return original_create(context=context)
+
+    monkeypatch.setattr(factory, "create", create_after_delete)
+    with pytest.raises(BusinessRuleError) as exc:
+        service.post_comment(task_id=task.id, body="Late reply", parent_comment_id=parent.id)
+
+    assert exc.value.code == "COLLABORATION_PARENT_COMMENT_DELETED"
+    assert service.query_task_comments_page(task.id).total == 1

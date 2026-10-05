@@ -81,6 +81,9 @@ class _FakeCommentRepo:
     def get(self, comment_id: str) -> TaskComment | None:
         return self._comments.get(comment_id)
 
+    def get_for_reply(self, comment_id: str) -> TaskComment | None:
+        return self.get(comment_id)
+
     def list_by_task(self, task_id: str) -> list[TaskComment]:
         return [
             comment

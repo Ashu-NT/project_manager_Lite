@@ -1130,3 +1130,54 @@ mark R7E complete or begin R7G/R8 on the current evidence.
   doubles need to follow the new contract. Complete remaining
   hostile-scope/document-link proofs, replay/concurrency, UI viewports, broad
   regressions, and final quality gates before claiming closure.
+
+#### R7E continuation: production-shape boundedness and context reset
+
+- The PostgreSQL runtime-role security suite now includes a 1,000-row Task
+  discussion. Two adjacent 25-row pages return the same SQL-backed total of
+  1,001 (including the fixture comment), without duplicate IDs, using exactly
+  two count and two limited page statements. The full governance security
+  file passes **39 tests**; the separate durable Notification PostgreSQL RLS
+  file passes **7 tests**.
+- Task Detail reset immediately clears previous-task mention choices,
+  document choices, search terms, and presence display as well as the comment
+  page. A controller regression rejects requests carrying the old task ID;
+  the composer/viewport selection passes **6 tests** across five sizes.
+- A stale reaction test now asserts the canonical repeated-add no-op rather
+  than expecting a duplicate event. The focused collaboration selection
+  passes **44 tests**. Relevant durable Notification service/controller
+  regression passes **47 tests**. Selected architecture and migration guards
+  pass **29 tests**. Scoped Ruff F/I on the touched Python files passes.
+- The broad PM suite is running and has reported failures outside the focused
+  selection; these require classification before R7E can close. This is not
+  a final-worktree full-suite result or a claim of phase completion.
+- The unused production `TaskCommentRepository.list_by_task` full-thread path
+  has been removed after migrating its repository assertions to bounded
+  `list_recent_for_tasks` checks. The affected rollback, scope, and domain
+  selection passes **36 tests**; the small in-memory domain fake retains an
+  internal helper solely to exercise its fake unread-mention behavior.
+- Reply creation now checks and locks its parent comment inside the write
+  transaction, after the initial cheap validation. A forced delete between
+  precheck and UoW entry is rejected; PostgreSQL verifies the lock is `FOR
+  UPDATE OF task_comments` rather than a broad task/project lock. Presence
+  rename/upsert keeps one `(task_id, user_id)` row in the runtime-role suite.
+  The updated PostgreSQL governance file passes **41 tests**.
+- Stale Task UI test doubles now implement the bounded page/search/document
+  contract and accept submission IDs. Secondary scope fixtures create the
+  User rows required by the new Presence FK. The combined focused R7E,
+  Task UI, rollback, and scope selection passes **88 tests** on this worktree.
+- A broad PM/UI run begun before these final fixes reported **2,557 passed,
+  36 failed, 2 skipped**. Five Task UI failures and five secondary-scope
+  fixture failures have targeted green reruns after repair. Many other failures
+  are older governance tests that assume a platform admin can decide an
+  approval without a current scoped reviewer/action grant. Do not weaken
+  server-side reviewer eligibility to make those tests pass. Other Finance and
+  Timesheet failures need separate classification. Because the complete PM
+  suite has not been rerun from this final worktree, R7E remains **OPEN**.
+- Touched-file Ruff F/I and Python compilation pass. Repository-wide Ruff
+  reports **77** findings outside the touched selection (36 I001, 35 F841,
+  four F401, one F811, one F821); repository-wide Ruff is not clean.
+- A Task Details layout-managed divider now uses `Layout.preferredHeight`;
+  affected Task QML lint passes without warnings. The dialog/context runtime
+  selection still passes **8 tests** after that change. `git diff --check`
+  passes; no commit was made by the agent.

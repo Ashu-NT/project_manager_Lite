@@ -274,9 +274,7 @@ def test_delete_comment_is_a_true_no_op_when_already_deleted(services):
     assert redeleted.is_deleted is True
 
 
-def test_reaction_repeat_is_not_a_no_op_matching_current_domain_behavior(services):
-    """No already-reacted guard exists: a repeat reaction still writes/audits/emits like the
-    first call, even though the reactor set itself stays data-level idempotent."""
+def test_reaction_repeat_is_a_true_no_op(services):
     _, task = _setup(services)
     comment = services["collaboration_service"].post_comment(task_id=task.id, body="React twice")
 
@@ -284,7 +282,7 @@ def test_reaction_repeat_is_not_a_no_op_matching_current_domain_behavior(service
     hints = _spy_hints(services)
     reacted_again = services["collaboration_service"].react_to_comment(comment.id, "👍")
 
-    assert len(_comment_hints(hints)) == 1, "the source has no idempotency guard -- it writes/emits again"
+    assert _comment_hints(hints) == [], "repeated reaction must not write or emit again"
     assert len(reacted_again.reactions["👍"]) == 1, "the reactor set itself IS data-level idempotent"
 
 

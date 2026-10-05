@@ -133,11 +133,18 @@ class PMCollaborationController(QObject):
     def reset_comment_page(self) -> None:
         self._comments_task_id = ""
         self._comments_page = 1
+        self._mention_query = ""
+        self._document_query = ""
+        self._set_collaboration_mention_options([])
+        self._set_collaboration_document_options([])
         self._set_collaboration_comments({
             "title": "Task Collaboration", "subtitle": "",
             "emptyState": "Open a task to view its discussion.",
             "items": [], "totalCount": 0, "page": 1,
             "pageSize": self._comments_page_size,
+        })
+        self._set_collaboration_presence({
+            "title": "", "subtitle": "", "emptyState": "", "items": [],
         })
 
     @Slot(str, int, result="QVariantMap")
