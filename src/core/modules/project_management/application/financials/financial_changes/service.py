@@ -14,7 +14,6 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.contracts.approval import pm_reviewer_permission
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
@@ -25,8 +24,11 @@ from src.core.modules.project_management.application.financials.financial_change
 from src.core.modules.project_management.application.financials.forecasts.version_service import (
     ForecastVersionService,
 )
-from src.core.modules.project_management.application.financials.successor_models import (
+from src.core.modules.project_management.application.financials.shared.successor_models import (
     ApprovedFinancialLineAdjustment,
+)
+from src.core.modules.project_management.contracts.approval import (
+    pm_reviewer_permission,
 )
 from src.core.modules.project_management.contracts.ports.schedule_change import (
     ApprovedScheduleChangePort,

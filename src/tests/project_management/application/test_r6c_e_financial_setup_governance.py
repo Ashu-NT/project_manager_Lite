@@ -19,11 +19,11 @@ from src.core.modules.project_management.api.desktop.financials import (
     FinancialUpdateProfileCommand,
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.application.financials.configuration_events import (
+from src.core.modules.project_management.application.financials.configuration.events import (
     CostCodeProfileUpdated,
     ProjectCostCodeRestrictionAdded,
 )
-from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
+from src.core.modules.project_management.application.financials.configuration.event_handlers.view_invalidation import (
     FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
     FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
     build_financial_profile_view_invalidation_handler,

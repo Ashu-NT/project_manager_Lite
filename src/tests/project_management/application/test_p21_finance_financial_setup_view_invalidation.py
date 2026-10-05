@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.core.modules.project_management.application.financials.configuration_events import (
+from src.core.modules.project_management.application.financials.configuration.events import (
     CostCodeActivated,
     CostCodeCreated,
     CostCodeDeactivated,
@@ -20,7 +20,7 @@ from src.core.modules.project_management.application.financials.configuration_ev
     ProjectFinancialProfileTransitioned,
     ProjectFinancialProfileUpdated,
 )
-from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
+from src.core.modules.project_management.application.financials.configuration.event_handlers.view_invalidation import (
     FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
     FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
     FINANCIAL_PROFILE_SCOPE_CODE,

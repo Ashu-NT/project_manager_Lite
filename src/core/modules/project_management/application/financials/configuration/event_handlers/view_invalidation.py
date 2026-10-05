@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.application.financials.configuration_events import (
+from src.core.modules.project_management.application.financials.configuration.events import (
     CostCodeActivated,
     CostCodeCreated,
     CostCodeDeactivated,

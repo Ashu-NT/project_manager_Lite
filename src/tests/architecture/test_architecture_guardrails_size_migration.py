@@ -18,7 +18,6 @@ _LARGE_MODULE_BUDGETS = {
     "src/infra/composition/modules/project_registry.py": 1727,
     "src/infra/persistence/migrations/versions/f3c89cac079d_initial_schema.py": 3782,
     "src/core/platform/domain/time_management/calendar/enterprise_calendar.py": 1408,
-    "src/core/modules/project_management/application/financials/workspace_query.py": 1297,
     "src/core/modules/project_management/api/desktop/financials/api.py": 2041,
 }
 

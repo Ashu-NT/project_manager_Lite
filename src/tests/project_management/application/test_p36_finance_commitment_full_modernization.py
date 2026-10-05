@@ -19,7 +19,7 @@ from src.core.modules.project_management.application.financials.commitments.even
     COMMITMENT_LIST_SCOPE_CODE,
     build_commitment_view_invalidation_handler,
 )
-from src.core.modules.project_management.application.financials.procurement_consumer import (
+from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
     ProcurementExecutionContext,
 )

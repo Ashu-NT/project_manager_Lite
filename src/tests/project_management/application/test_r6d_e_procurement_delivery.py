@@ -12,7 +12,7 @@ from src.core.modules.project_management.api.desktop.financials.api import (
 from src.core.modules.project_management.application.financials.commitments.event_handlers.view_invalidation import (
     COMMITMENT_CATEGORY,
 )
-from src.core.modules.project_management.application.financials.procurement_consumer import (
+from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (

@@ -30,7 +30,7 @@ FINANCE_PRIMITIVES_ROOT = Path("src/core/platform/domain/finance")
 PROJECT_FINANCE_TRANSITION_FILES = (
     Path(
         "src/core/modules/project_management/application/financials/"
-        "configuration_service.py"
+        "configuration/service.py"
     ),
     Path(
         "src/core/modules/project_management/application/projects/commands/"

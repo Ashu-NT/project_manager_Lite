@@ -8,7 +8,7 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials.serializers.accounting_status_serializer import (
     serialize_accounting_status_page,
 )
-from src.core.modules.project_management.application.financials.accounting_status_capabilities import (
+from src.core.modules.project_management.application.financials.accounting.status_capabilities import (
     with_accounting_capabilities,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.accounting_delivery import (

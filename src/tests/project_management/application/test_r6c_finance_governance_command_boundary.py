@@ -119,7 +119,7 @@ def test_r6c_services_and_approval_participants_do_not_own_commit_or_rollback() 
         root / "application/financials/forecasts/version_service.py",
         root / "application/financials/forecasts/generation_service.py",
         root / "application/financials/financial_changes/service.py",
-        root / "application/financials/configuration_service.py",
+        root / "application/financials/configuration/service.py",
         root / "infrastructure/approval/budget_apply_participant.py",
         root / "infrastructure/approval/forecast_apply_participant.py",
         root / "infrastructure/approval/financial_change_apply_participant.py",

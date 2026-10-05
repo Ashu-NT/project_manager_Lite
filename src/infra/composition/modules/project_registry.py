@@ -61,7 +61,10 @@ from src.core.modules.project_management.application.financials.commitments.comm
 from src.core.modules.project_management.application.financials.commitments.event_handlers.view_invalidation import (
     build_commitment_view_invalidation_handler,
 )
-from src.core.modules.project_management.application.financials.configuration_events import (
+from src.core.modules.project_management.application.financials.configuration.event_handlers.view_invalidation import (
+    build_financial_profile_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.configuration.events import (
     CostCodeActivated,
     CostCodeCreated,
     CostCodeDeactivated,
@@ -81,9 +84,6 @@ from src.core.modules.project_management.application.financials.cost.entries.cos
 )
 from src.core.modules.project_management.application.financials.cost.entries.event_handlers.view_invalidation import (
     build_cost_entry_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
-    build_financial_profile_view_invalidation_handler,
 )
 from src.core.modules.project_management.application.financials.financial_changes.event_handlers.view_invalidation import (
     build_financial_change_view_invalidation_handler,

@@ -43,7 +43,7 @@ from src.core.modules.project_management.application.financials.cost.entries.app
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
 )
-from src.core.modules.project_management.application.financials.procurement_consumer import (
+from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService

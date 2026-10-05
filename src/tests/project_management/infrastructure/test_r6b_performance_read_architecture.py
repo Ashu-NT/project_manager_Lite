@@ -15,7 +15,7 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.financials.models.performance import (
     FinancialEvmDto,
 )
-from src.core.modules.project_management.application.financials.performance_query import (
+from src.core.modules.project_management.application.financials.analytics.performance.query import (
     ProjectFinancePerformanceQuery,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
@@ -67,11 +67,11 @@ def _basis(**overrides):
 
 def _query(monkeypatch, *, reader=None, evm=None, baseline=None):
     monkeypatch.setattr(
-        "src.core.modules.project_management.application.financials.performance_query.require_permission",
+        "src.core.modules.project_management.application.financials.analytics.performance.query.require_permission",
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.modules.project_management.application.financials.performance_query.require_project_permission",
+        "src.core.modules.project_management.application.financials.analytics.performance.query.require_project_permission",
         lambda *_args, **_kwargs: None,
     )
     context = MagicMock()

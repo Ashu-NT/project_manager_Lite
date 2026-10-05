@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.financials.procurement_consumer import (
+from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     ProcurementFinancialConsumer,
 )
 from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import (

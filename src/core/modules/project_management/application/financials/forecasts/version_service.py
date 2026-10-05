@@ -23,7 +23,7 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
     ForecastVersionChanged,
     ForecastVersionChangeType,
 )
-from src.core.modules.project_management.application.financials.successor_models import (
+from src.core.modules.project_management.application.financials.shared.successor_models import (
     ApprovedFinancialLineAdjustment,
     ApprovedFinancialSuccessorResult,
 )

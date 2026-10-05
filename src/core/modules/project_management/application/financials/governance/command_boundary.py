@@ -7,7 +7,7 @@ from typing import TypeVar
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
-from src.core.modules.project_management.application.financials.configuration_service import (
+from src.core.modules.project_management.application.financials.configuration.service import (
     FinancialConfigurationService,
 )
 from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (

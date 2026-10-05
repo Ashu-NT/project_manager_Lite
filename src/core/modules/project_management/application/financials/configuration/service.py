@@ -14,7 +14,7 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.configuration_events import (
+from src.core.modules.project_management.application.financials.configuration.events import (
     CostCodeActivated,
     CostCodeCreated,
     CostCodeDeactivated,

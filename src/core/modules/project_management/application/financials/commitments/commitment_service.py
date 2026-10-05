@@ -95,7 +95,7 @@ from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 if TYPE_CHECKING:
-    from src.core.modules.project_management.application.financials.procurement_consumer import (
+    from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
         ProcurementExecutionContext,
     )
 

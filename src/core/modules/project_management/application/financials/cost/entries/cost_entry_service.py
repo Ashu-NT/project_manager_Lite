@@ -115,7 +115,7 @@ if TYPE_CHECKING:
     from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
         ApprovedTimeExecutionContext,
     )
-    from src.core.modules.project_management.application.financials.procurement_consumer import (
+    from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
         ProcurementExecutionContext,
     )
 

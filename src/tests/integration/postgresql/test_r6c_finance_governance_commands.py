@@ -15,7 +15,7 @@ from src.core.modules.project_management.application.common.clock import SystemC
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
-from src.core.modules.project_management.application.financials.configuration_service import (
+from src.core.modules.project_management.application.financials.configuration.service import (
     FinancialConfigurationService,
 )
 from src.core.modules.project_management.application.financials.financial_changes.service import (
