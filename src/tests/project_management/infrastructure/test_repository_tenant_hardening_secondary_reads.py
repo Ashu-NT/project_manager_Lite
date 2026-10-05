@@ -59,6 +59,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskORM,
 )
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
 from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
     PlatformCalendarORM,
 )
@@ -75,6 +76,11 @@ def _seed_priority_pm_rows(services):
     other_tenant_id = getattr(other_org, "tenant_id", None) or default_org.tenant_id
     today = date.today()
     now = datetime.now(timezone.utc)
+    session.add_all([
+        UserORM(id="user-a", username="scope-alice", password_hash="not-used", created_at=now, updated_at=now),
+        UserORM(id="user-b", username="scope-bob", password_hash="not-used", created_at=now, updated_at=now),
+    ])
+    session.flush()
     project_a = ProjectORM(id="project-a", tenant_id=default_org.tenant_id, organization_id=default_org.id, name="Project A", status=ProjectStatus.PLANNED, version=1)
     project_b = ProjectORM(id="project-b", tenant_id=other_tenant_id, organization_id=other_org.id, name="Project B", status=ProjectStatus.PLANNED, version=1)
     resource_a = ResourceORM(id="resource-a", tenant_id=default_org.tenant_id, organization_id=default_org.id, name="Resource A", role="Planner", hourly_rate=90.0, is_active=True, capacity_percent=100.0, cost_type=CostType.LABOR, worker_type=WorkerType.EXTERNAL, version=1)
@@ -123,7 +129,6 @@ def _seed_priority_pm_rows(services):
 def _seed_pm_secondary_scope_rows(services):
     seeded = _seed_priority_pm_rows(services)
     session = services["session"]
-    organization_service = services["organization_service"]
     default_org = seeded["default_org"]
     other_org = seeded["other_org"]
     other_tenant_id = getattr(other_org, "tenant_id", None) or default_org.tenant_id
@@ -176,7 +181,6 @@ def _seed_pm_secondary_scope_rows(services):
 
 def test_pm_secondary_repositories_hide_other_organization_rows(services):
     seeded = _seed_pm_secondary_scope_rows(services)
-    organization_service = services["organization_service"]
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
     project_resource_repo = services["project_resource_service"]._project_resource_repo
     resource_service = services["resource_service"]
@@ -218,7 +222,6 @@ def test_pm_secondary_repositories_hide_other_organization_rows(services):
 
 def test_pm_secondary_repositories_scope_mutations_to_active_organization(services):
     seeded = _seed_pm_secondary_scope_rows(services)
-    organization_service = services["organization_service"]
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
     project_resource_repo = services["project_resource_service"]._project_resource_repo
     resource_service = services["resource_service"]

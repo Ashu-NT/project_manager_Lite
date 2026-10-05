@@ -7,9 +7,7 @@ from src.core.shared.events.subscription import Subscription
 
 
 class EventScope(Protocol):
-    """A closed union of exactly four kinds -- sealed by convention (only PlatformScope,
-    TenantScope, OrganizationScope, and ResourceScope implement it; do not add a fifth without
-    revisiting ADR-005 §12)."""
+    """Typed scopes for committed presentation invalidation hints."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,9 +42,18 @@ class ResourceScope(EventScope):
     entity_id: str
 
 
+@dataclass(frozen=True, slots=True)
+class RecipientScope(EventScope):
+    """Personal presentation invalidation, never a business-resource scope."""
+
+    tenant_id: str
+    organization_id: str | None
+    recipient_user_id: str
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ViewInvalidationHint:
-    scope: EventScope  # PlatformScope | TenantScope | OrganizationScope | ResourceScope
+    scope: EventScope
     category: str
     scope_code: str
     entity_type: str
@@ -101,6 +108,17 @@ class ExactResource(ScopeFilter):
             and scope.module_code == self.module_code
             and scope.entity_type == self.entity_type
             and scope.entity_id == self.entity_id
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ExactRecipient(ScopeFilter):
+    recipient_user_id: str
+
+    def matches(self, scope: EventScope) -> bool:
+        return (
+            isinstance(scope, RecipientScope)
+            and scope.recipient_user_id == self.recipient_user_id
         )
 
 
@@ -164,10 +182,12 @@ __all__ = [
     "EventScope",
     "ExactOrganization",
     "ExactResource",
+    "ExactRecipient",
     "OrganizationScope",
     "PlatformScope",
     "PlatformWide",
     "ResourceScope",
+    "RecipientScope",
     "ScopeFilter",
     "TenantScope",
     "TenantWide",

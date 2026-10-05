@@ -105,10 +105,10 @@ def _project_child_predicate(child_table: str) -> str:
     )
 
 
-PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
-    "task_comments": (
+def _collaboration_child_predicate(child_table: str) -> str:
+    return (
         "EXISTS (SELECT 1 FROM tasks ct JOIN projects cp ON cp.id = ct.project_id "
-        "WHERE ct.id = task_comments.task_id "
+        f"WHERE ct.id = {child_table}.task_id "
         f"AND cp.tenant_id = {_TENANT_SETTING} "
         f"AND cp.organization_id = {_ORGANIZATION_SETTING} "
         "AND EXISTS (SELECT 1 FROM users cu "
@@ -127,7 +127,38 @@ PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
         "AND (cb.actual_scope_type = 'tenant' "
         "OR (cb.actual_scope_type = 'organization' AND cb.actual_scope_id = cp.organization_id) "
         "OR (cb.actual_scope_type = 'project' AND cb.actual_scope_id = cp.id))))"
+    )
+
+
+PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
+    "document_links": (
+        "document_links.organization_id = " + _ORGANIZATION_SETTING + " AND "
+        "EXISTS (SELECT 1 FROM documents rls_document "
+        "JOIN organizations rls_org ON rls_org.id = rls_document.organization_id "
+        "WHERE rls_document.id = document_links.document_id "
+        "AND rls_document.organization_id = document_links.organization_id "
+        f"AND rls_org.tenant_id = {_TENANT_SETTING} "
+        f"AND (rls_document.tenant_id IS NULL OR rls_document.tenant_id = {_TENANT_SETTING})) "
+        "AND (document_links.module_code <> 'project_management' "
+        "OR document_links.entity_type <> 'task_comment' "
+        "OR EXISTS (SELECT 1 FROM task_comments rls_comment "
+        "JOIN tasks rls_task ON rls_task.id = rls_comment.task_id "
+        "JOIN projects rls_project ON rls_project.id = rls_task.project_id "
+        "WHERE rls_comment.id = document_links.entity_id "
+        f"AND rls_project.tenant_id = {_TENANT_SETTING} "
+        f"AND rls_project.organization_id = {_ORGANIZATION_SETTING}))"
     ),
+    "notifications": (
+        "recipient_user_id = NULLIF(current_setting('app.user_id', true), '') "
+        f"AND tenant_id = {_TENANT_SETTING} AND "
+        f"(organization_id IS NULL OR organization_id = {_ORGANIZATION_SETTING})"
+    ),
+    "notification_work": (
+        f"tenant_id = {_TENANT_SETTING} AND "
+        f"(organization_id IS NULL OR organization_id = {_ORGANIZATION_SETTING})"
+    ),
+    "task_comments": _collaboration_child_predicate("task_comments"),
+    "task_presence": _collaboration_child_predicate("task_presence"),
     "resource_skills": _resource_child_predicate("resource_skills"),
     "resource_certifications": _resource_child_predicate("resource_certifications"),
     "project_resources": (
@@ -159,6 +190,12 @@ PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
     ),
 }
 PARENT_SCOPED_RLS_TABLES = frozenset(PARENT_SCOPED_RLS_PREDICATES)
+PARENT_SCOPED_RLS_WRITE_PREDICATES: Mapping[str, str] = {
+    "task_presence": (
+        f"({PARENT_SCOPED_RLS_PREDICATES['task_presence']}) "
+        "AND user_id = NULLIF(current_setting('app.user_id', true), '')"
+    ),
+}
 
 # These tables are intentionally outside direct RLS. Parent-scoped children are
 # reachable only through repositories that join to an RLS-protected owner.
@@ -171,9 +208,7 @@ INTENTIONAL_RLS_EXCLUSIONS: Mapping[str, str] = {
     "calendar_recurring_events": "calendar child scoped through platform_calendars",
     "calendar_working_rules": "calendar child scoped through platform_calendars",
     "department_calendar_assignments": "calendar assignment scoped through department and calendar owners",
-    "document_links": "document child scoped through documents",
     "employee_calendar_assignments": "calendar assignment scoped through employee and calendar owners",
-    "notifications": "recipient-owned bootstrap data read before tenant context is established",
     "organizations": "tenant-context bootstrap root",
     "permissions": "global canonical permission catalog",
     "portfolio_project_dependencies": "portfolio child scoped through RLS-protected projects",
@@ -188,7 +223,6 @@ INTENTIONAL_RLS_EXCLUSIONS: Mapping[str, str] = {
     "shift_pattern_days": "shift-pattern child scoped through shift_patterns",
     "site_calendar_assignments": "site/calendar association scoped through protected owners",
     "task_dependencies": "task child scoped through RLS-protected projects",
-    "task_presence": "task child scoped through RLS-protected projects",
     "tenants": "global tenant bootstrap root",
     "user_tenants": "membership bootstrap state used to establish tenant context",
     "users": "global identity bootstrap root",
@@ -243,6 +277,7 @@ def validate_rls_classification(
 _POST_BASELINE_SCOPED_TABLES = frozenset({
     "organization_accounting_connectors", "project_accounting_handoffs", "project_accounting_outbox",
 })
+_POST_BASELINE_PARENT_SCOPED_TABLES = frozenset({"notifications", "notification_work"})
 
 
 def enable_baseline_rls(operations: Any, bind: Any) -> None:
@@ -252,17 +287,18 @@ def enable_baseline_rls(operations: Any, bind: Any) -> None:
         enable_tenant_only_rls(operations, bind, table)
     for table in sorted(NULLABLE_TENANT_AUDIT_TABLES):
         enable_nullable_tenant_audit_rls(operations, bind, table)
-    for table in sorted(PARENT_SCOPED_RLS_TABLES):
+    for table in sorted(PARENT_SCOPED_RLS_TABLES - _POST_BASELINE_PARENT_SCOPED_TABLES):
         enable_parent_scoped_rls(
             operations,
             bind,
             table,
             PARENT_SCOPED_RLS_PREDICATES[table],
+            write_predicate=PARENT_SCOPED_RLS_WRITE_PREDICATES.get(table),
         )
 
 
 def disable_baseline_rls(operations: Any, bind: Any) -> None:
-    for table in sorted(PARENT_SCOPED_RLS_TABLES, reverse=True):
+    for table in sorted(PARENT_SCOPED_RLS_TABLES - _POST_BASELINE_PARENT_SCOPED_TABLES, reverse=True):
         disable_parent_scoped_rls(operations, bind, table)
     for table in sorted(NULLABLE_TENANT_AUDIT_TABLES, reverse=True):
         disable_nullable_tenant_audit_rls(operations, bind, table)

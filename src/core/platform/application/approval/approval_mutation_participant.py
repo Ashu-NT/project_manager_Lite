@@ -75,6 +75,7 @@ def request_approval_using(
     payload: dict[str, Any] | None = None,
     requested_by_user_id: str | None = None,
     requested_by_username: str | None = None,
+    decision_permission: str = "approval.decide",
 ) -> ApprovalRequest:
     """Stages a new `ApprovalRequest` (duplicate-pending guard, fail-closed audit entry,
     `ApprovalRequested` event) inside the caller's own open transaction. Never commits -- the
@@ -126,6 +127,7 @@ def request_approval_using(
         payload=payload,
         requested_by_user_id=requested_by_user_id,
         requested_by_username=requested_by_username,
+        decision_permission=decision_permission,
     )
     approval_repo.add(request)
     record_audit_entry(

@@ -17,6 +17,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.resource
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskORM,
 )
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
 from src.tests.project_management._test_repository_tenant_hardening_row_builders import (
     _build_priority_detail_rows,
 )
@@ -129,7 +130,11 @@ def _seed_priority_pm_rows(services):
         baseline_task_a, baseline_task_b, variance_a, variance_b,
     ) = _build_priority_detail_rows(now, today, project_a, project_b, resource_a, resource_b, task_a1, task_b1, task_a2, task_b2)
 
-    session.add_all([project_a, project_b, resource_a, resource_b, task_a1, task_a2, task_b1, task_b2])
+    session.add_all([
+        UserORM(id="user-a", username="tenant-seed-alice", password_hash="!", created_at=now, updated_at=now),
+        UserORM(id="user-b", username="tenant-seed-bob", password_hash="!", created_at=now, updated_at=now),
+        project_a, project_b, resource_a, resource_b, task_a1, task_a2, task_b1, task_b2,
+    ])
     session.commit()
     session.add_all([
         assignment_a, assignment_b, dependency_a, dependency_b,

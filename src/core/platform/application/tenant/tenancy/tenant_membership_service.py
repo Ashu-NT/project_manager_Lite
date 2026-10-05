@@ -2,14 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import logging
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from src.core.platform.application.notifications.notification_service import (
-    NotificationService,
-)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     require_permission,
@@ -48,6 +44,7 @@ from src.core.platform.domain.tenant.tenancy import (
     MEMBERSHIP_STATUS_INVITED,
     MEMBERSHIP_STATUS_REMOVED,
     MEMBERSHIP_STATUS_SUSPENDED,
+    TenantInvitationChanged,
     TenantMembershipActivated,
     TenantMembershipReactivated,
     TenantMembershipRemoved,
@@ -56,8 +53,6 @@ from src.core.platform.domain.tenant.tenancy import (
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
-
-logger = logging.getLogger(__name__)
 
 _DEFAULT_INVITATION_ROLE = "viewer"
 _PLATFORM_ROLE_NAMES = frozenset({"admin", "support_admin"})
@@ -91,14 +86,12 @@ class TenantMembershipService:
         clock: Clock,
         user_session: UserSessionContext,
         tenant_context_service: TenantContextService,
-        notification_service: NotificationService,
         organization_owner_resolvers: dict[str, OrganizationOwnerResolver],
     ) -> None:
         self._uow_factory = uow_factory
         self._clock = clock
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
-        self._notification_service = notification_service
         self._organization_owner_resolvers = organization_owner_resolvers
 
     def _new_context(self) -> DomainEventContext:
@@ -183,8 +176,11 @@ class TenantMembershipService:
                     "expires_at": membership.invitation_expires_at.isoformat(),
                 },
             )
+            uow.record_event(TenantInvitationChanged(
+                membership_id=membership.id, tenant_id=tenant_id,
+                recipient_user_id=target.id, change_type="issued", occurred_at=now,
+            ))
             uow.commit()
-        self._notify_invitation_issued(target.id, tenant_id=tenant_id, membership=membership)
         return IssuedTenantInvitation(membership=membership, token=token)
 
     def list_my_pending_invitations(self) -> list[UserTenantMembership]:
@@ -326,8 +322,12 @@ class TenantMembershipService:
                 new_status=revoked.status,
                 metadata={"target_user_id": target.id},
             )
+            uow.record_event(TenantInvitationChanged(
+                membership_id=revoked.id, tenant_id=tenant_id,
+                recipient_user_id=target.id, change_type="revoked",
+                occurred_at=self._clock.now(),
+            ))
             uow.commit()
-        self._notify_invitation_revoked(target.id, tenant_id=tenant_id, membership=revoked)
         return revoked
 
     def suspend_member(self, target_user_id: str) -> UserTenantMembership:
@@ -868,69 +868,6 @@ class TenantMembershipService:
             metadata={"action": action, **metadata},
         )
         audit_repo.add_for_tenant(entry, tenant_id)
-
-    def _notify_invitation_issued(
-        self,
-        recipient_user_id: str,
-        *,
-        tenant_id: str,
-        membership: UserTenantMembership,
-    ) -> None:
-        # The raw invitation token is never placed in notification metadata: notifications
-        # are a generic, broadly-readable transport. Acceptance from this notification goes
-        # through accept_invitation_for_tenant, which needs no bearer token.
-        self._safe_dispatch_notification(
-            recipient_user_id=recipient_user_id,
-            category="tenant.invitation.issued",
-            title="You've been invited to join a workspace",
-            body="You have a pending workspace invitation, expiring "
-            f"{membership.invitation_expires_at.isoformat()}.",
-            tenant_id=tenant_id,
-            metadata={"membership_id": membership.id},
-        )
-
-    def _notify_invitation_revoked(
-        self,
-        recipient_user_id: str,
-        *,
-        tenant_id: str,
-        membership: UserTenantMembership,
-    ) -> None:
-        self._safe_dispatch_notification(
-            recipient_user_id=recipient_user_id,
-            category="tenant.invitation.revoked",
-            title="Your workspace invitation was revoked",
-            body="A pending invitation to join a workspace was revoked by an administrator.",
-            tenant_id=tenant_id,
-            metadata={"membership_id": membership.id},
-        )
-
-    def _safe_dispatch_notification(
-        self,
-        *,
-        recipient_user_id: str,
-        category: str,
-        title: str,
-        body: str,
-        tenant_id: str,
-        metadata: dict[str, object],
-    ) -> None:
-        try:
-            self._notification_service.dispatch(
-                recipient_user_id=recipient_user_id,
-                category=category,
-                title=title,
-                body=body,
-                tenant_id=tenant_id,
-                metadata=metadata,
-                commit=True,
-            )
-        except Exception:
-            logger.exception(
-                "Tenant membership notification dispatch failed category=%s recipient=%s",
-                category,
-                recipient_user_id,
-            )
 
 
 __all__ = ["IssuedTenantInvitation", "TenantMembershipService"]

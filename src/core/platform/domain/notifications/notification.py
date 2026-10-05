@@ -50,6 +50,8 @@ class Notification:
     created_at: datetime
     read_at: datetime | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    organization_id: str | None = None
+    source_event_id: str | None = None
 
     @field_validator("id", "recipient_user_id", mode="before")
     @classmethod
@@ -60,7 +62,7 @@ class Notification:
             code="NOTIFICATION_REFERENCE_REQUIRED",
         )
 
-    @field_validator("tenant_id", mode="before")
+    @field_validator("tenant_id", "organization_id", "source_event_id", mode="before")
     @classmethod
     def _normalize_tenant_id(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
@@ -99,12 +101,16 @@ class Notification:
         title: str,
         body: str,
         tenant_id: str | None = None,
+        organization_id: str | None = None,
+        source_event_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> Notification:
         return Notification(
             id=generate_id(),
             recipient_user_id=recipient_user_id,
             tenant_id=tenant_id,
+            organization_id=organization_id,
+            source_event_id=source_event_id,
             category=category,
             title=title,
             body=body,

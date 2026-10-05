@@ -19,7 +19,17 @@ class TaskCommentRepository(ABC):
     def get(self, comment_id: str) -> TaskComment | None: ...
 
     @abstractmethod
-    def list_by_task(self, task_id: str) -> list[TaskComment]: ...
+    def get_for_reply(self, comment_id: str) -> TaskComment | None: ...
+
+    @abstractmethod
+    def list_unread_mentions_for_task(
+        self,
+        task_id: str,
+        *,
+        user_id: str,
+        aliases: tuple[str, ...],
+        limit: int = 100,
+    ) -> list[TaskComment]: ...
 
     @abstractmethod
     def list_recent_for_tasks(self, task_ids: list[str], limit: int = 200) -> list[TaskComment]: ...
@@ -31,14 +41,14 @@ class TaskPresenceRepository(ABC):
         self,
         *,
         task_id: str,
-        user_id: str | None,
+        user_id: str,
         username: str,
         display_name: str | None,
         activity: str,
     ) -> TaskPresence: ...
 
     @abstractmethod
-    def clear(self, *, task_id: str, username: str) -> None: ...
+    def clear(self, *, task_id: str, user_id: str) -> None: ...
 
     @abstractmethod
     def list_recent_for_tasks(

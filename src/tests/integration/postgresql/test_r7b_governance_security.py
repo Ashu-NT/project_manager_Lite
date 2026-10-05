@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.exc import DBAPIError
 
 from src.core.modules.project_management.contracts.reads.collaboration.models.workspace_facts import (
@@ -86,7 +86,9 @@ def governance_rows(postgres_test_environment):
 
 
 def _seed_identities(connection, now):
-    for code in ("collaboration.read", "collaboration.manage", "approval.decide"):
+    for code in (
+        "collaboration.read", "collaboration.manage", "approval.decide", "baseline.approve",
+    ):
         connection.execute(
             text(
                 "INSERT INTO permissions (id, code, description) VALUES (:id, :code, '') ON CONFLICT DO NOTHING"
@@ -95,6 +97,7 @@ def _seed_identities(connection, now):
         )
     for user, tenant, kind, target, active, member, revoked, expired in (
         ("reviewer", "a", "project", "r7a-project-a", True, "active", False, False),
+        ("generic", "a", "project", "r7a-project-a", True, "active", False, False),
         ("foreign", "b", "project", "r7a-project-b", True, "active", False, False),
         ("wrongorg", "a", "organization", "r7a-org-o", True, "active", False, False),
         ("wrongproject", "a", "project", "r7a-project-p", True, "active", False, False),
@@ -144,8 +147,9 @@ def _seed_identities(connection, now):
                 "collaboration.read",
                 "collaboration.manage",
                 "approval.decide",
+                "baseline.approve",
             ):
-                if user == "unauthorized":
+                if user == "unauthorized" or (user == "generic" and permission == "baseline.approve"):
                     continue
                 connection.execute(
                     text(
@@ -165,9 +169,9 @@ def _seed_identities(connection, now):
     connection.execute(
         text(
             "INSERT INTO approval_requests (id, tenant_id, organization_id, project_id, request_type, "
-            "entity_type, entity_id, payload_json, status, requested_at) VALUES "
+            "entity_type, entity_id, payload_json, status, requested_at, decision_permission) VALUES "
             "('r7b-request', 'r7a-tenant-a', 'r7a-org-a', 'r7a-project-a', 'baseline.create', "
-            "'project_baseline', 'r7b-target', '{}', 'PENDING', :now)"
+            "'project_baseline', 'r7b-target', '{}', 'PENDING', :now, 'baseline.approve')"
         ),
         {"now": now},
     )
@@ -206,9 +210,125 @@ def test_runtime_role_has_no_rls_bypass(postgres_test_environment):
         )
 
 
+def test_approval_delivery_rechecks_specific_reviewer_permission(
+    postgres_test_environment, governance_rows,
+):
+    from src.infra.integration.notification_dispatcher import NotificationDispatcher
+
+    work = SimpleNamespace(
+        recipient_user_id="r7b-reviewer",
+        tenant_id="r7a-tenant-a",
+        organization_id="r7a-org-a",
+        category="approval.requested.v1",
+        metadata_json='{"request_id": "r7b-request"}',
+    )
+    with runtime(postgres_test_environment) as session:
+        assert NotificationDispatcher._recipient_is_current(session, work)
+        work.recipient_user_id = "r7b-generic"
+        assert not NotificationDispatcher._recipient_is_current(session, work)
+
+
+def test_reviewer_revocation_before_delivery_blocks_pending_notice(
+    postgres_test_environment, governance_rows,
+):
+    from src.infra.integration.notification_dispatcher import NotificationDispatcher
+
+    work = SimpleNamespace(
+        recipient_user_id="r7b-reviewer",
+        tenant_id="r7a-tenant-a",
+        organization_id="r7a-org-a",
+        category="approval.requested.v1",
+        metadata_json='{"request_id": "r7b-request"}',
+    )
+    with runtime(postgres_test_environment) as session:
+        assert NotificationDispatcher._recipient_is_current(session, work)
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(text(
+            "UPDATE role_bindings SET revoked_at=CURRENT_TIMESTAMP "
+            "WHERE principal_id='r7b-reviewer'"
+        ))
+    try:
+        with runtime(postgres_test_environment) as session:
+            assert not NotificationDispatcher._recipient_is_current(session, work)
+    finally:
+        with postgres_test_environment.admin_engine.begin() as connection:
+            connection.execute(text(
+                "UPDATE role_bindings SET revoked_at=NULL "
+                "WHERE principal_id='r7b-reviewer'"
+            ))
+
+
+def test_approval_page_eligibility_is_one_set_based_query(
+    postgres_test_environment, governance_rows,
+):
+    with runtime(postgres_test_environment) as session:
+        repo = SqlAlchemyApprovalRepository(session)
+        repo._tenant_context_service = SimpleNamespace(
+            require_active_scope_ids=lambda **kw: SimpleNamespace(
+                tenant_id="r7a-tenant-a", organization_id="r7a-org-a",
+            )
+        )
+        statements = []
+
+        def record(_connection, _cursor, statement, _parameters, _context, _executemany):
+            if statement.lstrip().upper().startswith("SELECT") and "FROM approval_requests" in statement:
+                statements.append(statement)
+
+        event.listen(session.bind, "before_cursor_execute", record)
+        try:
+            request_ids = ("r7b-request",) + tuple(f"missing-{i}" for i in range(299))
+            assert repo.eligible_request_ids(request_ids, "r7b-reviewer") == frozenset({
+                "r7b-request"
+            })
+        finally:
+            event.remove(session.bind, "before_cursor_execute", record)
+        assert len(statements) == 1
+
+
+def test_delayed_mention_requires_current_project_collaboration_grant(
+    postgres_test_environment, governance_rows,
+):
+    from src.infra.composition.notifications import pm_notification_recipient_policy
+
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(text(
+            "INSERT INTO task_comments "
+            "(id, task_id, body, mentioned_user_ids_json, created_at) "
+            "VALUES ('r7d-delayed-mention', 'r7a-task-a', 'Private', "
+            "'[\"r7b-reviewer\", \"r7b-generic\"]', CURRENT_TIMESTAMP) "
+            "ON CONFLICT (id) DO NOTHING"
+        ))
+    work = SimpleNamespace(
+        recipient_user_id="r7b-reviewer",
+        tenant_id="r7a-tenant-a",
+        organization_id="r7a-org-a",
+        category="pm.comment.mentioned.v1",
+        metadata_json=(
+            '{"comment_id":"r7d-delayed-mention",'
+            '"task_id":"r7a-task-a","project_id":"r7a-project-a"}'
+        ),
+    )
+    try:
+        with runtime(postgres_test_environment) as session:
+            assert pm_notification_recipient_policy(session, work)
+            work.recipient_user_id = "r7b-unauthorized"
+            assert not pm_notification_recipient_policy(session, work)
+            work.recipient_user_id = "r7b-reviewer"
+            work.metadata_json = (
+                '{"comment_id":"r7d-delayed-mention",'
+                '"task_id":"r7a-task-a","project_id":"r7a-project-p"}'
+            )
+            assert not pm_notification_recipient_policy(session, work)
+    finally:
+        with postgres_test_environment.admin_engine.begin() as connection:
+            connection.execute(text(
+                "DELETE FROM task_comments WHERE id='r7d-delayed-mention'"
+            ))
+
+
 @pytest.mark.parametrize(
     "table",
-    ["approval_requests", "activity_entries", "timesheet_periods", "task_comments"],
+    ["approval_requests", "activity_entries", "timesheet_periods", "task_comments", "task_presence", "document_links"],
 )
 def test_governed_tables_force_rls(postgres_test_environment, table):
     with postgres_test_environment.runtime_session(
@@ -231,19 +351,72 @@ def test_governed_tables_force_rls(postgres_test_environment, table):
         )
 
 
-@pytest.mark.parametrize("table", ["task_presence", "notifications", "document_links"])
-def test_current_intentional_exclusions_are_not_rls_protected(
-    postgres_test_environment, table
+def test_document_link_rls_rejects_foreign_document_and_comment_parent(
+    postgres_test_environment, governance_rows
 ):
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    with postgres_test_environment.admin_engine.begin() as connection:
+        for suffix in ("a", "b"):
+            connection.execute(
+                text(
+                    "INSERT INTO documents "
+                    "(id, tenant_id, organization_id, document_code, title, document_type, "
+                    "storage_kind, storage_uri, uploaded_at) "
+                    "VALUES (:id, :tenant, :org, :code, :title, 'GENERAL', 'REFERENCE', :uri, :now)"
+                ),
+                {
+                    "id": f"r7e-document-{suffix}",
+                    "tenant": f"r7a-tenant-{suffix}",
+                    "org": f"r7a-org-{suffix}",
+                    "code": f"R7E-{suffix}",
+                    "title": f"R7E document {suffix}",
+                    "uri": f"ref-{suffix}",
+                    "now": now,
+                },
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO document_links "
+                    "(id, organization_id, document_id, module_code, entity_type, entity_id) "
+                    "VALUES (:id, :org, :document, 'project_management', 'task_comment', :comment)"
+                ),
+                {
+                    "id": f"r7e-link-{suffix}",
+                    "org": f"r7a-org-{suffix}",
+                    "document": f"r7e-document-{suffix}",
+                    "comment": f"r7a-comment-{suffix}",
+                },
+            )
+        connection.execute(
+            text(
+                "INSERT INTO document_links "
+                "(id, organization_id, document_id, module_code, entity_type, entity_id) "
+                "VALUES ('r7e-hostile-parent', 'r7a-org-a', 'r7e-document-a', "
+                "'project_management', 'task_comment', 'r7a-comment-b')"
+            )
+        )
+
+    with runtime(postgres_test_environment) as session:
+        assert session.scalars(text("SELECT id FROM document_links ORDER BY id")).all() == [
+            "r7e-link-a"
+        ]
+    with runtime(postgres_test_environment, user="foreign", tenant="b", org="b") as session:
+        assert session.scalars(text("SELECT id FROM document_links ORDER BY id")).all() == [
+            "r7e-link-b"
+        ]
     with postgres_test_environment.runtime_session(
         tenant_id=None, organization_id=None
     ) as session:
-        assert session.execute(
+        assert session.scalar(text("SELECT count(*) FROM document_links")) == 0
+    with pytest.raises(DBAPIError), runtime(postgres_test_environment) as session:
+        session.execute(
             text(
-                "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid=to_regclass(:name)"
-            ),
-            {"name": table},
-        ).one() == (False, False)
+                "INSERT INTO document_links "
+                "(id, organization_id, document_id, module_code, entity_type, entity_id) "
+                "VALUES ('r7e-rejected-link', 'r7a-org-a', 'r7e-document-a', "
+                "'project_management', 'task_comment', 'r7a-comment-b')"
+            )
+        )
 
 
 def test_raw_foreign_comment_and_scoped_reader_both_deny_access(
@@ -268,6 +441,88 @@ def test_raw_foreign_comment_and_scoped_reader_both_deny_access(
         )
         assert page.total == 0
         assert page.items == ()
+
+
+@pytest.mark.parametrize("suffix", ["b", "o", "p"])
+def test_presence_raw_foreign_scope_and_impersonation_denied(
+    postgres_test_environment, governance_rows, suffix,
+):
+    presence_id = f"r7e-presence-{suffix}"
+    owner = {"b": "foreign", "o": "wrongorg", "p": "wrongproject"}[suffix]
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO task_presence "
+                "(id, task_id, user_id, username, started_at, last_seen_at) "
+                "VALUES (:id, :task, :user, :user, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {
+                "id": presence_id,
+                "task": f"r7a-task-{suffix}",
+                "user": f"r7b-{owner}",
+            },
+        )
+    try:
+        with runtime(postgres_test_environment) as session:
+            assert session.scalar(
+                text("SELECT id FROM task_presence WHERE id=:id"), {"id": presence_id}
+            ) is None
+            assert session.execute(
+                text("DELETE FROM task_presence WHERE id=:id"), {"id": presence_id}
+            ).rowcount == 0
+            with pytest.raises(DBAPIError):
+                session.execute(
+                    text(
+                        "INSERT INTO task_presence "
+                        "(id, task_id, user_id, username, started_at, last_seen_at) "
+                        "VALUES (:id, :task, :user, 'attack', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                    ),
+                    {
+                        "id": f"r7e-attack-{suffix}",
+                        "task": f"r7a-task-{suffix}",
+                        "user": "r7b-reviewer",
+                    },
+                )
+        with runtime(postgres_test_environment) as session:
+            with pytest.raises(DBAPIError):
+                session.execute(
+                    text(
+                        "INSERT INTO task_presence "
+                        "(id, task_id, user_id, username, started_at, last_seen_at) "
+                        "VALUES (:id, 'r7a-task-a', 'r7b-generic', 'attack', "
+                        "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                    ),
+                    {"id": f"r7e-impersonate-{suffix}"},
+                )
+    finally:
+        with postgres_test_environment.admin_engine.begin() as connection:
+            connection.execute(text("DELETE FROM task_presence WHERE id=:id"), {"id": presence_id})
+
+
+def test_presence_username_change_keeps_one_stable_user_identity(
+    postgres_test_environment, governance_rows
+):
+    from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
+        SqlAlchemyTaskPresenceRepository,
+    )
+
+    with runtime(postgres_test_environment) as session:
+        repo = SqlAlchemyTaskPresenceRepository(session)
+        repo._tenant_context_service = _comments(session)._tenant_context_service
+        first = repo.touch(
+            task_id="r7a-task-a", user_id="r7b-reviewer", username="reviewer-old",
+            display_name="Same Name", activity="reviewing",
+        )
+        renamed = repo.touch(
+            task_id="r7a-task-a", user_id="r7b-reviewer", username="reviewer-new",
+            display_name="Same Name", activity="reviewing",
+        )
+        assert first.id == renamed.id
+        assert renamed.username == "reviewer-new"
+        assert session.scalar(text(
+            "SELECT count(*) FROM task_presence "
+            "WHERE task_id='r7a-task-a' AND user_id='r7b-reviewer'"
+        )) == 1
 
 
 def test_deleted_comment_is_a_redacted_tombstone(
@@ -360,6 +615,43 @@ def test_active_comment_read_and_creation(postgres_test_environment, governance_
         assert active.body == "Visible" and not active.is_deleted
 
 
+def test_large_task_discussion_page_is_bounded_on_postgresql(
+    postgres_test_environment, governance_rows
+):
+    with runtime(postgres_test_environment) as session:
+        session.execute(
+            text(
+                "INSERT INTO task_comments (id, task_id, body, created_at) "
+                "VALUES (:id, 'r7a-task-a', 'Paged', CURRENT_TIMESTAMP)"
+            ),
+            [{"id": f"r7e-page-{index:04d}"} for index in range(1000)],
+        )
+        connection = session.connection()
+        statements = []
+
+        def capture(connection, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(connection, "before_cursor_execute", capture)
+        try:
+            reader = SqlAlchemyCollaborationWorkspaceReader(session=session)
+            first = reader.read_task_comment_page(
+                tenant_id="r7a-tenant-a", organization_id="r7a-org-a",
+                task_id="r7a-task-a", page=1, page_size=25,
+            )
+            second = reader.read_task_comment_page(
+                tenant_id="r7a-tenant-a", organization_id="r7a-org-a",
+                task_id="r7a-task-a", page=2, page_size=25,
+            )
+        finally:
+            event.remove(connection, "before_cursor_execute", capture)
+        assert first.total == second.total == 1001
+        assert len(first.items) == len(second.items) == 25
+        assert not {item.id for item in first.items} & {item.id for item in second.items}
+        assert len(statements) == 4
+        assert sum("LIMIT" in statement.upper() for statement in statements) == 2
+
+
 def test_only_active_scoped_reviewers_are_notified_once(
     postgres_test_environment, governance_rows
 ):
@@ -373,6 +665,7 @@ def test_only_active_scoped_reviewers_are_notified_once(
         assert repo.list_notification_recipient_ids(
             "r7b-request", audience="reviewers"
         ) == ("r7b-reviewer",)
+        assert not repo.is_reviewer_eligible("r7b-request", "r7b-generic")
         assert (
             repo.list_notification_recipient_ids(
                 "r7b-request", audience="reviewers", after_user_id="r7b-reviewer"
@@ -498,6 +791,36 @@ def test_stale_writer_cannot_resurrect_committed_tombstone(
         )
         row = next(item for item in page.items if item.comment_id == comment.id)
         assert row.is_deleted and row.body == ""
+
+
+def test_reply_parent_lock_targets_comment_row_on_postgresql(
+    postgres_test_environment, governance_rows
+):
+    from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
+        SqlAlchemyTaskCommentRepository,
+    )
+
+    with runtime(postgres_test_environment) as session:
+        session.execute(text(
+            "INSERT INTO task_comments (id, task_id, body, created_at) "
+            "VALUES ('r7e-parent-lock', 'r7a-task-a', 'Parent', CURRENT_TIMESTAMP)"
+        ))
+        repo = SqlAlchemyTaskCommentRepository(session)
+        repo._tenant_context_service = _comments(session)._tenant_context_service
+        statements = []
+        connection = session.connection()
+
+        def capture(connection, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(connection, "before_cursor_execute", capture)
+        try:
+            parent = repo.get_for_reply("r7e-parent-lock")
+        finally:
+            event.remove(connection, "before_cursor_execute", capture)
+        assert parent is not None and parent.body == "Parent"
+        assert len(statements) == 1
+        assert "FOR UPDATE OF task_comments" in statements[0]
 
 
 def test_scope_change_cannot_move_comment_to_foreign_project(

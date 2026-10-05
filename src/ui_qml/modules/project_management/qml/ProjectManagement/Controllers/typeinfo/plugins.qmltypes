@@ -1008,6 +1008,7 @@ Component {
     Method { name: "updateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
     Method { name: "postTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "newTaskCommentSubmissionId"; type: "QString" }
     Method { name: "editTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "reactToTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
@@ -1022,6 +1023,10 @@ Component {
     Method { name: "previewTaskScheduleImpact"; type: "QVariantMap"; Parameter { name: "delayWorkingDays"; type: "int" } }
     Method { name: "setTaskReviewActive"; Parameter { name: "active"; type: "bool" } }
     Method { name: "markTaskCollaborationRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
+    Method { name: "requestCommentPage"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "page"; type: "int" } }
+    Method { name: "requestCommentPageSize"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "searchTaskMentionOptions"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "query"; type: "QString" } }
+    Method { name: "searchTaskDocumentOptions"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "query"; type: "QString" } }
 }
 
 

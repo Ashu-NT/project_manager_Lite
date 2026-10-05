@@ -34,7 +34,6 @@ from src.core.platform.domain.approval import (
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.notifications import safe_dispatch_notification
 from src.core.shared.time.clock import Clock
 
 logger = logging.getLogger(__name__)
@@ -52,7 +51,6 @@ class ApprovalService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
-        notification_service: Any = None,
         clock: Clock | None = None,
     ):
         self._session = session
@@ -61,10 +59,10 @@ class ApprovalService:
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
-        self._notification_service = notification_service
         self._clock = clock
         self._apply_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
         self._reject_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
+        self._review_permissions: dict[str, str] = {}
 
     def _require_clock(self) -> Clock:
         if self._clock is None:
@@ -80,8 +78,11 @@ class ApprovalService:
         handler: ApplyHandler,
         *,
         dependencies_factory: DependenciesFactory,
+        reviewer_permission: str = "approval.decide",
     ) -> None:
-        self._apply_handlers[request_type.strip().lower()] = (handler, dependencies_factory)
+        normalized_type = request_type.strip().lower()
+        self._apply_handlers[normalized_type] = (handler, dependencies_factory)
+        self._review_permissions[normalized_type] = reviewer_permission.strip().lower()
 
     def register_reject_handler(
         self,
@@ -143,13 +144,12 @@ class ApprovalService:
                 payload=payload,
                 requested_by_user_id=principal.user_id if principal else None,
                 requested_by_username=principal.username if principal else None,
+                decision_permission=self._review_permissions.get(
+                    request_type.strip().lower(), "approval.decide"
+                ),
             )
             uow.commit()
-        self.publish_requested(request)
         return request
-
-    def publish_requested(self, request: ApprovalRequest) -> None:
-        self._notify_approval_requested(request)
 
     def list_requests(
         self,
@@ -182,6 +182,14 @@ class ApprovalService:
             project_id=project_id,
             entity_type=entity_type,
             entity_id=None,
+        )
+
+    def eligible_request_ids(self, requests: tuple[ApprovalRequest, ...]) -> frozenset[str]:
+        principal = self._user_session.principal if self._user_session else None
+        if principal is None or not requests:
+            return frozenset()
+        return self._approval_repo.eligible_request_ids(
+            tuple(request.id for request in requests), principal.user_id,
         )
 
     def list_pending(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:
@@ -260,7 +268,6 @@ class ApprovalService:
                 uow.record_event(domain_event)
             uow.commit()
 
-        self._notify_approval_decided(request, decided="rejected")
         return request
 
     def approve_and_apply(self, request_id: str, note: str | None = None) -> ApprovalRequest:
@@ -318,7 +325,6 @@ class ApprovalService:
             for domain_event in handler_result.domain_events:
                 uow.record_event(domain_event)
             uow.commit()
-        self._notify_approval_decided(request, decided="approved")
         return request
 
     def _require_pending_using(self, approval_repo, request_id: str) -> ApprovalRequest:
@@ -368,62 +374,6 @@ class ApprovalService:
             )
         return result
 
-
-    def _active_tenant_id(self) -> str | None:
-        tenant_context = getattr(self, "_tenant_context_service", None)
-        if tenant_context is None:
-            return None
-        return tenant_context.get_active_tenant_id()
-
-    def _notification_recipients(self, request_id: str, *, audience: str):
-        if self._notification_service is None:
-            return
-        after = ""
-        while True:
-            recipients = self._approval_repo.list_notification_recipient_ids(
-                request_id, audience=audience, after_user_id=after, limit=100,
-            )
-            if not recipients:
-                return
-            yield from recipients
-            after = recipients[-1]
-
-    def _notify_approval_requested(self, request: ApprovalRequest) -> None:
-        tenant_id = self._active_tenant_id()
-        recipients = self._notification_recipients(request.id, audience="reviewers")
-        entity_label = request.entity_type.replace("_", " ")
-        for user_id in recipients:
-            safe_dispatch_notification(
-                self,
-                recipient_user_id=user_id,
-                category="approval.requested.v1",
-                title="Approval requested",
-                body=f"{request.requested_by_username or 'Someone'} requested approval for a {entity_label}.",
-                tenant_id=tenant_id,
-                metadata={
-                    "request_id": request.id,
-                    "request_type": request.request_type,
-                    "entity_type": request.entity_type,
-                    "entity_id": request.entity_id,
-                },
-            )
-
-    def _notify_approval_decided(self, request: ApprovalRequest, *, decided: str) -> None:
-        if request.requested_by_user_id not in self._notification_recipients(request.id, audience="requester"):
-            return
-        entity_label = request.entity_type.replace("_", " ")
-        body = f"Your {entity_label} request was {decided}."
-        if request.decision_note:
-            body = f"{body} Note: {request.decision_note}"
-        safe_dispatch_notification(
-            self,
-            recipient_user_id=request.requested_by_user_id,
-            category=f"approval.{decided}.v1",
-            title=f"Your approval request was {decided}",
-            body=body,
-            tenant_id=self._active_tenant_id(),
-            metadata={"request_id": request.id, "request_type": request.request_type},
-        )
 
     def _active_organization_id(self, *, operation_label: str) -> str | None:
         tenant_context = getattr(self, "_tenant_context_service", None)

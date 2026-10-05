@@ -107,6 +107,8 @@ Item {
     signal commentReactionRemovalRequested(var payload)
     signal markReadRequested(string taskId)
     signal collaborationRefreshRequested()
+    signal commentPageRequested(int page)
+    signal commentPageSizeRequested(int pageSize)
 
     readonly property real _progressValue: {
         const s = root.taskDetail.state || {}
@@ -390,6 +392,10 @@ Item {
                     }
                     onMarkReadRequested: function(id) { root.markReadRequested(id) }
                     onRefreshRequested: root.collaborationRefreshRequested()
+                    onCommentPageRequested: function(page) { root.commentPageRequested(page) }
+                    onCommentPageSizeRequested: function(pageSize) {
+                        root.commentPageSizeRequested(pageSize)
+                    }
                 }
             }
         }

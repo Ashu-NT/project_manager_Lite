@@ -6,6 +6,10 @@ from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 
 
 class ApprovalRepository(ABC):
+    def eligible_request_ids(self, request_ids: tuple[str, ...], user_id: str) -> frozenset[str]:
+        """Bounded eligibility projection for a page of approval requests."""
+        raise NotImplementedError
+
     @abstractmethod
     def is_reviewer_eligible(self, request_id: str, user_id: str) -> bool:
         """Recheck persisted pending state, membership and target-covered grant."""

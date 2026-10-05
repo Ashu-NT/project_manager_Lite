@@ -18,4 +18,9 @@ def approval_reviewer_eligibility(user_id):
         scoped_permission(user_id=user_id, tenant_id=request.tenant_id,
                           organization_id=request.organization_id, project_id=request.project_id,
                           permissions=("approval.decide",)),
+        scoped_permission(
+            user_id=user_id, tenant_id=request.tenant_id,
+            organization_id=request.organization_id, project_id=request.project_id,
+            permissions=(request.decision_permission,),
+        ),
     )

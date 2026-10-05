@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
-from src.core.platform.api.desktop.notifications.models.notification import (
-    NotificationDto,
-)
 from src.core.platform.api.desktop.models.common import (
     DesktopApiError,
     DesktopApiResult,
+)
+from src.core.platform.api.desktop.notifications.models.notification import (
+    NotificationDto,
+)
+from src.core.shared.events.view_invalidation import (
+    RecipientScope,
+    ViewInvalidationHint,
+)
+from src.infra.events.in_process_view_invalidation_channel import (
+    InProcessViewInvalidationChannel,
 )
 from src.ui_qml.shell.controllers.notifications.notifications_controller import (
     NotificationsController,
@@ -105,6 +113,100 @@ def test_notifications_list_loads_and_maps_rows():
     assert len(controller.notifications) == 1
     assert controller.notifications[0]["title"] == "Hello"
     assert controller.notifications[0]["isRead"] is False
+
+
+def test_recipient_hint_refreshes_only_matching_controller(qapp):
+    channel = InProcessViewInvalidationChannel()
+    api = _FakeNotificationApi(unread_count=1)
+    other_api = _FakeNotificationApi(unread_count=5)
+    controller = NotificationsController(
+        presenter=NotificationsPresenter(api=api),
+        channel=channel,
+        user_session=SimpleNamespace(principal=SimpleNamespace(user_id="user-a")),
+    )
+    other = NotificationsController(
+        presenter=NotificationsPresenter(api=other_api),
+        channel=channel,
+        user_session=SimpleNamespace(principal=SimpleNamespace(user_id="user-b")),
+    )
+    controller.refresh()
+    other.refresh()
+    api._unread_count = 2
+    other_api._unread_count = 6
+    channel.notify(ViewInvalidationHint(
+        scope=RecipientScope("tenant", "org", "user-a"),
+        category="notification", scope_code="notification", entity_type="notification",
+    ))
+    qapp.processEvents()
+    assert controller.unreadCount == 2
+    assert other.unreadCount == 5
+    controller.dispose()
+    other.dispose()
+
+
+def test_old_scope_count_cannot_overwrite_new_scope_notifications():
+    api = _FakeNotificationApi(notifications=[_dto("new")], unread_count=2)
+    controller = _controller(api)
+    entered = False
+
+    def count():
+        nonlocal entered
+        if not entered:
+            entered = True
+            controller._on_scope_changed()
+            return DesktopApiResult(ok=True, data=999)
+        return DesktopApiResult(ok=True, data=2)
+
+    api.count_my_unread = count
+    controller.refresh()
+    assert controller.unreadCount == 2
+    assert [row["id"] for row in controller.notifications] == ["new"]
+    assert not controller.isLoading
+
+
+def test_older_list_response_cannot_replace_newer_refresh():
+    api = _FakeNotificationApi(notifications=[_dto("new")], unread_count=2)
+    controller = _controller(api)
+    entered = False
+
+    def listing(**kwargs):
+        nonlocal entered
+        if not entered:
+            entered = True
+            controller.refresh()
+            return DesktopApiResult(ok=True, data=(_dto("old"),))
+        return DesktopApiResult(ok=True, data=(_dto("new"),))
+
+    api.list_my_notifications = listing
+    controller.refresh()
+    assert [row["id"] for row in controller.notifications] == ["new"]
+
+
+def test_refresh_exception_does_not_leave_loading_or_expose_raw_error():
+    api = _FakeNotificationApi()
+    controller = _controller(api)
+
+    def fail():
+        raise RuntimeError("private database diagnostic")
+
+    api.count_my_unread = fail
+    controller.refresh()
+    assert not controller.isLoading
+    assert controller.errorMessage == "Notifications could not be loaded."
+
+
+def test_old_scope_mutation_error_does_not_pollute_current_scope():
+    api = _FakeNotificationApi(notifications=[_dto("new")], unread_count=2)
+    controller = _controller(api)
+
+    def mark(_notification_id):
+        controller._on_scope_changed()
+        return DesktopApiResult(ok=False, error=DesktopApiError(code="DENIED", message="Old scope error", category="permission"))
+
+    api.mark_read = mark
+    assert controller.markRead("old") is False
+    assert controller.errorMessage == ""
+    assert [row["id"] for row in controller.notifications] == ["new"]
 
 
 # -- empty -------------------------------------------------------------------

@@ -14,6 +14,7 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.contracts.approval import pm_reviewer_permission
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
@@ -108,7 +109,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         clock: Clock,
         approval_repo: ApprovalRepository | None = None,
         record_event: Callable[[object], None] | None = None,
-        approval_requested_staged: Callable[[object], None] | None = None,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,
@@ -129,7 +129,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._clock = clock
         self._approval_repo = approval_repo
         self._record_event = record_event
-        self._approval_requested_staged = approval_requested_staged
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
@@ -537,6 +536,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             clock=self._clock,
             record_event=self._record_event,
             request_type="financial_change.apply",
+            decision_permission=pm_reviewer_permission("financial_change.apply"),
             entity_type="financial_change_request",
             entity_id=change.id,
             tenant_id=scope.tenant_id,
@@ -554,8 +554,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._change_repo.update(change, expected_row_version=expected_version)
         self._audit_change("submit", change)
         self._session.flush()
-        if self._approval_requested_staged is not None:
-            self._approval_requested_staged(approval)
         self._emit_change_event(change, FinancialChangeEventType.SUBMITTED)
         return change
 

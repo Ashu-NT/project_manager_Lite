@@ -68,23 +68,30 @@ def test_project_management_collaboration_desktop_api_exposes_purpose_queries() 
 
     task_snapshot = api.build_task_snapshot("task-1")
 
-    assert task_snapshot.comments[0].author_username == "jamie"
-    assert task_snapshot.comments[0].linked_documents_label == (
+    assert task_snapshot.comments[1].author_username == "jamie"
+    assert task_snapshot.comments[1].linked_documents_label == (
         "procedure.pdf [General | File], ticket-123 [General | Reference]"
     )
     assert [comment.comment_id for comment in task_snapshot.comments] == [
-        "comment-1",
         "comment-reply-1",
+        "comment-1",
     ]
-    assert task_snapshot.comments[0].reply_count == 1
-    assert task_snapshot.comments[0].can_edit is True
-    assert task_snapshot.comments[0].reactions[0].reacted_by_current_user is True
-    assert task_snapshot.comments[1].thread_depth == 1
-    assert task_snapshot.comments[1].parent_author_username == "jamie"
-    assert task_snapshot.comments[1].can_edit is False
+    assert task_snapshot.comments[1].reply_count == 1
+    assert task_snapshot.comments[1].can_edit is True
+    assert task_snapshot.comments[1].reactions[0].reacted_by_current_user is True
+    assert task_snapshot.comments[0].thread_depth == 1
+    assert task_snapshot.comments[0].parent_author_username == "jamie"
+    assert task_snapshot.comments[0].can_edit is False
+    assert task_snapshot.comment_total == 2
     assert task_snapshot.mention_options[0].value == "everyone"
     assert task_snapshot.mention_options[1].value == "planner"
+    assert [option.value for option in api.search_task_mention_options("task-1", "plan")] == [
+        "everyone", "planner"
+    ]
     assert task_snapshot.document_options[0].label == "PM-LINK-001 - Shared Method Statement"
+    assert [option.value for option in api.search_task_document_options("task-1", "check")] == [
+        "doc-2"
+    ]
 
     posted = api.post_task_comment(
         SimpleNamespace(
@@ -92,6 +99,7 @@ def test_project_management_collaboration_desktop_api_exposes_purpose_queries() 
             body="Please review the linked checklist with @planner.",
             attachments=("handover.txt",),
             linked_document_ids=("doc-2",),
+            submission_id="desktop-post-1",
         )
     )
 
@@ -125,6 +133,8 @@ class _FakeCollaborationService:
                 created_at=datetime(2026, 5, 1, 8, 45),
                 parent_comment_id=None,
                 reactions={"\N{THUMBS UP SIGN}": ["user-alex"]},
+                parent_author_username="",
+                reply_count=1,
             ),
             SimpleNamespace(
                 id="comment-reply-1",
@@ -137,6 +147,8 @@ class _FakeCollaborationService:
                 created_at=datetime(2026, 5, 1, 9, 15),
                 parent_comment_id="comment-1",
                 reactions={},
+                parent_author_username="jamie",
+                reply_count=0,
             ),
         ]
         self._comment_documents: dict[str, list[SimpleNamespace]] = {
@@ -204,6 +216,7 @@ class _FakeCollaborationService:
         return [
             SimpleNamespace(
                 task_id="task-1",
+                user_id="user-alex",
                 task_name="Cable Pull",
                 project_id="proj-1",
                 project_name="Plant Upgrade",
@@ -224,28 +237,48 @@ class _FakeCollaborationService:
     def mark_task_mentions_read(self, task_id: str) -> None:
         self.marked_task_ids.append(task_id)
 
-    def list_comments(self, task_id: str) -> list[SimpleNamespace]:
-        return [comment for comment in self._comments if comment.task_id == task_id]
+    def query_task_comments_page(
+        self, task_id: str, *, page: int = 1, page_size: int = 25
+    ) -> SimpleNamespace:
+        comments = sorted(
+            (comment for comment in self._comments if comment.task_id == task_id),
+            key=lambda comment: (comment.created_at, comment.id),
+            reverse=True,
+        )
+        start = (page - 1) * page_size
+        return SimpleNamespace(
+            items=tuple(comments[start : start + page_size]),
+            total=len(comments),
+            page=page,
+            page_size=page_size,
+        )
 
-    def list_comment_documents(self, task_id: str) -> dict[str, list[SimpleNamespace]]:
-        comment_ids = {comment.id for comment in self.list_comments(task_id)}
+    def list_comment_documents_for_ids(
+        self, task_id: str, comment_ids: tuple[str, ...]
+    ) -> dict[str, list[SimpleNamespace]]:
+        valid_ids = {comment.id for comment in self._comments if comment.task_id == task_id}
         return {
             comment_id: list(documents)
             for comment_id, documents in self._comment_documents.items()
-            if comment_id in comment_ids
+            if comment_id in comment_ids and comment_id in valid_ids
         }
 
-    def list_mention_candidates(self, task_id: str) -> list[SimpleNamespace]:
+    def list_mention_candidates(
+        self, task_id: str, *, query: str = "", limit: int = 50
+    ) -> list[SimpleNamespace]:
         if task_id != "task-1":
             return []
-        return [
+        candidates = [
             SimpleNamespace(handle="planner", label="@planner  Alex Taylor  Planner"),
             SimpleNamespace(handle="supervisor", label="@supervisor  Jordan Blake  Supervisor"),
         ]
+        return [item for item in candidates if query.lower() in item.handle][:limit]
 
-    def list_available_documents(self, *, active_only: bool = True) -> list[SimpleNamespace]:
-        assert active_only is True
-        return [
+    def search_available_documents(
+        self, task_id: str, *, query: str = "", limit: int = 50
+    ) -> tuple[SimpleNamespace, ...]:
+        assert task_id == "task-1"
+        documents = [
             SimpleNamespace(
                 id="doc-1",
                 document_code="PM-LINK-001",
@@ -257,6 +290,10 @@ class _FakeCollaborationService:
                 title="Commissioning Checklist",
             ),
         ]
+        return tuple(
+            item for item in documents
+            if query.lower() in item.title.lower() or query.lower() in item.document_code.lower()
+        )[:limit]
 
     def list_task_presence(self, task_id: str) -> list[SimpleNamespace]:
         if task_id != "task-1":
@@ -264,6 +301,7 @@ class _FakeCollaborationService:
         return [
             SimpleNamespace(
                 task_id="task-1",
+                user_id="user-alex",
                 task_name="Cable Pull",
                 project_id="proj-1",
                 project_name="Plant Upgrade",
@@ -296,6 +334,7 @@ class _FakeCollaborationService:
         attachments=(),
         linked_document_ids=(),
         parent_comment_id=None,
+        submission_id=None,
     ) -> SimpleNamespace:
         self.posted_comments.append(
             {
@@ -313,6 +352,10 @@ class _FakeCollaborationService:
             mentions=["planner"],
             attachments=list(attachments),
             created_at=datetime(2026, 5, 1, 10, 15),
+            parent_comment_id=parent_comment_id,
+            parent_author_username="",
+            reply_count=0,
+            reactions={},
         )
         self._comments.append(comment)
         self._comment_documents[comment.id] = [

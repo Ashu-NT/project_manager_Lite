@@ -38,6 +38,7 @@ def task_comment_to_orm(comment: TaskComment) -> TaskCommentORM:
         deleted_by_user_id=comment.deleted_by_user_id,
         deletion_reason=comment.deletion_reason,
         reactions_json=json.dumps(dict(comment.reactions or {})),
+        submission_hash=comment.submission_hash,
         version=comment.version,
     )
 
@@ -70,6 +71,7 @@ def task_comment_from_orm(obj: TaskCommentORM) -> TaskComment:
         deleted_by_user_id=obj.deleted_by_user_id,
         deletion_reason=obj.deletion_reason,
         reactions=_decode_reactions(obj.reactions_json),
+        submission_hash=obj.submission_hash,
         version=obj.version,
     )
 

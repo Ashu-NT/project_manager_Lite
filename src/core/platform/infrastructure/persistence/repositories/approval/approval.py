@@ -51,6 +51,19 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
             approval_reviewer_eligibility(user_id),
         ).exists())))
 
+    def eligible_request_ids(self, request_ids: tuple[str, ...], user_id: str) -> frozenset[str]:
+        if not request_ids:
+            return frozenset()
+        ctx = self._context(operation_label="view approval decision eligibility")
+        if len(request_ids) > 500:
+            raise ValueError("Approval eligibility query exceeds the bounded page size")
+        return frozenset(self.session.scalars(select(ApprovalRequestORM.id).where(
+            ApprovalRequestORM.id.in_(request_ids),
+            ApprovalRequestORM.tenant_id == ctx.tenant_id,
+            ApprovalRequestORM.organization_id == ctx.organization_id,
+            approval_reviewer_eligibility(user_id),
+        )))
+
     def list_notification_recipient_ids(
         self,
         request_id: str,
@@ -95,6 +108,7 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
             self.session.add(orm)
             return
         obj.request_type = request.request_type
+        obj.decision_permission = request.decision_permission
         obj.entity_type = request.entity_type
         obj.entity_id = request.entity_id
         obj.project_id = request.project_id

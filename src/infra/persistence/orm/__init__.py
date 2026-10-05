@@ -25,6 +25,7 @@ import src.core.platform.infrastructure.persistence.orm.approval.approval
 import src.core.platform.infrastructure.persistence.orm.data_operations.runtime_tracking.runtime_tracking
 import src.core.platform.infrastructure.persistence.orm.notifications.notification
 import src.core.platform.infrastructure.persistence.orm.history.platform_events.platform_events
+import src.core.platform.infrastructure.persistence.orm.notifications.notification_work
 import src.core.platform.infrastructure.persistence.orm.finance.financial_period
 import src.core.platform.infrastructure.persistence.orm.history.activity.activity
 import src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry

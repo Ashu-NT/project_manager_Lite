@@ -91,31 +91,38 @@ class _FakeCollaborationService:
     def mark_task_mentions_read(self, task_id: str) -> None:
         self.marked_task_ids.append(task_id)
 
-    def list_comments(self, task_id: str) -> list[SimpleNamespace]:
-        return [comment for comment in self._comments if comment.task_id == task_id]
+    def query_task_comments_page(self, task_id: str, *, page: int = 1, page_size: int = 25) -> SimpleNamespace:
+        rows = [comment for comment in self._comments if comment.task_id == task_id]
+        for comment in rows:
+            comment.parent_author_username = ""
+            comment.parent_comment_id = None
+            comment.reply_count = 0
+        start = (page - 1) * page_size
+        return SimpleNamespace(items=tuple(rows[start:start + page_size]), total=len(rows), page=page, page_size=page_size)
 
-    def list_comment_documents(self, task_id: str) -> dict[str, list[SimpleNamespace]]:
-        comment_ids = {comment.id for comment in self.list_comments(task_id)}
+    def list_comment_documents_for_ids(self, task_id: str, comment_ids: tuple[str, ...]) -> dict[str, list[SimpleNamespace]]:
+        visible = {comment.id for comment in self._comments if comment.task_id == task_id}
         return {
             comment_id: list(documents)
             for comment_id, documents in self._comment_documents.items()
-            if comment_id in comment_ids
+            if comment_id in visible and comment_id in comment_ids
         }
 
-    def list_mention_candidates(self, task_id: str) -> list[SimpleNamespace]:
+    def list_mention_candidates(self, task_id: str, *, query: str = "", limit: int = 50) -> list[SimpleNamespace]:
         if task_id != "task-1":
             return []
-        return [
+        options = [
             SimpleNamespace(handle="planner", label="@planner  Alex Taylor  Planner"),
             SimpleNamespace(handle="supervisor", label="@supervisor  Jordan Blake  Supervisor"),
         ]
+        return [option for option in options if query.casefold() in option.label.casefold()][:limit]
 
-    def list_available_documents(self, *, active_only: bool = True) -> list[SimpleNamespace]:
-        assert active_only is True
-        return [
+    def search_available_documents(self, task_id: str, *, query: str = "", limit: int = 50) -> list[SimpleNamespace]:
+        options = [
             SimpleNamespace(id="doc-1", document_code="PM-LINK-001", title="Shared Method Statement"),
             SimpleNamespace(id="doc-2", document_code="PM-LINK-002", title="Commissioning Checklist"),
         ]
+        return [option for option in options if query.casefold() in f"{option.document_code} {option.title}".casefold()][:limit]
 
     def list_task_presence(self, task_id: str) -> list[SimpleNamespace]:
         if task_id != "task-1":
@@ -148,7 +155,7 @@ class _FakeCollaborationService:
         )
 
     def post_comment(
-        self, *, task_id: str, body: str, attachments=(), linked_document_ids=(), parent_comment_id=None
+        self, *, task_id: str, body: str, attachments=(), linked_document_ids=(), parent_comment_id=None, submission_id=None
     ) -> SimpleNamespace:
         self.posted_comments.append(
             {

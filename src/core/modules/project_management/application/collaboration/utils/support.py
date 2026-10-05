@@ -6,6 +6,10 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.domain.collaboration import (
     CollaborationMentionCandidate,
 )
+from src.core.modules.project_management.domain.collaboration.mentions.mention import (
+    BROADCAST_MENTION_TOKENS,
+    extract_mention_tokens,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
@@ -26,71 +30,58 @@ class CollaborationSupportMixin:
         )
         return scope, {project.id: project.name for project in projects}
 
-    def _list_mention_candidates_for_project(self, project_id: str) -> list[CollaborationMentionCandidate]:
-        candidates: list[CollaborationMentionCandidate] = []
-        seen_user_ids: set[str] = set()
-        tenant_id = (
-            self._tenant_context_service.get_active_tenant_id()
-            if (
-                self._role_repo is not None
-                and self._role_binding_repo is not None
-                and self._tenant_context_service is not None
-            )
-            else None
+    def _list_mention_candidates_for_project(
+        self,
+        project_id: str,
+        *,
+        query: str = "",
+        handles: tuple[str, ...] = (),
+        limit: int | None = 50,
+    ) -> list[CollaborationMentionCandidate]:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="resolve collaboration mention candidates"
         )
-        membership_rows = (
-            list(self._canonical_project_membership_rows(project_id, tenant_id=tenant_id))
-            if tenant_id is not None
-            else []
-        )
-        for user_id, scope_role, permission_codes in membership_rows:
-            permissions = {str(code).strip() for code in permission_codes}
-            if permissions.isdisjoint({"collaboration.read", "collaboration.manage"}):
-                continue
-            user = self._user_repo.get(user_id)
-            if user is None or not user.is_active:
-                continue
-            if user.id in seen_user_ids:
-                continue
-            seen_user_ids.add(user.id)
-            candidates.append(
-                CollaborationMentionCandidate(
-                    user_id=user.id,
-                    username=user.username,
-                    display_name=user.display_name,
-                    scope_role=scope_role,
+        normalized_handles = tuple(dict.fromkeys(handle.lower() for handle in handles))
+        if limit is not None:
+            return list(
+                self._workspace_reader.read_mention_candidates(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=project_id,
+                    query=query.strip()[:128],
+                    handles=normalized_handles,
+                    limit=limit,
                 )
             )
+        candidates: list[CollaborationMentionCandidate] = []
+        while True:
+            batch = self._workspace_reader.read_mention_candidates(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                project_id=project_id,
+                handles=normalized_handles,
+                offset=len(candidates),
+                limit=500,
+            )
+            candidates.extend(batch)
+            if len(batch) < 500:
+                return candidates
 
-        principal = self._user_session.principal if self._user_session is not None else None
-        principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
-        if principal_user_id and principal_user_id not in seen_user_ids:
-            if self._user_session is not None and self._user_session.has_project_permission(project_id, "collaboration.read"):
-                user = self._user_repo.get(principal_user_id)
-                if user is not None and user.is_active:
-                    candidates.append(
-                        CollaborationMentionCandidate(
-                            user_id=user.id,
-                            username=user.username,
-                            display_name=user.display_name,
-                            scope_role="direct",
-                        )
-                    )
-
-        return sorted(candidates, key=lambda item: ((item.display_name or item.username).lower(), item.username.lower()))
-
-    def _canonical_project_membership_rows(self, project_id: str, *, tenant_id: str):
-        for role_name in ("project_viewer", "project_contributor", "project_lead", "project_owner"):
-            role = self._role_repo.get_by_name(role_name)
-            if role is None:
-                continue
-            for binding in self._role_binding_repo.list_active_for_role(role.id, tenant_id=tenant_id):
-                if binding.actual_scope_type == "project" and binding.actual_scope_id == project_id:
-                    yield (
-                        binding.principal_id,
-                        role_name.removeprefix("project_"),
-                        ("collaboration.read",),
-                    )
+    def _mention_candidates_for_text(
+        self, project_id: str, text: str
+    ) -> list[CollaborationMentionCandidate]:
+        tokens = tuple(dict.fromkeys(extract_mention_tokens(text)))
+        if any(token in BROADCAST_MENTION_TOKENS for token in tokens):
+            return self._list_mention_candidates_for_project(project_id, limit=None)
+        handles = tuple(token for token in tokens if token not in BROADCAST_MENTION_TOKENS)
+        candidates: list[CollaborationMentionCandidate] = []
+        for start in range(0, len(handles), 500):
+            candidates.extend(
+                self._list_mention_candidates_for_project(
+                    project_id, handles=handles[start : start + 500], limit=500
+                )
+            )
+        return candidates
 
     def _require_task(self, task_id: str):
         task = self._task_repo.get(task_id)

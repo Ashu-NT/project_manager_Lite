@@ -3,10 +3,13 @@
 ## Status and Scope
 
 Audit date: 2026-09-30. R7A is COMPLETE as a characterization and roadmap phase.
-R7 itself is OPEN. R7B and R7C are COMPLETE; implementation and verification are recorded below.
+R7 itself is OPEN. R7B, R7C, and R7D are COMPLETE; implementation and verification are recorded below.
 The approved R7C brief supersedes the original phase numbering: R7C is Action
 Center bounded reads/eligibility consistency. The original broader Approval
 lifecycle proposal is deferred, not implicitly certified by this closure.
+R7E is IN PROGRESS under the approved Task Collaboration / Mentions / Evidence
+Lifecycle brief. R7D closed durable Notifications; its old planned R7F
+notification phase must not be repeated.
 The R7A findings below are historical characterization, not current acceptance behavior.
 R5 and R6 remain CLOSED; their historical evidence is unchanged. R8 has not started.
 Only this document and three characterization test files were added in R7A.
@@ -860,8 +863,321 @@ The repository-wide findings outside this cutover remain classified as existing
 or concurrent work, not hidden by the scoped result. No schema migration was
 introduced by R7C. No full PM-suite result is claimed for this targeted phase.
 
-**R7C COMPLETE.** R7 remains OPEN. R7D requires its own approved next-phase brief;
+**R7C COMPLETE.** R7 remains OPEN. At this closure R7D required its own next-phase brief;
 durable notification delivery and the remaining Approval/collaboration lifecycle
 roadmap are not automatically started. R5/R6 remain CLOSED. R8 and future
 operational modules were not implemented. Unrelated team work is preserved.
 The implementation agent made no commit.
+
+## R7D Current Implementation - 2026-10-03
+
+The approved R7D brief authorizes durable in-app notification consumption, scoped
+recipients, deterministic deduplication, retry/recovery, bounded reads and related
+regressions. R7C remains closed. No durable Notifications closure is claimed by
+the existing in-memory post-commit callbacks.
+
+### Verified Starting Architecture (superseded by the current cutover)
+
+- `NotificationService.dispatch` currently persists a randomly identified row and
+  optionally commits a shared session. Channel fan-out is immediate; no concrete
+  email/SMS/push adapter is registered in production composition.
+- Approval requested/decided, task assignment and comment mention call the shared
+  `safe_dispatch_notification` helper after the business transaction. Failures are
+  logged/swallowed, so successful business commits can lose notifications.
+- Tenant invitation issued/revoked originally used the same swallowing dispatch
+  helper. Product correction: an invitee without application access cannot receive
+  an in-app notification. R7D must not stage invitation bell work or open a
+  cross-tenant notification visibility exception. Invitation delivery/onboarding
+  is a separate out-of-app product concern; no SMTP or other transport is added here.
+- `notifications` lacks organization/source-event/deduplication columns and a
+  logical uniqueness constraint. Repository predicates currently scope by user
+  only. These are outstanding security/schema gates, not fixed by UI generation
+  checks or bounded list reads.
+- R7B mention copy contains no comment body or private metadata. Preserve this;
+  durable delivery must not create a deleted-content archive.
+- Existing IntegrationOutbox/Inbox services provide transaction-neutral delivery,
+  leases, retries and quarantine. Their current record/ORM contracts mandate
+  organization scope (the record explicitly validates financial integration
+  organization presence). Tenant-wide invitations cannot be forced into an
+  arbitrary organization just to reuse that concrete schema. Reuse canonical
+  delivery infrastructure with explicit scope support rather than introduce a
+  competing business-event bus or weaken Finance scope validation.
+
+### Implemented Hardening
+
+- Notification list materialization is capped at 100 and ordered by
+  `created_at DESC, id DESC`; zero requested rows returns none. Exact unread
+  count remains SQL COUNT, independent of the bounded result size.
+- Notification controller generations discard old-scope and superseded refresh
+  responses before updating the badge/list. Read/read-all mutation responses from
+  a previous scope cannot publish errors or refresh the new scope.
+- Unexpected refresh exceptions clear loading and show a safe message rather
+  than exposing a raw exception to QML.
+- Regression tests cover equal-timestamp ordering, the hard cap, independent
+  unread count, scope switches during count/list, reentrant refresh and stale
+  mutation errors.
+
+Initial targeted verification: 44 notification controller/service/Desktop API,
+Approval notification and PM assignment/mention tests passed. Scoped Ruff F/I,
+Python compilation and diff checks passed. This does not constitute durable
+delivery, deduplication, migration or PostgreSQL certification.
+
+### Current Durable Cutover And Remaining Certification
+
+Approval and PM assignment/mention events now stage per-recipient durable work in
+their source UoW. A local fresh-session worker inserts the notification and marks
+work processed atomically, with database uniqueness on source event/kind/recipient,
+bounded retry and poison quarantine. Direct post-commit notification helpers and
+the unused channel contract were removed. Alembic installs the work table,
+provenance/deduplication columns and forced PostgreSQL RLS for notifications and
+work; runtime-role hostile-scope tests pass. A committed delivery emits a
+recipient-only presentation hint; the shell bell subscribes for its signed-in
+user and queues refresh to avoid reentrant reads. No business state is inferred
+from a notification row.
+
+Invitation events remain business facts but have no in-app notification policy.
+In-app reads require an active tenant; the prior cross-tenant invitation exception
+was removed from repository and RLS predicates. The existing invitation workflow
+and token issuance remain intact, but actual invitation delivery outside the app
+must be designed separately before customer onboarding. This is not a reason to
+expose the notification bell to unauthenticated invitees.
+
+Focused SQLite notification/controller tests, R7B/R7C security tests and the live
+PostgreSQL notification RLS tests have passed during this continuation. Final
+R7D certification still requires the full retry/crash/concurrency matrix,
+bounded-volume/read query evidence, all relevant integration/architecture/schema
+guards and the consolidated final regression run. R7D remains IN PROGRESS;
+R7E/R8 have not started.
+
+### R7D Approval Audience And Query Reconciliation - 2026-10-04
+
+Platform Approval remains the reusable lifecycle, persistence, recipient-query,
+and decision-eligibility boundary. Each Approval request persists its required
+decision permission; Platform checks both that scoped permission and
+`approval.decide` against current membership and role bindings. The PM module
+owns the mapping of its 11 registered request types to action-specific grants:
+baseline, dependency/constraint/leveling, budget, forecast, project cost,
+financial change, and billing preparation. A future module must provide its own
+mapping at registration, not add its approval vocabulary to Platform. A generic
+`approval.decide` grant alone does not make a salesperson a baseline reviewer.
+
+The same database eligibility predicate drives PM reviewer notification
+selection, Action Center actions, decision commands, and the Control queue's
+`can_decide` presentation. Delivery rechecks pending reviewer eligibility or
+requester outcome authority before materializing delayed Approval work; stale
+or revoked audiences are quarantined. The Control desktop page caps approval
+rows at 500 and performs one set-based eligibility query for the page (not a
+query per row or a first-200-only partial check). PM mention recipient lookup
+likewise resolves active tenant members with current project-scoped
+`collaboration.read` in one set-based query before staging per-recipient work.
+Delayed mention delivery rechecks that grant and the live task/comment scope;
+tenant membership alone does not authorize a mention notification.
+
+Evidence: all 11 PM handler registrations match the PM permission map; 30
+Approval view-invalidation tests and the PostgreSQL R7B security tests pass;
+one PostgreSQL regression asserts a 300-ID approval page is checked in a
+single Approval data query. A PostgreSQL mention regression covers authorized,
+unauthorized and foreign-project delivery. This is audience hardening, not a claim
+that the full R7D retry/concurrency/read-volume closure matrix has passed.
+
+### R7D Continued Durability Evidence - 2026-10-04
+
+- The generic dispatcher accepts an optional composition-supplied recipient
+  policy; PM mention checks stay in PM composition rather than importing PM
+  ORM classes into the shared runtime. Production composition wires the policy.
+- A failure after notification insertion but before the consumer commit rolls
+  back the notification, leaves work retryable, and succeeds once on retry.
+  The commit-boundary failure regression exposed and removed an unsafe nested
+  savepoint; retry bookkeeping now starts only after a full rollback. Poison
+  validation after insertion also rolls back before quarantining the work.
+  A fresh worker replay after commit creates no second effect. One event can
+  fan out to two recipients, each exactly once, across replay.
+- Two live PostgreSQL runtime workers concurrently draining one committed
+  work item produce one durable Notification. Two concurrent runtime mark-read
+  operations leave one consistent read state. Reviewer revocation between
+  staging and delivery removes notification eligibility under the runtime role.
+- At 1,001 Notification rows, the list remains capped at 100 while unread
+  count remains exact; list plus count issue two Notification data queries.
+  Mention recipient staging uses one set-based query; approval eligibility
+  uses one set-based query for a bounded 300-ID page.
+- Focused integrated approval/notification tests: **84 passed**. PostgreSQL
+  R7B/R7D selection: **38 passed** before the added race/revocation tests;
+  the subsequent complete R7B module run passed **34** and R7D module passed
+  **7**. Finance approval/R7C
+  PostgreSQL selection: **56 passed**. R7C read/navigation and durable
+  rollback/replay selection: **26 passed**. Architecture/controller selection:
+  **75 passed**. The durable delivery module after final crash and fan-out
+  coverage: **15 passed**. The consolidated final-worktree R7D/R7B/R7C/Finance
+  selection passed **153 tests** before the last isolated revocation regression;
+  that regression and the complete R7B module then passed **34 tests**. These
+  are overlapping selections, not one deduplicated total.
+- Scoped Ruff F/I and compilation pass; NotificationBell and
+  NotificationsPanel QML lint pass with `src/ui_qml/shared/qml` as an import
+  path. Repository-wide Ruff F/I reports **85 findings** (43 F841, 36 I001,
+  4 F401, 1 F811, 1 F821); touched files are clean. No unrelated Ruff cleanup
+  was performed.
+
+### R7D Closure - 2026-10-04
+
+**R7D COMPLETE for durable in-app Notifications.** The final-worktree
+R7D/R7B/R7C/Finance/architecture selection passed **217 tests**, including
+PostgreSQL runtime-role RLS, two-worker delivery, concurrent read state,
+reviewer revocation before delivery, rollback/commit-failure/poison/replay,
+duplicate recipient fan-out, bounded 1,001-row reads and project-scoped
+mentions. The PostgreSQL test fixture upgrades a fresh database through the
+single Alembic head (`b1d7c2f4a96e`); notification/work RLS classification,
+forced policies and runtime non-owner behavior are exercised in the live suite.
+Scoped Ruff F/I, Python compilation, NotificationBell/NotificationsPanel QML
+lint with the shared import path, architecture guards and `git diff --check`
+pass. Repository-wide Ruff's 85 unrelated findings are not represented as a
+green repository-wide check.
+
+Canonical path: business UoW stages per-recipient work under the committed
+event ID; the local dispatcher uses fresh scoped transactions, current
+recipient authority, DB-backed logical uniqueness, bounded retry/quarantine
+and a post-commit recipient-only UI hint. A failed UI hint does not undo or
+replay the committed Notification. Each recipient's work commits atomically;
+fan-out to multiple recipients is independently retryable, so recipients may
+observe the event at different times without duplicate final effects. This
+does not claim distributed exactly-once delivery or cross-recipient atomic
+visibility. Notification history remains separate from Approval, Action Center,
+Activity and Audit authority.
+
+The shell drawer intentionally offers read-state actions only. Its DTO does
+not expose a route, so no Notification row acts as a navigation authorization
+token or misleading deep link. Out-of-app invitation delivery, email/SMS/push
+and navigable Notification destinations require separate product designs; none
+is claimed here. R7E began after this closure; R8 has not started. No commit was made by the agent.
+
+### R7E Active Implementation - 2026-10-04
+
+**R7E remains OPEN.** The current worktree has hardened the existing Task
+collaboration path, without creating a parallel comment or notification system:
+
+- Initial comment edits and deletes now require an explicit revision; stale
+  writes continue through the repository's version check. Repeat deletion
+  remains idempotent. Plain comments no longer scan mention candidates when
+  their body contains no mention token.
+- Presence touch/clear now use a fresh collaboration UoW transaction and emit
+  a narrow presence hint after commit rather than committing the shared UI
+  session. This does not yet change username-based presence identity.
+- Physical attachment paths use a unique storage identity, even for two
+  same-name files on one comment. Source validation completes before copying;
+  partial copy and pre-commit SQL failures compensate staged files. The UoW
+  exposes committed state so a failure in post-commit publication cannot
+  delete already-committed attachment bytes. Storage remains injected into
+  the PM application service, not imported from infrastructure there.
+- The final-worktree collaboration-focused selection passed **117 tests**;
+  the real-UoW rollback test verifies no durable comment row or physical
+  attachment after a forced repository failure. Scoped Ruff F/I, Python
+  compilation, and `git diff --check` pass. These are targeted checks, not
+  R7E closure; PostgreSQL, viewport, and full PM regressions remain open.
+
+Outstanding R7E gates include stable submission replay identity, bounded
+SQL-backed Task Detail thread reads and counts, targeted mention read updates,
+effective-grant bounded mention search, stable User-based presence identity,
+attachment open/download authorization, full document-link/RLS hostile-scope
+proof, concurrency and large-volume query-shape tests, complete UI/viewport
+proof, broad regressions, and final quality/architecture/schema gates. Do not
+mark R7E complete or begin R7G/R8 on the current evidence.
+
+#### R7E continuation: Presence identity and Task Detail read cutover
+
+- Presence now keys ephemeral rows by stable `(task_id, user_id)` with a user FK,
+  database uniqueness, atomic upsert, and a scoped delete. A fresh Alembic
+  migration discards obsolete ephemeral username-keyed rows and moves Presence
+  into forced parent-scoped PostgreSQL RLS with a user-identity write predicate.
+  The focused live PostgreSQL security selection passed 37 tests; migration and
+  guard selection passed 10 tests. This does not certify all R7E RLS gates.
+- Task Detail uses a SQL-counted, newest-first flat discussion timeline with
+  deterministic `(created_at DESC, id ASC)` ordering, bounded page sizes up to
+  100, reply-author context, and one batched linked-document query for page
+  IDs. The old threaded assembly is removed from the desktop snapshot. The
+  shared pagination footer is wired through the Tasks facade; project/task
+  changes reset the page. The user approved the flat timeline rather than
+  unbounded root-thread grouping.
+- A 1,000-comment regression proves a fixed two-query count/page shape and
+  25-row first/last pages with no duplicate IDs. The focused collaboration
+  selection passed 96 tests, the new paging tests passed 2, and the affected
+  Task QML files passed `pyside6-qmllint` with project import paths.
+- Mention candidates now use one scoped SQL projection over active User,
+  membership and effective collaboration grants. Picker search is bounded to
+  50 candidates with a debounced dialog search; command-time resolution
+  rechecks canonical grants, and a revoked-grant regression passed. The wider
+  collaboration selection passed 103 tests after this cutover. Shared-document
+  options likewise use a task-authorized, organization-scoped SQL search capped
+  at 50; a 150-document regression proved one query per search. The combined
+  collaboration selection passed 106 tests after both selector cutovers.
+- Task mention-read now queries only the recipient's unread comment IDs in
+  bounded 100-row batches inside the existing collaboration UoW. A 1,100-row
+  regression proves three bounded selects for 101 mentions and no full-thread
+  materialization. The expanded focused collaboration/domain selection passed
+  127 tests.
+- Comment create now accepts a stable per-draft submission ID. The comment
+  primary key and immutable SHA-256 request fingerprint distinguish an exact
+  retry from a conflicting reused ID; two deliberate identical-text drafts
+  remain distinct. The desktop composer retains its ID through failure/retry.
+  Sequential replay and a simulated unique-key race each produce one comment.
+  A migration persists the fingerprint; no body-text deduplication is used.
+- `document_links` has moved from the intentional RLS exclusions to a forced
+  parent-scoped PostgreSQL policy. It verifies document tenant/org ownership
+  and, for PM comment links, the comment's task/project parent. Runtime-role
+  hostile document/comment-parent tests and the complete R7B/R7E PostgreSQL
+  selection passed **38 tests**. The expanded focused collaboration/domain
+  selection after replay passed **129 tests**.
+- R7E remains OPEN. The old production `list_comments` query method has been
+  deleted and direct test assertions use the paged query; remaining test
+  doubles need to follow the new contract. Complete remaining
+  hostile-scope/document-link proofs, replay/concurrency, UI viewports, broad
+  regressions, and final quality gates before claiming closure.
+
+#### R7E continuation: production-shape boundedness and context reset
+
+- The PostgreSQL runtime-role security suite now includes a 1,000-row Task
+  discussion. Two adjacent 25-row pages return the same SQL-backed total of
+  1,001 (including the fixture comment), without duplicate IDs, using exactly
+  two count and two limited page statements. The full governance security
+  file passes **39 tests**; the separate durable Notification PostgreSQL RLS
+  file passes **7 tests**.
+- Task Detail reset immediately clears previous-task mention choices,
+  document choices, search terms, and presence display as well as the comment
+  page. A controller regression rejects requests carrying the old task ID;
+  the composer/viewport selection passes **6 tests** across five sizes.
+- A stale reaction test now asserts the canonical repeated-add no-op rather
+  than expecting a duplicate event. The focused collaboration selection
+  passes **44 tests**. Relevant durable Notification service/controller
+  regression passes **47 tests**. Selected architecture and migration guards
+  pass **29 tests**. Scoped Ruff F/I on the touched Python files passes.
+- The broad PM suite is running and has reported failures outside the focused
+  selection; these require classification before R7E can close. This is not
+  a final-worktree full-suite result or a claim of phase completion.
+- The unused production `TaskCommentRepository.list_by_task` full-thread path
+  has been removed after migrating its repository assertions to bounded
+  `list_recent_for_tasks` checks. The affected rollback, scope, and domain
+  selection passes **36 tests**; the small in-memory domain fake retains an
+  internal helper solely to exercise its fake unread-mention behavior.
+- Reply creation now checks and locks its parent comment inside the write
+  transaction, after the initial cheap validation. A forced delete between
+  precheck and UoW entry is rejected; PostgreSQL verifies the lock is `FOR
+  UPDATE OF task_comments` rather than a broad task/project lock. Presence
+  rename/upsert keeps one `(task_id, user_id)` row in the runtime-role suite.
+  The updated PostgreSQL governance file passes **41 tests**.
+- Stale Task UI test doubles now implement the bounded page/search/document
+  contract and accept submission IDs. Secondary scope fixtures create the
+  User rows required by the new Presence FK. The combined focused R7E,
+  Task UI, rollback, and scope selection passes **88 tests** on this worktree.
+- A broad PM/UI run begun before these final fixes reported **2,557 passed,
+  36 failed, 2 skipped**. Five Task UI failures and five secondary-scope
+  fixture failures have targeted green reruns after repair. Many other failures
+  are older governance tests that assume a platform admin can decide an
+  approval without a current scoped reviewer/action grant. Do not weaken
+  server-side reviewer eligibility to make those tests pass. Other Finance and
+  Timesheet failures need separate classification. Because the complete PM
+  suite has not been rerun from this final worktree, R7E remains **OPEN**.
+- Touched-file Ruff F/I and Python compilation pass. Repository-wide Ruff
+  reports **77** findings outside the touched selection (36 I001, 35 F841,
+  four F401, one F811, one F821); repository-wide Ruff is not clean.
+- A Task Details layout-managed divider now uses `Layout.preferredHeight`;
+  affected Task QML lint passes without warnings. The dialog/context runtime
+  selection still passes **8 tests** after that change. `git diff --check`
+  passes; no commit was made by the agent.

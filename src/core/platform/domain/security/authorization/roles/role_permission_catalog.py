@@ -5,6 +5,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "project.manage": "Create and edit projects",
     "task.read": "View tasks",
     "task.manage": "Create and edit tasks",
+    "task.approve": "Approve governed task and schedule changes",
     "time.read": "View shared labor bookings and time entries",
     "time.manage": "Create and edit shared labor bookings and time entries",
     "resource.read": "View resources",
@@ -44,6 +45,8 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "forecast.manage": "Create, edit, and submit project forecasts",
     "forecast.approve": "Approve or reject project forecasts",
     "financial_change.manage": "Create and submit governed financial change orders",
+    "financial_change.approve": "Approve or reject governed financial changes",
+    "billing_preparation.approve": "Approve or reject project billing preparations",
     "register.read": "View risk, issue, and change register data",
     "register.manage": "Create and edit register entries",
     "report.view": "View reports",
@@ -235,8 +238,11 @@ _PORTFOLIO_MANAGER = {
 
 _APPROVER = {
     "baseline.approve",
+    "task.approve",
     "budget.approve",
     "forecast.approve",
+    "financial_change.approve",
+    "billing_preparation.approve",
     "project.read",
     "resource.read",
     "task.read",

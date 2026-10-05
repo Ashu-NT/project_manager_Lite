@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-from sqlalchemy import select
+from sqlalchemy import delete, or_, select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.collaboration.collaboration import (
@@ -17,7 +17,6 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.coll
     task_comment_from_orm,
     task_comment_to_orm,
     task_presence_from_orm,
-    task_presence_to_orm,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
     TaskCommentORM,
@@ -121,13 +120,39 @@ class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
         row = self.session.execute(stmt).scalar_one_or_none()
         return task_comment_from_orm(row) if row else None
 
-    def list_by_task(self, task_id: str) -> list[TaskComment]:
-        stmt = (
+    def get_for_reply(self, comment_id: str) -> TaskComment | None:
+        stmt = self._project_scoped_stmt().where(TaskCommentORM.id == comment_id).with_for_update(of=TaskCommentORM)
+        row = self.session.execute(stmt).scalar_one_or_none()
+        return task_comment_from_orm(row) if row else None
+
+    def list_unread_mentions_for_task(
+        self,
+        task_id: str,
+        *,
+        user_id: str,
+        aliases: tuple[str, ...],
+        limit: int = 100,
+    ) -> list[TaskComment]:
+        mention_predicates = [
+            TaskCommentORM.mentioned_user_ids_json.like(f'%"{user_id}"%')
+        ]
+        read_predicates = [
+            TaskCommentORM.read_by_user_ids_json.like(f'%"{user_id}"%')
+        ]
+        for alias in aliases:
+            mention_predicates.append(TaskCommentORM.mentions_json.like(f'%"{alias}"%'))
+            read_predicates.append(TaskCommentORM.read_by_json.like(f'%"{alias}"%'))
+        rows = self.session.execute(
             self._project_scoped_stmt()
-            .where(TaskCommentORM.task_id == task_id)
-            .order_by(TaskCommentORM.created_at.asc())
-        )
-        rows = self.session.execute(stmt).scalars().all()
+            .where(
+                TaskCommentORM.task_id == task_id,
+                TaskCommentORM.deleted_at.is_(None),
+                or_(*mention_predicates),
+                ~or_(*read_predicates),
+            )
+            .order_by(TaskCommentORM.created_at.asc(), TaskCommentORM.id.asc())
+            .limit(max(1, min(limit, 500)))
+        ).scalars().all()
         return [task_comment_from_orm(row) for row in rows]
 
     def list_recent_for_tasks(self, task_ids: list[str], limit: int = 200) -> list[TaskComment]:
@@ -187,7 +212,7 @@ class SqlAlchemyTaskPresenceRepository(TaskPresenceRepository):
         self,
         *,
         task_id: str,
-        user_id: str | None,
+        user_id: str,
         username: str,
         display_name: str | None,
         activity: str,
@@ -200,44 +225,50 @@ class SqlAlchemyTaskPresenceRepository(TaskPresenceRepository):
             activity=activity,
         )
         self._ensure_task_in_scope(candidate.task_id)
-        stmt = select(TaskPresenceORM).where(
-            TaskPresenceORM.task_id == candidate.task_id,
-            TaskPresenceORM.username == candidate.username,
-            TaskPresenceORM.task_id.in_(self._scoped_task_ids()),
-        )
-        obj = self.session.execute(stmt).scalar_one_or_none()
-        if obj is None:
-            self.session.add(task_presence_to_orm(candidate))
-            return candidate
-        presence = TaskPresence(
-            id=obj.id,
-            task_id=obj.task_id,
-            user_id=user_id,
+        dialect = self.session.get_bind().dialect.name
+        if dialect == "postgresql":
+            statement = postgresql_insert(TaskPresenceORM)
+        elif dialect == "sqlite":
+            statement = sqlite_insert(TaskPresenceORM)
+        else:
+            raise RuntimeError("Task presence requires a supported atomic upsert dialect.")
+        statement = statement.values(
+            id=candidate.id,
+            task_id=candidate.task_id,
+            user_id=candidate.user_id,
             username=candidate.username,
-            display_name=display_name,
-            activity=activity,
-            started_at=obj.started_at,
-            last_seen_at=datetime.now(timezone.utc),
+            display_name=candidate.display_name,
+            activity=candidate.activity,
+            started_at=candidate.started_at,
+            last_seen_at=candidate.last_seen_at,
+        ).on_conflict_do_update(
+            index_elements=[TaskPresenceORM.task_id, TaskPresenceORM.user_id],
+            set_={
+                "username": candidate.username,
+                "display_name": candidate.display_name,
+                "activity": candidate.activity,
+                "last_seen_at": candidate.last_seen_at,
+            },
         )
-        mapped = task_presence_to_orm(presence)
-        obj.user_id = mapped.user_id
-        obj.username = mapped.username
-        obj.display_name = mapped.display_name
-        obj.activity = mapped.activity
-        obj.started_at = mapped.started_at
-        obj.last_seen_at = mapped.last_seen_at
-        return presence
+        self.session.execute(statement)
+        row = self.session.execute(
+            select(TaskPresenceORM).where(
+                TaskPresenceORM.task_id == candidate.task_id,
+                TaskPresenceORM.user_id == candidate.user_id,
+                TaskPresenceORM.task_id.in_(self._scoped_task_ids()),
+            )
+        ).scalar_one()
+        return task_presence_from_orm(row)
 
-    def clear(self, *, task_id: str, username: str) -> None:
-        probe = TaskPresence.create(task_id=task_id, user_id=None, username=username)
-        stmt = select(TaskPresenceORM).where(
-            TaskPresenceORM.task_id == probe.task_id,
-            TaskPresenceORM.username == probe.username,
-            TaskPresenceORM.task_id.in_(self._scoped_task_ids()),
+    def clear(self, *, task_id: str, user_id: str) -> None:
+        self._ensure_task_in_scope(task_id)
+        self.session.execute(
+            delete(TaskPresenceORM).where(
+                TaskPresenceORM.task_id == task_id,
+                TaskPresenceORM.user_id == user_id,
+                TaskPresenceORM.task_id.in_(self._scoped_task_ids()),
+            )
         )
-        obj = self.session.execute(stmt).scalar_one_or_none()
-        if obj is not None:
-            self.session.delete(obj)
 
     def list_recent_for_tasks(
         self,

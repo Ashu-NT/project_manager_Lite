@@ -1,276 +1,180 @@
-from __future__ import annotations
+"""Personal notification reads are bounded, scoped and read-state safe."""
+
+from datetime import datetime, timezone
 
 import pytest
+from sqlalchemy import event
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.infrastructure.persistence.orm.notifications.notification import (
+    NotificationORM,
+)
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
+    TenantORM,
+)
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
+    UserTenantORM,
+)
 
-_PASSWORD = "StrongPass123!"
+PASSWORD = "StrongPass123!"
+TENANT = "notification-test-tenant"
 
 
-def _register_user(services, username: str):
-    return services["auth_service"].register_user(
-        username,
-        _PASSWORD,
-        display_name=username,
-    )
+def register(services, username):
+    return services["auth_service"].register_user(username, PASSWORD, display_name=username)
 
 
-def _set_user_principal(services, username: str):
+def principal(services, username):
     auth = services["auth_service"]
-    user = auth.authenticate(username, _PASSWORD)
-    principal = auth.build_principal(user)
-    services["user_session"].set_principal(principal)
+    user = auth.authenticate(username, PASSWORD)
+    services["user_session"].set_principal(auth.build_principal(user))
+    services["user_session"].set_active_tenant_id(TENANT)
     return user
 
 
-def test_notification_service_is_available(services):
-    assert "notification_service" in services
-    assert services["notification_service"] is not None
+def seed(session, *, recipient, notification_id, tenant=TENANT):
+    if session.get(TenantORM, tenant) is None:
+        session.add(TenantORM(id=tenant, tenant_code=tenant, display_name=tenant))
+        session.flush()
+    membership_id = f"notification-membership-{recipient}"
+    if session.get(UserTenantORM, membership_id) is None:
+        now = datetime.now(timezone.utc)
+        session.add(UserTenantORM(
+            id=membership_id, user_id=recipient, tenant_id=tenant,
+            status="active", accepted_at=now, joined_at=now,
+            created_at=now, updated_at=now,
+        ))
+    row = NotificationORM(
+        id=notification_id, recipient_user_id=recipient, tenant_id=tenant,
+        organization_id=None, source_event_id=None, category="platform.notice.v1",
+        title="Notice", body="You have a workspace notice.",
+        created_at=datetime(2026, 10, 3, tzinfo=timezone.utc), metadata_json="{}",
+    )
+    session.add(row)
+    session.commit()
+    return row
 
 
-def test_dispatch_persists_notification_and_is_readable_by_recipient(services, session):
+def test_notification_list_is_bounded_and_stably_ordered(services, session):
+    user = register(services, "bounded-notifications")
+    for index in range(125):
+        seed(session, recipient=user.id, notification_id=f"notification-{index:04d}")
+    principal(services, user.username)
     notifications = services["notification_service"]
-    recipient = _register_user(services, "notify_recipient")
+    page = notifications.list_my_notifications(limit=10000)
+    assert len(page) == 100
+    assert [row.id for row in page] == [f"notification-{index:04d}" for index in range(124, 24, -1)]
+    assert notifications.count_my_unread() == 125
+    assert notifications.list_my_notifications(limit=0) == []
 
-    notifications.dispatch(
-        recipient_user_id=recipient.id,
-        category="test.event",
-        title="Hello",
-        body="You have a new thing.",
-        commit=True,
+
+def test_thousand_notification_read_stays_bounded_and_uses_two_data_queries(
+    services, session,
+):
+    user = register(services, "volume-notifications")
+    seed(session, recipient=user.id, notification_id="volume-0000")
+    created = datetime(2026, 10, 3, tzinfo=timezone.utc)
+    session.add_all(NotificationORM(
+        id=f"volume-{index:04d}", recipient_user_id=user.id,
+        tenant_id=TENANT, organization_id=None, source_event_id=None,
+        category="platform.notice.v1", title="Notice", body="Safe notice",
+        created_at=created, metadata_json="{}",
+    ) for index in range(1, 1001))
+    session.commit()
+    from src.core.platform.infrastructure.persistence.repositories.notifications.notification import (
+        SqlAlchemyNotificationRepository,
     )
 
-    _set_user_principal(services, recipient.username)
-    mine = notifications.list_my_notifications()
-    assert len(mine) == 1
-    assert mine[0].category == "test.event"
-    assert mine[0].is_read is False
+    repo = SqlAlchemyNotificationRepository(session)
+    statements = []
+
+    def record(_connection, _cursor, statement, _parameters, _context, _executemany):
+        if statement.lstrip().upper().startswith("SELECT") and "FROM notifications" in statement:
+            statements.append(statement)
+
+    event.listen(session.bind, "before_cursor_execute", record)
+    try:
+        page = repo.list_for_user(user.id, tenant_id=TENANT, organization_id=None, limit=10000)
+        unread = repo.count_unread_for_user(user.id, tenant_id=TENANT, organization_id=None)
+    finally:
+        event.remove(session.bind, "before_cursor_execute", record)
+    assert len(page) == 100
+    assert unread == 1001
+    assert len(statements) == 2
 
 
-def test_list_my_notifications_is_self_scoped(services):
-    notifications = services["notification_service"]
-    owner = _register_user(services, "notify_owner")
-    other = _register_user(services, "notify_other")
-
-    notifications.dispatch(
-        recipient_user_id=owner.id,
-        category="test.event",
-        title="Owner only",
-        body="Body",
-        commit=True,
-    )
-
-    _set_user_principal(services, other.username)
-    assert notifications.list_my_notifications() == []
-
-
-def test_list_my_notifications_requires_authentication(services, anonymous_services):
-    notifications = anonymous_services["notification_service"]
-    with pytest.raises(BusinessRuleError) as exc:
-        notifications.list_my_notifications()
-    assert exc.value.code == "AUTHENTICATION_REQUIRED"
-
-
-def test_mark_read_by_another_user_is_denied(services):
-    notifications = services["notification_service"]
-    owner = _register_user(services, "mark_read_owner")
-    other = _register_user(services, "mark_read_other")
-
-    notification = notifications.dispatch(
-        recipient_user_id=owner.id,
-        category="test.event",
-        title="Owner only",
-        body="Body",
-        commit=True,
-    )
-
-    _set_user_principal(services, other.username)
+def test_personal_visibility_excludes_another_recipient(services, session):
+    owner = register(services, "notify-owner")
+    other = register(services, "notify-other")
+    seed(session, recipient=owner.id, notification_id="owner-invitation")
+    principal(services, other.username)
+    assert services["notification_service"].list_my_notifications() == []
     with pytest.raises(NotFoundError):
-        notifications.mark_read(notification.id)
+        services["notification_service"].mark_read("owner-invitation")
 
 
-def test_mark_read_by_owner_persists_read_at(services):
+def test_signed_in_user_without_active_tenant_cannot_read_in_app_notifications(services, session):
+    owner = register(services, "notify-no-tenant")
+    seed(session, recipient=owner.id, notification_id="tenant-notice")
+    principal(services, owner.username)
+    services["user_session"].set_active_tenant_id(None)
     notifications = services["notification_service"]
-    owner = _register_user(services, "mark_read_self")
-
-    notification = notifications.dispatch(
-        recipient_user_id=owner.id,
-        category="test.event",
-        title="Owner only",
-        body="Body",
-        commit=True,
-    )
-
-    _set_user_principal(services, owner.username)
-    read = notifications.mark_read(notification.id)
-    assert read.is_read is True
-
-    mine_unread_only = notifications.list_my_notifications(unread_only=True)
-    assert mine_unread_only == []
-    mine_all = notifications.list_my_notifications()
-    assert len(mine_all) == 1
-    assert mine_all[0].is_read is True
-
-
-def test_dispatch_requires_recipient(services):
-    notifications = services["notification_service"]
-    with pytest.raises(BusinessRuleError) as exc:
-        notifications.dispatch(
-            recipient_user_id="",
-            category="test.event",
-            title="Hello",
-            body="Body",
-        )
-    assert exc.value.code == "NOTIFICATION_RECIPIENT_REQUIRED"
-
-
-def test_count_my_unread_is_exact_and_principal_scoped(services):
-    notifications = services["notification_service"]
-    owner = _register_user(services, "unread_count_owner")
-    other = _register_user(services, "unread_count_other")
-
-    for index in range(3):
-        notifications.dispatch(
-            recipient_user_id=owner.id,
-            category="test.event",
-            title=f"Item {index}",
-            body="Body",
-            commit=True,
-        )
-    notifications.dispatch(
-        recipient_user_id=other.id,
-        category="test.event",
-        title="Other's own",
-        body="Body",
-        commit=True,
-    )
-
-    _set_user_principal(services, owner.username)
-    assert notifications.count_my_unread() == 3
-
-
-def test_count_my_unread_excludes_already_read_notifications(services):
-    notifications = services["notification_service"]
-    owner = _register_user(services, "unread_count_partial")
-
-    first = notifications.dispatch(
-        recipient_user_id=owner.id,
-        category="test.event",
-        title="First",
-        body="Body",
-        commit=True,
-    )
-    notifications.dispatch(
-        recipient_user_id=owner.id,
-        category="test.event",
-        title="Second",
-        body="Body",
-        commit=True,
-    )
-
-    _set_user_principal(services, owner.username)
-    notifications.mark_read(first.id)
-    assert notifications.count_my_unread() == 1
-
-
-def test_count_my_unread_is_exact_beyond_the_list_preview_limit(services):
-    notifications = services["notification_service"]
-    owner = _register_user(services, "unread_count_beyond_preview")
-
-    for index in range(55):
-        notifications.dispatch(
-            recipient_user_id=owner.id,
-            category="test.event",
-            title=f"Item {index}",
-            body="Body",
-            commit=True,
-        )
-
-    _set_user_principal(services, owner.username)
-    assert notifications.count_my_unread() == 55
-    # The default list preview is capped well below the real unread total --
-    # count_my_unread must never be computed as len(list_my_notifications()).
-    assert len(notifications.list_my_notifications()) < 55
-
-
-def test_count_my_unread_requires_authentication(services, anonymous_services):
-    notifications = anonymous_services["notification_service"]
-    with pytest.raises(BusinessRuleError) as exc:
-        notifications.count_my_unread()
-    assert exc.value.code == "AUTHENTICATION_REQUIRED"
-
-
-def test_mark_all_read_marks_only_the_current_principals_notifications(services):
-    notifications = services["notification_service"]
-    owner = _register_user(services, "mark_all_owner")
-    other = _register_user(services, "mark_all_other")
-
-    for index in range(4):
-        notifications.dispatch(
-            recipient_user_id=owner.id,
-            category="test.event",
-            title=f"Item {index}",
-            body="Body",
-            commit=True,
-        )
-    notifications.dispatch(
-        recipient_user_id=other.id,
-        category="test.event",
-        title="Other's own",
-        body="Body",
-        commit=True,
-    )
-
-    _set_user_principal(services, owner.username)
-    updated_count = notifications.mark_all_read()
-    assert updated_count == 4
+    assert notifications.list_my_notifications() == []
     assert notifications.count_my_unread() == 0
+    with pytest.raises(NotFoundError):
+        notifications.mark_read("tenant-notice")
 
-    _set_user_principal(services, other.username)
-    assert notifications.count_my_unread() == 1
+
+def test_authentication_is_required(anonymous_services):
+    service = anonymous_services["notification_service"]
+    with pytest.raises(BusinessRuleError, match="Authentication"):
+        service.list_my_notifications()
+    with pytest.raises(BusinessRuleError, match="Authentication"):
+        service.count_my_unread()
 
 
-def test_mark_all_read_is_idempotent(services):
+def test_mark_read_and_mark_all_are_idempotent(services, session):
+    owner = register(services, "notify-read-owner")
+    seed(session, recipient=owner.id, notification_id="read-first")
+    seed(session, recipient=owner.id, notification_id="read-second")
+    principal(services, owner.username)
     notifications = services["notification_service"]
-    owner = _register_user(services, "mark_all_idempotent")
-    notifications.dispatch(
-        recipient_user_id=owner.id,
-        category="test.event",
-        title="Item",
-        body="Body",
-        commit=True,
-    )
-
-    _set_user_principal(services, owner.username)
+    assert notifications.count_my_unread() == 2
+    assert notifications.mark_read("read-first").is_read
+    assert notifications.mark_read("read-first").is_read
+    assert notifications.count_my_unread() == 1
     assert notifications.mark_all_read() == 1
     assert notifications.mark_all_read() == 0
+    assert notifications.list_my_notifications(unread_only=True) == []
 
 
-def test_mark_all_read_requires_authentication(services, anonymous_services):
-    notifications = anonymous_services["notification_service"]
-    with pytest.raises(BusinessRuleError) as exc:
-        notifications.mark_all_read()
-    assert exc.value.code == "AUTHENTICATION_REQUIRED"
-
-
-def test_channel_delivery_failure_does_not_prevent_dispatch(services):
-    notifications = services["notification_service"]
-    recipient = _register_user(services, "channel_failure_recipient")
-
-    class _ExplodingChannel:
-        def send(self, notification):
-            raise RuntimeError("channel unavailable")
-
-    notifications._channels.append(_ExplodingChannel())
-
-    notification = notifications.dispatch(
-        recipient_user_id=recipient.id,
-        category="test.event",
-        title="Hello",
-        body="Body",
-        commit=True,
+def test_other_organization_is_hidden_by_repository_even_on_sqlite(services, session):
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
+        OrganizationORM,
     )
-    assert notification is not None
-
-    _set_user_principal(services, recipient.username)
-    assert len(notifications.list_my_notifications()) == 1
+    owner = register(services, "scoped-notification-owner")
+    seed(session, recipient=owner.id, notification_id="tenant-notice")
+    now = datetime.now(timezone.utc)
+    for org in ("a", "b"):
+        session.add(OrganizationORM(
+            id=f"notification-org-{org}", tenant_id=TENANT,
+            organization_code=f"NOTIF-{org}", display_name=org,
+            timezone_name="UTC", base_currency="XAF", status="active",
+        ))
+    session.flush()
+    for org in ("a", "b"):
+        session.add(NotificationORM(
+            id=f"org-{org}-only", recipient_user_id=owner.id, tenant_id=TENANT,
+            organization_id=f"notification-org-{org}", category="pm.task.assigned.v1",
+            title="Task", body="Open task if authorized.",
+            created_at=now, metadata_json="{}",
+        ))
+    session.commit()
+    principal(services, owner.username)
+    services["user_session"].set_active_tenant_id(TENANT)
+    services["user_session"].set_active_organization_id("notification-org-a")
+    notifications = services["notification_service"]
+    assert {row.id for row in notifications.list_my_notifications()} == {"tenant-notice", "org-a-only"}
+    with pytest.raises(NotFoundError):
+        notifications.mark_read("org-b-only")
+    assert notifications.mark_all_read() == 2

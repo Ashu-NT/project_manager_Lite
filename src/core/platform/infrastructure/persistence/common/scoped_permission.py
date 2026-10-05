@@ -17,7 +17,10 @@ from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant
 )
 
 
-def scoped_permission(*, user_id, tenant_id, organization_id, project_id=None, permissions):
+def scoped_permission(
+    *, user_id, tenant_id, organization_id, project_id=None, permissions,
+    include_platform=False,
+):
     user, member = aliased(UserORM), aliased(UserTenantORM)
     binding, role = aliased(RoleBindingORM), aliased(RoleORM)
     role_permission, permission = aliased(RolePermissionORM), aliased(PermissionORM)
@@ -25,6 +28,12 @@ def scoped_permission(*, user_id, tenant_id, organization_id, project_id=None, p
               and_(binding.actual_scope_type == "organization", binding.actual_scope_id == organization_id)]
     if project_id is not None:
         scopes.append(and_(binding.actual_scope_type == "project", binding.actual_scope_id == project_id))
+    if include_platform:
+        scopes.append(binding.actual_scope_type == "platform")
+    tenant_scope = (
+        or_(binding.tenant_id == tenant_id, binding.actual_scope_type == "platform")
+        if include_platform else binding.tenant_id == tenant_id
+    )
     return (select(binding.id).select_from(binding)
             .join(user, user.id == binding.principal_id)
             .join(member, and_(member.user_id == user.id, member.tenant_id == tenant_id))
@@ -33,7 +42,7 @@ def scoped_permission(*, user_id, tenant_id, organization_id, project_id=None, p
             .join(permission, permission.id == role_permission.permission_id)
             .where(user.id == user_id, user.is_active.is_(True), user.account_type == "human",
                    member.status == "active", member.revoked_at.is_(None),
-                   binding.principal_type == "user", binding.tenant_id == tenant_id,
+                   binding.principal_type == "user", tenant_scope,
                    binding.revoked_at.is_(None),
                    or_(binding.expires_at.is_(None), binding.expires_at > datetime.now(timezone.utc)),
                    role.status == "active", role.allowed_scope_type == binding.actual_scope_type,

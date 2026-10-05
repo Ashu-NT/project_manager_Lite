@@ -318,7 +318,10 @@ def main(
             else None
         ),
         shell_context=shell_context,
+        channel=services.get("platform_view_invalidation_channel") if services else None,
+        user_session=services.get("user_session") if services else None,
     )
+    app.aboutToQuit.connect(notifications_controller.dispose)
     # Loaded proactively (not only on first drawer open) so the header bell
     # badge is already correct the moment the shell appears.
     notifications_controller.refresh()

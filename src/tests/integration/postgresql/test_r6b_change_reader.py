@@ -82,9 +82,10 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
             text(
                 "INSERT INTO approval_requests "
                 "(id, tenant_id, request_type, entity_type, entity_id, organization_id, "
-                "project_id, payload_json, status, requested_by_username, requested_at) "
+                "project_id, payload_json, status, requested_by_username, requested_at, decision_permission) "
                 "VALUES (:id, :tenant, 'financial_change.apply', 'financial_change', "
-                ":entity, :organization, :project, '{}', 'PENDING', :requester, :now)"
+                ":entity, :organization, :project, '{}', 'PENDING', :requester, :now, "
+                "'financial_change.approve')"
             ),
             {
                 "id": approval_id,

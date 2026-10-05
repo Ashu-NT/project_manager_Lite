@@ -31,49 +31,6 @@ from src.core.modules.project_management.application.collaboration import (
 )
 
 
-def _threaded_comments(comments) -> list[tuple[object, int, str, int]]:
-    """Keep roots newest-first while rendering each reply chain chronologically."""
-    comments_by_id = {comment.id: comment for comment in comments}
-    children_by_parent: dict[str, list[object]] = {}
-    roots: list[object] = []
-    for comment in comments:
-        parent_id = str(getattr(comment, "parent_comment_id", "") or "").strip()
-        if parent_id and parent_id in comments_by_id:
-            children_by_parent.setdefault(parent_id, []).append(comment)
-        else:
-            roots.append(comment)
-
-    roots.sort(key=lambda item: item.created_at, reverse=True)
-    for children in children_by_parent.values():
-        children.sort(key=lambda item: item.created_at)
-
-    ordered: list[tuple[object, int, str, int]] = []
-    visited: set[str] = set()
-
-    def append_branch(comment, depth: int) -> None:
-        if comment.id in visited:
-            return
-        visited.add(comment.id)
-        parent_id = str(getattr(comment, "parent_comment_id", "") or "").strip()
-        parent = comments_by_id.get(parent_id)
-        ordered.append(
-            (
-                comment,
-                depth,
-                str(getattr(parent, "author_username", "") or "").strip(),
-                len(children_by_parent.get(comment.id, ())),
-            )
-        )
-        for child in children_by_parent.get(comment.id, ()):
-            append_branch(child, depth + 1)
-
-    for root in roots:
-        append_branch(root, 0)
-    for comment in comments:
-        append_branch(comment, 0)
-    return ordered
-
-
 class ProjectManagementCollaborationDesktopApi:
     def __init__(
         self,
@@ -198,7 +155,9 @@ class ProjectManagementCollaborationDesktopApi:
             raise ValueError("Task ID is required to clear a presence session.")
         self._require_collaboration_service().clear_task_presence(normalized_task_id)
 
-    def build_task_snapshot(self, task_id: str) -> TaskCollaborationSnapshotDto:
+    def build_task_snapshot(
+        self, task_id: str, *, page: int = 1, page_size: int = 25
+    ) -> TaskCollaborationSnapshotDto:
         normalized_task_id = (task_id or "").strip()
         if not normalized_task_id or self._collaboration_service is None:
             return TaskCollaborationSnapshotDto(
@@ -208,9 +167,13 @@ class ProjectManagementCollaborationDesktopApi:
                 document_options=(),
             )
         service = self._require_collaboration_service()
-        comments = service.list_comments(normalized_task_id)
+        comments = service.query_task_comments_page(
+            normalized_task_id, page=page, page_size=page_size
+        )
         action_context = service.get_task_comment_action_context(normalized_task_id)
-        documents_by_comment = service.list_comment_documents(normalized_task_id)
+        documents_by_comment = service.list_comment_documents_for_ids(
+            normalized_task_id, tuple(comment.id for comment in comments.items)
+        )
         return TaskCollaborationSnapshotDto(
             comments=tuple(
                 serialize_task_comment(
@@ -219,13 +182,11 @@ class ProjectManagementCollaborationDesktopApi:
                     principal_user_id=action_context.principal_user_id,
                     can_manage=action_context.can_manage,
                     can_read=action_context.can_read,
-                    parent_author_username=parent_author_username,
-                    thread_depth=thread_depth,
-                    reply_count=reply_count,
+                    parent_author_username=comment.parent_author_username,
+                    thread_depth=1 if comment.parent_comment_id else 0,
+                    reply_count=comment.reply_count,
                 )
-                for comment, thread_depth, parent_author_username, reply_count in (
-                    _threaded_comments(comments)
-                )
+                for comment in comments.items
             ),
             active_presence=tuple(
                 serialize_presence_item(item)
@@ -243,7 +204,7 @@ class ProjectManagementCollaborationDesktopApi:
                     label=candidate.label,
                 )
                 for candidate in sorted(
-                    service.list_mention_candidates(normalized_task_id),
+                    service.list_mention_candidates(normalized_task_id, limit=50),
                     key=lambda item: item.label.casefold(),
                 )
             ),
@@ -253,13 +214,53 @@ class ProjectManagementCollaborationDesktopApi:
                     label=format_document_option_label(document),
                 )
                 for document in sorted(
-                    service.list_available_documents(active_only=True),
+                    service.search_available_documents(normalized_task_id, limit=50),
                     key=lambda item: (
                         str(getattr(item, "document_code", "") or "").casefold(),
                         str(getattr(item, "title", "") or "").casefold(),
                     ),
                 )
             ),
+            comment_total=comments.total,
+            comment_page=comments.page,
+            comment_page_size=comments.page_size,
+        )
+
+    def search_task_mention_options(
+        self, task_id: str, query: str
+    ) -> tuple[TaskCollaborationMentionOptionDescriptor, ...]:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            return ()
+        candidates = self._require_collaboration_service().list_mention_candidates(
+            normalized_task_id, query=(query or "").strip()[:128], limit=50
+        )
+        return (
+            TaskCollaborationMentionOptionDescriptor(
+                value="everyone",
+                label="@everyone  Mention everyone with access to this task",
+            ),
+        ) + tuple(
+            TaskCollaborationMentionOptionDescriptor(
+                value=candidate.handle, label=candidate.label
+            )
+            for candidate in candidates
+        )
+
+    def search_task_document_options(
+        self, task_id: str, query: str
+    ) -> tuple[TaskCollaborationDocumentOptionDescriptor, ...]:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            return ()
+        documents = self._require_collaboration_service().search_available_documents(
+            normalized_task_id, query=(query or "").strip()[:128], limit=50
+        )
+        return tuple(
+            TaskCollaborationDocumentOptionDescriptor(
+                value=document.id, label=format_document_option_label(document)
+            )
+            for document in documents
         )
 
     def post_task_comment(
@@ -276,8 +277,11 @@ class ProjectManagementCollaborationDesktopApi:
             attachments=command.attachments,
             linked_document_ids=command.linked_document_ids,
             parent_comment_id=getattr(command, "parent_comment_id", None),
+            submission_id=command.submission_id,
         )
-        linked_documents = service.list_comment_documents(normalized_task_id).get(comment.id, ())
+        linked_documents = service.list_comment_documents_for_ids(
+            normalized_task_id, (comment.id,)
+        ).get(comment.id, ())
         return serialize_task_comment(comment, linked_documents=linked_documents)
 
     def edit_task_comment(
@@ -293,7 +297,9 @@ class ProjectManagementCollaborationDesktopApi:
             command.body,
             expected_revision=command.expected_revision,
         )
-        linked_documents = service.list_comment_documents(comment.task_id).get(comment.id, ())
+        linked_documents = service.list_comment_documents_for_ids(
+            comment.task_id, (comment.id,)
+        ).get(comment.id, ())
         return serialize_task_comment(comment, linked_documents=linked_documents)
 
     def delete_task_comment(
@@ -309,7 +315,9 @@ class ProjectManagementCollaborationDesktopApi:
             expected_revision=command.expected_revision,
             reason=command.reason,
         )
-        linked_documents = service.list_comment_documents(comment.task_id).get(comment.id, ())
+        linked_documents = service.list_comment_documents_for_ids(
+            comment.task_id, (comment.id,)
+        ).get(comment.id, ())
         return serialize_task_comment(comment, linked_documents=linked_documents)
 
     def react_to_task_comment(
@@ -321,7 +329,9 @@ class ProjectManagementCollaborationDesktopApi:
             raise ValueError("Comment ID is required to react to a collaboration update.")
         service = self._require_collaboration_service()
         comment = service.react_to_comment(normalized_comment_id, command.emoji)
-        linked_documents = service.list_comment_documents(comment.task_id).get(comment.id, ())
+        linked_documents = service.list_comment_documents_for_ids(
+            comment.task_id, (comment.id,)
+        ).get(comment.id, ())
         return serialize_task_comment(comment, linked_documents=linked_documents)
 
     def remove_task_comment_reaction(
@@ -333,7 +343,9 @@ class ProjectManagementCollaborationDesktopApi:
             raise ValueError("Comment ID is required to remove a reaction.")
         service = self._require_collaboration_service()
         comment = service.remove_reaction(normalized_comment_id, command.emoji)
-        linked_documents = service.list_comment_documents(comment.task_id).get(comment.id, ())
+        linked_documents = service.list_comment_documents_for_ids(
+            comment.task_id, (comment.id,)
+        ).get(comment.id, ())
         return serialize_task_comment(comment, linked_documents=linked_documents)
 
     def _require_collaboration_service(self) -> CollaborationService:

@@ -59,6 +59,7 @@ def serialize_presence_item(item) -> CollaborationPresenceDesktopDto:
         last_seen_at=item.last_seen_at,
         last_seen_at_label=format_datetime(item.last_seen_at),
         is_self=bool(item.is_self),
+        user_id=str(getattr(item, "user_id", "") or ""),
     )
 
 
@@ -93,6 +94,8 @@ def serialize_task_comment(
         linked_document_labels = ()
     updated_at = getattr(comment, "updated_at", None)
     reactions_map = {} if is_deleted else (getattr(comment, "reactions", None) or {})
+    if isinstance(reactions_map, tuple):
+        reactions_map = dict(reactions_map)
     reactions = tuple(
         TaskCollaborationReactionSummaryDto(
             emoji=emoji,

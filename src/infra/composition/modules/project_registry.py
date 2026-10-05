@@ -641,6 +641,9 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
+    from src.infra.composition.notifications import register_pm_notification_policy
+
+    register_pm_notification_policy(platform_services.platform_transactional_dispatcher)
     _task_view_invalidation_handler = build_task_view_invalidation_handler(
         platform_services.platform_view_invalidation_channel
     )
@@ -676,7 +679,6 @@ def build_project_management_service_bundle(
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_catalog_service,
-        notification_service=platform_services.notification_service,
         employee_repo=repositories.employee_repo,
         assignment_skill_validator=assignment_skill_validator,
         tenant_context_service=platform_services.tenant_context_service,
@@ -1136,7 +1138,6 @@ def build_project_management_service_bundle(
     )
 
     def build_finance_governance_operations(uow):
-        post_commit_actions = []
         budget_operations = BudgetService(
             session=uow._session,
             budget_repo=uow.budgets,
@@ -1196,11 +1197,6 @@ def build_project_management_service_bundle(
         change_operations = change_deps.financial_change_service
         change_operations._approval_repo = uow.approvals
         change_operations._record_event = uow.record_event
-        change_operations._approval_requested_staged = lambda approval: (
-            post_commit_actions.append(
-                lambda: platform_services.approval_service.publish_requested(approval)
-            )
-        )
         setup_operations = FinancialConfigurationService(
             session=uow._session,
             profile_repo=uow.profiles,
@@ -1301,11 +1297,6 @@ def build_project_management_service_bundle(
                 user_session=platform_services.user_session, installed_adapters=accounting_adapter_ids,
             ),
         )
-        billing_preparation_operations._approval_requested_staged = lambda request: (
-            post_commit_actions.append(
-                lambda: platform_services.approval_service.publish_requested(request)
-            )
-        )
         return FinanceGovernanceOperations(
             budgets=budget_operations,
             forecast_versions=forecast_version_operations,
@@ -1317,7 +1308,6 @@ def build_project_management_service_bundle(
             cost_entries=cost_entry_operations,
             billing_profiles=billing_profile_operations,
             billing_preparations=billing_preparation_operations,
-            post_commit_actions=post_commit_actions,
         )
 
     finance_governance_commands = FinanceGovernanceCommandBoundary(
@@ -1516,6 +1506,7 @@ def build_project_management_service_bundle(
             _task_comment_event_type, _task_comment_view_invalidation_handler
         )
     from src.core.modules.project_management.infrastructure.collaboration_attachments import (
+        cleanup_task_comment_attachments,
         store_task_comment_attachments,
     )
 
@@ -1533,10 +1524,10 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         role_repo=repositories.role_repo,
         role_binding_repo=repositories.role_binding_repo,
-        notification_service=platform_services.notification_service,
         view_invalidation_channel=platform_services.platform_view_invalidation_channel,
         uow_factory=collaboration_uow_factory,
         attachment_store=store_task_comment_attachments,
+        attachment_cleanup=cleanup_task_comment_attachments,
         clock=SystemClock(),
     )
     portfolio_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
@@ -1729,8 +1720,18 @@ def _register_project_management_approval_handlers(
     calendar_assignment_service=None,
     financial_period_service=None,
 ) -> None:
+    from src.core.modules.project_management.contracts.approval import (
+        pm_reviewer_permission,
+    )
+
+    def register_apply(request_type, handler, *, dependencies_factory):
+        approval_service.register_apply_handler(
+            request_type, handler, dependencies_factory=dependencies_factory,
+            reviewer_permission=pm_reviewer_permission(request_type),
+        )
+
     baseline_participant = BaselineApprovalParticipant()
-    approval_service.register_apply_handler(
+    register_apply(
         "baseline.create",
         baseline_participant.apply,
         dependencies_factory=lambda uow_session: build_baseline_approval_deps(
@@ -1752,27 +1753,27 @@ def _register_project_management_approval_handlers(
         enterprise_calendar_resolver=enterprise_calendar_resolver,
         calendar_assignment_service=calendar_assignment_service,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "dependency.add",
         task_participant.apply_dependency_add,
         dependencies_factory=task_dependencies_factory,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "dependency.remove",
         task_participant.apply_dependency_remove,
         dependencies_factory=task_dependencies_factory,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "dependency.update",
         task_participant.apply_dependency_update,
         dependencies_factory=task_dependencies_factory,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "task.constraint.update",
         task_participant.apply_task_constraint_update,
         dependencies_factory=task_dependencies_factory,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "scheduling.leveling.apply",
         task_participant.apply_resource_leveling_plan,
         dependencies_factory=task_dependencies_factory,
@@ -1785,7 +1786,7 @@ def _register_project_management_approval_handlers(
         tenant_context_service=tenant_context_service,
         module_catalog_service=module_catalog_service,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "budget.approve",
         budget_participant.apply,
         dependencies_factory=budget_dependencies_factory,
@@ -1803,7 +1804,7 @@ def _register_project_management_approval_handlers(
         tenant_context_service=tenant_context_service,
         module_catalog_service=module_catalog_service,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "forecast.approve",
         forecast_participant.apply,
         dependencies_factory=forecast_dependencies_factory,
@@ -1822,7 +1823,7 @@ def _register_project_management_approval_handlers(
         financial_period_service=financial_period_service,
         module_catalog_service=module_catalog_service,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "project_cost.approve",
         project_cost_participant.apply,
         dependencies_factory=project_cost_dependencies_factory,
@@ -1841,7 +1842,7 @@ def _register_project_management_approval_handlers(
         work_calendar_engine=work_calendar_engine,
         module_catalog_service=module_catalog_service,
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "financial_change.apply",
         financial_change_participant.apply,
         dependencies_factory=financial_change_dependencies_factory,
@@ -1861,7 +1862,7 @@ def _register_project_management_approval_handlers(
             module_catalog_service=module_catalog_service,
         )
     )
-    approval_service.register_apply_handler(
+    register_apply(
         "project_billing_preparation.approve",
         billing_preparation_participant.apply,
         dependencies_factory=billing_preparation_dependencies_factory,

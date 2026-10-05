@@ -14,6 +14,7 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.contracts.approval import pm_reviewer_permission
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     BillingPreparationCreated,
     BillingPreparationLineAdded,
@@ -123,7 +124,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         # instance. None means "not governed-composition-wired" (e.g. the approval
         # participant's own fresh instance, which never calls submit_preparation).
         self._approval_repo = None
-        self._approval_requested_staged: Callable[[object], None] | None = None
 
     def get_preparation(self, preparation_id: str) -> ProjectBillingPreparation:
         preparation = self._require_preparation(preparation_id)
@@ -446,6 +446,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             clock=self._clock,
             record_event=self._record_event,
             request_type="project_billing_preparation.approve",
+            decision_permission=pm_reviewer_permission("project_billing_preparation.approve"),
             entity_type="project_billing_preparation",
             entity_id=preparation.id,
             tenant_id=preparation.tenant_id,
@@ -470,8 +471,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         )
         self._record_event(event)
         self._session.flush()
-        if self._approval_requested_staged is not None:
-            self._approval_requested_staged(request)
         return preparation
 
     def _apply_approval_decision(
