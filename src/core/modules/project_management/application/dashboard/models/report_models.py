@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 
 # Financial domain DTOs live in financials/models/ — re-exported here for backward compat.
-from src.core.modules.project_management.application.resources.resource_load_engine import (
+from src.core.modules.project_management.application.resources.capacity.resource_load_engine import (
     ResourceUtilizationBand,
     resource_utilization_band,
     resource_utilization_status_label,

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.application.resources.resource_capability_events import (
+from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
     ResourceCapabilityChanged,
 )
-from src.core.modules.project_management.application.resources.resource_master_events import (
+from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
     ResourceMasterChanged,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext

@@ -608,7 +608,7 @@ class TaskAssignmentMixin:
         task_end = getattr(task, "end_date", None)
         if not task_start or not task_end:
             return None
-        from src.core.modules.project_management.application.resources.task_assignment_capacity_service import (
+        from src.core.modules.project_management.application.resources.capacity.task_assignment_capacity_service import (
             evaluate_task_assignment_capacity,
         )
 

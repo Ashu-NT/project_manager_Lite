@@ -186,7 +186,7 @@ def _fake_channel():
 
 
 def _master_event(*, tenant_id="t1", organization_id="o1", resource_id, version=1, change_type):
-    from src.core.modules.project_management.application.resources.resource_master_events import (
+    from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
         ResourceMasterChanged,
     )
 
@@ -197,7 +197,7 @@ def _master_event(*, tenant_id="t1", organization_id="o1", resource_id, version=
 
 
 def _capability_event(*, tenant_id="t1", organization_id="o1", resource_id, child_id, child_version=1, change_type):
-    from src.core.modules.project_management.application.resources.resource_capability_events import (
+    from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
         ResourceCapabilityChanged,
     )
 
@@ -212,7 +212,7 @@ def test_two_resources_same_org_same_transaction_produce_one_resource_list_hint(
     from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
         build_resource_list_view_invalidation_handler,
     )
-    from src.core.modules.project_management.application.resources.resource_master_events import (
+    from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
         ResourceMasterChangeType,
     )
     from src.core.shared.events.domain_event_context import DomainEventContext
@@ -238,7 +238,7 @@ def test_two_resources_different_organizations_same_correlation_id_produce_two_r
     from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
         build_resource_list_view_invalidation_handler,
     )
-    from src.core.modules.project_management.application.resources.resource_master_events import (
+    from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
         ResourceMasterChangeType,
     )
     from src.core.shared.events.domain_event_context import DomainEventContext
@@ -264,7 +264,7 @@ def test_same_resource_repeated_same_transaction_produces_one_capability_hint():
     from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
         build_resource_capabilities_view_invalidation_handler,
     )
-    from src.core.modules.project_management.application.resources.resource_capability_events import (
+    from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
         ResourceCapabilityChangeType,
     )
     from src.core.shared.events.domain_event_context import DomainEventContext
@@ -289,7 +289,7 @@ def test_two_resources_same_transaction_produce_two_capability_hints():
     from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
         build_resource_capabilities_view_invalidation_handler,
     )
-    from src.core.modules.project_management.application.resources.resource_capability_events import (
+    from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
         ResourceCapabilityChangeType,
     )
     from src.core.shared.events.domain_event_context import DomainEventContext

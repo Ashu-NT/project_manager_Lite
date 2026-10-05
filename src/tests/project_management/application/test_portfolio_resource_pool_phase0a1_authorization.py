@@ -15,7 +15,7 @@ import pytest
 from src.core.modules.project_management.api.desktop.portfolio.builders.capacity_pool_builder import (
     build_capacity_pool,
 )
-from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
+from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
     PortfolioResourcePoolService,
 )
 from src.core.modules.project_management.contracts.reads.portfolio.models.resource_pool_facts import (

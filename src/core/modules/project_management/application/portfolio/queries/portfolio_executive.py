@@ -7,7 +7,7 @@ from decimal import Decimal
 from src.core.modules.project_management.application.common.pagination import (
     PaginatedResult,
 )
-from src.core.modules.project_management.application.resources.resource_load_engine import (
+from src.core.modules.project_management.application.resources.capacity.resource_load_engine import (
     ResourceLoadEngine,
 )
 from src.core.modules.project_management.application.scheduling.calendars.working_day_snapshot import (

@@ -163,33 +163,33 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
-from src.core.modules.project_management.application.resources.assignment_validation import (
+from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
+    EnterpriseResourceAvailabilityService,
+)
+from src.core.modules.project_management.application.resources.capacity.resource_capacity_calculator import (
+    ResourceCapacityCalculator,
+)
+from src.core.modules.project_management.application.resources.capacity.resource_workload_service import (
+    ResourceWorkloadService,
+)
+from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
+    ResourceCapabilityChanged,
+)
+from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
+    ResourceMasterChanged,
 )
 from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
     build_resource_capabilities_view_invalidation_handler,
     build_resource_list_view_invalidation_handler,
 )
-from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
+from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
     PortfolioResourcePoolService,
 )
-from src.core.modules.project_management.application.resources.project_resource_events import (
+from src.core.modules.project_management.application.resources.project_resources.project_resource_events import (
     ProjectResourceAssignmentChanged,
-)
-from src.core.modules.project_management.application.resources.resource_capability_events import (
-    ResourceCapabilityChanged,
-)
-from src.core.modules.project_management.application.resources.resource_capacity_calculator import (
-    ResourceCapacityCalculator,
-)
-from src.core.modules.project_management.application.resources.resource_master_events import (
-    ResourceMasterChanged,
-)
-from src.core.modules.project_management.application.resources.resource_workload_service import (
-    ResourceWorkloadService,
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.risk.event_handlers.view_invalidation import (

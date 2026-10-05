@@ -5,6 +5,9 @@ from dataclasses import replace
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.financials.accounting.status_capabilities import (
+    with_accounting_capabilities,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
     AccountingStatusFact,
     AccountingStatusQuery,
@@ -258,10 +261,6 @@ class InvoicingWorkspaceQueries:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view project Accounting outcomes"
         )
-        from src.core.modules.project_management.application.financials.accounting.status_capabilities import (
-            with_accounting_capabilities,
-        )
-
         page = self._billing_reader.list_accounting_statuses(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,

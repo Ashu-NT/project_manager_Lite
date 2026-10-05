@@ -11,7 +11,7 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
 from src.core.modules.project_management.application.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
 )
-from src.core.modules.project_management.application.resources.resource_load_engine import (
+from src.core.modules.project_management.application.resources.capacity.resource_load_engine import (
     ResourceLoadEngine,
 )
 from src.core.modules.project_management.application.scheduling.models.cpm import (

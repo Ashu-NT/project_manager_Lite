@@ -9,7 +9,7 @@ from typing import cast
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.modules.project_management.application.resources.resource_master_events import (
+from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
     build_resource_master_changed_for_employee_sync,
 )
 from src.core.modules.project_management.domain.resources.resource import Resource

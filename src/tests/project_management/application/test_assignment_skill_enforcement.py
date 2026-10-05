@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.modules.project_management.application.resources.assignment_validation import (
+from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentValidationResult,
     SkillViolation,
 )

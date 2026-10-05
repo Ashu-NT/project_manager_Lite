@@ -13,7 +13,7 @@ from src.core.modules.project_management.application.common import (
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
-from src.core.modules.project_management.application.resources.project_resource_events import (
+from src.core.modules.project_management.application.resources.project_resources.project_resource_events import (
     ProjectResourceAssignmentChanged,
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import (

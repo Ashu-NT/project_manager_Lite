@@ -56,7 +56,7 @@ from src.core.modules.project_management.application.reporting.builders.evm_seri
 from src.core.modules.project_management.application.reporting.builders.kpi import (
     ReportingKpiMixin,
 )
-from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
+from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
     PortfolioResourcePoolService,
 )
 from src.tests.path_rewrites import REPO_ROOT

@@ -6,7 +6,7 @@ from decimal import Decimal
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
-from src.core.modules.project_management.application.resources.resource_master_events import (
+from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
     ResourceMasterChanged,
     ResourceMasterChangeType,
 )

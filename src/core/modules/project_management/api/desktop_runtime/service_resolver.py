@@ -31,11 +31,11 @@ from src.core.modules.project_management.application.resources import (
     ResourceService,
     ResourceWorkloadService,
 )
-from src.core.modules.project_management.application.resources.assignment_validation import (
-    AssignmentSkillValidator,
-)
-from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
+from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
+)
+from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
+    AssignmentSkillValidator,
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import SchedulingEngine

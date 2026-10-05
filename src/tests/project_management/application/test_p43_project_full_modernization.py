@@ -16,7 +16,7 @@ from src.core.modules.project_management.application.projects.project_events imp
     ProjectRemoved,
     ProjectStatusChanged,
 )
-from src.core.modules.project_management.application.resources.project_resource_events import (
+from src.core.modules.project_management.application.resources.project_resources.project_resource_events import (
     ProjectResourceAssignmentChanged,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus

@@ -24,7 +24,7 @@ def test_project_service_is_orchestrator_only():
 def test_project_resource_service_is_orchestrator_only():
     service_path = (
         ROOT / "src" / "core" / "modules" / "project_management" / "application" / "resources"
-        / "project_resource_service.py"
+        / "project_resources" / "project_resource_service.py"
     )
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
@@ -54,7 +54,7 @@ def test_register_service_is_orchestrator_only():
 def test_resource_service_is_orchestrator_only():
     service_path = (
         ROOT / "src" / "core" / "modules" / "project_management" / "application" / "resources"
-        / "resource_service.py"
+        / "catalog" / "resource_service.py"
     )
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 

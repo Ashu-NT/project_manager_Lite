@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.resources.task_assignment_capacity_service import (
+from src.core.modules.project_management.application.resources.capacity.task_assignment_capacity_service import (
     CAPACITY_OVER_CAPACITY,
     evaluate_task_assignment_capacity,
 )

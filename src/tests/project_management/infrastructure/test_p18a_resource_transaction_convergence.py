@@ -10,11 +10,11 @@ from datetime import date
 
 import pytest
 
-from src.core.modules.project_management.application.resources.resource_capability_events import (
+from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
     ResourceCapabilityChanged,
     ResourceCapabilityChangeType,
 )
-from src.core.modules.project_management.application.resources.resource_master_events import (
+from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
     ResourceMasterChanged,
     ResourceMasterChangeType,
 )

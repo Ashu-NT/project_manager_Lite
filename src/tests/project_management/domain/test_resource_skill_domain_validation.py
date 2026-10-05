@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.modules.project_management.application.resources.resource_service import (
+from src.core.modules.project_management.application.resources.catalog.resource_service import (
     ResourceService,
 )
 from src.core.modules.project_management.domain.resources.skills import (

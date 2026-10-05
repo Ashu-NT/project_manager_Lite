@@ -55,20 +55,20 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
-from src.core.modules.project_management.application.resources.assignment_validation import (
-    AssignmentSkillValidator,
-)
-from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
+from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
 )
-from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
-    PortfolioResourcePoolService,
-)
-from src.core.modules.project_management.application.resources.resource_capacity_calculator import (
+from src.core.modules.project_management.application.resources.capacity.resource_capacity_calculator import (
     ResourceCapacityCalculator,
 )
-from src.core.modules.project_management.application.resources.resource_workload_service import (
+from src.core.modules.project_management.application.resources.capacity.resource_workload_service import (
     ResourceWorkloadService,
+)
+from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
+    AssignmentSkillValidator,
+)
+from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
+    PortfolioResourcePoolService,
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (

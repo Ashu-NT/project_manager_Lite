@@ -27,7 +27,7 @@ BURN_NEAR_PLAN = "NEAR_PLAN"
 BURN_OVERRUN = "OVERRUN"
 
 # Matches the existing 90%/"near capacity" threshold already established for
-# resource utilization bands (application/resources/resource_load_engine.py),
+# resource utilization bands (application/resources/capacity/resource_load_engine.py),
 # reused here rather than inventing a second arbitrary threshold.
 _NEAR_PLAN_THRESHOLD_PERCENT = 90.0
 

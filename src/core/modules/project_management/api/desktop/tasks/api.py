@@ -129,7 +129,7 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
-from src.core.modules.project_management.application.resources.assignment_validation import (
+from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
 )
 from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
