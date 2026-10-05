@@ -8,6 +8,9 @@ from src.core.modules.project_management.application.dashboard import DashboardS
 from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.reporting import (
+    ReportingService,
+)
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
@@ -24,9 +27,6 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
-)
-from src.core.modules.project_management.infrastructure.reporting import (
-    ReportingService,
 )
 from src.core.platform.access import AccessControlService
 from src.core.platform.application.approval.approval_service import ApprovalService

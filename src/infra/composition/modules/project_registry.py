@@ -156,6 +156,9 @@ from src.core.modules.project_management.application.projects.project_events imp
     ProjectRemoved,
     ProjectStatusChanged,
 )
+from src.core.modules.project_management.application.reporting import (
+    ReportingService,
+)
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
@@ -326,9 +329,6 @@ from src.core.modules.project_management.infrastructure.persistence.uow.scheduli
 from src.core.modules.project_management.infrastructure.persistence.uow.tasks.task_unit_of_work import (
     SqlAlchemyTaskUnitOfWorkFactory,
 )
-from src.core.modules.project_management.infrastructure.reporting import (
-    ReportingService,
-)
 from src.core.platform.access import ScopedRolePolicy
 from src.core.platform.application.finance.financial_period_service import (
     FinancialPeriodService,
@@ -370,6 +370,7 @@ from src.infra.composition.approval_apply_dependencies.task import (
 )
 from src.infra.composition.modules.platform_registry import PlatformServiceBundle
 from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkFactoryBase
 
 logger = logging.getLogger(__name__)
 
@@ -495,6 +496,11 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
+    shared_session_uow_factory = SqlAlchemyUnitOfWorkFactoryBase(
+        session_factory=lambda: session,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+    )
     _project_view_invalidation_handler = build_project_view_invalidation_handler(
         platform_services.platform_view_invalidation_channel
     )
@@ -522,8 +528,7 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
         uow_factory=project_uow_factory,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
+        shared_uow_factory=shared_session_uow_factory,
     )
 
     def _time_scope_organization_id(scope_type: str, scope_id: str) -> str | None:
@@ -580,8 +585,7 @@ def build_project_management_service_bundle(
         task_repo=repositories.task_repo,
         assignment_repo=repositories.assignment_repo,
         financial_profile_repo=repositories.project_financial_profile_repo,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
+        shared_uow_factory=shared_session_uow_factory,
     )
     register_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
     register_uow_factory = SqlAlchemyRegisterUnitOfWorkFactory(
@@ -850,7 +854,6 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
     )
     reporting_service = ReportingService(
-        session=session,
         project_repo=repositories.project_repo,
         task_repo=repositories.task_repo,
         resource_repo=repositories.resource_repo,

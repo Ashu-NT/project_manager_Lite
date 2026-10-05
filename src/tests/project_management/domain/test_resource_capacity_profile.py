@@ -141,3 +141,37 @@ def test_resource_load_summary_uses_peak_concurrent_allocation(services):
     assert row.total_allocation_percent == pytest.approx(60.0)
     assert row.utilization_percent == pytest.approx(60.0)
 
+
+def test_resource_load_summary_batches_resource_lookup(services, monkeypatch):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+    reporting = services["reporting_service"]
+
+    project = ps.create_project("Batched Resource Load", "")
+    task = ts.create_task(project.id, "Work", start_date=date(2024, 1, 2), duration_days=2)
+    resources = [rs.create_resource(f"Batch {index}", "Dev") for index in range(2)]
+    for resource in resources:
+        ts.assign_resource(task.id, resource.id, allocation_percent=25.0)
+
+    repository = reporting._resource_repo
+    original_list_by_ids = repository.list_by_ids
+    batches: list[tuple[str, ...]] = []
+
+    def list_by_ids(resource_ids):
+        batches.append(tuple(resource_ids))
+        return original_list_by_ids(resource_ids)
+
+    monkeypatch.setattr(repository, "list_by_ids", list_by_ids)
+    monkeypatch.setattr(
+        repository,
+        "get",
+        lambda _resource_id: pytest.fail("Resource load must not query per resource"),
+    )
+
+    rows = reporting.get_resource_load_summary(project.id)
+
+    assert {row.resource_id for row in rows} == {resource.id for resource in resources}
+    assert len(batches) == 1
+    assert set(batches[0]) == {resource.id for resource in resources}
+

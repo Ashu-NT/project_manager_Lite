@@ -13,7 +13,7 @@ from src.core.modules.project_management.application.financials.cost.engines.cos
 from src.core.modules.project_management.application.financials.models import (
     CostBreakdownRow,
 )
-from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
+from src.core.modules.project_management.application.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
 )
 

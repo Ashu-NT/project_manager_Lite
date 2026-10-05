@@ -33,7 +33,6 @@ from src.core.platform.application.security.authorization.enforcement.permission
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.shared.activity import record_activity
-from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 # Fields diffed for the project_resource.update/set_active activity entries,
 # in the order shown to the user.
@@ -81,12 +80,7 @@ class ProjectResourceCommandMixin:
         return DomainEventContext(correlation_id=generate_id())
 
     def _project_resource_uow(self):
-        return SqlAlchemyUnitOfWorkBase(
-            session=self._session,
-            transactional_dispatcher=self._transactional_dispatcher,
-            post_commit_bus=self._post_commit_bus,
-            context=self._new_context(),
-        )
+        return self._require_shared_uow_factory().create(context=self._new_context())
 
     def _record_assignment_changed(self, uow, project_id: str) -> None:
         scope = self._tenant_context_service.require_active_scope_ids(

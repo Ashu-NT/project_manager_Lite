@@ -10,7 +10,7 @@ from src.core.modules.project_management.application.financials.models import (
     EvmSeriesPoint,
 )
 from src.core.modules.project_management.infrastructure.reporting import (
-    api as reporting_api,
+    export_runtime as reporting_api,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 

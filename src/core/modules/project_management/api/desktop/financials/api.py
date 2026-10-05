@@ -181,6 +181,9 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernanceCommandBoundary,
     FinanceGovernedServicePort,
 )
+from src.core.modules.project_management.application.reporting import (
+    ReportingService,
+)
 from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
     CommercialMetricAvailability,
     CommercialMetricUnavailableReason,
@@ -229,10 +232,7 @@ from src.core.modules.project_management.contracts.reads.pagination import (
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpactType,
 )
-from src.core.modules.project_management.infrastructure.reporting import (
-    ReportingService,
-)
-from src.core.modules.project_management.infrastructure.reporting.api import (
+from src.core.modules.project_management.infrastructure.reporting.export_runtime import (
     generate_excel_report,
     generate_pdf_report,
 )

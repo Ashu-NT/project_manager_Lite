@@ -37,6 +37,7 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.persistence.unit_of_work import UnitOfWorkFactory
 
 
 class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, ProjectQueryMixin):
@@ -57,8 +58,7 @@ class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, P
         tenant_context_service: TenantContextService | None =None,
         project_catalog_reader: ProjectCatalogReader | None = None,
         uow_factory: ProjectUnitOfWorkFactory | None = None,
-        transactional_dispatcher=None,
-        post_commit_bus=None,
+        shared_uow_factory: UnitOfWorkFactory | None = None,
     ):
         self._session: Session = session
         self._project_repo: ProjectRepository = project_repo
@@ -73,8 +73,12 @@ class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, P
         self._tenant_context_service = tenant_context_service
         self._project_catalog_reader = project_catalog_reader
         self._uow_factory: ProjectUnitOfWorkFactory | None = uow_factory
-        self._transactional_dispatcher = transactional_dispatcher
-        self._post_commit_bus = post_commit_bus
+        self._shared_uow_factory = shared_uow_factory
+
+    def _require_shared_uow_factory(self) -> UnitOfWorkFactory:
+        if self._shared_uow_factory is None:
+            raise RuntimeError("Project write transaction factory is not configured.")
+        return self._shared_uow_factory
 
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)

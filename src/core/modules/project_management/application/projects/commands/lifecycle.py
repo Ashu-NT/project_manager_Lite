@@ -65,7 +65,6 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 logger = logging.getLogger(__name__)
 
@@ -654,12 +653,7 @@ class ProjectLifecycleMixin:
             operation_label="delete project"
         )
 
-        with SqlAlchemyUnitOfWorkBase(
-            session=self._session,
-            transactional_dispatcher=self._transactional_dispatcher,
-            post_commit_bus=self._post_commit_bus,
-            context=self._new_context(),
-        ) as uow:
+        with self._require_shared_uow_factory().create(context=self._new_context()) as uow:
             tasks = order_tasks_children_first(self._task_repo.list_by_project(project_id))
             for task in tasks:
                 self._dependency_repo.delete_for_task(task.id)

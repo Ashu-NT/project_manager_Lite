@@ -1,4 +1,4 @@
-"""Reporting API wrappers around renderer classes."""
+"""Concrete report rendering runtime used by desktop export adapters."""
 
 from __future__ import annotations
 
@@ -10,6 +10,9 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
     GanttTaskBar,
 )
 from src.core.modules.project_management.application.financials import FinanceService
+from src.core.modules.project_management.application.reporting.services.reporting_service import (
+    ReportingService,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
     ProjectFinanceLedgerQuery,
 )
@@ -29,9 +32,6 @@ from src.core.modules.project_management.infrastructure.reporting.models.context
     ExcelReportContext,
     PdfReportContext,
     ProjectFinanceLedgerExportPage,
-)
-from src.core.modules.project_management.infrastructure.reporting.services.reporting_service import (
-    ReportingService,
 )
 from src.core.modules.project_management.infrastructure.reporting.templates.definitions import (
     register_project_management_report_definitions,

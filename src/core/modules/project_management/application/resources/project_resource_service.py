@@ -25,6 +25,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     AssignmentRepository,
     TaskRepository,
 )
+from src.core.shared.persistence.unit_of_work import UnitOfWorkFactory
 
 
 class ProjectResourceService(
@@ -47,8 +48,7 @@ class ProjectResourceService(
         task_repo: TaskRepository | None = None,
         assignment_repo: AssignmentRepository | None = None,
         financial_profile_repo: ProjectFinancialProfileRepository | None = None,
-        transactional_dispatcher=None,
-        post_commit_bus=None,
+        shared_uow_factory: UnitOfWorkFactory | None = None,
     ):
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._resource_repo: ResourceRepository = resource_repo
@@ -63,8 +63,12 @@ class ProjectResourceService(
         self._task_repo: TaskRepository | None = task_repo
         self._assignment_repo: AssignmentRepository | None = assignment_repo
         self._financial_profile_repo = financial_profile_repo
-        self._transactional_dispatcher = transactional_dispatcher
-        self._post_commit_bus = post_commit_bus
+        self._shared_uow_factory = shared_uow_factory
+
+    def _require_shared_uow_factory(self) -> UnitOfWorkFactory:
+        if self._shared_uow_factory is None:
+            raise RuntimeError("Project resource write transaction factory is not configured.")
+        return self._shared_uow_factory
 
 
 __all__ = ["ProjectResourceService"]

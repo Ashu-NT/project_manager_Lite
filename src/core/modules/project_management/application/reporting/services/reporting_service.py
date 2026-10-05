@@ -1,12 +1,31 @@
 from __future__ import annotations
 
-from sqlalchemy.orm import Session
-
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.reporting.builders.baseline_compare import (
+    ReportingBaselineCompareMixin,
+)
+from src.core.modules.project_management.application.reporting.builders.cost_breakdown import (
+    ReportingCostBreakdownMixin,
+)
+from src.core.modules.project_management.application.reporting.builders.evm import (
+    ReportingEvmMixin,
+)
+from src.core.modules.project_management.application.reporting.builders.kpi import (
+    ReportingKpiMixin,
+)
+from src.core.modules.project_management.application.reporting.builders.labor import (
+    ReportingLaborMixin,
+)
+from src.core.modules.project_management.application.reporting.builders.profitability import (
+    ReportingProfitabilityMixin,
+)
+from src.core.modules.project_management.application.reporting.builders.variance import (
+    ReportingVarianceMixin,
 )
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import (
     SchedulingEngine,
@@ -40,34 +59,12 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     AssignmentRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.infrastructure.reporting.builders.baseline_compare import (
-    ReportingBaselineCompareMixin,
-)
-from src.core.modules.project_management.infrastructure.reporting.builders.cost_breakdown import (
-    ReportingCostBreakdownMixin,
-)
-from src.core.modules.project_management.infrastructure.reporting.builders.evm import (
-    ReportingEvmMixin,
-)
-from src.core.modules.project_management.infrastructure.reporting.builders.kpi import (
-    ReportingKpiMixin,
-)
-from src.core.modules.project_management.infrastructure.reporting.builders.labor import (
-    ReportingLaborMixin,
-)
-from src.core.modules.project_management.infrastructure.reporting.builders.profitability import (
-    ReportingProfitabilityMixin,
-)
-from src.core.modules.project_management.infrastructure.reporting.builders.variance import (
-    ReportingVarianceMixin,
-)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
-from src.core.platform.common.service_base import ServiceBase
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
@@ -82,11 +79,9 @@ class ReportingService(
     ReportingEvmMixin,
     ReportingLaborMixin,
     ReportingKpiMixin,
-    ServiceBase,
 ):
     def __init__(
         self,
-        session: Session,
         project_repo: ProjectRepository,
         task_repo: TaskRepository,
         resource_repo: ResourceRepository,
@@ -105,7 +100,6 @@ class ReportingService(
         user_session=None,
         module_catalog_service=None,
     ):
-        super().__init__(session)
         self._project_repo: ProjectRepository = project_repo
         self._task_repo: TaskRepository = task_repo
         self._resource_repo: ResourceRepository = resource_repo

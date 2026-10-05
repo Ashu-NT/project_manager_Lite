@@ -1,14 +1,19 @@
+"""Desktop import preview adapter over concrete file parsers."""
+
 from __future__ import annotations
 
-from src.core.modules.project_management.application.imports import (
-    CsvImportParser,
-    ImportValidationService,
-    ImportValidationSeverity,
+from src.core.modules.project_management.infrastructure.importers.scheduling.mpp.mpp_parser import (
     MSProjectXmlParser,
+)
+from src.core.modules.project_management.infrastructure.importers.scheduling.primavera.p6_parser import (
     P6Parser,
 )
-from src.ui_qml.modules.project_management.utils.file_paths import (
-    local_path_from_qml_file_url,
+from src.core.modules.project_management.infrastructure.importers.services.validation import (
+    ImportValidationService,
+    ImportValidationSeverity,
+)
+from src.core.modules.project_management.infrastructure.importers.utils.csv_parser import (
+    CsvImportParser,
 )
 
 _PARSERS = {
@@ -24,7 +29,6 @@ def preview_import(
     file_path: str,
     source_format: str,
 ) -> dict[str, object]:
-    normalized_path = local_path_from_qml_file_url(file_path)
     normalized_format = (source_format or "csv").strip().lower()
     parser_cls = _PARSERS.get(normalized_format)
     if parser_cls is None:
@@ -33,7 +37,7 @@ def preview_import(
             "Supported formats: csv, ms_project_xml, p6_xer."
         )
     try:
-        with open(normalized_path, "rb") as fh:
+        with open(file_path, "rb") as fh:
             source_bytes = fh.read()
     except OSError as exc:
         raise ValueError(f"Cannot read file: {exc}") from exc

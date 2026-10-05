@@ -48,6 +48,9 @@ from src.core.modules.project_management.application.financials.procurement_cons
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.reporting import (
+    ReportingService,
+)
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
@@ -79,9 +82,6 @@ from src.core.modules.project_management.application.timesheets import Timesheet
 from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
 )
-from src.core.modules.project_management.infrastructure.reporting import (
-    ReportingService,
-)
 from src.core.platform.access import AccessControlService
 from src.core.platform.api.desktop.notifications.notification import (
     PlatformNotificationDesktopApi,
@@ -89,9 +89,6 @@ from src.core.platform.api.desktop.notifications.notification import (
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.data_operations.runtime_tracking import (
     RuntimeExecutionService,
-)
-from src.core.platform.application.notifications.notification_service import (
-    NotificationService,
 )
 from src.core.platform.application.finance import FinancialPeriodService
 from src.core.platform.application.history.activity.activity_service import (
@@ -119,6 +116,9 @@ from src.core.platform.application.master_data.org.organization_service import (
 )
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.notifications.notification_service import (
+    NotificationService,
+)
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
 )

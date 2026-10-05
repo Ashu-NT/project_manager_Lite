@@ -26,7 +26,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.proje
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.infrastructure.reporting import (
-    api as reporting_api,
+    export_runtime as reporting_api,
 )
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
     MAX_PROJECT_FINANCE_LEDGER_EXPORT_ROWS,
@@ -127,7 +127,7 @@ def test_pdf_export_succeeds_when_gantt_generation_fails(services, tmp_path, mon
     def _raise_gantt(*_args, **_kwargs):
         raise ValueError("No tasks with dates available for Gantt chart.")
 
-    monkeypatch.setattr("src.core.modules.project_management.infrastructure.reporting.api.generate_gantt_png", _raise_gantt)
+    monkeypatch.setattr("src.core.modules.project_management.infrastructure.reporting.export_runtime.generate_gantt_png", _raise_gantt)
 
     output = tmp_path / "report.pdf"
     reporting_api.generate_pdf_report(

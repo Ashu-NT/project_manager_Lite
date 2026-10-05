@@ -14,7 +14,7 @@ from src.core.modules.project_management.application.financials.earned_value.can
 from src.core.modules.project_management.application.financials.models import (
     EarnedValueMetrics,
 )
-from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
+from src.core.modules.project_management.application.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
 )
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (

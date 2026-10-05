@@ -105,6 +105,9 @@ from src.core.modules.project_management.api.desktop.scheduling.services.schedul
     build_schedule_from_tasks,
 )
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.reporting import (
+    ReportingService,
+)
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
@@ -117,9 +120,6 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.infrastructure.reporting import (
-    ReportingService,
-)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )

@@ -22,6 +22,9 @@ from src.core.modules.project_management.application.financials.governance impor
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.reporting import (
+    ReportingService,
+)
 from src.core.modules.project_management.application.resources import (
     PortfolioResourcePoolService,
     ProjectResourceService,
@@ -41,9 +44,6 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.modules.project_management.infrastructure.reporting import (
-    ReportingService,
-)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )

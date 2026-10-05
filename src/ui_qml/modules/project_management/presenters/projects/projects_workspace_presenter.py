@@ -7,6 +7,10 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
     build_project_management_projects_desktop_api,
 )
+from src.core.modules.project_management.api.desktop.projects.import_preview import (
+    execute_import,
+    preview_import,
+)
 from src.core.modules.project_management.api.desktop.register import (
     ProjectManagementRegisterDesktopApi,
     build_project_management_register_desktop_api,
@@ -27,12 +31,14 @@ from src.ui_qml.modules.project_management.presenters.common.detail_table_pages 
     project_resources_page,
     project_tasks_page,
 )
+from src.ui_qml.modules.project_management.utils.file_paths import (
+    local_path_from_qml_file_url,
+)
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogWorkspaceViewModel,
 )
 
 from .activity_builder import build_project_activity_page
-from .import_handler import execute_import, preview_import
 from .project_command_handler import (
     bulk_set_project_status,
     create_project,
@@ -306,7 +312,9 @@ class ProjectProjectsWorkspacePresenter:
 
     def preview_import(self, *, file_path: str, source_format: str) -> dict[str, object]:
         return preview_import(
-            self._import_sessions, file_path=file_path, source_format=source_format
+            self._import_sessions,
+            file_path=local_path_from_qml_file_url(file_path),
+            source_format=source_format,
         )
 
     def execute_import(self, *, session_id: str) -> dict[str, object]:

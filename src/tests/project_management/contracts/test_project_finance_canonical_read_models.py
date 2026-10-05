@@ -24,7 +24,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.forecast
     ForecastLineORM,
 )
 from src.core.modules.project_management.infrastructure.reporting import (
-    api as reporting_api,
+    export_runtime as reporting_api,
 )
 from src.core.platform.common.exceptions import NotFoundError
 

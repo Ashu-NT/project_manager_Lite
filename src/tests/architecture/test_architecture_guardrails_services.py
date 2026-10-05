@@ -153,7 +153,7 @@ def test_main_qt_uses_qml_shell_entrypoint():
 def test_known_large_modules_have_growth_budgets():
     budgets = {
         **_LARGE_MODULE_BUDGETS,
-        "src/core/modules/project_management/infrastructure/reporting/services/reporting_service.py": 180,
+        "src/core/modules/project_management/application/reporting/services/reporting_service.py": 180,
         "src/core/modules/project_management/application/scheduling/services/scheduling_engine.py": 410,
         "src/core/modules/project_management/application/scheduling/cpm/passes.py": 260,
         "src/core/modules/project_management/application/resources/commands/project_resource_commands.py": 397,

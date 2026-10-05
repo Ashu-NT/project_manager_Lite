@@ -1,7 +1,1 @@
-"""Project management reporting adapters."""
-
-from src.core.modules.project_management.infrastructure.reporting.services.reporting_service import (
-    ReportingService,
-)
-
-__all__ = ["ReportingService"]
+"""Project reporting renderers and export adapters."""

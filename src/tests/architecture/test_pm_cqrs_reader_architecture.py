@@ -41,23 +41,23 @@ from src.core.modules.project_management.application.portfolio.queries.portfolio
 from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import (
     PortfolioScenarioQueryMixin,
 )
-from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
-    PortfolioResourcePoolService,
-)
-from src.core.modules.project_management.infrastructure.reporting.builders.cost_breakdown import (
+from src.core.modules.project_management.application.reporting.builders.cost_breakdown import (
     ReportingCostBreakdownMixin,
 )
-from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
+from src.core.modules.project_management.application.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
 )
-from src.core.modules.project_management.infrastructure.reporting.builders.evm_core import (
+from src.core.modules.project_management.application.reporting.builders.evm_core import (
     ReportingEvmCoreMixin,
 )
-from src.core.modules.project_management.infrastructure.reporting.builders.evm_series import (
+from src.core.modules.project_management.application.reporting.builders.evm_series import (
     ReportingEvmSeriesMixin,
 )
-from src.core.modules.project_management.infrastructure.reporting.builders.kpi import (
+from src.core.modules.project_management.application.reporting.builders.kpi import (
     ReportingKpiMixin,
+)
+from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
+    PortfolioResourcePoolService,
 )
 from src.tests.path_rewrites import REPO_ROOT
 
