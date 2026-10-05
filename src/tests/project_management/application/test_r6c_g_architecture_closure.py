@@ -94,10 +94,12 @@ def test_r6c_desktop_commands_are_typed_at_the_desktop_boundary() -> None:
 
 def test_r6c_approval_participants_have_one_apply_and_reject_registration() -> None:
     source = PROJECT_REGISTRY.read_text(encoding="utf-8")
+    assert source.count("approval_service.register_apply_handler(") == 1
+    assert "reviewer_permission=pm_reviewer_permission(request_type)" in source
     for process in ("budget.approve", "forecast.approve", "financial_change.apply"):
         assert len(
             re.findall(
-                rf'register_apply_handler\(\s*"{re.escape(process)}"',
+                rf'register_apply\(\s*"{re.escape(process)}"',
                 source,
             )
         ) == 1

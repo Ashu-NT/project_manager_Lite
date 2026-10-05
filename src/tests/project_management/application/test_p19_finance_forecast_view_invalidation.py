@@ -397,6 +397,11 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
     request = services["approval_service"].list_pending(project_id=project.id)[0]
 
     _login(services, "admin", "ChangeMe123!")
+    reviewer = _unique("p19-change-reviewer")
+    services["auth_service"].register_user(
+        reviewer, "StrongPass123", role_names=["approver"]
+    )
+    _login(services, reviewer, "StrongPass123")
     hints = _spy_hints(services)
     services["approval_service"].approve_and_apply(request.id, note="Authorized")
 

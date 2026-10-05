@@ -24,6 +24,14 @@ def _login(services, username: str, password: str):
     user_session.set_principal(auth.build_principal(user))
 
 
+def _login_eligible_reviewer(services):
+    _login(services, "admin", "ChangeMe123!")
+    services["auth_service"].register_user(
+        "leveling-reviewer", "StrongPass123", role_names=["approver"]
+    )
+    _login(services, "leveling-reviewer", "StrongPass123")
+
+
 def _snapshot(ts, project_id):
     tasks = select_leaf_tasks(ts._task_repo.list_by_project(project_id))
     tasks_by_id = {t.id: t for t in tasks}
@@ -85,7 +93,7 @@ class TestGovernanceParity:
         assert req.payload["schedule_fingerprint"] == proposal.schedule_fingerprint
         assert {m["task_id"] for m in req.payload["moves"]} == {m.task_id for m in proposal.moves}
 
-        _login(services, "admin", "ChangeMe123!")
+        _login_eligible_reviewer(services)
         approvals.approve_and_apply(req.id)
 
         assert ts.get_task(moved_task_id).resource_leveling_not_before == expected_start
@@ -134,6 +142,7 @@ class TestGovernanceParity:
         _login(services, "admin", "ChangeMe123!")
         ts.update_task(task_c.id, name="Renamed While Pending")
 
+        _login_eligible_reviewer(services)
         with pytest.raises(ConcurrencyError):
             approvals.approve_and_apply(req.id)
 

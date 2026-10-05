@@ -25,7 +25,9 @@ def _build_resource_timesheet(services):
         employee_code="R5F1-OWNER",
         full_name="Timesheet Owner",
         department_id=department.id,
-        user_id=principal.user_id,
+    )
+    services["employee_service"].link_employee_user_account(
+        employee.id, principal.user_id
     )
     resource = services["resource_service"].create_resource(
         name="Timesheet Owner",

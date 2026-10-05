@@ -968,15 +968,17 @@ def test_governed_approve_creates_request_and_actor_is_the_deciding_principal(
     requester_user_id = req.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
-    admin_user_id = services["user_session"].principal.user_id
+    auth.register_user("budget-reviewer", "StrongPass123", role_names=["approver"])
+    _login(services, "budget-reviewer", "StrongPass123")
+    reviewer_user_id = services["user_session"].principal.user_id
     approvals.approve_and_apply(req.id, note="Approved via governance")
 
     approved = budget_service.get_budget(budget.id)
     assert approved.status == BudgetStatus.APPROVED
-    # The deciding principal (admin) is recorded, never the requester —
+    # The deciding principal is recorded, never the requester.
     # the payload was written by budget-requester, but the actor sourced by
     # the apply handler must be whoever is deciding right now.
-    assert approved.approved_by == admin_user_id
+    assert approved.approved_by == reviewer_user_id
     assert approved.approved_by != requester_user_id
     assert approved.approval_notes == ""
 
@@ -1005,12 +1007,14 @@ def test_governed_reject_drives_domain_reject(services, monkeypatch) -> None:
     requester_user_id = req.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
-    admin_user_id = services["user_session"].principal.user_id
+    auth.register_user("budget-reject-reviewer", "StrongPass123", role_names=["approver"])
+    _login(services, "budget-reject-reviewer", "StrongPass123")
+    reviewer_user_id = services["user_session"].principal.user_id
     approvals.reject(req.id, note="Not this time")
 
     rejected = budget_service.get_budget(budget.id)
     assert rejected.status == BudgetStatus.REJECTED
-    assert rejected.rejected_by == admin_user_id
+    assert rejected.rejected_by == reviewer_user_id
     assert rejected.rejected_by != requester_user_id
 
 

@@ -351,6 +351,9 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     )
 
     preparation_service = services["billing_preparation_service"]
+    services["auth_service"].register_user(
+        "profit-billing-reviewer", "StrongPass123", role_names=["approver"]
+    )
     _register_and_login(services, "profit-billing-requester", role_names=["finance_controller"])
     preparation = preparation_service.create_preparation(
         project.id,
@@ -364,19 +367,19 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     )
     preparation = preparation_service.get_preparation(preparation.id)
 
-    # Submit as a distinct requester, then decide as the default admin
-    # session -- approve_and_apply forbids a principal deciding its own
-    # governance request.
+    # A distinct eligible reviewer decides the request.
     preparation_service.submit_preparation(
         preparation.id, expected_row_version=preparation.row_version
     )
     auth = services["auth_service"]
-    admin = auth.authenticate("admin", "ChangeMe123!")
-    services["user_session"].set_principal(auth.build_principal(admin))
+    reviewer = auth.authenticate("profit-billing-reviewer", "StrongPass123")
+    services["user_session"].set_principal(auth.build_principal(reviewer))
     request = services["approval_service"].list_pending(project_id=project.id)[0]
     services["approval_service"].approve_and_apply(request.id, note="Approved for delivery")
 
     approved = preparation_service.get_preparation(preparation.id)
+    admin = auth.authenticate("admin", "ChangeMe123!")
+    services["user_session"].set_principal(auth.build_principal(admin))
     preparation_service.request_delivery(
         approved.id, expected_row_version=approved.row_version
     )
@@ -436,13 +439,14 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
     preparation_service = services["billing_preparation_service"]
     auth = services["auth_service"]
     auth.register_user(
+        "profit-multi-reviewer", "StrongPass123", role_names=["approver"]
+    )
+    auth.register_user(
         "profit-multi-requester", "StrongPass123", role_names=["finance_controller"]
     )
 
     def _govern(preparation_number, line, idempotency_key):
-        # Create/add-source/submit as a distinct requester, then decide as
-        # the default admin session -- approve_and_apply forbids a
-        # principal deciding its own governance request.
+        # Create/add-source/submit as a requester, then use a distinct reviewer.
         requester = auth.authenticate("profit-multi-requester", "StrongPass123")
         services["user_session"].set_principal(auth.build_principal(requester))
         preparation = preparation_service.create_preparation(
@@ -459,8 +463,8 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
         preparation_service.submit_preparation(
             preparation.id, expected_row_version=preparation.row_version
         )
-        admin = auth.authenticate("admin", "ChangeMe123!")
-        services["user_session"].set_principal(auth.build_principal(admin))
+        reviewer = auth.authenticate("profit-multi-reviewer", "StrongPass123")
+        services["user_session"].set_principal(auth.build_principal(reviewer))
         request = services["approval_service"].list_pending(project_id=project.id)[-1]
         services["approval_service"].approve_and_apply(request.id, note="Approved")
         return preparation_service.get_preparation(preparation.id)

@@ -21,6 +21,14 @@ def _login(services, username: str, password: str):
     user_session.set_principal(auth.build_principal(user))
 
 
+def _login_eligible_reviewer(services):
+    _login(services, "admin", "ChangeMe123!")
+    services["auth_service"].register_user(
+        "constraint-reviewer", "StrongPass123", role_names=["approver"]
+    )
+    _login(services, "constraint-reviewer", "StrongPass123")
+
+
 def _make_task(services, *, start_date=date(2026, 9, 1), duration_days=3):
     ps = services["project_service"]
     ts = services["task_service"]
@@ -149,7 +157,7 @@ class TestGovernanceParity:
         assert req.payload["constraint_date"] == "2026-09-18"
         assert req.payload["expected_version"] == task.version
 
-        _login(services, "admin", "ChangeMe123!")
+        _login_eligible_reviewer(services)
         approvals.approve_and_apply(req.id)
 
         assert ts.get_task(task.id).constraint_type is ConstraintType.MUST_START_ON
@@ -201,6 +209,7 @@ class TestGovernanceParity:
         ts.update_task(task.id, name="Renamed While Pending", expected_version=task.version)
         assert ts.get_task(task.id).version == 2
 
+        _login_eligible_reviewer(services)
         with pytest.raises(ConcurrencyError):
             approvals.approve_and_apply(req.id)
 

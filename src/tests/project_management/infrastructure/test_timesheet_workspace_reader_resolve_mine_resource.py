@@ -38,8 +38,8 @@ def test_resolve_mine_resource_still_resolves_a_time_reporting_eligible_resource
         employee_code="EMP-TS-1",
         full_name="Timesheet Owner",
         department_id=department.id,
-        user_id=user.id,
     )
+    services["employee_service"].link_employee_user_account(employee.id, user.id)
     resource = services["resource_service"].create_resource(
         "Timesheet Owner Resource",
         worker_type=WorkerType.EMPLOYEE,
@@ -72,8 +72,8 @@ def test_resolve_mine_resource_still_excludes_a_time_reporting_ineligible_resour
         employee_code="EMP-TS-2",
         full_name="Equipment Owner Two",
         department_id=department.id,
-        user_id=user.id,
     )
+    services["employee_service"].link_employee_user_account(employee.id, user.id)
     services["resource_service"].create_resource(
         "Owned Equipment Two",
         worker_type=WorkerType.EMPLOYEE,

@@ -336,6 +336,10 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
         project_id=change_project.id
     )[0]
     _login(services, "admin", "ChangeMe123!")
+    services["auth_service"].register_user(
+        "sql-change-reviewer", "StrongPass123", role_names=["approver"]
+    )
+    _login(services, "sql-change-reviewer", "StrongPass123")
     _, counts["change.decision_apply"] = _measure(
         engine,
         lambda: services["approval_service"].approve_and_apply(approval.id),

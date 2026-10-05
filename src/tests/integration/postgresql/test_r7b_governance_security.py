@@ -2,6 +2,7 @@
 
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from threading import Event, Thread
 from types import SimpleNamespace
 
 import pytest
@@ -821,6 +822,85 @@ def test_reply_parent_lock_targets_comment_row_on_postgresql(
         assert parent is not None and parent.body == "Parent"
         assert len(statements) == 1
         assert "FOR UPDATE OF task_comments" in statements[0]
+
+
+def test_reply_parent_lock_serializes_competing_delete(
+    postgres_test_environment, governance_rows
+):
+    from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
+        SqlAlchemyTaskCommentRepository,
+    )
+
+    parent_id = "r7e-locked-parent"
+    reply_id = "r7e-locked-reply"
+    started = Event()
+    finished = Event()
+    failures = []
+
+    def delete_parent() -> None:
+        try:
+            with runtime(postgres_test_environment) as session:
+                started.set()
+                session.execute(
+                    text(
+                        "UPDATE task_comments SET deleted_at=CURRENT_TIMESTAMP, "
+                        "version=version+1 WHERE id=:id"
+                    ),
+                    {"id": parent_id},
+                )
+                session.commit()
+        except Exception as exc:
+            failures.append(exc)
+        finally:
+            finished.set()
+
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO task_comments (id, task_id, author_user_id, body, created_at) "
+                "VALUES (:id, 'r7a-task-a', 'r7b-reviewer', 'Parent evidence', CURRENT_TIMESTAMP)"
+            ),
+            {"id": parent_id},
+        )
+    worker = Thread(target=delete_parent, daemon=True)
+    try:
+        with runtime(postgres_test_environment) as session:
+            repo = SqlAlchemyTaskCommentRepository(session)
+            repo._tenant_context_service = _comments(session)._tenant_context_service
+            parent = repo.get_for_reply(parent_id)
+            assert parent is not None and not parent.is_deleted
+            worker.start()
+            assert started.wait(timeout=5)
+            assert not finished.wait(timeout=0.2)
+            session.execute(
+                text(
+                    "INSERT INTO task_comments "
+                    "(id, task_id, parent_comment_id, author_user_id, body, created_at) "
+                    "VALUES (:id, 'r7a-task-a', :parent_id, 'r7b-reviewer', "
+                    "'Reply before deletion', CURRENT_TIMESTAMP)"
+                ),
+                {"id": reply_id, "parent_id": parent_id},
+            )
+            session.commit()
+        worker.join(timeout=10)
+        assert finished.is_set() and not failures
+        with runtime(postgres_test_environment) as session:
+            parent = _comments(session).get_for_reply(parent_id)
+            assert parent is not None and parent.is_deleted
+            assert session.scalar(text(
+                "SELECT count(*) FROM task_comments WHERE id=:id AND parent_comment_id=:parent_id"
+            ), {"id": reply_id, "parent_id": parent_id}) == 1
+            page = SqlAlchemyCollaborationWorkspaceReader(session=session).read_task_comment_page(
+                tenant_id="r7a-tenant-a", organization_id="r7a-org-a",
+                task_id="r7a-task-a", page=1, page_size=25,
+            )
+            tombstone = next(item for item in page.items if item.id == parent_id)
+            assert tombstone.body == ""
+    finally:
+        worker.join(timeout=10) if worker.ident is not None else None
+        with postgres_test_environment.admin_engine.begin() as connection:
+            connection.execute(text("DELETE FROM task_comments WHERE id=:id"), {"id": reply_id})
+            connection.execute(text("DELETE FROM task_comments WHERE id=:id"), {"id": parent_id})
 
 
 def test_scope_change_cannot_move_comment_to_foreign_project(

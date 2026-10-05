@@ -37,6 +37,14 @@ def _login(services, username: str, password: str) -> None:
     )
 
 
+def _login_eligible_reviewer(services) -> None:
+    _login(services, "admin", "ChangeMe123!")
+    services["auth_service"].register_user(
+        "change-reviewer", "StrongPass123", role_names=["approver"]
+    )
+    _login(services, "change-reviewer", "StrongPass123")
+
+
 def _seed_approved_finance(services):
     project = services["project_service"].create_project(
         "Controlled Change Project", financial_currency_code="USD"
@@ -465,15 +473,15 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
     request = services["approval_service"].list_pending(project_id=project.id)[0]
     assert request.request_type == "financial_change.apply"
 
-    _login(services, "admin", "ChangeMe123!")
-    admin_id = services["user_session"].principal.user_id
+    _login_eligible_reviewer(services)
+    reviewer_id = services["user_session"].principal.user_id
     services["approval_service"].approve_and_apply(
         request.id, note="Authorized change"
     )
 
     applied = changes.get_change(change.id)
     assert applied.status is FinancialChangeStatus.APPLIED
-    assert applied.applied_by == admin_id
+    assert applied.applied_by == reviewer_id
     assert applied.applied_budget_id and applied.applied_budget_id != budget.id
     assert applied.applied_forecast_id and applied.applied_forecast_id != forecast.id
 
@@ -630,6 +638,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
         services["forecast_version_service"].list_forecasts(project.id)
     )
 
+    _login_eligible_reviewer(services)
     with pytest.raises(ConcurrencyError) as exc_info:
         services["approval_service"].approve_and_apply(approval.id)
 
@@ -693,7 +702,7 @@ def test_approved_schedule_change_uses_task_owner_command(services) -> None:
     )
     request = services["approval_service"].list_pending(project_id=project.id)[0]
 
-    _login(services, "admin", "ChangeMe123!")
+    _login_eligible_reviewer(services)
     services["approval_service"].approve_and_apply(request.id)
 
     applied = changes.get_change(change.id)
@@ -859,7 +868,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
     )
     request = services["approval_service"].list_pending(project_id=project.id)[0]
 
-    _login(services, "admin", "ChangeMe123!")
+    _login_eligible_reviewer(services)
     monkeypatch.setattr(
         FinancialChangeService,
         "_audit_change",
