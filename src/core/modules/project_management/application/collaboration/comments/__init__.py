@@ -1,1 +1,0 @@
-"""Comment application logic."""
