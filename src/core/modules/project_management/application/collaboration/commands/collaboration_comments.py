@@ -7,6 +7,8 @@ from collections.abc import Iterable
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
+from sqlalchemy.exc import IntegrityError
+
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
@@ -105,6 +107,11 @@ class CollaborationCommentCommandMixin:
                 raise NotFoundError(
                     "The comment you are replying to could not be found on this task.",
                     code="COLLABORATION_PARENT_COMMENT_NOT_FOUND",
+                )
+            if parent.is_deleted:
+                raise BusinessRuleError(
+                    "Cannot reply to a deleted comment.",
+                    code="COLLABORATION_PARENT_COMMENT_DELETED",
                 )
         text = normalize_task_comment_body(body)
         principal = (
@@ -254,7 +261,21 @@ class CollaborationCommentCommandMixin:
                         clock=self._clock,
                         link_role="reference",
                     )
-            uow.commit()
+            try:
+                uow.commit()
+            except IntegrityError:
+                if normalized_submission_id:
+                    existing = self._comment_repo.get(normalized_submission_id)
+                    if (
+                        existing is not None
+                        and existing.task_id == task_id
+                        and existing.author_user_id == principal_user_id
+                        and existing.submission_hash == submission_hash
+                    ):
+                        if comment.attachments and self._attachment_cleanup is not None:
+                            self._attachment_cleanup(comment.attachments)
+                        return existing
+                raise
         return comment
 
     def mark_task_mentions_read(self, task_id: str) -> None:
@@ -587,6 +608,8 @@ class CollaborationCommentCommandMixin:
             )
         reactions = {key: list(value) for key, value in comment.reactions.items()}
         reactors = set(reactions.get(emoji_key, []))
+        if principal_user_id in reactors:
+            return comment
         reactors.add(principal_user_id)
         reactions[emoji_key] = sorted(reactors)
         comment.reactions = reactions
@@ -622,6 +645,8 @@ class CollaborationCommentCommandMixin:
             )
         reactions = {key: list(value) for key, value in comment.reactions.items()}
         reactors = set(reactions.get(emoji_key, []))
+        if principal_user_id not in reactors:
+            return comment
         reactors.discard(principal_user_id)
         if reactors:
             reactions[emoji_key] = sorted(reactors)

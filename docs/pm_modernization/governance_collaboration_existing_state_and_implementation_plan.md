@@ -1112,7 +1112,19 @@ mark R7E complete or begin R7G/R8 on the current evidence.
   bounded 100-row batches inside the existing collaboration UoW. A 1,100-row
   regression proves three bounded selects for 101 mentions and no full-thread
   materialization. The expanded focused collaboration/domain selection passed
-  127 tests; the live PostgreSQL R7B/R7E security selection passed 37 tests.
+  127 tests.
+- Comment create now accepts a stable per-draft submission ID. The comment
+  primary key and immutable SHA-256 request fingerprint distinguish an exact
+  retry from a conflicting reused ID; two deliberate identical-text drafts
+  remain distinct. The desktop composer retains its ID through failure/retry.
+  Sequential replay and a simulated unique-key race each produce one comment.
+  A migration persists the fingerprint; no body-text deduplication is used.
+- `document_links` has moved from the intentional RLS exclusions to a forced
+  parent-scoped PostgreSQL policy. It verifies document tenant/org ownership
+  and, for PM comment links, the comment's task/project parent. Runtime-role
+  hostile document/comment-parent tests and the complete R7B/R7E PostgreSQL
+  selection passed **38 tests**. The expanded focused collaboration/domain
+  selection after replay passed **129 tests**.
 - R7E remains OPEN. The old production `list_comments` query method has been
   deleted and direct test assertions use the paged query; remaining test
   doubles need to follow the new contract. Complete remaining

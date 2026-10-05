@@ -210,6 +210,7 @@ AppWidgets.EntityDialog {
 
                 AppControls.TextField {
                     id: mentionSearch
+                    objectName: "taskMentionSearch"
                     Layout.fillWidth: true
                     placeholderText: "Search collaborators..."
                     onTextChanged: mentionSearchTimer.restart()
@@ -247,6 +248,7 @@ AppWidgets.EntityDialog {
 
                 AppControls.TextField {
                     id: documentSearch
+                    objectName: "taskDocumentSearch"
                     Layout.fillWidth: true
                     placeholderText: "Search documents..."
                     onTextChanged: documentSearchTimer.restart()

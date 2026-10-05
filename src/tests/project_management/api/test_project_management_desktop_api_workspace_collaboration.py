@@ -99,6 +99,7 @@ def test_project_management_collaboration_desktop_api_exposes_purpose_queries() 
             body="Please review the linked checklist with @planner.",
             attachments=("handover.txt",),
             linked_document_ids=("doc-2",),
+            submission_id="desktop-post-1",
         )
     )
 
@@ -333,6 +334,7 @@ class _FakeCollaborationService:
         attachments=(),
         linked_document_ids=(),
         parent_comment_id=None,
+        submission_id=None,
     ) -> SimpleNamespace:
         self.posted_comments.append(
             {
