@@ -16,6 +16,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "site.read": "View shared site directory records",
     "department.read": "View shared department directory records",
     "party.read": "View shared supplier, vendor, and contractor directory records",
+    "party.manage": "Create and edit shared supplier, vendor, and contractor directory records",
     "cost.read": "View costs",
     "project_cost.create": "Create canonical project cost-entry drafts",
     "project_cost.update_draft": "Update or delete canonical project cost-entry drafts",
@@ -301,6 +302,8 @@ _TENANT_ADMIN = {
     "auth.read",
     "auth.manage",
     "auth.role.assign",
+    "party.read",
+    "party.manage",
 }
 
 _ORG_ADMIN = {
@@ -312,6 +315,8 @@ _ORG_ADMIN = {
     "auth.read",
     "auth.manage",
     "auth.role.assign",
+    "party.read",
+    "party.manage",
 }
 
 _ORG_VIEWER = set(_VIEWER)
@@ -424,7 +429,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 11
+SYSTEM_ROLE_POLICY_VERSION = 12
 
 __all__ = [
     "DEFAULT_PERMISSIONS",

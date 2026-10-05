@@ -42,7 +42,7 @@ class PartyRollupSummaryDto:
 class PartyCreateCommand:
     party_code: str
     party_name: str
-    party_type: PartyType | str = PartyType.GENERAL
+    party_type: PartyType | str = PartyType.INDIVIDUAL
     legal_name: str = ""
     contact_name: str = ""
     email: str | None = None
