@@ -25,6 +25,7 @@ InspectorPanel 1.0 InspectorPanel.qml
 InfoTip 1.0 InfoTip.qml
 SectionScopedInlineMessage 1.0 SectionScopedInlineMessage.qml
 KpiStrip 1.0 KpiStrip.qml
+LabelValueRow 1.0 LabelValueRow.qml
 LazySectionLoader 1.0 LazySectionLoader.qml
 LazyObjectLoader 1.0 LazyObjectLoader.qml
 LoadingOverlay 1.0 LoadingOverlay.qml

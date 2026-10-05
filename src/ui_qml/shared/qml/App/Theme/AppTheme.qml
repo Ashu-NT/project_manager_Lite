@@ -148,19 +148,19 @@ QtObject {
     readonly property int sectionGap: spaciousDensity ? 20 : comfortableDensity ? 16 : 12
     readonly property int detailRailWidth: 220
 
+    // Inspector metadata
+    readonly property int inspectorLabelWidth: 110
+    readonly property int inspectorMetadataRowHeight:spaciousDensity ? 26: comfortableDensity ? 24: 20
+    readonly property int inspectorRowGap:spaciousDensity ? 4: comfortableDensity ? 3: 0
+    readonly property int inspectorGroupGap:spaciousDensity ? 16: comfortableDensity ? 14: 12
+
     readonly property int navRailExpandedWidth: detailRailWidth
     readonly property int navRailCollapsedWidth: 48
 
     readonly property int narrowLayoutBreakpoint: 1280
     readonly property int compactContentBreakpoint: 1024
 
-    // Global Overview responsive layout class -- a SEPARATE breakpoint set
-    // from the sidebar-collapse breakpoints above. Deliberately independent
-    // of density (AppTheme.densityMode): a standard-width window may still
-    // use compact density, and a compact-width window may still use
-    // comfortable density. Width/height in these calculations are the
-    // top-level window's usable content area, not a post-nav-chrome page
-    // width.
+    // Global Overview responsive layout class
     readonly property int overviewNarrowWidthBreakpoint: 1024
     readonly property int overviewCompactWidthBreakpoint: 1440
     readonly property int overviewCompactHeightBreakpoint: 820
