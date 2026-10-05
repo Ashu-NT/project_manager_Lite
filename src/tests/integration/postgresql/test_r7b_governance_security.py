@@ -752,8 +752,9 @@ def _comments(session):
     return repo
 
 
+@pytest.mark.parametrize("mutation", ("edit", "reaction", "mention_read"))
 def test_stale_writer_cannot_resurrect_committed_tombstone(
-    postgres_test_environment, governance_rows
+    postgres_test_environment, governance_rows, mutation
 ):
     from src.core.modules.project_management.domain.collaboration import TaskComment
     from src.core.platform.common.exceptions import ConcurrencyError
@@ -776,7 +777,12 @@ def test_stale_writer_cannot_resurrect_committed_tombstone(
             deleted.deleted_at = datetime.now(timezone.utc)
             repo.update(deleted)
             deleting_session.commit()
-        stale.body = "Resurrected text"
+        if mutation == "edit":
+            stale.body = "Resurrected text"
+        elif mutation == "reaction":
+            stale.reactions = {"thumbs_up": ["r7b-reviewer"]}
+        else:
+            stale.read_by_user_ids = ["r7b-reviewer"]
         with pytest.raises(ConcurrencyError):
             stale_repo.update(stale)
         stale_session.rollback()

@@ -7,8 +7,9 @@ R7 itself is OPEN. R7B, R7C, and R7D are COMPLETE; implementation and verificati
 The approved R7C brief supersedes the original phase numbering: R7C is Action
 Center bounded reads/eligibility consistency. The original broader Approval
 lifecycle proposal is deferred, not implicitly certified by this closure.
-R7E is IN PROGRESS under the approved Task Collaboration / Mentions / Evidence
-Lifecycle brief. R7D closed durable Notifications; its old planned R7F
+R7E is COMPLETE under the approved Task Collaboration / Mentions / Evidence
+Lifecycle brief, with the unrelated Platform Party regression classified in the
+R7E closure evidence below. R7D closed durable Notifications; its old planned R7F
 notification phase must not be repeated.
 The R7A findings below are historical characterization, not current acceptance behavior.
 R5 and R6 remain CLOSED; their historical evidence is unchanged. R8 has not started.
@@ -1181,3 +1182,96 @@ mark R7E complete or begin R7G/R8 on the current evidence.
   affected Task QML lint passes without warnings. The dialog/context runtime
   selection still passes **8 tests** after that change. `git diff --check`
   passes; no commit was made by the agent.
+
+### R7E Final Closure - 2026-10-05
+
+**R7E COMPLETE. R7 remains OPEN; R7G is next, R7H follows, and R8 has not
+started.** R7B/C/D and R5/R6 remain closed. No future operational module was
+introduced. The agent did not make a commit; the team committed earlier R7E
+test changes independently during this continuation.
+
+The Task Detail discussion has one production read path: scoped SQL count and
+bounded newest-first page, with `(created_at DESC, id ASC)` tie-breaking,
+one-hop reply-author context, and batched linked-document lookup. The old
+whole-thread repository/read paths are absent. The 1,000-row SQLite and
+PostgreSQL cases establish adjacent-page stability and a fixed two-statement
+count/page shape; the page limit is 100. A task switch clears comment,
+mention, document, presence, selection, and pagination state, and late
+responses for the old task are rejected. The Task composer retains a stable
+submission ID across retry; equal-body deliberate submissions remain distinct.
+
+Comment edit/delete use explicit revision and CAS. A reply rechecks and locks
+its parent in the write transaction. Live PostgreSQL proves a competing
+deletion blocks behind that parent lock, and the resulting tombstone is
+redacted in the Reader. A committed deletion also defeats stale edit,
+reaction, and mention-read mutations through the same version-checked update
+path. Repeated reactions and already-read mentions are no-ops. Mention reads
+use bounded 100-row batches, not whole-thread loading.
+
+Mention search is a bounded, scoped effective-grant SQL projection over stable
+User identity and active membership; posting revalidates recipients. Presence
+uses `(task_id, user_id)` rather than display name, a fresh UoW, and forced
+parent-scoped RLS. It remains ephemeral presence, not work/time evidence.
+Physical attachments have distinct storage identities even for equal names;
+pre-commit failure removes staged files while post-commit publication failure
+retains committed evidence. Document-link RLS checks the document and PM
+comment/task/project parent independently. Deleted-comment reads do not expose
+body or linked evidence.
+
+#### Earlier 36-Failure Reconciliation
+
+The pre-repair PM run was **2,557 passed, 36 failed, 2 skipped**. The groups
+below account for all 36 failures. Each group passed its targeted rerun after
+repair and has no failing case in the final broad rerun. Counts denote the
+number of original failing test cases, not the whole file's test count.
+
+| Original failing test file/group | Cases | Classification and repair | Targeted / final result |
+| --- | ---: | --- | --- |
+| `test_apply_resource_leveling_plan_governance.py` | 2 | Stale admin-as-reviewer fixture; use a distinct eligible approver. | Passed / passed |
+| `test_dependency_concurrency_and_governance.py` | 2 | Same reviewer-grant fixture. | Passed / passed |
+| `test_p19_finance_forecast_view_invalidation.py` | 1 | Same reviewer-grant fixture. | Passed / passed |
+| `test_project_finance_budgets.py` | 2 | Separate eligible reviewer from requester; assert reviewer identity. | Passed / passed |
+| `test_project_finance_change_orders.py` | 6 | Use canonical scoped approver for decisions. | Passed / passed |
+| `test_project_finance_profitability_projection.py` | 2 | Eligible reviewer for preparation decision; restore requester for separate handoff permission. | Passed / passed |
+| `test_r6c_g_architecture_closure.py` | 1 | Guard expected old direct registration instead of the current permission-bearing wrapper. | Passed / passed |
+| `test_task_constraint_governance.py` | 2 | Same reviewer-grant fixture. | Passed / passed |
+| `test_r6c_f_sql_characterization.py` | 1 | Same reviewer-grant fixture. | Passed / passed |
+| Secondary-scope collaboration tests | 5 | Fixtures lacked User rows required by stable Presence FK. | Passed / passed |
+| `test_timesheet_workspace_reader_resolve_mine_resource.py` | 2 | Use canonical Employee-to-User link rather than removed `user_id` create arg. | Passed / passed |
+| `test_r5f1_resource_timesheets.py` | 5 | Same identity-link fixture; all 8 file tests passed targeted. | Passed / passed |
+| Task controller/UI collaboration tests | 5 | Fakes updated to bounded page/search/document and submission-ID contracts. | Passed / passed |
+
+Final broad PM/UI run from the repaired code worktree:
+**2,579 passed, 16 failed, 2 skipped in 13m53s**. The 16 remaining failures
+are a single, independently reproduced **unrelated Platform Party regression**
+in `test_p36_finance_commitment_full_modernization.py` (1),
+`test_project_commitments.py` (5), and
+`test_r6d_e_procurement_delivery.py` (10). All fail before their Finance
+assertions because `PartyService.create_party` passes
+`tax_registration_number` to `Party.create`, whose separately committed
+`cecf75803` domain signature now takes `registration_number` and
+`tax_identifier`; the service/mappers/ORM have not been migrated together.
+The failure reproduces with `test_project_commitments.py` alone (1 passed,
+then the same TypeError). This predates and is outside R7E collaboration; it
+must be repaired by the Platform Party owner, not masked by weakening reviewer
+eligibility or adding a compatibility alias. The full PM suite is therefore
+**not green** and is not represented as green R7E evidence.
+
+#### Final Integrated Evidence
+
+- Runtime PostgreSQL R7B/R7C/R7D suite: **69 passed**, including the new
+  reply/delete lock race and edit/reaction/mention-read stale-writer variants.
+  The fixture asserts `app_runtime` is LOGIN, NOSUPERUSER, NOBYPASSRLS, and
+  not table owner. Parent/child hostile scope, Presence, document-link,
+  approval-recipient, Action Center, and durable Notification RLS tests pass.
+- Non-PM R7C Action Center and R7D Notification service/controller selection:
+  **67 passed**. Architecture and migration guard selection: **178 passed**.
+  The focused R7E/Task UI/rollback/scope selection before the full run:
+  **88 passed**; those cases also passed in the full run.
+- Three touched Task collaboration QML files lint clean. Touched Python files
+  pass Ruff F/I and compilation; `git diff --check` passes. Repository-wide
+  Ruff is **not clean**: `ruff check --select F,I src --statistics` reports
+  **80 findings** (38 I001, 35 F841, 5 F401, 1 F811, 1 F821), outside the
+  touched-file selection. No unrelated global Ruff cleanup was attempted.
+- R7E retains one canonical comment read/write authority, no direct best-effort
+  Notification dispatch, no username-keyed Presence, and no R7G/R8 work.
