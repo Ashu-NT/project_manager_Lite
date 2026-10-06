@@ -1275,3 +1275,52 @@ eligibility or adding a compatibility alias. The full PM suite is therefore
   touched-file selection. No unrelated global Ruff cleanup was attempted.
 - R7E retains one canonical comment read/write authority, no direct best-effort
   Notification dispatch, no username-keyed Presence, and no R7G/R8 work.
+
+### R7G Execution Record (2026-10-06, In Progress)
+
+R7G is **not closed**. Activity, Enterprise Audit, module domain histories,
+integration evidence, Collaboration, Notification and Action Center remain
+distinct authorities; this increment changes neither Finance nor their storage
+ownership.
+
+- Explicit-organization Activity and Audit reads now require an active tenant,
+  an accessible organization, and the requested organization's scoped read
+  permission. The administrative path remains valid for newly created
+  organizations, and inactive/archived organization history remains readable
+  by an authorized principal. Active-organization recent reads use the same
+  scoped authorization. A scoped member lacking `audit.read` cannot view
+  Audit merely by leaving that organization active.
+- Audit recent reads fail closed when active organization context is absent;
+  they no longer fall back to a broad unscoped repository list. Activity recent
+  and page reads and Audit recent reads are SQL-bounded with hard limits and
+  deterministic `(timestamp DESC, id DESC)` ordering. Activity page counts
+  remain SQL counts, not Python materialization.
+- On PostgreSQL, Activity is tenant-and-organization RLS protected. A
+  service-authorized explicit organization history read temporarily applies
+  that organization to the transaction-local RLS setting, suppresses autoflush
+  during the read and restores the previous setting. The runtime-role test
+  confirms raw SQL cannot see the other organization before or after the
+  read, while the authorized bounded read can. Audit retains its intentional
+  nullable-tenant classification: current-tenant and platform-scoped evidence
+  are RLS-visible, but foreign-tenant evidence is not. Application Audit
+  reads additionally require an authorized organization; raw RLS visibility
+  is not an application permission grant.
+- Non-human Audit records no longer borrow the interactive session's username
+  or display name. An explicit different human actor ID also does not borrow
+  the signed-in user's name. Existing persisted actor types are retained; a
+  typed cross-surface actor presentation contract is **not yet implemented**.
+- Focused Activity/Audit/API/presenter/architecture selection: **48 passed**.
+  Live PostgreSQL runtime-role Activity/Audit RLS test: **1 passed**, including
+  no-context behavior and equal-timestamp ordering. Focused Audit actor and
+  ordering tests: **11 passed**. Touched production files pass targeted mypy.
+
+Remaining R7G closure work includes typed actor presentation/redaction,
+cross-surface target/deep-link behavior, error-versus-empty handling in
+Activity overview previews, representative-volume query/plan evidence,
+transaction ownership and post-commit invalidation/correlation proofs,
+retention decisions for every history family, relevant R7B/C/D/E regressions,
+broader PM classification, and final static/schema/QML gates. In particular,
+the existing overview Desktop Activity adapter still catches query/permission
+errors and returns an empty tuple; that must be corrected with a safe
+presenter/controller contract rather than allowing raw exceptions into QML.
+Do not mark R7G complete or start R7H until these are resolved.

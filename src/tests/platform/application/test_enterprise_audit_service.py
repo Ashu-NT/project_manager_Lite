@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from datetime import datetime, timezone
+
+from sqlalchemy import select, update
 
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
@@ -89,3 +91,69 @@ def test_enterprise_audit_severity_field_values(services):
     allowed_severities = {"low", "medium", "high", "critical"}
     for entry in entries:
         assert entry.severity in allowed_severities
+
+
+def test_service_audit_actor_does_not_borrow_interactive_user_identity(services):
+    audit = services["enterprise_audit_service"]
+    entry = audit.record(
+        operation="service_event",
+        entity_type="integration_delivery",
+        entity_id="delivery-1",
+        module="project_management",
+        actor_id="service-principal-1",
+        actor_type="service_principal",
+        commit=False,
+    )
+    assert entry.actor_id == "service-principal-1"
+    assert entry.actor_username is None
+    assert entry.actor_display_name is None
+
+
+def test_explicit_human_audit_actor_does_not_borrow_other_users_name(services):
+    audit = services["enterprise_audit_service"]
+    entry = audit.record(
+        operation="user_event",
+        entity_type="project",
+        entity_id="project-1",
+        module="project_management",
+        actor_id="another-user",
+        actor_type="user",
+        commit=False,
+    )
+    assert entry.actor_id == "another-user"
+    assert entry.actor_username is None
+    assert entry.actor_display_name is None
+
+
+def test_audit_recent_order_is_stable_when_timestamps_match(services):
+    organizations = services["organization_service"]
+    context = services["tenant_context_service"]
+    audit = services["enterprise_audit_service"]
+    org = organizations.create_organization(
+        organization_code="AUDIT-ORDER",
+        display_name="Audit Order",
+        timezone_name="UTC",
+        base_currency="USD",
+    )
+    context.set_active_organization(org.id)
+    entries = [
+        audit.record(
+            operation="update",
+            entity_type="organization",
+            entity_id=org.id,
+            module="platform",
+            organization_id=org.id,
+            commit=False,
+        )
+        for _ in range(2)
+    ]
+    services["session"].flush()
+    services["session"].execute(
+        update(AuditEntryORM)
+        .where(AuditEntryORM.id.in_([entry.id for entry in entries]))
+        .values(timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    )
+    ids = [entry.id for entry in audit.list_recent_for_organization_id(org.id)]
+    assert [entry_id for entry_id in ids if entry_id in {e.id for e in entries}] == sorted(
+        (entry.id for entry in entries), reverse=True
+    )

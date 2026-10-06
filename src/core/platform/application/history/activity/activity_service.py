@@ -131,6 +131,14 @@ class ActivityService:
             operation_label="view activity entries",
         )
         scope = self._require_scope(operation_label="list activity")
+        if not scope.organization_id:
+            raise BusinessRuleError(
+                "Active organization context is required for list activity.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        self._require_explicit_organization(
+            scope.organization_id, operation_label="list activity"
+        )
         return self._activity_repo.list_recent(
             limit=limit,
             tenant_id=scope.tenant_id,
@@ -165,6 +173,7 @@ class ActivityService:
             operation_label="view activity entries",
         )
         scope = self._require_scope(operation_label="list activity for organization")
+        self._require_explicit_organization(organization_id, operation_label="list activity")
         return self._activity_repo.list_recent(
             limit=limit,
             tenant_id=scope.tenant_id,
@@ -199,6 +208,7 @@ class ActivityService:
             operation_label="view activity entries",
         )
         scope = self._require_scope(operation_label="list activity for organization")
+        self._require_explicit_organization(organization_id, operation_label="list activity")
         normalized_page = max(1, page)
         normalized_page_size = (
             page_size if page_size in ACTIVITY_PAGE_SIZE_OPTIONS else _DEFAULT_ACTIVITY_PAGE_SIZE
@@ -240,6 +250,7 @@ class ActivityService:
             operation_label="view activity entries",
         )
         scope = self._require_scope(operation_label="list activity for entity")
+        self._require_explicit_organization(organization_id, operation_label="list activity")
         return self._activity_repo.list_recent(
             limit=limit,
             tenant_id=scope.tenant_id,
@@ -269,6 +280,7 @@ class ActivityService:
             operation_label="view activity entries",
         )
         scope = self._require_scope(operation_label="list activity for entity")
+        self._require_explicit_organization(organization_id, operation_label="list activity")
         normalized_page = max(1, page)
         normalized_page_size = (
             page_size if page_size in ACTIVITY_PAGE_SIZE_OPTIONS else _DEFAULT_ACTIVITY_PAGE_SIZE
@@ -299,6 +311,20 @@ class ActivityService:
             )
         return self._tenant_context_service.require_organization_context(
             operation_label=operation_label
+        )
+
+    def _require_explicit_organization(
+        self, organization_id: str, *, operation_label: str
+    ) -> None:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "ActivityService requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        self._tenant_context_service.require_history_organization_access(
+            organization_id,
+            operation_label=operation_label,
+            permission_codes=("settings.manage", "activity.read"),
         )
 
 

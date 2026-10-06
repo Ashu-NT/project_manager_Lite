@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from datetime import datetime
 
-from sqlalchemy import false, func, select
+from sqlalchemy import false, func, select, text
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -78,9 +79,8 @@ class SqlAlchemyActivityRepository(TenantScopedRepositorySupport, ActivityReposi
         elif organization_id is not None:
             # An explicit, different organization within the SAME tenant --
             # e.g. Organization Detail viewing an organization the caller
-            # hasn't switched their active context to. Tenant membership
-            # (not "is my active org") is the real authorization boundary;
-            # the service layer's permission check gates read access.
+            # hasn't switched their active context to. The service authorizes
+            # membership and scoped read permission before this query.
             stmt = select(ActivityEntryORM).where(
                 ActivityEntryORM.tenant_id == ctx.tenant_id,
                 ActivityEntryORM.organization_id == organization_id,
@@ -106,8 +106,11 @@ class SqlAlchemyActivityRepository(TenantScopedRepositorySupport, ActivityReposi
             stmt = stmt.where(ActivityEntryORM.parent_entity_id == parent_entity_id)
         if action_prefix is not None:
             stmt = stmt.where(ActivityEntryORM.action.startswith(action_prefix))
-        stmt = stmt.order_by(ActivityEntryORM.timestamp.desc()).limit(max(1, int(limit)))
-        rows = self.session.execute(stmt).scalars().all()
+        stmt = stmt.order_by(
+            ActivityEntryORM.timestamp.desc(), ActivityEntryORM.id.desc()
+        ).limit(min(200, max(1, int(limit))))
+        with self._history_read_scope(organization_id, ctx.organization_id, ctx.tenant_id):
+            rows = self.session.execute(stmt).scalars().all()
         return [activity_from_orm(row) for row in rows]
 
     def _scoped_statement(self, *, tenant_id: str | None, organization_id: str | None):
@@ -155,10 +158,6 @@ class SqlAlchemyActivityRepository(TenantScopedRepositorySupport, ActivityReposi
         if module is not None:
             base_stmt = base_stmt.where(ActivityEntryORM.module == module)
 
-        total = self.session.execute(
-            select(func.count()).select_from(base_stmt.subquery())
-        ).scalar_one()
-
         filtered_stmt = base_stmt
         if since is not None:
             filtered_stmt = filtered_stmt.where(ActivityEntryORM.timestamp >= since)
@@ -167,15 +166,59 @@ class SqlAlchemyActivityRepository(TenantScopedRepositorySupport, ActivityReposi
             pattern = f"%{normalized_search}%"
             filtered_stmt = filtered_stmt.where(ActivityEntryORM.human_message.ilike(pattern))
 
-        filtered_total = self.session.execute(
-            select(func.count()).select_from(filtered_stmt.subquery())
-        ).scalar_one()
-
         offset = max(0, (page - 1) * page_size)
-        rows = self.session.execute(
-            filtered_stmt.order_by(ActivityEntryORM.timestamp.desc()).offset(offset).limit(page_size)
-        ).scalars().all()
+        ctx = self._context(operation_label="list activity page")
+        with self._history_read_scope(organization_id, ctx.organization_id, ctx.tenant_id):
+            total = self.session.execute(
+                select(func.count()).select_from(base_stmt.subquery())
+            ).scalar_one()
+            filtered_total = self.session.execute(
+                select(func.count()).select_from(filtered_stmt.subquery())
+            ).scalar_one()
+            rows = self.session.execute(
+                filtered_stmt.order_by(
+                    ActivityEntryORM.timestamp.desc(), ActivityEntryORM.id.desc()
+                ).offset(offset).limit(min(100, max(1, page_size)))
+            ).scalars().all()
         return [activity_from_orm(row) for row in rows], total, filtered_total
+
+    @contextmanager
+    def _history_read_scope(
+        self, organization_id: str | None, active_organization_id: str, tenant_id: str
+    ) -> Iterator[None]:
+        if organization_id is None or organization_id == active_organization_id:
+            yield
+            return
+        connection = self.session.connection()
+        if connection.dialect.name != "postgresql":
+            yield
+            return
+        current_tenant, original_organization = connection.execute(
+            text(
+                "SELECT current_setting('app.tenant_id', true), "
+                "current_setting('app.organization_id', true)"
+            )
+        ).one()
+        if current_tenant != tenant_id or original_organization != active_organization_id:
+            raise BusinessRuleError(
+                "Activity RLS context does not match the active scope.",
+                code="TENANT_SCOPE_VIOLATION",
+            )
+        # The application service has already authorized the explicit organization.
+        # Change only the transaction-local RLS organization for this bounded read.
+        with self.session.no_autoflush:
+            connection.execute(
+                text("SELECT set_config('app.organization_id', :organization_id, true)"),
+                {"organization_id": organization_id},
+            )
+            try:
+                yield
+            finally:
+                if self.session.is_active:
+                    connection.execute(
+                        text("SELECT set_config('app.organization_id', :organization_id, true)"),
+                        {"organization_id": original_organization},
+                    )
 
 
 __all__ = ["SqlAlchemyActivityRepository"]
