@@ -16,6 +16,7 @@ from sqlalchemy import (
     Text,
     Time,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -304,6 +305,17 @@ class SiteCalendarAssignmentORM(Base):
 
 Index("idx_site_cal_assign_site", SiteCalendarAssignmentORM.site_id)
 Index("idx_site_cal_assign_cal", SiteCalendarAssignmentORM.calendar_id)
+# Defense-in-depth for the common case (no effective_from/effective_to set
+# at all): at most one fully-unbounded assignment per site. Date-bounded
+# overlap (scheduled future/historical replacement assignments, which are
+# intentionally supported 
+Index(
+    "ux_site_cal_assign_unbounded",
+    SiteCalendarAssignmentORM.site_id,
+    unique=True,
+    sqlite_where=text("effective_from IS NULL AND effective_to IS NULL"),
+    postgresql_where=text("effective_from IS NULL AND effective_to IS NULL"),
+)
 
 
 class DepartmentCalendarAssignmentORM(Base):
@@ -332,6 +344,13 @@ class DepartmentCalendarAssignmentORM(Base):
 
 Index("idx_dept_cal_assign_dept", DepartmentCalendarAssignmentORM.department_id)
 Index("idx_dept_cal_assign_cal", DepartmentCalendarAssignmentORM.calendar_id)
+Index(
+    "ux_dept_cal_assign_unbounded",
+    DepartmentCalendarAssignmentORM.department_id,
+    unique=True,
+    sqlite_where=text("effective_from IS NULL AND effective_to IS NULL"),
+    postgresql_where=text("effective_from IS NULL AND effective_to IS NULL"),
+)
 
 
 class EmployeeCalendarAssignmentORM(Base):
@@ -360,6 +379,13 @@ class EmployeeCalendarAssignmentORM(Base):
 
 Index("idx_emp_cal_assign_emp", EmployeeCalendarAssignmentORM.employee_id)
 Index("idx_emp_cal_assign_cal", EmployeeCalendarAssignmentORM.calendar_id)
+Index(
+    "ux_emp_cal_assign_unbounded",
+    EmployeeCalendarAssignmentORM.employee_id,
+    unique=True,
+    sqlite_where=text("effective_from IS NULL AND effective_to IS NULL"),
+    postgresql_where=text("effective_from IS NULL AND effective_to IS NULL"),
+)
 
 
 __all__ = [

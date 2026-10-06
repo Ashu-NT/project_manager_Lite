@@ -40,7 +40,7 @@ class WorkingRuleService:
         self._on_calendar_data_changed = on_calendar_data_changed
 
     def list_rules(self, calendar_id: str) -> list[CalendarWorkingRule]:
-        require_permission(self._user_session, "task.read", operation_label="list working rules")
+        require_permission(self._user_session, "calendar.read", operation_label="list working rules")
         self._require_calendar(calendar_id)
         return self._rule_repo.list_for_calendar(calendar_id)
 
@@ -63,7 +63,7 @@ class WorkingRuleService:
         commit: bool = True,
     ) -> CalendarWorkingRule:
         require_permission(
-            self._user_session, "task.manage", operation_label="save working rule"
+            self._user_session, "calendar.manage", operation_label="save working rule"
         )
         candidate = CalendarWorkingRule.create(
             calendar_id=calendar_id,
@@ -113,7 +113,7 @@ class WorkingRuleService:
 
     def delete_rule(self, rule_id: str) -> None:
         require_permission(
-            self._user_session, "task.manage", operation_label="delete working rule"
+            self._user_session, "calendar.manage", operation_label="delete working rule"
         )
         rule = self._rule_repo.get(rule_id)
         if rule is None:
@@ -139,7 +139,7 @@ class WorkingRuleService:
         `save_rule` commits for what is a single logical "set up this
         calendar's working week" operation."""
         require_permission(
-            self._user_session, "task.manage", operation_label="seed working rules"
+            self._user_session, "calendar.manage", operation_label="seed working rules"
         )
         self._require_calendar(calendar_id)
         self._validate_time_window(start_time, end_time)

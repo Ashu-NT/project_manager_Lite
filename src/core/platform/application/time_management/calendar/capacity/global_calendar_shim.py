@@ -126,5 +126,10 @@ class GlobalCalendarShim:
                 current += timedelta(days=1)
             return frozenset(working)
 
+    def business_today(self) -> date:
+        """"Today" in the organization's own configured business timezone,
+        not server-local time -- see EnterpriseCalendarResolver.business_today."""
+        return self._resolver.business_today()
+
 
 __all__ = ["GlobalCalendarShim"]

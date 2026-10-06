@@ -24,8 +24,41 @@ from src.core.platform.domain.time_management.calendar.enterprise_calendar impor
     CalendarRecurringEvent,
     CalendarWorkingRule,
 )
+from src.core.shared.time.business_date import business_today
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class EffectiveCalendarResolution:
+    """Identity result of resolution -- which calendar is actually in
+    effect, and the chain of internal source labels that produced it --
+    distinct from ResolvedCalendarContext below (a capacity/hours result for
+    one date). This is the single source of truth for "effective calendar"
+    display (summary cards, Inspector, Detail Overview): never reimplement
+    the Site/Department/Employee fallback chain independently in a
+    presenter/controller -- call resolve_effective_calendar() instead."""
+
+    calendar_id: str
+    calendar_name: str
+    timezone: str
+    source_chain: list[str]
+
+    @property
+    def has_calendar(self) -> bool:
+        return bool(self.calendar_id)
+
+    @property
+    def source_label(self) -> str:
+        """The innermost (winning) chain entry, e.g. "GLOBAL", "SITE-ABC",
+        "EMP-XYZ" -- an internal label, never exposed to QML directly (see
+        calendar_summary_support.py for the canonical human-readable
+        translation)."""
+        return self.source_chain[-1] if self.source_chain else ""
+
+    @staticmethod
+    def empty() -> EffectiveCalendarResolution:
+        return EffectiveCalendarResolution(calendar_id="", calendar_name="", timezone="", source_chain=[])
 
 
 @dataclass
@@ -416,6 +449,55 @@ class EnterpriseCalendarResolver:
         )
         return [label for label, _ in chain]
 
+    def resolve_effective_calendar(
+        self,
+        *,
+        site_id: str | None = None,
+        department_id: str | None = None,
+        employee_id: str | None = None,
+        project_id: str | None = None,
+        resource_id: str | None = None,
+        worker_type: str | None = None,
+        at_date: date | None = None,
+    ) -> EffectiveCalendarResolution:
+        """The single source of truth for "which calendar is actually in
+        effect" -- the exact same chain-building `resolve_calendar_context`/
+        `get_source_chain` already use (same at_date-aware assignment
+        resolution, same priority/is_default tie-breaking), just returning
+        calendar identity instead of a capacity/hours result. Presenters
+        must call this rather than independently reimplementing the Site/
+        Department/Employee fallback."""
+        chain = self._build_chain(
+            site_id=site_id,
+            department_id=department_id,
+            employee_id=employee_id,
+            project_id=project_id,
+            resource_id=resource_id,
+            worker_type=worker_type,
+            at_date=at_date,
+        )
+        if not chain:
+            return EffectiveCalendarResolution.empty()
+        _winning_label, calendar_id = chain[-1]
+        calendar = self._calendar_repo.get(calendar_id)
+        return EffectiveCalendarResolution(
+            calendar_id=calendar_id,
+            calendar_name=calendar.name if calendar else "",
+            timezone=calendar.timezone if calendar else "",
+            source_chain=[label for label, _ in chain],
+        )
+
+    def business_today(self) -> date:
+        """"Today" in this organization's own configured business timezone
+        (its default calendar's timezone), not the server's local time.
+        Date-sensitive calendar resolution (which assignment/calendar is
+        "currently" effective) must use this instead of `date.today()` --
+        see src.core.shared.time.business_date for the underlying, generic
+        conversion every such caller shares."""
+        calendar = self._calendar_repo.get_global(self._org_id)
+        timezone_name = calendar.timezone if calendar else None
+        return business_today(timezone_name)
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -622,4 +704,4 @@ class EnterpriseCalendarResolver:
         return value[:12].upper()
 
 
-__all__ = ["EnterpriseCalendarResolver", "ResolvedCalendarContext"]
+__all__ = ["EffectiveCalendarResolution", "EnterpriseCalendarResolver", "ResolvedCalendarContext"]

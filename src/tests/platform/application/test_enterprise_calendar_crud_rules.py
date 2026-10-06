@@ -281,9 +281,27 @@ def test_delete_calendar_not_assigned(cal_service, org_id):
 
 
 def test_delete_calendar_blocked_if_assigned(cal_service, assignment_service, global_cal):
-    assignment_service.assign_site_calendar("site-x", global_cal.id)
+    # Deliberately NOT global_cal -- the organization's default calendar is
+    # blocked from deletion by its own, independent invariant (see
+    # test_delete_calendar_blocked_if_default below) regardless of whether
+    # it has any assignments. This test exercises the separate
+    # assignment-count guard, so it needs a non-default calendar.
+    cal = cal_service.create_calendar(
+        code="ASSIGNED", name="Assigned Calendar", calendar_type=CalendarType.SITE.value
+    )
+    assignment_service.assign_site_calendar("site-x", cal.id)
     with pytest.raises(BusinessRuleError, match="assigned"):
+        cal_service.delete_calendar(cal.id)
+
+
+def test_delete_calendar_blocked_if_default(cal_service, global_cal):
+    with pytest.raises(BusinessRuleError, match="default"):
         cal_service.delete_calendar(global_cal.id)
+
+
+def test_deactivate_calendar_blocked_if_default(cal_service, global_cal):
+    with pytest.raises(BusinessRuleError, match="default"):
+        cal_service.update_calendar(global_cal.id, is_active=False)
 
 
 def test_list_calendars_filtered_by_type(cal_service, global_cal, org_id):

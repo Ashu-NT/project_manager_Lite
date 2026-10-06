@@ -13,7 +13,12 @@ GLOBAL-type platform_calendars row is left untouched (including one a
 client has since edited -- this only ever fills a genuine gap, never
 overwrites). Seeds the same Mon-Fri 08:00-17:00 / 60-minute-break default
 working week EnterpriseCalendarService.ensure_global_calendar() seeds for a
-fresh install.
+fresh install, using each organization's own configured timezone rather
+than a hard-coded UTC (updated 2026-10-06 as part of Calendar backbone
+hardening -- the calendar's working-time interpretation is local to its
+own configured timezone, not UTC; verified zero existing rows in any
+environment this has run against so far, so this is a pure forward-looking
+fix, not a backfill-correction).
 """
 from collections.abc import Sequence
 from datetime import datetime, time, timezone
@@ -66,7 +71,7 @@ def upgrade() -> None:
 
     missing = connection.execute(
         sa.text(
-            "SELECT o.id, o.tenant_id FROM organizations o "
+            "SELECT o.id, o.tenant_id, o.timezone_name FROM organizations o "
             "LEFT JOIN platform_calendars c "
             "ON c.organization_id = o.id AND c.calendar_type = 'GLOBAL' "
             "WHERE c.id IS NULL"
@@ -74,7 +79,7 @@ def upgrade() -> None:
     ).fetchall()
 
     now = datetime.now(timezone.utc)
-    for organization_id, tenant_id in missing:
+    for organization_id, tenant_id, organization_timezone in missing:
         calendar_id = f"backfill-{uuid4().hex[:12]}"
         op.execute(
             calendars.insert().values(
@@ -85,7 +90,7 @@ def upgrade() -> None:
                 name="Global Calendar",
                 description="Organization-wide default working calendar.",
                 calendar_type="GLOBAL",
-                timezone="UTC",
+                timezone=organization_timezone or "UTC",
                 is_default=True,
                 is_active=True,
                 priority=0,

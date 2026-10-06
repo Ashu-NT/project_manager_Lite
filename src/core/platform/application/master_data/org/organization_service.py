@@ -129,7 +129,10 @@ def _add_default_calendar_rows(session: Session, organization: Organization) -> 
             name="Global Calendar",
             description="Organization-wide default working calendar.",
             calendar_type=CalendarType.GLOBAL.value,
-            timezone="UTC",
+            # Calendar working-time rules are interpreted in the calendar's
+            # configured business timezone. New organization calendars inherit
+            # the organization's timezone, falling back to UTC when unavailable.
+            timezone=organization.timezone_name or "UTC",
             is_default=True,
             is_active=True,
             priority=0,

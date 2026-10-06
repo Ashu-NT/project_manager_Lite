@@ -185,9 +185,16 @@ def build_memoizing_window_for_tasks(
             if isinstance(value, date):
                 known_dates.append(value)
 
-    today = date.today()
     if not known_dates:
-        known_dates = [today]
+        # No task carries any date to anchor the window on -- fall back to
+        # "today" in the calendar's own configured business timezone rather
+        # than the server's local time (see
+        # EnterpriseCalendarResolver.business_today). Calendars that don't
+        # expose business_today() (test doubles, minimal CalendarProtocol
+        # implementations) still work via the date.today() fallback; this
+        # value only ever seeds window padding, never a working-day fact.
+        business_today = getattr(real_calendar, "business_today", None)
+        known_dates = [business_today() if business_today else date.today()]
 
     # Generous calendar-day padding: search horizon (working days) can
     # roughly double in calendar days across weekends/holidays, plus a

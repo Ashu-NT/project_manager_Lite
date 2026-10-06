@@ -142,8 +142,10 @@ AppLayouts.WorkspaceFrame {
     readonly property bool _canManageSystemAccess: root.platformCatalog
         ? root.platformCatalog.hasPermission("employee.manage") && root.platformCatalog.hasPermission("auth.manage")
         : true
+    // Dual authorization: Calendar is a Platform capability (calendar.manage)
+    // assigned to an Employee target (employee.manage)
     readonly property bool _canManageCalendar: root.platformCatalog
-        ? root.platformCatalog.hasPermission("task.manage")
+        ? (root.platformCatalog.hasPermission("calendar.manage") && root.platformCatalog.hasPermission("employee.manage"))
         : true
 
     readonly property bool   busy: root.workspaceController ? root.workspaceController.isBusy          : false

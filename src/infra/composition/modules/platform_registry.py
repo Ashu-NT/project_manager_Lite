@@ -1189,6 +1189,7 @@ def build_platform_service_bundle(
         exception_repo=repositories.calendar_exception_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
+        activity_service=activity_service,
     )
 
     def _get_active_org_id() -> str:
@@ -1245,6 +1246,7 @@ def build_platform_service_bundle(
         project_assignment_repo=repositories.project_calendar_assignment_repo,
         resource_assignment_repo=repositories.resource_calendar_assignment_repo,
         user_session=user_session,
+        activity_service=activity_service,
     )
     global_calendar_shim = GlobalCalendarShim(resolver=enterprise_calendar_resolver)
     # Bootstrap global calendar for the currently-active organization only --

@@ -61,14 +61,14 @@ class ShiftPatternService:
         self, *, active_only: bool | None = None
     ) -> list[ShiftPattern]:
         require_permission(
-            self._user_session, "task.read", operation_label="list shift patterns"
+            self._user_session, "calendar.read", operation_label="list shift patterns"
         )
         org_id = self._active_org_id()
         return self._pattern_repo.list_for_organization(org_id, active_only=active_only)
 
     def get_shift_pattern(self, pattern_id: str) -> ShiftPattern:
         require_permission(
-            self._user_session, "task.read", operation_label="get shift pattern"
+            self._user_session, "calendar.read", operation_label="get shift pattern"
         )
         return self._require_pattern_in_active_organization(pattern_id)
 
@@ -84,7 +84,7 @@ class ShiftPatternService:
         anchor_date: date | None = None,
     ) -> ShiftPattern:
         require_permission(
-            self._user_session, "task.manage", operation_label="create shift pattern"
+            self._user_session, "calendar.manage", operation_label="create shift pattern"
         )
         org_id = self._active_org_id()
         pattern = ShiftPattern.create(
@@ -118,7 +118,7 @@ class ShiftPatternService:
         is_active: bool | None = None,
     ) -> ShiftPattern:
         require_permission(
-            self._user_session, "task.manage", operation_label="update shift pattern"
+            self._user_session, "calendar.manage", operation_label="update shift pattern"
         )
         pattern = self._require_pattern_in_active_organization(pattern_id)
 
@@ -144,7 +144,7 @@ class ShiftPatternService:
 
     def delete_shift_pattern(self, pattern_id: str) -> None:
         require_permission(
-            self._user_session, "task.manage", operation_label="delete shift pattern"
+            self._user_session, "calendar.manage", operation_label="delete shift pattern"
         )
         pattern = self._require_pattern_in_active_organization(pattern_id)
         self._pattern_repo.delete(pattern_id)
@@ -153,7 +153,7 @@ class ShiftPatternService:
 
     def list_days(self, pattern_id: str) -> list[ShiftPatternDay]:
         require_permission(
-            self._user_session, "task.read", operation_label="list shift pattern days"
+            self._user_session, "calendar.read", operation_label="list shift pattern days"
         )
         self._require_pattern_in_active_organization(pattern_id)
         return self._pattern_repo.list_days(pattern_id)
@@ -171,7 +171,7 @@ class ShiftPatternService:
         shift_label: str | None = None,
     ) -> ShiftPatternDay:
         require_permission(
-            self._user_session, "task.manage", operation_label="set shift pattern day"
+            self._user_session, "calendar.manage", operation_label="set shift pattern day"
         )
         self._require_pattern_in_active_organization(pattern_id)
 
@@ -192,7 +192,7 @@ class ShiftPatternService:
 
     def delete_day(self, day_id: str) -> None:
         require_permission(
-            self._user_session, "task.manage", operation_label="delete shift pattern day"
+            self._user_session, "calendar.manage", operation_label="delete shift pattern day"
         )
         self._pattern_repo.delete_day(day_id)
         self._session.commit()

@@ -13,6 +13,7 @@ from src.core.platform.api.desktop.time_management.calendar.models.enterprise_ca
     CalendarExceptionDto,
     CalendarUpdateCommand,
     DeptCalendarAssignCommand,
+    EffectiveCalendarDto,
     EmpCalendarAssignCommand,
     ExceptionCreateCommand,
     ExceptionUpdateCommand,
@@ -21,6 +22,7 @@ from src.core.platform.api.desktop.time_management.calendar.models.enterprise_ca
     RecurringEventDto,
     RecurringEventUpdateCommand,
     ResolveContextCommand,
+    ResolveEffectiveCalendarCommand,
     ResolvedContextDto,
     ResourceCalendarAssignCommand,
     ResourceCapacityCommand,
@@ -276,6 +278,10 @@ class EnterpriseCalendarDesktopApi:
         )
 
     def update_calendar(self, command: CalendarUpdateCommand) -> DesktopApiResult:
+        # is_default is deliberately not accepted here -- changing the
+        # organization's default calendar is an explicit, atomic operation
+        # (see set_organization_default_calendar below), never a field on
+        # this generic profile update.
         return execute_desktop_operation(
             lambda: _serialize_calendar(
                 self._calendar_service.update_calendar(
@@ -284,12 +290,18 @@ class EnterpriseCalendarDesktopApi:
                     description=command.description or None,
                     timezone=command.timezone or None,
                     locale=command.locale or None,
-                    is_default=command.is_default,
                     is_active=command.is_active,
                     effective_from=_parse_date(command.effective_from),
                     effective_to=_parse_date(command.effective_to),
                     priority=command.priority,
                 )
+            )
+        )
+
+    def set_organization_default_calendar(self, calendar_id: str) -> DesktopApiResult:
+        return execute_desktop_operation(
+            lambda: _serialize_calendar(
+                self._calendar_service.set_organization_default_calendar(calendar_id)
             )
         )
 
@@ -682,6 +694,48 @@ class EnterpriseCalendarDesktopApi:
 
         return execute_desktop_operation(_list)
 
+    def get_current_site_calendar_assignment(self, site_id: str) -> DesktopApiResult:
+        """The one assignment actually in effect today -- date-filtered and
+        priority-ordered the same way the resolver itself picks a winner
+        (CalendarAssignmentService.get_site_calendar), never a raw "first
+        row" from the unfiltered list. Returns ok=True with data=None when
+        there is no currently-effective direct assignment (not an error --
+        that's the normal "inherits from a higher level" case)."""
+        def _get():
+            assignment = self._assignment_service.get_site_calendar(
+                site_id, at_date=self._resolver.business_today()
+            )
+            if assignment is None:
+                return None
+            calendar = self._calendar_service.get_calendar(assignment.calendar_id)
+            return self._serialize_assignment(assignment, entity_type="site", calendar=calendar)
+
+        return execute_desktop_operation(_get)
+
+    def get_current_department_calendar_assignment(self, department_id: str) -> DesktopApiResult:
+        def _get():
+            assignment = self._assignment_service.get_department_calendar(
+                department_id, at_date=self._resolver.business_today()
+            )
+            if assignment is None:
+                return None
+            calendar = self._calendar_service.get_calendar(assignment.calendar_id)
+            return self._serialize_assignment(assignment, entity_type="department", calendar=calendar)
+
+        return execute_desktop_operation(_get)
+
+    def get_current_employee_calendar_assignment(self, employee_id: str) -> DesktopApiResult:
+        def _get():
+            assignment = self._assignment_service.get_employee_calendar(
+                employee_id, at_date=self._resolver.business_today()
+            )
+            if assignment is None:
+                return None
+            calendar = self._calendar_service.get_calendar(assignment.calendar_id)
+            return self._serialize_assignment(assignment, entity_type="employee", calendar=calendar)
+
+        return execute_desktop_operation(_get)
+
     def remove_assignment(self, assignment_id: str, assignment_type: str) -> DesktopApiResult:
         def _remove():
             t = assignment_type.lower()
@@ -769,6 +823,32 @@ class EnterpriseCalendarDesktopApi:
                 exceptions=ctx.exceptions,
                 working_start=_fmt_time(ctx.working_start),
                 working_end=_fmt_time(ctx.working_end),
+            )
+
+        return execute_desktop_operation(_resolve)
+
+    def resolve_effective_calendar(
+        self, command: ResolveEffectiveCalendarCommand
+    ) -> DesktopApiResult:
+        """The single read for "which calendar is actually in effect" --
+        Site/Department/Employee effective-calendar summary cards must call
+        this (never reimplement the fallback chain in a presenter)."""
+        def _resolve():
+            result = self._resolver.resolve_effective_calendar(
+                site_id=command.site_id or None,
+                department_id=command.department_id or None,
+                employee_id=command.employee_id or None,
+                project_id=command.project_id or None,
+                resource_id=command.resource_id or None,
+                worker_type=command.worker_type or None,
+                at_date=date.fromisoformat(command.at_date) if command.at_date else None,
+            )
+            return EffectiveCalendarDto(
+                has_calendar=result.has_calendar,
+                calendar_id=result.calendar_id,
+                calendar_name=result.calendar_name,
+                timezone=result.timezone,
+                source_chain=list(result.source_chain),
             )
 
         return execute_desktop_operation(_resolve)

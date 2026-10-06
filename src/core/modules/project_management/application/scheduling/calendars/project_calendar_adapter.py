@@ -50,6 +50,9 @@ class BoundProjectCalendar:
     def working_day_dates_between(self, start: date, end: date) -> frozenset[date]:
         return self._adapter.working_day_dates_between(self._project_id, start, end)
 
+    def business_today(self) -> date:
+        return self._adapter.business_today()
+
 
 class ProjectCalendarAdapter:
     """
@@ -204,6 +207,11 @@ class ProjectCalendarAdapter:
 
     def get_source_chain(self, project_id: str) -> list[str]:
         return self._resolver.get_source_chain(project_id=project_id)
+
+    def business_today(self) -> date:
+        """"Today" in the organization's own configured business timezone,
+        not server-local time -- see EnterpriseCalendarResolver.business_today."""
+        return self._resolver.business_today()
 
     def bind_for_project(self, project_id: str) -> BoundProjectCalendar | None:
         """

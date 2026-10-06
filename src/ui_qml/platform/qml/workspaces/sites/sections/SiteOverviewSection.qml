@@ -278,7 +278,11 @@ Column {
                             }
                             AppControls.Label {
                                 Layout.fillWidth: true
-                                text: root.calendarSummary.source === "override" ? "Site override" : "Inherited from Organization"
+                                // The backend now returns the final canonical
+                                // source wording directly (PlatformCalendarResolver
+                                // + canonical_source_label) -- never re-derive
+                                // it here from an internal value like "override".
+                                text: String(root.calendarSummary.source || "Inherited from Organization")
                                 color: Theme.AppTheme.textMuted
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere

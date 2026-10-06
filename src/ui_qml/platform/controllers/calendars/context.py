@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui_qml.platform.presenters.common.calendar_summary_support import (
+    canonical_source_label,
     holiday_set_label,
     working_week_label,
 )
@@ -121,30 +122,37 @@ def calendar_assignment_context(
 
     normalized_type = str(entity_type or "").strip().lower()
     normalized_id = str(entity_id or "").strip()
+    # The one assignment actually in effect today -- date-filtered and
+    # priority-ordered the same way the resolver itself picks a winner,
+    # never a raw "first row" from an unfiltered list (a future-dated or
+    # expired assignment could otherwise sort first and display wrong).
     assignment_result = None
     if normalized_type == "site":
-        assignment_result = controller._enterprise_calendar_api.list_site_calendar_assignments(
+        assignment_result = controller._enterprise_calendar_api.get_current_site_calendar_assignment(
             normalized_id
         )
         site_id = normalized_id
     elif normalized_type == "department":
         assignment_result = (
-            controller._enterprise_calendar_api.list_department_calendar_assignments(
+            controller._enterprise_calendar_api.get_current_department_calendar_assignment(
                 normalized_id
             )
         )
         department_id = normalized_id
     elif normalized_type == "employee":
         assignment_result = (
-            controller._enterprise_calendar_api.list_employee_calendar_assignments(
+            controller._enterprise_calendar_api.get_current_employee_calendar_assignment(
                 normalized_id
             )
         )
     else:
         return empty_calendar_assignment_context()
 
-    assignments = result_sequence(assignment_result)
-    selected_assignment = assignments[0] if assignments else None
+    selected_assignment = (
+        assignment_result.data
+        if assignment_result is not None and getattr(assignment_result, "ok", False)
+        else None
+    )
     source_chain = calendar_source_chain(
         controller,
         normalized_type=normalized_type,
@@ -158,90 +166,95 @@ def calendar_assignment_context(
     }
 
 
-def _empty_site_calendar_summary() -> dict[str, object]:
+def _empty_calendar_summary() -> dict[str, object]:
     return {
         "hasCalendar": False,
         "calendarId": "",
         "calendarName": "",
         "source": "",
+        "hasOverride": False,
         "workingWeekLabel": "No working days configured",
         "timeZone": "",
         "holidaySetLabel": "No holidays configured",
+    }
+
+
+def _effective_calendar_summary(
+    controller,
+    *,
+    own_prefix: str,
+    site_id: str = "",
+    department_id: str = "",
+    employee_id: str = "",
+) -> dict[str, object]:
+    """The one implementation every Site/Department/Employee calendar
+    summary calls -- never reimplement the Employee/Department/Site/
+    Organization fallback independently per entity. Delegates identity
+    resolution (which calendar, and the source chain that produced it) to
+    PlatformCalendarResolver via resolve_effective_calendar(); only the
+    display-ready working-week/holiday labels are fetched locally, for
+    whichever single calendar the resolver names as the winner."""
+    if controller._enterprise_calendar_api is None:
+        return _empty_calendar_summary()
+
+    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+        ResolveEffectiveCalendarCommand,
+    )
+
+    result = controller._enterprise_calendar_api.resolve_effective_calendar(
+        ResolveEffectiveCalendarCommand(
+            site_id=site_id,
+            department_id=department_id,
+            employee_id=employee_id,
+        )
+    )
+    if not getattr(result, "ok", False) or result.data is None or not result.data.has_calendar:
+        return _empty_calendar_summary()
+
+    resolution = result.data
+    working_rules = result_sequence(
+        controller._enterprise_calendar_api.list_working_rules(resolution.calendar_id)
+    )
+    working_weekdays = tuple(
+        sorted({int(rule.weekday) for rule in working_rules if getattr(rule, "is_working_day", False)})
+    )
+    exceptions = result_sequence(
+        controller._enterprise_calendar_api.list_exceptions(resolution.calendar_id)
+    )
+    holiday_count = sum(
+        1 for exc in exceptions if str(getattr(exc, "exception_type", "")).upper() == "HOLIDAY"
+    )
+    source_chain = list(resolution.source_chain or [])
+    winning_label = source_chain[-1] if source_chain else ""
+    winning_prefix = winning_label.split("-", 1)[0] if winning_label else ""
+    return {
+        "hasCalendar": True,
+        "calendarId": resolution.calendar_id,
+        "calendarName": resolution.calendar_name,
+        "source": canonical_source_label(winning_label, own_prefix=own_prefix),
+        # A clean boolean for UI conditional logic -- never string-match the
+        # display text in `source` (e.g. checking for the word "override")
+        # the way the old per-entity wording used to force callers to.
+        "hasOverride": winning_prefix == own_prefix,
+        "workingWeekLabel": working_week_label(working_weekdays),
+        "timeZone": resolution.timezone,
+        "holidaySetLabel": holiday_set_label("", holiday_count),
     }
 
 
 def site_calendar_summary(
     controller, site_id: str, organization_id: str
 ) -> dict[str, object]:
-    """The Site's effective calendar: its own direct assignment when one
-    exists ("override"), otherwise the Organization's default GLOBAL
-    calendar ("inherited") -- the same fallback
-    AdminCalendarAssignmentSection's inheritance chain already resolves,
-    pre-computed here into one display-ready summary (name + source +
-    working week + holiday count) instead of a raw assignment row, so the
-    UI never has to guess or hardcode a generic "Global calendar" fallback
-    label."""
+    """The Site's effective calendar: its own direct assignment ("Site
+    override") when one exists, otherwise the Organization's default
+    ("Inherited from Organization") -- resolved through the one canonical
+    resolver, never independently reimplemented here. `organization_id` is
+    accepted for call-site compatibility but is not needed: the resolver's
+    own GLOBAL-level lookup is already tenant/organization-scoped."""
     normalized_site_id = str(site_id or "").strip()
-    if not normalized_site_id or controller._enterprise_calendar_api is None:
-        return _empty_site_calendar_summary()
-
-    assignments = result_sequence(
-        controller._enterprise_calendar_api.list_site_calendar_assignments(normalized_site_id)
-    )
-    if assignments:
-        assignment = assignments[0]
-        calendar_id = str(getattr(assignment, "calendar_id", "") or "")
-        calendar_name = str(getattr(assignment, "calendar_name", "") or "")
-        timezone = ""
-        calendar_result = controller._enterprise_calendar_api.get_calendar(calendar_id)
-        if getattr(calendar_result, "ok", False) and getattr(calendar_result, "data", None) is not None:
-            timezone = str(calendar_result.data.timezone or "")
-        working_rules = result_sequence(controller._enterprise_calendar_api.list_working_rules(calendar_id))
-        working_weekdays = tuple(
-            sorted({int(rule.weekday) for rule in working_rules if getattr(rule, "is_working_day", False)})
-        )
-        exceptions = result_sequence(controller._enterprise_calendar_api.list_exceptions(calendar_id))
-        holiday_count = sum(
-            1 for exc in exceptions if str(getattr(exc, "exception_type", "")).upper() == "HOLIDAY"
-        )
-        return {
-            "hasCalendar": True,
-            "calendarId": calendar_id,
-            "calendarName": calendar_name,
-            "source": "override",
-            "workingWeekLabel": working_week_label(working_weekdays),
-            "timeZone": timezone,
-            "holidaySetLabel": holiday_set_label("", holiday_count),
-        }
-
-    normalized_org_id = str(organization_id or "").strip()
-    if not normalized_org_id or controller._runtime_api is None:
-        return _empty_site_calendar_summary()
-    org_result = controller._runtime_api.get_organization_calendar_summary(normalized_org_id)
-    if not getattr(org_result, "ok", False) or org_result.data is None or not org_result.data.has_calendar:
-        return _empty_site_calendar_summary()
-    data = org_result.data
-    return {
-        "hasCalendar": True,
-        "calendarId": data.calendar_id,
-        "calendarName": data.calendar_name,
-        "source": "inherited",
-        "workingWeekLabel": working_week_label(tuple(data.working_weekdays)),
-        "timeZone": data.timezone,
-        "holidaySetLabel": holiday_set_label(data.locale, data.holiday_count),
-    }
-
-
-def _empty_department_calendar_summary() -> dict[str, object]:
-    return {
-        "hasCalendar": False,
-        "calendarId": "",
-        "calendarName": "",
-        "source": "",
-        "workingWeekLabel": "No working days configured",
-        "timeZone": "",
-        "holidaySetLabel": "No holidays configured",
-    }
+    if not normalized_site_id:
+        return _empty_calendar_summary()
+    return _effective_calendar_summary(controller, own_prefix="SITE", site_id=normalized_site_id)
 
 
 def department_calendar_summary(
@@ -249,83 +262,19 @@ def department_calendar_summary(
 ) -> dict[str, object]:
     """The Department's effective calendar, resolved through the real
     chain: a direct Department override, else -- only when the Department
-    belongs to a Site -- that Site's own effective calendar (itself already
-    override-or-Organization-default), else the Organization's default
-    directly. `source` reports which level actually resolved it rather
-    than guessing from whether a Department-level assignment merely
-    exists."""
+    belongs to a Site -- that Site's own assignment, else the
+    Organization's default directly. `source` reports which level actually
+    resolved it via the resolver's own source chain, never guessed from
+    whether a Department-level assignment merely exists."""
     normalized_department_id = str(department_id or "").strip()
-    if not normalized_department_id or controller._enterprise_calendar_api is None:
-        return _empty_department_calendar_summary()
-
-    assignments = result_sequence(
-        controller._enterprise_calendar_api.list_department_calendar_assignments(normalized_department_id)
+    if not normalized_department_id:
+        return _empty_calendar_summary()
+    return _effective_calendar_summary(
+        controller,
+        own_prefix="DEPT",
+        site_id=str(site_id or "").strip(),
+        department_id=normalized_department_id,
     )
-    if assignments:
-        assignment = assignments[0]
-        calendar_id = str(getattr(assignment, "calendar_id", "") or "")
-        calendar_name = str(getattr(assignment, "calendar_name", "") or "")
-        timezone = ""
-        calendar_result = controller._enterprise_calendar_api.get_calendar(calendar_id)
-        if getattr(calendar_result, "ok", False) and getattr(calendar_result, "data", None) is not None:
-            timezone = str(calendar_result.data.timezone or "")
-        working_rules = result_sequence(controller._enterprise_calendar_api.list_working_rules(calendar_id))
-        working_weekdays = tuple(
-            sorted({int(rule.weekday) for rule in working_rules if getattr(rule, "is_working_day", False)})
-        )
-        exceptions = result_sequence(controller._enterprise_calendar_api.list_exceptions(calendar_id))
-        holiday_count = sum(
-            1 for exc in exceptions if str(getattr(exc, "exception_type", "")).upper() == "HOLIDAY"
-        )
-        return {
-            "hasCalendar": True,
-            "calendarId": calendar_id,
-            "calendarName": calendar_name,
-            "source": "Department override",
-            "workingWeekLabel": working_week_label(working_weekdays),
-            "timeZone": timezone,
-            "holidaySetLabel": holiday_set_label("", holiday_count),
-        }
-
-    normalized_site_id = str(site_id or "").strip()
-    if normalized_site_id:
-        site_summary = site_calendar_summary(controller, normalized_site_id, organization_id)
-        if site_summary.get("hasCalendar"):
-            relabeled = dict(site_summary)
-            relabeled["source"] = (
-                "Inherited from Site" if site_summary.get("source") == "override" else "Inherited from Organization"
-            )
-            return relabeled
-        return _empty_department_calendar_summary()
-
-    normalized_org_id = str(organization_id or "").strip()
-    if not normalized_org_id or controller._runtime_api is None:
-        return _empty_department_calendar_summary()
-    org_result = controller._runtime_api.get_organization_calendar_summary(normalized_org_id)
-    if not getattr(org_result, "ok", False) or org_result.data is None or not org_result.data.has_calendar:
-        return _empty_department_calendar_summary()
-    data = org_result.data
-    return {
-        "hasCalendar": True,
-        "calendarId": data.calendar_id,
-        "calendarName": data.calendar_name,
-        "source": "Inherited from Organization",
-        "workingWeekLabel": working_week_label(tuple(data.working_weekdays)),
-        "timeZone": data.timezone,
-        "holidaySetLabel": holiday_set_label(data.locale, data.holiday_count),
-    }
-
-
-def _empty_employee_calendar_summary() -> dict[str, object]:
-    return {
-        "hasCalendar": False,
-        "calendarId": "",
-        "calendarName": "",
-        "source": "",
-        "workingWeekLabel": "No working days configured",
-        "timeZone": "",
-        "holidaySetLabel": "No holidays configured",
-    }
 
 
 def employee_calendar_summary(
@@ -336,87 +285,20 @@ def employee_calendar_summary(
     site_id: str = "",
 ) -> dict[str, object]:
     """The Employee's effective calendar, resolved through the real chain:
-    a direct Employee override, else the Employee's Department effective
-    calendar (itself already Department-override-or-Site-or-Organization),
-    else -- when there is no Department -- the Employee's own Site effective
-    calendar, else the Organization's default directly. `source` reports
-    which level actually resolved it rather than guessing from whether an
-    Employee-level assignment merely exists."""
+    a direct Employee override, else Department, else Site, else the
+    Organization's default -- via the one canonical resolver. `source`
+    reports which level actually resolved it rather than guessing from
+    whether an Employee-level assignment merely exists."""
     normalized_employee_id = str(employee_id or "").strip()
-    if not normalized_employee_id or controller._enterprise_calendar_api is None:
-        return _empty_employee_calendar_summary()
-
-    assignments = result_sequence(
-        controller._enterprise_calendar_api.list_employee_calendar_assignments(normalized_employee_id)
+    if not normalized_employee_id:
+        return _empty_calendar_summary()
+    return _effective_calendar_summary(
+        controller,
+        own_prefix="EMP",
+        site_id=str(site_id or "").strip(),
+        department_id=str(department_id or "").strip(),
+        employee_id=normalized_employee_id,
     )
-    if assignments:
-        assignment = assignments[0]
-        calendar_id = str(getattr(assignment, "calendar_id", "") or "")
-        calendar_name = str(getattr(assignment, "calendar_name", "") or "")
-        timezone = ""
-        calendar_result = controller._enterprise_calendar_api.get_calendar(calendar_id)
-        if getattr(calendar_result, "ok", False) and getattr(calendar_result, "data", None) is not None:
-            timezone = str(calendar_result.data.timezone or "")
-        working_rules = result_sequence(controller._enterprise_calendar_api.list_working_rules(calendar_id))
-        working_weekdays = tuple(
-            sorted({int(rule.weekday) for rule in working_rules if getattr(rule, "is_working_day", False)})
-        )
-        exceptions = result_sequence(controller._enterprise_calendar_api.list_exceptions(calendar_id))
-        holiday_count = sum(
-            1 for exc in exceptions if str(getattr(exc, "exception_type", "")).upper() == "HOLIDAY"
-        )
-        return {
-            "hasCalendar": True,
-            "calendarId": calendar_id,
-            "calendarName": calendar_name,
-            "source": "Employee override",
-            "workingWeekLabel": working_week_label(working_weekdays),
-            "timeZone": timezone,
-            "holidaySetLabel": holiday_set_label("", holiday_count),
-        }
-
-    normalized_department_id = str(department_id or "").strip()
-    if normalized_department_id:
-        department_summary = department_calendar_summary(
-            controller, normalized_department_id, organization_id, site_id
-        )
-        if department_summary.get("hasCalendar"):
-            relabeled = dict(department_summary)
-            relabeled["source"] = (
-                "Inherited from Department"
-                if department_summary.get("source") == "Department override"
-                else department_summary.get("source")
-            )
-            return relabeled
-        return _empty_employee_calendar_summary()
-
-    normalized_site_id = str(site_id or "").strip()
-    if normalized_site_id:
-        site_summary = site_calendar_summary(controller, normalized_site_id, organization_id)
-        if site_summary.get("hasCalendar"):
-            relabeled = dict(site_summary)
-            relabeled["source"] = (
-                "Inherited from Site" if site_summary.get("source") == "override" else "Inherited from Organization"
-            )
-            return relabeled
-        return _empty_employee_calendar_summary()
-
-    normalized_org_id = str(organization_id or "").strip()
-    if not normalized_org_id or controller._runtime_api is None:
-        return _empty_employee_calendar_summary()
-    org_result = controller._runtime_api.get_organization_calendar_summary(normalized_org_id)
-    if not getattr(org_result, "ok", False) or org_result.data is None or not org_result.data.has_calendar:
-        return _empty_employee_calendar_summary()
-    data = org_result.data
-    return {
-        "hasCalendar": True,
-        "calendarId": data.calendar_id,
-        "calendarName": data.calendar_name,
-        "source": "Inherited from Organization",
-        "workingWeekLabel": working_week_label(tuple(data.working_weekdays)),
-        "timeZone": data.timezone,
-        "holidaySetLabel": holiday_set_label(data.locale, data.holiday_count),
-    }
 
 
 __all__ = [

@@ -44,7 +44,7 @@ class CalendarExceptionService:
         start: date | None = None,
         end: date | None = None,
     ) -> list[CalendarException]:
-        require_permission(self._user_session, "task.read", operation_label="list exceptions")
+        require_permission(self._user_session, "calendar.read", operation_label="list exceptions")
         self._require_calendar(calendar_id)
         return self._exception_repo.list_for_calendar(calendar_id, start=start, end=end)
 
@@ -66,7 +66,7 @@ class CalendarExceptionService:
         approval_status: str = "APPROVED",
     ) -> CalendarException:
         require_permission(
-            self._user_session, "task.manage", operation_label="add calendar exception"
+            self._user_session, "calendar.manage", operation_label="add calendar exception"
         )
         self._require_calendar(calendar_id)
 
@@ -107,7 +107,7 @@ class CalendarExceptionService:
         approved_by: str | None = None,
     ) -> CalendarException:
         require_permission(
-            self._user_session, "task.manage", operation_label="update calendar exception"
+            self._user_session, "calendar.manage", operation_label="update calendar exception"
         )
         exc = self._exception_repo.get(exception_id)
         if exc is None:
@@ -135,7 +135,7 @@ class CalendarExceptionService:
 
     def delete_exception(self, exception_id: str) -> None:
         require_permission(
-            self._user_session, "task.manage", operation_label="delete calendar exception"
+            self._user_session, "calendar.manage", operation_label="delete calendar exception"
         )
         exc = self._exception_repo.get(exception_id)
         if exc is None:

@@ -15,7 +15,11 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "inventory.read": "View inventory and procurement workspaces",
     "inventory.manage": "Create and edit inventory and procurement records",
     "site.read": "View shared site directory records",
+    "site.manage": "Create and edit shared site directory records",
     "department.read": "View shared department directory records",
+    "department.manage": "Create and edit shared department directory records",
+    "calendar.read": "View shared operational calendars and assignments",
+    "calendar.manage": "Create and edit shared operational calendars and assignments",
     "party.read": "View shared supplier, vendor, and contractor directory records",
     "party.manage": "Create and edit shared supplier, vendor, and contractor directory records",
     "cost.read": "View costs",
@@ -146,6 +150,8 @@ _RESOURCE_MANAGER = {
     "employee.manage",
     "site.read",
     "department.read",
+    "calendar.read",
+    "calendar.manage",
     "report.view",
     "report.export",
     "collaboration.read",
@@ -310,6 +316,12 @@ _TENANT_ADMIN = {
     "auth.role.assign",
     "party.read",
     "party.manage",
+    "site.read",
+    "site.manage",
+    "department.read",
+    "department.manage",
+    "calendar.read",
+    "calendar.manage",
 }
 
 _ORG_ADMIN = {
@@ -323,6 +335,12 @@ _ORG_ADMIN = {
     "auth.role.assign",
     "party.read",
     "party.manage",
+    "site.read",
+    "site.manage",
+    "department.read",
+    "department.manage",
+    "calendar.read",
+    "calendar.manage",
 }
 
 _ORG_VIEWER = set(_VIEWER)
@@ -435,7 +453,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 12
+SYSTEM_ROLE_POLICY_VERSION = 13
 
 __all__ = [
     "DEFAULT_PERMISSIONS",

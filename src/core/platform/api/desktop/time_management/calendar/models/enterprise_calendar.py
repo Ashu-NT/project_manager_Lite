@@ -49,12 +49,14 @@ class CalendarCreateCommand:
 
 @dataclass(frozen=True)
 class CalendarUpdateCommand:
+    # No is_default field -- changing the organization's default calendar is
+    # an explicit, atomic operation (set_organization_default_calendar),
+    # never part of this generic profile update.
     calendar_id: str
     name: str = ""
     description: str = ""
     timezone: str = ""
     locale: str = ""
-    is_default: bool | None = None
     is_active: bool | None = None
     effective_from: str = ""
     effective_to: str = ""
@@ -376,6 +378,31 @@ class ResolvedContextDto:
     exceptions: list
     working_start: str = ""
     working_end: str = ""
+
+
+@dataclass(frozen=True)
+class ResolveEffectiveCalendarCommand:
+    site_id: str = ""
+    department_id: str = ""
+    employee_id: str = ""
+    project_id: str = ""
+    resource_id: str = ""
+    worker_type: str = ""
+    at_date: str = ""
+
+
+@dataclass(frozen=True)
+class EffectiveCalendarDto:
+    """Identity result -- which calendar is in effect, and its full source
+    chain -- the single read shape for Site/Department/Employee effective-
+    calendar summary cards. Distinct from ResolvedContextDto (a capacity/
+    hours result for one date)."""
+
+    has_calendar: bool
+    calendar_id: str
+    calendar_name: str
+    timezone: str
+    source_chain: list
 
 
 @dataclass(frozen=True)

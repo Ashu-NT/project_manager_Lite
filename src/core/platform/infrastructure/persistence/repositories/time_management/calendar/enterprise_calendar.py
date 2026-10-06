@@ -8,7 +8,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarAssignmentRepository,
     CalendarExceptionRepository,
@@ -173,6 +173,56 @@ def _ensure_employee_in_scope(session: Session, ctx, employee_id: str) -> None:
     ).scalar_one_or_none()
     if exists is None:
         raise NotFoundError("Employee not found.")
+
+
+def _date_ranges_overlap(
+    a_from: date | None, a_to: date | None, b_from: date | None, b_to: date | None
+) -> bool:
+    """True if [a_from, a_to] and [b_from, b_to] overlap, treating None as
+    an open (unbounded) end on that side -- the same semantics
+    `_is_effective`/`at_date` resolution already uses elsewhere in this
+    file. A target with no explicit effective window at all is
+    (None, None), i.e. unbounded on both ends, and overlaps everything."""
+    if a_from is not None and b_to is not None and a_from > b_to:
+        return False
+    if b_from is not None and a_to is not None and b_from > a_to:
+        return False
+    return True
+
+
+def _assert_no_overlapping_assignment(
+    session: Session,
+    *,
+    assignment_orm,
+    target_id_col,
+    target_id: str,
+    exclude_id: str,
+    effective_from: date | None,
+    effective_to: date | None,
+    target_label: str,
+) -> None:
+    """Multiple assignment rows per target are intentional (scheduled
+    future/historical calendar changes, resolved by at_date + priority --
+    see get_site_assignment/get_department_assignment/get_employee_assignment).
+    What must never happen is two rows for the SAME target whose effective
+    windows overlap, which makes `_is_effective` resolution ambiguous for
+    any date both windows cover. This is a plain target_id filter (not
+    tenant/org-scoped) because it runs inside save_*_assignment, which has
+    already resolved and validated the target via _ensure_*_in_scope just
+    before calling this -- the target_id itself is the correct scope here."""
+    rows = session.execute(
+        select(assignment_orm.id, assignment_orm.effective_from, assignment_orm.effective_to).where(
+            target_id_col == target_id,
+            assignment_orm.id != exclude_id,
+        )
+    ).all()
+    for _row_id, row_from, row_to in rows:
+        if _date_ranges_overlap(effective_from, effective_to, row_from, row_to):
+            raise ValidationError(
+                f"An overlapping calendar assignment already exists for this {target_label}. "
+                "Adjust the effective dates, or remove/replace the existing assignment first.",
+                code="CALENDAR_ASSIGNMENT_OVERLAP",
+            )
 
 
 class SqlAlchemyPlatformCalendarRepository(
@@ -764,6 +814,16 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(SiteCalendarAssignmentORM.id == assignment.id)
         ).scalar_one_or_none()
+        _assert_no_overlapping_assignment(
+            self._session,
+            assignment_orm=SiteCalendarAssignmentORM,
+            target_id_col=SiteCalendarAssignmentORM.site_id,
+            target_id=assignment.site_id,
+            exclude_id=assignment.id,
+            effective_from=assignment.effective_from,
+            effective_to=assignment.effective_to,
+            target_label="site",
+        )
         if existing is not None:
             existing.calendar_id = assignment.calendar_id
             existing.effective_from = assignment.effective_from
@@ -775,7 +835,7 @@ class SqlAlchemyCalendarAssignmentRepository(
         _ensure_site_in_scope(self._session, ctx, assignment.site_id)
         self._session.add(site_assignment_to_orm(assignment))
 
-    def delete_site_assignment(self, assignment_id: str) -> None:
+    def delete_site_assignment(self, assignment_id: str) -> SiteCalendarAssignment | None:
         ctx = self._context(operation_label="access calendar assignments")
         obj = self._session.execute(
             _scoped_assignment_stmt(
@@ -786,8 +846,11 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(SiteCalendarAssignmentORM.id == assignment_id)
         ).scalar_one_or_none()
-        if obj is not None:
-            self._session.delete(obj)
+        if obj is None:
+            return None
+        deleted = site_assignment_from_orm(obj)
+        self._session.delete(obj)
+        return deleted
 
     def get_department_assignment(
         self, department_id: str, *, at_date: date | None = None
@@ -838,6 +901,16 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(DepartmentCalendarAssignmentORM.id == assignment.id)
         ).scalar_one_or_none()
+        _assert_no_overlapping_assignment(
+            self._session,
+            assignment_orm=DepartmentCalendarAssignmentORM,
+            target_id_col=DepartmentCalendarAssignmentORM.department_id,
+            target_id=assignment.department_id,
+            exclude_id=assignment.id,
+            effective_from=assignment.effective_from,
+            effective_to=assignment.effective_to,
+            target_label="department",
+        )
         if existing is not None:
             existing.calendar_id = assignment.calendar_id
             existing.effective_from = assignment.effective_from
@@ -849,7 +922,7 @@ class SqlAlchemyCalendarAssignmentRepository(
         _ensure_department_in_scope(self._session, ctx, assignment.department_id)
         self._session.add(dept_assignment_to_orm(assignment))
 
-    def delete_department_assignment(self, assignment_id: str) -> None:
+    def delete_department_assignment(self, assignment_id: str) -> DepartmentCalendarAssignment | None:
         ctx = self._context(operation_label="access calendar assignments")
         obj = self._session.execute(
             _scoped_assignment_stmt(
@@ -860,8 +933,11 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(DepartmentCalendarAssignmentORM.id == assignment_id)
         ).scalar_one_or_none()
-        if obj is not None:
-            self._session.delete(obj)
+        if obj is None:
+            return None
+        deleted = dept_assignment_from_orm(obj)
+        self._session.delete(obj)
+        return deleted
 
     def get_employee_assignment(
         self, employee_id: str, *, at_date: date | None = None
@@ -912,6 +988,16 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(EmployeeCalendarAssignmentORM.id == assignment.id)
         ).scalar_one_or_none()
+        _assert_no_overlapping_assignment(
+            self._session,
+            assignment_orm=EmployeeCalendarAssignmentORM,
+            target_id_col=EmployeeCalendarAssignmentORM.employee_id,
+            target_id=assignment.employee_id,
+            exclude_id=assignment.id,
+            effective_from=assignment.effective_from,
+            effective_to=assignment.effective_to,
+            target_label="employee",
+        )
         if existing is not None:
             existing.calendar_id = assignment.calendar_id
             existing.effective_from = assignment.effective_from
@@ -923,7 +1009,7 @@ class SqlAlchemyCalendarAssignmentRepository(
         _ensure_employee_in_scope(self._session, ctx, assignment.employee_id)
         self._session.add(employee_assignment_to_orm(assignment))
 
-    def delete_employee_assignment(self, assignment_id: str) -> None:
+    def delete_employee_assignment(self, assignment_id: str) -> EmployeeCalendarAssignment | None:
         ctx = self._context(operation_label="access calendar assignments")
         obj = self._session.execute(
             _scoped_assignment_stmt(
@@ -934,8 +1020,11 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(EmployeeCalendarAssignmentORM.id == assignment_id)
         ).scalar_one_or_none()
-        if obj is not None:
-            self._session.delete(obj)
+        if obj is None:
+            return None
+        deleted = employee_assignment_from_orm(obj)
+        self._session.delete(obj)
+        return deleted
 
     def count_active_assignments_for_calendar(self, calendar_id: str) -> int:
         ctx = self._context(operation_label="access calendar assignments")

@@ -46,11 +46,10 @@ AppLayouts.WorkspaceFrame {
     property string selectedRowId: ""
     property bool detailOpen: false
 
-    // RBAC: gates create/edit buttons -- a client-side UX optimization
-    //; a the backend
-    // enforces "task.manage" independently regardless.
+    // RBAC: gates create/edit buttons -- a client-side UX optimization; the
+    // backend enforces "calendar.manage" independently regardless.
     readonly property bool _canWrite: root.platformCatalog
-        ? root.platformCatalog.hasPermission("task.manage")
+        ? root.platformCatalog.hasPermission("calendar.manage")
         : true
 
     readonly property bool   busy: root.workspaceController ? root.workspaceController.isBusy          : false

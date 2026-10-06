@@ -55,7 +55,7 @@ class RecurringEventService:
         self, calendar_id: str, *, active_only: bool = True
     ) -> list[CalendarRecurringEvent]:
         require_permission(
-            self._user_session, "task.read", operation_label="list recurring events"
+            self._user_session, "calendar.read", operation_label="list recurring events"
         )
         self._require_calendar(calendar_id)
         return self._event_repo.list_for_calendar(calendar_id, active_only=active_only)
@@ -78,7 +78,7 @@ class RecurringEventService:
         priority: int = 0,
     ) -> CalendarRecurringEvent:
         require_permission(
-            self._user_session, "task.manage", operation_label="add recurring event"
+            self._user_session, "calendar.manage", operation_label="add recurring event"
         )
         self._require_calendar(calendar_id)
         _validate_rrule(recurrence_rule)
@@ -120,7 +120,7 @@ class RecurringEventService:
         priority: int | None = None,
     ) -> CalendarRecurringEvent:
         require_permission(
-            self._user_session, "task.manage", operation_label="update recurring event"
+            self._user_session, "calendar.manage", operation_label="update recurring event"
         )
         event = self._event_repo.get(event_id)
         if event is None:
@@ -154,7 +154,7 @@ class RecurringEventService:
 
     def delete_recurring_event(self, event_id: str) -> None:
         require_permission(
-            self._user_session, "task.manage", operation_label="delete recurring event"
+            self._user_session, "calendar.manage", operation_label="delete recurring event"
         )
         event = self._event_repo.get(event_id)
         if event is None:

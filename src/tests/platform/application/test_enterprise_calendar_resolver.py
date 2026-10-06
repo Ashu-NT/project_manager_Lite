@@ -360,3 +360,51 @@ def test_granularity_validation_rejected():
     assert 5 in _VALID_GRANULARITIES
     assert 15 in _VALID_GRANULARITIES
     assert 7 not in _VALID_GRANULARITIES
+
+
+# ---------------------------------------------------------------------------
+# Tests — EnterpriseCalendarResolver.business_today
+# ---------------------------------------------------------------------------
+
+
+def test_resolver_business_today_matches_shared_helper_for_the_default_utc_calendar(
+    resolver, global_cal
+):
+    """ensure_global_calendar seeds UTC when the organization has no
+    configured timezone -- business_today() must resolve against that
+    calendar's actual timezone, not a hardcoded assumption."""
+    from src.core.shared.time.business_date import business_today as shared_business_today
+
+    assert resolver.business_today() == shared_business_today(global_cal.timezone)
+
+
+def test_resolver_business_today_falls_back_to_utc_when_no_global_calendar_exists(resolver):
+    from src.core.shared.time.business_date import business_today as shared_business_today
+
+    assert resolver.business_today() == shared_business_today(None)
+
+
+def test_resolver_business_today_honors_a_non_utc_organization_timezone(
+    resolver, repos, global_cal, monkeypatch
+):
+    """A server running in UTC must not treat midnight UTC as the day
+    boundary for an organization configured in a different timezone."""
+    from dataclasses import replace
+    from datetime import datetime
+    from datetime import timezone as dt_timezone
+
+    import src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver as resolver_module
+    from src.core.shared.time.business_date import business_today as shared_business_today
+
+    moved = replace(global_cal, timezone="Pacific/Auckland")
+    repos["calendar"].update(moved)
+
+    # 23:30 UTC is already the next calendar day in Pacific/Auckland (UTC+13).
+    fixed_now = datetime(2026, 1, 1, 23, 30, tzinfo=dt_timezone.utc)
+    monkeypatch.setattr(
+        resolver_module,
+        "business_today",
+        lambda tz_name: shared_business_today(tz_name, now=fixed_now),
+    )
+
+    assert resolver.business_today() == date(2026, 1, 2)

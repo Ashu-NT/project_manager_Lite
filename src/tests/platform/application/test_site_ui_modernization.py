@@ -82,7 +82,7 @@ def test_site_calendar_summary_is_inherited_from_organization_when_no_override(s
     summary = site_calendar_summary(controller, site.id, organization_id)
 
     assert summary["hasCalendar"] is True
-    assert summary["source"] == "inherited"
+    assert summary["source"] == "Inherited from Organization"
     assert summary["calendarName"]
 
 
@@ -108,7 +108,7 @@ def test_site_calendar_summary_is_override_when_site_has_its_own_assignment(serv
     summary = site_calendar_summary(controller, site.id, organization_id)
 
     assert summary["hasCalendar"] is True
-    assert summary["source"] == "override"
+    assert summary["source"] == "Site override"
     assert summary["calendarId"] == calendar_id
 
 
