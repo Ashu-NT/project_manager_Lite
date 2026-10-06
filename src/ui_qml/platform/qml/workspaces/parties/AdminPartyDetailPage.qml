@@ -1,17 +1,27 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
-import Platform.Components 1.0
+import Platform.Controllers 1.0 as PlatformControllers
+import workspaces.parties.sections 1.0 as PartySections
 
+// Orchestrator only: owns party identity/lifecycle, per-tab state
+// (page/search/filter) and data fetching. Each tab's own markup lives in
+// workspaces/parties/sections/. Final section set is Overview/Activity --
+// Contacts/Customer-Client-Profile/Linked-Projects/Documents/Audit were all
+// either placeholder tabs with no real backing capability or data that
+// belongs to a consuming module (PM/Procurement), not shared Platform
+// identity. See the Party UI modernization notes for the full rationale.
 Item {
     id: root
+    objectName: "adminPartyDetailPage"
 
+    property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property var party: ({})
-    property bool canWrite: true
-    property bool pmEnabled: false
+    property var breadcrumb: []
+    property bool canWrite: true // party.manage -- edit/lifecycle
     property bool busy: false
     property string errorMessage: ""
     property string feedbackMessage: ""
@@ -22,110 +32,176 @@ Item {
 
     readonly property var _state: (root.party && root.party.state) ? root.party.state : ({})
     readonly property string _title: String(root.party && root.party.title ? root.party.title : "Party")
-    readonly property string _status: String(root.party && root.party.statusLabel ? root.party.statusLabel : "")
-    readonly property string _subtitle: String(root.party && root.party.subtitle ? root.party.subtitle : "")
+    readonly property var _statusLabelValue: root.party ? root.party.statusLabel : null
+    readonly property string _status: (root._statusLabelValue && typeof root._statusLabelValue === "object")
+        ? String(root._statusLabelValue.label || "")
+        : String(root._statusLabelValue || "")
     readonly property bool _isActive: root._state.isActive === true
-    readonly property string _partyType: String(root._state.partyType || "")
-    readonly property var _sections: {
-        const sections = [
-            { "label": "Overview" },
-            { "label": "Contacts" }
-        ]
-        sections.push({ "label": "Customer / Client Profile" })
-        if (root.pmEnabled) {
-            sections.push({ "label": "Linked Projects" })
-        }
-        sections.push({ "label": "Documents" })
-        sections.push({ "label": "Audit" })
-        return sections
+    readonly property string _statusTone: root._isActive ? "success" : "neutral"
+    readonly property string _partyId: String(root._state.partyId || root._state.id || root.party.id || "")
+    readonly property string _organizationId: String(root._state.organizationId || "")
+
+    readonly property string _partyCode: String(root._state.partyCode || "")
+    readonly property string _partyTypeLabel: String(root._state.partyTypeLabel || "")
+    readonly property string _headerSubtitle: root._joinNonEmpty([root._partyCode, root._partyTypeLabel], "  ·  ")
+
+    function _joinNonEmpty(parts, sep) {
+        return parts.filter(function(p) { return String(p || "").trim().length > 0 }).join(sep)
     }
+    function _displayValue(value) {
+        const text = String(value || "").trim()
+        return text.length > 0 ? text : "—"
+    }
+    function _titleCaseRole(value) {
+        return String(value || "").toLowerCase().replace(/_/g, " ").replace(/\b\w/g, function(c) { return c.toUpperCase() })
+    }
+
+    // -- Header lifecycle menu: Party's own 2-state lifecycle (Active/
+    // Inactive only -- no Archive; see activate_party/deactivate_party, a
+    // distinct command pair, not the generic profile update). Mutations
+    // bubble up via actionRequested() to PartiesWorkspacePage.qml's
+    // handleDetailAction.
+    readonly property var _lifecycleMenuItems: {
+        const items = [
+            { "id": "edit", "label": "Edit party", "icon": "edit", "enabled": root.canWrite },
+            { "separator": true }
+        ]
+        if (root._isActive) {
+            items.push({ "id": "deactivate", "label": "Deactivate party", "icon": "reject", "enabled": root.canWrite })
+        } else {
+            items.push({ "id": "activate", "label": "Activate party", "icon": "approve", "enabled": root.canWrite })
+        }
+        return items
+    }
+
+    // -- Overview: bounded (~5 item) recent activity, distinct from the
+    // full paginated Activity tab's own state below.
+    property var _recentActivity: []
+    function _refreshRecentActivity() {
+        if (root._partyId.length === 0 || root._organizationId.length === 0
+            || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            root._recentActivity = []
+            return
+        }
+        root._recentActivity = root.platformCatalog.adminWorkspace.partyActivity(root._partyId, root._organizationId) || []
+    }
+
+    // -- Activity tab: this party's own paginated, searchable business-
+    // activity history.
+    property int _activityPage: 1
+    property int _activityPageSize: 25
+    property string _activitySearch: ""
+    property string _activityDateFilter: ""
+    property var _activityCatalog: ({
+        "items": [], "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0,
+        "emptyState": "", "noResultsState": ""
+    })
+    readonly property var _activityDateFilterOptions: [
+        { "value": "", "label": "All time" },
+        { "value": "today", "label": "Today" },
+        { "value": "7d", "label": "Last 7 days" },
+        { "value": "30d", "label": "Last 30 days" }
+    ]
+    function _refreshActivityPage() {
+        if (root._partyId.length === 0 || root._organizationId.length === 0
+            || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            return
+        }
+        root._activityCatalog = root.platformCatalog.adminWorkspace.partyActivityPage(
+            root._partyId, root._organizationId, root._activityPage, root._activityPageSize,
+            root._activitySearch, root._activityDateFilter
+        )
+    }
+
+    readonly property var _sections: [
+        { "label": "Overview" },
+        { "label": "Activity" }
+    ]
     readonly property string _activeSectionLabel: {
         const section = root._sections[root.activeSectionIndex]
         return section ? String(section.label || "") : "Overview"
     }
-    readonly property string _toolbarSubtitle: {
-        switch (root._activeSectionLabel) {
-        case "Overview":
-            return root._subtitle
-        case "Contacts":
-            return "Shared platform contact and address information used across modules by reference."
-        case "Customer / Client Profile":
-            return "Customer and client master-data posture remains platform-owned for downstream commercial workflows."
-        case "Linked Projects":
-            return "Project relationships remain governed by the Project Management module."
-        case "Documents":
-            return "Party-linked document governance stays in the shared document workspace."
-        case "Audit":
-            return "Entity-level audit detail stays in the shared audit workspace."
-        default:
-            return ""
+    function _indexOfSection(label) {
+        for (let i = 0; i < root._sections.length; i += 1) {
+            if (root._sections[i].label === label) return i
         }
+        return -1
     }
-    readonly property var _toolbarActions: {
-        if (root._activeSectionLabel === "Overview") {
-            return [
-                { "id": "edit", "label": "Edit", "icon": "edit", "enabled": root.canWrite },
-                { "id": "toggle_active", "label": root._isActive ? "Set Inactive" : "Set Active", "icon": "approve", "enabled": root.canWrite },
-                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
-            ]
-        }
-        if (root._activeSectionLabel === "Linked Projects") {
-            return [
-                { "id": "open_projects", "label": "Open Projects", "icon": "chevron_right" }
-            ]
-        }
-        if (root._activeSectionLabel === "Linked Procurement") {
-            return [
-                { "id": "open_procurement", "label": "Open Procurement", "icon": "chevron_right" }
-            ]
-        }
-        if (root._activeSectionLabel === "Documents") {
-            return [
-                { "id": "show_documents", "label": "Open Documents", "icon": "chevron_right" }
-            ]
-        }
-        if (root._activeSectionLabel === "Audit") {
-            return [
-                { "id": "show_audit", "label": "Open Audit", "icon": "chevron_right" }
-            ]
-        }
-        return [
-            { "id": "refresh", "label": "Refresh", "icon": "refresh" }
-        ]
-    }
-    readonly property var _overviewFields: [
-        { "label": "Party Code", "value": root._state.partyCode },
-        { "label": "Party Name", "value": root._state.partyName || root.party.title },
-        { "label": "Party Type", "value": root._partyType },
-        { "label": "Legal Name", "value": root._state.legalName },
-        { "label": "Status", "value": root._status },
-        { "label": "Version", "value": root._state.version },
-        { "label": "External Reference", "value": root._state.externalReference },
-        { "label": "Registration Number", "value": root._state.registrationNumber }
+    readonly property string _toolbarSubtitle: root._activeSectionLabel === "Overview"
+        ? "Shared external party and counterparty master data."
+        : ""
+    readonly property var _toolbarActions: root._activeSectionLabel === "Overview"
+        ? [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
+        : []
+    readonly property bool _showSectionToolbar: root._activeSectionLabel === "Overview"
+
+    readonly property var _partyInformationFields: [
+        { "label": "Party Name", "value": root._displayValue(root._state.partyName || root.party.title) },
+        { "label": "Party Code", "value": root._displayValue(root._partyCode) },
+        { "label": "Party Type", "value": root._displayValue(root._partyTypeLabel) }
+    ]
+    readonly property bool _hasLegalRegistrationData: [
+        root._state.legalName, root._state.registrationNumber, root._state.taxIdentifier, root._state.externalReference
+    ].some(function(v) { return String(v || "").trim().length > 0 })
+    readonly property var _legalRegistrationFields: [
+        { "label": "Legal Name", "value": root._displayValue(root._state.legalName) },
+        { "label": "Registration Number", "value": root._displayValue(root._state.registrationNumber) },
+        { "label": "Tax Identifier", "value": root._displayValue(root._state.taxIdentifier) },
+        { "label": "External Reference", "value": root._displayValue(root._state.externalReference) }
     ]
     readonly property var _contactFields: [
-        { "label": "Contact Name", "value": root._state.contactName },
-        { "label": "Email", "value": root._state.email },
-        { "label": "Phone", "value": root._state.phone },
-        { "label": "Address Line 1", "value": root._state.addressLine1 },
-        { "label": "Address Line 2", "value": root._state.addressLine2 },
-        { "label": "Postal Code", "value": root._state.postalCode },
-        { "label": "City", "value": root._state.city },
-        { "label": "Country", "value": root._state.country },
-        { "label": "Website", "value": root._state.website }
+        { "label": "Contact Name", "value": root._displayValue(root._state.contactName) },
+        { "label": "Email", "value": root._displayValue(root._state.email) },
+        { "label": "Phone", "value": root._displayValue(root._state.phone) },
+        { "label": "Website", "value": root._displayValue(root._state.website) }
     ]
+    readonly property var _addressFields: [
+        { "label": "Address Line 1", "value": root._displayValue(root._state.addressLine1) },
+        { "label": "Address Line 2", "value": root._displayValue(root._state.addressLine2) },
+        { "label": "City", "value": root._displayValue(root._state.city) },
+        { "label": "Postal Code", "value": root._displayValue(root._state.postalCode) },
+        { "label": "Country", "value": root._displayValue(root._state.country) }
+    ]
+    readonly property var _businessRoles: {
+        const roles = root._state.roles || []
+        return roles.map(function(r) { return root._titleCaseRole(r) })
+    }
+    // No Open Related Projects/Open Supplier Profile/Open Customer Account
+    // entries yet -- those require real, approved cross-module navigation
+    // targets that don't exist today (see the audit's own finding on
+    // Project.client_party_id being a real backend relationship but an
+    // incomplete UI integration point). View Activity is local navigation,
+    // not an "action" in the cross-module sense, so it isn't listed here
+    // either (Recent Activity's own "View all" link already covers it).
+    readonly property var _relatedActions: []
+
+    onPartyChanged: {
+        root._refreshActivityPage()
+        root._refreshRecentActivity()
+    }
+    Component.onCompleted: {
+        root._refreshActivityPage()
+        root._refreshRecentActivity()
+    }
 
     AppWidgets.SectionDetailPage {
         id: detailPage
         anchors.fill: parent
         open: true
         title: root._title
+        statusLabel: root._status
+        statusTone: root._statusTone
+        subtitleLine: root._headerSubtitle
+        breadcrumb: root.breadcrumb
         isBusy: root.busy
-        showEdit: false
+        showEdit: root.canWrite
         showDelete: false
+        menuActions: root._lifecycleMenuItems
         sections: root._sections
 
         onBackRequested: root.backRequested()
+        onEditRequested: root.actionRequested("edit")
+        onMenuActionTriggered: function(id) { root.actionRequested(id) }
         onSectionChanged: function(index) {
             root.activeSectionIndex = index
         }
@@ -146,6 +222,8 @@ Item {
 
         AppWidgets.ContextualActionToolbar {
             detailPagePinned: true
+            visible: root._showSectionToolbar
+            height: visible ? implicitHeight : 0
             width: parent ? parent.width : root.width
             title: root._activeSectionLabel
             subtitle: root._toolbarSubtitle
@@ -158,7 +236,7 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Overview" ? overviewLoader.implicitHeight : 0
+            implicitHeight: root.activeSectionIndex === 0 ? overviewLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -167,307 +245,79 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root._activeSectionLabel === "Overview"
+                active: root.activeSectionIndex === 0
                 keepLoaded: true
                 loadingMessage: "Loading party overview..."
                 sourceComponent: Component {
-                    Column {
+                    PartySections.PartyOverviewSection {
+                        partyInformationFields: root._partyInformationFields
+                        legalRegistrationFields: root._legalRegistrationFields
+                        hasLegalRegistrationData: root._hasLegalRegistrationData
+                        contactFields: root._contactFields
+                        addressFields: root._addressFields
+                        businessRoles: root._businessRoles
+                        relatedActions: root._relatedActions
+                        recentActivity: root._recentActivity
+
+                        onNavigateToDestination: function(destinationId) {
+                            root.actionRequested(destinationId)
+                        }
+                        onViewAllActivityRequested: {
+                            const index = root._indexOfSection("Activity")
+                            if (index >= 0) detailPage.scrollToSection(index)
+                        }
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root._activeSectionLabel === "Activity"
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: activityLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root._activeSectionLabel === "Activity"
+                keepLoaded: true
+                loadingMessage: "Loading party activity..."
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
+                sourceComponent: Component {
+                    PartySections.PartyActivitySection {
                         width: parent ? parent.width : 0
-                        spacing: 0
+                        height: Math.max(420, detailPage.contentViewportHeight)
+                        catalog: root._activityCatalog
+                        busy: root.busy
+                        searchText: root._activitySearch
+                        dateFilterOptions: root._activityDateFilterOptions
+                        dateFilter: root._activityDateFilter
 
-                        AppWidgets.SectionHeading {
-                            width: parent.width
-                            label: "Overview"
+                        onRefreshRequested: root._refreshActivityPage()
+                        onSearchChanged: function(text) {
+                            root._activitySearch = text
+                            root._activityPage = 1
+                            root._refreshActivityPage()
                         }
-
-                        Item {
-                            width: parent.width
-                            implicitHeight: overviewColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                            ColumnLayout {
-                                id: overviewColumn
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.topMargin: Theme.AppTheme.spacingMd
-                                anchors.leftMargin: Theme.AppTheme.spacingMd
-                                anchors.rightMargin: Theme.AppTheme.spacingMd
-                                spacing: Theme.AppTheme.spacingMd
-
-                                AppWidgets.SectionCard {
-                                    Layout.fillWidth: true
-                                    implicitHeight: overviewGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Commercial Summary"
-                                    outlined: true
-
-                                    GridLayout {
-                                        id: overviewGrid
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        columns: 2
-                                        columnSpacing: Theme.AppTheme.spacingLg
-                                        rowSpacing: Theme.AppTheme.spacingSm
-
-                                        Repeater {
-                                            model: root._overviewFields
-
-                                            delegate: ColumnLayout {
-                                                required property var modelData
-                                                Layout.fillWidth: true
-                                                spacing: 2
-
-                                                AppControls.Label {
-                                                    Layout.fillWidth: true
-                                                    text: String(modelData.label || "")
-                                                    color: Theme.AppTheme.textMuted
-                                                    font.pixelSize: Theme.AppTheme.captionSize
-                                                    font.bold: true
-                                                }
-
-                                                AppControls.Label {
-                                                    Layout.fillWidth: true
-                                                    text: modelData.value === undefined || modelData.value === null || String(modelData.value).length === 0
-                                                        ? "-"
-                                                        : (typeof modelData.value === "boolean" ? (modelData.value ? "Yes" : "No") : String(modelData.value))
-                                                    color: Theme.AppTheme.textPrimary
-                                                    font.pixelSize: Theme.AppTheme.smallSize
-                                                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                AppWidgets.SectionCard {
-                                    Layout.fillWidth: true
-                                    implicitHeight: notesColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Platform Boundary"
-                                    outlined: true
-
-                                    ColumnLayout {
-                                        id: notesColumn
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        spacing: Theme.AppTheme.spacingSm
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: String(root._state.notes || root.party.supportingText || "Party records stay platform-owned. Procurement and PM should reference these masters rather than duplicating them.")
-                                            color: Theme.AppTheme.textSecondary
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                        }
-                                    }
-                                }
-                            }
+                        onDateFilterRequested: function(value) {
+                            root._activityDateFilter = value
+                            root._activityPage = 1
+                            root._refreshActivityPage()
                         }
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Contacts" ? contactsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: contactsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Contacts"
-                keepLoaded: true
-                loadingMessage: "Loading contact profile..."
-                sourceComponent: Component {
-                    Column {
-                        width: parent ? parent.width : 0
-                        spacing: 0
-
-                        AppWidgets.SectionHeading {
-                            width: parent.width
-                            label: "Contacts"
+                        onPageRequested: function(page) {
+                            root._activityPage = page
+                            root._refreshActivityPage()
                         }
-
-                        Item {
-                            width: parent.width
-                            implicitHeight: contactsColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                            ColumnLayout {
-                                id: contactsColumn
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.topMargin: Theme.AppTheme.spacingMd
-                                anchors.leftMargin: Theme.AppTheme.spacingMd
-                                anchors.rightMargin: Theme.AppTheme.spacingMd
-                                spacing: Theme.AppTheme.spacingMd
-
-                                AppWidgets.SectionCard {
-                                    Layout.fillWidth: true
-                                    implicitHeight: contactsGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Contact & Address"
-                                    outlined: true
-
-                                    GridLayout {
-                                        id: contactsGrid
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        columns: 2
-                                        columnSpacing: Theme.AppTheme.spacingLg
-                                        rowSpacing: Theme.AppTheme.spacingSm
-
-                                        Repeater {
-                                            model: root._contactFields
-
-                                            delegate: ColumnLayout {
-                                                required property var modelData
-                                                Layout.fillWidth: true
-                                                spacing: 2
-
-                                                AppControls.Label {
-                                                    Layout.fillWidth: true
-                                                    text: String(modelData.label || "")
-                                                    color: Theme.AppTheme.textMuted
-                                                    font.pixelSize: Theme.AppTheme.captionSize
-                                                    font.bold: true
-                                                }
-
-                                                AppControls.Label {
-                                                    Layout.fillWidth: true
-                                                    text: modelData.value === undefined || modelData.value === null || String(modelData.value).length === 0
-                                                        ? "-"
-                                                        : String(modelData.value)
-                                                    color: Theme.AppTheme.textPrimary
-                                                    font.pixelSize: Theme.AppTheme.smallSize
-                                                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        onPageSizeRequested: function(pageSize) {
+                            root._activityPageSize = pageSize
+                            root._activityPage = 1
+                            root._refreshActivityPage()
                         }
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Customer / Client Profile" ? customerLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: customerLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Customer / Client Profile"
-                keepLoaded: true
-                loadingMessage: "Loading customer profile..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Customer / Client Profile"
-                        infoMessage: "Customer and client semantics remain platform-owned and should be referenced by downstream modules."
-                        cardTitle: "Commercial Context"
-                        notes: [
-                            "Use this record as the shared commercial identity for client, customer, and partner references across modules.",
-                            "Project Management should reference client parties by ID instead of maintaining a separate client master.",
-                            root._state.legalName ? ("Legal name: " + root._state.legalName) : "No legal-name override is stored on this record."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Linked Projects" ? projectsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: projectsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Linked Projects"
-                keepLoaded: true
-                loadingMessage: "Loading project linkage guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Linked Projects"
-                        infoMessage: "Project/client and party-linked project behavior remains governed by the Project Management module."
-                        cardTitle: "PM Boundary"
-                        notes: [
-                            "Open the Project Management workspace to inspect projects that reference this party as a client or commercial counterparty.",
-                            "Platform Admin should not duplicate project lists or project-level CRUD here."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Documents" ? documentsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: documentsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Documents"
-                keepLoaded: true
-                loadingMessage: "Loading document guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Documents"
-                        infoMessage: "Party-linked document governance stays in the shared document workspace."
-                        cardTitle: "Document Governance"
-                        notes: [
-                            "Use the shared Documents workspace for attachment, revision, and permission management.",
-                            "Platform Admin should not duplicate document lifecycle workflows in the party detail page."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Audit" ? auditLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: auditLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Audit"
-                keepLoaded: true
-                loadingMessage: "Loading audit guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Audit"
-                        infoMessage: "Party audit trails stay centralized in the shared audit workspace."
-                        cardTitle: "Audit Boundary"
-                        notes: [
-                            "Use the Audit workspace for actor history, change payloads, and export workflows.",
-                            "Party detail pages should link into shared audit flows rather than duplicate audit storage."
-                        ]
                     }
                 }
             }

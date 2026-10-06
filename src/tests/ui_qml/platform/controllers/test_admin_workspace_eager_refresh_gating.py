@@ -31,7 +31,9 @@ def test_admin_console_refresh_calls_all_entities_for_platform_operator(services
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
 
-    employee_counts, restore_employee = _instrument(EmployeeService, "list_employees")
+    employee_counts, restore_employee = _instrument(
+        EmployeeService, "list_employees_page_for_organization"
+    )
     site_counts, restore_site = _instrument(SiteService, "list_sites")
     try:
         catalog.adminWorkspace.refresh()
@@ -41,7 +43,7 @@ def test_admin_console_refresh_calls_all_entities_for_platform_operator(services
 
     # The default services principal is the platform-operator "admin" user
     # -- everything is accessible, so both entities' desktop-API calls fire.
-    assert employee_counts["list_employees"] >= 1
+    assert employee_counts["list_employees_page_for_organization"] >= 1
     assert site_counts["list_sites"] >= 1
 
 
@@ -68,7 +70,9 @@ def test_admin_console_refresh_skips_entities_the_session_cannot_access(services
     user_session.set_principal(restricted_principal)
     catalog.refreshCurrentPermissions()
 
-    employee_counts, restore_employee = _instrument(EmployeeService, "list_employees")
+    employee_counts, restore_employee = _instrument(
+        EmployeeService, "list_employees_page_for_organization"
+    )
     site_counts, restore_site = _instrument(SiteService, "list_sites")
     try:
         catalog.adminWorkspace.refresh()
@@ -78,7 +82,7 @@ def test_admin_console_refresh_skips_entities_the_session_cannot_access(services
         user_session.set_principal(original_principal)
         catalog.refreshCurrentPermissions()
 
-    assert employee_counts["list_employees"] == 0
+    assert employee_counts["list_employees_page_for_organization"] == 0
     assert site_counts["list_sites"] == 0
 
 
@@ -102,8 +106,12 @@ def test_admin_console_refresh_selectively_includes_only_granted_entities(servic
     user_session.set_principal(restricted_principal)
     catalog.refreshCurrentPermissions()
 
-    employee_counts, restore_employee = _instrument(EmployeeService, "list_employees")
-    party_counts, restore_party = _instrument(PartyService, "list_parties")
+    employee_counts, restore_employee = _instrument(
+        EmployeeService, "list_employees_page_for_organization"
+    )
+    party_counts, restore_party = _instrument(
+        PartyService, "list_parties_page_for_organization"
+    )
     try:
         catalog.adminWorkspace.refresh()
     finally:
@@ -112,8 +120,8 @@ def test_admin_console_refresh_selectively_includes_only_granted_entities(servic
         user_session.set_principal(original_principal)
         catalog.refreshCurrentPermissions()
 
-    assert party_counts["list_parties"] >= 1
-    assert employee_counts["list_employees"] == 0
+    assert party_counts["list_parties_page_for_organization"] >= 1
+    assert employee_counts["list_employees_page_for_organization"] == 0
 
 
 def test_admin_console_refresh_fails_open_when_runtime_api_missing():

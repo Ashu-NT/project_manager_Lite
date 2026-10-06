@@ -82,7 +82,9 @@ from src.ui_qml.platform.controllers.organizations.organization_controller impor
     PlatformOrganizationController,
 )
 from src.ui_qml.platform.controllers.parties.actions import (
+    activate_party,
     create_party,
+    deactivate_party,
     toggle_party_active,
     update_party,
 )
@@ -138,6 +140,9 @@ from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter
 from src.ui_qml.platform.presenters.overview.admin_overview_presenter import (
     PlatformAdminWorkspacePresenter,
 )
+from src.ui_qml.platform.presenters.parties.party_activity_presenter import (
+    PlatformPartyActivityPresenter,
+)
 from src.ui_qml.platform.presenters.parties.party_catalog_presenter import (
     PlatformPartyCatalogPresenter,
 )
@@ -184,6 +189,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     departmentStatusFilterChanged = Signal()
     departmentSiteFilterChanged = Signal()
     departmentEditorOptionsChanged = Signal()
+    partySearchTextChanged = Signal()
+    partyStatusFilterChanged = Signal()
+    partyTypeFilterChanged = Signal()
+    partyRoleFilterChanged = Signal()
     employeeSearchTextChanged = Signal()
     employeeStatusFilterChanged = Signal()
     employeeDepartmentFilterChanged = Signal()
@@ -210,6 +219,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         employee_documents_presenter: PlatformEmployeeDocumentsPresenter | None = None,
         user_presenter: PlatformUserCatalogPresenter,
         party_presenter: PlatformPartyCatalogPresenter,
+        party_activity_presenter: PlatformPartyActivityPresenter | None = None,
         document_presenter: PlatformDocumentCatalogPresenter,
         document_management_presenter: PlatformDocumentManagementPresenter,
         enterprise_calendar_api=None,
@@ -237,7 +247,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             documents_presenter=employee_documents_presenter,
         )
         self._user_controller = PlatformUserController(user_presenter, self)
-        self._party_controller = PlatformPartyController(party_presenter, self)
+        self._party_controller = PlatformPartyController(
+            party_presenter, self, activity_presenter=party_activity_presenter
+        )
         self._document_controller = PlatformDocumentController(
             presenter=document_presenter,
             management_presenter=document_management_presenter,
@@ -343,6 +355,26 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantMap", notify=partiesChanged)
     def parties(self) -> dict[str, object]:
         return self._party_controller.parties
+
+    @Property(str, notify=partySearchTextChanged)
+    def partySearchText(self) -> str:
+        return self._party_controller.partySearchText
+
+    @Property(str, notify=partyStatusFilterChanged)
+    def partyStatusFilter(self) -> str:
+        return self._party_controller.partyStatusFilter
+
+    @Property(str, notify=partyTypeFilterChanged)
+    def partyTypeFilter(self) -> str:
+        return self._party_controller.partyTypeFilter
+
+    @Property(str, notify=partyRoleFilterChanged)
+    def partyRoleFilter(self) -> str:
+        return self._party_controller.partyRoleFilter
+
+    @Property("QVariantList", constant=True)
+    def partyPageSizeOptions(self) -> list[int]:
+        return self._party_controller.partyPageSizeOptions
 
     @Property("QVariantMap", notify=documentsChanged)
     def documents(self) -> dict[str, object]:
@@ -994,6 +1026,56 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, result="QVariantMap")
     def togglePartyActive(self, party_id: str) -> dict[str, object]:
         return toggle_party_active(self, party_id)
+
+    @Slot(str, result="QVariantMap")
+    def activateParty(self, party_id: str) -> dict[str, object]:
+        return activate_party(self, party_id)
+
+    @Slot(str, result="QVariantMap")
+    def deactivateParty(self, party_id: str) -> dict[str, object]:
+        return deactivate_party(self, party_id)
+
+    @Slot(int)
+    def setPartyPage(self, page: int) -> None:
+        self._party_controller.setPartyPage(page)
+
+    @Slot(int)
+    def setPartyPageSize(self, page_size: int) -> None:
+        self._party_controller.setPartyPageSize(page_size)
+
+    @Slot(str)
+    def setPartySearchText(self, text: str) -> None:
+        self._party_controller.setPartySearchText(text)
+
+    @Slot(str)
+    def setPartyStatusFilter(self, status: str) -> None:
+        self._party_controller.setPartyStatusFilter(status)
+
+    @Slot(str)
+    def setPartyTypeFilter(self, party_type: str) -> None:
+        self._party_controller.setPartyTypeFilter(party_type)
+
+    @Slot(str)
+    def setPartyRoleFilter(self, role: str) -> None:
+        self._party_controller.setPartyRoleFilter(role)
+
+    @Slot(str, str, result="QVariantList")
+    def partyActivity(self, party_id: str, organization_id: str) -> list[dict[str, object]]:
+        return self._party_controller.partyActivity(party_id, organization_id)
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def partyActivityPage(
+        self,
+        party_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        return self._party_controller.partyActivityPage(
+            party_id, organization_id, page, page_size, search, date_range
+        )
 
     # ── Document slots ────────────────────────────────────────────────────
 
