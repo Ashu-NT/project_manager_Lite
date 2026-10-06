@@ -1,9 +1,11 @@
 """AdminEmployeeDetailPage.qml's final section set is exactly Overview /
-Calendar / Activity (no User Account/Assignments/Timesheets/Certifications/
-Documents/Audit tabs, and no hidden/dead placeholder tabs "for later").
-Activates every one of the three sections' lazy Loaders for real and asserts
-no qWarning/qCritical fires -- the same category of error QML raises for a
-static "Cannot assign to non-existent property" binding failure. Mirrors
+Calendar / Documents / Activity (no User Account/Assignments/Timesheets/
+Certifications/Audit tabs, and no hidden/dead placeholder tabs "for later").
+Documents is the first real production consumer of the generic Platform
+DocumentLink capability. Activates every one of the four sections' lazy
+Loaders for real and asserts no qWarning/qCritical fires -- the same
+category of error QML raises for a static "Cannot assign to non-existent
+property" binding failure. Mirrors
 test_department_detail_page_sections_load.py's approach."""
 
 from __future__ import annotations
@@ -43,7 +45,7 @@ def test_final_section_set_is_exactly_overview_calendar_activity() -> None:
 
     sections = root.property("_sections").toVariant()
     labels = [str(section["label"]) for section in sections]
-    assert labels == ["Overview", "Calendar", "Activity"]
+    assert labels == ["Overview", "Calendar", "Documents", "Activity"]
 
 
 def test_activating_every_section_loader_raises_no_qml_warnings() -> None:
@@ -61,7 +63,7 @@ def test_activating_every_section_loader_raises_no_qml_warnings() -> None:
         assert len(engine.rootObjects()) == 1
         root = engine.rootObjects()[0]
 
-        for index in range(3):
+        for index in range(4):
             root.setProperty("activeSectionIndex", index)
             _pump()
     finally:

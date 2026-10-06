@@ -126,6 +126,9 @@ from src.ui_qml.platform.presenters.employees.employee_activity_presenter import
 from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
     PlatformEmployeeCatalogPresenter,
 )
+from src.ui_qml.platform.presenters.employees.employee_documents_presenter import (
+    PlatformEmployeeDocumentsPresenter,
+)
 from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
     PlatformOrganizationActivityPresenter,
 )
@@ -204,6 +207,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         department_activity_presenter: PlatformDepartmentActivityPresenter | None = None,
         employee_presenter: PlatformEmployeeCatalogPresenter,
         employee_activity_presenter: PlatformEmployeeActivityPresenter | None = None,
+        employee_documents_presenter: PlatformEmployeeDocumentsPresenter | None = None,
         user_presenter: PlatformUserCatalogPresenter,
         party_presenter: PlatformPartyCatalogPresenter,
         document_presenter: PlatformDocumentCatalogPresenter,
@@ -227,7 +231,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             department_presenter, self, activity_presenter=department_activity_presenter
         )
         self._employee_controller = PlatformEmployeeController(
-            employee_presenter, self, activity_presenter=employee_activity_presenter
+            employee_presenter,
+            self,
+            activity_presenter=employee_activity_presenter,
+            documents_presenter=employee_documents_presenter,
         )
         self._user_controller = PlatformUserController(user_presenter, self)
         self._party_controller = PlatformPartyController(party_presenter, self)
@@ -925,6 +932,40 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         return self._employee_controller.employeeActivityPage(
             employee_id, organization_id, page, page_size, search, date_range
         )
+
+    @Slot(str, int, int, str, str, str, result="QVariantMap")
+    def employeeDocumentsPage(
+        self,
+        employee_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+        document_type: str,
+    ) -> dict[str, object]:
+        return self._employee_controller.employeeDocumentsPage(
+            employee_id, page, page_size, search, status, document_type
+        )
+
+    @Slot(result="QVariantList")
+    def employeeDocumentTypeOptions(self) -> list[dict[str, str]]:
+        return self._employee_controller.employeeDocumentTypeOptions()
+
+    @Slot(str, str, result="QVariantMap")
+    def linkEmployeeDocument(self, employee_id: str, document_id: str) -> dict[str, object]:
+        return self._employee_controller.linkEmployeeDocument(employee_id, document_id)
+
+    @Slot(str, str, result="QVariantMap")
+    def unlinkEmployeeDocument(self, employee_id: str, link_id: str) -> dict[str, object]:
+        return self._employee_controller.unlinkEmployeeDocument(employee_id, link_id)
+
+    @Slot(result="QVariantList")
+    def employeeDocumentOptions(self) -> list[dict[str, str]]:
+        return self._employee_controller.employeeDocumentOptions()
+
+    @Slot(str, "QVariantMap", result="QVariantMap")
+    def createAndLinkEmployeeDocument(self, employee_id: str, payload: dict[str, object]) -> dict[str, object]:
+        return self._employee_controller.createAndLinkEmployeeDocument(employee_id, payload)
 
     # ── User slots ────────────────────────────────────────────────────────
 

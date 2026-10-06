@@ -5,7 +5,12 @@ import pytest
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.domain.master_data.party import Party, PartyType
+from src.core.platform.domain.master_data.party import (
+    Party,
+    PartyLifecycleStatus,
+    PartyRole,
+    PartyType,
+)
 from src.infra.time.system_clock import SystemClock
 
 
@@ -90,7 +95,8 @@ class _FakePartyRepo:
     ) -> list[Party]:
         rows = [row for row in self._rows.values() if row.organization_id == organization_id]
         if active_only is not None:
-            rows = [row for row in rows if row.is_active is bool(active_only)]
+            expected_status = PartyLifecycleStatus.ACTIVE if active_only else PartyLifecycleStatus.INACTIVE
+            rows = [row for row in rows if row.status is expected_status]
         return sorted(rows, key=lambda row: row.party_name)
 
 
@@ -132,7 +138,8 @@ def test_party_dto_normalizes_and_validates_fields():
         organization_id="  org-1  ",
         party_code="  sup-001  ",
         party_name="  North Supply  ",
-        party_type="supplier",
+        party_type="organization",
+        roles=["supplier", "vendor"],
         legal_name="  North Supply GmbH  ",
         contact_name="  Jane Doe  ",
         email="  SALES@EXAMPLE.COM  ",
@@ -143,7 +150,8 @@ def test_party_dto_normalizes_and_validates_fields():
         address_line_2="  Floor 2  ",
         postal_code="  10115  ",
         website="  https://example.com  ",
-        tax_registration_number="  TAX-001  ",
+        registration_number="  REG-001  ",
+        tax_identifier="  TAX-001  ",
         external_reference="  EXT-001  ",
         notes="  Preferred vendor  ",
     )
@@ -151,7 +159,8 @@ def test_party_dto_normalizes_and_validates_fields():
     assert party.organization_id == "org-1"
     assert party.party_code == "SUP-001"
     assert party.party_name == "North Supply"
-    assert party.party_type is PartyType.SUPPLIER
+    assert party.party_type is PartyType.ORGANIZATION
+    assert party.roles == (PartyRole.SUPPLIER, PartyRole.VENDOR)
     assert party.legal_name == "North Supply GmbH"
     assert party.contact_name == "Jane Doe"
     assert party.email == "sales@example.com"
@@ -162,9 +171,12 @@ def test_party_dto_normalizes_and_validates_fields():
     assert party.address_line_2 == "Floor 2"
     assert party.postal_code == "10115"
     assert party.website == "https://example.com"
-    assert party.tax_registration_number == "TAX-001"
+    assert party.registration_number == "REG-001"
+    assert party.tax_identifier == "TAX-001"
     assert party.external_reference == "EXT-001"
     assert party.notes == "Preferred vendor"
+    assert party.status is PartyLifecycleStatus.ACTIVE
+    assert party.is_active is True
     assert party.created_at is not None
     assert party.updated_at is not None
 
@@ -192,7 +204,8 @@ def test_party_service_uses_entity_validation_and_final_state(monkeypatch: pytes
     created = service.create_party(
         party_code=" sup-001 ",
         name="  North Supply  ",
-        party_type="supplier",
+        party_type="organization",
+        roles=["supplier"],
         legal_name="  North Supply GmbH  ",
         email="  SALES@EXAMPLE.COM  ",
         phone="  +49-555-0101  ",
@@ -203,7 +216,8 @@ def test_party_service_uses_entity_validation_and_final_state(monkeypatch: pytes
 
     assert created.party_code == "SUP-001"
     assert created.party_name == "North Supply"
-    assert created.party_type is PartyType.SUPPLIER
+    assert created.party_type is PartyType.ORGANIZATION
+    assert created.roles == (PartyRole.SUPPLIER,)
     assert created.legal_name == "North Supply GmbH"
     assert created.email == "sales@example.com"
     assert created.phone == "+49-555-0101"
@@ -219,7 +233,7 @@ def test_party_service_uses_entity_validation_and_final_state(monkeypatch: pytes
         created.id,
         party_code=" ven-002 ",
         party_name="  North Services  ",
-        party_type="service_provider",
+        roles=["service_provider"],
         email="",
         phone="  +49-555-0102  ",
         city="  Hamburg  ",
@@ -228,12 +242,12 @@ def test_party_service_uses_entity_validation_and_final_state(monkeypatch: pytes
 
     assert updated.party_code == "VEN-002"
     assert updated.party_name == "North Services"
-    assert updated.party_type is PartyType.SERVICE_PROVIDER
+    assert updated.roles == (PartyRole.SERVICE_PROVIDER,)
     assert updated.email == ""
     assert updated.phone == "+49-555-0102"
     assert updated.city == "Hamburg"
 
-    search_rows = service.search_parties(search_text="services", party_type="service_provider")
+    search_rows = service.search_parties(search_text="services")
     assert [row.id for row in search_rows] == [updated.id]
 
     with pytest.raises(ValidationError) as exc_duplicate:

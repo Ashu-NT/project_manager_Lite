@@ -23,6 +23,7 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
+from src.core.platform.domain.master_data.party import PartyLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
@@ -116,8 +117,8 @@ def _seed_party(db, *, id, tenant_id, organization_id, code, is_active):
             organization_id=organization_id,
             party_code=code,
             party_name=f"Party {code}",
-            party_type="GENERAL",
-            is_active=is_active,
+            party_type="ORGANIZATION",
+            status=PartyLifecycleStatus.ACTIVE if is_active else PartyLifecycleStatus.INACTIVE,
             created_at=_NOW,
             updated_at=_NOW,
             version=1,
@@ -501,8 +502,9 @@ def test_party_service_get_party_rollup_summary_reflects_writes(services):
     party_service = services["party_service"]
 
     baseline = party_service.get_party_rollup_summary()
-    party_service.create_party(party_code="ROLLUP-P1", party_name="Rollup Party 1", is_active=True)
-    party_service.create_party(party_code="ROLLUP-P2", party_name="Rollup Party 2", is_active=False)
+    party_service.create_party(party_code="ROLLUP-P1", party_name="Rollup Party 1")
+    inactive_party = party_service.create_party(party_code="ROLLUP-P2", party_name="Rollup Party 2")
+    party_service.deactivate_party(inactive_party.id)
 
     updated = party_service.get_party_rollup_summary()
     assert updated.total == baseline.total + 2
@@ -531,7 +533,7 @@ def test_rollup_summaries_isolated_per_organization(services):
     default_organization = services["tenant_context_service"].get_active_organization()
     site_service.create_site(site_code="ISO-S1", name="Iso Site 1")
     department_service.create_department(department_code="ISO-D1", name="Iso Dept 1")
-    party_service.create_party(party_code="ISO-P1", party_name="Iso Party 1", is_active=True)
+    party_service.create_party(party_code="ISO-P1", party_name="Iso Party 1")
     document_service.create_document(document_code="ISO-DOC1", title="Iso Doc 1", storage_uri="/docs/iso-doc1.pdf", is_current=True)
 
     second_organization = organization_service.create_organization(
@@ -632,7 +634,9 @@ def test_rollup_summaries_never_call_write_repository_list_methods(services):
         sql_department = department_service.create_department(department_code=f"SQL-D{i}", name=f"SQL Dept {i}")
         if i % 2 != 0:
             department_service.deactivate_department(sql_department.id)
-        party_service.create_party(party_code=f"SQL-P{i}", party_name=f"SQL Party {i}", is_active=(i % 2 == 0))
+        sql_party = party_service.create_party(party_code=f"SQL-P{i}", party_name=f"SQL Party {i}")
+        if i % 2 != 0:
+            party_service.deactivate_party(sql_party.id)
         document_service.create_document(document_code=f"SQL-DOC{i}", title=f"SQL Doc {i}", storage_uri=f"/docs/sql-doc{i}.pdf", is_current=(i % 2 == 0))
 
     instrumented = [
@@ -686,7 +690,9 @@ def test_admin_overview_never_lists_full_master_data_collections(services):
         ov_department = department_service.create_department(department_code=f"OV-D{i}", name=f"Overview Dept {i}")
         if i % 3 != 0:
             department_service.deactivate_department(ov_department.id)
-        party_service.create_party(party_code=f"OV-P{i}", party_name=f"Overview Party {i}", is_active=(i % 3 == 0))
+        ov_party = party_service.create_party(party_code=f"OV-P{i}", party_name=f"Overview Party {i}")
+        if i % 3 != 0:
+            party_service.deactivate_party(ov_party.id)
         document_service.create_document(document_code=f"OV-DOC{i}", title=f"Overview Doc {i}", storage_uri=f"/docs/ov-doc{i}.pdf", is_current=(i % 3 == 0))
 
     expected_organization_count = organization_service.get_organization_count()

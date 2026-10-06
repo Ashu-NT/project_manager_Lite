@@ -29,6 +29,9 @@ from src.ui_qml.platform.presenters.employees.employee_activity_presenter import
 from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
     PlatformEmployeeCatalogPresenter,
 )
+from src.ui_qml.platform.presenters.employees.employee_documents_presenter import (
+    PlatformEmployeeDocumentsPresenter,
+)
 from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
     PlatformOrganizationActivityPresenter,
 )
@@ -82,6 +85,7 @@ __all__ = [
     "PlatformDocumentManagementPresenter",
     "PlatformEmployeeActivityPresenter",
     "PlatformEmployeeCatalogPresenter",
+    "PlatformEmployeeDocumentsPresenter",
     "PlatformOrganizationActivityPresenter",
     "PlatformOrganizationCatalogPresenter",
     "PlatformPartyCatalogPresenter",

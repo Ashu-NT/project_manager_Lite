@@ -11,9 +11,8 @@ from src.core.platform.api.desktop.master_data.party.party import (
     PlatformPartyDesktopApi,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.domain.master_data.party import PartyType
+from src.core.platform.domain.master_data.party import PartyRole, PartyType
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
-    bool_value,
     option_item,
     optional_string_value,
     preview_error_result,
@@ -69,6 +68,15 @@ class PlatformPartyCatalogPresenter:
             for party_type in PartyType
         )
 
+    def build_role_options(self) -> tuple[dict[str, str], ...]:
+        return tuple(
+            option_item(
+                label=title_case_code(role),
+                value=role.value,
+            )
+            for role in PartyRole
+        )
+
     def suggest_code(self, payload: dict[str, Any]) -> str:
         """Suggest a unique party code (PTY-<NAME>-0001 / PTY-<YEAR>-0001)."""
         from src.core.platform.common.code_generation import CodeGenerator
@@ -93,7 +101,8 @@ class PlatformPartyCatalogPresenter:
             PartyCreateCommand(
                 party_code=string_value(payload, "partyCode"),
                 party_name=string_value(payload, "partyName"),
-                party_type=string_value(payload, "partyType", default=PartyType.GENERAL.value),
+                party_type=string_value(payload, "partyType", default=PartyType.ORGANIZATION.value),
+                roles=self._roles_value(payload),
                 legal_name=string_value(payload, "legalName"),
                 contact_name=string_value(payload, "contactName"),
                 email=optional_string_value(payload, "email"),
@@ -104,9 +113,9 @@ class PlatformPartyCatalogPresenter:
                 address_line_2=string_value(payload, "addressLine2"),
                 postal_code=string_value(payload, "postalCode"),
                 website=string_value(payload, "website"),
-                tax_registration_number=string_value(payload, "taxRegistrationNumber"),
+                registration_number=string_value(payload, "registrationNumber"),
+                tax_identifier=string_value(payload, "taxIdentifier"),
                 external_reference=string_value(payload, "externalReference"),
-                is_active=bool_value(payload, "isActive", default=True),
                 notes=string_value(payload, "notes"),
             )
         )
@@ -119,7 +128,8 @@ class PlatformPartyCatalogPresenter:
                 party_id=string_value(payload, "partyId"),
                 party_code=string_value(payload, "partyCode"),
                 party_name=string_value(payload, "partyName"),
-                party_type=string_value(payload, "partyType", default=PartyType.GENERAL.value),
+                party_type=string_value(payload, "partyType", default=PartyType.ORGANIZATION.value),
+                roles=self._roles_value(payload),
                 legal_name=string_value(payload, "legalName"),
                 contact_name=string_value(payload, "contactName"),
                 email=optional_string_value(payload, "email"),
@@ -130,9 +140,9 @@ class PlatformPartyCatalogPresenter:
                 address_line_2=string_value(payload, "addressLine2"),
                 postal_code=string_value(payload, "postalCode"),
                 website=string_value(payload, "website"),
-                tax_registration_number=string_value(payload, "taxRegistrationNumber"),
+                registration_number=string_value(payload, "registrationNumber"),
+                tax_identifier=string_value(payload, "taxIdentifier"),
                 external_reference=string_value(payload, "externalReference"),
-                is_active=bool_value(payload, "isActive", default=True),
                 notes=string_value(payload, "notes"),
             )
         )
@@ -144,15 +154,24 @@ class PlatformPartyCatalogPresenter:
         is_active: bool,
         expected_version: int | None,
     ) -> DesktopApiResult[PartyDto]:
+        # expected_version isn't honored here -- activate_party/deactivate_party
+        # are the real lifecycle commands and don't take an optimistic-lock
+        # token (they reject same-state transitions instead); kept as a
+        # parameter only for call-site compatibility.
         if self._party_api is None:
             return preview_error_result("Platform party API is not connected in this QML preview.")
-        return self._party_api.update_party(
-            PartyUpdateCommand(
-                party_id=party_id,
-                is_active=not is_active,
-                expected_version=expected_version,
-            )
-        )
+        if is_active:
+            return self._party_api.deactivate_party(party_id)
+        return self._party_api.activate_party(party_id)
+
+    @staticmethod
+    def _roles_value(payload: dict[str, Any]) -> list[str]:
+        raw = payload.get("roles", [])
+        if raw is None:
+            return []
+        if isinstance(raw, str):
+            return [part.strip() for part in raw.split(",") if part.strip()]
+        return [str(item).strip() for item in raw if str(item).strip()]
 
     @staticmethod
     def _serialize_party(row: PartyDto) -> PlatformWorkspaceActionItemViewModel:
@@ -182,9 +201,12 @@ class PlatformPartyCatalogPresenter:
                 "addressLine2": row.address_line_2,
                 "postalCode": row.postal_code,
                 "website": row.website,
-                "taxRegistrationNumber": row.tax_registration_number,
+                "roles": [role.value for role in row.roles],
+                "registrationNumber": row.registration_number,
+                "taxIdentifier": row.tax_identifier,
                 "externalReference": row.external_reference,
                 "notes": row.notes,
+                "status": row.status,
                 "isActive": row.is_active,
                 "version": row.version,
             },

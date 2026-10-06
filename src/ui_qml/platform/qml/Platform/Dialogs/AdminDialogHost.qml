@@ -166,6 +166,14 @@ Item {
         userLinkDialog.openForLink(employeeId || "", employeeLabel || "", userOptions || [])
     }
 
+    function openEmployeeDocumentLink(employeeId, employeeLabel) {
+        if (root.workspaceController === null) {
+            return
+        }
+        const options = root.workspaceController.employeeDocumentOptions() || []
+        employeeDocumentLinkDialog.openForEmployee(employeeId || "", employeeLabel || "", options)
+    }
+
     function openUserCreate() {
         if (root.workspaceController === null) {
             return
@@ -319,6 +327,27 @@ Item {
             }
             const result = root.workspaceController.linkEmployeeUserAccount(payload.employeeId, payload.userId)
             root._handleResult(userLinkDialog, result)
+        }
+    }
+
+    EmployeeDialogs.EmployeeDocumentLinkDialog {
+        id: employeeDocumentLinkDialog
+
+        parent: Overlay.overlay
+
+        onLinkExistingRequested: function(employeeId, documentId) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.linkEmployeeDocument(employeeId, documentId)
+            root._handleResult(employeeDocumentLinkDialog, result)
+        }
+        onCreateAndLinkRequested: function(employeeId, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.createAndLinkEmployeeDocument(employeeId, payload)
+            root._handleResult(employeeDocumentLinkDialog, result)
         }
     }
 

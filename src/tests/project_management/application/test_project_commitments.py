@@ -65,7 +65,7 @@ def _setup(services):
         site_code="COMMIT", name="Commitment Site", currency_code=organization.base_currency
     )
     supplier = services["party_service"].create_party(
-        party_code="COMMIT-SUP", party_name="Commitment Supplier", party_type="SUPPLIER"
+        party_code="COMMIT-SUP", party_name="Commitment Supplier", roles=["SUPPLIER"]
     )
     period = services["financial_period_service"].create_period(
         code="COMMIT-2026-08", name="August 2026", fiscal_year=2026, period_number=8,

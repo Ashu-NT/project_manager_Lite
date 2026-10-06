@@ -13,6 +13,9 @@ from src.ui_qml.platform.presenters.employees.employee_activity_presenter import
 from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
     PlatformEmployeeCatalogPresenter,
 )
+from src.ui_qml.platform.presenters.employees.employee_documents_presenter import (
+    PlatformEmployeeDocumentsPresenter,
+)
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 
@@ -38,10 +41,12 @@ class PlatformEmployeeController(QObject):
         parent: QObject | None = None,
         *,
         activity_presenter: PlatformEmployeeActivityPresenter | None = None,
+        documents_presenter: PlatformEmployeeDocumentsPresenter | None = None,
     ) -> None:
         super().__init__(parent)
         self._presenter = presenter
         self._activity_presenter = activity_presenter or PlatformEmployeeActivityPresenter()
+        self._documents_presenter = documents_presenter or PlatformEmployeeDocumentsPresenter()
         self._table_model = DynamicTableModel(self)
         self._employees: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._employee_editor_options: dict[str, object] = {
@@ -453,6 +458,79 @@ class PlatformEmployeeController(QObject):
         return self._activity_presenter.build_activity_page_for_employee(
             normalized_employee_id, normalized_org_id,
             page=page, page_size=page_size, search=search, date_range=date_range,
+        )
+
+    @Slot(str, int, int, str, str, str, result="QVariantMap")
+    def employeeDocumentsPage(
+        self,
+        employee_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+        document_type: str,
+    ) -> dict[str, object]:
+        normalized_employee_id = employee_id.strip()
+        if not normalized_employee_id:
+            return {
+                "items": [], "page": page, "pageSize": page_size,
+                "totalCount": 0, "filteredTotal": 0, "emptyState": "", "noResultsState": "",
+            }
+        return serialize_action_list(
+            self._documents_presenter.build_documents_page(
+                normalized_employee_id, page=page, page_size=page_size, search=search,
+                status=status, document_type=document_type,
+            )
+        )
+
+    @Slot(result="QVariantList")
+    def employeeDocumentTypeOptions(self) -> list[dict[str, str]]:
+        return list(self._documents_presenter.build_document_type_options())
+
+    @Slot(str, str, result="QVariantMap")
+    def linkEmployeeDocument(self, employee_id: str, document_id: str) -> dict[str, object]:
+        # Documents are their own tab/page, entirely separate from this
+        # controller's own `employees` catalog -- the QML Documents section
+        # re-fetches its own page after a successful mutation (same
+        # self-contained-refresh pattern Department's Employees sub-tab
+        # already uses), so `on_success` here is deliberately a no-op
+        # rather than an unrelated full-catalog refresh.
+        return run_mutation(
+            operation=lambda: self._documents_presenter.link_document(employee_id, document_id),
+            success_message="Document linked.",
+            on_success=lambda: None,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, str, result="QVariantMap")
+    def unlinkEmployeeDocument(self, employee_id: str, link_id: str) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._documents_presenter.unlink_document(employee_id, link_id),
+            success_message="Document unlinked.",
+            on_success=lambda: None,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(result="QVariantList")
+    def employeeDocumentOptions(self) -> list[dict[str, str]]:
+        return list(self._documents_presenter.build_document_options())
+
+    @Slot(str, "QVariantMap", result="QVariantMap")
+    def createAndLinkEmployeeDocument(self, employee_id: str, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._documents_presenter.create_and_link_document(employee_id, dict(payload)),
+            success_message="Document created and linked.",
+            on_success=lambda: None,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
         )
 
     def _refresh_employees(self) -> None:

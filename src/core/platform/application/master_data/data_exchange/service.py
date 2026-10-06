@@ -24,7 +24,11 @@ from src.core.platform.domain.data_operations.importing import (
     ImportSourceRow,
     ImportSummary,
 )
-from src.core.platform.domain.master_data.party import PartyType
+from src.core.platform.domain.master_data.party import (
+    PartyLifecycleStatus,
+    PartyRole,
+    PartyType,
+)
 from src.core.platform.domain.master_data.site import (
     SITE_STATUS_ACTIVE,
     SITE_STATUS_ARCHIVED,
@@ -61,7 +65,12 @@ _SITE_FIELDS: tuple[ImportFieldSpec, ...] = (
 _PARTY_FIELDS: tuple[ImportFieldSpec, ...] = (
     ImportFieldSpec(key="party_code", label="Party Code", required=True),
     ImportFieldSpec(key="party_name", label="Party Name", required=True),
+    # party_type is now the ORGANIZATION/INDIVIDUAL identity axis; a legacy
+    # export's party_type carrying a role token (SUPPLIER, VENDOR, ...) is
+    # still accepted on import and folded into `roles` instead -- see
+    # _parse_optional_party_type/_parse_legacy_party_type_role.
     ImportFieldSpec(key="party_type", label="Party Type"),
+    ImportFieldSpec(key="roles", label="Roles"),
     ImportFieldSpec(key="legal_name", label="Legal Name"),
     ImportFieldSpec(key="contact_name", label="Contact Name"),
     ImportFieldSpec(key="email", label="Email"),
@@ -72,9 +81,15 @@ _PARTY_FIELDS: tuple[ImportFieldSpec, ...] = (
     ImportFieldSpec(key="address_line_2", label="Address Line 2"),
     ImportFieldSpec(key="postal_code", label="Postal Code"),
     ImportFieldSpec(key="website", label="Website"),
-    ImportFieldSpec(key="tax_registration_number", label="Tax Registration Number"),
+    # registration_number carries a legacy export's tax_registration_number
+    # column forward on import (see _parse_party_payload); exports only ever
+    # emit the new canonical columns.
+    ImportFieldSpec(key="registration_number", label="Registration Number"),
+    ImportFieldSpec(key="tax_identifier", label="Tax Identifier"),
     ImportFieldSpec(key="external_reference", label="External Reference"),
-    ImportFieldSpec(key="is_active", label="Is Active"),
+    # status is the real lifecycle column; a legacy export's is_active
+    # boolean column is still accepted on import -- see _reconcile_party_status.
+    ImportFieldSpec(key="status", label="Status"),
     ImportFieldSpec(key="notes", label="Notes"),
 )
 
@@ -99,11 +114,31 @@ def _parse_optional_bool(value: str | None) -> bool | None:
     raise ValueError("Value must be a boolean token such as true/false or yes/no.")
 
 
+_LEGACY_PARTY_TYPE_ROLE_TOKENS = {
+    "SUPPLIER",
+    "MANUFACTURER",
+    "VENDOR",
+    "CONTRACTOR",
+    "SERVICE_PROVIDER",
+    "CUSTOMER",
+}
+
+
 def _parse_optional_party_type(value: str | None) -> PartyType | None:
     normalized = _text(value).upper()
-    if not normalized:
+    if not normalized or normalized in _LEGACY_PARTY_TYPE_ROLE_TOKENS or normalized == "GENERAL":
         return None
     return PartyType(normalized)
+
+
+def _parse_legacy_party_type_role(value: str | None) -> PartyRole | None:
+    """A pre-refactor export's party_type column could carry a role token
+    (SUPPLIER, VENDOR, ...) rather than an identity type -- fold it into
+    roles instead of rejecting the column outright."""
+    normalized = _text(value).upper()
+    if normalized in _LEGACY_PARTY_TYPE_ROLE_TOKENS:
+        return PartyRole(normalized)
+    return None
 
 
 @dataclass(frozen=True)
@@ -345,11 +380,12 @@ class MasterDataExchangeService:
                 payload = self._parse_party_payload(row.values, require_name=True)
                 existing = self._party_service.find_party_by_code(code)
                 if existing is None:
-                    self._party_service.create_party(party_code=code, **payload)
+                    party = self._party_service.create_party(party_code=code, **payload)
                     summary.created_count += 1
                 else:
-                    self._party_service.update_party(existing.id, expected_version=existing.version, **payload)
+                    party = self._party_service.update_party(existing.id, expected_version=existing.version, **payload)
                     summary.updated_count += 1
+                self._reconcile_party_status(party, row.values.get("status"), row.values.get("is_active"))
             except Exception as exc:
                 summary.add_row_error(line_no=row.line_no, message=str(exc))
         return summary
@@ -395,6 +431,7 @@ class MasterDataExchangeService:
                         "party_code": party.party_code,
                         "party_name": party.party_name,
                         "party_type": party.party_type.value,
+                        "roles": ",".join(role.value for role in party.roles),
                         "legal_name": party.legal_name,
                         "contact_name": party.contact_name,
                         "email": party.email,
@@ -405,9 +442,10 @@ class MasterDataExchangeService:
                         "address_line_2": party.address_line_2,
                         "postal_code": party.postal_code,
                         "website": party.website,
-                        "tax_registration_number": party.tax_registration_number,
+                        "registration_number": party.registration_number,
+                        "tax_identifier": party.tax_identifier,
                         "external_reference": party.external_reference,
-                        "is_active": str(bool(party.is_active)).lower(),
+                        "status": party.status.value,
                         "notes": party.notes,
                     }
                 )
@@ -477,6 +515,14 @@ class MasterDataExchangeService:
         party_type = _parse_optional_party_type(values.get("party_type"))
         if party_type is not None:
             payload["party_type"] = party_type
+
+        role_tokens = [part.strip() for part in _text(values.get("roles")).split(",") if part.strip()]
+        legacy_role = _parse_legacy_party_type_role(values.get("party_type"))
+        if legacy_role is not None:
+            role_tokens.append(legacy_role.value)
+        if role_tokens:
+            payload["roles"] = role_tokens
+
         for key in (
             "legal_name",
             "contact_name",
@@ -488,17 +534,46 @@ class MasterDataExchangeService:
             "address_line_2",
             "postal_code",
             "website",
-            "tax_registration_number",
             "external_reference",
             "notes",
         ):
             normalized = _optional_text(values.get(key))
             if normalized is not None:
                 payload[key] = normalized
-        is_active = _parse_optional_bool(values.get("is_active"))
-        if is_active is not None:
-            payload["is_active"] = is_active
+
+        # registration_number carries a legacy export's tax_registration_number
+        # column forward when the canonical column isn't present.
+        registration_number = _optional_text(values.get("registration_number"))
+        if registration_number is None:
+            registration_number = _optional_text(values.get("tax_registration_number"))
+        if registration_number is not None:
+            payload["registration_number"] = registration_number
+
+        tax_identifier = _optional_text(values.get("tax_identifier"))
+        if tax_identifier is not None:
+            payload["tax_identifier"] = tax_identifier
+
         return payload
+
+    def _reconcile_party_status(
+        self, party, requested_status: str | None, requested_is_active: str | None
+    ) -> None:
+        """status is the real lifecycle column; a legacy export's is_active
+        boolean column is accepted as a fallback when status isn't present."""
+        target: PartyLifecycleStatus | None = None
+        normalized_status = _text(requested_status).lower()
+        if normalized_status:
+            target = PartyLifecycleStatus(normalized_status)
+        else:
+            is_active = _parse_optional_bool(requested_is_active)
+            if is_active is not None:
+                target = PartyLifecycleStatus.ACTIVE if is_active else PartyLifecycleStatus.INACTIVE
+        if target is None or target == party.status:
+            return
+        if target == PartyLifecycleStatus.ACTIVE:
+            self._party_service.activate_party(party.id)
+        else:
+            self._party_service.deactivate_party(party.id)
 
 
 __all__ = ["MasterDataExchangeService", "MasterDataExportRequest"]

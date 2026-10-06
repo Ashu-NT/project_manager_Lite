@@ -7,16 +7,20 @@ import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import Shell.Context 1.0 as ShellContexts
 import workspaces.employees.sections 1.0 as EmployeeSections
+import "sections/EmployeeDocumentsColumns.js" as DocumentColumns
 
 // Orchestrator only: owns employee identity/lifecycle, per-tab state
 // (page/search/filter) and data fetching. Each tab's own markup lives in
 // workspaces/employees/sections/ -- see that folder's files for the
-// Overview/Calendar/Activity presentational components this page wires up
-// below. Modernized to the same shape as AdminDepartmentDetailPage.qml;
-// final section set is exactly Overview/Calendar/Activity -- no User
-// Account/Assignments/Timesheets/Certifications/Documents/Audit tabs (see
-// Related Actions for optional cross-module navigation, and Overview's
-// System Access card for the real Employee<->User relationship).
+// Overview/Calendar/Documents/Activity presentational components this page
+// wires up below. Modernized to the same shape as AdminDepartmentDetailPage.qml;
+// final section set is Overview/Calendar/Documents/Activity -- no User
+// Account/Assignments/Timesheets/Certifications/Audit tabs (see Related
+// Actions for optional cross-module navigation, and Overview's System
+// Access card for the real Employee<->User relationship). Documents is the
+// first real production consumer of the generic Platform DocumentLink
+// capability -- see employee_documents.py and
+// employee_documents_presenter.py.
 Item {
     id: root
     objectName: "adminEmployeeDetailPage"
@@ -134,13 +138,57 @@ Item {
         )
     }
 
-    // User Account/Assignments/Timesheets/Certifications/Documents/Audit
-    // are not tabs -- see Related Actions and Overview's System Access
-    // card for the real relationships and optional cross-module navigation
-    // instead.
+    // -- Documents tab: this employee's own paginated, searchable, linked
+    // Documents -- the first real production consumer of the generic
+    // Platform DocumentLink capability (see Phase 1-3 of the Documents
+    // workstream). Mirrors the Activity tab's own state shape exactly.
+    readonly property var _documentsColumns: DocumentColumns.columns()
+    property int _documentsPage: 1
+    property int _documentsPageSize: 25
+    property string _documentsSearch: ""
+    property string _documentsStatusFilter: ""
+    property string _documentsTypeFilter: ""
+    property var _documentsCatalog: ({
+        "items": [], "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0,
+        "emptyState": "", "noResultsState": ""
+    })
+    readonly property var _documentsStatusFilterOptions: [
+        { "value": "", "label": "All" },
+        { "value": "active", "label": "Active" },
+        { "value": "inactive", "label": "Inactive" }
+    ]
+    readonly property var _documentsTypeFilterOptions: {
+        const options = root.platformCatalog ? (root.platformCatalog.adminWorkspace.employeeDocumentTypeOptions() || []) : []
+        return [{ "value": "", "label": "All Types" }].concat(options)
+    }
+    function _refreshDocumentsPage() {
+        if (root._employeeId.length === 0 || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            return
+        }
+        root._documentsCatalog = root.platformCatalog.adminWorkspace.employeeDocumentsPage(
+            root._employeeId, root._documentsPage, root._documentsPageSize,
+            root._documentsSearch, root._documentsStatusFilter, root._documentsTypeFilter
+        )
+    }
+    // Unlinking is a relationship removal handled entirely on this page
+    // (via platformCatalog, already passed down) -- it never needs the
+    // outer workspace page's dialog host, unlike "Add Document" below,
+    // which does.
+    function _unlinkDocument(linkId) {
+        if (root._employeeId.length === 0 || !root.platformCatalog || !root.platformCatalog.adminWorkspace || !linkId) {
+            return
+        }
+        root.platformCatalog.adminWorkspace.unlinkEmployeeDocument(root._employeeId, linkId)
+        root._refreshDocumentsPage()
+    }
+
+    // User Account/Assignments/Timesheets/Certifications/Audit are not
+    // tabs -- see Related Actions and Overview's System Access card for
+    // the real relationships and optional cross-module navigation instead.
     readonly property var _sections: [
         { "label": "Overview" },
         { "label": "Calendar" },
+        { "label": "Documents", "count": root._documentsCatalog.filteredTotal || 0 },
         { "label": "Activity" }
     ]
     readonly property string _activeSectionLabel: {
@@ -225,10 +273,12 @@ Item {
     onEmployeeChanged: {
         root._refreshActivityPage()
         root._refreshRecentActivity()
+        root._refreshDocumentsPage()
     }
     Component.onCompleted: {
         root._refreshActivityPage()
         root._refreshRecentActivity()
+        root._refreshDocumentsPage()
     }
 
     AppWidgets.SectionDetailPage {
@@ -350,6 +400,79 @@ Item {
                         busy: root.busy
                         onAssignCalendarRequested: root.actionRequested("assign_calendar")
                         onOpenCalendarManagementRequested: root.actionRequested("open_calendar_mgmt")
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root._activeSectionLabel === "Documents"
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: documentsLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root._activeSectionLabel === "Documents"
+                keepLoaded: true
+                loadingMessage: "Loading employee documents..."
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
+                sourceComponent: Component {
+                    EmployeeSections.EmployeeDocumentsSection {
+                        canWrite: root.canWrite
+                        busy: root.busy
+                        errorMessage: root.errorMessage
+                        feedbackMessage: root.feedbackMessage
+                        viewportHeight: Math.max(420, detailPage.contentViewportHeight)
+
+                        catalog: root._documentsCatalog
+                        columns: root._documentsColumns
+                        searchText: root._documentsSearch
+                        statusFilterOptions: root._documentsStatusFilterOptions
+                        statusFilter: root._documentsStatusFilter
+                        typeFilterOptions: root._documentsTypeFilterOptions
+                        typeFilter: root._documentsTypeFilter
+
+                        onAddDocumentRequested: root.actionRequested("add_document")
+                        onRowActivated: function(documentId) { root.relatedRowActivated("documents", documentId) }
+                        onUnlinkRequested: function(linkId) { root._unlinkDocument(linkId) }
+                        onRefreshRequested: root._refreshDocumentsPage()
+                        onSearchChanged: function(text) {
+                            root._documentsSearch = text
+                            root._documentsPage = 1
+                            root._refreshDocumentsPage()
+                        }
+                        onPageRequested: function(page) {
+                            root._documentsPage = page
+                            root._refreshDocumentsPage()
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            root._documentsPageSize = pageSize
+                            root._documentsPage = 1
+                            root._refreshDocumentsPage()
+                        }
+                        onClearFiltersRequested: {
+                            root._documentsSearch = ""
+                            root._documentsStatusFilter = ""
+                            root._documentsTypeFilter = ""
+                            root._documentsPage = 1
+                            root._refreshDocumentsPage()
+                        }
+                        onStatusFilterRequested: function(value) {
+                            root._documentsStatusFilter = value
+                            root._documentsPage = 1
+                            root._refreshDocumentsPage()
+                        }
+                        onTypeFilterRequested: function(value) {
+                            root._documentsTypeFilter = value
+                            root._documentsPage = 1
+                            root._refreshDocumentsPage()
+                        }
                     }
                 }
             }

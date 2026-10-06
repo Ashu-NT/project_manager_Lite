@@ -101,7 +101,7 @@ Item {
         { "label": "Status", "value": root._status },
         { "label": "Version", "value": root._state.version },
         { "label": "External Reference", "value": root._state.externalReference },
-        { "label": "Tax Registration", "value": root._state.taxRegistrationNumber }
+        { "label": "Registration Number", "value": root._state.registrationNumber }
     ]
     readonly property var _contactFields: [
         { "label": "Contact Name", "value": root._state.contactName },

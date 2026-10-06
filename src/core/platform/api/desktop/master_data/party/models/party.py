@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
-from src.core.platform.domain.master_data.party import PartyType
+from src.core.platform.domain.master_data.party import PartyRole, PartyType
 
 
 @dataclass(frozen=True)
@@ -13,6 +13,7 @@ class PartyDto:
     party_code: str
     party_name: str
     party_type: PartyType
+    roles: tuple[PartyRole, ...]
     legal_name: str
     contact_name: str
     email: str
@@ -23,8 +24,13 @@ class PartyDto:
     address_line_2: str
     postal_code: str
     website: str
-    tax_registration_number: str
+    registration_number: str
+    tax_identifier: str
     external_reference: str
+    # `status` ("active"/"inactive") is the real, sole lifecycle source of
+    # truth -- `is_active` is a derived read convenience computed once at
+    # serialization time, never persisted separately.
+    status: str
     is_active: bool
     created_at: datetime | None
     updated_at: datetime | None
@@ -39,10 +45,20 @@ class PartyRollupSummaryDto:
 
 
 @dataclass(frozen=True)
+class PartyPageDto:
+    items: tuple[PartyDto, ...]
+    total: int
+    filtered_total: int
+    page: int
+    page_size: int
+
+
+@dataclass(frozen=True)
 class PartyCreateCommand:
     party_code: str
     party_name: str
-    party_type: PartyType | str = PartyType.INDIVIDUAL
+    party_type: PartyType | str = PartyType.ORGANIZATION
+    roles: list[str] = field(default_factory=list)
     legal_name: str = ""
     contact_name: str = ""
     email: str | None = None
@@ -53,9 +69,9 @@ class PartyCreateCommand:
     address_line_2: str = ""
     postal_code: str = ""
     website: str = ""
-    tax_registration_number: str = ""
+    registration_number: str = ""
+    tax_identifier: str = ""
     external_reference: str = ""
-    is_active: bool = True
     notes: str = ""
 
 
@@ -65,6 +81,7 @@ class PartyUpdateCommand:
     party_code: str | None = None
     party_name: str | None = None
     party_type: PartyType | str | None = None
+    roles: list[str] | None = None
     legal_name: str | None = None
     contact_name: str | None = None
     email: str | None = None
@@ -75,8 +92,8 @@ class PartyUpdateCommand:
     address_line_2: str | None = None
     postal_code: str | None = None
     website: str | None = None
-    tax_registration_number: str | None = None
+    registration_number: str | None = None
+    tax_identifier: str | None = None
     external_reference: str | None = None
-    is_active: bool | None = None
     notes: str | None = None
     expected_version: int | None = None

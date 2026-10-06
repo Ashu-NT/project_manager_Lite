@@ -6,6 +6,7 @@ from src.core.platform.domain.master_data.employee import (
     EmployeeLifecycleStatus,
     EmploymentType,
 )
+from src.core.platform.domain.master_data.party import PartyLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
@@ -114,8 +115,9 @@ def _seed_core_scope_rows(services) -> dict[str, str]:
         organization_id=default_org.id,
         party_code="PARTY-CUR",
         party_name="Current Party",
-        party_type="SUPPLIER",
-        is_active=True,
+        party_type="ORGANIZATION",
+        roles="SUPPLIER",
+        status=PartyLifecycleStatus.ACTIVE,
         created_at=now,
         updated_at=now,
         version=1,
@@ -126,8 +128,9 @@ def _seed_core_scope_rows(services) -> dict[str, str]:
         organization_id=other_org.id,
         party_code="PARTY-OTH",
         party_name="Other Party",
-        party_type="SUPPLIER",
-        is_active=True,
+        party_type="ORGANIZATION",
+        roles="SUPPLIER",
+        status=PartyLifecycleStatus.ACTIVE,
         created_at=now,
         updated_at=now,
         version=1,

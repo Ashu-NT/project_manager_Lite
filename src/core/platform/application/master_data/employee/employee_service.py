@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.master_data.employee import employee_commands as _cmd
+from src.core.platform.application.master_data.employee import employee_documents as _docs
 from src.core.platform.application.master_data.employee.employee_support import (
     resolve_employee_department_reference,
     resolve_employee_site_for_department,
@@ -45,6 +46,9 @@ from src.core.platform.contract.repositories.master_data.org.contracts import (
 )
 from src.core.platform.contract.repositories.master_data.site.contracts import (
     SiteRepository,
+)
+from src.core.platform.application.master_data.documents.document_service import (
+    DocumentService,
 )
 from src.core.platform.contract.repositories.security.auth.auth_repository import (
     UserRepository,
@@ -98,6 +102,7 @@ class EmployeeService:
         organization_repo: OrganizationRepository | None = None,
         user_repo: UserRepository | None = None,
         user_tenant_repo: UserTenantMembershipRepository | None = None,
+        document_service: DocumentService | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
@@ -120,6 +125,12 @@ class EmployeeService:
         # mutating User/RBAC state.
         self._user_repo = user_repo
         self._user_tenant_repo = user_tenant_repo
+        # Employee Documents -- a real entity-scoped consumer of the
+        # generic Platform Documents/DocumentLink capability, translated
+        # internally from an explicit employee_id (see employee_documents.py).
+        # Never duplicates Document storage/metadata, never bypasses
+        # DocumentService's own central authorization/audit/event guarantees.
+        self._document_service = document_service
         self._headcount_reader = headcount_reader
         self._resource_master_event_factory = resource_master_event_factory
         self._uow_factory = uow_factory
@@ -142,6 +153,27 @@ class EmployeeService:
 
     def unlink_employee_user_account(self, employee_id: str) -> Employee:
         return _cmd.unlink_employee_user_account(self, employee_id)
+
+    def list_employee_documents_page(
+        self,
+        employee_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+        document_type: str | None = None,
+    ):
+        return _docs.list_employee_documents_page(
+            self, employee_id, page=page, page_size=page_size, search=search,
+            active_only=active_only, document_type=document_type,
+        )
+
+    def link_employee_document(self, employee_id: str, document_id: str):
+        return _docs.link_employee_document(self, employee_id, document_id)
+
+    def unlink_employee_document(self, employee_id: str, link_id: str) -> None:
+        _docs.unlink_employee_document(self, employee_id, link_id)
 
     def create_employee(
         self,

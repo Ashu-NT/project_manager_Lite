@@ -74,6 +74,38 @@ class PlatformDocumentDesktopApi:
             )
         )
 
+    def get_document(self, document_id: str) -> DesktopApiResult[DocumentDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_document(self._document_service.get_document(document_id))
+        )
+
+    def list_documents_page_for_entity(
+        self,
+        *,
+        module_code: str,
+        entity_type: str,
+        entity_id: str,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+        document_type: str | None = None,
+    ) -> DesktopApiResult[DocumentPageDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_entity_document_page(
+                self._document_service.list_documents_page_for_entity(
+                    module_code=module_code,
+                    entity_type=entity_type,
+                    entity_id=entity_id,
+                    page=page,
+                    page_size=page_size,
+                    search=search,
+                    active_only=active_only,
+                    document_type=document_type,
+                )
+            )
+        )
+
     def get_document_rollup_summary(self) -> DesktopApiResult[DocumentRollupSummaryDto]:
         return execute_desktop_operation(
             lambda: self._serialize_rollup_summary(
@@ -228,12 +260,23 @@ class PlatformDocumentDesktopApi:
             page_size=page.page_size,
         )
 
+    def _serialize_entity_document_page(self, page) -> DocumentPageDto:
+        return DocumentPageDto(
+            items=tuple(
+                self._serialize_document(row.document, link_id=row.link.id) for row in page.items
+            ),
+            total=page.total,
+            filtered_total=page.filtered_total,
+            page=page.page,
+            page_size=page.page_size,
+        )
+
     @staticmethod
     def _serialize_rollup_summary(summary) -> DocumentRollupSummaryDto:
         return DocumentRollupSummaryDto(total=summary.total, current=summary.current)
 
     @staticmethod
-    def _serialize_document(document: Document) -> DocumentDto:
+    def _serialize_document(document: Document, *, link_id: str = "") -> DocumentDto:
         return DocumentDto(
             id=document.id,
             organization_id=document.organization_id,
@@ -256,6 +299,7 @@ class PlatformDocumentDesktopApi:
             notes=document.notes,
             is_active=document.is_active,
             version=document.version,
+            link_id=link_id,
         )
 
     @staticmethod

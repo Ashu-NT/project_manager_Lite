@@ -19,6 +19,11 @@ ColumnLayout {
     // RBAC: whether the current session may create a new record here.
     // Defaults true so callers that don't opt in keep today's behavior.
     property bool   canCreate:       true
+    // Overrides the create button's default "New <entityLabel>" label --
+    // e.g. Employee Documents uses "Add Document" since the action may
+    // link an existing Document rather than only create one. Empty (the
+    // default) preserves every existing caller's exact current behavior.
+    property string createLabel:     ""
     // `catalog` may optionally carry server-side pagination metadata
     // (paginated/page/pageSize/totalCount/filteredTotal/noResultsState) --
     // see PlatformWorkspaceActionListViewModel. Callers that don't
@@ -157,7 +162,7 @@ ColumnLayout {
         searchText: root.searchText
         searchPlaceholder: "Search " + (root.sectionTitle || root.entityLabel).toLowerCase() + "..."
         showCreate: root.entityLabel.length > 0 && root.canCreate
-        createLabel: "New " + root.entityLabel
+        createLabel: root.createLabel.length > 0 ? root.createLabel : "New " + root.entityLabel
         showRefresh: true
         showCustomize: root.columns.length > 0
         isBusy: root.isBusy

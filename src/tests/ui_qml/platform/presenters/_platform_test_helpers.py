@@ -36,6 +36,11 @@ from src.core.platform.api.desktop.master_data.party.models.party import (
     PartyDto,
     PartyRollupSummaryDto,
 )
+from src.core.platform.domain.master_data.party import (
+    PartyLifecycleStatus,
+    coerce_party_roles,
+    coerce_party_type,
+)
 from src.core.platform.api.desktop.master_data.site.models.site import (
     SiteDto,
     SitePageDto,
@@ -1050,7 +1055,8 @@ class FakePlatformPartyApi:
             organization_id=active_organization.id if active_organization is not None else "org-1",
             party_code=command.party_code,
             party_name=command.party_name,
-            party_type=command.party_type,
+            party_type=coerce_party_type(command.party_type),
+            roles=coerce_party_roles(command.roles),
             legal_name=command.legal_name,
             contact_name=command.contact_name,
             email=command.email or "",
@@ -1061,9 +1067,11 @@ class FakePlatformPartyApi:
             address_line_2=command.address_line_2,
             postal_code=command.postal_code,
             website=command.website,
-            tax_registration_number=command.tax_registration_number,
+            registration_number=command.registration_number,
+            tax_identifier=command.tax_identifier,
             external_reference=command.external_reference,
-            is_active=command.is_active,
+            status=PartyLifecycleStatus.ACTIVE.value,
+            is_active=True,
             created_at=None,
             updated_at=None,
             notes=command.notes,
@@ -1080,7 +1088,8 @@ class FakePlatformPartyApi:
                 row,
                 party_code=row.party_code if command.party_code is None else command.party_code,
                 party_name=row.party_name if command.party_name is None else command.party_name,
-                party_type=row.party_type if command.party_type is None else command.party_type,
+                party_type=row.party_type if command.party_type is None else coerce_party_type(command.party_type),
+                roles=row.roles if command.roles is None else coerce_party_roles(command.roles),
                 legal_name=row.legal_name if command.legal_name is None else command.legal_name,
                 contact_name=row.contact_name if command.contact_name is None else command.contact_name,
                 email=row.email if command.email is None else command.email,
@@ -1091,9 +1100,9 @@ class FakePlatformPartyApi:
                 address_line_2=row.address_line_2 if command.address_line_2 is None else command.address_line_2,
                 postal_code=row.postal_code if command.postal_code is None else command.postal_code,
                 website=row.website if command.website is None else command.website,
-                tax_registration_number=row.tax_registration_number if command.tax_registration_number is None else command.tax_registration_number,
+                registration_number=row.registration_number if command.registration_number is None else command.registration_number,
+                tax_identifier=row.tax_identifier if command.tax_identifier is None else command.tax_identifier,
                 external_reference=row.external_reference if command.external_reference is None else command.external_reference,
-                is_active=row.is_active if command.is_active is None else command.is_active,
                 notes=row.notes if command.notes is None else command.notes,
                 version=row.version + 1,
             )
@@ -1102,6 +1111,24 @@ class FakePlatformPartyApi:
         return DesktopApiResult(
             ok=False,
             error=DesktopApiError(code="party_not_found", message=f"Party '{command.party_id}' was not found.", category="not_found"),
+        )
+
+    def activate_party(self, party_id: str) -> DesktopApiResult[PartyDto]:
+        return self._transition_party_status(party_id, status=PartyLifecycleStatus.ACTIVE)
+
+    def deactivate_party(self, party_id: str) -> DesktopApiResult[PartyDto]:
+        return self._transition_party_status(party_id, status=PartyLifecycleStatus.INACTIVE)
+
+    def _transition_party_status(self, party_id: str, *, status: PartyLifecycleStatus) -> DesktopApiResult[PartyDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != party_id:
+                continue
+            updated = replace(row, status=status.value, is_active=status is PartyLifecycleStatus.ACTIVE, version=row.version + 1)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(code="party_not_found", message=f"Party '{party_id}' was not found.", category="not_found"),
         )
 
 
@@ -1538,8 +1565,8 @@ def build_connected_platform_registry() -> SimpleNamespace:
     )
     document_api = FakePlatformDocumentApi(runtime_api=runtime_api, rows=document_rows, structure_rows=document_structure_rows, link_rows=document_link_rows)
     party_rows = (
-        PartyDto(id="party-1", organization_id="org-1", party_code="SUP-001", party_name="Acme Supply", party_type="SUPPLIER", legal_name="Acme Supply Ltd", contact_name="John Doe", email="contact@acme.example", phone="123", country="DE", city="Berlin", address_line_1="Street 3", address_line_2="", postal_code="10115", website="https://acme.example", tax_registration_number="TAX-1", external_reference="EXT-1", is_active=True, created_at=None, updated_at=None, notes="", version=1),
-        PartyDto(id="party-2", organization_id="org-1", party_code="CUS-001", party_name="Northwind", party_type="CUSTOMER", legal_name="Northwind GmbH", contact_name="Jane Doe", email="contact@northwind.example", phone="456", country="DE", city="Hamburg", address_line_1="Street 4", address_line_2="", postal_code="20095", website="https://northwind.example", tax_registration_number="TAX-2", external_reference="EXT-2", is_active=False, created_at=None, updated_at=None, notes="", version=1),
+        PartyDto(id="party-1", organization_id="org-1", party_code="SUP-001", party_name="Acme Supply", party_type=coerce_party_type("ORGANIZATION"), roles=coerce_party_roles("SUPPLIER"), legal_name="Acme Supply Ltd", contact_name="John Doe", email="contact@acme.example", phone="123", country="DE", city="Berlin", address_line_1="Street 3", address_line_2="", postal_code="10115", website="https://acme.example", registration_number="REG-1", tax_identifier="TAX-1", external_reference="EXT-1", status=PartyLifecycleStatus.ACTIVE.value, is_active=True, created_at=None, updated_at=None, notes="", version=1),
+        PartyDto(id="party-2", organization_id="org-1", party_code="CUS-001", party_name="Northwind", party_type=coerce_party_type("ORGANIZATION"), roles=coerce_party_roles("CUSTOMER"), legal_name="Northwind GmbH", contact_name="Jane Doe", email="contact@northwind.example", phone="456", country="DE", city="Hamburg", address_line_1="Street 4", address_line_2="", postal_code="20095", website="https://northwind.example", registration_number="REG-2", tax_identifier="TAX-2", external_reference="EXT-2", status=PartyLifecycleStatus.INACTIVE.value, is_active=False, created_at=None, updated_at=None, notes="", version=1),
     )
     party_api = FakePlatformPartyApi(runtime_api=runtime_api, rows=party_rows)
     approval_rows = (

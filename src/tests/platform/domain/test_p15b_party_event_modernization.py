@@ -11,6 +11,7 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
 )
 from src.core.platform.domain.master_data.party.events import (
     PartyCreated,
+    PartyDeactivated,
     PartyProfileUpdated,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
@@ -79,16 +80,20 @@ def test_profile_update_produces_exactly_one_party_profile_updated(services):
     assert calls[0].party_id == party.id
 
 
-def test_active_flag_toggle_is_a_profile_update_not_a_separate_event(services):
+def test_deactivate_produces_a_dedicated_event_not_a_profile_update(services):
+    """Lifecycle changes go through activate_party/deactivate_party, which
+    fire their own PartyActivated/PartyDeactivated events -- never through
+    update_party's generic profile-update path, which no longer accepts an
+    is_active/status parameter at all (matching Employee's own precedent)."""
     party_service = services["party_service"]
-    party = party_service.create_party(
-        party_code=_unique_code("P15B-TOGGLE"), party_name="Active Party", is_active=True
-    )
-    calls = _spy(services, PartyProfileUpdated)
+    party = party_service.create_party(party_code=_unique_code("P15B-TOGGLE"), party_name="Active Party")
+    profile_calls = _spy(services, PartyProfileUpdated)
+    deactivate_calls = _spy(services, PartyDeactivated)
 
-    updated = party_service.update_party(party.id, is_active=False, expected_version=party.version)
+    updated = party_service.deactivate_party(party.id)
 
-    assert [e.party_id for e in calls] == [party.id]
+    assert [e.party_id for e in deactivate_calls] == [party.id]
+    assert profile_calls == []
     assert updated.is_active is False
 
 

@@ -67,7 +67,7 @@ def _setup(services):
     )
     supplier = services["party_service"].create_party(
         party_code="PROC-DELIVERY", party_name="Procurement supplier",
-        party_type="SUPPLIER",
+        roles=["SUPPLIER"],
     )
     services["financial_period_service"].create_period(
         code="PROC-2026-08", name="August 2026", fiscal_year=2026,

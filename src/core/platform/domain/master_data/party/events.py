@@ -20,4 +20,20 @@ class PartyProfileUpdated:
     occurred_at: datetime
 
 
-__all__ = ["PartyCreated", "PartyProfileUpdated"]
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PartyActivated:
+    tenant_id: str
+    organization_id: str
+    party_id: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PartyDeactivated:
+    tenant_id: str
+    organization_id: str
+    party_id: str
+    occurred_at: datetime
+
+
+__all__ = ["PartyActivated", "PartyCreated", "PartyDeactivated", "PartyProfileUpdated"]

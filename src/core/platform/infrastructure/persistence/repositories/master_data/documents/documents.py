@@ -316,6 +316,76 @@ class SqlAlchemyDocumentLinkRepository(TenantScopedRepositorySupport, DocumentLi
         rows = self.session.execute(stmt.order_by(DocumentLinkORM.document_id.asc())).scalars().all()
         return [document_link_from_orm(row) for row in rows]
 
+    def list_page_for_entity_in_tenant(
+        self,
+        organization_id: str,
+        tenant_id: str,
+        *,
+        module_code: str,
+        entity_type: str,
+        entity_id: str,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        active_only: bool | None = None,
+        document_type: str | None = None,
+    ) -> tuple[list[tuple[Document, DocumentLink]], int, int]:
+        # Deliberately bypasses self._context()/_organization_in_scope() --
+        # both organization_id and tenant_id are caller-supplied and trusted
+        # (the calling service verifies the entity actually belongs to this
+        # organization before calling here), not the session's ambient
+        # active organization. Mirrors SqlAlchemyDocumentRepository.
+        # list_page_for_organization_in_tenant's own established pattern.
+        join_condition = DocumentLinkORM.document_id == DocumentORM.id
+        base_condition = (
+            DocumentLinkORM.organization_id == organization_id,
+            DocumentLinkORM.module_code == module_code,
+            DocumentLinkORM.entity_type == entity_type,
+            DocumentLinkORM.entity_id == entity_id,
+            DocumentORM.organization_id == organization_id,
+            DocumentORM.tenant_id == tenant_id,
+        )
+        total = self.session.execute(
+            select(func.count())
+            .select_from(DocumentLinkORM)
+            .join(DocumentORM, join_condition)
+            .where(*base_condition)
+        ).scalar_one()
+
+        filtered_stmt = select(DocumentORM, DocumentLinkORM).join(DocumentORM, join_condition).where(*base_condition)
+        filtered_count_stmt = (
+            select(func.count()).select_from(DocumentLinkORM).join(DocumentORM, join_condition).where(*base_condition)
+        )
+        if active_only is not None:
+            condition = DocumentORM.is_active == bool(active_only)
+            filtered_stmt = filtered_stmt.where(condition)
+            filtered_count_stmt = filtered_count_stmt.where(condition)
+        if document_type:
+            condition = DocumentORM.document_type == document_type
+            filtered_stmt = filtered_stmt.where(condition)
+            filtered_count_stmt = filtered_count_stmt.where(condition)
+        normalized_search = (search or "").strip()
+        if normalized_search:
+            pattern = f"%{normalized_search}%"
+            condition = or_(
+                DocumentORM.title.ilike(pattern),
+                DocumentORM.document_code.ilike(pattern),
+                DocumentORM.file_name.ilike(pattern),
+            )
+            filtered_stmt = filtered_stmt.where(condition)
+            filtered_count_stmt = filtered_count_stmt.where(condition)
+
+        filtered_total = self.session.execute(filtered_count_stmt).scalar_one()
+        offset = max(0, (page - 1) * page_size)
+        rows = self.session.execute(
+            filtered_stmt.order_by(DocumentORM.title.asc()).offset(offset).limit(page_size)
+        ).all()
+        return (
+            [(document_from_orm(document_row), document_link_from_orm(link_row)) for document_row, link_row in rows],
+            total,
+            filtered_total,
+        )
+
     def list_for_module(
         self,
         organization_id: str,

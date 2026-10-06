@@ -43,7 +43,7 @@ AppWidgets.EntityDialog {
         expectedVersion: root.draft.version || 0,
         partyCode: root.partyCode.trim(),
         partyName: partyNameField.text.trim(),
-        partyType: _currentValue(typeModel, typeCombo) || "GENERAL",
+        partyType: _currentValue(typeModel, typeCombo) || "ORGANIZATION",
         legalName: legalNameField.text.trim(),
         contactName: contactNameField.text.trim(),
         email: emailField.text.trim(),
@@ -54,10 +54,9 @@ AppWidgets.EntityDialog {
         addressLine2: addressLine2Field.text.trim(),
         postalCode: postalCodeField.text.trim(),
         website: websiteField.text.trim(),
-        taxRegistrationNumber: taxRegistrationField.text.trim(),
+        registrationNumber: taxRegistrationField.text.trim(),
         externalReference: externalReferenceField.text.trim(),
-        notes: notesField.text.trim(),
-        isActive: activeCheck.checked
+        notes: notesField.text.trim()
     })
 
     function openForCreate(options) {
@@ -105,11 +104,10 @@ AppWidgets.EntityDialog {
         addressLine2Field.text = root.draft.addressLine2 || ""
         postalCodeField.text = root.draft.postalCode || ""
         websiteField.text = root.draft.website || ""
-        taxRegistrationField.text = root.draft.taxRegistrationNumber || ""
+        taxRegistrationField.text = root.draft.registrationNumber || ""
         externalReferenceField.text = root.draft.externalReference || ""
         notesField.text = root.draft.notes || ""
-        activeCheck.checked = root.draft.isActive !== undefined ? root.draft.isActive : true
-        _setCurrentIndex(typeModel, typeCombo, root.draft.partyType || "GENERAL")
+        _setCurrentIndex(typeModel, typeCombo, root.draft.partyType || "ORGANIZATION")
     }
 
     function _setCurrentIndex(model, combo, value) {
@@ -342,11 +340,5 @@ AppWidgets.EntityDialog {
             placeholderText: "Relationship notes or context"
             wrapMode: TextEdit.WordWrap
         }
-    }
-
-    AppControls.CheckBox {
-        id: activeCheck
-
-        text: "Active party"
     }
 }

@@ -1,4 +1,5 @@
 module workspaces.employees.sections
 EmployeeOverviewSection 1.0 EmployeeOverviewSection.qml
 EmployeeCalendarSection 1.0 EmployeeCalendarSection.qml
+EmployeeDocumentsSection 1.0 EmployeeDocumentsSection.qml
 EmployeeActivitySection 1.0 EmployeeActivitySection.qml

@@ -323,6 +323,10 @@ AppLayouts.WorkspaceFrame {
             if (access.linked) root.relatedRecordRequested("users", String(state.userId || ""))
             return
         }
+        if (actionId === "add_document") {
+            dialogHostLoader.invoke("openEmployeeDocumentLink", id, item ? item.title : "")
+            return
+        }
         if (actionId === "open_project_management") {
             // "project_management" is a separate top-level module, not a
             // Platform-internal destination -- switch modules the same way
@@ -500,6 +504,14 @@ AppLayouts.WorkspaceFrame {
                     onBackRequested: root.closeDetail()
                     onActionRequested: function(actionId) { root.handleDetailAction(actionId) }
                     onRelatedRowActivated: function(sectionId, rowId) {
+                        if (sectionId === "documents" && root.workspaceController) {
+                            // Pre-selects the Document in the shared
+                            // Document controller's own state before
+                            // navigating -- the same two-step sequence
+                            // Organization Detail's own Documents tab
+                            // already uses (see AdminOrganizationDetailPage.qml).
+                            root.workspaceController.selectDocument(rowId)
+                        }
                         root.relatedRecordRequested(sectionId, rowId)
                     }
                 }

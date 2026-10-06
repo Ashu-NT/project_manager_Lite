@@ -67,6 +67,21 @@ class DocumentPage:
     page_size: int = _DEFAULT_DOCUMENT_PAGE_SIZE
 
 
+@dataclass(frozen=True)
+class EntityDocumentRow:
+    document: Document
+    link: DocumentLink
+
+
+@dataclass(frozen=True)
+class EntityDocumentPage:
+    items: list[EntityDocumentRow] = field(default_factory=list)
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = _DEFAULT_DOCUMENT_PAGE_SIZE
+
+
 class DocumentService:
     def __init__(
         self,
@@ -394,6 +409,69 @@ class DocumentService:
             _normalize_document_entity_id(entity_id),
         )
 
+    def get_document(self, document_id: str) -> Document:
+        require_permission(self._user_session, "settings.manage", operation_label="view document")
+        return self._require_document_in_context(document_id)
+
+    def get_link(self, link_id: str) -> DocumentLink:
+        require_permission(self._user_session, "settings.manage", operation_label="view document link")
+        link = self._link_repo.get(link_id)
+        if link is None:
+            raise NotFoundError("Document link not found.", code="DOCUMENT_LINK_NOT_FOUND")
+        return link
+
+    def list_documents_page_for_entity(
+        self,
+        *,
+        module_code: str,
+        entity_type: str,
+        entity_id: str,
+        page: int = 1,
+        page_size: int = _DEFAULT_DOCUMENT_PAGE_SIZE,
+        search: str = "",
+        active_only: bool | None = None,
+        document_type: str | None = None,
+    ) -> EntityDocumentPage:
+        """The real entity-scoped, paginated, Document-joined read
+        list_links_for_entity() never provided. Always scoped to the
+        caller's active organization (consistent with list_links_for_entity
+        and with how every current entity consumer -- e.g. Employee --
+        always operates in its own active-organization context; there is
+        no cross-organization admin use case for this read today)."""
+        require_permission(self._user_session, "settings.manage", operation_label="list entity documents")
+        organization = self._active_organization()
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="list entity documents",
+        )
+        normalized_page = max(1, page)
+        normalized_page_size = (
+            page_size if page_size in DOCUMENT_PAGE_SIZE_OPTIONS else _DEFAULT_DOCUMENT_PAGE_SIZE
+        )
+        rows, total, filtered_total = self._link_repo.list_page_for_entity_in_tenant(
+            organization.id,
+            tenant_id,
+            module_code=_normalize_document_module_code(module_code),
+            entity_type=_normalize_document_entity_type(entity_type),
+            entity_id=_normalize_document_entity_id(entity_id),
+            page=normalized_page,
+            page_size=normalized_page_size,
+            search=search,
+            active_only=active_only,
+            document_type=document_type,
+        )
+        return EntityDocumentPage(
+            items=[EntityDocumentRow(document=document, link=link) for document, link in rows],
+            total=total,
+            filtered_total=filtered_total,
+            page=normalized_page,
+            page_size=normalized_page_size,
+        )
+
     def _require_document_in_context(self, document_id: str) -> Document:
         organization = self._active_organization()
         document = self._document_repo.get(document_id)
@@ -415,4 +493,10 @@ class DocumentService:
         return active_organization(self)
 
 
-__all__ = ["DOCUMENT_PAGE_SIZE_OPTIONS", "DocumentPage", "DocumentService"]
+__all__ = [
+    "DOCUMENT_PAGE_SIZE_OPTIONS",
+    "DocumentPage",
+    "DocumentService",
+    "EntityDocumentPage",
+    "EntityDocumentRow",
+]

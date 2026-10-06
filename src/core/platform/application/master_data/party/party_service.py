@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -33,6 +33,7 @@ from src.core.platform.contract.uow.party_unit_of_work import PartyUnitOfWorkFac
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.party import (
     Party,
+    PartyRole,
     PartyType,
     coerce_party_type,
     normalize_party_code,
@@ -45,6 +46,20 @@ from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
+
+from . import party_commands as _cmd
+
+_DEFAULT_PARTY_PAGE_SIZE = 25
+PARTY_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
+
+
+@dataclass(frozen=True)
+class PartyPage:
+    items: list[Party] = field(default_factory=list)
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = _DEFAULT_PARTY_PAGE_SIZE
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import (
@@ -80,6 +95,12 @@ class PartyService:
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
+    def activate_party(self, party_id: str) -> Party:
+        return _cmd.activate_party(self, party_id)
+
+    def deactivate_party(self, party_id: str) -> Party:
+        return _cmd.deactivate_party(self, party_id)
+
     def list_parties(self, *, active_only: bool | None = None) -> list[Party]:
         self._require_party_read_access("list parties")
         organization = self._active_organization()
@@ -110,6 +131,12 @@ class PartyService:
         active_only: bool | None = True,
         party_type: PartyType | str | None = None,
     ) -> list[Party]:
+        """Kept for source-compatibility with any existing caller; real
+        callers should prefer list_parties_page_for_organization's real
+        SQL-level filtering below, which this does not use (in-Python
+        filtering over the full organization list remains the historical
+        behavior here, now scoped correctly to party_type as an identity
+        axis rather than the old role-flavored enum)."""
         self._require_party_read_access("search parties")
         normalized_search = (search_text or "").strip().lower()
         resolved_type = coerce_party_type(party_type) if party_type is not None else None
@@ -137,6 +164,57 @@ class PartyService:
             ).lower()
         ]
 
+    def list_parties_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = _DEFAULT_PARTY_PAGE_SIZE,
+        search: str = "",
+        active_only: bool | None = None,
+        party_type: PartyType | str | None = None,
+        role: PartyRole | str | None = None,
+    ) -> PartyPage:
+        """Tenant-scoped (not ambient-active-organization-scoped) real
+        SQL-level paginated/searchable read -- replaces search_parties()'s
+        full-list-then-Python-filter approach for any real standalone
+        Parties workspace. Works regardless of which organization is
+        currently active in the caller's session."""
+        self._require_party_read_access("list parties page for organization")
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="list parties page for organization",
+        )
+        normalized_page = max(1, page)
+        normalized_page_size = page_size if page_size in PARTY_PAGE_SIZE_OPTIONS else _DEFAULT_PARTY_PAGE_SIZE
+        resolved_type = coerce_party_type(party_type).value if party_type is not None else None
+        resolved_role = (
+            (role.value if isinstance(role, PartyRole) else PartyRole(str(role).upper()).value)
+            if role
+            else None
+        )
+        items, total, filtered_total = self._party_repo.list_page_for_organization_in_tenant(
+            organization_id,
+            tenant_id,
+            page=normalized_page,
+            page_size=normalized_page_size,
+            search=search,
+            active_only=active_only,
+            party_type=resolved_type,
+            role=resolved_role,
+        )
+        return PartyPage(
+            items=items,
+            total=total,
+            filtered_total=filtered_total,
+            page=normalized_page,
+            page_size=normalized_page_size,
+        )
+
     def get_party(self, party_id: str) -> Party:
         self._require_party_read_access("view party")
         organization = self._active_organization()
@@ -151,7 +229,7 @@ class PartyService:
         return self._party_repo.get_by_code(self._active_organization().id, normalized_code)
 
     def get_context_organization(self) -> Organization:
-        require_permission(self._user_session, "settings.manage", operation_label="view party context")
+        self._require_party_read_access("view party context")
         return self._active_organization()
 
     def create_party(
@@ -160,7 +238,8 @@ class PartyService:
         party_code: str,
         party_name: str | None = None,
         name: str | None = None,
-        party_type: PartyType | str = PartyType.INDIVIDUAL,
+        party_type: PartyType | str = PartyType.ORGANIZATION,
+        roles: object = (),
         legal_name: str = "",
         contact_name: str = "",
         email: str | None = None,
@@ -171,12 +250,15 @@ class PartyService:
         address_line_2: str = "",
         postal_code: str = "",
         website: str = "",
-        tax_registration_number: str = "",
+        registration_number: str = "",
+        tax_identifier: str = "",
         external_reference: str = "",
-        is_active: bool = True,
         notes: str = "",
     ) -> Party:
-        require_permission(self._user_session, "settings.manage", operation_label="create party")
+        # No `is_active`/`status` parameter -- every new Party starts
+        # ACTIVE (PartyLifecycleStatus's own default). Use
+        # activate_party/deactivate_party afterward to change it.
+        require_permission(self._user_session, "party.manage", operation_label="create party")
         organization = self._active_organization()
         tenant_id = organization.tenant_id
         party = Party.create(
@@ -184,6 +266,7 @@ class PartyService:
             party_code=party_code,
             party_name=party_name if party_name is not None else name,
             party_type=party_type,
+            roles=roles,
             legal_name=legal_name,
             contact_name=contact_name,
             email=email or "",
@@ -194,9 +277,9 @@ class PartyService:
             address_line_2=address_line_2,
             postal_code=postal_code,
             website=website,
-            tax_registration_number=tax_registration_number,
+            registration_number=registration_number,
+            tax_identifier=tax_identifier,
             external_reference=external_reference,
-            is_active=bool(is_active),
             notes=notes,
         )
         with self._uow_factory.create(context=self._new_context()) as uow:
@@ -254,6 +337,7 @@ class PartyService:
         party_name: str | None = None,
         name: str | None = None,
         party_type: PartyType | str | None = None,
+        roles: object | None = None,
         legal_name: str | None = None,
         contact_name: str | None = None,
         email: str | None = None,
@@ -264,13 +348,15 @@ class PartyService:
         address_line_2: str | None = None,
         postal_code: str | None = None,
         website: str | None = None,
-        tax_registration_number: str | None = None,
+        registration_number: str | None = None,
+        tax_identifier: str | None = None,
         external_reference: str | None = None,
-        is_active: bool | None = None,
         notes: str | None = None,
         expected_version: int | None = None,
     ) -> Party:
-        require_permission(self._user_session, "settings.manage", operation_label="update party")
+        # No `is_active`/`status` parameter here either -- lifecycle changes
+        # only ever happen through activate_party/deactivate_party.
+        require_permission(self._user_session, "party.manage", operation_label="update party")
         organization = self._active_organization()
         tenant_id = organization.tenant_id
         with self._uow_factory.create(context=self._new_context()) as uow:
@@ -292,6 +378,7 @@ class PartyService:
                     else party.party_name
                 ),
                 party_type=party_type if party_type is not None else party.party_type,
+                roles=roles if roles is not None else party.roles,
                 legal_name=legal_name if legal_name is not None else party.legal_name,
                 contact_name=contact_name if contact_name is not None else party.contact_name,
                 email=email if email is not None else party.email,
@@ -302,19 +389,18 @@ class PartyService:
                 address_line_2=address_line_2 if address_line_2 is not None else party.address_line_2,
                 postal_code=postal_code if postal_code is not None else party.postal_code,
                 website=website if website is not None else party.website,
-                tax_registration_number=(
-                    tax_registration_number
-                    if tax_registration_number is not None
-                    else party.tax_registration_number
+                registration_number=(
+                    registration_number if registration_number is not None else party.registration_number
                 ),
+                tax_identifier=tax_identifier if tax_identifier is not None else party.tax_identifier,
                 external_reference=external_reference if external_reference is not None else party.external_reference,
-                is_active=bool(is_active) if is_active is not None else party.is_active,
                 notes=notes if notes is not None else party.notes,
             )
             profile_changed = (
                 candidate.party_code != party.party_code
                 or candidate.party_name != party.party_name
                 or candidate.party_type != party.party_type
+                or candidate.roles != party.roles
                 or candidate.legal_name != party.legal_name
                 or candidate.contact_name != party.contact_name
                 or candidate.email != party.email
@@ -325,9 +411,9 @@ class PartyService:
                 or candidate.address_line_2 != party.address_line_2
                 or candidate.postal_code != party.postal_code
                 or candidate.website != party.website
-                or candidate.tax_registration_number != party.tax_registration_number
+                or candidate.registration_number != party.registration_number
+                or candidate.tax_identifier != party.tax_identifier
                 or candidate.external_reference != party.external_reference
-                or candidate.is_active != party.is_active
                 or candidate.notes != party.notes
             )
             if not profile_changed:

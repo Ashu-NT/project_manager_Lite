@@ -1,3 +1,4 @@
 module workspaces.employees.dialogs
 EmployeeEditorDialog 1.0 EmployeeEditorDialog.qml
 UserLinkDialog 1.0 UserLinkDialog.qml
+EmployeeDocumentLinkDialog 1.0 EmployeeDocumentLinkDialog.qml

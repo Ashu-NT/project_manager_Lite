@@ -14,6 +14,7 @@ from src.core.platform.contract.read.overview.platform_overview_rollup_reader im
     SiteRollupSummary,
     UserRollupSummary,
 )
+from src.core.platform.domain.master_data.party import PartyLifecycleStatus
 from src.core.platform.domain.security.authorization.roles import ROLE_SCOPE_PLATFORM
 from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
     MEMBERSHIP_STATUS_ACTIVE,
@@ -120,7 +121,7 @@ class SqlAlchemyPlatformOverviewRollupReader:
         total, active = self._session.execute(
             select(
                 func.count(PartyORM.id),
-                func.sum(case((PartyORM.is_active.is_(True), 1), else_=0)),
+                func.sum(case((PartyORM.status == PartyLifecycleStatus.ACTIVE, 1), else_=0)),
             ).where(
                 PartyORM.organization_id == organization_id,
                 PartyORM.tenant_id == tenant_id,
