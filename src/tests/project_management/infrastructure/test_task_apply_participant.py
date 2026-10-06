@@ -105,7 +105,7 @@ def _deps(services, session):
         user_session=services["user_session"],
         tenant_context_service=services["tenant_context_service"],
         work_calendar_engine=services["work_calendar_engine"],
-        enterprise_calendar_resolver=services["enterprise_calendar_resolver"],
+        platform_calendar_resolver=services["platform_calendar_resolver"],
         calendar_assignment_service=services["calendar_assignment_service"],
     )
 

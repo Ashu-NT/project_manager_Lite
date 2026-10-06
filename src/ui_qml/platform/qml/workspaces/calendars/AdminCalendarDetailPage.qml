@@ -27,7 +27,6 @@ Item {
     property var enterpriseExceptions: []
     property var recurringEvents: []
     property var assignments: ({})
-    property bool isEnterpriseCalendar: false
 
     signal backRequested()
     signal editRequested()
@@ -59,14 +58,12 @@ Item {
     readonly property string _hoursPerDayLabel: String(root._state.hoursPerDayLabel || root._state.hoursPerDay || "8")
     readonly property var _sections: {
         const base = [
-            { "label": "Overview" }
+            { "label": "Overview" },
+            { "label": "Working Rules", "count": root.workingRules.length },
+            { "label": "Exceptions", "count": root.enterpriseExceptions.length },
+            { "label": "Recurring Events", "count": root.recurringEvents.length },
+            { "label": "Assignments" }
         ]
-        if (root.isEnterpriseCalendar) {
-            base.push({ "label": "Working Rules", "count": root.workingRules.length })
-            base.push({ "label": "Exceptions", "count": root.enterpriseExceptions.length })
-            base.push({ "label": "Recurring Events", "count": root.recurringEvents.length })
-            base.push({ "label": "Assignments" })
-        }
         base.push({ "label": "Calculator" })
         base.push({ "label": "Audit" })
         return base
@@ -159,7 +156,6 @@ Item {
     ]
     readonly property var _overviewFields: [
         { "label": "Calendar Name", "value": root._title },
-        { "label": "Ownership", "value": root.isEnterpriseCalendar ? "Enterprise Calendar" : "Platform Shared Master" },
         { "label": "Hours / Day", "value": root._hoursPerDayLabel + "h" },
         { "label": "Working Days", "value": root._workingDaysText },
         { "label": "Exceptions", "value": String(root.enterpriseExceptions.length) },

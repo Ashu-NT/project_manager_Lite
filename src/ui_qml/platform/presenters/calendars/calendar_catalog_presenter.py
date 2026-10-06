@@ -18,39 +18,32 @@ from src.ui_qml.platform.view_models import (
 
 
 class PlatformCalendarCatalogPresenter:
-    """
-    Builds the calendar catalog for the admin console.
-
-    When enterprise_calendar_api is available (always in production),
-    it lists all enterprise platform_calendars.
-
-    The legacy calendar_api parameter is unused — PlatformCalendarDesktopApi was removed.
-    """
+    """Builds the calendar catalog for the admin console from
+    PlatformCalendarDesktopApi."""
 
     def __init__(
         self,
         *,
-        calendar_api=None,  # removed — kept for signature compat during transition
-        enterprise_calendar_api=None,
+        platform_calendar_api=None,
     ) -> None:
-        self._enterprise_calendar_api = enterprise_calendar_api
+        self._platform_calendar_api = platform_calendar_api
 
     def build_catalog(self) -> PlatformWorkspaceActionListViewModel:
-        if self._enterprise_calendar_api is not None:
-            return self._build_enterprise_catalog()
+        if self._platform_calendar_api is not None:
+            return self._build_calendar_catalog()
         return PlatformWorkspaceActionListViewModel(
             title="Calendars",
-            subtitle="Enterprise calendar API is not connected.",
+            subtitle="Calendar API is not connected.",
             empty_state="No calendars available.",
         )
 
-    def _build_enterprise_catalog(self) -> PlatformWorkspaceActionListViewModel:
-        result = self._enterprise_calendar_api.list_calendars()
+    def _build_calendar_catalog(self) -> PlatformWorkspaceActionListViewModel:
+        result = self._platform_calendar_api.list_calendars()
         if not result.ok or result.data is None:
             message = (
                 result.error.message
                 if result.error is not None
-                else "Unable to load enterprise calendars."
+                else "Unable to load calendars."
             )
             return PlatformWorkspaceActionListViewModel(
                 title="Calendars",
@@ -58,15 +51,15 @@ class PlatformCalendarCatalogPresenter:
                 empty_state=message,
             )
         calendars = result.data
-        items = tuple(self._serialize_enterprise_calendar(cal) for cal in calendars)
+        items = tuple(self._serialize_calendar(cal) for cal in calendars)
         return PlatformWorkspaceActionListViewModel(
             title="Calendars",
-            subtitle=f"Enterprise calendars — {len(items)} calendar(s). Owned by Platform.",
-            empty_state="No enterprise calendars configured. A Global calendar is created automatically at startup.",
+            subtitle=f"Calendars — {len(items)} calendar(s). Owned by Platform.",
+            empty_state="No calendars configured. A Global calendar is created automatically at startup.",
             items=items,
         )
 
-    def _serialize_enterprise_calendar(self, cal) -> PlatformWorkspaceActionItemViewModel:
+    def _serialize_calendar(self, cal) -> PlatformWorkspaceActionItemViewModel:
         return PlatformWorkspaceActionItemViewModel(
             id=cal.id,
             title=cal.name,
@@ -86,7 +79,6 @@ class PlatformCalendarCatalogPresenter:
                 "isActive": cal.is_active,
                 "effectiveFrom": cal.effective_from,
                 "effectiveTo": cal.effective_to,
-                "isEnterpriseCalendar": True,
             },
         )
 
@@ -94,9 +86,9 @@ class PlatformCalendarCatalogPresenter:
         self,
         payload: dict[str, Any],
     ) -> DesktopApiResult[WorkingDayCalculationDto]:
-        """Working-day calculator — uses enterprise resolver via the API."""
-        if self._enterprise_calendar_api is None:
-            return preview_error_result("Enterprise calendar API is not connected.")
+        """Working-day calculator — uses the calendar resolver via the API."""
+        if self._platform_calendar_api is None:
+            return preview_error_result("Calendar API is not connected.")
         start_date_str = string_value(payload, "startDate")
         if not start_date_str:
             from src.core.platform.api.desktop.models.common import DesktopApiError
@@ -111,10 +103,10 @@ class PlatformCalendarCatalogPresenter:
                 ok=False,
                 error=DesktopApiError(code="validation", message="Working days must be >= 0.", category="validation"),
             )
-        from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+        from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
             WorkingDaysCommand,
         )
-        return self._enterprise_calendar_api.calculate_working_days(
+        return self._platform_calendar_api.calculate_working_days(
             WorkingDaysCommand(start_date=start_date_str, working_days=working_days)
         )
 

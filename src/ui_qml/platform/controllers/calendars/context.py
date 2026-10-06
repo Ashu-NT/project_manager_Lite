@@ -58,9 +58,9 @@ def calendar_source_chain(
     site_id: str,
     department_id: str,
 ) -> list[str]:
-    if controller._enterprise_calendar_api is None:
+    if controller._platform_calendar_api is None:
         return []
-    result = controller._enterprise_calendar_api.get_source_chain(
+    result = controller._platform_calendar_api.get_source_chain(
         site_id=entity_id if normalized_type == "site" else str(site_id or ""),
         department_id=entity_id
         if normalized_type == "department"
@@ -77,17 +77,17 @@ def calendar_source_chain(
 
 
 def calendar_detail_context(controller, calendar_id: str) -> dict[str, object]:
-    if controller._enterprise_calendar_api is None or not str(calendar_id or "").strip():
+    if controller._platform_calendar_api is None or not str(calendar_id or "").strip():
         return empty_calendar_detail_context()
 
     calendar_id = str(calendar_id).strip()
-    rules_result = controller._enterprise_calendar_api.list_working_rules(calendar_id)
-    exceptions_result = controller._enterprise_calendar_api.list_exceptions(calendar_id)
-    recurring_result = controller._enterprise_calendar_api.list_recurring_events(
+    rules_result = controller._platform_calendar_api.list_working_rules(calendar_id)
+    exceptions_result = controller._platform_calendar_api.list_exceptions(calendar_id)
+    recurring_result = controller._platform_calendar_api.list_recurring_events(
         calendar_id,
         active_only=False,
     )
-    assignments_result = controller._enterprise_calendar_api.list_calendar_assignments(
+    assignments_result = controller._platform_calendar_api.list_calendar_assignments(
         calendar_id
     )
 
@@ -117,7 +117,7 @@ def calendar_assignment_context(
     site_id: str = "",
     department_id: str = "",
 ) -> dict[str, object]:
-    if controller._enterprise_calendar_api is None or not str(entity_id or "").strip():
+    if controller._platform_calendar_api is None or not str(entity_id or "").strip():
         return empty_calendar_assignment_context()
 
     normalized_type = str(entity_type or "").strip().lower()
@@ -128,20 +128,20 @@ def calendar_assignment_context(
     # expired assignment could otherwise sort first and display wrong).
     assignment_result = None
     if normalized_type == "site":
-        assignment_result = controller._enterprise_calendar_api.get_current_site_calendar_assignment(
+        assignment_result = controller._platform_calendar_api.get_current_site_calendar_assignment(
             normalized_id
         )
         site_id = normalized_id
     elif normalized_type == "department":
         assignment_result = (
-            controller._enterprise_calendar_api.get_current_department_calendar_assignment(
+            controller._platform_calendar_api.get_current_department_calendar_assignment(
                 normalized_id
             )
         )
         department_id = normalized_id
     elif normalized_type == "employee":
         assignment_result = (
-            controller._enterprise_calendar_api.get_current_employee_calendar_assignment(
+            controller._platform_calendar_api.get_current_employee_calendar_assignment(
                 normalized_id
             )
         )
@@ -194,14 +194,14 @@ def _effective_calendar_summary(
     PlatformCalendarResolver via resolve_effective_calendar(); only the
     display-ready working-week/holiday labels are fetched locally, for
     whichever single calendar the resolver names as the winner."""
-    if controller._enterprise_calendar_api is None:
+    if controller._platform_calendar_api is None:
         return _empty_calendar_summary()
 
-    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         ResolveEffectiveCalendarCommand,
     )
 
-    result = controller._enterprise_calendar_api.resolve_effective_calendar(
+    result = controller._platform_calendar_api.resolve_effective_calendar(
         ResolveEffectiveCalendarCommand(
             site_id=site_id,
             department_id=department_id,
@@ -213,13 +213,13 @@ def _effective_calendar_summary(
 
     resolution = result.data
     working_rules = result_sequence(
-        controller._enterprise_calendar_api.list_working_rules(resolution.calendar_id)
+        controller._platform_calendar_api.list_working_rules(resolution.calendar_id)
     )
     working_weekdays = tuple(
         sorted({int(rule.weekday) for rule in working_rules if getattr(rule, "is_working_day", False)})
     )
     exceptions = result_sequence(
-        controller._enterprise_calendar_api.list_exceptions(resolution.calendar_id)
+        controller._platform_calendar_api.list_exceptions(resolution.calendar_id)
     )
     holiday_count = sum(
         1 for exc in exceptions if str(getattr(exc, "exception_type", "")).upper() == "HOLIDAY"

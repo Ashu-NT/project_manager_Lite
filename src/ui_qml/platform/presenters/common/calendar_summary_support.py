@@ -34,7 +34,7 @@ _SOURCE_PREFIX_LEVEL_NAME = {
 
 def canonical_source_label(source_label: str, *, own_prefix: str) -> str:
     """Translate the resolver's internal winning-chain label (e.g. "GLOBAL",
-    "SITE-ABC123", "EMP-XYZ" -- see EnterpriseCalendarResolver.
+    "SITE-ABC123", "EMP-XYZ" -- see PlatformCalendarResolver.
     resolve_effective_calendar) into the one canonical, human-readable
     vocabulary every Calendar summary card must share (never let each page
     invent its own wording):

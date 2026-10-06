@@ -6,7 +6,7 @@ SqlAlchemyResourceCalendarAssignmentRepository).
 Platform owns the calendar engine; a consuming module owns its own
 project/resource assignment rows (a PM scheduling concept, not a Platform
 one) and injects a repository satisfying this Protocol into
-CalendarAssignmentService/EnterpriseCalendarResolver. Platform never imports
+CalendarAssignmentService/PlatformCalendarResolver. Platform never imports
 the consuming module's concrete domain/repository types -- it only ever
 constructs an assignment via the repository's own `create()` factory and
 treats the result opaquely (reading only `calendar_id`), so the dependency

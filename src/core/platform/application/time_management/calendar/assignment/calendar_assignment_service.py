@@ -11,6 +11,11 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_permission,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.contract.port.time_management.calendar.external_assignment_port import (
+    ExternalCalendarAssignment,
+    ProjectCalendarAssignmentPort,
+    ResourceCalendarAssignmentPort,
+)
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarAssignmentRepository,
     PlatformCalendarRepository,
@@ -32,8 +37,8 @@ class CalendarAssignmentService:
         session: Session,
         calendar_repo: PlatformCalendarRepository,
         assignment_repo: CalendarAssignmentRepository,
-        project_assignment_repo: Any,
-        resource_assignment_repo: Any,
+        project_assignment_repo: ProjectCalendarAssignmentPort,
+        resource_assignment_repo: ResourceCalendarAssignmentPort,
         user_session: Any = None,
         activity_service: Any = None,
     ) -> None:
@@ -317,7 +322,7 @@ class CalendarAssignmentService:
         effective_to: date | None = None,
         is_default: bool = True,
         priority: int = 0,
-    ) -> Any:
+    ) -> ExternalCalendarAssignment:
         # Project/resource calendar assignment is a PM scheduling decision
         # made within PM's own project-management permission model, not
         # Platform calendar governance (the dual-permission rule applies to
@@ -328,10 +333,7 @@ class CalendarAssignmentService:
         require_permission(
             self._user_session, "task.manage", operation_label="assign project calendar"
         )
-        from src.core.modules.project_management.domain.calendar.assignment import (
-            ProjectCalendarAssignment,
-        )
-        assignment = ProjectCalendarAssignment.create(
+        assignment = self._project_assignment_repo.create(
             project_id=project_id,
             calendar_id=calendar_id,
             effective_from=effective_from,
@@ -344,7 +346,9 @@ class CalendarAssignmentService:
         self._session.commit()
         return assignment
 
-    def get_project_calendar(self, project_id: str, *, at_date: date | None = None) -> Any:
+    def get_project_calendar(
+        self, project_id: str, *, at_date: date | None = None
+    ) -> ExternalCalendarAssignment | None:
         return self._project_assignment_repo.get(project_id, at_date=at_date)
 
     def remove_project_assignment(self, assignment_id: str) -> None:
@@ -367,16 +371,13 @@ class CalendarAssignmentService:
         effective_to: date | None = None,
         is_default: bool = True,
         priority: int = 0,
-    ) -> Any:
+    ) -> ExternalCalendarAssignment:
         # Same rationale as assign_project_calendar above -- PM's own
         # scheduling permission model, not Platform calendar governance.
         require_permission(
             self._user_session, "task.manage", operation_label="assign resource calendar"
         )
-        from src.core.modules.project_management.domain.calendar.assignment import (
-            ResourceCalendarAssignment,
-        )
-        assignment = ResourceCalendarAssignment.create(
+        assignment = self._resource_assignment_repo.create(
             resource_id=resource_id,
             calendar_id=calendar_id,
             effective_from=effective_from,
@@ -389,7 +390,9 @@ class CalendarAssignmentService:
         self._session.commit()
         return assignment
 
-    def get_resource_calendar(self, resource_id: str, *, at_date: date | None = None) -> Any:
+    def get_resource_calendar(
+        self, resource_id: str, *, at_date: date | None = None
+    ) -> ExternalCalendarAssignment | None:
         return self._resource_assignment_repo.get(resource_id, at_date=at_date)
 
     def remove_resource_assignment(self, assignment_id: str) -> None:

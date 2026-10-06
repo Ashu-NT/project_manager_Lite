@@ -132,7 +132,7 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
     ps = services["project_service"]
     rs = services["resource_service"]
     prs = services["project_resource_service"]
-    ecs = services["enterprise_calendar_service"]
+    ecs = services["platform_calendar_service"]
     ds = services["dashboard_service"]
 
     project = ps.create_project("Ops permission project")

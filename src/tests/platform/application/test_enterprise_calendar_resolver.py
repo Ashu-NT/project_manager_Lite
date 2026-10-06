@@ -10,8 +10,8 @@ from src.core.platform.application.tenant.tenancy.tenant_context import ActiveSc
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
 )
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
@@ -22,8 +22,8 @@ from src.core.platform.application.time_management.calendar.definitions.calendar
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarType,
@@ -126,7 +126,7 @@ def repos(db_session, tenant_context):
 
 @pytest.fixture
 def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return EnterpriseCalendarService(
+    return PlatformCalendarService(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -215,7 +215,7 @@ def resolver(repos, org_id, calculator):
     pm_proj_repo.get.return_value = None
     pm_res_repo = MagicMock()
     pm_res_repo.get.return_value = None
-    return EnterpriseCalendarResolver(
+    return PlatformCalendarResolver(
         organization_id=org_id,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -234,7 +234,7 @@ def global_cal(cal_service, org_id):
 
 
 # ---------------------------------------------------------------------------
-# Tests — EnterpriseCalendarResolver
+# Tests — PlatformCalendarResolver
 # ---------------------------------------------------------------------------
 
 
@@ -354,7 +354,7 @@ def test_resolver_holiday_exception_from_global(
 
 
 def test_granularity_validation_rejected():
-    from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+    from src.core.platform.application.time_management.calendar.platform_calendar_service import (
         _VALID_GRANULARITIES,
     )
     assert 5 in _VALID_GRANULARITIES
@@ -363,7 +363,7 @@ def test_granularity_validation_rejected():
 
 
 # ---------------------------------------------------------------------------
-# Tests — EnterpriseCalendarResolver.business_today
+# Tests — PlatformCalendarResolver.business_today
 # ---------------------------------------------------------------------------
 
 
@@ -393,7 +393,7 @@ def test_resolver_business_today_honors_a_non_utc_organization_timezone(
     from datetime import datetime
     from datetime import timezone as dt_timezone
 
-    import src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver as resolver_module
+    import src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver as resolver_module
     from src.core.shared.time.business_date import business_today as shared_business_today
 
     moved = replace(global_cal, timezone="Pacific/Auckland")

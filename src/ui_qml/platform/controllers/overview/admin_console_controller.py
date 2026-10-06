@@ -10,11 +10,11 @@ from src.ui_qml.platform.controllers.calendars.actions import (
     add_calendar_recurring_event,
     assign_calendar,
     calculate_calendar_working_days,
-    create_enterprise_calendar,
+    create_platform_calendar,
     delete_calendar_exception,
     delete_calendar_recurring_event,
     remove_calendar_assignment,
-    update_enterprise_calendar,
+    update_platform_calendar,
 )
 from src.ui_qml.platform.controllers.calendars.calendar_controller import (
     PlatformCalendarController,
@@ -222,13 +222,13 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         party_activity_presenter: PlatformPartyActivityPresenter | None = None,
         document_presenter: PlatformDocumentCatalogPresenter,
         document_management_presenter: PlatformDocumentManagementPresenter,
-        enterprise_calendar_api=None,
+        platform_calendar_api=None,
         runtime_api=None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._overview_presenter = overview_presenter
-        self._enterprise_calendar_api = enterprise_calendar_api
+        self._platform_calendar_api = platform_calendar_api
         self._runtime_api = runtime_api
         self._organization_controller = PlatformOrganizationController(
             organization_presenter, self, activity_presenter=organization_activity_presenter
@@ -616,12 +616,12 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         return calculate_calendar_working_days(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
-    def createEnterpriseCalendar(self, payload: dict[str, object]) -> dict[str, object]:
-        return create_enterprise_calendar(self, payload)
+    def createPlatformCalendar(self, payload: dict[str, object]) -> dict[str, object]:
+        return create_platform_calendar(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
-    def updateEnterpriseCalendar(self, payload: dict[str, object]) -> dict[str, object]:
-        return update_enterprise_calendar(self, payload)
+    def updatePlatformCalendar(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_platform_calendar(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def addCalendarException(self, payload: dict[str, object]) -> dict[str, object]:

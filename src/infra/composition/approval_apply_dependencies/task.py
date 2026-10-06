@@ -31,7 +31,7 @@ def build_task_approval_deps(
     user_session,
     tenant_context_service,
     work_calendar_engine: CalendarProtocol,
-    enterprise_calendar_resolver,
+    platform_calendar_resolver,
     calendar_assignment_service,
     module_catalog_service=None,
 ) -> TaskApprovalDeps:
@@ -54,7 +54,7 @@ def build_task_approval_deps(
         tenant_context_service=tenant_context_service,
     )
     project_calendar_adapter = ProjectCalendarAdapter(
-        resolver=enterprise_calendar_resolver,
+        resolver=platform_calendar_resolver,
         assignment_service=calendar_assignment_service,
     )
     scheduling_engine = SchedulingEngine(

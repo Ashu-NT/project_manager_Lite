@@ -176,10 +176,6 @@ AppLayouts.WorkspaceFrame {
                     busy: root.busy
                     errorMessage: root.err
                     feedbackMessage: root.ok
-                    isEnterpriseCalendar: {
-                        const item = root._selectedItem
-                        return item && item.state ? item.state.isEnterpriseCalendar === true : false
-                    }
 
                     onBackRequested: root.closeDetail()
                     onEditRequested: root.openEdit(root.selectedRowId)

@@ -20,8 +20,8 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 class GlobalCalendarShim:
     """Enterprise-backed drop-in for WorkCalendarEngine using the GLOBAL calendar."""
 
-    def __init__(self, resolver: EnterpriseCalendarResolver) -> None:
+    def __init__(self, resolver: PlatformCalendarResolver) -> None:
         self._resolver = resolver
 
     def is_working_day(self, target_date: date) -> bool:
@@ -128,7 +128,7 @@ class GlobalCalendarShim:
 
     def business_today(self) -> date:
         """"Today" in the organization's own configured business timezone,
-        not server-local time -- see EnterpriseCalendarResolver.business_today."""
+        not server-local time -- see PlatformCalendarResolver.business_today."""
         return self._resolver.business_today()
 
 

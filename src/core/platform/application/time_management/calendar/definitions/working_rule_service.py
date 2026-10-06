@@ -34,7 +34,7 @@ class WorkingRuleService:
         self._calendar_repo = calendar_repo
         self._rule_repo = rule_repo
         self._user_session = user_session
-        # Invalidates the (process-lifetime) EnterpriseCalendarResolver's rule
+        # Invalidates the (process-lifetime) PlatformCalendarResolver's rule
         # cache — without this, a saved/deleted rule stays invisible to every
         # resolver-backed read until the app restarts.
         self._on_calendar_data_changed = on_calendar_data_changed

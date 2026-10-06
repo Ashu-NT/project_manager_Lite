@@ -12,8 +12,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
 )
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
@@ -24,8 +24,8 @@ from src.core.platform.application.time_management.calendar.definitions.shift_pa
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     PatternType,
@@ -126,7 +126,7 @@ def repos(db_session, tenant_context):
 
 @pytest.fixture
 def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return EnterpriseCalendarService(
+    return PlatformCalendarService(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -160,7 +160,7 @@ def shift_pattern_service(db_session, repos, mock_org_repo, mock_user_session, t
 @pytest.fixture
 def resolver(repos, org_id):
     from unittest.mock import MagicMock
-    return EnterpriseCalendarResolver(
+    return PlatformCalendarResolver(
         organization_id=org_id,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -234,27 +234,27 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
 ):
     from unittest.mock import MagicMock
 
-    from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import (
-        EnterpriseCalendarDesktopApi,
+    from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
+        PlatformCalendarDesktopApi,
     )
-    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         ShiftPatternCreateCommand,
         ShiftPatternDaySetCommand,
     )
     from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
         CalendarAssignmentService,
     )
-    from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-        EnterpriseCalendarResolver,
+    from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+        PlatformCalendarResolver,
     )
     from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
         WorkingTimeCalculator,
     )
-    from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-        EnterpriseCalendarService,
+    from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+        PlatformCalendarService,
     )
 
-    cal_service = EnterpriseCalendarService(
+    cal_service = PlatformCalendarService(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -270,7 +270,7 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
         resource_assignment_repo=MagicMock(),
         user_session=mock_user_session,
     )
-    resolver = EnterpriseCalendarResolver(
+    resolver = PlatformCalendarResolver(
         organization_id="org-shift-pattern",
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -282,7 +282,7 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
         calculator=WorkingTimeCalculator(),
         shift_pattern_repo=repos["shift"],
     )
-    api = EnterpriseCalendarDesktopApi(
+    api = PlatformCalendarDesktopApi(
         calendar_service=cal_service,
         rule_service=MagicMock(),
         exception_service=MagicMock(),

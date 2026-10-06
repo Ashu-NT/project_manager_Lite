@@ -151,7 +151,7 @@ def test_calendar_repositories_scope_cross_organization_access(services) -> None
     seeded = _seed_calendar_scope_rows(services)
     session = services["session"]
 
-    calendar_repo = services["enterprise_calendar_service"]._calendar_repo
+    calendar_repo = services["platform_calendar_service"]._calendar_repo
     rule_repo = services["working_rule_service"]._rule_repo
     exception_repo = services["calendar_exception_service"]._exception_repo
     recurring_repo = services["recurring_event_service"]._event_repo

@@ -47,23 +47,23 @@ def calculate_calendar_working_days(controller, payload: dict) -> dict[str, obje
         controller._set_is_busy(False)
 
 
-def create_enterprise_calendar(controller, payload: dict) -> dict[str, object]:
+def create_platform_calendar(controller, payload: dict) -> dict[str, object]:
     return run_admin_result_action(
         controller,
-        operation=lambda: controller._enterprise_calendar_api.create_calendar(
+        operation=lambda: controller._platform_calendar_api.create_calendar(
             build_calendar_create_command(payload)
-        ) if controller._enterprise_calendar_api else None,
+        ) if controller._platform_calendar_api else None,
         success_message="Calendar created.",
         on_success=lambda: refresh_after_calendar_change(controller),
     )
 
 
-def update_enterprise_calendar(controller, payload: dict) -> dict[str, object]:
+def update_platform_calendar(controller, payload: dict) -> dict[str, object]:
     return run_admin_result_action(
         controller,
-        operation=lambda: controller._enterprise_calendar_api.update_calendar(
+        operation=lambda: controller._platform_calendar_api.update_calendar(
             build_calendar_update_command(payload)
-        ) if controller._enterprise_calendar_api else None,
+        ) if controller._platform_calendar_api else None,
         success_message="Calendar updated.",
         on_success=lambda: refresh_after_calendar_change(controller),
     )
@@ -72,9 +72,9 @@ def update_enterprise_calendar(controller, payload: dict) -> dict[str, object]:
 def add_calendar_exception(controller, payload: dict) -> dict[str, object]:
     return run_admin_result_action(
         controller,
-        operation=lambda: controller._enterprise_calendar_api.add_exception(
+        operation=lambda: controller._platform_calendar_api.add_exception(
             build_exception_create_command(payload)
-        ) if controller._enterprise_calendar_api else None,
+        ) if controller._platform_calendar_api else None,
         success_message="Calendar exception added.",
         on_success=lambda: refresh_after_calendar_change(controller),
     )
@@ -83,9 +83,9 @@ def add_calendar_exception(controller, payload: dict) -> dict[str, object]:
 def add_calendar_recurring_event(controller, payload: dict) -> dict[str, object]:
     return run_admin_result_action(
         controller,
-        operation=lambda: controller._enterprise_calendar_api.add_recurring_event(
+        operation=lambda: controller._platform_calendar_api.add_recurring_event(
             build_recurring_event_create_command(payload)
-        ) if controller._enterprise_calendar_api else None,
+        ) if controller._platform_calendar_api else None,
         success_message="Recurring event added.",
         on_success=lambda: refresh_after_calendar_change(controller),
     )
@@ -94,8 +94,8 @@ def add_calendar_recurring_event(controller, payload: dict) -> dict[str, object]
 def delete_calendar_exception(controller, exception_id: str) -> dict[str, object]:
     return run_admin_result_action(
         controller,
-        operation=lambda: controller._enterprise_calendar_api.delete_exception(exception_id)
-        if controller._enterprise_calendar_api
+        operation=lambda: controller._platform_calendar_api.delete_exception(exception_id)
+        if controller._platform_calendar_api
         else None,
         success_message="Calendar exception removed.",
         on_success=lambda: refresh_after_calendar_change(controller),
@@ -105,8 +105,8 @@ def delete_calendar_exception(controller, exception_id: str) -> dict[str, object
 def delete_calendar_recurring_event(controller, event_id: str) -> dict[str, object]:
     return run_admin_result_action(
         controller,
-        operation=lambda: controller._enterprise_calendar_api.delete_recurring_event(event_id)
-        if controller._enterprise_calendar_api
+        operation=lambda: controller._platform_calendar_api.delete_recurring_event(event_id)
+        if controller._platform_calendar_api
         else None,
         success_message="Recurring event removed.",
         on_success=lambda: refresh_after_calendar_change(controller),
@@ -128,11 +128,11 @@ def remove_calendar_assignment(
 ) -> dict[str, object]:
     return run_admin_result_action(
         controller,
-        operation=lambda: controller._enterprise_calendar_api.remove_assignment(
+        operation=lambda: controller._platform_calendar_api.remove_assignment(
             assignment_id,
             entity_type,
         )
-        if controller._enterprise_calendar_api
+        if controller._platform_calendar_api
         else None,
         success_message="Calendar assignment removed.",
         on_success=lambda: refresh_after_calendar_change(controller),
@@ -144,9 +144,9 @@ __all__ = [
     "add_calendar_recurring_event",
     "assign_calendar",
     "calculate_calendar_working_days",
-    "create_enterprise_calendar",
+    "create_platform_calendar",
     "delete_calendar_exception",
     "delete_calendar_recurring_event",
     "remove_calendar_assignment",
-    "update_enterprise_calendar",
+    "update_platform_calendar",
 ]

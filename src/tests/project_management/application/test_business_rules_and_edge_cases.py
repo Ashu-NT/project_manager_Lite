@@ -104,7 +104,7 @@ def test_work_calendar_next_and_negative_day_math(services):
     # wc is now GlobalCalendarShim backed by the enterprise calendar
     wc = services["work_calendar_engine"]
     exc_svc = services["calendar_exception_service"]
-    cal_svc = services["enterprise_calendar_service"]
+    cal_svc = services["platform_calendar_service"]
 
     # Saturday 2023-11-04 -> next working day is Monday 2023-11-06
     assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(2023, 11, 6)

@@ -128,8 +128,7 @@ class PlatformWorkspaceCatalog(QObject):
         )
         self._runtime_presenter = PlatformRuntimePresenter(runtime_api)
         site_api = getattr(desktop_api_registry, "platform_site", None)
-        calendar_api = getattr(desktop_api_registry, "platform_calendar", None)
-        enterprise_calendar_api = getattr(desktop_api_registry, "platform_enterprise_calendar", None)
+        platform_calendar_api = getattr(desktop_api_registry, "platform_calendar", None)
         department_api = getattr(desktop_api_registry, "platform_department", None)
         employee_api = getattr(desktop_api_registry, "platform_employee", None)
         user_api = getattr(desktop_api_registry, "platform_user", None)
@@ -176,8 +175,7 @@ class PlatformWorkspaceCatalog(QObject):
                 user_api=user_api,
             ),
             calendar_presenter=PlatformCalendarCatalogPresenter(
-                calendar_api=calendar_api,
-                enterprise_calendar_api=enterprise_calendar_api,
+                platform_calendar_api=platform_calendar_api,
             ),
             site_presenter=PlatformSiteCatalogPresenter(site_api=site_api),
             site_activity_presenter=PlatformSiteActivityPresenter(
@@ -215,7 +213,7 @@ class PlatformWorkspaceCatalog(QObject):
             ),
             document_presenter=PlatformDocumentCatalogPresenter(document_api=document_api),
             document_management_presenter=PlatformDocumentManagementPresenter(document_api=document_api),
-            enterprise_calendar_api=enterprise_calendar_api,
+            platform_calendar_api=platform_calendar_api,
             runtime_api=runtime_api,
             parent=self,
         )

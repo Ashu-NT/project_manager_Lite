@@ -12,8 +12,8 @@ from src.core.platform.application.time_management.calendar.assignment.calendar_
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     ExceptionType,
@@ -120,7 +120,7 @@ def repos(db_session, tenant_context):
 
 @pytest.fixture
 def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return EnterpriseCalendarService(
+    return PlatformCalendarService(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],

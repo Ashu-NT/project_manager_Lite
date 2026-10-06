@@ -15,7 +15,7 @@ from PySide6.QtCore import qInstallMessageHandler
 from PySide6.QtQuick import QQuickItem
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
     SiteCalendarAssignCommand,
 )
 from src.ui_qml.modules.project_management.context import (
@@ -122,10 +122,10 @@ def _seed_full_site(services, *, code: str, name: str) -> tuple[str, str]:
     )
 
     registry = build_desktop_api_registry(services)
-    calendars_result = registry.platform_enterprise_calendar.list_calendars()
+    calendars_result = registry.platform_calendar.list_calendars()
     assert calendars_result.ok and calendars_result.data, "expected the seeded default calendar"
     calendar_id = calendars_result.data[0].id
-    assign_result = registry.platform_enterprise_calendar.assign_site_calendar(
+    assign_result = registry.platform_calendar.assign_site_calendar(
         SiteCalendarAssignCommand(site_id=site.id, calendar_id=calendar_id)
     )
     assert assign_result.ok, assign_result.error

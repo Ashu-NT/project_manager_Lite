@@ -615,7 +615,7 @@ def build_project_management_service_bundle(
     # Build enterprise calendar adapter here so it can be injected into SchedulingEngine.
     # Instantiated before scheduling_engine so we pass it in during construction.
     _pre_project_calendar_adapter = ProjectCalendarAdapter(
-        resolver=platform_services.enterprise_calendar_resolver,
+        resolver=platform_services.platform_calendar_resolver,
         assignment_service=platform_services.calendar_assignment_service,
     )
     scheduling_engine = SchedulingEngine(
@@ -634,7 +634,7 @@ def build_project_management_service_bundle(
         requirement_repo=repositories.task_skill_req_repo,
     )
     enterprise_resource_availability = EnterpriseResourceAvailabilityService(
-        resolver=platform_services.enterprise_calendar_resolver,
+        resolver=platform_services.platform_calendar_resolver,
         resource_repo=repositories.resource_repo,
     )
     task_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
@@ -1658,7 +1658,7 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         module_catalog_service=platform_services.module_catalog_service,
         work_calendar_engine=work_calendar_engine,
-        enterprise_calendar_resolver=platform_services.enterprise_calendar_resolver,
+        platform_calendar_resolver=platform_services.platform_calendar_resolver,
         calendar_assignment_service=platform_services.calendar_assignment_service,
         financial_period_service=platform_services.financial_period_service,
     )
@@ -1719,7 +1719,7 @@ def _register_project_management_approval_handlers(
     tenant_context_service=None,
     module_catalog_service=None,
     work_calendar_engine=None,
-    enterprise_calendar_resolver=None,
+    platform_calendar_resolver=None,
     calendar_assignment_service=None,
     financial_period_service=None,
 ) -> None:
@@ -1753,7 +1753,7 @@ def _register_project_management_approval_handlers(
         tenant_context_service=tenant_context_service,
         module_catalog_service=module_catalog_service,
         work_calendar_engine=work_calendar_engine,
-        enterprise_calendar_resolver=enterprise_calendar_resolver,
+        platform_calendar_resolver=platform_calendar_resolver,
         calendar_assignment_service=calendar_assignment_service,
     )
     register_apply(

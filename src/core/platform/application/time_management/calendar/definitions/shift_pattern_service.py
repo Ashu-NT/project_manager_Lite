@@ -42,7 +42,7 @@ class ShiftPatternService:
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
-        # Invalidates the (process-lifetime) EnterpriseCalendarResolver's
+        # Invalidates the (process-lifetime) PlatformCalendarResolver's
         # shift-pattern caches — without this, a saved/deleted pattern or day
         # stays invisible to every resolver-backed read until the app restarts.
         self._on_calendar_data_changed = on_calendar_data_changed

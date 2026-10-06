@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 def build_calendar_create_command(payload: dict):
-    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         CalendarCreateCommand,
     )
     return CalendarCreateCommand(
@@ -16,7 +16,7 @@ def build_calendar_create_command(payload: dict):
 
 
 def build_calendar_update_command(payload: dict):
-    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         CalendarUpdateCommand,
     )
     return CalendarUpdateCommand(
@@ -28,7 +28,7 @@ def build_calendar_update_command(payload: dict):
 
 
 def build_exception_create_command(payload: dict):
-    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         ExceptionCreateCommand,
     )
     return ExceptionCreateCommand(
@@ -43,7 +43,7 @@ def build_exception_create_command(payload: dict):
 
 
 def build_recurring_event_create_command(payload: dict):
-    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         RecurringEventCreateCommand,
     )
     return RecurringEventCreateCommand(
@@ -60,9 +60,9 @@ def build_recurring_event_create_command(payload: dict):
 
 
 def dispatch_calendar_assign(controller, payload: dict, entity_type: str):
-    if controller._enterprise_calendar_api is None:
+    if controller._platform_calendar_api is None:
         return None
-    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         DeptCalendarAssignCommand,
         EmpCalendarAssignCommand,
         ProjectCalendarAssignCommand,
@@ -74,35 +74,35 @@ def dispatch_calendar_assign(controller, payload: dict, entity_type: str):
     eff_to = str(payload.get("effectiveTo", ""))
     entity_id = str(payload.get("entityId", ""))
     if entity_type == "site":
-        return controller._enterprise_calendar_api.assign_site_calendar(
+        return controller._platform_calendar_api.assign_site_calendar(
             SiteCalendarAssignCommand(
                 site_id=entity_id, calendar_id=cal_id,
                 effective_from=eff_from, effective_to=eff_to,
             )
         )
     if entity_type == "department":
-        return controller._enterprise_calendar_api.assign_department_calendar(
+        return controller._platform_calendar_api.assign_department_calendar(
             DeptCalendarAssignCommand(
                 department_id=entity_id, calendar_id=cal_id,
                 effective_from=eff_from, effective_to=eff_to,
             )
         )
     if entity_type == "employee":
-        return controller._enterprise_calendar_api.assign_employee_calendar(
+        return controller._platform_calendar_api.assign_employee_calendar(
             EmpCalendarAssignCommand(
                 employee_id=entity_id, calendar_id=cal_id,
                 effective_from=eff_from, effective_to=eff_to,
             )
         )
     if entity_type == "project":
-        return controller._enterprise_calendar_api.assign_project_calendar(
+        return controller._platform_calendar_api.assign_project_calendar(
             ProjectCalendarAssignCommand(
                 project_id=entity_id, calendar_id=cal_id,
                 effective_from=eff_from, effective_to=eff_to,
             )
         )
     if entity_type == "resource":
-        return controller._enterprise_calendar_api.assign_resource_calendar(
+        return controller._platform_calendar_api.assign_resource_calendar(
             ResourceCalendarAssignCommand(
                 resource_id=entity_id, calendar_id=cal_id,
                 effective_from=eff_from, effective_to=eff_to,

@@ -124,6 +124,29 @@ class SqlAlchemyProjectCalendarAssignmentRepository(
         rows = self.session.execute(stmt).scalars().all()
         return [_project_from_orm(r) for r in rows]
 
+    def create(
+        self,
+        *,
+        project_id: str,
+        calendar_id: str,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
+        is_default: bool = False,
+        priority: int = 0,
+    ) -> ProjectCalendarAssignment:
+        """Constructs (but does not persist) a new assignment -- callers
+        outside this module (Platform's CalendarAssignmentService) use this
+        instead of importing ProjectCalendarAssignment directly, so Platform
+        never depends on PM's concrete domain type."""
+        return ProjectCalendarAssignment.create(
+            project_id=project_id,
+            calendar_id=calendar_id,
+            effective_from=effective_from,
+            effective_to=effective_to,
+            is_default=is_default,
+            priority=priority,
+        )
+
     def save(self, assignment: ProjectCalendarAssignment) -> None:
         self._ensure_project_in_scope(assignment.project_id)
         existing = self._get_via_anchor_in_scope(
@@ -229,6 +252,29 @@ class SqlAlchemyResourceCalendarAssignmentRepository(
         )
         rows = self.session.execute(stmt).scalars().all()
         return [_resource_from_orm(r) for r in rows]
+
+    def create(
+        self,
+        *,
+        resource_id: str,
+        calendar_id: str,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
+        is_default: bool = False,
+        priority: int = 0,
+    ) -> ResourceCalendarAssignment:
+        """Constructs (but does not persist) a new assignment -- callers
+        outside this module (Platform's CalendarAssignmentService) use this
+        instead of importing ResourceCalendarAssignment directly, so Platform
+        never depends on PM's concrete domain type."""
+        return ResourceCalendarAssignment.create(
+            resource_id=resource_id,
+            calendar_id=calendar_id,
+            effective_from=effective_from,
+            effective_to=effective_to,
+            is_default=is_default,
+            priority=priority,
+        )
 
     def save(self, assignment: ResourceCalendarAssignment) -> None:
         self._ensure_resource_in_scope(assignment.resource_id)

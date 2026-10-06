@@ -442,8 +442,8 @@ Item {
                 return
             }
             const result = mode === "create"
-                ? root.workspaceController.createEnterpriseCalendar(payload)
-                : root.workspaceController.updateEnterpriseCalendar(payload)
+                ? root.workspaceController.createPlatformCalendar(payload)
+                : root.workspaceController.updatePlatformCalendar(payload)
             root._handleResult(calendarEditorDialog, result)
         }
     }

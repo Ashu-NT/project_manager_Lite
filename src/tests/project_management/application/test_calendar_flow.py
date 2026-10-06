@@ -10,7 +10,7 @@ def test_enterprise_calendar_holiday_blocks_scheduling_day(services):
     finishes on Fri 2023-11-10 (Tue, Thu, Fri — Wed skipped as holiday).
     """
     exc_svc = services["calendar_exception_service"]
-    cal_svc = services["enterprise_calendar_service"]
+    cal_svc = services["platform_calendar_service"]
     ps = services["project_service"]
     ts = services["task_service"]
     sched = services["scheduling_engine"]

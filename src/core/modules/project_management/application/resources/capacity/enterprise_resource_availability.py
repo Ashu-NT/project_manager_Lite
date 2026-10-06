@@ -1,6 +1,6 @@
 """Enterprise-aware resource availability service.
 
-Delegates all calendar logic to Platform's EnterpriseCalendarResolver.
+Delegates all calendar logic to Platform's PlatformCalendarResolver.
 Employee-backed resources inherit employee calendar automatically.
 External resources use PM resource calendar assignment.
 """
@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
     ResolvedCalendarContext,
 )
 
@@ -32,7 +32,7 @@ class EnterpriseResourceAvailabilityService:
 
     def __init__(
         self,
-        resolver: EnterpriseCalendarResolver,
+        resolver: PlatformCalendarResolver,
         resource_repo,
     ) -> None:
         self._resolver = resolver

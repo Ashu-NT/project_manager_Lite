@@ -12,8 +12,8 @@ from datetime import date, timedelta
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
     ResolvedCalendarContext,
 )
 
@@ -56,14 +56,14 @@ class BoundProjectCalendar:
 
 class ProjectCalendarAdapter:
     """
-    Wraps EnterpriseCalendarResolver for a project scope.
+    Wraps PlatformCalendarResolver for a project scope.
     Provides the same date-arithmetic interface as WorkCalendarEngine
     so the scheduling engine can swap in without behavioral changes.
     """
 
     def __init__(
         self,
-        resolver: EnterpriseCalendarResolver,
+        resolver: PlatformCalendarResolver,
         assignment_service: CalendarAssignmentService,
     ) -> None:
         self._resolver = resolver
@@ -210,7 +210,7 @@ class ProjectCalendarAdapter:
 
     def business_today(self) -> date:
         """"Today" in the organization's own configured business timezone,
-        not server-local time -- see EnterpriseCalendarResolver.business_today."""
+        not server-local time -- see PlatformCalendarResolver.business_today."""
         return self._resolver.business_today()
 
     def bind_for_project(self, project_id: str) -> BoundProjectCalendar | None:

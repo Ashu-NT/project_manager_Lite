@@ -6,7 +6,7 @@ from datetime import date, time, timedelta
 
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
     CalendarAssignmentDto,
     CalendarCreateCommand,
     CalendarDto,
@@ -41,8 +41,8 @@ from src.core.platform.api.desktop.time_management.calendar.models.enterprise_ca
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
 )
 from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
     CalendarExceptionService,
@@ -56,8 +56,8 @@ from src.core.platform.application.time_management.calendar.definitions.shift_pa
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
@@ -207,19 +207,19 @@ def _serialize_shift_day(d: ShiftPatternDay) -> ShiftPatternDayDto:
     )
 
 
-class EnterpriseCalendarDesktopApi:
+class PlatformCalendarDesktopApi:
     """Desktop-facing API for the enterprise calendar engine."""
 
     def __init__(
         self,
         *,
-        calendar_service: EnterpriseCalendarService,
+        calendar_service: PlatformCalendarService,
         rule_service: WorkingRuleService,
         exception_service: CalendarExceptionService,
         recurring_event_service: RecurringEventService,
         shift_pattern_service: ShiftPatternService,
         assignment_service: CalendarAssignmentService,
-        resolver: EnterpriseCalendarResolver,
+        resolver: PlatformCalendarResolver,
         capacity_calculator=None,
     ) -> None:
         self._calendar_service = calendar_service
@@ -996,4 +996,4 @@ class EnterpriseCalendarDesktopApi:
         )
 
 
-__all__ = ["EnterpriseCalendarDesktopApi"]
+__all__ = ["PlatformCalendarDesktopApi"]

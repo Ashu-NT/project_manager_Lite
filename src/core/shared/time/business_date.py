@@ -5,7 +5,7 @@ the relevant timezone at the point of use, not the server's local time --
 otherwise a server running in UTC can flip an assignment or working-day
 boundary a day early/late for an organization configured in a different
 timezone. Centralized here so no consumer reimplements this conversion
-independently (see EnterpriseCalendarResolver.business_today for the
+independently (see PlatformCalendarResolver.business_today for the
 calendar-aware caller)."""
 
 from __future__ import annotations

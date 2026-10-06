@@ -12,6 +12,10 @@ from src.core.platform.application.time_management.calendar.capacity.working_tim
     DayCapacity,
     WorkingTimeCalculator,
 )
+from src.core.platform.contract.port.time_management.calendar.external_assignment_port import (
+    ProjectCalendarAssignmentPort,
+    ResourceCalendarAssignmentPort,
+)
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarAssignmentRepository,
     CalendarExceptionRepository,
@@ -114,7 +118,7 @@ class ResolvedCalendarContext:
         )
 
 
-class EnterpriseCalendarResolver:
+class PlatformCalendarResolver:
     """
     Resolves calendar hierarchy for a given org/site/dept/employee/project/resource scope.
 
@@ -138,8 +142,8 @@ class EnterpriseCalendarResolver:
         exception_repo: CalendarExceptionRepository,
         recurring_repo: CalendarRecurringEventRepository,
         assignment_repo: CalendarAssignmentRepository,
-        project_assignment_repo: Any,
-        resource_assignment_repo: Any,
+        project_assignment_repo: ProjectCalendarAssignmentPort,
+        resource_assignment_repo: ResourceCalendarAssignmentPort,
         calculator: WorkingTimeCalculator,
         shift_pattern_repo: Any = None,
     ) -> None:
@@ -704,4 +708,4 @@ class EnterpriseCalendarResolver:
         return value[:12].upper()
 
 
-__all__ = ["EffectiveCalendarResolution", "EnterpriseCalendarResolver", "ResolvedCalendarContext"]
+__all__ = ["EffectiveCalendarResolution", "PlatformCalendarResolver", "ResolvedCalendarContext"]

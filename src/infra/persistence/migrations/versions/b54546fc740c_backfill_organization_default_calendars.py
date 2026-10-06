@@ -12,7 +12,7 @@ enforced at creation time. Idempotent: an organization that already has a
 GLOBAL-type platform_calendars row is left untouched (including one a
 client has since edited -- this only ever fills a genuine gap, never
 overwrites). Seeds the same Mon-Fri 08:00-17:00 / 60-minute-break default
-working week EnterpriseCalendarService.ensure_global_calendar() seeds for a
+working week PlatformCalendarService.ensure_global_calendar() seeds for a
 fresh install, using each organization's own configured timezone rather
 than a hard-coded UTC (updated 2026-10-06 as part of Calendar backbone
 hardening -- the calendar's working-time interpretation is local to its

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
     _resolve_username,
 )
 from src.core.platform.common.exceptions import NotFoundError

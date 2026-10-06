@@ -50,7 +50,7 @@ def _resolve_username(user_session: Any) -> str | None:
     return None
 
 
-class EnterpriseCalendarService:
+class PlatformCalendarService:
     """Platform-owned CRUD service for PlatformCalendar entities."""
 
     def __init__(
@@ -528,4 +528,4 @@ class EnterpriseCalendarService:
         return cal
 
 
-__all__ = ["EnterpriseCalendarService"]
+__all__ = ["PlatformCalendarService"]

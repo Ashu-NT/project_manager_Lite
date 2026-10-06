@@ -94,7 +94,7 @@ _ORGANIZATION_STATUS_EVENT_CLASS: dict[str, type] = {
 }
 
 # Mon-Fri 08:00-17:00 with a 60-minute break -- the same fresh-install
-# default EnterpriseCalendarService.ensure_global_calendar() seeds when no
+# default PlatformCalendarService.ensure_global_calendar() seeds when no
 # legacy working_calendar data exists to migrate.
 _DEFAULT_WORKING_WEEKDAYS = frozenset({0, 1, 2, 3, 4})
 

@@ -12,7 +12,7 @@ from datetime import date
 from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
 )
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     ResolvedCalendarContext,
 )
 

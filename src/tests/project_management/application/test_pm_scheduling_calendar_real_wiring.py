@@ -1,5 +1,5 @@
 """End-to-end test that the PM Scheduling desktop API, when wired to a real
-EnterpriseCalendarDesktopApi, reads/writes the real Platform Enterprise
+PlatformCalendarDesktopApi, reads/writes the real Platform Enterprise
 Calendar instead of the legacy hard-coded stub."""
 
 from __future__ import annotations
@@ -13,14 +13,14 @@ from sqlalchemy.orm import sessionmaker
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
-from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import (
-    EnterpriseCalendarDesktopApi,
+from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
+    PlatformCalendarDesktopApi,
 )
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
 )
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
@@ -37,8 +37,8 @@ from src.core.platform.application.time_management.calendar.definitions.shift_pa
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
@@ -136,7 +136,7 @@ def repos(db_session, tenant_context):
 def desktop_api(db_session, repos, mock_org_repo, mock_user_session, tenant_context, org_id):
     from unittest.mock import MagicMock
 
-    cal_service = EnterpriseCalendarService(
+    cal_service = PlatformCalendarService(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -177,7 +177,7 @@ def desktop_api(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
         resource_assignment_repo=MagicMock(),
         user_session=mock_user_session,
     )
-    resolver = EnterpriseCalendarResolver(
+    resolver = PlatformCalendarResolver(
         organization_id=org_id,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -194,7 +194,7 @@ def desktop_api(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
         global_cal.id, start_time=time(8, 0), end_time=time(17, 0), break_minutes=60
     )
 
-    platform_calendar_api = EnterpriseCalendarDesktopApi(
+    platform_calendar_api = PlatformCalendarDesktopApi(
         calendar_service=cal_service,
         rule_service=rule_service,
         exception_service=exception_service,

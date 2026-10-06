@@ -66,7 +66,7 @@ def test_create_and_update_site_round_trip_full_address(services) -> None:
 
 def _fake_controller(registry) -> SimpleNamespace:
     return SimpleNamespace(
-        _enterprise_calendar_api=registry.platform_enterprise_calendar,
+        _platform_calendar_api=registry.platform_calendar,
         _runtime_api=registry.platform_runtime,
     )
 
@@ -92,13 +92,13 @@ def test_site_calendar_summary_is_override_when_site_has_its_own_assignment(serv
     organization_id = site.organization_id
 
     registry = build_desktop_api_registry(services)
-    calendars_result = registry.platform_enterprise_calendar.list_calendars()
+    calendars_result = registry.platform_calendar.list_calendars()
     assert calendars_result.ok and calendars_result.data, "expected at least the seeded default calendar"
     calendar_id = calendars_result.data[0].id
 
-    assign_result = registry.platform_enterprise_calendar.assign_site_calendar(
+    assign_result = registry.platform_calendar.assign_site_calendar(
         __import__(
-            "src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar",
+            "src.core.platform.api.desktop.time_management.calendar.models.platform_calendar",
             fromlist=["SiteCalendarAssignCommand"],
         ).SiteCalendarAssignCommand(site_id=site.id, calendar_id=calendar_id)
     )

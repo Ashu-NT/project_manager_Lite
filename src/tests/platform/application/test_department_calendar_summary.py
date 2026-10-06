@@ -10,7 +10,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
     DeptCalendarAssignCommand,
     SiteCalendarAssignCommand,
 )
@@ -19,7 +19,7 @@ from src.ui_qml.platform.controllers.calendars.context import department_calenda
 
 def _fake_controller(registry) -> SimpleNamespace:
     return SimpleNamespace(
-        _enterprise_calendar_api=registry.platform_enterprise_calendar,
+        _platform_calendar_api=registry.platform_calendar,
         _runtime_api=registry.platform_runtime,
     )
 
@@ -49,10 +49,10 @@ def test_department_calendar_summary_inherited_from_site_when_site_has_override(
     organization_id = department.organization_id
 
     registry = build_desktop_api_registry(services)
-    calendars_result = registry.platform_enterprise_calendar.list_calendars()
+    calendars_result = registry.platform_calendar.list_calendars()
     assert calendars_result.ok and calendars_result.data
     calendar_id = calendars_result.data[0].id
-    assign_result = registry.platform_enterprise_calendar.assign_site_calendar(
+    assign_result = registry.platform_calendar.assign_site_calendar(
         SiteCalendarAssignCommand(site_id=site.id, calendar_id=calendar_id)
     )
     assert assign_result.ok, assign_result.error
@@ -92,17 +92,17 @@ def test_department_calendar_summary_is_department_override_when_department_has_
     organization_id = department.organization_id
 
     registry = build_desktop_api_registry(services)
-    calendars_result = registry.platform_enterprise_calendar.list_calendars()
+    calendars_result = registry.platform_calendar.list_calendars()
     assert calendars_result.ok and calendars_result.data
     calendar_id = calendars_result.data[0].id
 
     # The Site also has its own override -- the Department's own override
     # must still win over it.
-    site_assign = registry.platform_enterprise_calendar.assign_site_calendar(
+    site_assign = registry.platform_calendar.assign_site_calendar(
         SiteCalendarAssignCommand(site_id=site.id, calendar_id=calendar_id)
     )
     assert site_assign.ok, site_assign.error
-    department_assign = registry.platform_enterprise_calendar.assign_department_calendar(
+    department_assign = registry.platform_calendar.assign_department_calendar(
         DeptCalendarAssignCommand(department_id=department.id, calendar_id=calendar_id)
     )
     assert department_assign.ok, department_assign.error

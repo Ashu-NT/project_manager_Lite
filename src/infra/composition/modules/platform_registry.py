@@ -106,8 +106,8 @@ from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidati
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
 )
 from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import (
     GlobalCalendarShim,
@@ -127,8 +127,8 @@ from src.core.platform.application.time_management.calendar.definitions.shift_pa
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.contract.interface.master_data.employee.contracts import (
     LinkedEmployeeResource,
@@ -453,13 +453,13 @@ class PlatformServiceBundle:
     financial_period_service: FinancialPeriodService
     notification_service: NotificationService
     approval_service: ApprovalService
-    enterprise_calendar_service: EnterpriseCalendarService
+    platform_calendar_service: PlatformCalendarService
     working_rule_service: WorkingRuleService
     calendar_exception_service: CalendarExceptionService
     recurring_event_service: RecurringEventService
     shift_pattern_service: ShiftPatternService
     calendar_assignment_service: CalendarAssignmentService
-    enterprise_calendar_resolver: EnterpriseCalendarResolver
+    platform_calendar_resolver: PlatformCalendarResolver
     working_time_calculator: WorkingTimeCalculator
     tenant_admin_service: TenantAdminService
     tenant_membership_service: TenantMembershipService
@@ -1180,7 +1180,7 @@ def build_platform_service_bundle(
 
     # --- Enterprise calendar services ---
     working_time_calculator = WorkingTimeCalculator()
-    enterprise_calendar_service = EnterpriseCalendarService(
+    platform_calendar_service = PlatformCalendarService(
         session=session,
         calendar_repo=repositories.platform_calendar_repo,
         assignment_repo=repositories.calendar_assignment_repo,
@@ -1199,7 +1199,7 @@ def build_platform_service_bundle(
     # invalidate_cache can be wired into them — this resolver is a single
     # process-lifetime instance (built once here), so a mutation that never
     # invalidates its caches leaves every later read stale until restart.
-    enterprise_calendar_resolver = EnterpriseCalendarResolver(
+    platform_calendar_resolver = PlatformCalendarResolver(
         organization_id=_get_active_org_id(),
         calendar_repo=repositories.platform_calendar_repo,
         rule_repo=repositories.calendar_working_rule_repo,
@@ -1216,7 +1216,7 @@ def build_platform_service_bundle(
         calendar_repo=repositories.platform_calendar_repo,
         rule_repo=repositories.calendar_working_rule_repo,
         user_session=user_session,
-        on_calendar_data_changed=enterprise_calendar_resolver.invalidate_cache,
+        on_calendar_data_changed=platform_calendar_resolver.invalidate_cache,
     )
     calendar_exception_service = CalendarExceptionService(
         session=session,
@@ -1229,7 +1229,7 @@ def build_platform_service_bundle(
         calendar_repo=repositories.platform_calendar_repo,
         event_repo=repositories.calendar_recurring_event_repo,
         user_session=user_session,
-        on_calendar_data_changed=enterprise_calendar_resolver.invalidate_cache,
+        on_calendar_data_changed=platform_calendar_resolver.invalidate_cache,
     )
     shift_pattern_service = ShiftPatternService(
         session=session,
@@ -1237,7 +1237,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
-        on_calendar_data_changed=enterprise_calendar_resolver.invalidate_cache,
+        on_calendar_data_changed=platform_calendar_resolver.invalidate_cache,
     )
     calendar_assignment_service = CalendarAssignmentService(
         session=session,
@@ -1248,7 +1248,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         activity_service=activity_service,
     )
-    global_calendar_shim = GlobalCalendarShim(resolver=enterprise_calendar_resolver)
+    global_calendar_shim = GlobalCalendarShim(resolver=platform_calendar_resolver)
     # Bootstrap global calendar for the currently-active organization only --
     # PlatformCalendarRepository.get_global()/most calendar repo methods are
     # deliberately scoped to the caller's active organization (the same
@@ -1266,7 +1266,7 @@ def build_platform_service_bundle(
         org = tenant_context_service.get_active_organization()
         if org:
             logger.debug("Ensuring enterprise global calendar organization_id=%s", org.id)
-            enterprise_calendar_service.ensure_global_calendar(org.id)
+            platform_calendar_service.ensure_global_calendar(org.id)
             logger.debug("Enterprise global calendar ensured organization_id=%s", org.id)
     except Exception:
         logger.exception("Enterprise global calendar bootstrap failed; continuing startup")
@@ -1303,13 +1303,13 @@ def build_platform_service_bundle(
         financial_period_service=financial_period_service,
         notification_service=notification_service,
         approval_service=approval_service,
-        enterprise_calendar_service=enterprise_calendar_service,
+        platform_calendar_service=platform_calendar_service,
         working_rule_service=working_rule_service,
         calendar_exception_service=calendar_exception_service,
         recurring_event_service=recurring_event_service,
         shift_pattern_service=shift_pattern_service,
         calendar_assignment_service=calendar_assignment_service,
-        enterprise_calendar_resolver=enterprise_calendar_resolver,
+        platform_calendar_resolver=platform_calendar_resolver,
         working_time_calculator=working_time_calculator,
         tenant_admin_service=tenant_admin_service,
         tenant_membership_service=tenant_membership_service,

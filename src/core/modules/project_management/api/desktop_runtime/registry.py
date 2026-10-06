@@ -49,7 +49,7 @@ class ProjectManagementDesktopRuntimePlatformDependencies:
     department_service: DepartmentService | None
     approval_service: ApprovalService
     reservation_service: TaskReservationGateway | None = None
-    enterprise_calendar_api: object | None = None
+    platform_calendar_api: object | None = None
 
 
 __all__ = [

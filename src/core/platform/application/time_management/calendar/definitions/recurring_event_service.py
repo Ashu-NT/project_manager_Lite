@@ -46,7 +46,7 @@ class RecurringEventService:
         self._calendar_repo = calendar_repo
         self._event_repo = event_repo
         self._user_session = user_session
-        # Invalidates the (process-lifetime) EnterpriseCalendarResolver's
+        # Invalidates the (process-lifetime) PlatformCalendarResolver's
         # recurring-event cache — without this, a saved/deleted event stays
         # invisible to every resolver-backed read until the app restarts.
         self._on_calendar_data_changed = on_calendar_data_changed

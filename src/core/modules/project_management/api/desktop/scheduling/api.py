@@ -185,7 +185,7 @@ class ProjectManagementSchedulingDesktopApi:
 
     def calculate_working_days(self, command: SchedulingWorkingDayCalculationCommand) -> SchedulingWorkingDayCalculationDto:
         if self._platform_calendar_api is not None:
-            from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+            from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
                 WorkingDaysCommand as PlatformWorkingDaysCommand,
             )
 
