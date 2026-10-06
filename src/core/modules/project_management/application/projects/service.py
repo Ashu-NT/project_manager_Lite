@@ -5,8 +5,17 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.projects.commands.lifecycle import (
-    ProjectLifecycleMixin,
+from src.core.modules.project_management.application.projects.commands.create import (
+    ProjectCreateMixin,
+)
+from src.core.modules.project_management.application.projects.commands.deletion import (
+    ProjectDeletionMixin,
+)
+from src.core.modules.project_management.application.projects.commands.status import (
+    ProjectStatusMixin,
+)
+from src.core.modules.project_management.application.projects.commands.update import (
+    ProjectUpdateMixin,
 )
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryMixin,
@@ -40,7 +49,14 @@ from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.persistence.unit_of_work import UnitOfWorkFactory
 
 
-class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, ProjectQueryMixin):
+class ProjectService(
+    ProjectManagementModuleGuardMixin,
+    ProjectCreateMixin,
+    ProjectUpdateMixin,
+    ProjectStatusMixin,
+    ProjectDeletionMixin,
+    ProjectQueryMixin,
+):
     """Project application service orchestrator."""
 
     def __init__(

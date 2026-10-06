@@ -16,7 +16,7 @@ from src.ui_qml.modules.project_management.presenters.common.activity_log_builde
 )
 from src.ui_qml.shared.models.activity_item import serialize_activity_items
 
-# Display labels for the diffed fields recorded by ProjectLifecycleMixin's
+# Display labels for the diffed fields recorded by ProjectUpdateMixin's
 # `_diff_project_fields()` -- kept in the same order a user would scan them.
 _CHANGE_FIELD_LABELS: dict[str, str] = {
     "name": "Name",

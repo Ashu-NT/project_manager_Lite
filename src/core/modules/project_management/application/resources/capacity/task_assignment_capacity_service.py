@@ -205,15 +205,19 @@ def evaluate_task_assignment_capacity(
         )
         current += timedelta(days=1)
 
-    known_days = [d for d in days if d.effective_available_capacity_hours is not None]
+    known_hours = [
+        hours
+        for day in days
+        if (hours := day.effective_available_capacity_hours) is not None
+    ]
     return TaskAssignmentCapacityFact(
         resource_id=resource_id,
         start_date=start_date,
         end_date=end_date,
         calendar_capacity_hours=calendar_capacity_hours,
         effective_available_capacity_hours=(
-            sum((d.effective_available_capacity_hours for d in known_days), Decimal(0))
-            if known_days
+            sum(known_hours, Decimal(0))
+            if known_hours
             else None
         ),
         existing_committed_capacity_hours=sum(existing_by_date.values(), Decimal(0)),

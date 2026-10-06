@@ -77,21 +77,21 @@ class ResourceLoadEngine:
             if (parent_id := getattr(task, "parent_task_id", None))
         }
         tasks_by_id = {
-            str(task.id): task
+            str(getattr(task, "id")): task
             for task in task_rows
-            if str(task.id) not in parent_ids
+            if str(getattr(task, "id")) not in parent_ids
         }
-        resources_by_id = {str(resource.id): resource for resource in resources}
+        resources_by_id = {str(getattr(resource, "id")): resource for resource in resources}
         counts: dict[str, int] = {}
         unscheduled: dict[str, float] = {}
         daily: dict[str, dict[date, float]] = {}
 
         for assignment in assignments:
-            task = tasks_by_id.get(str(assignment.task_id))
+            task = tasks_by_id.get(str(getattr(assignment, "task_id")))
             if task is None:
                 continue
-            resource_id = str(assignment.resource_id)
-            allocation = float(assignment.allocation_percent or 0.0)
+            resource_id = str(getattr(assignment, "resource_id"))
+            allocation = float(getattr(assignment, "allocation_percent", 0.0) or 0.0)
             counts[resource_id] = counts.get(resource_id, 0) + 1
             start = getattr(task, "start_date", None)
             end = getattr(task, "end_date", None)

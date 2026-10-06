@@ -155,7 +155,7 @@ def test_activity_feed_entry_rides_the_same_transaction_as_the_mutation(services
     )
     assert any(entry.action == "resource.created" for entry in activity)
 
-    skill = service.add_resource_skill(resource.id, "PY", "Python")
+    service.add_resource_skill(resource.id, "PY", "Python")
     activity_after_skill = service._activity_service.list_recent(
         limit=50, entity_type="resource", entity_id=resource.id
     )
@@ -388,7 +388,7 @@ def test_capability_commit_failure_rolls_back_and_produces_zero_events(services,
 def test_bespoke_signal_transport_is_gone_from_event_modules():
     import inspect
 
-    from src.core.modules.project_management.application.resources import (
+    from src.core.modules.project_management.application.resources.catalog import (
         resource_capability_events,
         resource_master_events,
     )

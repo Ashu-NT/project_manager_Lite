@@ -14,7 +14,17 @@ def test_project_service_is_orchestrator_only():
     service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "projects" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from src.core.modules.project_management.application.projects.commands.lifecycle import (" in text
+    for command in ("create", "deletion", "status", "update"):
+        assert (
+            f"from src.core.modules.project_management.application.projects.commands.{command} import ("
+            in text
+        )
+        command_source = (
+            ROOT
+            / "src/core/modules/project_management/application/projects/commands"
+            / f"{command}.py"
+        ).read_text(encoding="utf-8")
+        assert "from src.core.modules.project_management.application.projects.commands.support import (" in command_source
     assert "from src.core.modules.project_management.application.projects.queries.project_query import (" in text
     assert "def create_project" not in text
     assert "def update_project" not in text

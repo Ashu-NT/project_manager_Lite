@@ -32,10 +32,8 @@ PROJECT_FINANCE_TRANSITION_FILES = (
         "src/core/modules/project_management/application/financials/"
         "configuration/service.py"
     ),
-    Path(
-        "src/core/modules/project_management/application/projects/commands/"
-        "lifecycle.py"
-    ),
+    Path("src/core/modules/project_management/application/projects/commands/create.py"),
+    Path("src/core/modules/project_management/application/projects/commands/update.py"),
 )
 CANONICAL_PM_NUMERIC_COLUMNS = {
     ("resources", "hourly_rate"): FinancialNumericKind.RATE,

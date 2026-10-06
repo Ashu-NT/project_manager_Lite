@@ -261,7 +261,7 @@ def test_project_department_id_round_trips_through_create_and_update(services) -
 
 
 def test_project_update_records_actor_and_field_level_activity_diff(services) -> None:
-    """Real DB proof for the ProjectLifecycleMixin diff-tracking fix: the
+    """Real DB proof for the ProjectUpdateMixin diff-tracking fix: the
     recorded activity entry must carry both who made the change (actor_id,
     resolved from the authenticated principal) and a before/after diff for
     every field that actually changed -- not just the final snapshot."""
