@@ -363,22 +363,12 @@ class PlatformCalendarService:
         )
         self._session.commit()
 
-    def ensure_global_calendar(
-        self,
-        organization_id: str,
-        working_calendar_repo: Any = None,
-    ) -> PlatformCalendar:
-        """
-        Bootstrap: create the GLOBAL enterprise calendar for an org if it doesn't exist.
-
-        If working_calendar_repo is provided and a legacy 'default' working_calendar exists,
-        its working-day rules and holidays are migrated into the new enterprise tables so
-        no calendar behavior is lost. The legacy tables remain until the Alembic migration
-        drops them explicitly.
-        """
+    def ensure_global_calendar(self, organization_id: str) -> PlatformCalendar:
+        """Bootstrap: create the organization's default (GLOBAL) calendar if
+        it doesn't already exist, seeding Mon-Fri working rules."""
         existing = self._calendar_repo.get_global(organization_id)
         if existing is not None:
-            self._ensure_working_rules(existing.id, working_calendar_repo)
+            self._ensure_working_rules(existing.id)
             self._session.commit()
             return existing
 
@@ -399,7 +389,7 @@ class PlatformCalendarService:
             name="Global Calendar",
             calendar_type=CalendarType.GLOBAL.value,
             timezone=calendar_timezone,
-            description="Organization-wide default working calendar (migrated from legacy).",
+            description="Organization-wide default working calendar.",
             is_default=True,
             is_active=True,
             priority=0,
@@ -409,114 +399,75 @@ class PlatformCalendarService:
         )
         self._calendar_repo.add(cal)
         self._session.flush()
-
-        # Always seed working rules — migrates from legacy if repo provided,
-        # otherwise seeds Mon-Fri 08:00-17:00 defaults (fresh install path).
-        self._migrate_legacy_calendar(cal.id, working_calendar_repo)
+        self._seed_default_working_rules(cal.id)
 
         self._session.commit()
         return cal
 
-    def _ensure_working_rules(self, enterprise_cal_id: str, working_calendar_repo: Any) -> None:
+    def _ensure_working_rules(self, calendar_id: str) -> None:
         if self._rule_repo is None:
             logger.warning(
                 "Cannot verify global calendar working rules because rule repository is unavailable calendar_id=%s",
-                enterprise_cal_id,
+                calendar_id,
             )
             return
-        existing_rules = self._rule_repo.list_for_calendar(enterprise_cal_id)
+        existing_rules = self._rule_repo.list_for_calendar(calendar_id)
         if existing_rules:
             return
         logger.warning(
             "Global calendar has no working rules; seeding default working week calendar_id=%s",
-            enterprise_cal_id,
+            calendar_id,
         )
-        self._migrate_legacy_calendar(enterprise_cal_id, working_calendar_repo)
+        self._seed_default_working_rules(calendar_id)
 
-    def _migrate_legacy_calendar(self, enterprise_cal_id: str, working_calendar_repo: Any) -> None:
-        """
-        Migrate legacy working_calendars + holidays into enterprise tables.
-        Falls back to Mon-Fri 08:00-17:00 defaults when no legacy data exists.
-        Safe to call multiple times — skips if working rules already exist.
-        """
+    def _seed_default_working_rules(self, calendar_id: str) -> None:
+        """Seeds Mon-Fri 08:00-17:00 (60-minute break, 8 net hours) working
+        rules. Safe to call multiple times -- skips if rules already exist."""
         from datetime import time
 
         from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
-            CalendarException,
             CalendarWorkingRule,
-            ExceptionType,
-            ImpactType,
         )
 
         if self._rule_repo is None:
             logger.warning(
-                "Skipping enterprise calendar working rule seed because rule repository is unavailable calendar_id=%s",
-                enterprise_cal_id,
+                "Skipping default working rule seed because rule repository is unavailable calendar_id=%s",
+                calendar_id,
             )
             return
 
-        # Load legacy calendar (may be None for fresh installs)
         try:
-            legacy_cal = working_calendar_repo.get_default() if working_calendar_repo else None
-        except Exception:
-            legacy_cal = None
-
-        # Migrate working rules — use legacy data if available, otherwise default Mon-Fri
-        try:
-            existing_rules = self._rule_repo.list_for_calendar(enterprise_cal_id)
-            if not existing_rules:
-                working_days = (legacy_cal.working_days if legacy_cal else None) or {0, 1, 2, 3, 4}
-                hours = float((legacy_cal.hours_per_day if legacy_cal else None) or 8.0)
-                break_minutes = 60
-                # The start/end window must be consistent with net hours +
-                # break -- e.g. 08:00 start, 8 net hours, 60-min break means
-                # the window itself spans 9 hours (08:00-17:00), not 8
-                # (08:00-16:00, which compute_hours() would silently read as
-                # only 7 net hours the moment hours_override is ever cleared).
-                start_total_minutes = 8 * 60
-                end_total_minutes = start_total_minutes + int(round(hours * 60)) + break_minutes
-                end_hour = min(end_total_minutes // 60, 23)
-                end_minute = end_total_minutes % 60
-                for weekday in range(7):
-                    is_working = weekday in working_days
-                    rule = CalendarWorkingRule.create(
-                        calendar_id=enterprise_cal_id,
-                        weekday=weekday,
-                        is_working_day=is_working,
-                        start_time=time(8, 0) if is_working else None,
-                        end_time=time(end_hour, end_minute) if is_working else None,
-                        break_minutes=break_minutes if is_working else 0,
-                        hours_override=hours if is_working else None,
-                    )
-                    self._rule_repo.save(rule)
-        except Exception:
-            logger.exception(
-                "Failed to seed enterprise calendar working rules calendar_id=%s",
-                enterprise_cal_id,
-            )
-            raise
-
-        # Migrate holidays into calendar_exceptions (only when legacy data exists)
-        try:
-            if legacy_cal is None or working_calendar_repo is None or self._exception_repo is None:
+            existing_rules = self._rule_repo.list_for_calendar(calendar_id)
+            if existing_rules:
                 return
-            existing_exceptions = self._exception_repo.list_for_calendar(enterprise_cal_id)
-            existing_dates = {e.exception_date for e in existing_exceptions}
-            holidays = working_calendar_repo.list_holidays(legacy_cal.id)
-            for holiday in holidays:
-                if holiday.date not in existing_dates:
-                    exc = CalendarException.create(
-                        calendar_id=enterprise_cal_id,
-                        exception_date=holiday.date,
-                        exception_type=ExceptionType.HOLIDAY.value,
-                        name=holiday.name or "Holiday",
-                        impact_type=ImpactType.UNAVAILABLE.value,
-                    )
-                    self._exception_repo.add(exc)
+            working_days = {0, 1, 2, 3, 4}
+            hours = 8.0
+            break_minutes = 60
+            # The start/end window must be consistent with net hours + break
+            # -- e.g. 08:00 start, 8 net hours, 60-min break means the window
+            # itself spans 9 hours (08:00-17:00), not 8 (08:00-16:00, which
+            # compute_hours() would silently read as only 7 net hours the
+            # moment hours_override is ever cleared).
+            start_total_minutes = 8 * 60
+            end_total_minutes = start_total_minutes + int(round(hours * 60)) + break_minutes
+            end_hour = min(end_total_minutes // 60, 23)
+            end_minute = end_total_minutes % 60
+            for weekday in range(7):
+                is_working = weekday in working_days
+                rule = CalendarWorkingRule.create(
+                    calendar_id=calendar_id,
+                    weekday=weekday,
+                    is_working_day=is_working,
+                    start_time=time(8, 0) if is_working else None,
+                    end_time=time(end_hour, end_minute) if is_working else None,
+                    break_minutes=break_minutes if is_working else 0,
+                    hours_override=hours if is_working else None,
+                )
+                self._rule_repo.save(rule)
         except Exception:
             logger.exception(
-                "Failed to migrate enterprise calendar exceptions calendar_id=%s",
-                enterprise_cal_id,
+                "Failed to seed default working rules calendar_id=%s",
+                calendar_id,
             )
             raise
 

@@ -65,7 +65,7 @@ Item {
 
             ColumnLayout {
                 id: assignmentsColumn
-                width: Math.min(parent.width, 760)
+                width: parent.width
                 anchors.left: parent.left
                 spacing: Theme.AppTheme.spacingMd
 

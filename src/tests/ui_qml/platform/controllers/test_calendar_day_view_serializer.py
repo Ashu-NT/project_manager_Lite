@@ -186,8 +186,9 @@ def test_no_exception_vocabulary_leaks_as_raw_enum_text() -> None:
 
 @pytest.mark.parametrize("available_hours", [8.0, 4.5, 1.0, 0.0])
 def test_available_hours_passes_through_as_a_plain_number(available_hours) -> None:
-    # QML (PlatformCalendarDayDetails.qml) does the "8 h" vs "4.5 h" display
-    # formatting; this only guarantees the raw value it formats is correct.
+    # QML (CalendarMonthView's inspector groups) does the "8 h" vs "4.5 h"
+    # display formatting; this only guarantees the raw value it formats is
+    # correct.
     day = _FakeDay(date="2026-10-06", is_working_day=True, available_hours=available_hours)
     view = serialize_calendar_day_view(day, today_iso="2026-10-01")
     assert view["availableHours"] == available_hours

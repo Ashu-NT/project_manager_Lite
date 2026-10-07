@@ -56,7 +56,6 @@ def test_calendar_month_view_qml_compiles_cleanly(qapp) -> None:
     for relative in (
         r"\sections\views\CalendarMonthView.qml",
         r"\sections\views\month\PlatformCalendarDayCell.qml",
-        r"\sections\views\month\PlatformCalendarDayDetails.qml",
         r"\sections\views\month\CalendarMonthToolbar.qml",
         r"\sections\CalendarScheduleSection.qml",
     ):
@@ -151,8 +150,26 @@ def test_calendar_month_view_mounts_and_loads_business_today(qapp, services) -> 
         assert toolbar is not None
         assert str(expected_today.year) in str(toolbar.property("monthLabel"))
 
-        day_details = root.findChild(QQuickItem, "calendarDayDetails")
-        assert day_details is not None
+        day_inspector = root.findChild(QQuickItem, "calendarDayInspector")
+        assert day_inspector is not None
+        assert day_inspector.property("visible") is True
+
+        # Regression guard: the inspector must sit beside the grid (same
+        # row, to its right) like every other Detail-page Inspector --
+        # never reflowed underneath it. The window is sized well above the
+        # shared compact-width breakpoint, so this is the side-by-side case.
+        # (The grid's own width can legitimately exceed its visible/scrolled
+        # viewport, so this compares start positions, not edge-to-edge.)
+        content_item = root.contentItem()
+        grid_top_left = month_grid.mapToItem(content_item, 0, 0)
+        inspector_top_left = day_inspector.mapToItem(content_item, 0, 0)
+        assert inspector_top_left.x() > grid_top_left.x(), (
+            "Inspector should start to the right of the Month grid, not below it "
+            f"(grid x={grid_top_left.x()}, inspector x={inspector_top_left.x()})"
+        )
+        assert abs(inspector_top_left.y() - grid_top_left.y()) < 50, (
+            "Inspector should be vertically aligned with the grid (same row), not stacked below it"
+        )
 
         _assert_no_relevant_errors(messages)
     finally:

@@ -129,6 +129,7 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
         organization_repo=mock_org_repo,
+        rule_repo=repos["rule"],
         user_session=mock_user_session,
         tenant_context_service=tenant_context,
     )
@@ -212,6 +213,33 @@ def test_global_calendar_idempotent(cal_service, org_id):
     cal1 = cal_service.ensure_global_calendar(org_id)
     cal2 = cal_service.ensure_global_calendar(org_id)
     assert cal1.id == cal2.id
+
+
+def test_global_calendar_bootstrap_seeds_working_rules_consistent_with_their_own_hours(
+    cal_service, repos, org_id
+):
+    """Regression guard: the bootstrap seed previously set hours_override=8.0
+    on a rule whose raw start/end window (08:00-16:00) only actually spans
+    7 net hours once the break is subtracted. compute_hours() silently hid
+    this because hours_override wins unconditionally -- but anything reading
+    the raw start_time/end_time directly (e.g. the Month view) exposed the
+    inconsistency. Every seeded working day's window must agree with its
+    own declared hours."""
+    cal = cal_service.ensure_global_calendar(org_id)
+    rules = repos["rule"].list_for_calendar(cal.id)
+    working_rules = [r for r in rules if r.is_working_day]
+    assert len(working_rules) == 5  # Mon-Fri
+
+    for rule in working_rules:
+        assert rule.start_time is not None
+        assert rule.end_time is not None
+        window_minutes = (
+            rule.end_time.hour * 60
+            + rule.end_time.minute
+            - (rule.start_time.hour * 60 + rule.start_time.minute)
+        )
+        net_hours_from_window = (window_minutes - rule.break_minutes) / 60.0
+        assert net_hours_from_window == rule.compute_hours()
 
 
 def test_get_default_calendar_returns_canonical_global(cal_service, org_id):

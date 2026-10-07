@@ -104,12 +104,13 @@ Item {
             }
         }
 
-        Item { Layout.fillWidth: true }
-
         AppControls.SecondaryButton {
             text: "Today"
+            iconName: "calendar"
             enabled: !root.busy
             onClicked: root.todayRequested()
         }
+
+        Item { Layout.fillWidth: true }
     }
 }

@@ -1,4 +1,3 @@
 module workspaces.calendars.sections.views.month
 PlatformCalendarDayCell 1.0 PlatformCalendarDayCell.qml
-PlatformCalendarDayDetails 1.0 PlatformCalendarDayDetails.qml
 CalendarMonthToolbar 1.0 CalendarMonthToolbar.qml

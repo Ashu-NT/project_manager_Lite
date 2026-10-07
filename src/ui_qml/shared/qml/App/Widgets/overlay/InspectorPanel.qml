@@ -38,12 +38,41 @@ Rectangle {
     property var menuActions: []
     property string menuTriggerLabel: "Actions"
 
-    
+
     // Layout
-    property int panelWidth: Theme.AppTheme.inspectorWidth
+    //
+    // Configurable sizing API (all opt-in, default -1 = unset): a consumer
+    // that only ever needs a narrower inspector (e.g. a Detail-page
+    // contextual inspector, as opposed to the main workspace list/Inspector
+    // pattern) can declare preferredWidth/minimumWidth/maximumWidth instead
+    // of hardcoding panelWidth. Leaving all three unset keeps today's exact
+    // behavior: panelWidth === Theme.AppTheme.inspectorWidth. A consumer
+    // that reports how much horizontal space it actually has available
+    // (availableWidth) lets the panel shrink toward minimumWidth under
+    // pressure and grow back up to maximumWidth (the shared normal width,
+    // by default) when there's room — rather than every consumer
+    // reimplementing its own clamp expression.
+    property int preferredWidth: -1
+    property int minimumWidth: -1
+    property int maximumWidth: -1
+    property real availableWidth: -1
+
+    readonly property int _effectivePreferred: root.preferredWidth > 0
+        ? root.preferredWidth
+        : Theme.AppTheme.inspectorWidth
+    readonly property int _effectiveMinimum: root.minimumWidth > 0
+        ? root.minimumWidth
+        : root._effectivePreferred
+    readonly property int _effectiveMaximum: root.maximumWidth > 0
+        ? root.maximumWidth
+        : Math.max(root._effectivePreferred, Theme.AppTheme.inspectorWidth)
+
+    property int panelWidth: root.availableWidth > 0
+        ? Math.max(root._effectiveMinimum, Math.min(root.availableWidth, root._effectiveMaximum))
+        : root._effectivePreferred
 
     readonly property int labelColumnWidth:Theme.AppTheme.inspectorLabelWidth
-        
+
 
     // Extra content slot
     default property alias extraContent: _extraSlot.data

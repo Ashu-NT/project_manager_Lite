@@ -1259,15 +1259,13 @@ def build_platform_service_bundle(
     # get their default calendar automatically at creation time instead --
     # see OrganizationService._ensure_default_calendar -- so this startup
     # step now only matters for organizations that already existed before
-    # that existed. After the Alembic migration drops the legacy
-    # working_calendar tables, working_calendar_repo will not be passed —
-    # the enterprise tables already hold the data.
+    # that invariant was introduced.
     try:
         org = tenant_context_service.get_active_organization()
         if org:
-            logger.debug("Ensuring enterprise global calendar organization_id=%s", org.id)
+            logger.debug("Ensuring platform global calendar organization_id=%s", org.id)
             platform_calendar_service.ensure_global_calendar(org.id)
-            logger.debug("Enterprise global calendar ensured organization_id=%s", org.id)
+            logger.debug("Platform global calendar ensured organization_id=%s", org.id)
     except Exception:
         logger.exception("Enterprise global calendar bootstrap failed; continuing startup")
 

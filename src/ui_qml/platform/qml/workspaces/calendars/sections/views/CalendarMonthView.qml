@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import QtQuick.Window
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -41,6 +42,64 @@ Item {
     readonly property var _selectedDayData: root._selectedDate.length > 0
         ? (root._daysByDate[root._selectedDate] || null)
         : null
+    readonly property bool _showInspector: root._selectedDayData !== null
+
+    // Tone -> status chip presentation. Pure QML display mapping of the
+    // already-resolved `tone` (see serialize_calendar_day_view) -- no
+    // business logic, just which label/chip color represents each tone.
+    readonly property var _statusByTone: ({
+        "normal":      { "label": "Working Day", "tone": "success" },
+        "nonWorking":  { "label": "Non-working",  "tone": "neutral" },
+        "holiday":     { "label": "",             "tone": "info" },
+        "unavailable": { "label": "",             "tone": "danger" },
+        "reduced":     { "label": "",             "tone": "warning" },
+        "extra":       { "label": "",             "tone": "success" },
+        "info":        { "label": "",             "tone": "info" }
+    })
+
+    function _inspectorTitle(dayData) {
+        return dayData ? String(dayData.dateLabel || "") : ""
+    }
+
+    function _inspectorStatusLabel(dayData) {
+        if (!dayData) return ""
+        const preset = root._statusByTone[String(dayData.tone || "normal")] || root._statusByTone.normal
+        return preset.label.length > 0
+            ? preset.label
+            : (String(dayData.exceptionTypeLabel || "") || String(dayData.impactLabel || ""))
+    }
+
+    function _inspectorStatusTone(dayData) {
+        if (!dayData) return "neutral"
+        const preset = root._statusByTone[String(dayData.tone || "normal")] || root._statusByTone.normal
+        return preset.tone
+    }
+
+    function _inspectorGroups(dayData) {
+        if (!dayData) return []
+        const groups = []
+        const workingRows = dayData.isWorkingDay
+            ? [
+                { "label": "Hours", "value": (dayData.startTimeLabel && dayData.endTimeLabel)
+                    ? (dayData.startTimeLabel + "–" + dayData.endTimeLabel) : "" },
+                { "label": "Available", "value": dayData.availableHours > 0
+                    ? (dayData.availableHours + " h") : "0 h" }
+            ]
+            : [{ "label": "Status", "value": "Non-working" }]
+        groups.push({ "title": "Working Time", "rows": workingRows })
+
+        if (String(dayData.exceptionTypeLabel || "").length > 0) {
+            groups.push({
+                "title": "Exception",
+                "rows": [
+                    { "label": "Type", "value": String(dayData.exceptionTypeLabel || "") },
+                    { "label": "Impact", "value": String(dayData.impactLabel || "") },
+                    { "label": "Name", "value": String(dayData.primaryLabel || "") }
+                ]
+            })
+        }
+        return groups
+    }
 
     function _emptyDayData(dateIso) {
         return {
@@ -165,60 +224,115 @@ Item {
             }
         }
 
-        GridLayout {
+        RowLayout {
+            id: _calendarRow
             Layout.fillWidth: true
-            columns: root.width < 900 ? 1 : 2
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingMd
+            spacing: Theme.AppTheme.spacingMd
 
-            ColumnLayout {
+            // The grid area owns its own scrolling in both directions --
+            // it never shrinks cells below a readable minimum width, and
+            // never grows the whole view's height past a bounded amount;
+            // overflow in either direction pans within this area instead of
+            // squeezing content or pushing the page's own scroll around.
+            Flickable {
+                id: _calendarScroll
                 Layout.fillWidth: true
-                Layout.preferredWidth: parent.columns === 2 ? Math.round(parent.width * 0.68) : parent.width
-                Layout.alignment: Qt.AlignTop
-                spacing: Theme.AppTheme.spacingXs
+                Layout.preferredHeight: _calendarContent.height
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                contentWidth: _calendarContent.width
+                contentHeight: _calendarContent.height
 
-                DayOfWeekRow {
-                    Layout.fillWidth: true
-                    locale: Qt.locale()
-                }
+                ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                MonthGrid {
-                    id: _grid
-                    objectName: "calendarMonthGrid"
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 6 * 86
-                    month: root._month
-                    year: root._year
-                    locale: Qt.locale()
-                    spacing: 0
+                ColumnLayout {
+                    id: _calendarContent
+                    width: Math.max(_calendarScroll.width, 7 * 120)
+                    height: implicitHeight
+                    spacing: Theme.AppTheme.spacingXs
 
-                    delegate: CalendarMonth.PlatformCalendarDayCell {
-                        required property var model
+                    DayOfWeekRow {
+                        id: _dayOfWeekRow
+                        Layout.fillWidth: true
+                        locale: Qt.locale()
 
-                        readonly property string _dateIso: root._isoDate(model.date)
+                        // The default QtQuick Controls delegate reads the
+                        // active style's palette, which does not reliably
+                        // track this app's own dark/light theme tokens --
+                        // without this override the weekday header can end
+                        // up unreadable (e.g. dark text in dark mode).
+                        delegate: Text {
+                            required property var model
+                            text: model.shortName
+                            color: Theme.AppTheme.textSecondary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.weight: Theme.AppTheme.weightSemibold
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
 
-                        dayData: root._daysByDate[_dateIso] || root._emptyDayData(_dateIso)
-                        isCurrentMonth: model.month === _grid.month
-                        isSelected: _dateIso === root._selectedDate
+                    MonthGrid {
+                        id: _grid
+                        objectName: "calendarMonthGrid"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 6 * 86
+                        month: root._month
+                        year: root._year
+                        locale: Qt.locale()
+                        spacing: 0
 
-                        onActivated: {
-                            root._selectedDate = _dateIso
+                        delegate: CalendarMonth.PlatformCalendarDayCell {
+                            required property var model
+
+                            readonly property string _dateIso: root._isoDate(model.date)
+
+                            dayData: root._daysByDate[_dateIso] || root._emptyDayData(_dateIso)
+                            isCurrentMonth: model.month === _grid.month
+                            isSelected: _dateIso === root._selectedDate
+
+                            onActivated: {
+                                root._selectedDate = _dateIso
+                            }
                         }
                     }
                 }
             }
 
-            CalendarMonth.PlatformCalendarDayDetails {
-                objectName: "calendarDayDetails"
-                Layout.fillWidth: true
-                Layout.preferredWidth: parent.columns === 2
-                    ? parent.width - Math.round(parent.width * 0.68) - Theme.AppTheme.spacingMd
-                    : parent.width
+            // Side-by-side with the grid, exactly like every other Detail
+            // page's Inspector -- hidden only below the shared compact
+            // window-width breakpoint, never reflowed underneath its list.
+            AppWidgets.InspectorPanel {
+                id: _inspector
+                objectName: "calendarDayInspector"
+                visible: root._showInspector && Window.width >= Theme.AppTheme.compactContentBreakpoint
                 Layout.alignment: Qt.AlignTop
-                dayData: root._selectedDayData
-                canWrite: root.canWrite
+                Layout.preferredHeight: _calendarContent.height
 
-                onAddExceptionRequested: function(date) { root.addExceptionRequested(date) }
+                preferredWidth: 260
+                minimumWidth: 190
+                availableWidth: root._showInspector ? Math.round(_calendarRow.width * 0.3) : -1
+
+                title: root._inspectorTitle(root._selectedDayData)
+                statusLabel: root._inspectorStatusLabel(root._selectedDayData)
+                statusTone: root._inspectorStatusTone(root._selectedDayData)
+                groups: root._inspectorGroups(root._selectedDayData)
+
+                showEditAction: false
+                showSecondaryAction: false
+                showViewDetailsAction: false
+
+                onCloseRequested: root._selectedDate = ""
+
+                AppControls.PrimaryButton {
+                    Layout.fillWidth: true
+                    visible: root.canWrite
+                    text: "Add Exception"
+                    iconName: "add"
+                    onClicked: root.addExceptionRequested(root._selectedDate)
+                }
             }
         }
     }
