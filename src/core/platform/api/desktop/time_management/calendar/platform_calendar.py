@@ -182,7 +182,15 @@ def _serialize_recurring_event(event: CalendarRecurringEvent) -> RecurringEventD
 
 
 def _serialize_calendar_day(ctx) -> CalendarDayDto:
-    exc = ctx.exceptions[0] if ctx.exceptions else None
+    # A one-off exception always wins over a scheduled recurring event for
+    # this single-marker display slot -- an explicit override of a given day
+    # is more specific than a standing schedule. When only a recurring event
+    # applies, it must still surface here: it already changed available_hours
+    # (see WorkingTimeCalculator), so leaving this empty would show an hours
+    # delta with no visible cause.
+    marker = ctx.exceptions[0] if ctx.exceptions else (
+        ctx.recurring_events[0] if getattr(ctx, "recurring_events", None) else None
+    )
     return CalendarDayDto(
         date=str(ctx.date),
         is_working_day=ctx.available_hours > 0,
@@ -191,9 +199,9 @@ def _serialize_calendar_day(ctx) -> CalendarDayDto:
         status=ctx.status,
         start_time=_fmt_time(ctx.working_start),
         end_time=_fmt_time(ctx.working_end),
-        exception_type=str(exc.get("type", "")) if exc else "",
-        exception_name=str(exc.get("name", "")) if exc else "",
-        impact_type=str(exc.get("impact", "")) if exc else "",
+        exception_type=str(marker.get("type", "")) if marker else "",
+        exception_name=str(marker.get("name", "")) if marker else "",
+        impact_type=str(marker.get("impact", "")) if marker else "",
     )
 
 

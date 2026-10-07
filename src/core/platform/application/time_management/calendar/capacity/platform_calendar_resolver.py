@@ -11,6 +11,7 @@ from typing import Any
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     DayCapacity,
     WorkingTimeCalculator,
+    recurring_event_occurs_on,
 )
 from src.core.platform.contract.port.time_management.calendar.external_assignment_port import (
     ProjectCalendarAssignmentPort,
@@ -81,6 +82,7 @@ class ResolvedCalendarContext:
     working_start: time | None
     working_end: time | None
     exceptions: list[dict]
+    recurring_events: list[dict]
 
     @staticmethod
     def from_day_capacity(
@@ -89,6 +91,7 @@ class ResolvedCalendarContext:
         source_chain: list[str],
         timezone: str,
         exceptions: list[CalendarException],
+        recurring_events: list[CalendarRecurringEvent] = (),
     ) -> ResolvedCalendarContext:
         return ResolvedCalendarContext(
             date=day.date,
@@ -114,6 +117,21 @@ class ResolvedCalendarContext:
                 }
                 for e in exceptions
                 if e.exception_date == day.date
+            ],
+            # Recurring events have no single "date" field (they're defined
+            # by an RRULE, not a row per occurrence) -- membership on this
+            # day is determined the same way WorkingTimeCalculator itself
+            # decided whether the event applied, so the Month view can never
+            # show an hours delta with no visible cause.
+            recurring_events=[
+                {
+                    "id": e.id,
+                    "type": e.event_type,
+                    "name": e.title,
+                    "impact": e.impact_type,
+                }
+                for e in sorted(recurring_events, key=lambda e: e.priority, reverse=True)
+                if recurring_event_occurs_on(e, day.date)
             ],
         )
 
@@ -234,6 +252,7 @@ class PlatformCalendarResolver:
             source_chain=labels,
             timezone=timezone,
             exceptions=all_exceptions,
+            recurring_events=all_recurring,
         )
         duration_ms = (perf_counter() - started) * 1000
         if duration_ms > 50:
@@ -337,7 +356,7 @@ class PlatformCalendarResolver:
                     capacity_percent=0.0, utilization_percent=0.0,
                     status="UNAVAILABLE", source_chain=[], overrides=[],
                     timezone="UTC", working_start=None, working_end=None,
-                    exceptions=[],
+                    exceptions=[], recurring_events=[],
                 ))
                 current += timedelta(days=1)
             logger.debug(
@@ -412,6 +431,7 @@ class PlatformCalendarResolver:
                 source_chain=labels,
                 timezone=timezone,
                 exceptions=day_exceptions,
+                recurring_events=all_recurring,
             ))
             current += timedelta(days=1)
 

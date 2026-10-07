@@ -118,8 +118,16 @@ Item {
         calendarExceptionDialog.openForCreate(calendarId || "", prefillDate || "")
     }
 
+    function openCalendarExceptionEdit(calendarId, exceptionState) {
+        calendarExceptionDialog.openForEdit(calendarId || "", exceptionState || {})
+    }
+
     function openCalendarRecurringEventCreate(calendarId) {
         calendarRecurringEventDialog.openForCreate(calendarId || "")
+    }
+
+    function openCalendarRecurringEventEdit(calendarId, eventState) {
+        calendarRecurringEventDialog.openForEdit(calendarId || "", eventState || {})
     }
 
     function openCalendarAssign(entityType, entityId, entityLabel, calendars) {
@@ -454,11 +462,13 @@ Item {
         parent: Overlay.overlay
         calendarOptions: root._calendarOptions()
 
-        onSaveRequested: function(payload) {
+        onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
                 return
             }
-            const result = root.workspaceController.addCalendarException(payload)
+            const result = mode === "edit"
+                ? root.workspaceController.updateCalendarException(payload)
+                : root.workspaceController.addCalendarException(payload)
             root._handleResult(calendarExceptionDialog, result)
         }
     }
@@ -468,12 +478,15 @@ Item {
 
         parent: Overlay.overlay
         calendarOptions: root._calendarOptions()
+        workspaceController: root.workspaceController
 
-        onSaveRequested: function(payload) {
+        onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
                 return
             }
-            const result = root.workspaceController.addCalendarRecurringEvent(payload)
+            const result = mode === "edit"
+                ? root.workspaceController.updateCalendarRecurringEvent(payload)
+                : root.workspaceController.addCalendarRecurringEvent(payload)
             root._handleResult(calendarRecurringEventDialog, result)
         }
     }

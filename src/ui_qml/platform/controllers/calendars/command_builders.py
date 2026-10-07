@@ -46,6 +46,23 @@ def build_exception_create_command(payload: dict):
     )
 
 
+def build_exception_update_command(payload: dict):
+    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+        ExceptionUpdateCommand,
+    )
+    priority = payload.get("priority")
+    return ExceptionUpdateCommand(
+        exception_id=str(payload.get("exceptionId", "")),
+        name=str(payload.get("name", "")),
+        description=str(payload.get("description", "")),
+        exception_type=str(payload.get("exceptionType", "")),
+        impact_type=str(payload.get("impactType", "")),
+        hours_override=float(payload.get("hoursOverride", 0.0) or 0.0),
+        priority=int(priority) if priority is not None else None,
+        approval_status=str(payload.get("approvalStatus", "")),
+    )
+
+
 def build_recurring_event_create_command(payload: dict):
     from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         RecurringEventCreateCommand,
@@ -60,6 +77,29 @@ def build_recurring_event_create_command(payload: dict):
         impact_type=str(payload.get("impactType", "UNAVAILABLE")),
         effective_from=str(payload.get("effectiveFrom", "")),
         effective_to=str(payload.get("effectiveTo", "")),
+        capacity_impact_percent=float(payload.get("capacityImpactPercent", 0.0) or 0.0),
+    )
+
+
+def build_recurring_event_update_command(payload: dict):
+    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+        RecurringEventUpdateCommand,
+    )
+    is_active = payload.get("isActive")
+    priority = payload.get("priority")
+    return RecurringEventUpdateCommand(
+        event_id=str(payload.get("eventId", "")),
+        title=str(payload.get("title", "")),
+        event_type=str(payload.get("eventType", "")),
+        recurrence_rule=str(payload.get("recurrenceRule", "")),
+        start_time=str(payload.get("startTime", "")),
+        end_time=str(payload.get("endTime", "")),
+        impact_type=str(payload.get("impactType", "")),
+        capacity_impact_percent=float(payload.get("capacityImpactPercent", 0.0) or 0.0),
+        effective_from=str(payload.get("effectiveFrom", "")),
+        effective_to=str(payload.get("effectiveTo", "")),
+        is_active=bool(is_active) if is_active is not None else None,
+        priority=int(priority) if priority is not None else None,
     )
 
 
@@ -119,6 +159,8 @@ __all__ = [
     "build_calendar_create_command",
     "build_calendar_update_command",
     "build_exception_create_command",
+    "build_exception_update_command",
     "build_recurring_event_create_command",
+    "build_recurring_event_update_command",
     "dispatch_calendar_assign",
 ]

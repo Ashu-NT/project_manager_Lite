@@ -22,6 +22,12 @@ Item {
     property PlatformControllers.PlatformAdminWorkspaceController workspaceController
     property string calendarId: ""
     property bool canWrite: true
+    // Shared fixed height for the Month/Exceptions/Recurring content area
+    // (see CalendarScheduleSection.qml) -- 0 means "use this view's own
+    // natural height" so it still works when used standalone/in tests.
+    // Named distinctly from Flickable's own built-in `contentHeight` below
+    // to avoid any ambiguity between the two.
+    property int fixedContentHeight: 0
 
     signal addExceptionRequested(string date)
 
@@ -237,7 +243,7 @@ Item {
             Flickable {
                 id: _calendarScroll
                 Layout.fillWidth: true
-                Layout.preferredHeight: _calendarContent.height
+                Layout.preferredHeight: root.fixedContentHeight > 0 ? root.fixedContentHeight : _calendarContent.height
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
                 contentWidth: _calendarContent.width
@@ -309,7 +315,7 @@ Item {
                 objectName: "calendarDayInspector"
                 visible: root._showInspector && Window.width >= Theme.AppTheme.compactContentBreakpoint
                 Layout.alignment: Qt.AlignTop
-                Layout.preferredHeight: _calendarContent.height
+                Layout.preferredHeight: root.fixedContentHeight > 0 ? root.fixedContentHeight : _calendarContent.height
 
                 preferredWidth: 260
                 minimumWidth: 190

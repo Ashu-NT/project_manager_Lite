@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from datetime import date as _date
 
+from src.core.platform.application.time_management.calendar.definitions.recurrence_text import (
+    humanize_rrule,
+)
+
 _IMPACT_LABELS: dict[str, str] = {
     "UNAVAILABLE": "Non-working",
     "REDUCED_CAPACITY": "Reduced capacity",
@@ -16,6 +20,21 @@ _IMPACT_TONES: dict[str, str] = {
     "WORKING": "extra",
     "INFORMATION_ONLY": "info",
 }
+# Shared `AppWidgets.StatusChip` tone vocabulary (neutral/info/success/
+# warning/danger) -- distinct from _IMPACT_TONES above, which feeds the
+# Month grid's own custom cell tone system, not a StatusChip.
+_IMPACT_STATUS_CHIP_TONES: dict[str, str] = {
+    "UNAVAILABLE": "danger",
+    "REDUCED_CAPACITY": "warning",
+    "EXTRA_CAPACITY": "success",
+    "WORKING": "success",
+    "INFORMATION_ONLY": "info",
+}
+_APPROVAL_STATUS_CHIP_TONES: dict[str, str] = {
+    "APPROVED": "success",
+    "PENDING": "warning",
+    "REJECTED": "danger",
+}
 
 
 def _human_label(enum_value: str) -> str:
@@ -27,6 +46,27 @@ def _format_hhmm(value: str) -> str:
     # Desktop API time strings are already "HH:MM"; this just guards against
     # an empty/unset value rather than reformatting a real one.
     return str(value or "").strip()
+
+
+def _title_case_label(enum_value: str) -> str:
+    """Generic enum -> display label for the Exceptions/Recurring table and
+    Inspector contexts (e.g. "REDUCED_CAPACITY" -> "Reduced Capacity"). The
+    Month view's own `_human_label` above deliberately diverges for a few
+    values ("Non-working" reads better in a tiny grid cell than the literal
+    "Unavailable") -- this is the literal, generic translation used wherever
+    the enum's own meaning should be shown as-is."""
+    text = str(enum_value or "").replace("_", " ").strip()
+    return text.title() if text else ""
+
+
+def _format_date_label(iso_date: str) -> str:
+    if not iso_date:
+        return ""
+    try:
+        parsed = _date.fromisoformat(iso_date)
+    except ValueError:
+        return iso_date
+    return parsed.strftime("%d %b %Y")
 
 
 def serialize_calendar_day_view(day, *, today_iso: str) -> dict[str, object]:
@@ -185,24 +225,69 @@ def serialize_working_rule(rule) -> dict[str, object]:
 
 
 def serialize_calendar_exception(exception) -> dict[str, object]:
+    """Both the Exceptions table row and the Exception Inspector read this
+    same projection -- the Inspector just uses more of its fields (working
+    time, description) than the table columns do."""
+    exception_date = str(getattr(exception, "exception_date", "") or "")
+    exception_type = str(getattr(exception, "exception_type", "") or "")
+    impact_type = str(getattr(exception, "impact_type", "") or "")
+    approval_status = str(getattr(exception, "approval_status", "") or "")
     return {
         "id": str(getattr(exception, "id", "") or ""),
-        "exceptionDate": str(getattr(exception, "exception_date", "") or ""),
-        "exceptionType": str(getattr(exception, "exception_type", "") or ""),
+        "exceptionDate": exception_date,
+        "dateLabel": _format_date_label(exception_date),
+        "exceptionType": exception_type,
+        "typeLabel": _title_case_label(exception_type),
         "name": str(getattr(exception, "name", "") or ""),
-        "impactType": str(getattr(exception, "impact_type", "") or ""),
-        "approvalStatus": str(getattr(exception, "approval_status", "") or ""),
+        "impactType": impact_type,
+        "impactLabel": _title_case_label(impact_type),
+        "impactTone": _IMPACT_STATUS_CHIP_TONES.get(impact_type, "neutral"),
+        "approvalStatus": approval_status,
+        "statusLabel": _title_case_label(approval_status),
+        "statusTone": _APPROVAL_STATUS_CHIP_TONES.get(approval_status, "neutral"),
+        "description": str(getattr(exception, "description", "") or ""),
+        "startTimeLabel": _format_hhmm(getattr(exception, "start_time", "")),
+        "endTimeLabel": _format_hhmm(getattr(exception, "end_time", "")),
+        "hoursOverride": float(getattr(exception, "hours_override", 0.0) or 0.0),
     }
 
 
 def serialize_recurring_event(event) -> dict[str, object]:
+    """Both the Recurring table row and the Recurring Event Inspector read
+    this same projection. `recurrenceLabel` is generated fresh from the
+    actual RRULE every time (see recurrence_text.humanize_rrule) -- it is
+    never stored or maintained as independent state, so it can never drift
+    from what the rule actually does."""
+    event_type = str(getattr(event, "event_type", "") or "")
+    impact_type = str(getattr(event, "impact_type", "") or "")
+    recurrence_rule = str(getattr(event, "recurrence_rule", "") or "")
+    effective_from = str(getattr(event, "effective_from", "") or "")
+    effective_to = str(getattr(event, "effective_to", "") or "")
+    is_active = bool(getattr(event, "is_active", False))
+    try:
+        parsed_from = _date.fromisoformat(effective_from) if effective_from else None
+    except ValueError:
+        parsed_from = None
     return {
         "id": str(getattr(event, "id", "") or ""),
         "title": str(getattr(event, "title", "") or ""),
-        "eventType": str(getattr(event, "event_type", "") or ""),
-        "recurrenceRule": str(getattr(event, "recurrence_rule", "") or ""),
-        "impactType": str(getattr(event, "impact_type", "") or ""),
-        "isActive": bool(getattr(event, "is_active", False)),
+        "eventType": event_type,
+        "typeLabel": _title_case_label(event_type),
+        "recurrenceRule": recurrence_rule,
+        "recurrenceLabel": humanize_rrule(recurrence_rule, effective_from=parsed_from) if recurrence_rule else "",
+        "impactType": impact_type,
+        "impactLabel": _title_case_label(impact_type),
+        "impactTone": _IMPACT_STATUS_CHIP_TONES.get(impact_type, "neutral"),
+        "isActive": is_active,
+        "statusLabel": "Active" if is_active else "Inactive",
+        "statusTone": "success" if is_active else "neutral",
+        "startTimeLabel": _format_hhmm(getattr(event, "start_time", "")),
+        "endTimeLabel": _format_hhmm(getattr(event, "end_time", "")),
+        "effectiveFrom": effective_from,
+        "effectiveFromLabel": _format_date_label(effective_from),
+        "effectiveTo": effective_to,
+        "effectiveToLabel": _format_date_label(effective_to),
+        "capacityImpactPercent": float(getattr(event, "capacity_impact_percent", 0.0) or 0.0),
     }
 
 

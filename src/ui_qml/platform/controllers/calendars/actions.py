@@ -9,7 +9,9 @@ from .command_builders import (
     build_calendar_create_command,
     build_calendar_update_command,
     build_exception_create_command,
+    build_exception_update_command,
     build_recurring_event_create_command,
+    build_recurring_event_update_command,
     dispatch_calendar_assign,
 )
 from .refresh import refresh_after_calendar_change
@@ -91,6 +93,28 @@ def add_calendar_recurring_event(controller, payload: dict) -> dict[str, object]
     )
 
 
+def update_calendar_exception(controller, payload: dict) -> dict[str, object]:
+    return run_admin_result_action(
+        controller,
+        operation=lambda: controller._platform_calendar_api.update_exception(
+            build_exception_update_command(payload)
+        ) if controller._platform_calendar_api else None,
+        success_message="Calendar exception updated.",
+        on_success=lambda: refresh_after_calendar_change(controller),
+    )
+
+
+def update_calendar_recurring_event(controller, payload: dict) -> dict[str, object]:
+    return run_admin_result_action(
+        controller,
+        operation=lambda: controller._platform_calendar_api.update_recurring_event(
+            build_recurring_event_update_command(payload)
+        ) if controller._platform_calendar_api else None,
+        success_message="Recurring event updated.",
+        on_success=lambda: refresh_after_calendar_change(controller),
+    )
+
+
 def delete_calendar_exception(controller, exception_id: str) -> dict[str, object]:
     return run_admin_result_action(
         controller,
@@ -160,5 +184,7 @@ __all__ = [
     "delete_calendar_recurring_event",
     "delete_platform_calendar",
     "remove_calendar_assignment",
+    "update_calendar_exception",
+    "update_calendar_recurring_event",
     "update_platform_calendar",
 ]

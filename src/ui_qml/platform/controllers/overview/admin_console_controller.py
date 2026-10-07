@@ -15,6 +15,8 @@ from src.ui_qml.platform.controllers.calendars.actions import (
     delete_calendar_recurring_event,
     delete_platform_calendar,
     remove_calendar_assignment,
+    update_calendar_exception,
+    update_calendar_recurring_event,
     update_platform_calendar,
 )
 from src.ui_qml.platform.controllers.calendars.calendar_controller import (
@@ -29,6 +31,12 @@ from src.ui_qml.platform.controllers.calendars.context import (
     department_calendar_summary,
     employee_calendar_summary,
     site_calendar_summary,
+)
+from src.ui_qml.platform.controllers.calendars.recurrence import (
+    build_recurrence_rule,
+    default_recurrence_editor_state,
+    parse_recurrence_rule,
+    recurrence_summary,
 )
 from src.ui_qml.platform.controllers.common import PlatformWorkspaceControllerBase
 from src.ui_qml.platform.controllers.departments.actions import (
@@ -691,6 +699,30 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, result="QVariantMap")
     def deleteCalendarRecurringEvent(self, event_id: str) -> dict[str, object]:
         return delete_calendar_recurring_event(self, event_id)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateCalendarException(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_calendar_exception(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateCalendarRecurringEvent(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_calendar_recurring_event(self, payload)
+
+    @Slot(str, str, result=str)
+    def calendarRecurrenceSummary(self, rrule: str, effective_from_iso: str = "") -> str:
+        return recurrence_summary(rrule, effective_from_iso)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def buildCalendarRecurrenceRule(self, state: dict[str, object]) -> dict[str, object]:
+        return build_recurrence_rule(state)
+
+    @Slot(str, result="QVariantMap")
+    def parseCalendarRecurrenceRule(self, rrule: str) -> dict[str, object]:
+        return parse_recurrence_rule(rrule)
+
+    @Slot(result="QVariantMap")
+    def defaultCalendarRecurrenceEditorState(self) -> dict[str, object]:
+        return default_recurrence_editor_state()
 
     @Slot("QVariantMap", result="QVariantMap")
     def assignCalendar(self, payload: dict[str, object]) -> dict[str, object]:

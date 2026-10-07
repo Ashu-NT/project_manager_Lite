@@ -19,6 +19,9 @@ from src.core.platform.application.time_management.calendar.capacity.working_tim
 from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
     CalendarExceptionService,
 )
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
+    RecurringEventService,
+)
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
@@ -29,6 +32,7 @@ from src.core.platform.domain.time_management.calendar.enterprise_calendar impor
     CalendarType,
     ExceptionType,
     ImpactType,
+    RecurringEventType,
 )
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
@@ -152,6 +156,16 @@ def exc_service(db_session, repos, mock_user_session):
         session=db_session,
         calendar_repo=repos["calendar"],
         exception_repo=repos["exception"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def recurring_service(db_session, repos, mock_user_session):
+    return RecurringEventService(
+        session=db_session,
+        calendar_repo=repos["calendar"],
+        event_repo=repos["recurring"],
         user_session=mock_user_session,
     )
 
@@ -351,6 +365,70 @@ def test_resolver_holiday_exception_from_global(
     ctx = resolver.resolve_calendar_context(target_date=date(2026, 6, 1))
     assert ctx.available_hours == 0.0
     assert ctx.status == "UNAVAILABLE"
+
+
+def test_resolver_surfaces_recurring_event_on_a_matching_day(
+    resolver, global_cal, rule_service, recurring_service
+):
+    """Regression guard: a recurring event with no CalendarException row
+    must still be visible on the resolved day context (name/type/impact),
+    not just reflected as an unexplained hours delta -- this is what the
+    Month view reads to show *why* a day's hours changed."""
+    rule_service.seed_standard_week(
+        global_cal.id,
+        start_time=time(8, 0),
+        end_time=time(17, 0),
+        break_minutes=60,
+    )
+    recurring_service.add_recurring_event(
+        global_cal.id,
+        title="Weekly Standup",
+        event_type=RecurringEventType.MEETING.value,
+        recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
+        start_time=time(9, 0),
+        end_time=time(9, 30),
+        impact_type=ImpactType.REDUCED_CAPACITY.value,
+        effective_from=date(2026, 6, 1),
+    )
+
+    monday_ctx = resolver.resolve_calendar_context(target_date=date(2026, 6, 1))  # Monday
+    assert monday_ctx.available_hours == 7.5  # 8h - 0.5h meeting
+    assert len(monday_ctx.recurring_events) == 1
+    assert monday_ctx.recurring_events[0]["name"] == "Weekly Standup"
+    assert monday_ctx.recurring_events[0]["type"] == RecurringEventType.MEETING.value
+    assert monday_ctx.recurring_events[0]["impact"] == ImpactType.REDUCED_CAPACITY.value
+
+    tuesday_ctx = resolver.resolve_calendar_context(target_date=date(2026, 6, 2))  # Tuesday
+    assert tuesday_ctx.available_hours == 8.0
+    assert tuesday_ctx.recurring_events == []
+
+
+def test_resolve_range_surfaces_recurring_events_per_day(
+    resolver, global_cal, rule_service, recurring_service
+):
+    rule_service.seed_standard_week(
+        global_cal.id,
+        start_time=time(8, 0),
+        end_time=time(17, 0),
+        break_minutes=60,
+    )
+    recurring_service.add_recurring_event(
+        global_cal.id,
+        title="Weekly Standup",
+        event_type=RecurringEventType.MEETING.value,
+        recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
+        start_time=time(9, 0),
+        end_time=time(9, 30),
+        impact_type=ImpactType.REDUCED_CAPACITY.value,
+        effective_from=date(2026, 6, 1),
+    )
+
+    days = resolver.resolve_range(start=date(2026, 6, 1), end=date(2026, 6, 7))
+    mondays = [d for d in days if d.date.weekday() == 0]
+    assert len(mondays) == 1
+    assert mondays[0].recurring_events[0]["name"] == "Weekly Standup"
+    non_mondays = [d for d in days if d.date.weekday() != 0]
+    assert all(d.recurring_events == [] for d in non_mondays)
 
 
 def test_granularity_validation_rejected():

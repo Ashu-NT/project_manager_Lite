@@ -295,15 +295,23 @@ Item {
                         workspaceController: root.workspaceController
                         exceptions: root._overview.exceptions || []
                         recurringEvents: root._overview.recurringEvents || []
+                        workingRules: root._overview.workingRules || []
                         selectedExceptionId: root.selectedExceptionId
                         selectedRecurringEventId: root.selectedRecurringEventId
                         canWrite: root.canWrite
 
                         onAddExceptionRequested: root.actionRequested("add_exception")
                         onAddExceptionForDateRequested: function(date) { root.actionRequested("add_exception:" + date) }
+                        onEditExceptionRequested: function(id) { root.actionRequested("edit_exception:" + id) }
                         onDeleteExceptionRequested: root._requestDeleteExceptionConfirm()
                         onAddRecurringEventRequested: root.actionRequested("add_recurring")
+                        onEditRecurringEventRequested: function(id) { root.actionRequested("edit_recurring:" + id) }
                         onDeleteRecurringEventRequested: root._requestDeleteRecurringEventConfirm()
+                        onToggleRecurringEventActiveRequested: function(id, active) {
+                            if (root.workspaceController) {
+                                root.workspaceController.updateCalendarRecurringEvent({ "eventId": id, "isActive": active })
+                            }
+                        }
                         onExceptionSelected: function(id) { root.selectedExceptionId = id }
                         onRecurringEventSelected: function(id) { root.selectedRecurringEventId = id }
                     }

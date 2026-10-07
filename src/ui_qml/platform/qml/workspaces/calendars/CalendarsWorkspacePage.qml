@@ -236,6 +236,20 @@ AppLayouts.WorkspaceFrame {
             return
         }
         if (actionId === "add_recurring") { dialogHostLoader.invoke("openCalendarRecurringEventCreate", root._calendarId); return }
+        if (actionId.indexOf("edit_exception:") === 0) {
+            const exceptionId = actionId.substring("edit_exception:".length)
+            const overview = root.workspaceController ? root.workspaceController.calendarOverviewContext(root._calendarId) : null
+            const exc = overview ? (overview.exceptions || []).find(function(e) { return String(e.id) === exceptionId }) : null
+            if (exc) dialogHostLoader.invoke("openCalendarExceptionEdit", root._calendarId, exc)
+            return
+        }
+        if (actionId.indexOf("edit_recurring:") === 0) {
+            const eventId = actionId.substring("edit_recurring:".length)
+            const overview = root.workspaceController ? root.workspaceController.calendarOverviewContext(root._calendarId) : null
+            const evt = overview ? (overview.recurringEvents || []).find(function(e) { return String(e.id) === eventId }) : null
+            if (evt) dialogHostLoader.invoke("openCalendarRecurringEventEdit", root._calendarId, evt)
+            return
+        }
         if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
     }
 
