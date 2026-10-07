@@ -87,6 +87,23 @@ class CalendarExceptionRepository(ABC):
     ) -> list[CalendarException]: ...
 
     @abstractmethod
+    def list_page_for_calendar(
+        self,
+        calendar_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        exception_type: str | None = None,
+        impact_type: str | None = None,
+        approval_status: str | None = None,
+    ) -> tuple[list[CalendarException], int, int]:
+        """Returns (items, total, filtered_total) -- total is every exception
+        on this calendar regardless of filter, filtered_total is after
+        search/exception_type/impact_type/approval_status are applied."""
+        ...
+
+    @abstractmethod
     def get(self, exception_id: str) -> CalendarException | None: ...
 
     @abstractmethod
@@ -107,6 +124,23 @@ class CalendarRecurringEventRepository(ABC):
     def list_for_calendar(
         self, calendar_id: str, *, active_only: bool = True
     ) -> list[CalendarRecurringEvent]: ...
+
+    @abstractmethod
+    def list_page_for_calendar(
+        self,
+        calendar_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        event_type: str | None = None,
+        impact_type: str | None = None,
+        is_active: bool | None = None,
+    ) -> tuple[list[CalendarRecurringEvent], int, int]:
+        """Returns (items, total, filtered_total) -- total is every recurring
+        event on this calendar regardless of filter, filtered_total is after
+        search/event_type/impact_type/is_active are applied."""
+        ...
 
     @abstractmethod
     def get(self, event_id: str) -> CalendarRecurringEvent | None: ...

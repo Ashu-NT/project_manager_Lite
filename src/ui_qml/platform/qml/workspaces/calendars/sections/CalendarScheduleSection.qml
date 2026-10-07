@@ -1,18 +1,23 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import workspaces.calendars.sections.views 1.0 as CalendarViews
 
 // Calendar Detail's "Calendar" tab: one top-level tab hosting three views
 // (Month / Exceptions / Recurring) behind an in-tab switcher, never three
-// separate top-level tabs -- see CalendarMonthView.qml for the planned
-// Month-view replacement of the first view; Exceptions/Recurring are each
-// their own file under sections/views/ so that swap touches nothing else.
+// separate top-level tabs. The switcher itself (a DetailTabBar) lives in
+// AdminCalendarDetailPage.qml as pinned (detailPagePinned) content, not
+// here -- that keeps it visible while this section's own content scrolls,
+// and makes activeViewIndex purely an inbound prop from the parent (no
+// internal tab bar here writing back to it, which would otherwise sever
+// that binding the moment the view switches -- see
+// AdminCalendarDetailPage.qml's onCalendarActiveViewIndexChanged for the
+// selection-clearing this used to also do locally).
 Column {
     id: root
+    objectName: "calendarScheduleSection"
     spacing: Theme.AppTheme.spacingMd
 
     property string calendarId: ""
@@ -36,34 +41,11 @@ Column {
     signal exceptionSelected(string exceptionId)
     signal recurringEventSelected(string eventId)
 
-    // Selection is private per-view state -- switching tabs clears the
-    // other two views' selections so a stale/removed row never lingers in
-    // an Inspector the user isn't even looking at (Month's own day
-    // selection is internal to CalendarMonthView and intentionally
-    // preserved across tab switches, same as remembering scroll position).
-    onActiveViewIndexChanged: {
-        if (root.activeViewIndex !== 1) root.selectedExceptionId = ""
-        if (root.activeViewIndex !== 2) root.selectedRecurringEventId = ""
-    }
-
     // One fixed content-area height shared by all three views -- switching
     // between Month (always 6 grid rows) and Exceptions/Recurring (whose
     // row count varies) must never resize this tab or make the page jump;
     // each view scrolls internally within this fixed area instead.
     readonly property int _fixedContentHeight: 560
-
-    readonly property var _viewTabs: [
-        "Month",
-        { "label": "Exceptions", "count": root.exceptions.length },
-        { "label": "Recurring", "count": root.recurringEvents.length }
-    ]
-
-    AppWidgets.DetailTabBar {
-        width: parent ? parent.width : root.width
-        tabs: root._viewTabs
-        currentIndex: root.activeViewIndex
-        onTabSelected: function(index) { root.activeViewIndex = index }
-    }
 
     CalendarViews.CalendarMonthView {
         width: parent ? parent.width : root.width

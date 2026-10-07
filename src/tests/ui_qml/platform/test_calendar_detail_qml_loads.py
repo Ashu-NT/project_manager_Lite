@@ -142,3 +142,102 @@ def test_calendars_workspace_mounts_with_inspector_and_no_qml_errors(qapp, servi
         _assert_no_relevant_errors(messages)
     finally:
         qInstallMessageHandler(previous_handler)
+
+
+def test_recurring_inspector_opens_after_switching_tabs_away_from_month(qapp, services) -> None:
+    """Regression guard: CalendarScheduleSection.selectedExceptionId/
+    selectedRecurringEventId are owned by AdminCalendarDetailPage and bound
+    INTO this component -- a previous version wrote to them directly in
+    onActiveViewIndexChanged to clear the other views' selection, which
+    permanently severed the inbound binding the first time a user switched
+    away from Month. After that, selecting a row in Exceptions/Recurring
+    updated the parent's state but it never flowed back down, so the
+    Inspector silently never opened again for the rest of the session."""
+    messages: list[str] = []
+    previous_handler = qInstallMessageHandler(lambda t, c, m: messages.append(str(m)))
+
+    try:
+        registry = build_qml_route_registry()
+        shell_context = build_shell_context(build_main_window_navigation(registry))
+        api_registry = build_desktop_api_registry(services)
+        platform_catalog = PlatformWorkspaceCatalog(desktop_api_registry=api_registry)
+        pm_catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=api_registry)
+
+        engine = create_qml_engine()
+        shell_route = registry.get("shell.app")
+        load_qml(
+            engine,
+            shell_route.qml_path,
+            initial_properties={
+                "shellModel": shell_context,
+                "platformCatalog": platform_catalog,
+                "pmCatalog": pm_catalog,
+            },
+        )
+        root = engine.rootObjects()[0]
+        root.resize(1600, 1000)
+        shell_context.selectRoute("platform.workspace")
+        platform_catalog.selectDestination("sites")
+        _settle(qapp, seconds=4.0)
+        platform_catalog.selectDestination("calendars")
+        _settle(qapp, seconds=3.0)
+
+        calendars_result = api_registry.platform_calendar.list_calendars()
+        assert calendars_result.ok and calendars_result.data
+        calendar_id = calendars_result.data[0].id
+
+        from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+            RecurringEventCreateCommand,
+        )
+
+        add_result = api_registry.platform_calendar.add_recurring_event(
+            RecurringEventCreateCommand(
+                calendar_id=calendar_id, title="Regression Standup", event_type="MEETING",
+                recurrence_rule="FREQ=WEEKLY;BYDAY=MO", start_time="09:00", end_time="09:30",
+                impact_type="REDUCED_CAPACITY", effective_from="2026-10-07",
+            )
+        )
+        assert add_result.ok, add_result.error
+        event_id = add_result.data.id
+
+        calendars_page = root.findChild(QQuickItem, "calendarsWorkspacePage")
+        calendars_page.setProperty("selectedRowId", calendar_id)
+        calendars_page.setProperty("detailOpen", True)
+        _settle(qapp, seconds=6.0)
+
+        detail_page = root.findChild(QQuickItem, "adminCalendarDetailPage")
+        if detail_page is None:
+            import pytest
+
+            pytest.skip(
+                "Detail page did not mount in this offscreen harness run -- "
+                "a pre-existing Loader-race limitation (see this module's docstring)."
+            )
+
+        detail_page.setProperty("activeSectionIndex", 1)  # Calendar tab
+        _settle(qapp, seconds=3.0)
+
+        schedule_section = root.findChild(QQuickItem, "calendarScheduleSection")
+        assert schedule_section is not None
+
+        # Switching away from Month (index 0) is exactly the step that used
+        # to permanently break the selectedRecurringEventId/selectedExceptionId
+        # inbound bindings.
+        schedule_section.setProperty("activeViewIndex", 2)  # Recurring
+        _settle(qapp, seconds=2.0)
+
+        table = root.findChild(QQuickItem, "calendarRecurringTable")
+        assert table is not None
+        table.rowSelected.emit(event_id)
+        _settle(qapp, seconds=1.0)
+
+        assert str(detail_page.property("selectedRecurringEventId")) == event_id
+        assert str(schedule_section.property("selectedRecurringEventId")) == event_id
+
+        inspector = root.findChild(QQuickItem, "calendarRecurringInspector")
+        assert inspector is not None
+        assert inspector.property("visible") is True
+
+        _assert_no_relevant_errors(messages)
+    finally:
+        qInstallMessageHandler(previous_handler)

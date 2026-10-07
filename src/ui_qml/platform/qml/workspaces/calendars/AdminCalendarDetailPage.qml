@@ -26,6 +26,12 @@ Item {
     property int activeSectionIndex: 0
     property string selectedExceptionId: ""
     property string selectedRecurringEventId: ""
+    // Month/Exceptions/Recurring is a sub-tab bar *within* the Calendar
+    // section, but it's owned here (not inside CalendarScheduleSection) and
+    // rendered as a pinned sibling of the section content below -- see the
+    // detailPagePinned AppWidgets.DetailTabBar instance -- so it stays fixed
+    // above the scrolling content instead of scrolling away with it.
+    property int calendarActiveViewIndex: 0
 
     signal backRequested()
     signal actionRequested(string actionId)
@@ -155,6 +161,20 @@ Item {
         { "label": "Effective To", "value": root._displayValue(root._state.effectiveTo) }
     ]
 
+    readonly property var _calendarViewTabs: [
+        "Month",
+        { "label": "Exceptions", "count": (root._overview.exceptions || []).length },
+        { "label": "Recurring", "count": (root._overview.recurringEvents || []).length }
+    ]
+    // Switching away from Exceptions/Recurring clears that view's selection
+    // so a stale/removed row never lingers in an Inspector the user isn't
+    // looking at (Month's own day selection is internal to CalendarMonthView
+    // and intentionally preserved across tab switches).
+    onCalendarActiveViewIndexChanged: {
+        if (root.calendarActiveViewIndex !== 1) root.selectedExceptionId = ""
+        if (root.calendarActiveViewIndex !== 2) root.selectedRecurringEventId = ""
+    }
+
     property var _pendingConfirm: null
 
     function _requestDeleteExceptionConfirm() {
@@ -229,6 +249,20 @@ Item {
             message: root.feedbackMessage
         }
 
+        // Pinned (not part of the scrolling content below) so the Month/
+        // Exceptions/Recurring switcher stays visible while the user scrolls
+        // the active view's own content -- see SectionDetailPage's
+        // detailPagePinned mechanism.
+        AppWidgets.DetailTabBar {
+            detailPagePinned: true
+            visible: root._activeSectionLabel === "Calendar"
+            height: visible ? implicitHeight : 0
+            width: parent ? parent.width : root.width
+            tabs: root._calendarViewTabs
+            currentIndex: root.calendarActiveViewIndex
+            onTabSelected: function(index) { root.calendarActiveViewIndex = index }
+        }
+
         Item {
             width: parent ? parent.width : root.width
             implicitHeight: root.activeSectionIndex === 0 ? overviewLoader.implicitHeight : 0
@@ -298,6 +332,7 @@ Item {
                         workingRules: root._overview.workingRules || []
                         selectedExceptionId: root.selectedExceptionId
                         selectedRecurringEventId: root.selectedRecurringEventId
+                        activeViewIndex: root.calendarActiveViewIndex
                         canWrite: root.canWrite
 
                         onAddExceptionRequested: root.actionRequested("add_exception")

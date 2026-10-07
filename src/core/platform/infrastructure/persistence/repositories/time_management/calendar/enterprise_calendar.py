@@ -479,6 +479,54 @@ class SqlAlchemyCalendarExceptionRepository(
         rows = self._session.execute(stmt).scalars().all()
         return [calendar_exception_from_orm(r) for r in rows]
 
+    def list_page_for_calendar(
+        self,
+        calendar_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        exception_type: str | None = None,
+        impact_type: str | None = None,
+        approval_status: str | None = None,
+    ) -> tuple[list[CalendarException], int, int]:
+        ctx = self._context(operation_label="access calendar exceptions")
+
+        total_stmt = _scoped_calendar_stmt(
+            select(func.count()), CalendarExceptionORM, ctx
+        ).where(CalendarExceptionORM.calendar_id == calendar_id)
+        total = self._session.execute(total_stmt).scalar_one()
+
+        def _apply_filters(stmt):
+            if search:
+                stmt = stmt.where(CalendarExceptionORM.name.ilike(f"%{search}%"))
+            if exception_type:
+                stmt = stmt.where(CalendarExceptionORM.exception_type == exception_type)
+            if impact_type:
+                stmt = stmt.where(CalendarExceptionORM.impact_type == impact_type)
+            if approval_status:
+                stmt = stmt.where(CalendarExceptionORM.approval_status == approval_status)
+            return stmt
+
+        count_stmt = _apply_filters(
+            _scoped_calendar_stmt(select(func.count()), CalendarExceptionORM, ctx).where(
+                CalendarExceptionORM.calendar_id == calendar_id
+            )
+        )
+        filtered_total = self._session.execute(count_stmt).scalar_one()
+
+        offset = max(0, (page - 1) * page_size)
+        page_stmt = _apply_filters(
+            _scoped_calendar_stmt(select(CalendarExceptionORM), CalendarExceptionORM, ctx).where(
+                CalendarExceptionORM.calendar_id == calendar_id
+            )
+        ).order_by(
+            CalendarExceptionORM.exception_date.desc(),
+            CalendarExceptionORM.priority.desc(),
+        ).offset(offset).limit(page_size)
+        rows = self._session.execute(page_stmt).scalars().all()
+        return [calendar_exception_from_orm(r) for r in rows], total, filtered_total
+
     def list_for_date(
         self, calendar_id: str, target_date: date
     ) -> list[CalendarException]:
