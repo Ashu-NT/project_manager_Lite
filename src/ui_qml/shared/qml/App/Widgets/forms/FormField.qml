@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FormField — reusable "persistent label + field + helper/error" form row.
@@ -81,7 +82,7 @@ ColumnLayout {
     }
 
     // ── Error (danger) takes priority over helper text ───────────────────────
-    InlineMessage {
+    AppWidgets.InlineMessage {
         Layout.fillWidth: true
         visible: root.errorText.length > 0
         tone:    "danger"

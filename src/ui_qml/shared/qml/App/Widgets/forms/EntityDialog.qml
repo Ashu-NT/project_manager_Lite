@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EntityDialog — enterprise dialog shell
@@ -182,7 +183,7 @@ AppControls.CenteredDialog {
         }
 
         // Message area — only one visible at a time (priority: error > feedback > info)
-        InlineMessage {
+        AppWidgets.InlineMessage {
             Layout.fillWidth: true
             Layout.leftMargin:  Theme.AppTheme.dialogPadding
             Layout.rightMargin: Theme.AppTheme.dialogPadding
@@ -192,7 +193,7 @@ AppControls.CenteredDialog {
             tone:    "danger"
         }
 
-        InlineMessage {
+        AppWidgets.InlineMessage {
             Layout.fillWidth: true
             Layout.leftMargin:  Theme.AppTheme.dialogPadding
             Layout.rightMargin: Theme.AppTheme.dialogPadding
@@ -202,7 +203,7 @@ AppControls.CenteredDialog {
             tone:    "success"
         }
 
-        InlineMessage {
+        AppWidgets.InlineMessage {
             Layout.fillWidth: true
             Layout.leftMargin:  Theme.AppTheme.dialogPadding
             Layout.rightMargin: Theme.AppTheme.dialogPadding

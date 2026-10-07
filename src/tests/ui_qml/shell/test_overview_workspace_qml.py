@@ -552,10 +552,10 @@ def test_overview_workspace_instantiates_in_light_and_dark(qapp, mode) -> None:
     "relative_path",
     [
         "ui_qml/shell/qml/OverviewWorkspace.qml",
-        "ui_qml/shared/qml/App/Widgets/ModuleCard.qml",
-        "ui_qml/shared/qml/App/Widgets/ActionCenterRow.qml",
-        "ui_qml/shared/qml/App/Widgets/ActionCenterList.qml",
-        "ui_qml/shared/qml/App/Widgets/OverviewMetricTile.qml",
+        "ui_qml/shared/qml/App/Widgets/overview/ModuleCard.qml",
+        "ui_qml/shared/qml/App/Widgets/overview/ActionCenterRow.qml",
+        "ui_qml/shared/qml/App/Widgets/overview/ActionCenterList.qml",
+        "ui_qml/shared/qml/App/Widgets/overview/OverviewMetricTile.qml",
     ],
 )
 def test_no_hardcoded_color_literals(relative_path) -> None:

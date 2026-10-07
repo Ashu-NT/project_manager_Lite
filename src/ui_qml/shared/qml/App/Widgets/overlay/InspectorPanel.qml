@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Icons 1.0 as AppIcons
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 
 Rectangle {
     id: root
@@ -130,7 +131,7 @@ Rectangle {
                     elide: Text.ElideRight
                 }
 
-                StatusChip {
+                AppWidgets.StatusChip {
                     visible: root.statusLabel.length > 0
 
                     status: root.statusLabel
@@ -206,7 +207,7 @@ Rectangle {
                             ? []
                             : root.sections
 
-                    delegate: LabelValueRow {
+                    delegate: AppWidgets.LabelValueRow {
                         required property var modelData
 
                         Layout.fillWidth: true
@@ -288,7 +289,7 @@ Rectangle {
                         Repeater {
                             model: groupDelegate._rows
 
-                            delegate: LabelValueRow {
+                            delegate: AppWidgets.LabelValueRow {
                                 required property var modelData
 
                                 Layout.fillWidth: true
@@ -404,7 +405,7 @@ Rectangle {
                     }
 
                     // Actions menu
-                    ActionsMenuButton {
+                    AppWidgets.ActionsMenuButton {
                         visible:
                             root.menuActions.length > 0
 

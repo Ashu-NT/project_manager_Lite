@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Icons 1.0 as AppIcons
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 
 // Shared secondary-tier navigation affordance: a single "More" trigger that
 // opens a small anchored list of destinations. Intended for workspaces whose
@@ -86,7 +87,7 @@ Item {
         onClicked: _popup.open()
     }
 
-    AnchoredPopup {
+    AppWidgets.AnchoredPopup {
         id: _popup
         anchorItem: root
         placement: "below-right"

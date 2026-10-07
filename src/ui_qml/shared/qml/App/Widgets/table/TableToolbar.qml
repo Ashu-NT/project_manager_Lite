@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
 // Responsive table toolbar shared by every AdminEntityWorkspace and every
 // other embedded/detail-page table workspace. Controls are grouped into a
@@ -476,7 +477,7 @@ Rectangle {
         onClicked: root.exportRequested()
     }
 
-    ActionsMenuButton {
+    AppWidgets.ActionsMenuButton {
         id: overflowButton
         objectName: "toolbarOverflowButton"
         visible: root._needsOverflow && root._overflowItems.length > 0

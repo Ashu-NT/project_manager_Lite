@@ -2,8 +2,9 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-GroupedNavigationRail {
+AppWidgets.GroupedNavigationRail {
     id: root
 
     property alias sections: root.items

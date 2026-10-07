@@ -5,6 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
 // Bulk module grant/revoke popup — anchored above BulkActionBar, alongside
 // BulkChangePropertyPopup (single-value bulk edit). This one applies a SET
@@ -12,7 +13,7 @@ import App.Theme 1.0 as Theme
 // checkbox-list UI rather than BulkChangePropertyPopup's single dropdown.
 // moduleOptions: [{label, value, supportingText}]
 // Emits applyRequested({moduleCodes, grant}) on confirm.
-AnchoredPopup {
+AppWidgets.AnchoredPopup {
     id: root
 
     property int selectedCount: 0

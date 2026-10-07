@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Icons 1.0 as AppIcons
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 
 Item {
     id: root
@@ -232,7 +233,7 @@ Item {
                         elide: Text.ElideRight
                     }
 
-                    StatusChip {
+                    AppWidgets.StatusChip {
                         visible: root.statusLabel.length > 0
                         status: root.statusLabel
                         tone: root.statusTone
@@ -264,7 +265,7 @@ Item {
                         onClicked: root.deleteRequested()
                     }
 
-                    ActionsMenuButton {
+                    AppWidgets.ActionsMenuButton {
                         visible: root.menuActions.length > 0
                         enabled: !root.isBusy
                         items: root.menuActions

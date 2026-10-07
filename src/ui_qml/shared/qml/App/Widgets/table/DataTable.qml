@@ -7,6 +7,7 @@ import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import App.Models 1.0 as AppModels
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 
 // Enterprise data table — Qt 6 TableView, true 2-D cell-based delegates.
 //
@@ -871,7 +872,7 @@ Item {
                 ? String(_cell.rawValue.tone || "")
                 : ""
 
-            StatusChip {
+            AppWidgets.StatusChip {
                 anchors.verticalCenter: _cell.verticalCenter
                 anchors.left:           _cell.left
                 anchors.leftMargin:     Theme.AppTheme.spacingMd
@@ -891,7 +892,7 @@ Item {
                 height:  20
                 visible: _cell._isPr
 
-                ProgressBar {
+                AppWidgets.ProgressBar {
                     anchors.left:           _progressCell.left
                     anchors.right:          _pPct.visible ? _pPct.left : _progressCell.right
                     anchors.rightMargin:    _pPct.visible ? Theme.AppTheme.spacingXs : 0
@@ -1023,7 +1024,7 @@ Item {
     }
 
     // ── Empty state ───────────────────────────────────────────────────
-    EmptyState {
+    AppWidgets.EmptyState {
         anchors.centerIn: _mainView
         width:   Math.min(_mainView.width, 320)
         visible: root._rowCount === 0 && !root.loading

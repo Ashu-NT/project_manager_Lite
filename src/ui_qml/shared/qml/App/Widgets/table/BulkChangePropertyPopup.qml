@@ -3,11 +3,12 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
 // Bulk property change popup — anchored above BulkActionBar.
 // properties: [{id, label, values:[{value, label}]}]
 // Emits applyRequested({propertyId, value, note}) on confirm.
-AnchoredPopup {
+AppWidgets.AnchoredPopup {
     id: root
 
     property int selectedCount: 0
