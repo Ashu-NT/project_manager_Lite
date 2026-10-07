@@ -1,5 +1,111 @@
 from __future__ import annotations
 
+from datetime import date as _date
+
+_IMPACT_LABELS: dict[str, str] = {
+    "UNAVAILABLE": "Non-working",
+    "REDUCED_CAPACITY": "Reduced capacity",
+    "EXTRA_CAPACITY": "Extra working",
+    "WORKING": "Extra working",
+    "INFORMATION_ONLY": "Information",
+}
+_IMPACT_TONES: dict[str, str] = {
+    "UNAVAILABLE": "unavailable",
+    "REDUCED_CAPACITY": "reduced",
+    "EXTRA_CAPACITY": "extra",
+    "WORKING": "extra",
+    "INFORMATION_ONLY": "info",
+}
+
+
+def _human_label(enum_value: str) -> str:
+    text = str(enum_value or "").replace("_", " ").strip().lower()
+    return text[:1].upper() + text[1:] if text else ""
+
+
+def _format_hhmm(value: str) -> str:
+    # Desktop API time strings are already "HH:MM"; this just guards against
+    # an empty/unset value rather than reformatting a real one.
+    return str(value or "").strip()
+
+
+def serialize_calendar_day_view(day, *, today_iso: str) -> dict[str, object]:
+    """One Month-view cell's full read projection, built once per range fetch
+    -- never recomputed per QML binding. `tone`/labels are derived here (not
+    in QML) from the backend-resolved CalendarDayDto fields only; isToday
+    compares against the calendar's own business-local today (passed in),
+    never a QML `new Date()`. isCurrentMonth/isSelected are left to QML since
+    they depend on which month page/day is currently displayed -- pure view
+    state, not calendar business logic."""
+    date_str = str(getattr(day, "date", "") or "")
+    is_working_day = bool(getattr(day, "is_working_day", False))
+    available_hours = float(getattr(day, "available_hours", 0.0) or 0.0)
+    start_time = _format_hhmm(getattr(day, "start_time", ""))
+    end_time = _format_hhmm(getattr(day, "end_time", ""))
+    exception_type = str(getattr(day, "exception_type", "") or "")
+    exception_name = str(getattr(day, "exception_name", "") or "")
+    impact_type = str(getattr(day, "impact_type", "") or "")
+
+    hours_label = f"{start_time}–{end_time}" if start_time and end_time else ""
+    impact_label = _IMPACT_LABELS.get(impact_type, "")
+    # Holiday gets its own calm, distinct tone rather than the same
+    # muted/alarming treatment as a generic UNAVAILABLE closure -- both are
+    # ImpactType.UNAVAILABLE under the hood, but a public holiday and an
+    # ad-hoc site shutdown read very differently to an admin scanning a month.
+    if exception_type == "HOLIDAY":
+        tone = "holiday"
+    else:
+        tone = _IMPACT_TONES.get(impact_type, "normal" if is_working_day else "nonWorking")
+
+    if impact_type:
+        primary_label = exception_name or _human_label(exception_type) or impact_label
+        secondary_label = impact_label if impact_type != "INFORMATION_ONLY" else hours_label
+        if impact_type in ("EXTRA_CAPACITY", "WORKING") and hours_label:
+            secondary_label = hours_label
+    elif is_working_day:
+        primary_label = hours_label
+        secondary_label = ""
+    else:
+        primary_label = "Non-working"
+        secondary_label = ""
+
+    try:
+        parsed = _date.fromisoformat(date_str) if date_str else None
+    except ValueError:
+        parsed = None
+    day_number = parsed.day if parsed else 0
+    date_label = parsed.strftime("%A, %d %B %Y") if parsed else date_str
+
+    accessibility_parts = [date_label]
+    if impact_label:
+        accessibility_parts.append(impact_label)
+    elif is_working_day:
+        accessibility_parts.append("Working day")
+    else:
+        accessibility_parts.append("Non-working")
+    if is_working_day and available_hours > 0:
+        hours_word = "hour" if available_hours == 1 else "hours"
+        accessibility_parts.append(f"{available_hours:g} available {hours_word}")
+    if exception_name:
+        accessibility_parts.append(exception_name)
+
+    return {
+        "date": date_str,
+        "dayNumber": day_number,
+        "dateLabel": date_label,
+        "isToday": date_str == today_iso,
+        "isWorkingDay": is_working_day,
+        "availableHours": available_hours,
+        "startTimeLabel": start_time,
+        "endTimeLabel": end_time,
+        "primaryLabel": primary_label,
+        "secondaryLabel": secondary_label,
+        "exceptionTypeLabel": _human_label(exception_type),
+        "impactLabel": impact_label,
+        "tone": tone,
+        "accessibilityLabel": ". ".join(accessibility_parts) + ".",
+    }
+
 
 def serialize_calendar_assignment(assignment, *, entity_name: str = "") -> dict[str, object]:
     if assignment is None:
@@ -103,6 +209,7 @@ def serialize_recurring_event(event) -> dict[str, object]:
 __all__ = [
     "serialize_assignment_groups",
     "serialize_calendar_assignment",
+    "serialize_calendar_day_view",
     "serialize_calendar_exception",
     "serialize_recurring_event",
     "serialize_working_rule",

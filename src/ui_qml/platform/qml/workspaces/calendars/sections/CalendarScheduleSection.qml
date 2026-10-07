@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import Platform.Controllers 1.0 as PlatformControllers
 import workspaces.calendars.sections.views 1.0 as CalendarViews
 
 // Calendar Detail's "Calendar" tab: one top-level tab hosting three views
@@ -14,6 +15,8 @@ Column {
     id: root
     spacing: Theme.AppTheme.spacingMd
 
+    property string calendarId: ""
+    property PlatformControllers.PlatformAdminWorkspaceController workspaceController
     property var exceptions: []
     property var recurringEvents: []
     property string selectedExceptionId: ""
@@ -22,6 +25,7 @@ Column {
     property int activeViewIndex: 0
 
     signal addExceptionRequested()
+    signal addExceptionForDateRequested(string date)
     signal deleteExceptionRequested()
     signal addRecurringEventRequested()
     signal deleteRecurringEventRequested()
@@ -44,6 +48,11 @@ Column {
     CalendarViews.CalendarMonthView {
         width: parent ? parent.width : root.width
         visible: root.activeViewIndex === 0
+        workspaceController: root.workspaceController
+        calendarId: root.calendarId
+        canWrite: root.canWrite
+
+        onAddExceptionRequested: function(date) { root.addExceptionForDateRequested(date) }
     }
 
     CalendarViews.CalendarExceptionsView {

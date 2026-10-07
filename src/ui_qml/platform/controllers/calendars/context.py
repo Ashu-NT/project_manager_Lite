@@ -10,6 +10,7 @@ from src.ui_qml.platform.presenters.common.calendar_summary_support import (
 from .serializers import (
     serialize_assignment_groups,
     serialize_calendar_assignment,
+    serialize_calendar_day_view,
     serialize_calendar_exception,
     serialize_recurring_event,
     serialize_working_rule,
@@ -411,15 +412,76 @@ def employee_calendar_summary(
     )
 
 
+def _calendar_timezone(controller, calendar_id: str) -> str | None:
+    if controller._platform_calendar_api is None:
+        return None
+    result = controller._platform_calendar_api.get_calendar(calendar_id)
+    if not getattr(result, "ok", False) or result.data is None:
+        return None
+    return result.data.timezone
+
+
+def calendar_business_today(controller, calendar_id: str) -> str:
+    """"Today" in this calendar's own configured business timezone -- the
+    Month view's initial month and "Today" button must use this, never a
+    QML `new Date()`, which only knows the client machine's local clock."""
+    timezone_name = _calendar_timezone(controller, str(calendar_id or "").strip())
+    return business_today(timezone_name).isoformat()
+
+
+def empty_calendar_month_context() -> dict[str, object]:
+    return {"ok": True, "days": [], "errorMessage": ""}
+
+
+def calendar_month_context(
+    controller, calendar_id: str, start_date: str, end_date: str
+) -> dict[str, object]:
+    """One bounded range resolution per visible month grid (including
+    leading/trailing adjacent-month dates the grid itself decided to show) --
+    never one call per day. `start_date`/`end_date` are whatever the QML
+    MonthGrid actually renders; this does not recompute or second-guess
+    that boundary."""
+    calendar_id = str(calendar_id or "").strip()
+    if controller._platform_calendar_api is None or not calendar_id:
+        return empty_calendar_month_context()
+
+    timezone_name = _calendar_timezone(controller, calendar_id)
+    today_iso = business_today(timezone_name).isoformat()
+
+    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+        ResolveCalendarRangeCommand,
+    )
+
+    result = controller._platform_calendar_api.resolve_calendar_range(
+        ResolveCalendarRangeCommand(start_date=start_date, end_date=end_date)
+    )
+    if not getattr(result, "ok", False) or result.data is None:
+        message = (
+            result.error.message
+            if result is not None and getattr(result, "error", None) is not None
+            else "Unable to load calendar data for this month."
+        )
+        return {"ok": False, "days": [], "errorMessage": message}
+
+    return {
+        "ok": True,
+        "errorMessage": "",
+        "days": [serialize_calendar_day_view(day, today_iso=today_iso) for day in result.data],
+    }
+
+
 __all__ = [
     "calendar_assignment_context",
+    "calendar_business_today",
     "calendar_detail_context",
+    "calendar_month_context",
     "calendar_overview_context",
     "calendar_source_chain",
     "department_calendar_summary",
     "employee_calendar_summary",
     "empty_calendar_assignment_context",
     "empty_calendar_detail_context",
+    "empty_calendar_month_context",
     "result_sequence",
     "site_calendar_summary",
 ]

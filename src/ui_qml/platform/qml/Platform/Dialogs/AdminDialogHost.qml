@@ -114,8 +114,8 @@ Item {
         calendarEditorDialog.openForEdit(state || {})
     }
 
-    function openCalendarExceptionCreate(calendarId) {
-        calendarExceptionDialog.openForCreate(calendarId || "")
+    function openCalendarExceptionCreate(calendarId, prefillDate) {
+        calendarExceptionDialog.openForCreate(calendarId || "", prefillDate || "")
     }
 
     function openCalendarRecurringEventCreate(calendarId) {

@@ -230,6 +230,11 @@ AppLayouts.WorkspaceFrame {
             return
         }
         if (actionId === "add_exception") { dialogHostLoader.invoke("openCalendarExceptionCreate", root._calendarId); return }
+        if (actionId.indexOf("add_exception:") === 0) {
+            const prefillDate = actionId.substring("add_exception:".length)
+            dialogHostLoader.invoke("openCalendarExceptionCreate", root._calendarId, prefillDate)
+            return
+        }
         if (actionId === "add_recurring") { dialogHostLoader.invoke("openCalendarRecurringEventCreate", root._calendarId); return }
         if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
     }

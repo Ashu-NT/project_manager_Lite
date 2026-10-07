@@ -83,7 +83,7 @@ def test_compact_inspector_has_one_header_and_activity_id_is_user_facing() -> No
     panel = _read(SCHEDULING_ROOT / "panels" / "SchedulingGanttPanel.qml")
     inspector = _read(
         REPO_ROOT / "src" / "ui_qml" / "shared" / "qml" / "App" / "Widgets"
-        / "InspectorPanel.qml"
+        / "overlay" / "InspectorPanel.qml"
     )
     task_id = "7f05d925-0053-4149-a554-aa928d0462c7"
     task = _task(task_id, code="TASK-042", wbs="4.2")

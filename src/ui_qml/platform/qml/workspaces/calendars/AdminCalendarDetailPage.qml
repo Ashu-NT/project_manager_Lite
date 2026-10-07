@@ -291,6 +291,8 @@ Item {
                 sourceComponent: Component {
                     CalendarSections.CalendarScheduleSection {
                         width: parent ? parent.width : 0
+                        calendarId: root._calendarId
+                        workspaceController: root.workspaceController
                         exceptions: root._overview.exceptions || []
                         recurringEvents: root._overview.recurringEvents || []
                         selectedExceptionId: root.selectedExceptionId
@@ -298,6 +300,7 @@ Item {
                         canWrite: root.canWrite
 
                         onAddExceptionRequested: root.actionRequested("add_exception")
+                        onAddExceptionForDateRequested: function(date) { root.actionRequested("add_exception:" + date) }
                         onDeleteExceptionRequested: root._requestDeleteExceptionConfirm()
                         onAddRecurringEventRequested: root.actionRequested("add_recurring")
                         onDeleteRecurringEventRequested: root._requestDeleteRecurringEventConfirm()

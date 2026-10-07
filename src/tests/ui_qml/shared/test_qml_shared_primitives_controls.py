@@ -32,8 +32,8 @@ def test_qml_shared_theme_primitives_exist() -> None:
         QML_SHARED_ROOT / "Controls" / "RadioButton.qml",
         QML_SHARED_ROOT / "Controls" / "SearchField.qml",
         QML_SHARED_ROOT / "Controls" / "qmldir",
-        QML_SHARED_ROOT / "Widgets" / "MetricCard.qml",
-        QML_SHARED_ROOT / "Widgets" / "InfoTip.qml",
+        QML_SHARED_ROOT / "Widgets" / "overview" / "MetricCard.qml",
+        QML_SHARED_ROOT / "Widgets" / "feedback" / "InfoTip.qml",
         QML_SHARED_ROOT / "Controls" / "SecondaryButton.qml",
         QML_SHARED_ROOT / "Controls" / "TextArea.qml",
         QML_SHARED_ROOT / "Controls" / "TextField.qml",
@@ -54,14 +54,14 @@ def test_shared_info_tip_and_disabled_secondary_button_contracts() -> None:
     widgets_qmldir = (QML_SHARED_ROOT / "Widgets" / "qmldir").read_text(
         encoding="utf-8"
     )
-    info_tip = (QML_SHARED_ROOT / "Widgets" / "InfoTip.qml").read_text(
+    info_tip = (QML_SHARED_ROOT / "Widgets" / "feedback" / "InfoTip.qml").read_text(
         encoding="utf-8"
     )
     secondary_button = (
         QML_SHARED_ROOT / "Controls" / "SecondaryButton.qml"
     ).read_text(encoding="utf-8")
 
-    assert "InfoTip 1.0 InfoTip.qml" in widgets_qmldir
+    assert "InfoTip 1.0 feedback/InfoTip.qml" in widgets_qmldir
     assert 'property string message: ""' in info_tip
     assert "root.hovered || root.activeFocus" in info_tip
     assert "property bool expanded: false" in info_tip

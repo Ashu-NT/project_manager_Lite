@@ -22,7 +22,9 @@ from src.ui_qml.platform.controllers.calendars.calendar_controller import (
 )
 from src.ui_qml.platform.controllers.calendars.context import (
     calendar_assignment_context,
+    calendar_business_today,
     calendar_detail_context,
+    calendar_month_context,
     calendar_overview_context,
     department_calendar_summary,
     employee_calendar_summary,
@@ -733,6 +735,16 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, result="QVariantMap")
     def calendarOverviewContext(self, calendar_id: str) -> dict[str, object]:
         return calendar_overview_context(self, calendar_id)
+
+    @Slot(str, result=str)
+    def calendarBusinessToday(self, calendar_id: str) -> str:
+        return calendar_business_today(self, calendar_id)
+
+    @Slot(str, str, str, result="QVariantMap")
+    def calendarMonthRange(
+        self, calendar_id: str, start_date: str, end_date: str
+    ) -> dict[str, object]:
+        return calendar_month_context(self, calendar_id, start_date, end_date)
 
     @Slot(str, str, result="QVariantList")
     def calendarActivity(self, calendar_id: str, organization_id: str) -> list[dict[str, object]]:

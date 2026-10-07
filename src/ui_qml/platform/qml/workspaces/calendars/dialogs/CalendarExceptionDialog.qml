@@ -57,11 +57,11 @@ AppWidgets.EntityDialog {
         return root.calendarOptions.length > 0 ? 0 : -1
     }
 
-    function openForCreate(calId) {
+    function openForCreate(calId, prefillDate) {
         root.calendarId = calId || ""
         root.draft = {}
         calendarCombo.currentIndex = root._calendarIndex(root.calendarId)
-        dateField.text = ""
+        dateField.text = prefillDate || ""
         nameField.text = ""
         exTypeCombo.currentIndex = 0
         impactCombo.currentIndex = 0
