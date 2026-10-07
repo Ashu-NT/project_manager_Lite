@@ -28,6 +28,7 @@ class CalendarDto:
     effective_to: str = ""
     priority: int = 0
     version: int = 1
+    updated_at: str = ""
 
 
 @dataclass(frozen=True)
@@ -406,6 +407,39 @@ class EffectiveCalendarDto:
 
 
 @dataclass(frozen=True)
+class ResolveCalendarRangeCommand:
+    start_date: str
+    end_date: str
+    site_id: str = ""
+    department_id: str = ""
+    employee_id: str = ""
+    project_id: str = ""
+    resource_id: str = ""
+    worker_type: str = ""
+
+
+@dataclass(frozen=True)
+class CalendarDayDto:
+    """One resolved day, for a visual Month view -- a thin read projection
+    over ResolvedCalendarContext (per-day capacity) and its exceptions,
+    never a second calculation path. At most one exception is summarized
+    per day (the common case); a day with several active exceptions still
+    reports the first one for display -- full detail belongs in the
+    Exceptions editor, not a Month cell."""
+
+    date: str
+    is_working_day: bool
+    base_hours: float
+    available_hours: float
+    status: str
+    start_time: str = ""
+    end_time: str = ""
+    exception_type: str = ""
+    exception_name: str = ""
+    impact_type: str = ""
+
+
+@dataclass(frozen=True)
 class WorkingDaysCommand:
     start_date: str
     end_date: str = ""
@@ -449,6 +483,7 @@ class ResourceCapacityDto:
 __all__ = [
     "CalendarAssignmentDto",
     "CalendarCreateCommand",
+    "CalendarDayDto",
     "CalendarDto",
     "CalendarExceptionDto",
     "CalendarUpdateCommand",
@@ -460,6 +495,7 @@ __all__ = [
     "RecurringEventCreateCommand",
     "RecurringEventDto",
     "RecurringEventUpdateCommand",
+    "ResolveCalendarRangeCommand",
     "ResolveContextCommand",
     "ResolvedContextDto",
     "ResourceCalendarAssignCommand",

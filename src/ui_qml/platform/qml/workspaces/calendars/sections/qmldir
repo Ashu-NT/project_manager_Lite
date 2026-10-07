@@ -1,0 +1,5 @@
+module workspaces.calendars.sections
+CalendarOverviewSection 1.0 CalendarOverviewSection.qml
+CalendarScheduleSection 1.0 CalendarScheduleSection.qml
+CalendarAssignmentsSection 1.0 CalendarAssignmentsSection.qml
+CalendarActivitySection 1.0 CalendarActivitySection.qml

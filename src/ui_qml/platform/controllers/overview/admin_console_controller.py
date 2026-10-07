@@ -13,6 +13,7 @@ from src.ui_qml.platform.controllers.calendars.actions import (
     create_platform_calendar,
     delete_calendar_exception,
     delete_calendar_recurring_event,
+    delete_platform_calendar,
     remove_calendar_assignment,
     update_platform_calendar,
 )
@@ -22,6 +23,7 @@ from src.ui_qml.platform.controllers.calendars.calendar_controller import (
 from src.ui_qml.platform.controllers.calendars.context import (
     calendar_assignment_context,
     calendar_detail_context,
+    calendar_overview_context,
     department_calendar_summary,
     employee_calendar_summary,
     site_calendar_summary,
@@ -107,6 +109,9 @@ from src.ui_qml.platform.controllers.users.actions import (
 from src.ui_qml.platform.controllers.users.user_controller import (
     PlatformUserController,
 )
+from src.ui_qml.platform.presenters.calendars.calendar_activity_presenter import (
+    PlatformCalendarActivityPresenter,
+)
 from src.ui_qml.platform.presenters.calendars.calendar_catalog_presenter import (
     PlatformCalendarCatalogPresenter,
 )
@@ -183,6 +188,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     organizationSearchTextChanged = Signal()
     organizationStatusFilterChanged = Signal()
     selectedOrganizationIdsChanged = Signal()
+    calendarSearchTextChanged = Signal()
+    calendarStatusFilterChanged = Signal()
+    calendarTypeFilterChanged = Signal()
     siteSearchTextChanged = Signal()
     siteStatusFilterChanged = Signal()
     departmentSearchTextChanged = Signal()
@@ -210,6 +218,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         organization_presenter: PlatformOrganizationCatalogPresenter,
         organization_activity_presenter: PlatformOrganizationActivityPresenter | None = None,
         calendar_presenter: PlatformCalendarCatalogPresenter,
+        calendar_activity_presenter: PlatformCalendarActivityPresenter | None = None,
         site_presenter: PlatformSiteCatalogPresenter,
         site_activity_presenter: PlatformSiteActivityPresenter | None = None,
         department_presenter: PlatformDepartmentCatalogPresenter,
@@ -223,17 +232,31 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         document_presenter: PlatformDocumentCatalogPresenter,
         document_management_presenter: PlatformDocumentManagementPresenter,
         platform_calendar_api=None,
+        site_api=None,
+        department_api=None,
+        employee_api=None,
         runtime_api=None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._overview_presenter = overview_presenter
         self._platform_calendar_api = platform_calendar_api
+        # Used only to resolve Site/Department/Employee display names for
+        # Calendar's own Assignments tab (calendar_overview_context) -- a
+        # same-module (Platform-owned) lookup, fetched once per Assignments
+        # view rather than per assignment row. Never used to resolve PM
+        # Project/Resource names -- Platform has no approved cross-module
+        # contract for that (see serialize_assignment_groups).
+        self._site_api = site_api
+        self._department_api = department_api
+        self._employee_api = employee_api
         self._runtime_api = runtime_api
         self._organization_controller = PlatformOrganizationController(
             organization_presenter, self, activity_presenter=organization_activity_presenter
         )
-        self._calendar_controller = PlatformCalendarController(calendar_presenter, self)
+        self._calendar_controller = PlatformCalendarController(
+            calendar_presenter, self, activity_presenter=calendar_activity_presenter
+        )
         self._site_controller = PlatformSiteController(
             site_presenter, self, activity_presenter=site_activity_presenter
         )
@@ -287,6 +310,18 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantMap", notify=calendarsChanged)
     def calendars(self) -> dict[str, object]:
         return self._calendar_controller.calendars
+
+    @Property(str, notify=calendarSearchTextChanged)
+    def calendarSearchText(self) -> str:
+        return self._calendar_controller.calendarSearchText
+
+    @Property(str, notify=calendarStatusFilterChanged)
+    def calendarStatusFilter(self) -> str:
+        return self._calendar_controller.calendarStatusFilter
+
+    @Property(str, notify=calendarTypeFilterChanged)
+    def calendarTypeFilter(self) -> str:
+        return self._calendar_controller.calendarTypeFilter
 
     @Property("QVariantMap", notify=sitesChanged)
     def sites(self) -> dict[str, object]:
@@ -611,6 +646,18 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     # ── Calendar slots ────────────────────────────────────────────────────
 
+    @Slot(str)
+    def setCalendarSearchText(self, text: str) -> None:
+        self._calendar_controller.setCalendarSearchText(text)
+
+    @Slot(str)
+    def setCalendarStatusFilter(self, status: str) -> None:
+        self._calendar_controller.setCalendarStatusFilter(status)
+
+    @Slot(str)
+    def setCalendarTypeFilter(self, calendar_type: str) -> None:
+        self._calendar_controller.setCalendarTypeFilter(calendar_type)
+
     @Slot("QVariantMap", result="QVariantMap")
     def calculateCalendarWorkingDays(self, payload: dict[str, object]) -> dict[str, object]:
         return calculate_calendar_working_days(self, payload)
@@ -622,6 +669,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot("QVariantMap", result="QVariantMap")
     def updatePlatformCalendar(self, payload: dict[str, object]) -> dict[str, object]:
         return update_platform_calendar(self, payload)
+
+    @Slot(str, result="QVariantMap")
+    def deletePlatformCalendar(self, calendar_id: str) -> dict[str, object]:
+        return delete_platform_calendar(self, calendar_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def addCalendarException(self, payload: dict[str, object]) -> dict[str, object]:
@@ -678,6 +729,28 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self, employee_id: str, organization_id: str, department_id: str = "", site_id: str = ""
     ) -> dict[str, object]:
         return employee_calendar_summary(self, employee_id, organization_id, department_id, site_id)
+
+    @Slot(str, result="QVariantMap")
+    def calendarOverviewContext(self, calendar_id: str) -> dict[str, object]:
+        return calendar_overview_context(self, calendar_id)
+
+    @Slot(str, str, result="QVariantList")
+    def calendarActivity(self, calendar_id: str, organization_id: str) -> list[dict[str, object]]:
+        return self._calendar_controller.calendarActivity(calendar_id, organization_id)
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def calendarActivityPage(
+        self,
+        calendar_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        return self._calendar_controller.calendarActivityPage(
+            calendar_id, organization_id, page, page_size, search, date_range
+        )
 
     # ── Site slots ────────────────────────────────────────────────────────
 

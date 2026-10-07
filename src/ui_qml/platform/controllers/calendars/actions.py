@@ -123,6 +123,17 @@ def assign_calendar(controller, payload: dict) -> dict[str, object]:
     )
 
 
+def delete_platform_calendar(controller, calendar_id: str) -> dict[str, object]:
+    return run_admin_result_action(
+        controller,
+        operation=lambda: controller._platform_calendar_api.delete_calendar(calendar_id)
+        if controller._platform_calendar_api
+        else None,
+        success_message="Calendar deleted.",
+        on_success=lambda: refresh_after_calendar_change(controller),
+    )
+
+
 def remove_calendar_assignment(
     controller, assignment_id: str, entity_type: str
 ) -> dict[str, object]:
@@ -147,6 +158,7 @@ __all__ = [
     "create_platform_calendar",
     "delete_calendar_exception",
     "delete_calendar_recurring_event",
+    "delete_platform_calendar",
     "remove_calendar_assignment",
     "update_platform_calendar",
 ]

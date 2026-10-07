@@ -19,11 +19,15 @@ def build_calendar_update_command(payload: dict):
     from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         CalendarUpdateCommand,
     )
+    is_active = payload.get("isActive")
     return CalendarUpdateCommand(
         calendar_id=str(payload.get("calendarId", "")),
         name=str(payload.get("name", "")),
         timezone=str(payload.get("timezone", "")),
         description=str(payload.get("description", "")),
+        is_active=bool(is_active) if is_active is not None else None,
+        effective_from=str(payload.get("effectiveFrom", "")),
+        effective_to=str(payload.get("effectiveTo", "")),
     )
 
 

@@ -2,6 +2,9 @@
 from src.ui_qml.platform.presenters.access.access_workspace_presenter import (
     PlatformAccessWorkspacePresenter,
 )
+from src.ui_qml.platform.presenters.calendars.calendar_activity_presenter import (
+    PlatformCalendarActivityPresenter,
+)
 from src.ui_qml.platform.presenters.calendars.calendar_catalog_presenter import (
     PlatformCalendarCatalogPresenter,
 )
@@ -79,6 +82,7 @@ __all__ = [
     "OrganizationSwitcherPresenter",
     "PlatformAccessWorkspacePresenter",
     "PlatformAdminWorkspacePresenter",
+    "PlatformCalendarActivityPresenter",
     "PlatformCalendarCatalogPresenter",
     "PlatformControlQueuePresenter",
     "PlatformControlWorkspacePresenter",

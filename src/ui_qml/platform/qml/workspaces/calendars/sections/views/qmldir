@@ -1,0 +1,4 @@
+module workspaces.calendars.sections.views
+CalendarMonthView 1.0 CalendarMonthView.qml
+CalendarExceptionsView 1.0 CalendarExceptionsView.qml
+CalendarRecurringView 1.0 CalendarRecurringView.qml

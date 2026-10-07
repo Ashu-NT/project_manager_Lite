@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from src.core.shared.time.business_date import business_today
 from src.ui_qml.platform.presenters.common.calendar_summary_support import (
     canonical_source_label,
     holiday_set_label,
@@ -76,6 +77,37 @@ def calendar_source_chain(
     return [str(item) for item in result.data]
 
 
+def _build_assignment_name_lookup(controller) -> dict[str, dict[str, str]]:
+    """Resolves Site/Department/Employee display names for Calendar's own
+    Assignments tab -- a same-module (Platform-owned) lookup, fetched as ONE
+    unbounded list per entity type (the same bounded-organization assumption
+    `list_calendars()`/`list_sites()`/etc. already make elsewhere), not one
+    query per assignment row. Deliberately does NOT attempt to resolve PM
+    Project/Resource names -- Platform has no approved cross-module contract
+    for that (see serialize_assignment_groups)."""
+    lookup: dict[str, dict[str, str]] = {"sites": {}, "departments": {}, "employees": {}}
+
+    site_api = getattr(controller, "_site_api", None)
+    if site_api is not None:
+        result = site_api.list_sites()
+        if getattr(result, "ok", False) and result.data is not None:
+            lookup["sites"] = {s.id: s.name for s in result.data}
+
+    department_api = getattr(controller, "_department_api", None)
+    if department_api is not None:
+        result = department_api.list_departments()
+        if getattr(result, "ok", False) and result.data is not None:
+            lookup["departments"] = {d.id: d.name for d in result.data}
+
+    employee_api = getattr(controller, "_employee_api", None)
+    if employee_api is not None:
+        result = employee_api.list_employees()
+        if getattr(result, "ok", False) and result.data is not None:
+            lookup["employees"] = {e.id: e.full_name for e in result.data}
+
+    return lookup
+
+
 def calendar_detail_context(controller, calendar_id: str) -> dict[str, object]:
     if controller._platform_calendar_api is None or not str(calendar_id or "").strip():
         return empty_calendar_detail_context()
@@ -105,8 +137,86 @@ def calendar_detail_context(controller, calendar_id: str) -> dict[str, object]:
             assignments_result.data
             if getattr(assignments_result, "ok", False)
             and getattr(assignments_result, "data", None) is not None
-            else {}
+            else {},
+            name_lookup=_build_assignment_name_lookup(controller),
         ),
+    }
+
+
+def calendar_overview_context(controller, calendar_id: str) -> dict[str, object]:
+    """Everything Calendar Detail's Overview tab needs in one payload:
+    Operational Rules summary (exceptions/recurring/shift-pattern counts),
+    Usage summary (organization-default + assignment counts), Upcoming
+    Exceptions (future-dated only), and Recent Activity -- built on the same
+    workingRules/exceptions/recurringEvents/assignments calendar_detail_context
+    already fetches, never a second independent fetch of the same data."""
+    detail = calendar_detail_context(controller, calendar_id)
+    if controller._platform_calendar_api is None or not str(calendar_id or "").strip():
+        return {
+            **detail,
+            "usage": {"isOrganizationDefault": False, "sites": 0, "departments": 0, "employees": 0, "projects": 0, "resources": 0},
+            "upcomingExceptions": [],
+            "shiftPatternLabel": "",
+            "recentActivity": [],
+        }
+
+    calendar_id = str(calendar_id).strip()
+    assignments = detail["assignments"]
+    calendar_result = controller._platform_calendar_api.get_calendar(calendar_id)
+    calendar_dto = calendar_result.data if getattr(calendar_result, "ok", False) else None
+
+    # Working rules don't carry a shift-pattern reference in the current read
+    # model (see serialize_working_rule), so this reports whether the
+    # organization has ANY active shift pattern configured at all, named
+    # generically, rather than guessing which one applies to this calendar.
+    shift_pattern_label = ""
+    shift_patterns_result = controller._platform_calendar_api.list_shift_patterns(active_only=True)
+    if getattr(shift_patterns_result, "ok", False) and shift_patterns_result.data:
+        first_pattern = shift_patterns_result.data[0]
+        shift_pattern_label = str(getattr(first_pattern, "name", "") or "")
+
+    # "Upcoming" is relative to this calendar's own configured business
+    # timezone, not the server's local date -- see
+    # PlatformCalendarResolver.business_today for the same rule applied to
+    # resolution.
+    timezone_name = calendar_dto.timezone if calendar_dto is not None else None
+    today = business_today(timezone_name).isoformat()
+    upcoming_exceptions = sorted(
+        (exc for exc in detail["exceptions"] if exc["exceptionDate"] >= today),
+        key=lambda exc: exc["exceptionDate"],
+    )[:5]
+
+    org_id = str(calendar_dto.organization_id) if calendar_dto is not None else ""
+    recent_activity = (
+        controller._calendar_controller.calendarActivity(calendar_id, org_id)
+        if org_id
+        else []
+    )
+
+    return {
+        **detail,
+        "calendar": {
+            "name": calendar_dto.name if calendar_dto is not None else "",
+            "code": calendar_dto.code if calendar_dto is not None else "",
+            "description": calendar_dto.description if calendar_dto is not None else "",
+            "timeZone": calendar_dto.timezone if calendar_dto is not None else "",
+            "calendarType": calendar_dto.calendar_type if calendar_dto is not None else "",
+            "isDefault": bool(calendar_dto.is_default) if calendar_dto is not None else False,
+            "isActive": bool(calendar_dto.is_active) if calendar_dto is not None else True,
+            "effectiveFrom": calendar_dto.effective_from if calendar_dto is not None else "",
+            "effectiveTo": calendar_dto.effective_to if calendar_dto is not None else "",
+        },
+        "usage": {
+            "isOrganizationDefault": bool(calendar_dto.is_default) if calendar_dto is not None else False,
+            "sites": len(assignments["sites"]),
+            "departments": len(assignments["departments"]),
+            "employees": len(assignments["employees"]),
+            "projects": len(assignments["projects"]),
+            "resources": len(assignments["resources"]),
+        },
+        "upcomingExceptions": upcoming_exceptions,
+        "shiftPatternLabel": shift_pattern_label,
+        "recentActivity": recent_activity,
     }
 
 
@@ -304,6 +414,7 @@ def employee_calendar_summary(
 __all__ = [
     "calendar_assignment_context",
     "calendar_detail_context",
+    "calendar_overview_context",
     "calendar_source_chain",
     "department_calendar_summary",
     "employee_calendar_summary",

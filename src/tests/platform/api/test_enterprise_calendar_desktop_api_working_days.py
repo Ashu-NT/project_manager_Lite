@@ -10,6 +10,7 @@ from src.core.platform.api.desktop.time_management.calendar.platform_calendar im
     PlatformCalendarDesktopApi,
 )
 from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    ResolveCalendarRangeCommand,
     WorkingDaysCommand,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
@@ -225,3 +226,77 @@ def test_calculate_working_days_zero_returns_start_date(desktop_api, cal_service
     assert result.ok is True
     assert result.data.end_date == "2026-06-01"
     assert result.data.working_days == 0
+
+
+def test_resolve_calendar_range_returns_one_day_per_date_bulk_resolved(
+    desktop_api, cal_service, rule_service, org_id
+):
+    """2026-06-01 (Mon) through 2026-06-07 (Sun): 5 working days + a weekend,
+    resolved via a single bounded range call -- not one call per day."""
+    global_cal = cal_service.ensure_global_calendar(org_id)
+    rule_service.seed_standard_week(
+        global_cal.id,
+        start_time=time(8, 0),
+        end_time=time(17, 0),
+        break_minutes=60,
+    )
+
+    result = desktop_api.resolve_calendar_range(
+        ResolveCalendarRangeCommand(start_date="2026-06-01", end_date="2026-06-07")
+    )
+
+    assert result.ok is True
+    days = result.data
+    assert [d.date for d in days] == [
+        "2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04",
+        "2026-06-05", "2026-06-06", "2026-06-07",
+    ]
+    weekdays = {d.date: d for d in days}
+    assert weekdays["2026-06-01"].is_working_day is True
+    assert weekdays["2026-06-01"].available_hours == 8.0
+    assert weekdays["2026-06-01"].start_time == "08:00"
+    assert weekdays["2026-06-01"].end_time == "17:00"
+    # 2026-06-06 is a Saturday, 2026-06-07 a Sunday.
+    assert weekdays["2026-06-06"].is_working_day is False
+    assert weekdays["2026-06-07"].is_working_day is False
+
+
+def test_resolve_calendar_range_surfaces_the_days_exception(
+    desktop_api, cal_service, rule_service, repos, db_session, org_id
+):
+    from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
+        CalendarException,
+    )
+
+    global_cal = cal_service.ensure_global_calendar(org_id)
+    rule_service.seed_standard_week(
+        global_cal.id,
+        start_time=time(8, 0),
+        end_time=time(17, 0),
+        break_minutes=60,
+    )
+    from datetime import date as date_cls
+    repos["exception"].add(
+        CalendarException.create(
+            calendar_id=global_cal.id,
+            exception_date=date_cls(2026, 6, 3),
+            exception_type="HOLIDAY",
+            name="German Unity Day",
+            impact_type="UNAVAILABLE",
+        )
+    )
+    db_session.flush()
+
+    result = desktop_api.resolve_calendar_range(
+        ResolveCalendarRangeCommand(start_date="2026-06-01", end_date="2026-06-05")
+    )
+
+    assert result.ok is True
+    day = next(d for d in result.data if d.date == "2026-06-03")
+    assert day.is_working_day is False
+    assert day.exception_type == "HOLIDAY"
+    assert day.exception_name == "German Unity Day"
+    assert day.impact_type == "UNAVAILABLE"
+    # An unrelated day in the same range must not pick up the exception.
+    other_day = next(d for d in result.data if d.date == "2026-06-01")
+    assert other_day.exception_name == ""

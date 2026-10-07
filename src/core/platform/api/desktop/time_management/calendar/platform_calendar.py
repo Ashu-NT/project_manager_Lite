@@ -9,6 +9,7 @@ from src.core.platform.api.desktop.support._support import execute_desktop_opera
 from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
     CalendarAssignmentDto,
     CalendarCreateCommand,
+    CalendarDayDto,
     CalendarDto,
     CalendarExceptionDto,
     CalendarUpdateCommand,
@@ -21,6 +22,7 @@ from src.core.platform.api.desktop.time_management.calendar.models.platform_cale
     RecurringEventCreateCommand,
     RecurringEventDto,
     RecurringEventUpdateCommand,
+    ResolveCalendarRangeCommand,
     ResolveContextCommand,
     ResolveEffectiveCalendarCommand,
     ResolvedContextDto,
@@ -118,6 +120,7 @@ def _serialize_calendar(cal: PlatformCalendar) -> CalendarDto:
         effective_to=_fmt_date(cal.effective_to),
         priority=cal.priority,
         version=cal.version,
+        updated_at=cal.updated_at.isoformat() if cal.updated_at else "",
     )
 
 
@@ -175,6 +178,22 @@ def _serialize_recurring_event(event: CalendarRecurringEvent) -> RecurringEventD
         capacity_impact_percent=event.capacity_impact_percent or 0.0,
         effective_to=_fmt_date(event.effective_to),
         priority=event.priority,
+    )
+
+
+def _serialize_calendar_day(ctx) -> CalendarDayDto:
+    exc = ctx.exceptions[0] if ctx.exceptions else None
+    return CalendarDayDto(
+        date=str(ctx.date),
+        is_working_day=ctx.available_hours > 0,
+        base_hours=ctx.base_hours,
+        available_hours=ctx.available_hours,
+        status=ctx.status,
+        start_time=_fmt_time(ctx.working_start),
+        end_time=_fmt_time(ctx.working_end),
+        exception_type=str(exc.get("type", "")) if exc else "",
+        exception_name=str(exc.get("name", "")) if exc else "",
+        impact_type=str(exc.get("impact", "")) if exc else "",
     )
 
 
@@ -824,6 +843,28 @@ class PlatformCalendarDesktopApi:
                 working_start=_fmt_time(ctx.working_start),
                 working_end=_fmt_time(ctx.working_end),
             )
+
+        return execute_desktop_operation(_resolve)
+
+    def resolve_calendar_range(
+        self, command: ResolveCalendarRangeCommand
+    ) -> DesktopApiResult:
+        """One bounded range resolution (single set of DB queries, see
+        PlatformCalendarResolver.resolve_range) for a visual Month view --
+        callers must request the whole visible range in one call, never one
+        day at a time."""
+        def _resolve():
+            days = self._resolver.resolve_range(
+                site_id=command.site_id or None,
+                department_id=command.department_id or None,
+                employee_id=command.employee_id or None,
+                project_id=command.project_id or None,
+                resource_id=command.resource_id or None,
+                worker_type=command.worker_type or None,
+                start=date.fromisoformat(command.start_date),
+                end=date.fromisoformat(command.end_date),
+            )
+            return tuple(_serialize_calendar_day(day) for day in days)
 
         return execute_desktop_operation(_resolve)
 
