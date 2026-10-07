@@ -220,21 +220,27 @@ Item {
                     visible: root._selectedEvent !== null
                     spacing: Theme.AppTheme.spacingXs
 
-                    RowLayout {
+                    Item {
                         Layout.fillWidth: true
-                        spacing: Theme.AppTheme.spacingXs
+                        implicitHeight: _advancedToggleRow.implicitHeight
 
-                        AppIcons.AppIcon {
-                            name: root._advancedExpanded ? "chevron_down" : "chevron_right"
-                            size: Theme.AppTheme.iconXs
-                            iconColor: Theme.AppTheme.textMuted
+                        RowLayout {
+                            id: _advancedToggleRow
+                            anchors.fill: parent
+                            spacing: Theme.AppTheme.spacingXs
+
+                            AppIcons.AppIcon {
+                                name: root._advancedExpanded ? "chevron_down" : "chevron_right"
+                                size: Theme.AppTheme.iconXs
+                                iconColor: Theme.AppTheme.textMuted
+                            }
+                            AppControls.Label {
+                                text: "Advanced recurrence"
+                                color: Theme.AppTheme.textMuted
+                                font.pixelSize: Theme.AppTheme.captionSize
+                            }
+                            Item { Layout.fillWidth: true }
                         }
-                        AppControls.Label {
-                            text: "Advanced recurrence"
-                            color: Theme.AppTheme.textMuted
-                            font.pixelSize: Theme.AppTheme.captionSize
-                        }
-                        Item { Layout.fillWidth: true }
 
                         MouseArea {
                             anchors.fill: parent

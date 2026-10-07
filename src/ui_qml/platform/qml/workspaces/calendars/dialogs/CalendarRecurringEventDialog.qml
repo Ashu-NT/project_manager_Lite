@@ -82,7 +82,16 @@ AppWidgets.EntityDialog {
     property int _dayOfMonth: 1
     property int _nth: 1
     property string _nthWeekday: "MO"
-    property bool _endsNever: true
+    // "Ends" is an end-mode field, not two independent radios -- only
+    // "Never"/"On date" are offered because that's all effective_from/
+    // effective_to (the sole authoritative end-date fields) actually
+    // support; there is no backend occurrence-count field to add an
+    // "After N occurrences" option for.
+    property string _endsMode: "NEVER"
+    readonly property var _endsModeOptions: [
+        { "value": "NEVER", "label": "Never" },
+        { "value": "ON_DATE", "label": "On date" }
+    ]
     property bool _useAdvancedRule: false
 
     function _currentEditorState() {
@@ -137,7 +146,7 @@ AppWidgets.EntityDialog {
         endTime: root._trimmed(endTimeField.text),
         impactType: (root._impactTypes[impactCombo.currentIndex] || {}).value || "UNAVAILABLE",
         effectiveFrom: root._trimmed(effectiveFromField.text),
-        effectiveTo: root._endsNever ? "" : root._trimmed(effectiveToField.text),
+        effectiveTo: root._endsMode === "ON_DATE" ? root._trimmed(effectiveToField.text) : "",
         capacityImpactPercent: root._trimmed(capacityField.text).length > 0
             ? parseFloat(root._trimmed(capacityField.text)) : 0.0
     })
@@ -173,7 +182,8 @@ AppWidgets.EntityDialog {
         nthCombo.currentIndex = root._indexOfValue(root._nthOptions, root._nth)
         nthWeekdayCombo.currentIndex = root._indexOfValue(root._weekdays.map(function(w) { return { "value": w.code } }), root._nthWeekday)
         dayOfMonthRadio.checked = true
-        endsNeverRadio.checked = true
+        root._endsMode = "NEVER"
+        endsModeCombo.currentIndex = root._indexOfValue(root._endsModeOptions, root._endsMode)
         advancedRuleField.text = ""
         root._syncWeekdayChips()
         open()
@@ -220,8 +230,8 @@ AppWidgets.EntityDialog {
         nthWeekdayCombo.currentIndex = root._indexOfValue(root._weekdays.map(function(w) { return { "value": w.code } }), root._nthWeekday)
         if (root._monthlyMode === "NTH_WEEKDAY") nthWeekdayRadio.checked = true
         else dayOfMonthRadio.checked = true
-        if (hasEnd) endsOnDateRadio.checked = true
-        else endsNeverRadio.checked = true
+        root._endsMode = hasEnd ? "ON_DATE" : "NEVER"
+        endsModeCombo.currentIndex = root._indexOfValue(root._endsModeOptions, root._endsMode)
         advancedRuleField.text = existingRule
         root._syncWeekdayChips()
         open()
@@ -246,7 +256,7 @@ AppWidgets.EntityDialog {
             root.errorMessage = "Starts date is required (YYYY-MM-DD)."
             return
         }
-        if (!root._endsNever && root._trimmed(effectiveToField.text).length === 0) {
+        if (root._endsMode === "ON_DATE" && root._trimmed(effectiveToField.text).length === 0) {
             root.errorMessage = "Choose an end date, or select \"Never\"."
             return
         }
@@ -382,6 +392,7 @@ AppWidgets.EntityDialog {
                     model: root._weekdays
                     delegate: AppControls.ChoiceChip {
                         required property var modelData
+                        objectName: "recurringWeekdayChip_" + modelData.code
                         text: modelData.label
                         onCheckedChanged: {
                             const code = modelData.code
@@ -468,27 +479,27 @@ AppWidgets.EntityDialog {
             AppWidgets.FormField {
                 Layout.fillWidth: true
                 label: "Ends"
-                ColumnLayout {
-                    spacing: Theme.AppTheme.spacingXs
-                    RowLayout {
-                        spacing: Theme.AppTheme.spacingSm
-                        AppControls.RadioButton {
-                            id: endsNeverRadio
-                            objectName: "recurringEndsNeverRadio"
-                            text: "Never"
-                            onCheckedChanged: if (checked) root._endsNever = true
-                        }
-                        AppControls.RadioButton {
-                            id: endsOnDateRadio
-                            objectName: "recurringEndsOnDateRadio"
-                            text: "On date"
-                            onCheckedChanged: if (checked) root._endsNever = false
-                        }
+                // Flow (not RowLayout) so the conditional end-date field
+                // wraps onto its own line within this field group at
+                // narrow widths, rather than disturbing the Starts/Ends
+                // row's shared baseline or requiring hardcoded breakpoints.
+                Flow {
+                    Layout.fillWidth: true
+                    width: parent ? parent.width : implicitWidth
+                    spacing: Theme.AppTheme.spacingSm
+
+                    AppControls.ComboBox {
+                        id: endsModeCombo
+                        objectName: "recurringEndsModeCombo"
+                        model: root._endsModeOptions
+                        textRole: "label"
+                        onActivated: function(index) { root._endsMode = root._endsModeOptions[index].value }
                     }
                     AppControls.DateField {
                         id: effectiveToField
-                        Layout.fillWidth: true
-                        enabled: !root._endsNever
+                        objectName: "recurringEndsDateField"
+                        visible: root._endsMode === "ON_DATE"
+                        width: 160
                         placeholderText: "YYYY-MM-DD"
                     }
                 }
@@ -515,20 +526,28 @@ AppWidgets.EntityDialog {
             }
         }
 
-        RowLayout {
+        Item {
             Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingXs
-            AppIcons.AppIcon {
-                name: root._useAdvancedRule ? "chevron_down" : "chevron_right"
-                size: Theme.AppTheme.iconXs
-                iconColor: Theme.AppTheme.textMuted
+            implicitHeight: _advancedToggleRow.implicitHeight
+
+            RowLayout {
+                id: _advancedToggleRow
+                anchors.fill: parent
+                spacing: Theme.AppTheme.spacingXs
+
+                AppIcons.AppIcon {
+                    name: root._useAdvancedRule ? "chevron_down" : "chevron_right"
+                    size: Theme.AppTheme.iconXs
+                    iconColor: Theme.AppTheme.textMuted
+                }
+                AppControls.Label {
+                    text: "Advanced recurrence"
+                    color: Theme.AppTheme.textMuted
+                    font.pixelSize: Theme.AppTheme.captionSize
+                }
+                Item { Layout.fillWidth: true }
             }
-            AppControls.Label {
-                text: "Advanced recurrence"
-                color: Theme.AppTheme.textMuted
-                font.pixelSize: Theme.AppTheme.captionSize
-            }
-            Item { Layout.fillWidth: true }
+
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
