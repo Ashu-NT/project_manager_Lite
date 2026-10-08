@@ -622,6 +622,54 @@ class SqlAlchemyCalendarRecurringEventRepository(
         rows = self._session.execute(stmt).scalars().all()
         return [recurring_event_from_orm(r) for r in rows]
 
+    def list_page_for_calendar(
+        self,
+        calendar_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        event_type: str | None = None,
+        impact_type: str | None = None,
+        is_active: bool | None = None,
+    ) -> tuple[list[CalendarRecurringEvent], int, int]:
+        ctx = self._context(operation_label="access recurring events")
+        base = _scoped_calendar_stmt(
+            select(CalendarRecurringEventORM), CalendarRecurringEventORM, ctx
+        ).where(CalendarRecurringEventORM.calendar_id == calendar_id)
+        total = self._session.execute(
+            select(func.count()).select_from(base.subquery())
+        ).scalar_one()
+
+        filtered = base
+        normalized_search = str(search or "").strip()
+        if normalized_search:
+            filtered = filtered.where(
+                CalendarRecurringEventORM.title.ilike(f"%{normalized_search}%")
+            )
+        if event_type:
+            filtered = filtered.where(CalendarRecurringEventORM.event_type == event_type)
+        if impact_type:
+            filtered = filtered.where(CalendarRecurringEventORM.impact_type == impact_type)
+        if is_active is not None:
+            filtered = filtered.where(CalendarRecurringEventORM.is_active.is_(is_active))
+        filtered_total = self._session.execute(
+            select(func.count()).select_from(filtered.subquery())
+        ).scalar_one()
+
+        normalized_page = max(1, page)
+        normalized_size = min(100, max(1, page_size))
+        rows = self._session.execute(
+            filtered.order_by(
+                CalendarRecurringEventORM.priority.desc(),
+                CalendarRecurringEventORM.title,
+                CalendarRecurringEventORM.id,
+            )
+            .offset((normalized_page - 1) * normalized_size)
+            .limit(normalized_size)
+        ).scalars().all()
+        return [recurring_event_from_orm(row) for row in rows], total, filtered_total
+
     def get(self, event_id: str) -> CalendarRecurringEvent | None:
         ctx = self._context(operation_label="access recurring events")
         stmt = _scoped_calendar_stmt(

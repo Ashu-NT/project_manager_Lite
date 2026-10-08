@@ -1,5 +1,6 @@
 from .action_runner import run_admin_action, run_admin_result_action
 from .error_sanitizer import DEFAULT_SAFE_FAILURE_MESSAGE, safe_exception_message
+from .history_preview import run_history_preview
 from .mutation_runner import run_mutation
 from .permission_map import WORKSPACE_PERMISSIONS
 from .serializers import (
@@ -16,6 +17,7 @@ __all__ = [
     "PlatformWorkspaceControllerBase",
     "run_admin_action",
     "run_admin_result_action",
+    "run_history_preview",
     "run_mutation",
     "safe_exception_message",
     "serialize_action_item",

@@ -38,7 +38,10 @@ from src.ui_qml.platform.controllers.calendars.recurrence import (
     parse_recurrence_rule,
     recurrence_summary,
 )
-from src.ui_qml.platform.controllers.common import PlatformWorkspaceControllerBase
+from src.ui_qml.platform.controllers.common import (
+    PlatformWorkspaceControllerBase,
+    run_history_preview,
+)
 from src.ui_qml.platform.controllers.departments.actions import (
     activate_department,
     create_department,
@@ -630,11 +633,15 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot(str, result="QVariantMap")
     def organizationDetailContext(self, organization_id: str) -> dict[str, object]:
-        return self._organization_controller.organizationDetailContext(organization_id)
+        result = self._organization_controller.organizationDetailContext(organization_id)
+        self._set_error_message(self._organization_controller.errorMessage)
+        return result
 
     @Slot(str, result="QVariantList")
     def organizationActivity(self, organization_id: str) -> list[dict[str, object]]:
-        return self._organization_controller.organizationActivity(organization_id)
+        result = self._organization_controller.organizationActivity(organization_id)
+        self._set_error_message(self._organization_controller.errorMessage)
+        return result
 
     @Slot(str, result="QVariantMap")
     def organizationCalendarSummary(self, organization_id: str) -> dict[str, object]:
@@ -780,7 +787,13 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot(str, str, result="QVariantList")
     def calendarActivity(self, calendar_id: str, organization_id: str) -> list[dict[str, object]]:
-        return self._calendar_controller.calendarActivity(calendar_id, organization_id)
+        return run_history_preview(
+            operation=lambda: self._calendar_controller.calendarActivity(
+                calendar_id, organization_id
+            ),
+            set_error_message=self._set_error_message,
+            label="calendar activity",
+        )
 
     @Slot(str, str, int, int, str, str, result="QVariantMap")
     def calendarActivityPage(
@@ -847,7 +860,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot(str, str, result="QVariantList")
     def siteActivity(self, site_id: str, organization_id: str) -> list[dict[str, object]]:
-        return self._site_controller.siteActivity(site_id, organization_id)
+        result = self._site_controller.siteActivity(site_id, organization_id)
+        self._set_error_message(self._site_controller.errorMessage)
+        return result
 
     @Slot(str, str, int, int, str, str, result="QVariantMap")
     def siteActivityPage(
@@ -905,7 +920,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot(str, str, result="QVariantList")
     def departmentActivity(self, department_id: str, organization_id: str) -> list[dict[str, object]]:
-        return self._department_controller.departmentActivity(department_id, organization_id)
+        result = self._department_controller.departmentActivity(department_id, organization_id)
+        self._set_error_message(self._department_controller.errorMessage)
+        return result
 
     @Slot(str, str, int, int, str, str, result="QVariantMap")
     def departmentActivityPage(
@@ -1066,7 +1083,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot(str, str, result="QVariantList")
     def employeeActivity(self, employee_id: str, organization_id: str) -> list[dict[str, object]]:
-        return self._employee_controller.employeeActivity(employee_id, organization_id)
+        result = self._employee_controller.employeeActivity(employee_id, organization_id)
+        self._set_error_message(self._employee_controller.errorMessage)
+        return result
 
     @Slot(str, str, int, int, str, str, result="QVariantMap")
     def employeeActivityPage(
@@ -1178,7 +1197,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot(str, str, result="QVariantList")
     def partyActivity(self, party_id: str, organization_id: str) -> list[dict[str, object]]:
-        return self._party_controller.partyActivity(party_id, organization_id)
+        result = self._party_controller.partyActivity(party_id, organization_id)
+        self._set_error_message(self._party_controller.errorMessage)
+        return result
 
     @Slot(str, str, int, int, str, str, result="QVariantMap")
     def partyActivityPage(

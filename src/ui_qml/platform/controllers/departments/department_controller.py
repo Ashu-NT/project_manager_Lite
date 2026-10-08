@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.platform.controllers.common import (
+    run_history_preview,
     run_mutation,
     safe_exception_message,
     serialize_action_list,
@@ -14,7 +15,6 @@ from src.ui_qml.platform.presenters.departments.department_catalog_presenter imp
     PlatformDepartmentCatalogPresenter,
 )
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
-
 
 _DEPARTMENT_PAGE_SIZE_OPTIONS = (25, 50, 100)
 _DEFAULT_DEPARTMENT_PAGE_SIZE = 25
@@ -320,7 +320,13 @@ class PlatformDepartmentController(QObject):
         normalized_org_id = organization_id.strip()
         if not normalized_department_id or not normalized_org_id:
             return []
-        return self._activity_presenter.build_recent_activity(normalized_department_id, normalized_org_id)
+        return run_history_preview(
+            operation=lambda: self._activity_presenter.build_recent_activity(
+                normalized_department_id, normalized_org_id
+            ),
+            set_error_message=self._set_error_message,
+            label="department activity",
+        )
 
     @Slot(str, str, int, int, str, str, result="QVariantMap")
     def departmentActivityPage(

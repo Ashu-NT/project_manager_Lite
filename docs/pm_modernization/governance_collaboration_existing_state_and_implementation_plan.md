@@ -1324,3 +1324,33 @@ the existing overview Desktop Activity adapter still catches query/permission
 errors and returns an empty tuple; that must be corrected with a safe
 presenter/controller contract rather than allowing raw exceptions into QML.
 Do not mark R7G complete or start R7H until these are resolved.
+
+#### R7G Continuation (2026-10-08)
+
+- Activity overview Desktop API methods no longer convert every exception to
+  an empty tuple. Organization/Site/Department/Employee/Party/Calendar previews
+  now use a shared safe controller runner: empty history is distinct from
+  permission/query failure, the raw exception is logged, and QML receives only
+  a curated error. The aggregate `adminWorkspace` controller forwards child
+  errors to the property actually bound by QML; Calendar is handled there
+  directly. Organization Detail's combined context read also sanitizes and
+  logs failures. Controller/API regressions cover permission denial,
+  unexpected SQL-like exception text, child delegates, and aggregate forwarding.
+- A separately introduced calendar contract mismatch blocked application graph
+  construction before Activity tests could run. The recurring-event repository
+  now implements its required scoped SQL page/count/filter method with a hard
+  page-size cap and stable ordering; a focused pagination/filter regression
+  covers it. This is a fixture/startup repair, not an R7G history authority.
+- Focused Activity/Audit/calendar/UI selection from this worktree: **57 passed**.
+  Preview error contract selection: **9 passed**. Scoped Ruff F/I passes on
+  touched files. Targeted mypy passes for the new Activity Desktop API and
+  preview runner; broader mypy still reports pre-existing Qt `Property` typing
+  issues and an existing calendar ORM assignment mismatch, so it is not
+  represented as globally green.
+- Remaining high-priority boundedness issue: the shared Activity presenter
+  helper `build_actor_lookup()` calls administrative `list_users()` and loads
+  the complete user directory for a bounded Activity page. Replace this with
+  a scoped batch actor-label projection keyed only by actor IDs on that page;
+  do not trade the full-list query for N+1 per-row reads. Preserve safe
+  missing/disabled/service-actor presentation and avoid exposing user-admin
+  data to ordinary Activity readers.

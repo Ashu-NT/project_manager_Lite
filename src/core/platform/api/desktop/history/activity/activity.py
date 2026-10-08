@@ -53,12 +53,9 @@ class PlatformActivityDesktopApi:
         restricts to exactly those (e.g. Organization Detail's own five
         entity types, excluding other modules' deeply-nested activity that
         happens to share this organization_id)."""
-        try:
-            entries = self._activity_service.list_recent_for_organization_id(
-                organization_id, limit=limit, entity_types=entity_types
-            )
-        except Exception:
-            return ()
+        entries = self._activity_service.list_recent_for_organization_id(
+            organization_id, limit=limit, entity_types=entity_types
+        )
         return self._serialize_entries(entries)
 
     def list_for_entity_overview(
@@ -68,12 +65,9 @@ class PlatformActivityDesktopApi:
         explicit organization (which may not be the caller's active one),
         used by that entity's Overview "Recent Activity" preview -- the
         entity-scoped analog of list_for_organization_overview above."""
-        try:
-            entries = self._activity_service.list_recent_for_entity(
-                entity_type, entity_id, organization_id, limit=limit
-            )
-        except Exception:
-            return ()
+        entries = self._activity_service.list_recent_for_entity(
+            entity_type, entity_id, organization_id, limit=limit
+        )
         return self._serialize_entries(entries)
 
     def list_page_for_entity(
