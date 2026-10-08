@@ -99,6 +99,14 @@ class ProjectUpdateMixin(ProjectSupportMixin):
             raise BusinessRuleError(
                 "Project organization is required.", code="PROJECT_ORGANIZATION_REQUIRED"
             )
+        if client_party_id is not None and client_party_id != project.client_party_id:
+            self._validate_client_party(client_party_id, resolved_organization_id)
+        elif project.client_party_id and resolved_organization_id != project.organization_id:
+            self._validate_client_party(project.client_party_id, resolved_organization_id)
+        if department_id is not None and department_id != project.department_id:
+            self._validate_department_reference(department_id, resolved_organization_id)
+        elif project.department_id and resolved_organization_id != project.organization_id:
+            self._validate_department_reference(project.department_id, resolved_organization_id)
         candidate = replace(
             project,
             name=project.name if name is None else name,

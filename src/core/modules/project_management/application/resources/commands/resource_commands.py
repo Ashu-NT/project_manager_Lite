@@ -103,6 +103,11 @@ class ResourceCommandMixin:
                     "Employee resources require an employee selection.",
                     code="RESOURCE_EMPLOYEE_REQUIRED",
                 )
+            if employee_id and resolved_worker_type != WorkerType.EMPLOYEE:
+                raise ValidationError(
+                    "Only employee resources may link to a directory identity.",
+                    code="RESOURCE_EMPLOYEE_LINK_INVALID",
+                )
             if employee_id:
                 if self._employee_repo is None:
                     raise BusinessRuleError(
@@ -252,7 +257,7 @@ class ResourceCommandMixin:
         )
         if employee is not None:
             name = employee.full_name
-            role = employee.title or role
+            role = role.strip() or employee.title
             contact = _employee_contact(employee) or contact
             employee_id = employee.id
 
@@ -330,7 +335,7 @@ class ResourceCommandMixin:
             )
         if employee is not None:
             name = employee.full_name
-            role = employee.title or role
+            role = role.strip() or resource.role
             contact = _employee_contact(employee) or contact
             employee_id = employee.id
 

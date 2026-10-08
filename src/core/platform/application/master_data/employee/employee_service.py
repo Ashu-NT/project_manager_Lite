@@ -6,12 +6,16 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.platform.application.master_data.documents.document_service import (
+    DocumentService,
+)
 from src.core.platform.application.master_data.employee import employee_commands as _cmd
-from src.core.platform.application.master_data.employee import employee_documents as _docs
+from src.core.platform.application.master_data.employee import (
+    employee_documents as _docs,
+)
 from src.core.platform.application.master_data.employee.employee_support import (
     resolve_employee_department_reference,
     resolve_employee_site_for_department,
-    sync_linked_employee_resources,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -25,9 +29,6 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.common.ids import generate_id
-from src.core.platform.contract.interface.master_data.employee.contracts import (
-    ResourceMasterEventFactory,
-)
 from src.core.platform.contract.read.master_data.employee.employee_headcount_reader import (
     EmployeeDepartmentBreakdownRow,
     EmployeeHeadcountReader,
@@ -39,16 +40,12 @@ from src.core.platform.contract.repositories.master_data.department.contracts im
 )
 from src.core.platform.contract.repositories.master_data.employee.contracts import (
     EmployeeRepository,
-    LinkedEmployeeResourceRepository,
 )
 from src.core.platform.contract.repositories.master_data.org.contracts import (
     OrganizationRepository,
 )
 from src.core.platform.contract.repositories.master_data.site.contracts import (
     SiteRepository,
-)
-from src.core.platform.application.master_data.documents.document_service import (
-    DocumentService,
 )
 from src.core.platform.contract.repositories.security.auth.auth_repository import (
     UserRepository,
@@ -60,11 +57,11 @@ from src.core.platform.contract.uow.employee_unit_of_work import (
     EmployeeUnitOfWorkFactory,
 )
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
-from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.employee.events import (
     EmployeeCreated,
     EmployeeProfileUpdated,
 )
+from src.core.platform.domain.master_data.org import Organization
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -96,7 +93,6 @@ class EmployeeService:
         session: Session,
         employee_repo: EmployeeRepository,
         *,
-        resource_repo: LinkedEmployeeResourceRepository | None = None,
         site_repo: SiteRepository | None = None,
         department_repo: DepartmentRepository | None = None,
         organization_repo: OrganizationRepository | None = None,
@@ -107,13 +103,11 @@ class EmployeeService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         headcount_reader: EmployeeHeadcountReader | None = None,
-        resource_master_event_factory: ResourceMasterEventFactory | None = None,
         uow_factory: EmployeeUnitOfWorkFactory,
         clock: Clock,
     ):
         self._session = session
         self._employee_repo = employee_repo
-        self._resource_repo = resource_repo
         self._site_repo = site_repo
         self._department_repo = department_repo
         self._organization_repo = organization_repo
@@ -132,7 +126,6 @@ class EmployeeService:
         # DocumentService's own central authorization/audit/event guarantees.
         self._document_service = document_service
         self._headcount_reader = headcount_reader
-        self._resource_master_event_factory = resource_master_event_factory
         self._uow_factory = uow_factory
         self._clock = clock
         self._tenant_context_service = tenant_context_service
@@ -415,7 +408,6 @@ class EmployeeService:
 
             try:
                 uow.employees.update(candidate)
-                touched_resources = sync_linked_employee_resources(candidate, uow.resources)
                 audit_action = "employee.update"
                 record_audit_entry(
                     uow,
@@ -450,13 +442,6 @@ class EmployeeService:
                         occurred_at=self._clock.now(),
                     )
                 )
-                if self._resource_master_event_factory is not None:
-                    for resource in touched_resources:
-                        uow.record_event(
-                            self._resource_master_event_factory(
-                                resource, tenant_id=tenant_id, organization_id=organization_id
-                            )
-                        )
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc

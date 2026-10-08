@@ -10,9 +10,6 @@ from src.core.platform.application.history.activity.activity_service import (
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.contract.repositories.master_data.employee.contracts import (
-    LinkedEmployeeResourceRepository,
-)
 from src.core.platform.contract.uow.employee_unit_of_work import EmployeeUnitOfWork
 from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
     SqlAlchemyActivityRepository,
@@ -50,7 +47,6 @@ class SqlAlchemyEmployeeUnitOfWork(SqlAlchemyUnitOfWorkBase, EmployeeUnitOfWork)
         context: DomainEventContext,
         tenant_context_service,
         user_session,
-        resource_repo_factory: Callable[[Session], LinkedEmployeeResourceRepository],
     ) -> None:
         super().__init__(
             session=session,
@@ -59,10 +55,9 @@ class SqlAlchemyEmployeeUnitOfWork(SqlAlchemyUnitOfWorkBase, EmployeeUnitOfWork)
             context=context,
         )
         self.employees = SqlAlchemyEmployeeRepository(session)
-        self.resources = resource_repo_factory(session)
         self.sites = SqlAlchemySiteRepository(session)
         self.departments = SqlAlchemyDepartmentRepository(session)
-        for repo in (self.employees, self.resources, self.sites, self.departments):
+        for repo in (self.employees, self.sites, self.departments):
             if hasattr(repo, "_tenant_context_service"):
                 repo._tenant_context_service = tenant_context_service
 
@@ -94,7 +89,6 @@ class SqlAlchemyEmployeeUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
         post_commit_bus: PostCommitEventPublisher,
         tenant_context_service,
         user_session,
-        resource_repo_factory: Callable[[Session], LinkedEmployeeResourceRepository],
     ) -> None:
         super().__init__(
             session_factory=session_factory,
@@ -103,7 +97,6 @@ class SqlAlchemyEmployeeUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
         )
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
-        self._resource_repo_factory = resource_repo_factory
 
     def create(self, *, context: DomainEventContext) -> SqlAlchemyEmployeeUnitOfWork:
         return SqlAlchemyEmployeeUnitOfWork(
@@ -113,7 +106,6 @@ class SqlAlchemyEmployeeUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
             context=context,
             tenant_context_service=self._tenant_context_service,
             user_session=self._user_session,
-            resource_repo_factory=self._resource_repo_factory,
         )
 
 

@@ -152,7 +152,10 @@ class ProjectManagementResourcesDesktopApi:
             self._resource_service.list_resources(),
             key=lambda resource: (
                 not bool(getattr(resource, "is_active", True)),
-                str(getattr(resource, "name", "") or "").casefold(),
+                str(
+                    getattr(employee_lookup.get(getattr(resource, "employee_id", None)), "name", "")
+                    or getattr(resource, "name", "") or ""
+                ).casefold(),
             ),
         )
         return tuple(

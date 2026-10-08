@@ -146,19 +146,10 @@ class _FakeSiteRepo:
         return sorted(rows, key=lambda row: row.name)
 
 
-class _FakeLinkedEmployeeResourceRepo:
-    def list_by_employee(self, employee_id: str) -> list[object]:
-        return []
-
-    def update(self, resource: object) -> None:
-        return None
-
-
 class _FakeEmployeeUnitOfWork:
-    def __init__(self, *, session, employees, resources, sites, departments, enterprise_audit_service, context):
+    def __init__(self, *, session, employees, sites, departments, enterprise_audit_service, context):
         self._session = session
         self.employees = employees
-        self.resources = resources
         self.sites = sites
         self.departments = departments
         self._enterprise_audit_service = enterprise_audit_service
@@ -181,10 +172,9 @@ class _FakeEmployeeUnitOfWork:
 
 
 class _FakeEmployeeUnitOfWorkFactory:
-    def __init__(self, *, session, employees, resources, sites, departments, enterprise_audit_service):
+    def __init__(self, *, session, employees, sites, departments, enterprise_audit_service):
         self._session = session
         self._employees = employees
-        self._resources = resources
         self._sites = sites
         self._departments = departments
         self._enterprise_audit_service = enterprise_audit_service
@@ -193,7 +183,6 @@ class _FakeEmployeeUnitOfWorkFactory:
         return _FakeEmployeeUnitOfWork(
             session=self._session,
             employees=self._employees,
-            resources=self._resources,
             sites=self._sites,
             departments=self._departments,
             enterprise_audit_service=self._enterprise_audit_service,
@@ -475,12 +464,10 @@ def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
     department_repo.add(next_department)
 
     session = _FakeSession()
-    resource_repo = _FakeLinkedEmployeeResourceRepo()
     enterprise_audit_service = _FakeEnterpriseAuditService()
     service = EmployeeService(
         session=session,
         employee_repo=employee_repo,
-        resource_repo=resource_repo,
         site_repo=site_repo,
         department_repo=department_repo,
         organization_repo=object(),
@@ -490,7 +477,6 @@ def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
         uow_factory=_FakeEmployeeUnitOfWorkFactory(
             session=session,
             employees=employee_repo,
-            resources=resource_repo,
             sites=site_repo,
             departments=department_repo,
             enterprise_audit_service=enterprise_audit_service,

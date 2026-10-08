@@ -10,7 +10,6 @@ from src.core.platform.contract.repositories.master_data.department.contracts im
 )
 from src.core.platform.contract.repositories.master_data.employee.contracts import (
     EmployeeRepository,
-    LinkedEmployeeResourceRepository,
 )
 from src.core.platform.contract.repositories.master_data.site.contracts import (
     SiteRepository,
@@ -20,7 +19,6 @@ from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFacto
 
 class EmployeeUnitOfWork(UnitOfWork, Protocol):
     employees: EmployeeRepository
-    resources: LinkedEmployeeResourceRepository
     sites: SiteRepository
     departments: DepartmentRepository
     _enterprise_audit_service: EnterpriseAuditService

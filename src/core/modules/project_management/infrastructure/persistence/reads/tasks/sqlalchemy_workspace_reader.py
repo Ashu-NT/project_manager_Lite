@@ -31,6 +31,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskDependencyORM,
     TaskORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.resources.identity_expressions import (
+    resource_display_name,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
     stable_order_by,
 )
@@ -108,7 +111,7 @@ class SqlAlchemyTaskWorkspaceReader:
         if normalized_search:
             pattern = _contains_pattern(normalized_search)
             filters.append(or_(
-                func.lower(ResourceORM.name).like(pattern, escape="\\"),
+                func.lower(resource_display_name()).like(pattern, escape="\\"),
                 func.lower(func.coalesce(ResourceORM.resource_code, "")).like(pattern, escape="\\"),
                 func.lower(func.coalesce(ResourceORM.role, "")).like(pattern, escape="\\"),
             ))
@@ -131,7 +134,7 @@ class SqlAlchemyTaskWorkspaceReader:
             select(func.count(TaskAssignmentORM.id)).select_from(from_clause).where(*filters)
         ) or 0)
         sort_expressions = {
-            "resourceName": (func.lower(ResourceORM.name),),
+            "resourceName": (func.lower(resource_display_name()),),
             "resourceCode": (func.lower(func.coalesce(ResourceORM.resource_code, "")),),
             "role": (func.lower(func.coalesce(ResourceORM.role, "")),),
             "allocationPercent": (TaskAssignmentORM.allocation_percent,),
@@ -142,7 +145,7 @@ class SqlAlchemyTaskWorkspaceReader:
         }
         rows = self._session.execute(select(
             TaskAssignmentORM.id, ResourceORM.id, ResourceORM.resource_code,
-            ResourceORM.name, ResourceORM.role, TaskAssignmentORM.allocation_percent,
+            resource_display_name(), ResourceORM.role, TaskAssignmentORM.allocation_percent,
             TaskAssignmentORM.allocated_planned_hours, actual,
             TaskAssignmentORM.response_status, TaskAssignmentORM.project_resource_id,
             TaskAssignmentORM.version, EmployeeORM.user_id,

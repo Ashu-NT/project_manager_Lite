@@ -25,6 +25,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskAssignmentORM,
     TaskORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.resources.identity_expressions import (
+    resource_display_name,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
     stable_order_by,
 )
@@ -100,30 +103,34 @@ def _with_resource_context_joins(statement):
 
 
 def _department_id_expression():
-    return func.coalesce(ResourceORM.department_id, EmployeeORM.department_id)
+    return func.coalesce(EmployeeORM.department_id, ResourceORM.department_id)
 
 
 def _department_label_expression():
     return func.coalesce(
-        ResourceDepartment.name,
         EmployeeDepartment.name,
         EmployeeORM.department,
+        ResourceDepartment.name,
         "",
     )
 
 
 def _site_id_expression():
-    return func.coalesce(ResourceORM.site_id, EmployeeORM.site_id, ResourceDepartment.site_id)
+    return func.coalesce(EmployeeORM.site_id, ResourceORM.site_id, ResourceDepartment.site_id)
 
 
 def _site_label_expression():
     return func.coalesce(
-        ResourceSite.name,
         EmployeeSite.name,
-        DepartmentSite.name,
         EmployeeORM.site_name,
+        ResourceSite.name,
+        DepartmentSite.name,
         "",
     )
+
+
+def _contact_expression():
+    return func.coalesce(func.nullif(EmployeeORM.email, ""), EmployeeORM.phone, ResourceORM.contact)
 
 
 class SqlAlchemyResourceCatalogReader:
@@ -178,21 +185,22 @@ class SqlAlchemyResourceCatalogReader:
                     func.lower(func.coalesce(ResourceORM.resource_code, "")).like(
                         pattern, escape="\\"
                     ),
-                    func.lower(ResourceORM.name).like(pattern, escape="\\"),
+                    func.lower(resource_display_name()).like(pattern, escape="\\"),
                     func.lower(func.coalesce(ResourceORM.role, "")).like(
                         pattern, escape="\\"
                     ),
                 )
             )
 
-        filtered_total = int(
-            self._session.scalar(select(func.count(ResourceORM.id)).where(*filtered)) or 0
-        )
+        filtered_total = int(self._session.scalar(
+            _with_resource_context_joins(select(func.count(ResourceORM.id)).select_from(ResourceORM))
+            .where(*filtered)
+        ) or 0)
         rows_stmt = _with_resource_context_joins(
             select(
                 ResourceORM.id,
                 ResourceORM.resource_code,
-                ResourceORM.name,
+                resource_display_name(),
                 ResourceORM.kind,
                 ResourceORM.role,
                 ResourceORM.worker_type,
@@ -212,7 +220,7 @@ class SqlAlchemyResourceCatalogReader:
             ).select_from(ResourceORM)
         )
         sort_expressions = {
-            "title": (func.lower(ResourceORM.name),),
+            "title": (func.lower(resource_display_name()),),
             "resourceCode": (func.lower(func.coalesce(ResourceORM.resource_code, "")),),
             "statusLabel": (ResourceORM.is_active,),
             "department": (func.lower(_department_label_expression()),),
@@ -222,7 +230,7 @@ class SqlAlchemyResourceCatalogReader:
             "capacityPercent": (ResourceORM.capacity_percent,),
         }
         order_by = (
-            (ResourceORM.is_active.desc(), func.lower(ResourceORM.name).asc(), ResourceORM.id.asc())
+            (ResourceORM.is_active.desc(), func.lower(resource_display_name()).asc(), ResourceORM.id.asc())
             if sort.key == "catalog"
             else stable_order_by(
                 sort=sort,
@@ -304,7 +312,7 @@ class SqlAlchemyResourceCatalogReader:
             select(
                 ResourceORM.id,
                 ResourceORM.resource_code,
-                ResourceORM.name,
+                resource_display_name(),
                 ResourceORM.kind,
                 ResourceORM.role,
                 ResourceORM.worker_type,
@@ -363,7 +371,7 @@ class SqlAlchemyResourceCatalogReader:
             select(
                 ResourceORM.id,
                 ResourceORM.resource_code,
-                ResourceORM.name,
+                resource_display_name(),
                 ResourceORM.kind,
                 ResourceORM.role,
                 ResourceORM.worker_type,
@@ -373,7 +381,7 @@ class SqlAlchemyResourceCatalogReader:
                 ResourceORM.is_active,
                 ResourceORM.capacity_percent,
                 ResourceORM.address,
-                ResourceORM.contact,
+                _contact_expression(),
                 ResourceORM.organization_id,
                 OrganizationORM.display_name,
                 _department_id_expression(),

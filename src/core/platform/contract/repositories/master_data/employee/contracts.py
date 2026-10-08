@@ -1,12 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
-from typing import Protocol
 
-from src.core.platform.contract.interface.master_data.employee.contracts import (
-    LinkedEmployeeResource,
-)
 from src.core.platform.domain.master_data.employee import Employee
 
 
@@ -67,13 +62,6 @@ class EmployeeRepository(ABC):
         ...
 
 
-class LinkedEmployeeResourceRepository(Protocol):
-    def list_by_employee(self, employee_id: str) -> Sequence[LinkedEmployeeResource]: ...
-
-    def update(self, resource: LinkedEmployeeResource) -> None: ...
-
-
 __all__ = [
     "EmployeeRepository",
-    "LinkedEmployeeResourceRepository",
 ]

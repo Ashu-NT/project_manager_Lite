@@ -19,8 +19,14 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskAssignmentORM,
     TaskORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.resources.identity_expressions import (
+    resource_display_name,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
     stable_order_by,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
 )
 from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
     TimeEntryORM,
@@ -136,6 +142,11 @@ class SqlAlchemyTimesheetReviewReader:
                         ResourceORM.organization_id == organization_id,
                     ),
                 )
+                .outerjoin(EmployeeORM, and_(
+                    EmployeeORM.id == ResourceORM.employee_id,
+                    EmployeeORM.tenant_id == tenant_id,
+                    EmployeeORM.organization_id == organization_id,
+                ))
                 .join(
                     ownership,
                     ownership.c.resource_id == TimesheetPeriodORM.resource_id,
@@ -236,7 +247,7 @@ class SqlAlchemyTimesheetReviewReader:
             pattern = f"%{escaped.lower()}%"
             filters.append(
                 or_(
-                    func.lower(ResourceORM.name).like(pattern, escape="\\"),
+                    func.lower(resource_display_name()).like(pattern, escape="\\"),
                     func.lower(func.coalesce(ResourceORM.resource_code, "")).like(
                         pattern, escape="\\"
                     ),
@@ -250,8 +261,8 @@ class SqlAlchemyTimesheetReviewReader:
             )
 
         period_sort_expressions = {
-            "resource": (func.lower(ResourceORM.name),),
-            "title": (func.lower(ResourceORM.name),),
+            "resource": (func.lower(resource_display_name()),),
+            "title": (func.lower(resource_display_name()),),
             "period": (TimesheetPeriodORM.period_start, TimesheetPeriodORM.period_end),
             "status": (TimesheetPeriodORM.status,),
             "statusLabel": (TimesheetPeriodORM.status,),
@@ -277,6 +288,11 @@ class SqlAlchemyTimesheetReviewReader:
                         ResourceORM.organization_id == organization_id,
                     ),
                 )
+                .outerjoin(EmployeeORM, and_(
+                    EmployeeORM.id == ResourceORM.employee_id,
+                    EmployeeORM.tenant_id == tenant_id,
+                    EmployeeORM.organization_id == organization_id,
+                ))
                 .where(
                     TimesheetPeriodORM.tenant_id == tenant_id,
                     TimesheetPeriodORM.organization_id == organization_id,
@@ -336,7 +352,7 @@ class SqlAlchemyTimesheetReviewReader:
                 TimesheetPeriodORM.id,
                 TimesheetPeriodORM.version,
                 TimesheetPeriodORM.resource_id,
-                ResourceORM.name,
+                resource_display_name().label("resource_name"),
                 ResourceORM.resource_code,
                 TimesheetPeriodORM.period_start,
                 TimesheetPeriodORM.period_end,
@@ -360,6 +376,7 @@ class SqlAlchemyTimesheetReviewReader:
             TimesheetPeriodORM.id,
             TimesheetPeriodORM.version,
             TimesheetPeriodORM.resource_id,
+            EmployeeORM.full_name,
             ResourceORM.name,
             ResourceORM.resource_code,
             TimesheetPeriodORM.period_start,
@@ -372,8 +389,8 @@ class SqlAlchemyTimesheetReviewReader:
             TimesheetPeriodORM.decision_note,
         )
         sort_expressions = {
-            "resource": (func.lower(ResourceORM.name),),
-            "title": (func.lower(ResourceORM.name),),
+            "resource": (func.lower(resource_display_name()),),
+            "title": (func.lower(resource_display_name()),),
             "period": (TimesheetPeriodORM.period_start, TimesheetPeriodORM.period_end),
             "status": (TimesheetPeriodORM.status,),
             "statusLabel": (TimesheetPeriodORM.status,),

@@ -2,20 +2,11 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Sequence
 from dataclasses import dataclass
 from time import perf_counter
-from typing import cast
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
-    build_resource_master_changed_for_employee_sync,
-)
-from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
-    SqlAlchemyResourceRepository,
-)
 from src.core.platform.access import (
     AccessControlService,
     ScopedRolePolicy,
@@ -106,11 +97,11 @@ from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidati
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
-    PlatformCalendarResolver,
-)
 from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import (
     GlobalCalendarShim,
+)
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
 )
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
@@ -129,9 +120,6 @@ from src.core.platform.application.time_management.calendar.definitions.working_
 )
 from src.core.platform.application.time_management.calendar.platform_calendar_service import (
     PlatformCalendarService,
-)
-from src.core.platform.contract.interface.master_data.employee.contracts import (
-    LinkedEmployeeResource,
 )
 from src.core.platform.contract.repositories.master_data.org.contracts import (
     OrganizationRepository,
@@ -326,33 +314,6 @@ from src.infra.platform.security_config import (
 from src.infra.time.system_clock import SystemClock
 
 logger = logging.getLogger(__name__)
-
-
-class _LinkedEmployeeResourceRepositoryAdapter:
-    """Narrows `SqlAlchemyResourceRepository` to the `LinkedEmployeeResourceRepository` Protocol's
-    shape for Employee/Resource composition (ADR-005 Sec21/Sec22: Platform never imports PM's own
-    `Resource` domain type). `SqlAlchemyResourceRepository.update` requires the full `Resource` for
-    its other, PM-side callers, so it cannot itself be typed against the narrower Protocol -- this
-    adapter is the composition-root boundary where that's reconciled. Safe because every object
-    passed to this adapter's own `update` always originated from this same adapter's
-    `list_by_employee`, which always returns real `Resource` instances."""
-
-    def __init__(self, session: Session) -> None:
-        self._repo = SqlAlchemyResourceRepository(session)
-
-    @property
-    def _tenant_context_service(self):
-        return self._repo._tenant_context_service
-
-    @_tenant_context_service.setter
-    def _tenant_context_service(self, value) -> None:
-        self._repo._tenant_context_service = value
-
-    def list_by_employee(self, employee_id: str) -> Sequence[LinkedEmployeeResource]:
-        return self._repo.list_by_employee(employee_id)
-
-    def update(self, resource: LinkedEmployeeResource) -> None:
-        self._repo.update(cast(Resource, resource))
 
 
 def _bootstrap_local_single_tenant_context(
@@ -1152,12 +1113,10 @@ def build_platform_service_bundle(
         post_commit_bus=platform_post_commit_bus,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
-        resource_repo_factory=_LinkedEmployeeResourceRepositoryAdapter,
     )
     employee_service = EmployeeService(
         session=session,
         employee_repo=repositories.employee_repo,
-        resource_repo=repositories.resource_repo,
         site_repo=repositories.site_repo,
         department_repo=repositories.department_repo,
         organization_repo=repositories.organization_repo,
@@ -1168,7 +1127,6 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         headcount_reader=employee_headcount_reader,
-        resource_master_event_factory=build_resource_master_changed_for_employee_sync,
         uow_factory=employee_uow_factory,
         clock=SystemClock(),
     )

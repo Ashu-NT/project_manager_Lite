@@ -1,14 +1,8 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.interface.master_data.employee.contracts import (
-    LinkedEmployeeResource,
-)
 from src.core.platform.contract.repositories.master_data.department.contracts import (
     DepartmentRepository,
-)
-from src.core.platform.contract.repositories.master_data.employee.contracts import (
-    LinkedEmployeeResourceRepository,
 )
 from src.core.platform.contract.repositories.master_data.org.contracts import (
     OrganizationRepository,
@@ -17,34 +11,7 @@ from src.core.platform.contract.repositories.master_data.site.contracts import (
     SiteRepository,
 )
 from src.core.platform.domain.master_data.department import Department
-from src.core.platform.domain.master_data.employee import Employee
-from src.core.platform.domain.master_data.employee.support import employee_contact
 from src.core.platform.domain.master_data.site import Site
-
-
-def sync_linked_employee_resources(
-    employee: Employee,
-    resource_repo: LinkedEmployeeResourceRepository | None,
-) -> tuple[LinkedEmployeeResource, ...]:
-    if resource_repo is None:
-        return ()
-    touched_resources: list[LinkedEmployeeResource] = []
-    for resource in resource_repo.list_by_employee(employee.id):
-        if _worker_type_code(resource) != "employee":
-            continue
-        resource.name = employee.full_name
-        if employee.title:
-            resource.role = employee.title
-        resource.contact = employee_contact(employee)
-        resource_repo.update(resource)
-        touched_resources.append(resource)
-    return tuple(touched_resources)
-
-
-def _worker_type_code(resource: LinkedEmployeeResource) -> str:
-    worker_type = getattr(resource, "worker_type", None)
-    normalized = getattr(worker_type, "value", worker_type)
-    return str(normalized or "").strip().lower()
 
 
 def resolve_employee_site_reference(
@@ -258,5 +225,4 @@ __all__ = [
     "resolve_employee_department_reference",
     "resolve_employee_site_for_department",
     "resolve_employee_site_reference",
-    "sync_linked_employee_resources",
 ]

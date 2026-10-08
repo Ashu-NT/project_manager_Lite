@@ -37,6 +37,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.resource
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskAssignmentORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.resources.identity_expressions import (
+    resource_display_name,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
     stable_order_by,
 )
@@ -45,6 +48,9 @@ from src.core.platform.infrastructure.persistence.mappers.history.activity.activ
 )
 from src.core.platform.infrastructure.persistence.orm.history.activity.activity import (
     ActivityEntryORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
 )
 from src.core.platform.infrastructure.persistence.orm.master_data.party.party import (
     PartyORM,
@@ -113,7 +119,7 @@ class SqlAlchemyProjectCatalogReader:
         if normalized_search:
             pattern = _contains_pattern(normalized_search)
             filters.append(or_(
-                func.lower(ResourceORM.name).like(pattern, escape="\\"),
+                func.lower(resource_display_name()).like(pattern, escape="\\"),
                 func.lower(func.coalesce(ResourceORM.resource_code, "")).like(pattern, escape="\\"),
                 func.lower(func.coalesce(ResourceORM.role, "")).like(pattern, escape="\\"),
             ))
@@ -121,6 +127,11 @@ class SqlAlchemyProjectCatalogReader:
             ProjectResourceORM.__table__
             .join(ProjectORM, ProjectORM.id == ProjectResourceORM.project_id)
             .join(ResourceORM, ResourceORM.id == ProjectResourceORM.resource_id)
+            .outerjoin(EmployeeORM, and_(
+                EmployeeORM.id == ResourceORM.employee_id,
+                EmployeeORM.tenant_id == tenant_id,
+                EmployeeORM.organization_id == organization_id,
+            ))
             .outerjoin(usage, usage.c.project_resource_id == ProjectResourceORM.id)
         )
         total = int(self._session.scalar(
@@ -129,7 +140,7 @@ class SqlAlchemyProjectCatalogReader:
         allocated = func.coalesce(usage.c.allocated, 0)
         actual = func.coalesce(usage.c.actual, 0)
         sort_expressions = {
-            "resourceName": (func.lower(ResourceORM.name),),
+            "resourceName": (func.lower(resource_display_name()),),
             "resourceCode": (func.lower(func.coalesce(ResourceORM.resource_code, "")),),
             "role": (func.lower(func.coalesce(ResourceORM.role, "")),),
             "plannedHours": (ProjectResourceORM.planned_hours,),
@@ -139,7 +150,7 @@ class SqlAlchemyProjectCatalogReader:
         rows = self._session.execute(
             select(
                 ProjectResourceORM.id, ResourceORM.id, ResourceORM.resource_code,
-                ResourceORM.name, ResourceORM.role, ProjectResourceORM.planned_hours,
+                resource_display_name(), ResourceORM.role, ProjectResourceORM.planned_hours,
                 allocated, actual, ProjectResourceORM.is_active, ProjectResourceORM.version,
             ).select_from(from_clause).where(*filters).order_by(*stable_order_by(
                 sort=sort, expressions=sort_expressions, default_key="resourceName",

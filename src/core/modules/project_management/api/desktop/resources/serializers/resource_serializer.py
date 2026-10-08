@@ -44,7 +44,7 @@ def serialize_resource(
     is_active = bool(getattr(resource, "is_active", True))
     return ResourceDesktopDto(
         id=resource.id,
-        name=resource.name,
+        name=employee_option.name if employee_option is not None else resource.name,
         code=getattr(resource, "code", "") or "",
         role=getattr(resource, "role", "") or "",
         worker_type=worker_type.value,
@@ -60,7 +60,10 @@ def serialize_resource(
         capacity_percent=capacity_percent,
         capacity_label=f"{capacity_percent:.1f}%",
         address=(getattr(resource, "address", "") or "").strip(),
-        contact=(getattr(resource, "contact", "") or "").strip(),
+        contact=(
+            employee_option.contact if employee_option is not None
+            else (getattr(resource, "contact", "") or "").strip()
+        ),
         employee_id=employee_id,
         employee_context=employee_context,
         department=employee_option.department if employee_option is not None else "",
@@ -72,8 +75,14 @@ def serialize_resource(
         kind_label=format_enum_label(
             str(getattr(getattr(resource, "kind", None), "value", getattr(resource, "kind", None)) or "PERSON")
         ),
-        department_id=getattr(resource, "department_id", None),
-        site_id=getattr(resource, "site_id", None),
+        department_id=(
+            employee_option.department_id if employee_option is not None
+            else getattr(resource, "department_id", None)
+        ),
+        site_id=(
+            employee_option.site_id if employee_option is not None
+            else getattr(resource, "site_id", None)
+        ),
     )
 
 

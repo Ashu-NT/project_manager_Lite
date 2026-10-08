@@ -182,6 +182,7 @@ from src.core.modules.project_management.application.resources.catalog.resource_
     ResourceMasterChanged,
 )
 from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
+    build_linked_employee_resource_view_invalidation_handler,
     build_resource_capabilities_view_invalidation_handler,
     build_resource_list_view_invalidation_handler,
 )
@@ -344,6 +345,7 @@ from src.core.platform.application.time_management.time.timesheet_events import 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
+from src.core.platform.domain.master_data.employee.events import EmployeeProfileUpdated
 from src.core.platform.domain.security.identity.service_principal import (
     ServicePrincipal,
 )
@@ -529,6 +531,8 @@ def build_project_management_service_bundle(
         project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
         uow_factory=project_uow_factory,
         shared_uow_factory=shared_session_uow_factory,
+        party_repo=repositories.party_repo,
+        department_repo=repositories.department_repo,
     )
 
     def _time_scope_organization_id(scope_type: str, scope_id: str) -> str | None:
@@ -706,6 +710,13 @@ def build_project_management_service_bundle(
         ResourceMasterChanged,
         build_resource_list_view_invalidation_handler(
             platform_services.platform_view_invalidation_channel
+        ),
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        EmployeeProfileUpdated,
+        build_linked_employee_resource_view_invalidation_handler(
+            platform_services.platform_view_invalidation_channel,
+            SqlAlchemyResourceIdentityReader(session=session).find_linked_resource_id,
         ),
     )
     platform_services.platform_post_commit_bus.subscribe(

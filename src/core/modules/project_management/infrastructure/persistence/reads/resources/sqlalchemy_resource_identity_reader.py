@@ -25,6 +25,17 @@ class SqlAlchemyResourceIdentityReader:
     def __init__(self, *, session: Session) -> None:
         self._session = session
 
+    def find_linked_resource_id(
+        self, *, employee_id: str, tenant_id: str, organization_id: str
+    ) -> str | None:
+        return self._session.scalar(
+            select(ResourceORM.id).where(
+                ResourceORM.employee_id == employee_id,
+                ResourceORM.tenant_id == tenant_id,
+                ResourceORM.organization_id == organization_id,
+            ).limit(1)
+        )
+
     def resolve_resource_for_user(
         self,
         *,
@@ -33,7 +44,7 @@ class SqlAlchemyResourceIdentityReader:
         organization_id: str,
     ) -> ResourceIdentityFact | None:
         rows = self._session.execute(
-            select(ResourceORM.id, ResourceORM.name, ResourceORM.is_active)
+            select(ResourceORM.id, EmployeeORM.full_name, ResourceORM.is_active)
             .select_from(ResourceORM)
             .join(EmployeeORM, EmployeeORM.id == ResourceORM.employee_id)
             .where(

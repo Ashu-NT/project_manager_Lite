@@ -32,6 +32,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskAssignmentORM,
     TaskORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.resources.identity_expressions import (
+    resource_display_name,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
     stable_order_by,
 )
@@ -86,7 +89,7 @@ class SqlAlchemyTimesheetWorkspaceReader:
     def _resource_columns():
         return (
             ResourceORM.id,
-            ResourceORM.name,
+            resource_display_name(),
             ResourceORM.resource_code,
             ResourceORM.kind,
             ResourceORM.worker_type,
@@ -236,7 +239,11 @@ class SqlAlchemyTimesheetWorkspaceReader:
         stmt = (
             select(*self._resource_columns())
             .select_from(ResourceORM)
-            .outerjoin(EmployeeORM, EmployeeORM.id == ResourceORM.employee_id)
+            .outerjoin(EmployeeORM, and_(
+                EmployeeORM.id == ResourceORM.employee_id,
+                EmployeeORM.tenant_id == tenant_id,
+                EmployeeORM.organization_id == organization_id,
+            ))
             .where(
                 ResourceORM.tenant_id == tenant_id,
                 ResourceORM.organization_id == organization_id,
@@ -300,7 +307,7 @@ class SqlAlchemyTimesheetWorkspaceReader:
             pattern = f"%{escaped.lower()}%"
             stmt = stmt.where(
                 or_(
-                    func.lower(func.coalesce(ResourceORM.name, "")).like(pattern, escape="\\"),
+                    func.lower(resource_display_name()).like(pattern, escape="\\"),
                     func.lower(func.coalesce(ResourceORM.resource_code, "")).like(pattern, escape="\\"),
                 )
             )
@@ -313,7 +320,7 @@ class SqlAlchemyTimesheetWorkspaceReader:
                 *stable_order_by(
                     sort=criteria.sort,
                     expressions={
-                        "resource": (func.lower(ResourceORM.name),),
+                        "resource": (func.lower(resource_display_name()),),
                         "code": (func.lower(func.coalesce(ResourceORM.resource_code, "")),),
                     },
                     default_key="resource",

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
     ResourceCapabilityChanged,
 )
 from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
     ResourceMasterChanged,
 )
+from src.core.platform.domain.master_data.employee.events import EmployeeProfileUpdated
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import (
     OrganizationScope,
@@ -72,6 +75,29 @@ def build_resource_list_view_invalidation_handler(channel: ViewInvalidationChann
     return handle_resource_master_event
 
 
+def build_linked_employee_resource_view_invalidation_handler(
+    channel: ViewInvalidationChannel,
+    resolve_resource_id: Callable[..., str | None],
+):
+    def handle(event: EmployeeProfileUpdated, context: DomainEventContext) -> None:
+        resource_id = resolve_resource_id(
+            employee_id=event.employee_id,
+            tenant_id=event.tenant_id,
+            organization_id=event.organization_id,
+        )
+        if resource_id is None:
+            return
+        channel.notify(ViewInvalidationHint(
+            scope=OrganizationScope(event.tenant_id, event.organization_id),
+            category=RESOURCE_CATEGORY,
+            scope_code=RESOURCE_LIST_SCOPE_CODE,
+            entity_type=RESOURCE_ENTITY_TYPE,
+            entity_id=resource_id,
+        ))
+
+    return handle
+
+
 def build_resource_capabilities_view_invalidation_handler(channel: ViewInvalidationChannel):
     """`resource_capabilities` is exact-resource (`ResourceScope`) -- its dedupe target identity
     includes the resource itself, so the same resource repeated within one transaction collapses
@@ -114,6 +140,7 @@ def build_resource_capabilities_view_invalidation_handler(channel: ViewInvalidat
 
 
 __all__ = [
+    "build_linked_employee_resource_view_invalidation_handler",
     "RESOURCE_CAPABILITIES_SCOPE_CODE",
     "RESOURCE_CATEGORY",
     "RESOURCE_ENTITY_TYPE",
