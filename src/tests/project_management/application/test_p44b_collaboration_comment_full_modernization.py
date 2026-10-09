@@ -92,12 +92,13 @@ def test_dedupe_by_target_within_one_transaction():
         tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
         comment_id="c1", change_type=TaskCommentChangeType.CREATED, occurred_at=datetime.now(timezone.utc),
     )
-    handler(event, DomainEventContext(correlation_id="same-tx"))
-    handler(event, DomainEventContext(correlation_id="same-tx"))
+    context = DomainEventContext(correlation_id="same-trace")
+    handler(event, context)
+    handler(event, context)
     assert len(channel.notified) == 2, "two distinct targets, each coalesced within one tx"
 
-    handler(event, DomainEventContext(correlation_id="next-tx"))
-    assert len(channel.notified) == 4, "a new transaction is never coalesced with the previous one"
+    handler(event, DomainEventContext(correlation_id="same-trace"))
+    assert len(channel.notified) == 4, "a separate commit with the same trace must notify again"
 
 
 # ---------------------------------------------------------------------------

@@ -46,14 +46,14 @@ def _resource_scope_target(scope_code: str, scope: ResourceScope) -> tuple[str, 
 
 def build_resource_list_view_invalidation_handler(channel: ViewInvalidationChannel):
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_targets: set[tuple[str, str, str]] = set()
 
     def handle_resource_master_event(
         event: ResourceMasterChanged, context: DomainEventContext
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_targets.clear()
 
         scope = OrganizationScope(event.tenant_id, event.organization_id)
@@ -104,14 +104,14 @@ def build_resource_capabilities_view_invalidation_handler(channel: ViewInvalidat
     to one hint, but two distinct resources' capability changes within the same transaction
     still produce two hints (two genuinely different targets)."""
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_targets: set[tuple[str, str, str, str, str, str]] = set()
 
     def handle_resource_capability_event(
         event: ResourceCapabilityChanged, context: DomainEventContext
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_targets.clear()
 
         scope = ResourceScope(

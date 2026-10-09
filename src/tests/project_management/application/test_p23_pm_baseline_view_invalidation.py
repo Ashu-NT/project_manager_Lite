@@ -116,25 +116,26 @@ def test_dedupe_by_project_target_within_one_transaction():
     handler = build_baseline_view_invalidation_handler(channel)
     now = datetime.now(timezone.utc)
 
+    context = _context("same-trace")
     handler(
         ProjectBaselineCreated(tenant_id="t1", organization_id="o1", project_id="p1", baseline_id="b1", occurred_at=now),
-        _context("tx"),
+        context,
     )
     handler(
         ProjectBaselineSubmitted(tenant_id="t1", organization_id="o1", project_id="p1", baseline_id="b1", occurred_at=now),
-        _context("tx"),
+        context,
     )
     assert len(channel.notified) == 1, "same project target within one transaction coalesces"
 
     handler(
         ProjectBaselineCreated(tenant_id="t1", organization_id="o1", project_id="p2", baseline_id="b2", occurred_at=now),
-        _context("tx"),
+        context,
     )
     assert len(channel.notified) == 2, "a different project within the same transaction is a separate target"
 
     handler(
         ProjectBaselineCreated(tenant_id="t1", organization_id="o1", project_id="p1", baseline_id="b3", occurred_at=now),
-        _context("next-tx"),
+        _context("same-trace"),
     )
     assert len(channel.notified) == 3, "a new transaction is never coalesced with the previous one"
 

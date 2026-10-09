@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import event, text
 
 from src.core.modules.project_management.infrastructure.persistence.reads.projects.activity_labels import (
     resolve_project_activity_labels,
@@ -198,3 +198,62 @@ def test_explicit_organization_activity_read_restores_runtime_rls_scope(
         assert set(session.scalars(text("SELECT id FROM audit_entries")).all()) == {
             "r7g-history-platform-audit"
         }
+
+
+def test_activity_pages_remain_bounded_as_history_grows(postgres_test_environment) -> None:
+    tenant_id = "r7g-volume-tenant"
+    organization_id = "r7g-volume-org"
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(text(
+            "INSERT INTO tenants (id, tenant_code, display_name, tenant_status, is_active, version) "
+            "VALUES (:id, :id, :id, 'active', true, 1)"
+        ), {"id": tenant_id})
+        connection.execute(text(
+            "INSERT INTO organizations (id, tenant_id, organization_code, display_name, "
+            "timezone_name, base_currency, status, version) "
+            "VALUES (:id, :tenant, :id, :id, 'UTC', 'XAF', 'active', 1)"
+        ), {"id": organization_id, "tenant": tenant_id})
+
+    for lower, upper in ((1, 10), (11, 100), (101, 1000)):
+        with postgres_test_environment.admin_engine.begin() as connection:
+            connection.execute(text(
+                "INSERT INTO activity_entries (id, action, entity_type, entity_id, module, "
+                "tenant_id, organization_id, timestamp, type, human_message) "
+                "SELECT 'r7g-volume-' || n, 'updated', 'project', 'project-1', "
+                "'project_management', :tenant, :org, now(), 'info', 'Project updated' "
+                "FROM generate_series(CAST(:lower AS integer), CAST(:upper AS integer)) AS n"
+            ), {"tenant": tenant_id, "org": organization_id, "lower": lower, "upper": upper})
+
+        with postgres_test_environment.runtime_session(
+            tenant_id=tenant_id, organization_id=organization_id
+        ) as session:
+            repository = SqlAlchemyActivityRepository(session)
+            repository._context = lambda *, operation_label: SimpleNamespace(
+                tenant_id=tenant_id, organization_id=organization_id
+            )
+            statements: list[str] = []
+
+            def track(conn, cursor, statement, parameters, context, executemany):
+                if "FROM activity_entries" in statement:
+                    statements.append(statement)
+
+            event.listen(session.bind, "before_cursor_execute", track)
+            try:
+                page, total, filtered_total = repository.list_page_recent(
+                    page=1, page_size=25, tenant_id=tenant_id,
+                    organization_id=organization_id,
+                )
+            finally:
+                event.remove(session.bind, "before_cursor_execute", track)
+
+            assert len(page) == min(upper, 25)
+            assert total == filtered_total == upper
+            assert len(statements) == 3  # total, filtered count, bounded page
+            assert any("LIMIT" in statement.upper() for statement in statements)
+            if upper == 1000:
+                plan = session.scalars(text(
+                    "EXPLAIN (ANALYZE, BUFFERS) SELECT id FROM activity_entries "
+                    "WHERE tenant_id = :tenant AND organization_id = :org "
+                    "ORDER BY timestamp DESC, id DESC LIMIT 25"
+                ), {"tenant": tenant_id, "org": organization_id}).all()
+                assert any("Limit" in line for line in plan)

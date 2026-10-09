@@ -58,7 +58,7 @@ def build_project_view_invalidation_handler(channel: ViewInvalidationChannel):
     `ProjectResourceAssignmentChanged` (a `resources`-module fact, not a Project field change)
     maps to the detail target only -- it never affects the Project list/selector."""
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_org_targets: set[_OrgTarget] = set()
     notified_project_targets: set[_ProjectTarget] = set()
 
@@ -66,8 +66,8 @@ def build_project_view_invalidation_handler(channel: ViewInvalidationChannel):
         event: _ProjectEvent,
         context: DomainEventContext,
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_org_targets.clear()
             notified_project_targets.clear()
 
