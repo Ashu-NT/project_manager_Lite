@@ -6,11 +6,24 @@ from src.core.modules.project_management.application.projects.project_events imp
     ProjectRemoved,
     ProjectStatusChanged,
 )
+from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
+    ResourceCapabilityChanged,
+)
+from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
+    ResourceMasterChanged,
+)
 from src.core.modules.project_management.application.resources.project_resources.project_resource_events import (
     ProjectResourceAssignmentChanged,
 )
 from src.core.modules.project_management.application.risk.register_events import (
     RegisterEntryChanged,
+)
+from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
+    ProjectBaselineApproved,
+    ProjectBaselineCreated,
+    ProjectBaselineDeleted,
+    ProjectBaselineRejected,
+    ProjectBaselineSubmitted,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskAssignmentChanged,
@@ -26,6 +39,7 @@ from src.core.modules.project_management.application.tasks.task_events import (
 from src.core.platform.application.time_management.time.timesheet_events import (
     TimesheetPeriodStatusChanged,
 )
+from src.core.platform.domain.master_data.employee.events import EmployeeProfileUpdated
 
 
 def test_project_events_share_one_post_commit_handler(services) -> None:
@@ -123,3 +137,63 @@ def test_timesheet_instance_and_invalidation_subscription_are_shared(services) -
         handler.__name__ == "handle_timesheet_period_event"
         for handler in bus._handlers[TimesheetPeriodStatusChanged]
     ) == 1
+
+
+def test_resource_readers_clock_uow_and_events_preserve_identity(services, session) -> None:
+    resource = services["resource_service"]
+    assert resource._resource_catalog_reader is resource._resource_inspector_reader
+    assert resource._resource_catalog_reader is resource._resource_summary_reader
+    assert resource._resource_projects_reader is resource._resource_assignments_reader
+    assert resource._resource_projects_reader is resource._resource_activity_reader
+    assert resource._resource_projects_reader is resource._resource_capability_reader
+    assert resource._clock is services["rate_card_resolver"]._clock
+
+    bus = services["project_service"]._uow_factory._post_commit_bus
+    assert resource._uow_factory._post_commit_bus is bus
+    for event_type, handler_name in (
+        (ResourceMasterChanged, "handle_resource_master_event"),
+        (ResourceCapabilityChanged, "handle_resource_capability_event"),
+    ):
+        assert sum(handler.__name__ == handler_name for handler in bus._handlers[event_type]) == 1
+    assert sum(
+        "build_linked_employee_resource_view_invalidation_handler.<locals>.handle"
+        in handler.__qualname__
+        for handler in bus._handlers[EmployeeProfileUpdated]
+    ) == 1
+    scoped_session = resource._uow_factory._session_factory()
+    try:
+        assert scoped_session is not session
+        assert scoped_session.bind is session.bind
+    finally:
+        scoped_session.close()
+
+
+def test_scheduling_and_baseline_keep_shared_engine_and_ambient_uow(services, session) -> None:
+    engine = services["scheduling_engine"]
+    baseline = services["baseline_service"]
+    assert baseline._sched is engine
+    assert engine._project_calendar_adapter is services["portfolio_service"]._project_calendar_adapter
+    assert baseline._session is session
+    assert baseline._uow_factory()._session is session
+
+    bus = services["project_service"]._uow_factory._post_commit_bus
+    event_types = (
+        ProjectBaselineCreated,
+        ProjectBaselineSubmitted,
+        ProjectBaselineApproved,
+        ProjectBaselineRejected,
+        ProjectBaselineDeleted,
+    )
+    handlers = [
+        next(
+            handler
+            for handler in bus._handlers[event_type]
+            if handler.__name__ == "handle_baseline_event"
+        )
+        for event_type in event_types
+    ]
+    assert all(
+        sum(handler.__name__ == "handle_baseline_event" for handler in bus._handlers[event_type]) == 1
+        for event_type in event_types
+    )
+    assert all(handler is handlers[0] for handler in handlers)

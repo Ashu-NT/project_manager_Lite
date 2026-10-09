@@ -70,7 +70,7 @@ factory callers have been migrated together.
 | C0 | Baseline inventory, public-import and lifecycle map | Composition/architecture tests run; no source changes | Complete |
 | C1 | Split Platform Approval vs PM notification registration and PM recipient recheck; inject policy from root | Same transactional subscription counts, recipient/privacy/RLS and startup tests; delete mixed `notifications.py` | Complete |
 | C2 | Move PM access/scope registrations and approval registrations/dependency factories into PM composition | Service identity, reviewer permissions, handler counts, transaction/UoW tests; delete root approval factory package | Complete; mixed repository-bundle dependency remains until C5 |
-| C3 | Extract PM Projects, Tasks, Resources, Scheduling, Timesheets, Collaboration, Portfolio and Risk dependency/event groups | Per-group focused tests; no duplicated factories/subscriptions; preserve PM bundle | In progress: Projects, Register, Tasks and Timesheets extracted |
+| C3 | Extract PM Projects, Tasks, Resources, Scheduling, Timesheets, Collaboration, Portfolio and Risk dependency/event groups | Per-group focused tests; no duplicated factories/subscriptions; preserve PM bundle | In progress: Projects, Register, Tasks, Timesheets, Resources and Scheduling extracted |
 | C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | Not started |
 | C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | Not started |
 | C6 | Slim root and move only cross-module integrations/global overview wiring under root | Desktop startup, full PM/Platform, PostgreSQL and architecture guards; delete both central registries and obsolete imports | Not started |
@@ -136,9 +136,20 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   exact Timesheet instance exposed as `time_service`. Composition tests cover
   handler identity/counts, shared bus, and fresh Task UoW session. Task-focused
   tests: 51 passed; Timesheet-focused tests: 19 passed. All four new modules
-  pass targeted mypy and Ruff F/I. Resources, Scheduling, Collaboration,
-  Portfolio, Reporting and Dashboard construction/event wiring remain in the
-  central PM builder; C3 is not closed.
+  pass targeted mypy and Ruff F/I. This was an intermediate C3 checkpoint;
+  the later Resources and Scheduling slices are recorded below.
+- C3 Resources and Scheduling: PM-owned Resource construction preserves one
+  catalog reader across catalog/inspector/summary, one context reader across
+  projects/assignments/activity/capability, a fresh-session Resource UoW, and
+  the Finance-shared clock. Its three existing post-commit subscriptions retain
+  their types and order. Resource-focused tests: 14 passed. Scheduling now
+  constructs its calendar adapter and engine early for Task use, while Baseline
+  construction remains later after Portfolio. The adapter is reused by
+  Scheduling and Portfolio, and the Baseline UoW intentionally remains bound
+  to the ambient session. Its five post-commit subscriptions retain one shared
+  handler. Scheduling/Baseline-focused tests: 37 passed. All four new files
+  pass targeted mypy and Ruff F/I. Collaboration, Portfolio, Reporting and
+  Dashboard construction/event wiring still remain in the central PM builder.
 
 ## Closure Gates
 
