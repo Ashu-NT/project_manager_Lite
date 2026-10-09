@@ -3,11 +3,11 @@
 from src.core.modules.project_management.contracts.approval import (
     PM_APPROVAL_REVIEW_PERMISSIONS,
 )
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals.handlers import (
+    register_project_management_approval_handlers,
+)
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
-)
-from src.infra.composition.modules.project_registry import (
-    _register_project_management_approval_handlers,
 )
 
 
@@ -26,7 +26,7 @@ class _ApprovalRegistration:
 
 def test_every_registered_pm_approval_has_a_specific_catalog_permission():
     registration = _ApprovalRegistration()
-    _register_project_management_approval_handlers(approval_service=registration)
+    register_project_management_approval_handlers(approval_service=registration)
 
     assert registration.apply_permissions == PM_APPROVAL_REVIEW_PERMISSIONS
     assert registration.reject_types <= registration.apply_permissions.keys()

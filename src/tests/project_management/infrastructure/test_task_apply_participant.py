@@ -21,10 +21,10 @@ from src.core.modules.project_management.domain.enums import (
 from src.core.modules.project_management.infrastructure.approval.task_apply_participant import (
     TaskApprovalParticipant,
 )
-from src.core.platform.domain.approval import ApprovalRequest
-from src.infra.composition.approval_apply_dependencies.task import (
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals.task import (
     build_task_approval_deps,
 )
+from src.core.platform.domain.approval import ApprovalRequest
 from src.infra.persistence.orm.base import Base
 
 

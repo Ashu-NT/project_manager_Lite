@@ -18,6 +18,12 @@ BOUNDARY = (
 )
 RUNTIME_RESOLVER = PM_ROOT / "api/desktop_runtime/service_resolver.py"
 PROJECT_REGISTRY = Path("src/infra/composition/modules/project_registry.py")
+PM_APPROVAL_REGISTRY = (
+    PM_ROOT / "infrastructure/composition/registrations/approvals/handlers.py"
+)
+PM_FINANCE_APPROVAL_REGISTRY = (
+    PM_ROOT / "infrastructure/composition/registrations/approvals/finance/handlers.py"
+)
 FINANCIAL_DIALOG_HOST = Path(
     "src/ui_qml/modules/project_management/qml/workspaces/financials/shared/dialogs/"
     "FinancialsDialogHost.qml"
@@ -93,20 +99,21 @@ def test_r6c_desktop_commands_are_typed_at_the_desktop_boundary() -> None:
 
 
 def test_r6c_approval_participants_have_one_apply_and_reject_registration() -> None:
-    source = PROJECT_REGISTRY.read_text(encoding="utf-8")
+    source = PM_APPROVAL_REGISTRY.read_text(encoding="utf-8")
+    finance_source = PM_FINANCE_APPROVAL_REGISTRY.read_text(encoding="utf-8")
     assert source.count("approval_service.register_apply_handler(") == 1
     assert "reviewer_permission=pm_reviewer_permission(request_type)" in source
     for process in ("budget.approve", "forecast.approve", "financial_change.apply"):
         assert len(
             re.findall(
                 rf'register_apply\(\s*"{re.escape(process)}"',
-                source,
+                finance_source,
             )
         ) == 1
         assert len(
             re.findall(
                 rf'register_reject_handler\(\s*"{re.escape(process)}"',
-                source,
+                finance_source,
             )
         ) == 1
 

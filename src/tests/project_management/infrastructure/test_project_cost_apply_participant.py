@@ -16,11 +16,11 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
 from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
     ProjectCostApprovalParticipant,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.domain.approval import ApprovalRequest
-from src.infra.composition.approval_apply_dependencies.project_cost import (
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals.finance.project_cost import (
     build_project_cost_approval_deps,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.approval import ApprovalRequest
 from src.infra.persistence.orm.base import Base
 
 

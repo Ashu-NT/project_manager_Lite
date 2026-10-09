@@ -24,11 +24,11 @@ from src.core.modules.project_management.domain.financials.forecast import (
 from src.core.modules.project_management.infrastructure.approval.forecast_apply_participant import (
     ForecastApprovalParticipant,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.domain.approval import ApprovalRequest
-from src.infra.composition.approval_apply_dependencies.forecast import (
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals.finance.forecast import (
     build_forecast_approval_deps,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.approval import ApprovalRequest
 from src.infra.persistence.orm.base import Base
 
 

@@ -12,15 +12,15 @@ from src.core.modules.project_management.application.financials.rate_cards.rate_
 from src.core.modules.project_management.infrastructure.approval.billing_preparation_apply_participant import (
     BillingPreparationApprovalDeps,
 )
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
+    build_enterprise_audit_service,
+    wire_tenant_context_service,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
     SqlAlchemyRateResolutionReader,
 )
 from src.core.platform.application.finance.financial_period_service import (
     FinancialPeriodService,
-)
-from src.infra.composition.approval_apply_dependencies._shared import (
-    build_enterprise_audit_service,
-    wire_tenant_context_service,
 )
 from src.infra.composition.persistence.repositories import build_repository_bundle
 

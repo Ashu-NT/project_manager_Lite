@@ -23,10 +23,10 @@ from src.core.modules.project_management.domain.financials.configuration import 
 from src.core.modules.project_management.infrastructure.approval.billing_preparation_apply_participant import (
     BillingPreparationApprovalParticipant,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.infra.composition.approval_apply_dependencies.billing_preparation import (
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals.finance.billing_preparation import (
     build_billing_preparation_approval_deps,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.infra.persistence.orm.base import Base
 
 

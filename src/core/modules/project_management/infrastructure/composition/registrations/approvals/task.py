@@ -10,6 +10,9 @@ from src.core.modules.project_management.application.tasks.service import TaskSe
 from src.core.modules.project_management.infrastructure.approval.task_apply_participant import (
     TaskApprovalDeps,
 )
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
+    wire_tenant_context_service,
+)
 from src.core.platform.application.history.activity.activity_service import (
     ActivityService,
 )
@@ -18,9 +21,6 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
 )
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
-)
-from src.infra.composition.approval_apply_dependencies._shared import (
-    wire_tenant_context_service,
 )
 from src.infra.composition.persistence.repositories import build_repository_bundle
 

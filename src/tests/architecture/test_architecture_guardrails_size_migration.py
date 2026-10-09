@@ -251,9 +251,15 @@ def test_platform_bundle_only_registers_platform_owned_scope_policies():
 def test_module_service_bundles_register_their_owned_scope_policies():
     project_bundle_path = ROOT / "src" / "infra" / "composition" / "modules" / "project_registry.py"
     project_text = project_bundle_path.read_text(encoding="utf-8", errors="ignore")
+    project_access_path = (
+        ROOT
+        / "src/core/modules/project_management/infrastructure/composition/registrations/access.py"
+    )
+    access_text = project_access_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from src.core.modules.project_management.access.policy import" in project_text
-    assert 'scope_type="project"' in project_text
+    assert "register_project_scope_access(repositories, platform_services)" in project_text
+    assert "from src.core.modules.project_management.access.policy import" in access_text
+    assert 'scope_type="project"' in access_text
 
 
 def test_legacy_widget_ui_roots_are_removed():

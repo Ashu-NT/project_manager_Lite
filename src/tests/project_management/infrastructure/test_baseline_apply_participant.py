@@ -18,10 +18,10 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
 from src.core.modules.project_management.infrastructure.approval.baseline_apply_participant import (
     BaselineApprovalParticipant,
 )
-from src.core.platform.domain.approval import ApprovalRequest
-from src.infra.composition.approval_apply_dependencies.baseline import (
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals.baseline import (
     build_baseline_approval_deps,
 )
+from src.core.platform.domain.approval import ApprovalRequest
 from src.infra.persistence.orm.base import Base
 
 

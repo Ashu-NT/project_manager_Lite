@@ -17,15 +17,15 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalDeps,
 )
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
+    build_enterprise_audit_service,
+    wire_tenant_context_service,
+)
 from src.core.platform.application.history.activity.activity_service import (
     ActivityService,
 )
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
-)
-from src.infra.composition.approval_apply_dependencies._shared import (
-    build_enterprise_audit_service,
-    wire_tenant_context_service,
 )
 from src.infra.composition.persistence.repositories import build_repository_bundle
 

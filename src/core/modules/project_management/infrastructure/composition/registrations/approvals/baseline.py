@@ -13,12 +13,12 @@ from src.core.modules.project_management.application.scheduling.services.schedul
 from src.core.modules.project_management.infrastructure.approval.baseline_apply_participant import (
     BaselineApprovalDeps,
 )
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
-    CalendarProtocol,
-)
-from src.infra.composition.approval_apply_dependencies._shared import (
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
     build_activity_service,
     wire_tenant_context_service,
+)
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
 )
 from src.infra.composition.persistence.repositories import build_repository_bundle
 

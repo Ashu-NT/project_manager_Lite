@@ -30,10 +30,10 @@ from src.core.modules.project_management.domain.financials.financial_change impo
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalParticipant,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.infra.composition.approval_apply_dependencies.financial_change import (
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals.finance.financial_change import (
     build_financial_change_approval_deps,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.infra.persistence.orm.base import Base
 
 
