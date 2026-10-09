@@ -18,6 +18,9 @@ from src.core.platform.infrastructure.persistence.read.history.activity_actor_re
 from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
     SqlAlchemyActivityRepository,
 )
+from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
+    SqlAlchemyAuditRepository,
+)
 
 pytestmark = pytest.mark.postgresql_integration
 
@@ -223,6 +226,13 @@ def test_activity_pages_remain_bounded_as_history_grows(postgres_test_environmen
                 "'project_management', :tenant, :org, now(), 'info', 'Project updated' "
                 "FROM generate_series(CAST(:lower AS integer), CAST(:upper AS integer)) AS n"
             ), {"tenant": tenant_id, "org": organization_id, "lower": lower, "upper": upper})
+            connection.execute(text(
+                "INSERT INTO audit_entries "
+                "(id, timestamp, entity_type, entity_id, operation, module, tenant_id, organization_id) "
+                "SELECT 'r7g-volume-audit-' || n, now(), 'project', 'project-1', "
+                "'updated', 'project_management', :tenant, :org "
+                "FROM generate_series(CAST(:lower AS integer), CAST(:upper AS integer)) AS n"
+            ), {"tenant": tenant_id, "org": organization_id, "lower": lower, "upper": upper})
 
         with postgres_test_environment.runtime_session(
             tenant_id=tenant_id, organization_id=organization_id
@@ -250,6 +260,12 @@ def test_activity_pages_remain_bounded_as_history_grows(postgres_test_environmen
             assert total == filtered_total == upper
             assert len(statements) == 3  # total, filtered count, bounded page
             assert any("LIMIT" in statement.upper() for statement in statements)
+            audit_repository = SqlAlchemyAuditRepository(session)
+            audit_repository._context = lambda *, operation_label: SimpleNamespace(
+                tenant_id=tenant_id, organization_id=organization_id
+            )
+            audit_rows = audit_repository.list_recent(limit=1000)
+            assert len(audit_rows) == min(upper, 100)
             if upper == 1000:
                 plan = session.scalars(text(
                     "EXPLAIN (ANALYZE, BUFFERS) SELECT id FROM activity_entries "

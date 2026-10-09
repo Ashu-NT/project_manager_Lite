@@ -1465,3 +1465,95 @@ Do not mark R7G complete or start R7H until these are resolved.
 - R7G remains **IN PROGRESS**; cross-surface target/navigation, retention,
   representative-volume/plan, transaction/invalidation and broad closure
   gates are not certified by this narrow follow-up. Do not begin R7H.
+
+#### R7G History Retention and Invalidation Continuation (2026-10-09)
+
+- History stores remain distinct: Activity is presentation history; Enterprise
+  Audit is traceability evidence; domain histories retain their own lifecycle
+  authority; integration inbox/outbox/outcome/quarantine records are delivery
+  evidence; Collaboration tombstones retain identity but not readable deleted
+  body; Notifications retain recipient/read state; Action Center is derived
+  current work, not a history store. No generic history table is introduced.
+- Current retention decision for Activity, Enterprise Audit, Notifications,
+  Collaboration tombstones, integration evidence and module domain history:
+  the repository has no general automated purge workflow, so existing records
+  remain under the present product contract. This is not a legal retention
+  period or a promise of indefinite legal retention. Stored evidence does not
+  bypass current permission, tenant/org scope or deleted-content redaction.
+  Billing Profile's separate configured retention field is not a purge policy
+  for these history families.
+- PM Project, Task, Resource, Register, Portfolio, Baseline and Collaboration
+  invalidation handlers no longer use correlation ID as a suppression key.
+  They coalesce repeated targets within the same committed-operation context,
+  while a separate context with the same correlation emits a new hint. Focused
+  affected regression: **83 passed**. The shared SQLAlchemy UoW also derives a
+  fresh context object per operation, so even a caller that reuses the same
+  trace object for two UoWs cannot suppress the second commit. Focused
+  UoW/Project/Collaboration regression: **62 passed**. This follows the
+  existing Finance invalidation pattern and preserves all trace field values.
+- PostgreSQL `app_runtime` Activity/Audit volume coverage at 10, 100 and
+  1,000 records passed. Activity materializes at most 25 page rows, performs
+  fixed SQL count/page statements, and uses deterministic timestamp/ID
+  ordering. Audit `list_recent` stays capped at 100 even when asked for 1,000.
+  A runtime-role `EXPLAIN (ANALYZE, BUFFERS)` confirms the Activity page has a
+  `Limit` node; no index was added without a demonstrated plan need.
+- R7B/C/D/G live PostgreSQL runtime-role matrix: **71 passed**. Activity
+  explicit-organization RLS restoration and foreign-tenant actor denial remain
+  green. Cross-surface navigation/history/error selection: **89 passed**;
+  Global Overview stale-result and shared Activity contract selection:
+  **46 passed**. Architecture dependency/Audit guards: **38 passed**. The
+  calendar-assignment module import previously allowed by the architecture
+  test no longer exists; its stale exception was removed. The separately
+  governed Platform Approval repository exception remains explicit.
+- Activity rows retain persisted module/entity/project-related identities;
+  the Global Overview Activity preview is deliberately non-interactive today,
+  so it does not construct an unverified deep link from historical text.
+  The notification drawer is also non-navigable because its Desktop DTO has
+  no route/source contract. Action Center alone carries a typed route and
+  destination identity; its owning route must reload current authorized state.
+  Missing or retired live targets must not be reconstructed from retained history.
+  R7G target/opening and stale-result proof still needs final cross-surface
+  regression before formal closure.
+
+#### R7G Final Integration and Closure (2026-10-09)
+
+- **R7G COMPLETE; R7 remains OPEN.** Activity, Enterprise Audit, module domain
+  histories, integration evidence, Collaboration, Notifications and Action
+  Center retain distinct authorities and audiences. Human/service/system and
+  missing actor labels remain typed/redacted; manager history uses User IDs.
+  Current scope/permission is checked by the owning read/route; retained
+  history never grants target access. Activity and Notification previews that
+  lack a verified destination are intentionally non-navigable rather than
+  manufacturing a link. Action Center routing and missing-target behavior are
+  covered by the existing navigation selection. Project/organization stale
+  result handling is covered by the Global Overview/controller selection.
+- Final focused evidence: R7G PM actor/invalidation selection **96 passed**;
+  R7B-E/history/error/navigation selection **89 passed**; shared Activity and
+  Global Overview selection **46 passed**; UoW/Audit rollback selection
+  **49 passed**; UoW context/PM invalidation selection **62 passed**.
+  PostgreSQL R7B/C/D/G runtime-role suite **71 passed**, including Activity
+  and Audit 10/100/1,000-row bounds, explicit-org RLS restoration, foreign
+  tenant denial, actor batches and EXPLAIN with a bounded page. Architecture
+  dependency/Audit guards **38 passed**. Fresh PostgreSQL fixture bootstrap
+  exercises the current Alembic schema under the non-owner runtime role.
+- Broad PM plus PM QML suite from the final production worktree: **2,604
+  passed, 3 failed, 2 skipped**. All three failures are independently
+  classified as pre-existing/non-R7G: `test_no_platform_to_business_module_concrete_infrastructure_import_added`
+  references a deleted employee contract path;
+  `test_employee_update_produces_real_resource_mutation_and_typed_event`
+  asserts the retired Platform Employee -> PM Resource mutation design; and
+  `test_platform_master_data_services_use_runtime_tenant_context` constructs
+  a calendar caller without the now-required `calendar.read` permission.
+  None executes the changed history/invalidation path. Relevant Platform,
+  Global Overview and shell suite: **563 passed, 1 failed**; the sole failure
+  (`test_service_graph_exposes_project_management_as_enabled_module`) expects
+  an empty optional-module catalog even though the current product exposes
+  `accounting_integration`. It is unrelated to R7G and is not hidden or
+  represented as green.
+- Scoped Ruff F/I on R7G-touched Python passes; targeted compilation and UoW
+  mypy pass. Repository-wide Ruff F/I reports **96 existing findings** (51
+  I001, 34 F841, 9 F401, 1 F811, 1 F821); no touched R7G file contributes
+  a finding. No QML source was changed in this continuation; previously
+  recorded R7G-relevant QML lint evidence remains applicable. No migration
+  or RLS policy was changed. No new history store, retention period, optional
+  module operation or Finance authority was introduced. R7H has not started.

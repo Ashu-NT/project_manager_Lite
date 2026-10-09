@@ -4,6 +4,7 @@ import logging
 import threading
 from collections.abc import Callable
 from contextlib import AbstractContextManager, nullcontext
+from dataclasses import replace
 from typing import Self
 
 from sqlalchemy.orm import Session
@@ -89,7 +90,9 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
         self._session = session
         self._transactional_dispatcher = transactional_dispatcher
         self._post_commit_bus = post_commit_bus
-        self.context = context
+        # A trace context may be reused by callers; each committed operation
+        # needs its own identity for post-commit invalidation coalescing.
+        self.context = replace(context)
         self._tracked_aggregates: dict[int, RecordsDomainEvents] = {}
         self._manually_recorded_events: list[DomainEvent] = []
         self._committed = False

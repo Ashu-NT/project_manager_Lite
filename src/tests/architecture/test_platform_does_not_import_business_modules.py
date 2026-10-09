@@ -18,9 +18,6 @@ FORBIDDEN_PACKAGE = "src.core.modules"
 # Any new entry here requires a citation to an accepted ADR in the same change -- an
 # uncited addition fails review, not just this test.
 GOVERNED_EXCEPTIONS: dict[str, str] = {
-    "src/core/platform/application/time_management/calendar/assignment/calendar_assignment_service.py": (
-        "ADR-004: Calendar Assignment Split Ownership."
-    ),
     "src/core/platform/infrastructure/persistence/repositories/approval/approval.py": (
         "ADR-005 Sec22: pre-existing, separately tracked architectural debt -- "
         "SqlAlchemyApprovalRepository imports ProjectORM directly; no project-scoping "
@@ -74,23 +71,21 @@ def test_platform_core_does_not_import_business_modules() -> None:
     )
 
 
-def test_governed_exceptions_are_exactly_the_two_known_violations() -> None:
+def test_governed_exceptions_are_exactly_the_known_violation() -> None:
     """Guards the allowlist itself against silent growth or shrinkage -- any change to this
     set must be a deliberate, reviewed edit, not an incidental one."""
     assert set(GOVERNED_EXCEPTIONS) == {
-        "src/core/platform/application/time_management/calendar/assignment/calendar_assignment_service.py",
         "src/core/platform/infrastructure/persistence/repositories/approval/approval.py",
     }
 
 
 def test_guardrail_detects_violations_when_exceptions_are_not_applied() -> None:
     """Proves the scanner has teeth: with the allowlist emptied, it must still find (at
-    least) the two known, currently-exempted violations. If this ever finds nothing, the
+    least) the known, currently-exempted violation. If this ever finds nothing, the
     scanner itself is broken -- the codebase did not suddenly become clean."""
     violations = _scan_platform(exceptions=frozenset())
 
     assert violations, "Expected the unexempted scan to find known violations; found none."
-    assert any("calendar_assignment_service.py" in v for v in violations), violations
     assert any(
         "infrastructure/persistence/repositories/approval/approval.py" in v for v in violations
     ), violations

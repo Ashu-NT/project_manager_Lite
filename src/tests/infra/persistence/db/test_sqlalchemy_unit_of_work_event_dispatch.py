@@ -77,6 +77,25 @@ def test_post_commit_handler_receives_the_same_context_the_uow_was_created_with(
     assert received_contexts == [context]
 
 
+def test_separate_commits_get_distinct_contexts_even_when_caller_reuses_trace(
+    uow_factory, post_commit_bus
+) -> None:
+    received_contexts: list[DomainEventContext] = []
+    post_commit_bus.subscribe(_EventA, lambda e, c: received_contexts.append(c))
+    trace = _context("shared-trace")
+
+    for _ in range(2):
+        with uow_factory.create(context=trace) as uow:
+            aggregate = _AggregateA()
+            aggregate._record_event(_EventA())
+            uow.register_touched(aggregate)
+            uow.commit()
+
+    assert received_contexts == [trace, trace]
+    assert received_contexts[0] is not received_contexts[1]
+    assert all(context is not trace for context in received_contexts)
+
+
 def test_transactional_handler_receives_the_exact_same_uow_instance(
     uow_factory, transactional_dispatcher
 ) -> None:
