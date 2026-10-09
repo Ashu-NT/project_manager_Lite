@@ -103,7 +103,7 @@ def format_changes_summary(
 def build_activity_records(
     entries: Sequence[Any],
     *,
-    actor_lookup: dict[str, str],
+    actor_lookup: dict[str, str] | None = None,
     lookups: dict[str, dict[str, str]] | None = None,
     field_labels: dict[str, str],
     field_lookup: dict[str, str] | None = None,
@@ -120,7 +120,7 @@ def build_activity_records(
     already uses.
     """
     resolved_lookups = dict(lookups or {})
-    resolved_lookups["user"] = actor_lookup
+    resolved_lookups["user"] = actor_lookup or {}
     records = []
     for entry in entries:
         title = (
@@ -132,7 +132,11 @@ def build_activity_records(
             ActivityItemViewModel(
                 id=entry.id,
                 title=title,
-                actor_display=actor_lookup.get(entry.actor_id or "", "") or "System",
+                actor_display=(
+                    getattr(entry, "actor_display", "")
+                    or (actor_lookup or {}).get(entry.actor_id or "", "")
+                    or ("Deleted user" if entry.actor_id else "System")
+                ),
                 supporting_text=format_changes_summary(
                     entry.details.get("changes"),
                     resolved_lookups,

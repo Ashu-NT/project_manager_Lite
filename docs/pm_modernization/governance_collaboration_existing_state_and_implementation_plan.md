@@ -1378,12 +1378,37 @@ Do not mark R7G complete or start R7H until these are resolved.
   Targeted Ruff F/I, mypy on the new read/API/service path, compilation and
   diff checks pass. The new runtime-role
   PostgreSQL actor-isolation assertion is written, but its test is **skipped**
-  without `PM_RUN_POSTGRES_INTEGRATION=1`; Docker was not running in this
-  environment. These SQLite/application tests are not a substitute for the
-  remaining live PostgreSQL RLS and representative-volume closure gates.
+  without `PM_RUN_POSTGRES_INTEGRATION=1`. With the repository's dedicated
+  Docker PostgreSQL stack running, the focused runtime-role R7G Activity/RLS
+  test now **passes (1 passed)**, including tenant-isolated actor resolution
+  and explicit-organization history scope restoration. Fresh Alembic
+  bootstrap initially exposed a PostgreSQL-incompatible calendar data
+  correction (`boolean = 1`, then `TIME = VARCHAR`); that migration now uses
+  `IS TRUE` and typed `Time` binds. Representative-volume and broader R7G
+  closure gates still require evidence.
 - R7G remains **IN PROGRESS**. PM Project/Task/Resource Activity builders
-  still load complete user/employee lists; their page-scoped actor projection
-  must preserve PM project/resource authorization rather than borrowing
-  Platform `activity.read`. Cross-surface target/deep-link, retention,
+  originally loaded complete user/employee lists. Task and Resource Activity
+  now resolve only actor IDs from their already-authorized SQL pages, using
+  one fixed-cost tenant-scoped actor query, and pass typed labels through
+  read facts and Desktop DTOs to the existing Activity renderer. Their
+  presenters no longer call `list_users()` or `list_employees()`; the
+  Resource query-count regression asserts exactly one actor batch query.
+  Focused PM presentation selection: **29 passed**; scoped PM read/controller
+  selection: **45 passed**. Project Activity still uses full directory and
+  Site/Department lists to label change diffs; migrate the referenced IDs
+  as well as actors before deleting that lookup. Its page-scoped projection
+  must preserve PM project authorization rather than borrowing Platform
+  `activity.read`. Cross-surface target/deep-link, retention,
   representative-volume/plan, transaction/invalidation and broad regression
   evidence from the R7G gate above also remain open. Do not begin R7H.
+
+#### R7G Live PostgreSQL Continuation (2026-10-09)
+
+- The repository's dedicated PostgreSQL Docker stack was started and the
+  focused R7B/R7D/R7G runtime-role selection passed: **52 passed**. The R7G
+  test includes tenant-isolated batch actor lookup, foreign-organization
+  Activity denial, authorized explicit-organization read and transaction-local
+  RLS context restoration. Fresh Alembic bootstrap required a small fix in
+  the calendar working-rule data correction: use `IS TRUE` for the Boolean
+  column and typed SQLAlchemy `Time` binds for time comparisons. This is a
+  migration portability repair, not a change in history authority.

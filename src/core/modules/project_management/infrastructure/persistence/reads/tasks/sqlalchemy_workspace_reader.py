@@ -31,6 +31,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskDependencyORM,
     TaskORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.history.activity_actor_projection import (
+    actor_labels_for_page,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.resources.identity_expressions import (
     resource_display_name,
 )
@@ -258,12 +261,18 @@ class SqlAlchemyTaskWorkspaceReader:
             ActivityEntryORM.human_message, ActivityEntryORM.details_json,
         ).where(*filters).order_by(ActivityEntryORM.timestamp.desc(), ActivityEntryORM.id.desc())
           .offset((page - 1) * page_size).limit(page_size)).all()
+        actors = actor_labels_for_page(
+            self._session, tenant_id=tenant_id,
+            actor_ids=tuple(str(row[2]) if row[2] else None for row in rows),
+        )
         activity_sort = ReadSort.normalize(key="occurredAt", direction="desc", allowed_keys={"occurredAt"}, default_key="occurredAt")
         return TaskActivityPage(items=tuple(TaskActivityFact(
             activity_id=str(r[0]), occurred_at=r[1], actor_id=str(r[2]) if r[2] else None,
             action=str(r[3] or "activity"), entity_type=str(r[4] or "task"),
             summary=str(r[5] or r[3] or "Activity recorded"),
             details=activity_payload_from_json(r[6]),
+            actor_kind=(actors.get(str(r[2]), ("missing", "Deleted user"))[0] if r[2] else "system"),
+            actor_display=(actors.get(str(r[2]), ("missing", "Deleted user"))[1] if r[2] else "System"),
         ) for r in rows), filtered_total=total, page=page, page_size=page_size, sort=activity_sort)
 
     def _effective_rows(

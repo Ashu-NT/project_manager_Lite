@@ -13,6 +13,8 @@ class DetailActivityDesktopDto:
     entity_type: str
     summary: str
     details: dict[str, object] = field(default_factory=dict)
+    actor_kind: str = "missing"
+    actor_display: str = "Deleted user"
 
 
 @dataclass(frozen=True, slots=True)

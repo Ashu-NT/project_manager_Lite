@@ -371,8 +371,6 @@ class ProjectTasksWorkspacePresenter:
             self._desktop_api.list_task_activity_page(
                 task_id, search_text=search_text, category=category,
                 page=page, page_size=page_size),
-            user_api=self._user_api,
-            employee_api=self._employee_api,
         )
 
     def create_task(self, payload: dict[str, Any]) -> None:

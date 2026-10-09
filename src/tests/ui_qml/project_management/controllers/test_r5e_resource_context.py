@@ -318,7 +318,8 @@ def test_r5e_activity_uses_authoritative_ledger_categories_order_and_paging(serv
     )
     event_types = {item.event_type for item in page.items}
 
-    assert len(statements) <= 3
+    assert len(statements) <= 4
+    assert sum("FROM users JOIN user_tenants" in statement for statement in statements) == 1
     assert "resource.created" in event_types
     assert "resource.skill.added" in event_types
     assert "project_resource.add" in event_types

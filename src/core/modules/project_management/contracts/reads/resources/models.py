@@ -177,6 +177,8 @@ class ResourceActivityFact:
     project_id: str | None
     task_id: str | None
     can_open_source: bool = False
+    actor_kind: str = "missing"
+    actor_display: str = "Deleted user"
 
 
 @dataclass(frozen=True, slots=True)

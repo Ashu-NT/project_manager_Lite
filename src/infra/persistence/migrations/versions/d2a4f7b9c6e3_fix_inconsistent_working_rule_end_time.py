@@ -21,6 +21,7 @@ end_time is corrected to 17:00:00 (08:00 + 8h + 60min break), matching what
 the current seed path already produces for new/re-seeded calendars.
 """
 from collections.abc import Sequence
+from datetime import time
 
 import sqlalchemy as sa
 from alembic import op
@@ -31,9 +32,9 @@ down_revision: str | Sequence[str] | None = "c7d8e9f0a1b2"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-_BUGGY_START = "08:00:00.000000"
-_BUGGY_END = "16:00:00.000000"
-_CORRECTED_END = "17:00:00.000000"
+_BUGGY_START = time(8)
+_BUGGY_END = time(16)
+_CORRECTED_END = time(17)
 _BUGGY_BREAK_MINUTES = 60
 _BUGGY_HOURS_OVERRIDE = 8.0
 
@@ -44,16 +45,16 @@ def upgrade() -> None:
             """
             UPDATE calendar_working_rules
             SET end_time = :corrected_end
-            WHERE is_working_day = 1
+            WHERE is_working_day IS TRUE
               AND start_time = :buggy_start
               AND end_time = :buggy_end
               AND break_minutes = :buggy_break_minutes
               AND hours_override = :buggy_hours_override
             """
         ).bindparams(
-            corrected_end=_CORRECTED_END,
-            buggy_start=_BUGGY_START,
-            buggy_end=_BUGGY_END,
+            sa.bindparam("corrected_end", _CORRECTED_END, type_=sa.Time()),
+            sa.bindparam("buggy_start", _BUGGY_START, type_=sa.Time()),
+            sa.bindparam("buggy_end", _BUGGY_END, type_=sa.Time()),
             buggy_break_minutes=_BUGGY_BREAK_MINUTES,
             buggy_hours_override=_BUGGY_HOURS_OVERRIDE,
         )
@@ -66,16 +67,16 @@ def downgrade() -> None:
             """
             UPDATE calendar_working_rules
             SET end_time = :buggy_end
-            WHERE is_working_day = 1
+            WHERE is_working_day IS TRUE
               AND start_time = :buggy_start
               AND end_time = :corrected_end
               AND break_minutes = :buggy_break_minutes
               AND hours_override = :buggy_hours_override
             """
         ).bindparams(
-            buggy_end=_BUGGY_END,
-            buggy_start=_BUGGY_START,
-            corrected_end=_CORRECTED_END,
+            sa.bindparam("buggy_end", _BUGGY_END, type_=sa.Time()),
+            sa.bindparam("buggy_start", _BUGGY_START, type_=sa.Time()),
+            sa.bindparam("corrected_end", _CORRECTED_END, type_=sa.Time()),
             buggy_break_minutes=_BUGGY_BREAK_MINUTES,
             buggy_hours_override=_BUGGY_HOURS_OVERRIDE,
         )

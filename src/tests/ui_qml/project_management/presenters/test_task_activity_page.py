@@ -23,6 +23,8 @@ def _activity_entry(**kw) -> DetailActivityDesktopDto:
         entity_type="task",
         summary="Progress updated",
         details={},
+        actor_kind="missing",
+        actor_display="Deleted user",
     )
     fields.update(kw)
     return DetailActivityDesktopDto(**fields)
@@ -67,7 +69,7 @@ class TestBuildTaskActivityPage:
         item = items[0]
         assert item["id"] == "act-9"
         assert item["title"] == "Marked in progress"
-        assert item["actorDisplay"] == "System"
+        assert item["actorDisplay"] == "Deleted user"
         assert item["tone"] == "neutral"  # "set_status" matches no danger/warning/success verb keyword
         assert item["badgeLabel"] == ""
         assert item["occurredAtLabel"] == "05 Mar 2026 14:45"
@@ -75,8 +77,8 @@ class TestBuildTaskActivityPage:
             "task-1", search_text="", category="all", page=1, page_size=25,
         )
 
-    def test_actor_resolved_from_employee_full_name(self):
-        entry = _activity_entry(actor_id="user-1")
+    def test_actor_uses_server_authored_label_without_directory_lookup(self):
+        entry = _activity_entry(actor_id="user-1", actor_kind="human", actor_display="Jane Doe")
         p, _ = _presenter(
             activity_entries=[entry],
             users=[SimpleNamespace(id="user-1", display_name="jdoe", username="jdoe")],
@@ -84,9 +86,11 @@ class TestBuildTaskActivityPage:
         )
         result = p.build_task_activity_page(task_id="task-1")
         assert result["items"][0]["actorDisplay"] == "Jane Doe"
+        p._user_api.list_users.assert_not_called()
+        p._employee_api.list_employees.assert_not_called()
 
     def test_missing_actor_id_is_a_system_actor(self):
-        entry = _activity_entry(actor_id=None)
+        entry = _activity_entry(actor_id=None, actor_kind="system", actor_display="System")
         p, _ = _presenter(activity_entries=[entry])
         result = p.build_task_activity_page(task_id="task-1")
         assert result["items"][0]["actorDisplay"] == "System"

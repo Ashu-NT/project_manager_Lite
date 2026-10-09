@@ -23,6 +23,8 @@ def _activity_item(**overrides) -> SimpleNamespace:
         project_id=None,
         task_id=None,
         can_open_source=False,
+        actor_kind="missing",
+        actor_display="Deleted user",
     )
     fields.update(overrides)
     return SimpleNamespace(**fields)
@@ -50,26 +52,14 @@ class TestBuildResourceActivityPage:
         assert mapped["occurredAtLabel"] == "05 Mar 2026 14:30"
         assert mapped["badgeLabel"] == "Capability"
 
-    def test_actor_resolved_from_employee_full_name(self):
-        item = _activity_item(actor_id="user-1")
-        user_api = MagicMock()
-        from src.core.platform.api.desktop.models.common import DesktopApiResult
-        user_api.list_users.return_value = DesktopApiResult(
-            ok=True, data=(SimpleNamespace(id="user-1", display_name="jdoe", username="jdoe"),)
-        )
-        employee_api = MagicMock()
-        employee_api.list_employees.return_value = DesktopApiResult(
-            ok=True, data=(SimpleNamespace(id="emp-1", user_id="user-1", full_name="Jane Doe"),)
-        )
-
-        result = build_resource_activity_page(
-            _desktop_api([item]), "res-1", user_api=user_api, employee_api=employee_api,
-        )
+    def test_actor_uses_server_authored_label(self):
+        item = _activity_item(actor_id="user-1", actor_kind="human", actor_display="Jane Doe")
+        result = build_resource_activity_page(_desktop_api([item]), "res-1")
 
         assert result["items"][0]["actorDisplay"] == "Jane Doe"
 
     def test_missing_actor_id_is_a_system_actor(self):
-        item = _activity_item(actor_id=None)
+        item = _activity_item(actor_id=None, actor_kind="system", actor_display="System")
         result = build_resource_activity_page(_desktop_api([item]), "res-1")
         assert result["items"][0]["actorDisplay"] == "System"
 
