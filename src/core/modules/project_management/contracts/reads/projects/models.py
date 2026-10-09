@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 
@@ -95,6 +95,8 @@ class ProjectActivityFact:
     entity_type: str
     summary: str
     details: dict[str, object]
+    actor_kind: str = "missing"
+    actor_display: str = "Deleted user"
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +106,7 @@ class ProjectActivityPage:
     page: int = 1
     page_size: int = 25
     sort: ReadSort = ReadSort("occurredAt")
+    reference_labels: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 __all__ = [

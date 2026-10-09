@@ -14,12 +14,16 @@ def actor_labels_for_page(
     ids = tuple(sorted({actor_id for actor_id in actor_ids if actor_id}))
     if not ids:
         return {}
-    return {
-        actor_id: (actor.kind.value, actor.label)
-        for actor_id, actor in SqlAlchemyActivityActorReader(session).resolve_batch(
-            tenant_id=tenant_id, actor_ids=ids
-        ).items()
-    }
+    reader = SqlAlchemyActivityActorReader(session)
+    labels: dict[str, tuple[str, str]] = {}
+    for offset in range(0, len(ids), 200):
+        labels.update({
+            actor_id: (actor.kind.value, actor.label)
+            for actor_id, actor in reader.resolve_batch(
+                tenant_id=tenant_id, actor_ids=ids[offset:offset + 200]
+            ).items()
+        })
+    return labels
 
 
 __all__ = ["actor_labels_for_page"]

@@ -249,10 +249,6 @@ class ProjectProjectsWorkspacePresenter:
             self._desktop_api.list_project_activity_page(
                 project_id, search_text=search_text, category=category,
                 page=page, page_size=page_size),
-            site_api=self._site_api,
-            department_api=self._department_api,
-            user_api=self._user_api,
-            employee_api=self._employee_api,
         )
 
     def suggest_code(self, payload: dict[str, Any]) -> str:

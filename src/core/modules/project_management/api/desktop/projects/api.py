@@ -389,8 +389,10 @@ class ProjectManagementProjectsDesktopApi:
                 id=item.activity_id, occurred_at=item.occurred_at,
                 actor_id=item.actor_id, action=item.action, entity_type=item.entity_type,
                 summary=item.summary, details=item.details,
+                actor_kind=item.actor_kind, actor_display=item.actor_display,
             ) for item in result.items), filtered_total=result.filtered_total,
-            page=result.page, page_size=result.page_size)
+            page=result.page, page_size=result.page_size,
+            reference_labels=result.reference_labels)
 
     def list_assignable_resources(self, project_id: str) -> tuple[ProjectAssignableResourceOptionDescriptor, ...]:
         normalized_id = str(project_id or "").strip()

@@ -25,6 +25,7 @@ class DetailActivityPageDesktopDto:
     page_size: int = 25
     sort_key: str = "occurredAt"
     sort_direction: str = "desc"
+    reference_labels: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 __all__ = ["DetailActivityDesktopDto", "DetailActivityPageDesktopDto"]

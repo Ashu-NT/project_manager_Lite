@@ -1412,3 +1412,34 @@ Do not mark R7G complete or start R7H until these are resolved.
   the calendar working-rule data correction: use `IS TRUE` for the Boolean
   column and typed SQLAlchemy `Time` binds for time comparisons. This is a
   migration portability repair, not a change in history authority.
+
+#### R7G Project Activity Bounded Label Cutover (2026-10-09)
+
+- Project Activity keeps its existing `project.read` authorization before the
+  Reader executes. The Reader now resolves actors and only the Site,
+  Department, Manager User and Client Party IDs referenced in the returned
+  page's change diffs. User lookup is batched in bounded chunks; Employee
+  names are applied only to active human accounts linked in the same tenant
+  and organization. Service, removed and missing actor labels remain
+  redacted/explicit. Site/Department/Party labels use scoped SQL queries
+  only when that reference type occurs on the page. A missing historical
+  reference retains the established raw-ID fallback rather than inventing
+  a current name.
+- Project read facts and Desktop DTOs carry the page-scoped label map to the
+  presenter. The full-directory `list_users()`/`list_employees()` and full
+  Site/Department list calls were removed from the Project Activity path;
+  their obsolete helper functions were deleted. Other Project workspace
+  selectors are unchanged. Focused Project Activity/pagination tests:
+  **60 passed**. The reader regression checks one User and one Employee
+  lookup for a page containing multiple Activity rows, plus one scoped
+  lookup for each referenced master-data kind.
+- The persisted Project manager identity is currently `manager_user_id`
+  (FK to `users.id`), also consumed by My Team timesheet eligibility. The
+  Project manager picker currently lists all active users and Project
+  create/update do not validate Employee/PM Resource eligibility. Whether
+  selection must be restricted to active employee-backed PM Resources is a
+  separate product/write-contract decision; do not reinterpret historical
+  user IDs as Resource IDs during this read cutover.
+- R7G remains **IN PROGRESS**. PM runtime-role PostgreSQL proof for these
+  label joins, broader cross-surface target/navigation, retention,
+  transaction/invalidation and representative-volume gates remain open.

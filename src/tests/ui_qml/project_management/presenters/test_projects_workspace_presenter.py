@@ -100,6 +100,8 @@ def _activity_entry(**kw) -> DetailActivityDesktopDto:
         entity_type=kw.get("entity_type", "project"),
         summary=kw.get("summary", "Project updated"),
         details=kw.get("details", {}),
+        actor_kind=kw.get("actor_kind", "missing"),
+        actor_display=kw.get("actor_display", "Deleted user"),
     )
 
 
@@ -123,6 +125,10 @@ def _presenter(
     projects_api.list_project_activity_page.return_value = DetailActivityPageDesktopDto(
         items=tuple(activity_entries) if activity_entries is not None else (),
         filtered_total=len(activity_entries) if activity_entries is not None else 0,
+        reference_labels={
+            "site": {row.id: row.name for row in sites},
+            "department": {row.id: row.name for row in departments},
+        },
     )
 
     register_api = MagicMock()
@@ -341,8 +347,7 @@ class TestBuildProjectActivityPage:
         item = items[0]
         assert item["id"] == "act-42"
         assert item["title"] == "Renamed project"
-        # No user_api/employee_api match for "user-1" -> falls back to "System".
-        assert item["actorDisplay"] == "System"
+        assert item["actorDisplay"] == "Deleted user"
         assert item["tone"] == "warning"
         assert item["badgeLabel"] == ""
         assert item["occurredAtLabel"] == "05 Mar 2026 14:45"
@@ -350,10 +355,8 @@ class TestBuildProjectActivityPage:
             "proj-1", search_text="", category="all", page=1, page_size=25,
         )
 
-    def test_actor_resolved_from_employee_full_name(self):
-        """The user's own guidance: most users are employees, so the linked
-        Employee's full_name should win over the bare User account fields."""
-        entry = _activity_entry(actor_id="user-1")
+    def test_actor_uses_server_authored_employee_label_without_directory_lookup(self):
+        entry = _activity_entry(actor_id="user-1", actor_kind="human", actor_display="Jane Doe")
         p, _, __, ___ = _presenter(
             activity_entries=[entry],
             users=[SimpleNamespace(id="user-1", display_name="jdoe", username="jdoe")],
@@ -361,9 +364,11 @@ class TestBuildProjectActivityPage:
         )
         result = p.build_project_activity_page(project_id="p-1")
         assert result["items"][0]["actorDisplay"] == "Jane Doe"
+        p._user_api.list_users.assert_not_called()
+        p._employee_api.list_employees.assert_not_called()
 
     def test_actor_falls_back_to_user_display_name_when_no_employee_match(self):
-        entry = _activity_entry(actor_id="user-1")
+        entry = _activity_entry(actor_id="user-1", actor_kind="human", actor_display="Jamie Admin")
         p, _, __, ___ = _presenter(
             activity_entries=[entry],
             users=[SimpleNamespace(id="user-1", display_name="Jamie Admin", username="jadmin")],
@@ -373,7 +378,7 @@ class TestBuildProjectActivityPage:
         assert result["items"][0]["actorDisplay"] == "Jamie Admin"
 
     def test_actor_falls_back_to_username_when_no_display_name(self):
-        entry = _activity_entry(actor_id="user-1")
+        entry = _activity_entry(actor_id="user-1", actor_kind="human", actor_display="jadmin")
         p, _, __, ___ = _presenter(
             activity_entries=[entry],
             users=[SimpleNamespace(id="user-1", display_name=None, username="jadmin")],
@@ -382,7 +387,7 @@ class TestBuildProjectActivityPage:
         assert result["items"][0]["actorDisplay"] == "jadmin"
 
     def test_missing_actor_id_is_a_system_actor_not_unknown_user(self):
-        entry = _activity_entry(actor_id=None)
+        entry = _activity_entry(actor_id=None, actor_kind="system", actor_display="System")
         p, _, __, ___ = _presenter(activity_entries=[entry])
         result = p.build_project_activity_page(project_id="p-1")
         assert result["items"][0]["actorDisplay"] == "System"
@@ -416,6 +421,25 @@ class TestBuildProjectActivityPage:
         )
         result = p.build_project_activity_page(project_id="p-1")
         assert result["items"][0]["supportingText"] == "Site: Hamburg Yard → Rotterdam Yard"
+
+    def test_manager_and_party_changes_use_page_scoped_labels(self):
+        entry = _activity_entry(details={"changes": {
+            "manager_user_id": {"from": None, "to": "user-1"},
+            "client_party_id": {"from": None, "to": "party-1"},
+        }})
+        p, _, projects_api, _ = _presenter(activity_entries=[entry])
+        projects_api.list_project_activity_page.return_value = DetailActivityPageDesktopDto(
+            items=(entry,), filtered_total=1,
+            reference_labels={"user": {"user-1": "History Actor"},
+                              "party": {"party-1": "Customer Group"}},
+        )
+
+        result = p.build_project_activity_page(project_id="p-1")
+        summary = result["items"][0]["supportingText"]
+
+        assert "Manager: -" in summary and "History Actor" in summary
+        assert "Client (Party): -" in summary and "Customer Group" in summary
+        p._user_api.list_users.assert_not_called()
 
     def test_field_changes_summary_falls_back_to_raw_id_when_unresolved(self):
         entry = _activity_entry(
