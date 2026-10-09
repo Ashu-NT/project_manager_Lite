@@ -71,7 +71,7 @@ factory callers have been migrated together.
 | C1 | Split Platform Approval vs PM notification registration and PM recipient recheck; inject policy from root | Same transactional subscription counts, recipient/privacy/RLS and startup tests; delete mixed `notifications.py` | Complete |
 | C2 | Move PM access/scope registrations and approval registrations/dependency factories into PM composition | Service identity, reviewer permissions, handler counts, transaction/UoW tests; delete root approval factory package | Complete; mixed repository-bundle dependency remains until C5 |
 | C3 | Extract PM Projects, Tasks, Resources, Scheduling, Timesheets, Collaboration, Portfolio and Risk dependency/event groups | Per-group focused tests; no duplicated factories/subscriptions; preserve PM bundle | Complete; Finance remains C4 |
-| C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | Not started |
+| C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | In progress: Finance post-commit event wiring extracted |
 | C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | Not started |
 | C6 | Slim root and move only cross-module integrations/global overview wiring under root | Desktop startup, full PM/Platform, PostgreSQL and architecture guards; delete both central registries and obsolete imports | Not started |
 
@@ -167,6 +167,17 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   finds only Finance service constructors. The PM and Platform bundle types
   remain imported by these builders until C5 splits their ownership; the
   central PM builder itself remains until C4/C6.
+- C4 Finance event slice: Forecast, Financial Change, Planned Cost,
+  Commitment, Cost Entry, Budget, Billing, Configuration and Rate Card
+  post-commit invalidation subscriptions moved into PM-owned
+  `events/finance/` files. Calls remain at their original relative positions
+  in the PM builder. A composition test checks every moved event type has
+  exactly one handler and each family shares one handler instance. Focused
+  Budget/Forecast checks: 62 passed; combined Finance invalidation, Budget,
+  Rate and Cost Entry checks: 71 passed. Targeted Ruff F/I and mypy pass for
+  all eight Finance event source files. No Finance service construction,
+  governed port, UoW factory or worker principal was changed in this slice.
+  C4 remains open for those higher-risk dependency and worker migrations.
 
 ## Closure Gates
 

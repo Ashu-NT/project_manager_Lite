@@ -31,97 +31,10 @@ from src.core.modules.project_management.application.financials import (
     ProjectRateCardService,
     RateCardResolver,
 )
-from src.core.modules.project_management.application.financials.budgets.budget_events import (
-    BudgetLineChanged,
-    BudgetProfileUpdated,
-    BudgetRemoved,
-    BudgetStatusChanged,
-    BudgetVersionCreated,
-)
-from src.core.modules.project_management.application.financials.budgets.event_handlers.view_invalidation import (
-    build_budget_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.commitments.commitment_events import (
-    CommitmentLineChanged,
-    CommitmentMatchChanged,
-)
-from src.core.modules.project_management.application.financials.commitments.event_handlers.view_invalidation import (
-    build_commitment_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.configuration.event_handlers.view_invalidation import (
-    build_financial_profile_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.configuration.events import (
-    CostCodeActivated,
-    CostCodeCreated,
-    CostCodeDeactivated,
-    CostCodeProfileUpdated,
-    ProjectCostCodeRestrictionAdded,
-    ProjectCostCodeRestrictionRemoved,
-    ProjectFinancialProfileCreated,
-    ProjectFinancialProfileTransitioned,
-    ProjectFinancialProfileUpdated,
-)
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
-    CostEntryRecorded,
-    CostEntryRemoved,
-    CostEntryReversed,
-    CostEntryStatusChanged,
-    CostEntryUpdated,
-)
-from src.core.modules.project_management.application.financials.cost.entries.event_handlers.view_invalidation import (
-    build_cost_entry_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.financial_changes.event_handlers.view_invalidation import (
-    build_financial_change_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
-    FinancialChangeChanged,
-)
-from src.core.modules.project_management.application.financials.forecasts.event_handlers.view_invalidation import (
-    build_forecast_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
-    ForecastDraftGenerated,
-    ForecastLineChanged,
-    ForecastVersionChanged,
-)
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
     FinanceGovernanceOperations,
     FinanceGovernedServicePort,
-)
-from src.core.modules.project_management.application.financials.invoicing.billing_events import (
-    AccountingTransportFinalized,
-    BillingPreparationCreated,
-    BillingPreparationExternalOutcomeRecorded,
-    BillingPreparationLineAdded,
-    BillingPreparationLineRemoved,
-    BillingPreparationStatusChanged,
-    BillingProfileActivated,
-    BillingProfileCreated,
-    BillingScheduleLineAdded,
-    BillingScheduleLineMarkedReady,
-)
-from src.core.modules.project_management.application.financials.invoicing.event_handlers.view_invalidation import (
-    build_billing_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.planned_costs.event_handlers.view_invalidation import (
-    build_planned_cost_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.planned_costs.planned_cost_events import (
-    PlannedCostSnapshotCalculated,
-)
-from src.core.modules.project_management.application.financials.rate_cards.event_handlers.view_invalidation import (
-    build_rate_card_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
-    RateCardCreated,
-    RateCardDeactivated,
-    RateCardLineAdded,
-    RateCardLineDeactivated,
-    RateCardLineUpdated,
-    RateCardUpdated,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -199,6 +112,29 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
 )
 from src.core.modules.project_management.infrastructure.composition.events.collaboration import (
     register_collaboration_view_invalidation,
+)
+from src.core.modules.project_management.infrastructure.composition.events.finance.billing import (
+    register_billing_view_invalidation,
+)
+from src.core.modules.project_management.infrastructure.composition.events.finance.budgets import (
+    register_budget_view_invalidation,
+)
+from src.core.modules.project_management.infrastructure.composition.events.finance.changes import (
+    register_financial_change_view_invalidation,
+)
+from src.core.modules.project_management.infrastructure.composition.events.finance.configuration import (
+    register_financial_profile_view_invalidation,
+)
+from src.core.modules.project_management.infrastructure.composition.events.finance.costs import (
+    register_commitment_view_invalidation,
+    register_cost_entry_view_invalidation,
+    register_planned_cost_view_invalidation,
+)
+from src.core.modules.project_management.infrastructure.composition.events.finance.forecasts import (
+    register_forecast_view_invalidation,
+)
+from src.core.modules.project_management.infrastructure.composition.events.finance.rates import (
+    register_rate_card_view_invalidation,
 )
 from src.core.modules.project_management.infrastructure.composition.events.portfolio import (
     register_portfolio_view_invalidation,
@@ -690,109 +626,42 @@ def build_project_management_service_bundle(
             task_repo=uow.tasks,
             service_principal=principal,
         )
-    _forecast_view_invalidation_handler = build_forecast_view_invalidation_handler(
-        platform_services.platform_view_invalidation_channel
+    register_forecast_view_invalidation(
+        platform_services.platform_post_commit_bus,
+        platform_services.platform_view_invalidation_channel,
     )
-    for _forecast_event_type in (ForecastVersionChanged, ForecastLineChanged, ForecastDraftGenerated):
-        platform_services.platform_post_commit_bus.subscribe(
-            _forecast_event_type, _forecast_view_invalidation_handler
-        )
-    _financial_change_view_invalidation_handler = (
-        build_financial_change_view_invalidation_handler(
-            platform_services.platform_view_invalidation_channel
-        )
+    register_financial_change_view_invalidation(
+        platform_services.platform_post_commit_bus,
+        platform_services.platform_view_invalidation_channel,
     )
-    platform_services.platform_post_commit_bus.subscribe(
-        FinancialChangeChanged, _financial_change_view_invalidation_handler
+    register_planned_cost_view_invalidation(
+        platform_services.platform_post_commit_bus,
+        platform_services.platform_view_invalidation_channel,
     )
-    _planned_cost_view_invalidation_handler = build_planned_cost_view_invalidation_handler(
-        platform_services.platform_view_invalidation_channel
+    register_commitment_view_invalidation(
+        platform_services.platform_post_commit_bus,
+        platform_services.platform_view_invalidation_channel,
     )
-    platform_services.platform_post_commit_bus.subscribe(
-        PlannedCostSnapshotCalculated, _planned_cost_view_invalidation_handler
+    register_cost_entry_view_invalidation(
+        platform_services.platform_post_commit_bus,
+        platform_services.platform_view_invalidation_channel,
     )
-    _commitment_view_invalidation_handler = build_commitment_view_invalidation_handler(
-        platform_services.platform_view_invalidation_channel
+    register_budget_view_invalidation(
+        platform_services.platform_post_commit_bus,
+        platform_services.platform_view_invalidation_channel,
     )
-    for _commitment_event_type in (CommitmentLineChanged, CommitmentMatchChanged):
-        platform_services.platform_post_commit_bus.subscribe(
-            _commitment_event_type, _commitment_view_invalidation_handler
-        )
-    _cost_entry_view_invalidation_handler = build_cost_entry_view_invalidation_handler(
-        platform_services.platform_view_invalidation_channel
+    register_billing_view_invalidation(
+        platform_services.platform_post_commit_bus,
+        platform_services.platform_view_invalidation_channel,
     )
-    for _cost_entry_event_type in (
-        CostEntryRecorded,
-        CostEntryUpdated,
-        CostEntryStatusChanged,
-        CostEntryReversed,
-        CostEntryRemoved,
-    ):
-        platform_services.platform_post_commit_bus.subscribe(
-            _cost_entry_event_type, _cost_entry_view_invalidation_handler
-        )
-    _budget_view_invalidation_handler = build_budget_view_invalidation_handler(
-        platform_services.platform_view_invalidation_channel
+    register_financial_profile_view_invalidation(
+        platform_services.platform_post_commit_bus,
+        platform_services.platform_view_invalidation_channel,
     )
-    for _budget_event_type in (
-        BudgetVersionCreated,
-        BudgetProfileUpdated,
-        BudgetLineChanged,
-        BudgetStatusChanged,
-        BudgetRemoved,
-    ):
-        platform_services.platform_post_commit_bus.subscribe(
-            _budget_event_type, _budget_view_invalidation_handler
-        )
-    _billing_view_invalidation_handler = build_billing_view_invalidation_handler(
-        platform_services.platform_view_invalidation_channel
+    register_rate_card_view_invalidation(
+        platform_services.platform_post_commit_bus,
+        platform_services.platform_view_invalidation_channel,
     )
-    for _billing_event_type in (
-        AccountingTransportFinalized,
-        BillingProfileCreated,
-        BillingProfileActivated,
-        BillingScheduleLineAdded,
-        BillingScheduleLineMarkedReady,
-        BillingPreparationCreated,
-        BillingPreparationLineAdded,
-        BillingPreparationLineRemoved,
-        BillingPreparationStatusChanged,
-        BillingPreparationExternalOutcomeRecorded,
-    ):
-        platform_services.platform_post_commit_bus.subscribe(
-            _billing_event_type, _billing_view_invalidation_handler
-        )
-    _financial_profile_view_invalidation_handler = build_financial_profile_view_invalidation_handler(
-        platform_services.platform_view_invalidation_channel
-    )
-    for _financial_profile_event_type in (
-        ProjectFinancialProfileCreated,
-        ProjectFinancialProfileUpdated,
-        ProjectFinancialProfileTransitioned,
-        CostCodeCreated,
-        CostCodeProfileUpdated,
-        CostCodeActivated,
-        CostCodeDeactivated,
-        ProjectCostCodeRestrictionAdded,
-        ProjectCostCodeRestrictionRemoved,
-    ):
-        platform_services.platform_post_commit_bus.subscribe(
-            _financial_profile_event_type, _financial_profile_view_invalidation_handler
-        )
-    _rate_card_view_invalidation_handler = build_rate_card_view_invalidation_handler(
-        platform_services.platform_view_invalidation_channel
-    )
-    for _rate_card_event_type in (
-        RateCardCreated,
-        RateCardDeactivated,
-        RateCardUpdated,
-        RateCardLineAdded,
-        RateCardLineUpdated,
-        RateCardLineDeactivated,
-    ):
-        platform_services.platform_post_commit_bus.subscribe(
-            _rate_card_event_type, _rate_card_view_invalidation_handler
-        )
     financial_change_service = FinancialChangeService(
         session=session,
         change_repo=repositories.financial_change_repo,
