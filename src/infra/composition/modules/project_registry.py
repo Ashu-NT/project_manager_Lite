@@ -10,14 +10,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from src.core.modules.project_management.application.collaboration import (
     CollaborationService,
 )
-from src.core.modules.project_management.application.collaboration.collaboration_events import (
-    TaskCommentChanged,
-    TaskCommentReactionChanged,
-    TaskCommentReadStateChanged,
-)
-from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
-    build_task_comment_view_invalidation_handler,
-)
 from src.core.modules.project_management.application.common.clock import SystemClock
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
@@ -132,15 +124,6 @@ from src.core.modules.project_management.application.financials.rate_cards.rate_
     RateCardUpdated,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
-from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
-    build_portfolio_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioIntakeItemChanged,
-    PortfolioProjectDependencyChanged,
-    PortfolioScenarioChanged,
-    PortfolioScoringTemplateChanged,
-)
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.reporting import (
     ReportingService,
@@ -176,13 +159,32 @@ from src.core.modules.project_management.application.scheduling.calendars.projec
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
+from src.core.modules.project_management.infrastructure.composition.dependencies.collaboration import (
+    build_collaboration_service,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.dashboard import (
+    build_dashboard_service,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.importers import (
+    build_data_import_service,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.portfolio import (
+    build_portfolio_resource_pool_service,
+    build_portfolio_service,
+)
 from src.core.modules.project_management.infrastructure.composition.dependencies.projects import (
     build_project_service,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.register import (
     build_register_service,
 )
+from src.core.modules.project_management.infrastructure.composition.dependencies.reporting import (
+    build_reporting_service,
+)
 from src.core.modules.project_management.infrastructure.composition.dependencies.resources import (
+    build_project_resource_service,
+    build_resource_planning_foundation,
+    build_resource_planning_services,
     build_resource_service,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.scheduling import (
@@ -194,6 +196,12 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.timesheets import (
     build_timesheet_service,
+)
+from src.core.modules.project_management.infrastructure.composition.events.collaboration import (
+    register_collaboration_view_invalidation,
+)
+from src.core.modules.project_management.infrastructure.composition.events.portfolio import (
+    register_portfolio_view_invalidation,
 )
 from src.core.modules.project_management.infrastructure.composition.events.projects import (
     register_project_view_invalidation,
@@ -225,11 +233,7 @@ from src.core.modules.project_management.infrastructure.composition.registration
 from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.collaboration import (
-    SqlAlchemyCollaborationWorkspaceReader,
-)
 from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
-    SqlAlchemyEvmSeriesReader,
     SqlAlchemyFinanceBillingReader,
     SqlAlchemyFinanceBudgetReader,
     SqlAlchemyFinanceChangeReader,
@@ -242,29 +246,12 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
     SqlAlchemyFinanceSetupReader,
     SqlAlchemyFinanceSnapshotReader,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.portfolio import (
-    SqlAlchemyPortfolioHeatmapReader,
-    SqlAlchemyPortfolioResourcePoolReader,
-    SqlAlchemyPortfolioScenarioReader,
-)
-from src.core.modules.project_management.infrastructure.persistence.reads.projects import (
-    SqlAlchemyProjectCatalogReader,
-)
-from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
-    SqlAlchemyResourceWorkloadDemandReader,
-)
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
     SqlAlchemyRateResolutionReader,
-)
-from src.core.modules.project_management.infrastructure.persistence.uow.collaboration.collaboration_unit_of_work import (
-    SqlAlchemyCollaborationUnitOfWorkFactory,
 )
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWork,
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
-)
-from src.core.modules.project_management.infrastructure.persistence.uow.portfolio.portfolio_unit_of_work import (
-    SqlAlchemyPortfolioUnitOfWorkFactory,
 )
 from src.core.platform.application.finance.financial_period_service import (
     FinancialPeriodService,
@@ -386,18 +373,10 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
-    project_resource_service = ProjectResourceService(
-        project_resource_repo=repositories.project_resource_repo,
-        resource_repo=repositories.resource_repo,
-        project_repo=repositories.project_repo,
-        session=session,
-        user_session=platform_services.user_session,
-        activity_service=platform_services.activity_service,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
-        task_repo=repositories.task_repo,
-        assignment_repo=repositories.assignment_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
+    project_resource_service = build_project_resource_service(
+        session,
+        repositories,
+        platform_services,
         shared_uow_factory=shared_session_uow_factory,
     )
     register_register_view_invalidation(
@@ -411,14 +390,9 @@ def build_project_management_service_bundle(
         platform_services,
     )
     logger.debug("Project Management scheduling foundation built")
-    assignment_skill_validator = AssignmentSkillValidator(
-        skill_repo=repositories.resource_skill_repo,
-        cert_repo=repositories.resource_cert_repo,
-        requirement_repo=repositories.task_skill_req_repo,
-    )
-    enterprise_resource_availability = EnterpriseResourceAvailabilityService(
-        resolver=platform_services.platform_calendar_resolver,
-        resource_repo=repositories.resource_repo,
+    assignment_skill_validator, enterprise_resource_availability = build_resource_planning_foundation(
+        repositories,
+        platform_services,
     )
     register_task_events(
         platform_services.platform_transactional_dispatcher,
@@ -562,24 +536,12 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
-    reporting_service = ReportingService(
-        project_repo=repositories.project_repo,
-        task_repo=repositories.task_repo,
-        resource_repo=repositories.resource_repo,
-        assignment_repo=repositories.assignment_repo,
+    reporting_service = build_reporting_service(
+        session,
+        repositories,
+        platform_services,
         scheduling_engine=scheduling_engine,
-        calendar=platform_services.global_calendar_shim,
-        baseline_repo=repositories.baseline_repo,
-        project_resource_repo=repositories.project_resource_repo,
         rate_resolver=rate_card_resolver,
-        tenant_context_service=platform_services.tenant_context_service,
-        evm_series_reader=SqlAlchemyEvmSeriesReader(session=session),
-        finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        billing_repo=repositories.project_billing_repo,
-        billing_reader=SqlAlchemyFinanceBillingReader(session=session),
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
     )
     finance_performance_reader = SqlAlchemyFinancePerformanceReader(
         session=session,
@@ -1198,89 +1160,21 @@ def build_project_management_service_bundle(
             }
         ),
     )
-    collaboration_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
-    collaboration_uow_factory = SqlAlchemyCollaborationUnitOfWorkFactory(
-        session_factory=collaboration_uow_session_factory,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
-        tenant_context_service=platform_services.tenant_context_service,
-        user_session=platform_services.user_session,
+    register_collaboration_view_invalidation(
+        platform_services.platform_post_commit_bus,
+        platform_services.platform_view_invalidation_channel,
     )
-    _task_comment_view_invalidation_handler = build_task_comment_view_invalidation_handler(
-        platform_services.platform_view_invalidation_channel
+    collaboration_service = build_collaboration_service(session, repositories, platform_services)
+    register_portfolio_view_invalidation(
+        platform_services.platform_post_commit_bus,
+        platform_services.platform_view_invalidation_channel,
     )
-    for _task_comment_event_type in (
-        TaskCommentChanged,
-        TaskCommentReactionChanged,
-        TaskCommentReadStateChanged,
-    ):
-        platform_services.platform_post_commit_bus.subscribe(
-            _task_comment_event_type, _task_comment_view_invalidation_handler
-        )
-    from src.core.modules.project_management.infrastructure.collaboration_attachments import (
-        cleanup_task_comment_attachments,
-        store_task_comment_attachments,
-    )
-
-    collaboration_service = CollaborationService(
-        session=session,
-        comment_repo=repositories.task_comment_repo,
-        presence_repo=repositories.task_presence_repo,
-        task_repo=repositories.task_repo,
-        project_repo=repositories.project_repo,
-        user_repo=repositories.user_repo,
-        workspace_reader=SqlAlchemyCollaborationWorkspaceReader(session=session),
-        document_integration_service=platform_services.document_integration_service,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
-        role_repo=repositories.role_repo,
-        role_binding_repo=repositories.role_binding_repo,
-        view_invalidation_channel=platform_services.platform_view_invalidation_channel,
-        uow_factory=collaboration_uow_factory,
-        attachment_store=store_task_comment_attachments,
-        attachment_cleanup=cleanup_task_comment_attachments,
-        clock=SystemClock(),
-    )
-    portfolio_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
-    portfolio_uow_factory = SqlAlchemyPortfolioUnitOfWorkFactory(
-        session_factory=portfolio_uow_session_factory,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
-        tenant_context_service=platform_services.tenant_context_service,
-        user_session=platform_services.user_session,
-    )
-    _portfolio_view_invalidation_handler = build_portfolio_view_invalidation_handler(
-        platform_services.platform_view_invalidation_channel
-    )
-    for _portfolio_event_type in (
-        PortfolioIntakeItemChanged,
-        PortfolioScenarioChanged,
-        PortfolioScoringTemplateChanged,
-        PortfolioProjectDependencyChanged,
-    ):
-        platform_services.platform_post_commit_bus.subscribe(
-            _portfolio_event_type,
-            _portfolio_view_invalidation_handler,
-        )
-    portfolio_service = PortfolioService(
-        session=session,
-        intake_repo=repositories.portfolio_intake_repo,
-        dependency_repo=repositories.portfolio_project_dependency_repo,
-        scoring_template_repo=repositories.portfolio_scoring_template_repo,
-        scenario_repo=repositories.portfolio_scenario_repo,
-        audit_repo=repositories.audit_entry_repo,
-        project_repo=repositories.project_repo,
-        heatmap_reader=SqlAlchemyPortfolioHeatmapReader(session=session),
-        scenario_reader=SqlAlchemyPortfolioScenarioReader(session=session),
-        calendar=platform_services.global_calendar_shim,
+    portfolio_service = build_portfolio_service(
+        session,
+        repositories,
+        platform_services,
         project_calendar_adapter=_pre_project_calendar_adapter,
         rate_resolver=rate_card_resolver,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
-        project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
-        uow_factory=portfolio_uow_factory,
     )
     register_baseline_view_invalidation(
         platform_services.platform_post_commit_bus,
@@ -1301,40 +1195,31 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
-    dashboard_service = DashboardService(
+    dashboard_service = build_dashboard_service(
+        platform_services,
         reporting_service=reporting_service,
         task_service=task_service,
         project_service=project_service,
         resource_service=resource_service,
         register_service=register_service,
         scheduling_engine=scheduling_engine,
-        work_calendar_engine=platform_services.global_calendar_shim,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
     )
-    data_import_service = DataImportService(
+    data_import_service = build_data_import_service(
+        platform_services,
         project_service=project_service,
         task_service=task_service,
         resource_service=resource_service,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
     )
     project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine
-    resource_capacity_calculator = ResourceCapacityCalculator(
+    resource_capacity_calculator, resource_workload_service = build_resource_planning_services(
+        session,
+        repositories,
+        platform_services,
         availability_service=enterprise_resource_availability,
     )
-    resource_workload_service = ResourceWorkloadService(
-        resource_repo=repositories.resource_repo,
-        demand_reader=SqlAlchemyResourceWorkloadDemandReader(session=session),
-        availability_service=enterprise_resource_availability,
-        user_session=platform_services.user_session,
-        tenant_context_service=platform_services.tenant_context_service,
-    )
-    portfolio_resource_pool_service = PortfolioResourcePoolService(
-        reader=SqlAlchemyPortfolioResourcePoolReader(session=session),
-        calendar=platform_services.global_calendar_shim,
-        tenant_context_service=platform_services.tenant_context_service,
-        user_session=platform_services.user_session,
+    portfolio_resource_pool_service = build_portfolio_resource_pool_service(
+        session,
+        platform_services,
     )
     logger.debug("Project Management core services built")
     register_project_management_approval_handlers(

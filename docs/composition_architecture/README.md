@@ -70,7 +70,7 @@ factory callers have been migrated together.
 | C0 | Baseline inventory, public-import and lifecycle map | Composition/architecture tests run; no source changes | Complete |
 | C1 | Split Platform Approval vs PM notification registration and PM recipient recheck; inject policy from root | Same transactional subscription counts, recipient/privacy/RLS and startup tests; delete mixed `notifications.py` | Complete |
 | C2 | Move PM access/scope registrations and approval registrations/dependency factories into PM composition | Service identity, reviewer permissions, handler counts, transaction/UoW tests; delete root approval factory package | Complete; mixed repository-bundle dependency remains until C5 |
-| C3 | Extract PM Projects, Tasks, Resources, Scheduling, Timesheets, Collaboration, Portfolio and Risk dependency/event groups | Per-group focused tests; no duplicated factories/subscriptions; preserve PM bundle | In progress: Projects, Register, Tasks, Timesheets, Resources and Scheduling extracted |
+| C3 | Extract PM Projects, Tasks, Resources, Scheduling, Timesheets, Collaboration, Portfolio and Risk dependency/event groups | Per-group focused tests; no duplicated factories/subscriptions; preserve PM bundle | Complete; Finance remains C4 |
 | C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | Not started |
 | C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | Not started |
 | C6 | Slim root and move only cross-module integrations/global overview wiring under root | Desktop startup, full PM/Platform, PostgreSQL and architecture guards; delete both central registries and obsolete imports | Not started |
@@ -148,8 +148,25 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   Scheduling and Portfolio, and the Baseline UoW intentionally remains bound
   to the ambient session. Its five post-commit subscriptions retain one shared
   handler. Scheduling/Baseline-focused tests: 37 passed. All four new files
-  pass targeted mypy and Ruff F/I. Collaboration, Portfolio, Reporting and
-  Dashboard construction/event wiring still remain in the central PM builder.
+  pass targeted mypy and Ruff F/I.
+- C3 Collaboration and Portfolio: their fresh-session UoWs, services and
+  post-commit subscriptions moved to PM-owned builders/registrars without
+  changing registration order. Collaboration retains its attachment hooks,
+  local clock and one handler shared by three comment events. Portfolio retains
+  the Scheduling calendar adapter, Finance rate resolver and one handler
+  shared by four Portfolio events. Focused tests: 19 and 16 passed.
+- C3 Reporting, Dashboard and remaining Resources: Reporting and Dashboard
+  builders reuse the existing Scheduling, Finance-rate and PM service instances;
+  no calculation or event authority moved. Project Resource retains the shared
+  ambient-session UoW. Skill/availability foundation, capacity/workload
+  services, Portfolio resource pool and Data Import facade are now PM-owned
+  builders called at their original positions. Combined non-Finance composition
+  and adjacent feature tests: 40 passed; live PostgreSQL R7B governance/security:
+  44 passed. Targeted Ruff F/I, mypy (21 dependency/event source files), Python
+  compilation and `git diff --check` passed. A scan of the central PM builder
+  finds only Finance service constructors. The PM and Platform bundle types
+  remain imported by these builders until C5 splits their ownership; the
+  central PM builder itself remains until C4/C6.
 
 ## Closure Gates
 
