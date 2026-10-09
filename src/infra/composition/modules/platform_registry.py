@@ -227,6 +227,9 @@ from src.core.platform.domain.tenant.tenancy.events import (
     TenantMembershipRemoved,
     TenantMembershipSuspended,
 )
+from src.core.platform.infrastructure.persistence.read.history.activity_actor_reader import (
+    SqlAlchemyActivityActorReader,
+)
 from src.core.platform.infrastructure.persistence.read.master_data.employee.employee_headcount_reader import (
     SqlAlchemyEmployeeHeadcountReader,
 )
@@ -517,6 +520,7 @@ def build_platform_service_bundle(
         activity_repo=repositories.activity_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
+        actor_reader=SqlAlchemyActivityActorReader(session),
     )
     platform_transactional_dispatcher = InProcessTransactionalEventDispatcher()
     from src.infra.composition.notifications import (

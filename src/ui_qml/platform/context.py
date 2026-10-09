@@ -169,23 +169,16 @@ class PlatformWorkspaceCatalog(QObject):
             organization_presenter=PlatformOrganizationCatalogPresenter(runtime_api=runtime_api, activity_api=activity_api),
             organization_activity_presenter=PlatformOrganizationActivityPresenter(
                 activity_api=activity_api,
-                site_api=site_api,
-                department_api=department_api,
-                employee_api=employee_api,
-                document_api=document_api,
-                user_api=user_api,
             ),
             calendar_presenter=PlatformCalendarCatalogPresenter(
                 platform_calendar_api=platform_calendar_api,
             ),
             calendar_activity_presenter=PlatformCalendarActivityPresenter(
                 activity_api=activity_api,
-                user_api=user_api,
             ),
             site_presenter=PlatformSiteCatalogPresenter(site_api=site_api),
             site_activity_presenter=PlatformSiteActivityPresenter(
                 activity_api=activity_api,
-                user_api=user_api,
             ),
             department_presenter=PlatformDepartmentCatalogPresenter(
                 department_api=department_api,
@@ -194,7 +187,6 @@ class PlatformWorkspaceCatalog(QObject):
             ),
             department_activity_presenter=PlatformDepartmentActivityPresenter(
                 activity_api=activity_api,
-                user_api=user_api,
             ),
             employee_presenter=PlatformEmployeeCatalogPresenter(
                 employee_api=employee_api,
@@ -204,7 +196,6 @@ class PlatformWorkspaceCatalog(QObject):
             ),
             employee_activity_presenter=PlatformEmployeeActivityPresenter(
                 activity_api=activity_api,
-                user_api=user_api,
             ),
             employee_documents_presenter=PlatformEmployeeDocumentsPresenter(
                 employee_api=employee_api,
@@ -214,7 +205,6 @@ class PlatformWorkspaceCatalog(QObject):
             party_presenter=PlatformPartyCatalogPresenter(party_api=party_api),
             party_activity_presenter=PlatformPartyActivityPresenter(
                 activity_api=activity_api,
-                user_api=user_api,
             ),
             document_presenter=PlatformDocumentCatalogPresenter(document_api=document_api),
             document_management_presenter=PlatformDocumentManagementPresenter(document_api=document_api),

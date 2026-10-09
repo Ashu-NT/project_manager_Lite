@@ -15,6 +15,11 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.read.history.activity_actor_reader import (
+    ActivityActorKind,
+    ActivityActorPresentation,
+    ActivityActorReader,
+)
 from src.core.platform.contract.repositories.history.activity.contracts import (
     ActivityRepository,
 )
@@ -40,11 +45,47 @@ class ActivityService:
         activity_repo: ActivityRepository,
         user_session: Any = None,
         tenant_context_service: TenantContextService | None = None,
+        actor_reader: ActivityActorReader | None = None,
     ) -> None:
         self._session = session
         self._activity_repo = activity_repo
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
+        self._actor_reader = actor_reader
+
+    def present_actors(
+        self, entries: Sequence[ActivityEntry]
+    ) -> dict[str, ActivityActorPresentation]:
+        if not entries:
+            return {}
+        if len(entries) > 200:
+            raise ValueError("Activity actor presentation exceeds the bounded page size")
+        require_any_permission(
+            self._user_session,
+            ("settings.manage", "activity.read"),
+            operation_label="view activity actors",
+        )
+        scope = self._require_scope(operation_label="view activity actors")
+        organization_id = entries[0].organization_id
+        if not organization_id or any(
+            entry.tenant_id != scope.tenant_id or entry.organization_id != organization_id
+            for entry in entries
+        ):
+            raise BusinessRuleError("Activity scope mismatch.", code="ACTIVITY_SCOPE_MISMATCH")
+        self._require_explicit_organization(organization_id, operation_label="view activity actors")
+        actor_ids = tuple(sorted({entry.actor_id for entry in entries if entry.actor_id}))
+        resolved = (
+            self._actor_reader.resolve_batch(
+                tenant_id=scope.tenant_id, actor_ids=actor_ids
+            )
+            if self._actor_reader is not None else {}
+        )
+        return {
+            actor_id: resolved.get(actor_id, ActivityActorPresentation(
+                ActivityActorKind.MISSING, "Deleted user"
+            ))
+            for actor_id in actor_ids
+        }
 
     def record(
         self,

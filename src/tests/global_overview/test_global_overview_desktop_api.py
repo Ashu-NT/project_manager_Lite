@@ -17,6 +17,10 @@ from src.core.global_overview.contract.overview import (
     GlobalOverviewContextDto,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.read.history.activity_actor_reader import (
+    ActivityActorKind,
+    ActivityActorPresentation,
+)
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 
 
@@ -72,6 +76,12 @@ class _FakeGlobalOverviewService:
         self._maybe_raise()
         self.last_activity_limit = limit
         return self.recent_activity_result
+
+    def present_activity_actors(self, entries):
+        return {
+            entry.actor_id: ActivityActorPresentation(ActivityActorKind.HUMAN, "History Actor")
+            for entry in entries if entry.actor_id
+        }
 
     def _maybe_raise(self):
         if self.raise_error is not None:
@@ -174,6 +184,8 @@ def test_list_recent_activity_serializes_entries_and_passes_through_limit():
     assert len(result.data) == 1
     assert result.data[0].id == "a1"
     assert result.data[0].module == "project_management"
+    assert result.data[0].actor_kind == "human"
+    assert result.data[0].actor_display == "History Actor"
 
 
 def test_each_desktop_api_method_is_independently_callable_when_another_fails():

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 
 from src.core.global_overview.application.action_center_service import (
     ActionCenterService,
@@ -32,6 +33,9 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.read.history.activity_actor_reader import (
+    ActivityActorPresentation,
+)
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
@@ -146,6 +150,11 @@ class GlobalOverviewService:
             if is_activity_visible(entry.module, accessible_module_codes=accessible_module_codes)
         )
 
+    def present_activity_actors(
+        self, entries: Sequence[ActivityEntry]
+    ) -> dict[str, ActivityActorPresentation]:
+        return self._activity_service.present_actors(entries)
+
     def _build_action_center_context(self) -> ActionCenterContext:
         scope = self._tenant_context_service.require_organization_context(
             operation_label=_OPERATION_LABEL
@@ -155,6 +164,11 @@ class GlobalOverviewService:
             raise BusinessRuleError(
                 f"Authentication is required to {_OPERATION_LABEL}.",
                 code="AUTHENTICATION_REQUIRED",
+            )
+        if not scope.organization_id:
+            raise BusinessRuleError(
+                "An active organization is required for the global overview.",
+                code="TENANT_CONTEXT_REQUIRED",
             )
         return ActionCenterContext(
             user_id=principal.user_id,

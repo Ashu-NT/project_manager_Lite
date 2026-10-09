@@ -9,6 +9,10 @@ from src.core.platform.api.desktop.history.activity.models.activity import (
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.application.history.activity import ActivityService
+from src.core.platform.contract.read.history.activity_actor_reader import (
+    ActivityActorKind,
+    ActivityActorPresentation,
+)
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 
 
@@ -130,16 +134,25 @@ class PlatformActivityDesktopApi:
         )
 
     def _serialize_entries(self, entries: list[ActivityEntry]) -> tuple[ActivityEntryDto, ...]:
-        return tuple(self._serialize_entry(e) for e in entries)
+        actors = self._activity_service.present_actors(entries)
+        return tuple(self._serialize_entry(e, actors=actors) for e in entries)
 
     @staticmethod
-    def _serialize_entry(entry: ActivityEntry) -> ActivityEntryDto:
+    def _serialize_entry(
+        entry: ActivityEntry, *, actors: dict[str, ActivityActorPresentation]
+    ) -> ActivityEntryDto:
+        actor = (
+            actors.get(entry.actor_id, ActivityActorPresentation(ActivityActorKind.MISSING, "Deleted user"))
+            if entry.actor_id else ActivityActorPresentation(ActivityActorKind.SYSTEM, "System")
+        )
         return ActivityEntryDto(
             id=entry.id,
             action=entry.action,
             entity_type=entry.entity_type,
             entity_id=entry.entity_id,
             actor_id=entry.actor_id,
+            actor_kind=actor.kind.value,
+            actor_display=actor.label,
             module=entry.module,
             timestamp=entry.timestamp,
             type=entry.type,

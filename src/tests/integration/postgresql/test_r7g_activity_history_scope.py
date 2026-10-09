@@ -6,6 +6,12 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import text
 
+from src.core.platform.contract.read.history.activity_actor_reader import (
+    ActivityActorKind,
+)
+from src.core.platform.infrastructure.persistence.read.history.activity_actor_reader import (
+    SqlAlchemyActivityActorReader,
+)
 from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
     SqlAlchemyActivityRepository,
 )
@@ -99,6 +105,26 @@ def test_explicit_organization_activity_read_restores_runtime_rls_scope(
             ),
             {"timestamp": datetime.now(timezone.utc)},
         )
+        for user_id, tenant in (("r7g-actor-a", tenant_a), ("r7g-actor-b", tenant_b)):
+            connection.execute(
+                text(
+                    "INSERT INTO users (id, username, display_name, password_hash, "
+                    "account_type, is_active, created_at, updated_at, version) "
+                    "VALUES (:id, :id, :id, 'no-login', 'human', true, :now, :now, 1)"
+                ),
+                {"id": user_id, "now": datetime.now(timezone.utc)},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO user_tenants "
+                    "(id, user_id, tenant_id, status, created_at, updated_at) "
+                    "VALUES (:id, :user_id, :tenant_id, 'active', :now, :now)"
+                ),
+                {
+                    "id": f"r7g-membership-{user_id}", "user_id": user_id,
+                    "tenant_id": tenant, "now": datetime.now(timezone.utc),
+                },
+            )
 
     with postgres_test_environment.runtime_session(
         tenant_id=tenant_a, organization_id=org_a
@@ -117,6 +143,11 @@ def test_explicit_organization_activity_read_restores_runtime_rls_scope(
             text("SELECT count(*) FROM activity_entries WHERE organization_id = :org"),
             {"org": org_b},
         ) == 0
+        actors = SqlAlchemyActivityActorReader(session).resolve_batch(
+            tenant_id=tenant_a, actor_ids=("r7g-actor-a", "r7g-actor-b")
+        )
+        assert actors["r7g-actor-a"].kind == ActivityActorKind.HUMAN
+        assert "r7g-actor-b" not in actors
 
         audit_ids = set(session.scalars(text("SELECT id FROM audit_entries")).all())
         assert f"r7g-history-audit-{org_a}" in audit_ids

@@ -1354,3 +1354,36 @@ Do not mark R7G complete or start R7H until these are resolved.
   do not trade the full-list query for N+1 per-row reads. Preserve safe
   missing/disabled/service-actor presentation and avoid exposing user-admin
   data to ordinary Activity readers.
+
+#### R7G Actor Projection Continuation (2026-10-09)
+
+- Platform Activity now resolves actor labels through one tenant-scoped,
+  page-bounded SQL batch over the actor IDs in authorized Activity entries.
+  It does not call the administrative user list or join organization-RLS
+  Employee rows while viewing another authorized organization. The service
+  rejects mixed-tenant/organization entry batches before lookup. Human,
+  inactive/removed, service, missing and system actors have explicit typed
+  presentation states; inactive/removed account names and service-account
+  identities are redacted.
+- Site, Department, Employee, Party, Calendar and Organization Activity
+  presenters consume the server-authored label without scanning all users or
+  related master-data collections. Global Overview uses the same Activity
+  actor projection after module-visibility filtering, instead of presenting
+  every non-system actor as `System`. No separate actor authority was added.
+- Focused Activity, Organization and Global Overview selection: **99 passed**.
+  Expanded final Activity/Organization/Global Overview selection: **113
+  passed**. Separate Platform Activity selection: **26 passed**. SQL instrumentation
+  proves one actor query for multiple IDs; regressions cover mixed scope,
+  disabled/removed/service/missing labels, and Desktop API serialization.
+  Targeted Ruff F/I, mypy on the new read/API/service path, compilation and
+  diff checks pass. The new runtime-role
+  PostgreSQL actor-isolation assertion is written, but its test is **skipped**
+  without `PM_RUN_POSTGRES_INTEGRATION=1`; Docker was not running in this
+  environment. These SQLite/application tests are not a substitute for the
+  remaining live PostgreSQL RLS and representative-volume closure gates.
+- R7G remains **IN PROGRESS**. PM Project/Task/Resource Activity builders
+  still load complete user/employee lists; their page-scoped actor projection
+  must preserve PM project/resource authorization rather than borrowing
+  Platform `activity.read`. Cross-surface target/deep-link, retention,
+  representative-volume/plan, transaction/invalidation and broad regression
+  evidence from the R7G gate above also remain open. Do not begin R7H.

@@ -401,6 +401,8 @@ def test_recent_activity_maps_dto_fields():
         entity_type="task",
         entity_id="t1",
         actor_id="user-42",
+        actor_kind="human",
+        actor_display="History Actor",
         module="project_management",
         timestamp=datetime(2026, 9, 15, 14, 30, tzinfo=timezone.utc),
         type="info",
@@ -415,10 +417,7 @@ def test_recent_activity_maps_dto_fields():
     assert result.ok is True
     row = result.data[0]
     assert row.title == "Task created"
-    # actor_id is a raw internal id, never a resolved display name -- this
-    # layer has no lookup to resolve one, so the canonical "System" default
-    # applies rather than showing a raw id to the user.
-    assert row.actor_display == "System"
+    assert row.actor_display == "History Actor"
     assert row.subject_display == "Project Management"
     assert row.icon_key == "tasks"
     assert row.tone == "success"

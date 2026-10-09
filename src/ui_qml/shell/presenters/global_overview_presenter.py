@@ -282,9 +282,7 @@ def _build_activity_row(entry: ActivityEntryDto) -> ActivityItemViewModel:
     return ActivityItemViewModel(
         id=entry.id,
         title=entry.human_message or humanize_action(entry.action),
-        # ActivityEntryDto only carries a raw actor_id, never a resolved
-        # display name; this layer has no user-lookup input to resolve one,
-        # so actor_display keeps its "System" default.
+        actor_display=entry.actor_display,
         subject_display=_MODULE_LABELS.get(entry.module, entry.module.replace("_", " ").title()),
         occurred_at=entry.timestamp,
         occurred_at_label=entry.timestamp.strftime("%d %b %Y · %H:%M"),

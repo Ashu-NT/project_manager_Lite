@@ -28,34 +28,6 @@ def since_for_date_range(date_range: str) -> datetime | None:
     return None
 
 
-def build_actor_lookup(user_api) -> dict[str, str]:
-    """actor_id (a User id) -> human-readable name, preferring User.
-    display_name, then username, then email -- never a raw user id. A
-    caller with its own richer resolution (e.g. linking through Employee.
-    full_name) should call this first and .update() its own entries on
-    top, so its higher-priority source wins only where it actually has a
-    value. A user not present here resolves to "" and the caller decides
-    the final "Deleted user"/"System" fallback."""
-    if user_api is None:
-        return {}
-    result = user_api.list_users()
-    if not result.ok or result.data is None:
-        return {}
-    fallback: dict[str, str] = {}
-    display_name: dict[str, str] = {}
-    for user in result.data:
-        name = str(user.username or "").strip() or str(user.email or "").strip()
-        if name:
-            fallback[user.id] = name
-        explicit = str(user.display_name or "").strip()
-        if explicit:
-            display_name[user.id] = explicit
-    lookup: dict[str, str] = {}
-    lookup.update(fallback)
-    lookup.update(display_name)
-    return lookup
-
-
 def split_human_message(message: str) -> tuple[str, str]:
     """"Site created — Hamburg Office" -> ("Site created", "Hamburg Office").
     Every create/update/lifecycle human_message recorded for Organization/
@@ -72,7 +44,6 @@ def split_human_message(message: str) -> tuple[str, str]:
 
 __all__ = [
     "ACTIVITY_DATE_FILTER_OPTIONS",
-    "build_actor_lookup",
     "since_for_date_range",
     "split_human_message",
 ]
