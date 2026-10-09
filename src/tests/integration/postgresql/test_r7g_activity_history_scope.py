@@ -6,6 +6,9 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import text
 
+from src.core.modules.project_management.infrastructure.persistence.reads.projects.activity_labels import (
+    resolve_project_activity_labels,
+)
 from src.core.platform.contract.read.history.activity_actor_reader import (
     ActivityActorKind,
 )
@@ -148,6 +151,16 @@ def test_explicit_organization_activity_read_restores_runtime_rls_scope(
         )
         assert actors["r7g-actor-a"].kind == ActivityActorKind.HUMAN
         assert "r7g-actor-b" not in actors
+
+        _, manager_labels = resolve_project_activity_labels(
+            session,
+            tenant_id=tenant_a,
+            organization_id=org_a,
+            entries=((None, {"changes": {"manager_user_id": {
+                "from": "r7g-actor-a", "to": "r7g-actor-b",
+            }}}),),
+        )
+        assert manager_labels["user"] == {"r7g-actor-a": "r7g-actor-a"}
 
         audit_ids = set(session.scalars(text("SELECT id FROM audit_entries")).all())
         assert f"r7g-history-audit-{org_a}" in audit_ids

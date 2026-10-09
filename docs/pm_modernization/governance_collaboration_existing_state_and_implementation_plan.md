@@ -1433,13 +1433,35 @@ Do not mark R7G complete or start R7H until these are resolved.
   **60 passed**. The reader regression checks one User and one Employee
   lookup for a page containing multiple Activity rows, plus one scoped
   lookup for each referenced master-data kind.
-- The persisted Project manager identity is currently `manager_user_id`
-  (FK to `users.id`), also consumed by My Team timesheet eligibility. The
-  Project manager picker currently lists all active users and Project
-  create/update do not validate Employee/PM Resource eligibility. Whether
-  selection must be restricted to active employee-backed PM Resources is a
-  separate product/write-contract decision; do not reinterpret historical
-  user IDs as Resource IDs during this read cutover.
+- The persisted Project manager identity is `manager_user_id` (FK to
+  `users.id`), also consumed by My Team timesheet eligibility. The follow-up
+  below restricts candidates and writes without changing that identity.
 - R7G remains **IN PROGRESS**. PM runtime-role PostgreSQL proof for these
   label joins, broader cross-surface target/navigation, retention,
   transaction/invalidation and representative-volume gates remain open.
+
+#### R7G Project Manager Identity Follow-Up (2026-10-09)
+
+- Project manager history references resolve through the scoped User/Employee
+  actor projection, never by querying a PM Resource with `manager_user_id`.
+  The Project selector now reads eligible User IDs from one scoped Reader
+  query joining active human User, active tenant membership, active Employee
+  and active employee-backed PERSON PM Resource. It displays the Employee
+  name but persists the User ID. Project create/update recheck this same
+  eligibility server-side, including an organization change; Resource IDs
+  and inactive/unregistered resources are rejected. `ProjectORM.manager_user_id`
+  remains a User FK, and My Team still compares it to the actor User ID.
+- Focused Project/desktop/presenter/timesheet selection: **71 passed**.
+  The identity regression uses distinct User and Resource IDs and verifies
+  both selector and write behavior. Project Activity SQL instrumentation
+  rejects Resource-table lookup for manager history. Runtime-role PostgreSQL
+  R7G Activity test: **1 passed**, now including PM manager-label resolution
+  with a foreign-tenant User excluded by RLS. No Resource-ID migration or
+  relationship redesign was introduced. Focused R7G actor/manager selection:
+  **47 passed**. Scoped Ruff F/I, compilation and diff checks pass. Mypy
+  passes for the new SQL reader and command-validation support; the existing
+  Project query mixin still reports dynamic `**dict` call-site type errors
+  outside this identity fix, so that broader file is not certified by mypy.
+- R7G remains **IN PROGRESS**; cross-surface target/navigation, retention,
+  representative-volume/plan, transaction/invalidation and broad closure
+  gates are not certified by this narrow follow-up. Do not begin R7H.

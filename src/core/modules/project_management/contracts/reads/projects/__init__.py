@@ -5,6 +5,7 @@ from .models import (
     ProjectCatalogReadItem,
     ProjectCatalogReadPage,
     ProjectCatalogSummary,
+    ProjectManagerCandidateFact,
     ProjectResourceDetailFact,
     ProjectResourceDetailPage,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "ProjectCatalogReadPage",
     "ProjectCatalogReader",
     "ProjectCatalogSummary",
+    "ProjectManagerCandidateFact",
     "ProjectResourceDetailFact",
     "ProjectResourceDetailPage",
 ]

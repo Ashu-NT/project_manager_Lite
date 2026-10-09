@@ -55,6 +55,7 @@ class ProjectCreateMixin(ProjectSupportMixin):
         )
         self._validate_client_party(client_party_id, resolved_organization_id)
         self._validate_department_reference(department_id, resolved_organization_id)
+        self._validate_manager_user_id(manager_user_id, resolved_organization_id)
         resolved_currency = resolve_pm_currency(
             tenant_context_service=getattr(self, "_tenant_context_service", None),
             operation_label="create project",

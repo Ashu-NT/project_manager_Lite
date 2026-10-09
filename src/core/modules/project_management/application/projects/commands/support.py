@@ -6,6 +6,9 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.contracts.reads.projects import (
+    ProjectCatalogReader,
+)
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
 )
@@ -99,6 +102,26 @@ class ProjectSupportMixin:
     _user_session: UserSessionContext | None
     _uow_factory: ProjectUnitOfWorkFactory | None
     _tenant_context_service: TenantContextService | None
+    _project_catalog_reader: ProjectCatalogReader | None
+
+    def _validate_manager_user_id(
+        self, manager_user_id: str | None, organization_id: str
+    ) -> None:
+        if manager_user_id is None:
+            return
+        reader = self._project_catalog_reader
+        if reader is None:
+            raise RuntimeError("Project catalog reader is not configured.")
+        scope = self._require_project_scope_ids(operation_label="assign project manager")
+        if not reader.is_eligible_manager(
+            tenant_id=scope.tenant_id,
+            organization_id=organization_id,
+            user_id=manager_user_id,
+        ):
+            raise ValidationError(
+                "Project manager must be an active employee-backed person resource linked to an active user.",
+                code="PROJECT_MANAGER_NOT_ELIGIBLE",
+            )
 
     def _require_project_scope_ids(self, *, operation_label: str) -> ActiveScopeIds:
         tenant_context = self._tenant_context_service

@@ -16,6 +16,7 @@ from src.core.modules.project_management.contracts.reads.projects import (
     ProjectActivityPage,
     ProjectCatalogReader,
     ProjectCatalogReadPage,
+    ProjectManagerCandidateFact,
     ProjectResourceDetailPage,
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import (
@@ -27,11 +28,30 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_any_permission,
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 class ProjectQueryMixin:
     _project_repo: ProjectRepository
     _project_catalog_reader: ProjectCatalogReader | None
+    _tenant_context_service: TenantContextService | None
+    _user_session: UserSessionContext | None
+
+    def list_eligible_manager_candidates(self) -> tuple[ProjectManagerCandidateFact, ...]:
+        require_permission(
+            self._user_session, "project.read", operation_label="list project managers"
+        )
+        if self._project_catalog_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Project catalog reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="list project managers"
+        )
+        return self._project_catalog_reader.list_eligible_manager_candidates(
+            tenant_id=scope.tenant_id, organization_id=scope.organization_id
+        )
 
     def list_projects(self) -> list[Project]:
         require_permission(self._user_session, "project.read", operation_label="list projects")

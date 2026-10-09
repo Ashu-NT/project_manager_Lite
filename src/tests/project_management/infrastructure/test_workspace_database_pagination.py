@@ -76,6 +76,14 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
     site_b = site_service.create_site(site_code="SITE-B", name="Rotterdam Yard")
     dept_a = department_service.create_department(department_code="DEPT-A", name="Engineering")
     dept_b = department_service.create_department(department_code="DEPT-B", name="Operations")
+    manager_employee = services["employee_service"].create_employee(
+        employee_code="MANAGER-EMP", full_name="Project Manager", department_id=dept_a.id
+    )
+    services["employee_service"].link_employee_user_account(manager_employee.id, manager_id)
+    services["resource_service"].create_resource(
+        name="Project Manager", worker_type=WorkerType.EMPLOYEE,
+        employee_id=manager_employee.id,
+    )
 
     match = project_service.create_project(
         "Hamburg Refit",

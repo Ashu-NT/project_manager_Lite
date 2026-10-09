@@ -53,3 +53,4 @@ def test_project_activity_resolves_only_page_references_in_bounded_queries(
     assert sum("FROM users JOIN user_tenants" in sql for sql in statements) == 1
     for table in ("employees", "sites", "departments", "parties"):
         assert sum(f"FROM {table}" in sql for sql in statements) == 1
+    assert all("FROM resources" not in sql and "JOIN resources" not in sql for sql in statements)

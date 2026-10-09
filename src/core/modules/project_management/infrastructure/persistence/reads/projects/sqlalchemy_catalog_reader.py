@@ -12,6 +12,7 @@ from src.core.modules.project_management.contracts.reads.projects import (
     ProjectCatalogReadItem,
     ProjectCatalogReadPage,
     ProjectCatalogSummary,
+    ProjectManagerCandidateFact,
     ProjectResourceDetailFact,
     ProjectResourceDetailPage,
 )
@@ -39,6 +40,10 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.projects.activity_labels import (
     resolve_project_activity_labels,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.projects.manager_candidates import (
+    is_eligible_manager,
+    list_eligible_manager_candidates,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.resources.identity_expressions import (
     resource_display_name,
@@ -74,6 +79,21 @@ def _contains_pattern(value: str) -> str:
 class SqlAlchemyProjectCatalogReader:
     def __init__(self, *, session: Session) -> None:
         self._session = session
+
+    def list_eligible_manager_candidates(
+        self, *, tenant_id: str, organization_id: str
+    ) -> tuple[ProjectManagerCandidateFact, ...]:
+        return list_eligible_manager_candidates(
+            self._session, tenant_id=tenant_id, organization_id=organization_id
+        )
+
+    def is_eligible_manager(
+        self, *, tenant_id: str, organization_id: str, user_id: str
+    ) -> bool:
+        return is_eligible_manager(
+            self._session, tenant_id=tenant_id,
+            organization_id=organization_id, user_id=user_id,
+        )
 
     def read_resources_page(
         self, *, tenant_id: str, organization_id: str, project_id: str,

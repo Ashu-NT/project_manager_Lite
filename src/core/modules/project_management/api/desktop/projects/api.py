@@ -26,6 +26,7 @@ from src.core.modules.project_management.api.desktop.projects.commands.resource_
 from src.core.modules.project_management.api.desktop.projects.models.project import (
     ProjectCatalogPageDesktopDto,
     ProjectDesktopDto,
+    ProjectManagerOptionDesktopDto,
     ProjectStatusDescriptor,
 )
 from src.core.modules.project_management.api.desktop.projects.models.resources import (
@@ -77,6 +78,12 @@ class ProjectManagementProjectsDesktopApi:
 
     def list_statuses(self) -> tuple[ProjectStatusDescriptor, ...]:
         return build_status_options()
+
+    def list_manager_candidates(self) -> tuple[ProjectManagerOptionDesktopDto, ...]:
+        return tuple(
+            ProjectManagerOptionDesktopDto(user_id=row.user_id, label=row.display_name)
+            for row in self._require_project_service().list_eligible_manager_candidates()
+        )
 
     # ── Project CRUD ──────────────────────────────────────────────────────────
 

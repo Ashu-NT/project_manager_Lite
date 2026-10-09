@@ -9,6 +9,12 @@ from src.core.modules.project_management.domain.projects.project import Project
 
 
 @dataclass(frozen=True, slots=True)
+class ProjectManagerCandidateFact:
+    user_id: str
+    display_name: str
+
+
+@dataclass(frozen=True, slots=True)
 class ProjectCatalogReadItem:
     project: Project
     site_label: str = ""
@@ -110,6 +116,7 @@ class ProjectActivityPage:
 
 
 __all__ = [
+    "ProjectManagerCandidateFact",
     "ProjectActivityFact",
     "ProjectActivityPage",
     "ProjectCatalogReadItem",

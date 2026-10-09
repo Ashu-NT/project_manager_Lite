@@ -10,11 +10,20 @@ from .models import (
     ProjectActivityPage,
     ProjectCatalogReadItem,
     ProjectCatalogReadPage,
+    ProjectManagerCandidateFact,
     ProjectResourceDetailPage,
 )
 
 
 class ProjectCatalogReader(Protocol):
+    def list_eligible_manager_candidates(
+        self, *, tenant_id: str, organization_id: str
+    ) -> tuple[ProjectManagerCandidateFact, ...]: ...
+
+    def is_eligible_manager(
+        self, *, tenant_id: str, organization_id: str, user_id: str
+    ) -> bool: ...
+
     def read_page(
         self,
         *,

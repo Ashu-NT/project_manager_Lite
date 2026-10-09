@@ -16,6 +16,9 @@ from src.core.modules.project_management.api.desktop.common.detail_pages import 
 from src.core.modules.project_management.api.desktop.projects import (
     ProjectResourceDesktopDto,
 )
+from src.core.modules.project_management.api.desktop.projects.models.project import (
+    ProjectManagerOptionDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.register import (
     RegisterEntryDesktopDto,
 )
@@ -111,8 +114,6 @@ def _presenter(
     resources=(),
     risks=(),
     activity_entries=None,
-    users=(),
-    employees=(),
     sites=(),
     departments=(),
 ):
@@ -130,15 +131,10 @@ def _presenter(
             "department": {row.id: row.name for row in departments},
         },
     )
+    projects_api.list_manager_candidates.return_value = ()
 
     register_api = MagicMock()
     register_api.list_entries.return_value = list(risks)
-
-    user_api = MagicMock()
-    user_api.list_users.return_value = DesktopApiResult(ok=True, data=tuple(users))
-
-    employee_api = MagicMock()
-    employee_api.list_employees.return_value = DesktopApiResult(ok=True, data=tuple(employees))
 
     site_api = MagicMock()
     site_api.list_sites.return_value = DesktopApiResult(ok=True, data=tuple(sites))
@@ -150,8 +146,6 @@ def _presenter(
         desktop_api=projects_api,
         tasks_desktop_api=tasks_api,
         register_desktop_api=register_api,
-        user_api=user_api,
-        employee_api=employee_api,
         site_api=site_api,
         department_api=department_api,
     )
@@ -357,32 +351,19 @@ class TestBuildProjectActivityPage:
 
     def test_actor_uses_server_authored_employee_label_without_directory_lookup(self):
         entry = _activity_entry(actor_id="user-1", actor_kind="human", actor_display="Jane Doe")
-        p, _, __, ___ = _presenter(
-            activity_entries=[entry],
-            users=[SimpleNamespace(id="user-1", display_name="jdoe", username="jdoe")],
-            employees=[SimpleNamespace(id="emp-1", user_id="user-1", full_name="Jane Doe")],
-        )
+        p, _, __, ___ = _presenter(activity_entries=[entry])
         result = p.build_project_activity_page(project_id="p-1")
         assert result["items"][0]["actorDisplay"] == "Jane Doe"
-        p._user_api.list_users.assert_not_called()
-        p._employee_api.list_employees.assert_not_called()
 
     def test_actor_falls_back_to_user_display_name_when_no_employee_match(self):
         entry = _activity_entry(actor_id="user-1", actor_kind="human", actor_display="Jamie Admin")
-        p, _, __, ___ = _presenter(
-            activity_entries=[entry],
-            users=[SimpleNamespace(id="user-1", display_name="Jamie Admin", username="jadmin")],
-            employees=[SimpleNamespace(id="emp-1", user_id="user-2", full_name="Someone Else")],
-        )
+        p, _, __, ___ = _presenter(activity_entries=[entry])
         result = p.build_project_activity_page(project_id="p-1")
         assert result["items"][0]["actorDisplay"] == "Jamie Admin"
 
     def test_actor_falls_back_to_username_when_no_display_name(self):
         entry = _activity_entry(actor_id="user-1", actor_kind="human", actor_display="jadmin")
-        p, _, __, ___ = _presenter(
-            activity_entries=[entry],
-            users=[SimpleNamespace(id="user-1", display_name=None, username="jadmin")],
-        )
+        p, _, __, ___ = _presenter(activity_entries=[entry])
         result = p.build_project_activity_page(project_id="p-1")
         assert result["items"][0]["actorDisplay"] == "jadmin"
 
@@ -439,7 +420,14 @@ class TestBuildProjectActivityPage:
 
         assert "Manager: -" in summary and "History Actor" in summary
         assert "Client (Party): -" in summary and "Customer Group" in summary
-        p._user_api.list_users.assert_not_called()
+
+    def test_manager_options_return_user_ids_not_resource_ids(self):
+        p, _, projects_api, _ = _presenter()
+        projects_api.list_manager_candidates.return_value = (
+            ProjectManagerOptionDesktopDto(user_id="user-1", label="Jane Doe"),
+        )
+
+        assert p.build_manager_options() == [{"value": "user-1", "label": "Jane Doe"}]
 
     def test_field_changes_summary_falls_back_to_raw_id_when_unresolved(self):
         entry = _activity_entry(

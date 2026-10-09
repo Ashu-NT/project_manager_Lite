@@ -104,6 +104,7 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
     projects_api = build_project_management_projects_desktop_api(
         project_service=SimpleNamespace(
             query_catalog_page=query_catalog_page,
+            list_eligible_manager_candidates=lambda: (),
         )
     )
     catalog = ProjectManagementWorkspaceCatalog(

@@ -107,6 +107,10 @@ class ProjectUpdateMixin(ProjectSupportMixin):
             self._validate_department_reference(department_id, resolved_organization_id)
         elif project.department_id and resolved_organization_id != project.organization_id:
             self._validate_department_reference(project.department_id, resolved_organization_id)
+        if manager_user_id is not None:
+            self._validate_manager_user_id(manager_user_id, resolved_organization_id)
+        elif project.manager_user_id and resolved_organization_id != project.organization_id:
+            self._validate_manager_user_id(project.manager_user_id, resolved_organization_id)
         candidate = replace(
             project,
             name=project.name if name is None else name,
