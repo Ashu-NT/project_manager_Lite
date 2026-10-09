@@ -7,11 +7,6 @@ from time import perf_counter
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.modules.project_management.access.policy import (
-    PROJECT_SCOPE_ROLE_CHOICES,
-    normalize_project_scope_role,
-    resolve_project_scope_permissions,
-)
 from src.core.modules.project_management.application.collaboration import (
     CollaborationService,
 )
@@ -255,6 +250,9 @@ from src.core.modules.project_management.infrastructure.approval.project_cost_ap
 from src.core.modules.project_management.infrastructure.approval.task_apply_participant import (
     TaskApprovalParticipant,
 )
+from src.core.modules.project_management.infrastructure.composition.registrations.access import (
+    register_project_scope_access,
+)
 from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
 )
@@ -302,9 +300,6 @@ from src.core.modules.project_management.infrastructure.persistence.reads.timesh
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
     SqlAlchemyRateResolutionReader,
 )
-from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
-    SqlAlchemyProjectRepository,
-)
 from src.core.modules.project_management.infrastructure.persistence.uow.collaboration.collaboration_unit_of_work import (
     SqlAlchemyCollaborationUnitOfWorkFactory,
 )
@@ -330,7 +325,6 @@ from src.core.modules.project_management.infrastructure.persistence.uow.scheduli
 from src.core.modules.project_management.infrastructure.persistence.uow.tasks.task_unit_of_work import (
     SqlAlchemyTaskUnitOfWorkFactory,
 )
-from src.core.platform.access import ScopedRolePolicy
 from src.core.platform.application.finance.financial_period_service import (
     FinancialPeriodService,
 )
@@ -447,45 +441,7 @@ def build_project_management_service_bundle(
     started = perf_counter()
     logger.debug("Project Management service bundle build begin")
     logger.debug("Project Management platform registrations begin")
-    platform_services.access_service.register_scope_policy(
-        ScopedRolePolicy(
-            scope_type="project",
-            role_choices=PROJECT_SCOPE_ROLE_CHOICES,
-            normalize_role=normalize_project_scope_role,
-            resolve_permissions=resolve_project_scope_permissions,
-        )
-    )
-    def _project_belongs_to_tenant(tenant_id: str, project_id: str) -> bool:
-        # Legacy-signature resolver -- `AccessControlService`'s own pre-flight check and
-        # `AuthService`'s effective-permissions read, both outside the RoleGovernance
-        # transaction. Uses the tenant-scoped `get_for_tenant` (P5C-1 reopened-storeroom fix),
-        # not the ambient-active-organization `get()`.
-        return repositories.project_repo.get_for_tenant(project_id, tenant_id) is not None
-
-    platform_services.access_service.register_scope_exists_resolver(
-        "project",
-        _project_belongs_to_tenant,
-    )
-    platform_services.auth_service.register_canonical_scope_tenant_resolver(
-        "project",
-        _project_belongs_to_tenant,
-    )
-
-    def _project_exists_for_role_governance(session: Session, tenant_id: str, project_id: str) -> bool:
-        return SqlAlchemyProjectRepository(session).get_for_tenant(project_id, tenant_id) is not None
-
-    def _project_organization_owner(session: Session, tenant_id: str, project_id: str) -> str | None:
-        project = SqlAlchemyProjectRepository(session).get_for_tenant(project_id, tenant_id)
-        return getattr(project, "organization_id", None)
-
-    platform_services.role_governance_service.register_scope_exists_resolver(
-        "project",
-        _project_exists_for_role_governance,
-    )
-    platform_services.role_governance_service.register_organization_owner_resolver(
-        "project",
-        _project_organization_owner,
-    )
+    register_project_scope_access(repositories, platform_services)
     logger.debug("Project Management platform registrations complete")
     logger.debug("Project Management core services build begin")
     # GlobalCalendarShim is the enterprise-backed calendar. Used everywhere WorkCalendarEngine was.
@@ -649,7 +605,9 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
-    from src.infra.composition.notifications import register_pm_notification_policy
+    from src.core.modules.project_management.infrastructure.composition.registrations.notifications import (
+        register_pm_notification_policy,
+    )
 
     register_pm_notification_policy(platform_services.platform_transactional_dispatcher)
     _task_view_invalidation_handler = build_task_view_invalidation_handler(

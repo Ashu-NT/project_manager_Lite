@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from time import perf_counter
 
@@ -227,6 +228,9 @@ from src.core.platform.domain.tenant.tenancy.events import (
     TenantMembershipRemoved,
     TenantMembershipSuspended,
 )
+from src.core.platform.infrastructure.composition.events.notifications import (
+    register_platform_notification_policy,
+)
 from src.core.platform.infrastructure.persistence.read.history.activity_actor_reader import (
     SqlAlchemyActivityActorReader,
 )
@@ -437,6 +441,7 @@ def build_platform_service_bundle(
     repositories: RepositoryBundle,
     *,
     runtime_security_configuration: RuntimeSecurityConfiguration | None = None,
+    notification_recipient_policy: Callable[[Session, object], bool] | None = None,
 ) -> PlatformServiceBundle:
     started = perf_counter()
     logger.debug("Platform service bundle build begin")
@@ -483,7 +488,6 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
     )
-    from src.infra.composition.notifications import pm_notification_recipient_policy
     from src.infra.integration.notification_dispatcher import NotificationDispatcher
 
     notification_session_factory = sessionmaker(bind=session.bind, future=True)
@@ -512,7 +516,7 @@ def build_platform_service_bundle(
         delivery=NotificationDispatcher(
             session_factory=_notification_session,
             on_delivered=_notification_delivered,
-            recipient_policy=pm_notification_recipient_policy,
+            recipient_policy=notification_recipient_policy,
         ),
     )
     activity_service = ActivityService(
@@ -523,10 +527,6 @@ def build_platform_service_bundle(
         actor_reader=SqlAlchemyActivityActorReader(session),
     )
     platform_transactional_dispatcher = InProcessTransactionalEventDispatcher()
-    from src.infra.composition.notifications import (
-        register_platform_notification_policy,
-    )
-
     register_platform_notification_policy(platform_transactional_dispatcher)
     platform_post_commit_bus = InProcessPostCommitEventBus()
 

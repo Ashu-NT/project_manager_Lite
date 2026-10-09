@@ -12,11 +12,13 @@ from src.core.modules.project_management.application.tasks.task_events import (
     TaskAssignmentChanged,
     TaskAssignmentChangeType,
 )
+from src.core.modules.project_management.infrastructure.composition.registrations.notifications import (
+    register_pm_notification_policy,
+)
 from src.core.platform.domain.approval.events import ApprovalApproved, ApprovalRequested
 from src.core.platform.domain.tenant.tenancy.events import TenantInvitationChanged
-from src.infra.composition.notifications import (
+from src.core.platform.infrastructure.composition.events.notifications import (
     register_platform_notification_policy,
-    register_pm_notification_policy,
 )
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
@@ -46,7 +48,7 @@ class _ApprovalRepo:
 def _platform_dispatch(monkeypatch, event):
     writes = []
     monkeypatch.setattr(
-        "src.infra.composition.notifications.enqueue_notification_work",
+        "src.core.platform.infrastructure.composition.events.notifications.enqueue_notification_work",
         lambda session, **kwargs: writes.append(kwargs),
     )
     dispatcher = InProcessTransactionalEventDispatcher()
@@ -92,7 +94,7 @@ def test_invitation_does_not_stage_in_app_work(monkeypatch):
 def test_assignment_policy_requires_assigned_transition(monkeypatch):
     writes = []
     monkeypatch.setattr(
-        "src.infra.composition.notifications.enqueue_notification_work",
+        "src.core.modules.project_management.infrastructure.composition.registrations.notifications.enqueue_notification_work",
         lambda session, **kwargs: writes.append(kwargs),
     )
     dispatcher = InProcessTransactionalEventDispatcher()
@@ -112,7 +114,7 @@ def test_assignment_policy_requires_assigned_transition(monkeypatch):
 def test_mention_policy_deduplicates_and_does_not_archive_comment_body(monkeypatch):
     writes = []
     monkeypatch.setattr(
-        "src.infra.composition.notifications.enqueue_notification_work",
+        "src.core.modules.project_management.infrastructure.composition.registrations.notifications.enqueue_notification_work",
         lambda session, **kwargs: writes.append(kwargs),
     )
     dispatcher = InProcessTransactionalEventDispatcher()

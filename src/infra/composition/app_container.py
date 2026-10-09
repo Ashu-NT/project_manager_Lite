@@ -79,6 +79,9 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
+from src.core.modules.project_management.infrastructure.composition.registrations.notifications import (
+    pm_notification_recipient_policy,
+)
 from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
 )
@@ -373,7 +376,10 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
         "Repository bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-    platform_services = build_platform_service_bundle(session, repositories)
+    platform_services = build_platform_service_bundle(
+        session, repositories,
+        notification_recipient_policy=pm_notification_recipient_policy,
+    )
     logger.debug(
         "Platform service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,

@@ -289,7 +289,9 @@ def test_approval_page_eligibility_is_one_set_based_query(
 def test_delayed_mention_requires_current_project_collaboration_grant(
     postgres_test_environment, governance_rows,
 ):
-    from src.infra.composition.notifications import pm_notification_recipient_policy
+    from src.core.modules.project_management.infrastructure.composition.registrations.notifications import (
+        pm_notification_recipient_policy,
+    )
 
     with postgres_test_environment.admin_engine.begin() as connection:
         connection.execute(text(
