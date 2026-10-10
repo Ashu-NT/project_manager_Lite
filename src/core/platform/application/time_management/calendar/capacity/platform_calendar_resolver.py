@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, time
 from time import perf_counter
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     DayCapacity,
@@ -14,6 +15,7 @@ from src.core.platform.application.time_management.calendar.capacity.working_tim
     recurring_event_occurs_on,
 )
 from src.core.platform.contract.port.time_management.calendar.external_assignment_port import (
+    ExternalCalendarAssignment,
     ProjectCalendarAssignmentPort,
     ResourceCalendarAssignmentPort,
 )
@@ -91,7 +93,7 @@ class ResolvedCalendarContext:
         source_chain: list[str],
         timezone: str,
         exceptions: list[CalendarException],
-        recurring_events: list[CalendarRecurringEvent] = (),
+        recurring_events: Sequence[CalendarRecurringEvent] = (),
     ) -> ResolvedCalendarContext:
         return ResolvedCalendarContext(
             date=day.date,
@@ -136,7 +138,11 @@ class ResolvedCalendarContext:
         )
 
 
-class PlatformCalendarResolver:
+ProjectAssignmentT = TypeVar("ProjectAssignmentT", bound=ExternalCalendarAssignment)
+ResourceAssignmentT = TypeVar("ResourceAssignmentT", bound=ExternalCalendarAssignment)
+
+
+class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT]):
     """
     Resolves calendar hierarchy for a given org/site/dept/employee/project/resource scope.
 
@@ -160,8 +166,8 @@ class PlatformCalendarResolver:
         exception_repo: CalendarExceptionRepository,
         recurring_repo: CalendarRecurringEventRepository,
         assignment_repo: CalendarAssignmentRepository,
-        project_assignment_repo: ProjectCalendarAssignmentPort,
-        resource_assignment_repo: ResourceCalendarAssignmentPort,
+        project_assignment_repo: ProjectCalendarAssignmentPort[ProjectAssignmentT],
+        resource_assignment_repo: ResourceCalendarAssignmentPort[ResourceAssignmentT],
         calculator: WorkingTimeCalculator,
         shift_pattern_repo: Any = None,
     ) -> None:
@@ -544,47 +550,47 @@ class PlatformCalendarResolver:
             chain.append(("GLOBAL", global_cal.id))
 
         if site_id:
-            assign = self._assignment_repo.get_site_assignment(site_id, at_date=at_date)
-            if assign:
-                cal = self._calendar_repo.get(assign.calendar_id)
+            site_assignment = self._assignment_repo.get_site_assignment(site_id, at_date=at_date)
+            if site_assignment:
+                cal = self._calendar_repo.get(site_assignment.calendar_id)
                 if cal and cal.is_active:
                     label = f"SITE-{self._short(cal.code or site_id)}"
                     chain.append((label, cal.id))
 
         if department_id:
-            assign = self._assignment_repo.get_department_assignment(
+            department_assignment = self._assignment_repo.get_department_assignment(
                 department_id, at_date=at_date
             )
-            if assign:
-                cal = self._calendar_repo.get(assign.calendar_id)
+            if department_assignment:
+                cal = self._calendar_repo.get(department_assignment.calendar_id)
                 if cal and cal.is_active:
                     label = f"DEPT-{self._short(cal.code or department_id)}"
                     chain.append((label, cal.id))
 
         is_employee_backed = worker_type is None or worker_type == "EMPLOYEE"
         if employee_id and is_employee_backed:
-            assign = self._assignment_repo.get_employee_assignment(
+            employee_assignment = self._assignment_repo.get_employee_assignment(
                 employee_id, at_date=at_date
             )
-            if assign:
-                cal = self._calendar_repo.get(assign.calendar_id)
+            if employee_assignment:
+                cal = self._calendar_repo.get(employee_assignment.calendar_id)
                 if cal and cal.is_active:
                     label = f"EMP-{self._short(cal.code or employee_id)}"
                     chain.append((label, cal.id))
 
         if project_id:
-            assign = self._project_assignment_repo.get(project_id, at_date=at_date)
-            if assign:
-                cal = self._calendar_repo.get(assign.calendar_id)
+            project_assignment = self._project_assignment_repo.get(project_id, at_date=at_date)
+            if project_assignment:
+                cal = self._calendar_repo.get(project_assignment.calendar_id)
                 if cal and cal.is_active:
                     label = f"PRJ-{self._short(cal.code or project_id)}"
                     chain.append((label, cal.id))
 
         is_external = worker_type == "EXTERNAL"
         if resource_id and is_external:
-            assign = self._resource_assignment_repo.get(resource_id, at_date=at_date)
-            if assign:
-                cal = self._calendar_repo.get(assign.calendar_id)
+            resource_assignment = self._resource_assignment_repo.get(resource_id, at_date=at_date)
+            if resource_assignment:
+                cal = self._calendar_repo.get(resource_assignment.calendar_id)
                 if cal and cal.is_active:
                     label = f"RESOURCE-{self._short(cal.code or resource_id)}"
                     chain.append((label, cal.id))

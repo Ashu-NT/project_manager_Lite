@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from sqlalchemy.orm import Session
 
@@ -28,8 +28,11 @@ from src.core.platform.domain.time_management.calendar.enterprise_calendar impor
 )
 from src.core.shared.activity import record_activity
 
+ProjectAssignmentT = TypeVar("ProjectAssignmentT", bound=ExternalCalendarAssignment)
+ResourceAssignmentT = TypeVar("ResourceAssignmentT", bound=ExternalCalendarAssignment)
 
-class CalendarAssignmentService:
+
+class CalendarAssignmentService(Generic[ProjectAssignmentT, ResourceAssignmentT]):
     """Assign/unassign platform calendars to sites, departments, and employees."""
 
     def __init__(
@@ -37,8 +40,8 @@ class CalendarAssignmentService:
         session: Session,
         calendar_repo: PlatformCalendarRepository,
         assignment_repo: CalendarAssignmentRepository,
-        project_assignment_repo: ProjectCalendarAssignmentPort,
-        resource_assignment_repo: ResourceCalendarAssignmentPort,
+        project_assignment_repo: ProjectCalendarAssignmentPort[ProjectAssignmentT],
+        resource_assignment_repo: ResourceCalendarAssignmentPort[ResourceAssignmentT],
         user_session: Any = None,
         activity_service: Any = None,
     ) -> None:

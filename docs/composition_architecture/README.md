@@ -307,9 +307,15 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   exists and remains callable on both the underlying service and port.
   Bootstrap, task-event and governed-port mypy: 3 source files clean; focused
   Finance/PM composition: 28 passed; targeted Ruff F/I passed. Checking the
-  broader Platform registry still reports four existing calendar assignment
-  repository/port generic-type mismatches, not caused by this dispatcher
-  annotation change. Do not claim Platform registry mypy green yet.
+  broader Platform registry reported four calendar assignment repository/port
+  generic-type mismatches, resolved by the C5 follow-up below.
+- C5 calendar assignment port typing: Platform's project/resource assignment
+  ports now carry their assignment type, so PM repositories satisfy the
+  contracts without casts or a Platform-to-PM dependency. The Platform
+  calendar resolver and assignment service preserve those types; resolver
+  annotations no longer reuse one local across different assignment types.
+  Targeted mypy, including the Platform registry: four source files clean.
+  Focused calendar/PM integration/composition regressions: 60 passed.
 
 ## Closure Gates
 

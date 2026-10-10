@@ -16,7 +16,7 @@ points one way: consumer -> Platform, never Platform -> consumer.
 from __future__ import annotations
 
 from datetime import date
-from typing import Protocol, runtime_checkable
+from typing import Protocol, TypeVar, runtime_checkable
 
 
 @runtime_checkable
@@ -25,10 +25,13 @@ class ExternalCalendarAssignment(Protocol):
     calendar_id: str
 
 
-class ProjectCalendarAssignmentPort(Protocol):
+AssignmentT = TypeVar("AssignmentT", bound=ExternalCalendarAssignment)
+
+
+class ProjectCalendarAssignmentPort(Protocol[AssignmentT]):
     def get(
         self, project_id: str, *, at_date: date | None = None
-    ) -> ExternalCalendarAssignment | None: ...
+    ) -> AssignmentT | None: ...
 
     def create(
         self,
@@ -39,19 +42,19 @@ class ProjectCalendarAssignmentPort(Protocol):
         effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
-    ) -> ExternalCalendarAssignment: ...
+    ) -> AssignmentT: ...
 
-    def save(self, assignment: ExternalCalendarAssignment) -> None: ...
+    def save(self, assignment: AssignmentT) -> None: ...
 
     def delete(self, assignment_id: str) -> None: ...
 
-    def list_for_calendar(self, calendar_id: str) -> list[ExternalCalendarAssignment]: ...
+    def list_for_calendar(self, calendar_id: str) -> list[AssignmentT]: ...
 
 
-class ResourceCalendarAssignmentPort(Protocol):
+class ResourceCalendarAssignmentPort(Protocol[AssignmentT]):
     def get(
         self, resource_id: str, *, at_date: date | None = None
-    ) -> ExternalCalendarAssignment | None: ...
+    ) -> AssignmentT | None: ...
 
     def create(
         self,
@@ -62,13 +65,13 @@ class ResourceCalendarAssignmentPort(Protocol):
         effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
-    ) -> ExternalCalendarAssignment: ...
+    ) -> AssignmentT: ...
 
-    def save(self, assignment: ExternalCalendarAssignment) -> None: ...
+    def save(self, assignment: AssignmentT) -> None: ...
 
     def delete(self, assignment_id: str) -> None: ...
 
-    def list_for_calendar(self, calendar_id: str) -> list[ExternalCalendarAssignment]: ...
+    def list_for_calendar(self, calendar_id: str) -> list[AssignmentT]: ...
 
 
 __all__ = [
