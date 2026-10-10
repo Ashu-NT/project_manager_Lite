@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from time import perf_counter
 
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.collaboration import (
     CollaborationService,
@@ -33,7 +33,6 @@ from src.core.modules.project_management.application.financials import (
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
-    FinanceGovernanceOperations,
     FinanceGovernedServicePort,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
@@ -78,8 +77,14 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
 from src.core.modules.project_management.infrastructure.composition.dependencies.dashboard import (
     build_dashboard_service,
 )
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.billing import (
+    build_billing_services,
+)
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.budgets import (
     build_budget_service,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.changes import (
+    build_financial_change_service,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.configuration import (
     build_financial_configuration_service,
@@ -90,12 +95,19 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.forecasts import (
     build_forecast_services,
 )
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.governance_operations import (
+    build_finance_governance_operations_factory,
+)
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.rates import (
     build_rate_card_services,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.reads import (
     build_finance_performance_services,
     build_finance_workspace_query,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.workers import (
+    build_finance_worker_consumers,
+    build_finance_worker_uow_factory,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.importers import (
     build_data_import_service,
@@ -179,9 +191,6 @@ from src.core.modules.project_management.infrastructure.composition.events.times
 from src.core.modules.project_management.infrastructure.composition.registrations.access import (
     register_project_scope_access,
 )
-from src.core.modules.project_management.infrastructure.composition.registrations.approvals.finance.financial_change import (
-    build_financial_change_approval_deps,
-)
 from src.core.modules.project_management.infrastructure.composition.registrations.approvals.handlers import (
     register_project_management_approval_handlers,
 )
@@ -191,15 +200,9 @@ from src.core.modules.project_management.infrastructure.importers import (
 from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
     SqlAlchemyFinanceSnapshotReader,
 )
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
-    SqlAlchemyRateResolutionReader,
-)
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWork,
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
-)
-from src.core.platform.application.finance.financial_period_service import (
-    FinancialPeriodService,
 )
 from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.application.time_management.time import TimeService
@@ -208,9 +211,6 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 )
 from src.core.platform.domain.security.identity.service_principal import (
     ServicePrincipal,
-)
-from src.infra.composition.integration.accounting.accounting_integration import (
-    build_accounting_capability,
 )
 from src.infra.composition.modules.platform_registry import PlatformServiceBundle
 from src.infra.composition.persistence.repositories import RepositoryBundle
@@ -394,9 +394,6 @@ def build_project_management_service_bundle(
         clock=system_clock,
         rate_resolver=rate_card_resolver,
     )
-    from src.core.modules.project_management.application.financials.accounting.request_service import (
-        AccountingHandoffRequestService,
-    )
     finance_workspace_query = build_finance_workspace_query(
         session,
         platform_services,
@@ -421,110 +418,11 @@ def build_project_management_service_bundle(
         clock=system_clock,
     )
 
-    finance_governance_uow_session_factory = sessionmaker(
-        bind=platform_services.session.bind, future=True
+    finance_governance_uow_factory = build_finance_worker_uow_factory(platform_services)
+    build_approved_time_consumer, build_procurement_consumer = build_finance_worker_consumers(
+        platform_services,
+        clock=system_clock,
     )
-    finance_governance_uow_factory = SqlAlchemyFinanceGovernanceUnitOfWorkFactory(
-        session_factory=finance_governance_uow_session_factory,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
-        tenant_context_service=platform_services.tenant_context_service,
-        user_session=platform_services.user_session,
-    )
-
-    def build_approved_time_consumer(
-        uow: SqlAlchemyFinanceGovernanceUnitOfWork,
-        principal: ServicePrincipal,
-    ) -> ApprovedTimeLaborCostConsumer:
-        worker_rate_resolver = RateCardResolver(
-            reader=SqlAlchemyRateResolutionReader(session=uow._session),
-            tenant_context_service=platform_services.tenant_context_service,
-            clock=system_clock,
-        )
-        worker_cost_service = ProjectCostEntryService(
-            session=uow._session,
-            entry_repo=uow.cost_entries,
-            project_repo=uow.projects,
-            financial_profile_repo=uow.profiles,
-            cost_code_repo=uow.cost_codes,
-            task_repo=uow.tasks,
-            resource_repo=uow.resources,
-            financial_period_service=FinancialPeriodService(
-                session=uow._session,
-                period_repo=uow.financial_periods,
-                tenant_context_service=platform_services.tenant_context_service,
-                user_session=platform_services.user_session,
-                enterprise_audit_service=uow._enterprise_audit_service,
-            ),
-            clock=system_clock,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            tenant_context_service=platform_services.tenant_context_service,
-            approval_service=platform_services.approval_service,
-            rate_resolver=worker_rate_resolver,
-            labor_posting_repo=uow.labor_postings,
-        )
-        return ApprovedTimeLaborCostConsumer(
-            worker_cost_service,
-            service_principal=principal,
-        )
-
-    def build_procurement_consumer(
-        uow: SqlAlchemyFinanceGovernanceUnitOfWork,
-        principal: ServicePrincipal,
-    ) -> ProcurementFinancialConsumer:
-        worker_rate_resolver = RateCardResolver(
-            reader=SqlAlchemyRateResolutionReader(session=uow._session),
-            tenant_context_service=platform_services.tenant_context_service,
-            clock=system_clock,
-        )
-        worker_cost_service = ProjectCostEntryService(
-            session=uow._session,
-            entry_repo=uow.cost_entries,
-            project_repo=uow.projects,
-            financial_profile_repo=uow.profiles,
-            cost_code_repo=uow.cost_codes,
-            task_repo=uow.tasks,
-            resource_repo=uow.resources,
-            financial_period_service=FinancialPeriodService(
-                session=uow._session,
-                period_repo=uow.financial_periods,
-                tenant_context_service=platform_services.tenant_context_service,
-                user_session=platform_services.user_session,
-                enterprise_audit_service=uow._enterprise_audit_service,
-            ),
-            clock=system_clock,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            tenant_context_service=platform_services.tenant_context_service,
-            approval_service=platform_services.approval_service,
-            rate_resolver=worker_rate_resolver,
-            labor_posting_repo=uow.labor_postings,
-        )
-        worker_commitment_service = ProjectCommitmentService(
-            session=uow._session,
-            commitment_repo=uow.commitments,
-            cost_entry_repo=uow.cost_entries,
-            project_repo=uow.projects,
-            financial_profile_repo=uow.profiles,
-            cost_code_repo=uow.cost_codes,
-            task_repo=uow.tasks,
-            party_repo=uow.parties,
-            site_repo=uow.sites,
-            clock=system_clock,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            tenant_context_service=platform_services.tenant_context_service,
-        )
-        return ProcurementFinancialConsumer(
-            commitment_service=worker_commitment_service,
-            cost_entry_service=worker_cost_service,
-            task_repo=uow.tasks,
-            service_principal=principal,
-        )
     register_forecast_view_invalidation(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
@@ -561,197 +459,22 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
-    financial_change_service = FinancialChangeService(
-        session=session,
-        change_repo=repositories.financial_change_repo,
-        budget_repo=repositories.project_budget_repo,
-        forecast_repo=repositories.project_forecast_repo,
-        project_repo=repositories.project_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
-        task_repo=repositories.task_repo,
+    financial_change_service = build_financial_change_service(
+        session,
+        repositories,
+        platform_services,
         task_service=task_service,
-        approval_service=platform_services.approval_service,
         clock=system_clock,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
     )
 
-    def build_finance_governance_operations(uow):
-        budget_operations = BudgetService(
-            session=uow._session,
-            budget_repo=uow.budgets,
-            project_repo=uow.projects,
-            financial_profile_repo=uow.profiles,
-            cost_code_repo=uow.cost_codes,
-            task_repo=uow.tasks,
-            clock=system_clock,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            tenant_context_service=platform_services.tenant_context_service,
-            approval_service=platform_services.approval_service,
-            record_event=uow.record_event,
-        )
-        forecast_version_operations = ForecastVersionService(
-            session=uow._session,
-            forecast_repo=uow.forecasts,
-            project_repo=uow.projects,
-            financial_profile_repo=uow.profiles,
-            cost_code_repo=uow.cost_codes,
-            task_repo=uow.tasks,
-            clock=system_clock,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            tenant_context_service=platform_services.tenant_context_service,
-            record_event=uow.record_event,
-            approval_service=platform_services.approval_service,
-        )
-        forecast_generation_operations = ForecastGenerationService(
-            session=uow._session,
-            forecast_repo=uow.forecasts,
-            project_repo=uow.projects,
-            financial_profile_repo=uow.profiles,
-            cost_code_repo=uow.cost_codes,
-            task_repo=uow.tasks,
-            planned_cost_repo=uow.planned_costs,
-            commitment_repo=uow.commitments,
-            cost_entry_repo=uow.cost_entries,
-            register_repo=uow.register_entries,
-            clock=system_clock,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            tenant_context_service=platform_services.tenant_context_service,
-            record_event=uow.record_event,
-        )
-        change_deps = build_financial_change_approval_deps(
-            uow._session,
-            user_session=platform_services.user_session,
-            tenant_context_service=platform_services.tenant_context_service,
-            work_calendar_engine=work_calendar_engine,
-            module_catalog_service=platform_services.module_catalog_service,
-            record_event=uow.record_event,
-        )
-        change_operations = change_deps.financial_change_service
-        change_operations._approval_repo = uow.approvals
-        change_operations._record_event = uow.record_event
-        setup_operations = FinancialConfigurationService(
-            session=uow._session,
-            profile_repo=uow.profiles,
-            cost_code_repo=uow.cost_codes,
-            project_repo=uow.projects,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            tenant_context_service=platform_services.tenant_context_service,
-            record_event=uow.record_event,
-        )
-        rate_card_operations = ProjectRateCardService(
-            session=uow._session,
-            rate_card_repo=uow.rate_cards,
-            project_repo=uow.projects,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            tenant_context_service=platform_services.tenant_context_service,
-            record_event=uow.record_event,
-        )
-        planned_cost_operations = PlannedCostService(
-            session=uow._session,
-            planned_cost_repo=uow.planned_costs,
-            project_repo=uow.projects,
-            financial_profile_repo=uow.profiles,
-            cost_code_repo=uow.cost_codes,
-            task_repo=uow.tasks,
-            assignment_repo=uow.assignments,
-            project_resource_repo=uow.project_resources,
-            rate_resolver=rate_card_resolver,
-            clock=system_clock,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            tenant_context_service=platform_services.tenant_context_service,
-            record_event=uow.record_event,
-        )
-        cost_entry_operations = ProjectCostEntryService(
-            session=uow._session,
-            entry_repo=uow.cost_entries,
-            project_repo=uow.projects,
-            financial_profile_repo=uow.profiles,
-            cost_code_repo=uow.cost_codes,
-            task_repo=uow.tasks,
-            resource_repo=uow.resources,
-            financial_period_service=FinancialPeriodService(
-                session=uow._session,
-                period_repo=uow.financial_periods,
-                tenant_context_service=platform_services.tenant_context_service,
-                user_session=platform_services.user_session,
-                enterprise_audit_service=uow._enterprise_audit_service,
-            ),
-            clock=system_clock,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            tenant_context_service=platform_services.tenant_context_service,
-            approval_service=platform_services.approval_service,
-            rate_resolver=rate_card_resolver,
-            labor_posting_repo=uow.labor_postings,
-            record_event=uow.record_event,
-        )
-        billing_profile_operations = ProjectBillingProfileService(
-            session=uow._session,
-            billing_repo=uow.billing,
-            financial_profile_repo=uow.profiles,
-            project_repo=uow.projects,
-            tenant_context_service=platform_services.tenant_context_service,
-            clock=system_clock,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            record_event=uow.record_event,
-        )
-        billing_preparation_operations = ProjectBillingPreparationService(
-            session=uow._session,
-            billing_repo=uow.billing,
-            financial_profile_repo=uow.profiles,
-            cost_entry_repo=repositories.project_cost_entry_repo,
-            labor_posting_repo=repositories.approved_time_labor_posting_repo,
-            rate_resolver=rate_card_resolver,
-            financial_period_service=platform_services.financial_period_service,
-            approval_service=platform_services.approval_service,
-            tenant_context_service=platform_services.tenant_context_service,
-            clock=system_clock,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            record_event=uow.record_event,
-        )
-        billing_preparation_operations._approval_repo = uow.approvals
-        billing_preparation_operations._handoff_request_service = AccountingHandoffRequestService(
-            preparations=billing_preparation_operations, handoffs=uow.accounting_handoffs,
-            outbox=uow.accounting_outbox, context=uow.context,
-            capability=build_accounting_capability(
-                session=uow._session, tenant_context_service=platform_services.tenant_context_service,
-                user_session=platform_services.user_session, installed_adapters=accounting_adapter_ids,
-            ),
-        )
-        return FinanceGovernanceOperations(
-            budgets=budget_operations,
-            forecast_versions=forecast_version_operations,
-            forecast_generation=forecast_generation_operations,
-            financial_changes=change_operations,
-            financial_setup=setup_operations,
-            rate_cards=rate_card_operations,
-            planned_costs=planned_cost_operations,
-            cost_entries=cost_entry_operations,
-            billing_profiles=billing_profile_operations,
-            billing_preparations=billing_preparation_operations,
-        )
-
+    build_finance_governance_operations = build_finance_governance_operations_factory(
+        repositories,
+        platform_services,
+        clock=system_clock,
+        rate_resolver=rate_card_resolver,
+        work_calendar_engine=work_calendar_engine,
+        accounting_adapter_ids=accounting_adapter_ids,
+    )
     finance_governance_commands = FinanceGovernanceCommandBoundary(
         uow_factory=finance_governance_uow_factory,
         operations_factory=build_finance_governance_operations,
@@ -872,31 +595,12 @@ def build_project_management_service_bundle(
             }
         ),
     )
-    billing_profile_service = ProjectBillingProfileService(
-        session=session,
-        billing_repo=repositories.project_billing_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        project_repo=repositories.project_repo,
-        tenant_context_service=platform_services.tenant_context_service,
+    billing_profile_service, billing_preparation_service = build_billing_services(
+        session,
+        repositories,
+        platform_services,
         clock=system_clock,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
-    )
-    billing_preparation_service = ProjectBillingPreparationService(
-        session=session,
-        billing_repo=repositories.project_billing_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_entry_repo=repositories.project_cost_entry_repo,
-        labor_posting_repo=repositories.approved_time_labor_posting_repo,
         rate_resolver=rate_card_resolver,
-        financial_period_service=platform_services.financial_period_service,
-        approval_service=platform_services.approval_service,
-        tenant_context_service=platform_services.tenant_context_service,
-        clock=system_clock,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
     )
     billing_profile_service = FinanceGovernedServicePort(
         read_service=billing_profile_service,

@@ -71,7 +71,7 @@ factory callers have been migrated together.
 | C1 | Split Platform Approval vs PM notification registration and PM recipient recheck; inject policy from root | Same transactional subscription counts, recipient/privacy/RLS and startup tests; delete mixed `notifications.py` | Complete |
 | C2 | Move PM access/scope registrations and approval registrations/dependency factories into PM composition | Service identity, reviewer permissions, handler counts, transaction/UoW tests; delete root approval factory package | Complete; mixed repository-bundle dependency remains until C5 |
 | C3 | Extract PM Projects, Tasks, Resources, Scheduling, Timesheets, Collaboration, Portfolio and Risk dependency/event groups | Per-group focused tests; no duplicated factories/subscriptions; preserve PM bundle | Complete; Finance remains C4 |
-| C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | In progress: Finance post-commit event wiring extracted |
+| C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | In progress: events, raw services/readers, and worker factories extracted; governed operations/ports remain |
 | C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | Not started |
 | C6 | Slim root and move only cross-module integrations/global overview wiring under root | Desktop startup, full PM/Platform, PostgreSQL and architecture guards; delete both central registries and obsolete imports | Not started |
 
@@ -177,7 +177,7 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   Rate and Cost Entry checks: 71 passed. Targeted Ruff F/I and mypy pass for
   all eight Finance event source files. No Finance service construction,
   governed port, UoW factory or worker principal was changed in this slice.
-  C4 remains open for those higher-risk dependency and worker migrations.
+  This was an event-only checkpoint before dependency and worker migration.
 - C4 Finance dependency slice: PM-owned `dependencies/finance/` builders now
   construct Configuration, Rate Card/Resolver, Budget, Cost Entry, Commitment,
   Planned Cost, and Forecast Version/Generation at their original positions.
@@ -190,10 +190,23 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   Performance Reader and Finance Service construction; the workspace query
   remains before Reporting and Performance remains after it. Reader/session
   identity checks and workspace tests passed (6 and 4); targeted mypy passes
-  for all seven Finance dependency files. C4 remains open for the fresh-session
-  Finance UoW, worker principal factories, governed ports, Billing and other
-  query composition; these must not be treated as migrated by the raw-service
-  and read-builder moves.
+  for all seven Finance dependency files. This checkpoint did not yet migrate
+  the fresh-session Finance UoW, worker principal factories, governed ports,
+  Billing or other query composition.
+- C4 Finance worker and remaining raw-service slice: PM-owned
+  `dependencies/finance/workers.py` builds the fresh-session Finance UoW and
+  explicit-principal Approved-Time/Procurement consumer factories. Both
+  dispatchers and the governed command boundary still share one UoW factory;
+  the worker session is distinct from the ambient UI session but bound to the
+  same engine. Worker composition and consumer tests: 35 passed. Ambient
+  Financial Change and Billing Profile/Preparation constructors moved to
+  `finance/{changes,billing}.py` without moving their governed mutation ports;
+  composition and command tests: 34 passed. The schedule-change port's unused
+  `commit` parameter was removed to match its sole TaskService implementation
+  and caller; focused participant/schedule tests: 19 passed. Targeted mypy now
+  passes for all ten Finance dependency source files. C4 still requires
+  extraction and integrated proof of the fresh-session governed operations,
+  command ports, and remaining Finance query wiring before closure.
 
 ## Closure Gates
 

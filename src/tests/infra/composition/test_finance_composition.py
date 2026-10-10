@@ -207,3 +207,29 @@ def test_finance_read_services_preserve_ambient_session(services, session) -> No
     assert workspace._budget_reader._session is session
     assert finance._finance_performance_reader._session is session
     assert finance._finance_snapshot_reader._session is session
+
+
+def test_finance_worker_dispatchers_share_fresh_session_uow_factory(services, session) -> None:
+    approved_time = services["approved_time_financial_dispatcher"]
+    procurement = services["procurement_financial_dispatcher"]
+    boundary = services["finance_governance_commands"]
+
+    assert approved_time._uow_factory is procurement._uow_factory
+    assert approved_time._uow_factory is boundary._uow_factory
+    worker_session = approved_time._uow_factory._session_factory()
+    try:
+        assert worker_session is not session
+        assert worker_session.get_bind() is session.get_bind()
+    finally:
+        worker_session.close()
+
+
+def test_finance_change_and_billing_preserve_raw_service_dependencies(services, session) -> None:
+    change = services["financial_change_service"]._read_service
+    profile = services["billing_profile_service"]._read_service
+    preparation = services["billing_preparation_service"]._read_service
+    resolver = services["rate_card_resolver"]
+
+    assert change._session is profile._session is preparation._session is session
+    assert change._clock is profile._clock is preparation._clock is resolver._clock
+    assert preparation._rate_resolver is resolver
