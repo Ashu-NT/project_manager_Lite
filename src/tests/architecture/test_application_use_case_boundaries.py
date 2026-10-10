@@ -53,6 +53,8 @@ def test_migrated_platform_services_do_not_import_concrete_infrastructure() -> N
         "platform/application/security/auth/session/context_switch_service.py",
         "platform/application/security/authorization/roles/tenant_role_administration_service.py",
         "platform/application/security/authorization/roles/role_policy_reconciliation_service.py",
+        "platform/application/time_management/time/timesheet_entries.py",
+        "platform/application/time_management/time/timesheet_periods.py",
     ):
         path = SRC_ROOT / relative_path
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))

@@ -26,7 +26,6 @@ from src.core.platform.domain.time_management.time import (
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 logger = logging.getLogger(__name__)
 
@@ -290,7 +289,7 @@ class TimesheetPeriodsMixin:
             operation_label="mutate timesheet period"
         )
 
-        with SqlAlchemyUnitOfWorkBase(
+        with self._uow_factory.create(
             session=self._session,
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,

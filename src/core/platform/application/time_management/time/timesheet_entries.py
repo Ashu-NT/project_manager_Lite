@@ -26,9 +26,7 @@ def _time_entry_unit_of_work(service):
             "TimeService is missing its transactional dispatcher / post-commit bus -- "
             "TimeEntry mutations require both to be wired; there is no degraded fallback."
         )
-    from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
-
-    return SqlAlchemyUnitOfWorkBase(
+    return service._uow_factory.create(
         session=service._session,
         transactional_dispatcher=service._transactional_dispatcher,
         post_commit_bus=service._post_commit_bus,

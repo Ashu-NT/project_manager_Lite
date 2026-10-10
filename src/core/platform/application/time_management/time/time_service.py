@@ -34,6 +34,7 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
     WorkOwnerRepository,
     WorkResourceRepository,
 )
+from src.core.platform.contract.uow.time_unit_of_work import TimeUnitOfWorkFactory
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.events.domain_event_publisher import (
     PostCommitEventPublisher,
@@ -62,6 +63,7 @@ class TimeService(
         *,
         transactional_dispatcher: TransactionalEventDispatcher,
         post_commit_bus: PostCommitEventPublisher,
+        uow_factory: TimeUnitOfWorkFactory,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: Any = None,
         module_catalog_service: Any = None,
@@ -87,6 +89,7 @@ class TimeService(
         self._approved_time_dispatcher: Callable[[], None] | None = None
         self._transactional_dispatcher = transactional_dispatcher
         self._post_commit_bus = post_commit_bus
+        self._uow_factory = uow_factory
 
     def set_approved_time_dispatcher(self, dispatcher: Callable[[], None] | None) -> None:
         self._approved_time_dispatcher = dispatcher

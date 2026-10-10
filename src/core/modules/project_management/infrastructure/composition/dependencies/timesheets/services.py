@@ -15,6 +15,9 @@ from src.core.modules.project_management.infrastructure.persistence.reads.timesh
 )
 from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
+from src.core.platform.infrastructure.persistence.uow.time_unit_of_work import (
+    SqlAlchemyTimeUnitOfWorkFactory,
+)
 
 
 def build_timesheet_service(
@@ -58,4 +61,5 @@ def build_timesheet_service(
         timesheet_review_reader=SqlAlchemyTimesheetReviewReader(session=session),
         transactional_dispatcher=platform_services.platform_transactional_dispatcher,
         post_commit_bus=platform_services.platform_post_commit_bus,
+        uow_factory=SqlAlchemyTimeUnitOfWorkFactory(),
     )

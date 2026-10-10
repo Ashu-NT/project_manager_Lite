@@ -372,8 +372,22 @@ concrete SQLAlchemy class. Context switching receives a separate
 folders or financial authorities changed. The Auth/role/reconciliation focused
 run passed 163 tests with 2 skipped; context-switch/architecture follow-up
 passed 55; PostgreSQL runtime security passed 14. Targeted Mypy is clean.
-Time's concrete UoW references and the remaining A4 operation clusters are
-not yet migrated; A4 as a whole is not closed.
+Time's concrete UoW references were the next A4 batch below; remaining
+operation clusters are not yet migrated, so A4 as a whole is not closed.
+
+**A4 Time transaction boundary in progress.** Platform TimeService now receives
+an explicit `TimeUnitOfWorkFactory`. TimeEntry mutation and TimesheetPeriod
+transition use that factory instead of importing `SqlAlchemyUnitOfWorkBase`
+inside application code. The concrete factory still uses the caller's shared
+Session, the same dispatchers and bus, and each caller's fresh
+`DomainEventContext`; TimeEntry's missing-dispatcher fail-closed check remains.
+PM composition supplies the factory without changing Finance ownership or
+folders. Focused TimeEntry/TimesheetPeriod/approved-time/architecture tests:
+42 passed. Live PostgreSQL approved-time labor posting: 7 passed. Standalone
+Mypy for the existing Timesheet mixin files remains noisy because the mixins
+declare neither host attributes nor a typed self contract; factory, concrete
+adapter and TimeService typing must be checked separately until that larger
+handler/mixin migration is completed. A4 is still open.
 
 ## Risk and Verification Matrix
 
