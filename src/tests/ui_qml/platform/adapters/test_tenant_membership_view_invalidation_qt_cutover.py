@@ -287,7 +287,6 @@ def test_organization_switch_does_not_re_scope_the_membership_subscription(servi
     re-subscription at all (unlike the RoleBinding/ModuleEntitlement adapters, which DO re-scope
     on `refreshCurrentPermissions()`)."""
     catalog = _catalog(services)
-    channel = services["platform_view_invalidation_channel"]
     adapter = catalog._tenant_membership_view_invalidation_adapter
     # The raw channel Subscription (`adapter._subscription._subscription`), not the
     # always-present `ScopedViewInvalidationSubscription` wrapper itself, is what must keep its

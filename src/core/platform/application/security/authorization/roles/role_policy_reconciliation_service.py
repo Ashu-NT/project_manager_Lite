@@ -25,7 +25,9 @@ from src.core.platform.contract.repositories.security.auth import (
     RoleRepository,
     UserRepository,
 )
-from src.core.platform.contract.uow.security.auth_unit_of_work import AuthUnitOfWorkFactory
+from src.core.platform.contract.uow.security.auth_unit_of_work import (
+    AuthUnitOfWorkFactory,
+)
 from src.core.platform.domain.security.auth import (
     RolePermissionBinding,
     UserSessionContext,

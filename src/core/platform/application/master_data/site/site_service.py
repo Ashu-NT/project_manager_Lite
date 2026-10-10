@@ -30,7 +30,9 @@ from src.core.platform.contract.repositories.master_data.org.contracts import (
 from src.core.platform.contract.repositories.master_data.site.contracts import (
     SiteRepository,
 )
-from src.core.platform.contract.uow.master_data.site_unit_of_work import SiteUnitOfWorkFactory
+from src.core.platform.contract.uow.master_data.site_unit_of_work import (
+    SiteUnitOfWorkFactory,
+)
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.org.support import normalize_code
 from src.core.platform.domain.master_data.site import Site

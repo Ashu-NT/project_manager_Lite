@@ -10,7 +10,9 @@ from src.core.platform.application.history.activity.activity_service import (
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.contract.uow.master_data.employee_unit_of_work import EmployeeUnitOfWork
+from src.core.platform.contract.uow.master_data.employee_unit_of_work import (
+    EmployeeUnitOfWork,
+)
 from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
     SqlAlchemyActivityRepository,
 )

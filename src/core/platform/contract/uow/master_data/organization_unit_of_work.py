@@ -23,7 +23,8 @@ class OrganizationUnitOfWork(UnitOfWork, Protocol):
     # going through a TenantScopedRepositorySupport repository whose writes
     # are pinned to the caller's ACTIVE organization regardless of what a
     # domain object's own fields say.
-    session: Session
+    @property
+    def session(self) -> Session: ...
 
 
 class OrganizationUnitOfWorkFactory(UnitOfWorkFactory, Protocol):

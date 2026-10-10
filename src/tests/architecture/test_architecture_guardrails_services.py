@@ -24,11 +24,12 @@ def test_project_service_is_orchestrator_only():
             / "src/core/modules/project_management/application/projects/commands"
             / f"{command}.py"
         ).read_text(encoding="utf-8")
-        assert "from src.core.modules.project_management.application.projects.commands.support import (" in command_source
+        if command in {"create", "update"}:
+            assert "from src.core.modules.project_management.application.projects.commands.support import (" in command_source
     assert "from src.core.modules.project_management.application.projects.queries.project_query import (" in text
-    assert "def create_project" not in text
-    assert "def update_project" not in text
-    assert "def delete_project" not in text
+    assert "return self._create_handler.create_project(*args, **kwargs)" in text
+    assert "return self._update_handler.update_project(*args, **kwargs)" in text
+    assert "self._deletion_handler.delete_project(project_id)" in text
 
 
 def test_project_resource_service_is_orchestrator_only():

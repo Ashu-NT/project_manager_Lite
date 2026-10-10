@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.contract.uow.master_data.party_unit_of_work import PartyUnitOfWork
+from src.core.platform.contract.uow.master_data.party_unit_of_work import (
+    PartyUnitOfWork,
+)
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )

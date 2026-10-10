@@ -389,6 +389,24 @@ declare neither host attributes nor a typed self contract; factory, concrete
 adapter and TimeService typing must be checked separately until that larger
 handler/mixin migration is completed. A4 is still open.
 
+**A4 Platform UoW package organization complete.** The contract and concrete
+persistence UoW packages now mirror Platform capability ownership:
+`master_data` (organization, site, department, employee, party, documents),
+`security` (Auth, role governance, Auth session write lock), `tenancy`
+(membership, module entitlement), `approval`, `time_management`, and
+`provisioning` (the cross-cutting organization/entitlement bootstrap UoW).
+The existing `integration` folders remain. All production and test consumers
+were migrated directly; no old-path compatibility modules were retained.
+Focused UoW/transaction suites passed 78 plus 94 tests, the Organization
+contract correction passed 27 tests, and the architecture/tenant-membership
+adapter suite passed 194. Broad Platform/PM/Platform-UI collection found
+3,974 tests without import errors. The 47 UoW contract/implementation files
+pass Mypy, and all 76 migrated import consumers pass scoped Ruff F/I. A stale
+Project architecture guard was updated to test the approved thin-facade
+delegation rather than requiring every handler to inherit the create/update
+policy mixin. Finance's PM package structure and business semantics remain
+unchanged. This package reorganization does not close the broader A4 gate.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

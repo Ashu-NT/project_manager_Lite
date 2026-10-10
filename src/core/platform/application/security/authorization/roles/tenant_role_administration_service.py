@@ -41,7 +41,9 @@ from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,
 )
-from src.core.platform.contract.uow.security.auth_unit_of_work import AuthUnitOfWorkFactory
+from src.core.platform.contract.uow.security.auth_unit_of_work import (
+    AuthUnitOfWorkFactory,
+)
 from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.domain.security.auth import (
     Permission,
