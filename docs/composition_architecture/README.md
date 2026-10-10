@@ -292,13 +292,24 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   in the retired central registry. Focused composition/architecture tests:
   83 passed; the known unrelated Platform 1,200-line guard was deselected
   (admin controller 1,275 lines; calendar repository 1,215 lines). Targeted
-  Ruff F/I, compilation and `git diff --check` passed. Targeted mypy on the
-  moved bootstrap still reports 11 mismatches in the unchanged dispatcher
-  and governed-service-port typing; do not claim this typing gate green.
+  Ruff F/I, compilation and `git diff --check` passed. The follow-up typing
+  slice below resolves the moved bootstrap's 11 mypy mismatches.
   No empty `shared.py` was created: there is not yet a distinct shared PM
   dependency to own. The PM bootstrap/dependency files still type against the
   mixed root `RepositoryBundle` and root Platform bundle; C5 must replace
   those inward references while preserving repository/session identity.
+- PM bootstrap typing follow-up: Task event registration now asks for the
+  transactional/post-commit subscriber protocols it uses. The Platform bundle
+  advertises its actual subscribe-and-dispatch concrete transactional bus,
+  rather than the dispatch-only protocol. `wrap_finance_service` preserves the
+  delegated service interface through one explicit cast at the adapter
+  boundary; a composition test verifies every declared governed mutation
+  exists and remains callable on both the underlying service and port.
+  Bootstrap, task-event and governed-port mypy: 3 source files clean; focused
+  Finance/PM composition: 28 passed; targeted Ruff F/I passed. Checking the
+  broader Platform registry still reports four existing calendar assignment
+  repository/port generic-type mismatches, not caused by this dispatcher
+  annotation change. Do not claim Platform registry mypy green yet.
 
 ## Closure Gates
 

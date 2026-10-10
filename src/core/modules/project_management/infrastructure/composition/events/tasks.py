@@ -17,18 +17,16 @@ from src.core.modules.project_management.application.tasks.task_events import (
 from src.core.modules.project_management.infrastructure.composition.registrations.notifications import (
     register_pm_notification_policy,
 )
+from src.core.shared.events.domain_event_subscriber import (
+    PostCommitEventSubscriber,
+    TransactionalEventSubscriber,
+)
 from src.core.shared.events.view_invalidation import ViewInvalidationChannel
-from src.infra.events.in_process_post_commit_event_bus import (
-    InProcessPostCommitEventBus,
-)
-from src.infra.events.in_process_transactional_event_dispatcher import (
-    InProcessTransactionalEventDispatcher,
-)
 
 
 def register_task_events(
-    transactional_dispatcher: InProcessTransactionalEventDispatcher,
-    post_commit_bus: InProcessPostCommitEventBus,
+    transactional_dispatcher: TransactionalEventSubscriber,
+    post_commit_bus: PostCommitEventSubscriber,
     view_channel: ViewInvalidationChannel,
 ) -> None:
     register_pm_notification_policy(transactional_dispatcher)

@@ -303,6 +303,9 @@ def test_finance_governed_ports_share_one_boundary_and_declared_mutations(servic
         assert port._boundary is boundary
         assert port._family == family
         assert port._mutations == FINANCE_MUTATIONS[family]
+        for method_name in port._mutations:
+            assert callable(getattr(port._read_service, method_name))
+            assert callable(getattr(port, method_name))
 
 
 def test_finance_performance_query_reuses_reporting_baseline_and_reader(services, session) -> None:

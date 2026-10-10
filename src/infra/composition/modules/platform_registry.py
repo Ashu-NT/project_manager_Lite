@@ -189,9 +189,6 @@ from src.core.platform.infrastructure.persistence.uow.site_unit_of_work import (
 from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWorkFactory,
 )
-from src.core.shared.events.domain_event_publisher import (
-    TransactionalEventDispatcher,
-)
 from src.core.shared.events.view_invalidation import (
     RecipientScope,
     ViewInvalidationChannel,
@@ -300,7 +297,7 @@ class PlatformServiceBundle:
     tenant_context_service: TenantContextService
     platform_view_invalidation_channel: ViewInvalidationChannel
    
-    platform_transactional_dispatcher: TransactionalEventDispatcher
+    platform_transactional_dispatcher: InProcessTransactionalEventDispatcher
     platform_post_commit_bus: InProcessPostCommitEventBus
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_catalog_service: ModuleCatalogService

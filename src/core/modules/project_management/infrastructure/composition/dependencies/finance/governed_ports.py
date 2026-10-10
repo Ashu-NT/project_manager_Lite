@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, TypeVar, cast
 
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
@@ -19,6 +19,8 @@ FinanceFamily = Literal[
     "billing_profile",
     "billing_preparation",
 ]
+
+ServiceT = TypeVar("ServiceT")
 
 FINANCE_MUTATIONS: dict[FinanceFamily, frozenset[str]] = {
     "financial_setup": frozenset({
@@ -61,14 +63,16 @@ FINANCE_MUTATIONS: dict[FinanceFamily, frozenset[str]] = {
 
 
 def wrap_finance_service(
-    read_service: object,
+    read_service: ServiceT,
     boundary: FinanceGovernanceCommandBoundary,
     *,
     family: FinanceFamily,
-) -> FinanceGovernedServicePort:
-    return FinanceGovernedServicePort(
+) -> ServiceT:
+    # The governed port delegates every outward service member and intercepts
+    # only the declared mutations; keep the existing caller-facing interface.
+    return cast(ServiceT, FinanceGovernedServicePort(
         read_service=read_service,
         boundary=boundary,
         family=family,
         mutations=FINANCE_MUTATIONS[family],
-    )
+    ))
