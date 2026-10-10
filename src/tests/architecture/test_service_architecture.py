@@ -179,6 +179,7 @@ def test_services_module_delegates_to_modular_registration_builders():
     assert "build_repository_bundle(session)" in text
     assert "notification_recipient_policy=pm_notification_recipient_policy" in text
     assert "platform_services = build_platform_service_bundle(" in text
+    assert "from src.core.modules.project_management.infrastructure.composition.bootstrap import (" in text
     assert "build_project_management_service_bundle(" in text
 
 
@@ -188,5 +189,25 @@ def test_service_registration_package_is_split_by_platform_and_module():
     assert (root / "__init__.py").exists()
     assert (root / "persistence" / "repositories.py").exists()
     assert (root / "modules" / "platform_registry.py").exists()
-    assert (root / "modules" / "project_registry.py").exists()
+    assert (
+        REPO_ROOT
+        / "src/core/modules/project_management/infrastructure/composition/bootstrap.py"
+    ).exists()
+    assert not (root / "modules" / "project_registry.py").exists()
+
+
+def test_application_root_uses_only_pm_composition_bootstrap():
+    source = (REPO_ROOT / "src/infra/composition/app_container.py").read_text(encoding="utf-8")
+    pm_composition_imports = {
+        node.module
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ImportFrom)
+        and node.module
+        and node.module.startswith(
+            "src.core.modules.project_management.infrastructure.composition"
+        )
+    }
+    assert pm_composition_imports == {
+        "src.core.modules.project_management.infrastructure.composition.bootstrap"
+    }
 

@@ -79,7 +79,8 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.modules.project_management.infrastructure.composition.registrations.notifications import (
+from src.core.modules.project_management.infrastructure.composition.bootstrap import (
+    build_project_management_service_bundle,
     pm_notification_recipient_policy,
 )
 from src.core.modules.project_management.infrastructure.importers import (
@@ -177,9 +178,6 @@ from src.infra.composition.integration.accounting.accounting_integration import 
 )
 from src.infra.composition.modules.platform_registry import (
     build_platform_service_bundle,
-)
-from src.infra.composition.modules.project_registry import (
-    build_project_management_service_bundle,
 )
 from src.infra.composition.persistence.repositories import build_repository_bundle
 from src.infra.integration.approved_time_dispatcher import (

@@ -17,7 +17,7 @@ BOUNDARY = (
     / "application/financials/governance/command_boundary.py"
 )
 RUNTIME_RESOLVER = PM_ROOT / "api/desktop_runtime/service_resolver.py"
-PROJECT_REGISTRY = Path("src/infra/composition/modules/project_registry.py")
+PROJECT_REGISTRY = PM_ROOT / "infrastructure/composition/bootstrap.py"
 PM_APPROVAL_REGISTRY = (
     PM_ROOT / "infrastructure/composition/registrations/approvals/handlers.py"
 )

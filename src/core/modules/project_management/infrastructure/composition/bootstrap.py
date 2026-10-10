@@ -1,3 +1,5 @@
+"""Construct the Project Management service graph from supplied Platform capabilities."""
+
 from __future__ import annotations
 
 import logging
@@ -199,6 +201,9 @@ from src.core.modules.project_management.infrastructure.composition.registration
 )
 from src.core.modules.project_management.infrastructure.composition.registrations.approvals.handlers import (
     register_project_management_approval_handlers,
+)
+from src.core.modules.project_management.infrastructure.composition.registrations.notifications import (
+    pm_notification_recipient_policy,
 )
 from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
@@ -628,4 +633,8 @@ def build_project_management_service_bundle(
         portfolio_resource_pool_service=portfolio_resource_pool_service,
     )
 
-__all__ = ["ProjectManagementServiceBundle", "build_project_management_service_bundle"]
+__all__ = [
+    "ProjectManagementServiceBundle",
+    "build_project_management_service_bundle",
+    "pm_notification_recipient_policy",
+]

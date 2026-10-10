@@ -20,6 +20,9 @@ from src.core.modules.project_management.application.global_overview.pm_action_c
 from src.core.modules.project_management.application.global_overview.pm_module_overview_contributor import (
     ProjectManagementModuleOverviewContributor,
 )
+from src.core.modules.project_management.infrastructure.composition.bootstrap import (
+    ProjectManagementServiceBundle,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
 )
@@ -48,9 +51,6 @@ from src.core.platform.infrastructure.persistence.read.global_overview.action_ce
     SqlAlchemyPlatformActionCenterReader,
 )
 from src.infra.composition.modules.platform_registry import PlatformServiceBundle
-from src.infra.composition.modules.project_registry import (
-    ProjectManagementServiceBundle,
-)
 
 # This module is the ONLY place that knows both Platform's and Project
 # Management's concrete Global Overview contributor classes at once. Every

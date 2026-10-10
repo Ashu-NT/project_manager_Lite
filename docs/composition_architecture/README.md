@@ -72,8 +72,8 @@ factory callers have been migrated together.
 | C2 | Move PM access/scope registrations and approval registrations/dependency factories into PM composition | Service identity, reviewer permissions, handler counts, transaction/UoW tests; delete root approval factory package | Complete; mixed repository-bundle dependency remains until C5 |
 | C3 | Extract PM Projects, Tasks, Resources, Scheduling, Timesheets, Collaboration, Portfolio and Risk dependency/event groups | Per-group focused tests; no duplicated factories/subscriptions; preserve PM bundle | Complete; Finance remains C4 |
 | C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | Structural cutover complete; broad regression gate remains open on classified, non-Finance baseline failures |
-| C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | In progress: Platform master-data post-commit registration extracted; service/repository ownership remains |
-| C6 | Slim root and move only cross-module integrations/global overview wiring under root | Desktop startup, full PM/Platform, PostgreSQL and architecture guards; delete both central registries and obsolete imports | Not started |
+| C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | In progress: Platform post-commit registrations extracted; service/repository ownership remains |
+| C6 | Slim root and move only cross-module integrations/global overview wiring under root | Desktop startup, full PM/Platform, PostgreSQL and architecture guards; delete both central registries and obsolete imports | PM bootstrap ownership cut over early; root/Platform slimming remains |
 
 Do not blindly mirror the proposed folder tree. Add a feature subfolder only
 when an extraction has an actual responsibility and test boundary. No business
@@ -165,8 +165,8 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   44 passed. Targeted Ruff F/I, mypy (21 dependency/event source files), Python
   compilation and `git diff --check` passed. A scan of the central PM builder
   finds only Finance service constructors. The PM and Platform bundle types
-  remain imported by these builders until C5 splits their ownership; the
-  central PM builder itself remains until C4/C6.
+  remain imported by these builders until C5 splits their ownership; the PM
+  builder now lives at its module-owned bootstrap path (see C6 evidence).
 - C4 Finance event slice: Forecast, Financial Change, Planned Cost,
   Commitment, Cost Entry, Budget, Billing, Configuration and Rate Card
   post-commit invalidation subscriptions moved into PM-owned
@@ -268,6 +268,37 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   on the pre-existing overview-label mismatch described above. No Platform
   service factory, repository bundle, domain behavior, or root entry point
   changed in this slice.
+- C5 remaining Platform event slice: organization, entitlement and membership
+  registrations moved to `events/tenancy.py`; role-binding, account-security
+  and authorization-context registrations moved to `events/security.py`;
+  Approval read invalidation moved to `events/approvals.py`. Root calls each
+  registrar in the original subscription order before master-data registration.
+  The original event families still share one handler instance per family;
+  a composition test checks exactly one Platform application handler per event.
+  Focused composition tests: 14 passed; affected Qt adapter/approval registration
+  tests: 127 passed; architecture and Platform event tests: 91 passed. Targeted
+  Ruff F/I, mypy on the three new registrars, and compilation passed. The
+  Platform service constructors and mixed root `RepositoryBundle` are still
+  active; the next ownership slice must split that bundle rather than moving
+  another dependency builder that imports it from the root.
+- PM bootstrap entry-point correction (early C6 slice): the central builder
+  moved from `src/infra/composition/modules/project_registry.py` to
+  `src/core/modules/project_management/infrastructure/composition/bootstrap.py`.
+  The obsolete file was removed, not retained as a compatibility shim.
+  `app_container.py` now imports only PM composition `bootstrap.py`, which
+  supplies both the builder and notification recipient policy; Global Overview
+  imports the bundle type from that PM-owned file. Source guards now point at
+  the actual dependency builders instead of expecting their Reader constructors
+  in the retired central registry. Focused composition/architecture tests:
+  83 passed; the known unrelated Platform 1,200-line guard was deselected
+  (admin controller 1,275 lines; calendar repository 1,215 lines). Targeted
+  Ruff F/I, compilation and `git diff --check` passed. Targeted mypy on the
+  moved bootstrap still reports 11 mismatches in the unchanged dispatcher
+  and governed-service-port typing; do not claim this typing gate green.
+  No empty `shared.py` was created: there is not yet a distinct shared PM
+  dependency to own. The PM bootstrap/dependency files still type against the
+  mixed root `RepositoryBundle` and root Platform bundle; C5 must replace
+  those inward references while preserving repository/session identity.
 
 ## Closure Gates
 
