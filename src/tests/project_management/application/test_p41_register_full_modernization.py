@@ -240,7 +240,7 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
     _, project = _setup(services)
     hints = _spy_hints(services)
 
-    dispatcher = services["register_service"]._uow_factory._transactional_dispatcher
+    dispatcher = services["register_service"]._lifecycle._uow_factory._transactional_dispatcher
 
     def _raising_handler(event, uow) -> None:
         raise RuntimeError("simulated transactional handler failure")

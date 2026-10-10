@@ -407,6 +407,23 @@ delegation rather than requiring every handler to inherit the create/update
 policy mixin. Finance's PM package structure and business semantics remain
 unchanged. This package reorganization does not close the broader A4 gate.
 
+**A4 Register lifecycle boundary in progress.** Register writes now delegate
+through the guarded `RegisterService` facade to an explicitly injected
+`RegisterLifecycleHandler`. The handler owns only the lifecycle repositories,
+tenant/user scope and Register UoW; it retains the existing single-transaction
+audit/activity/event behavior. Catalog reads remain on the existing query
+mixin because they already have a distinct read dependency and no demonstrated
+second consumer requiring another facade. The Register-focused suite passed 20
+tests, including bulk status's one-UoW proof; module-guard, entitlement and
+architecture tests passed 31. Targeted Mypy passed. Platform application is
+now protected by an AST import guard against concrete infrastructure imports.
+ModuleCatalog's entitlement transition/provisioning mixin is retained for now:
+it represents one governed transaction boundary, and a mechanical split would
+add constructor coupling without a proven benefit. The final Register and
+dependency-guard rerun passed 29 tests, including a disabled-module denial
+before handler entry. A4 remains open for Time and the larger PM operation
+clusters.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

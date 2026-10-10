@@ -20,6 +20,9 @@ from src.core.modules.project_management.contracts.repositories.projects.project
 from src.core.modules.project_management.contracts.repositories.register.register import (
     RegisterEntryRepository,
 )
+from src.core.modules.project_management.contracts.uow.register.register_unit_of_work import (
+    RegisterUnitOfWorkFactory,
+)
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
     RegisterEntrySeverity,
@@ -32,19 +35,46 @@ from src.core.modules.project_management.domain.risk.register import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.common.ids import generate_id
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
-class RegisterLifecycleMixin:
-    _project_repo: ProjectRepository
-    _register_repo: RegisterEntryRepository
+class RegisterLifecycleHandler:
     _UNSET = object()
+
+    def __init__(
+        self,
+        *,
+        project_repo: ProjectRepository,
+        register_repo: RegisterEntryRepository,
+        user_session: UserSessionContext | None,
+        tenant_context_service: TenantContextService,
+        uow_factory: RegisterUnitOfWorkFactory | None,
+    ) -> None:
+        self._project_repo = project_repo
+        self._register_repo = register_repo
+        self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
+        self._uow_factory = uow_factory
+
+    def _require_uow_factory(self) -> RegisterUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Register unit of work is not configured.")
+        return self._uow_factory
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
     @staticmethod
     def _is_register_code_integrity_error(exc: IntegrityError) -> bool:
@@ -436,4 +466,4 @@ class RegisterLifecycleMixin:
         }
 
 
-__all__ = ["RegisterLifecycleMixin"]
+__all__ = ["RegisterLifecycleHandler"]

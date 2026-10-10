@@ -7,6 +7,10 @@ import pytest
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.risk.register_service import (
+    RegisterService,
+)
+from src.core.modules.project_management.domain.risk.register import RegisterEntryType
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
@@ -40,6 +44,16 @@ def test_business_methods_are_blocked_when_the_module_is_disabled() -> None:
 def test_business_methods_are_allowed_when_the_module_is_enabled() -> None:
     service = _GuardedService(_module_catalog(runtime_enabled=True))
     assert service.create_task() == "created"
+
+
+def test_register_write_facade_still_checks_module_before_handler() -> None:
+    service = RegisterService(
+        project_repo=object(),
+        register_repo=object(),
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.create_entry("project-1", entry_type=RegisterEntryType.RISK, title="Risk")
 
 
 def test_composition_root_wiring_setters_are_exempt_from_the_module_gate() -> None:

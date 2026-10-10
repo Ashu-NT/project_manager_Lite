@@ -28,11 +28,9 @@ def build_register_service(
         user_session=platform_services.user_session,
     )
     return RegisterService(
-        session=session,
         project_repo=repositories.pm.project_repo,
         register_repo=repositories.pm.register_repo,
         user_session=platform_services.user_session,
-        activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         register_catalog_reader=SqlAlchemyRegisterCatalogReader(session=session),

@@ -168,7 +168,6 @@ def _make_service(monkeypatch: pytest.MonkeyPatch, *, project_ids: list[str] | N
     session = _FakeSession()
     register_repo = _FakeRegisterRepo()
     return RegisterService(
-        session=session,
         project_repo=_FakeProjectRepo(project_ids or ["proj-1"]),
         register_repo=register_repo,
         user_session=object(),
