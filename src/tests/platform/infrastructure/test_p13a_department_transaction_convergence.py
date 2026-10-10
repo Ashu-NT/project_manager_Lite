@@ -14,7 +14,7 @@ from src.core.platform.domain.master_data.department.events import (
     DepartmentCreated,
     DepartmentProfileUpdated,
 )
-from src.core.platform.infrastructure.persistence.uow.department_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.department_unit_of_work import (
     SqlAlchemyDepartmentUnitOfWork,
 )
 

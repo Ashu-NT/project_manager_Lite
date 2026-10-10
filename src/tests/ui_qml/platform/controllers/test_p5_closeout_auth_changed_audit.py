@@ -158,7 +158,7 @@ def test_role_binding_assignment_no_longer_reaches_the_admin_console_coarse_bind
 def test_role_binding_events_stay_silent_on_rollback(services, monkeypatch):
     """A failed commit must not leave a typed `RoleBindingAssigned` event dispatched -- the UoW's
     own commit failure aborts the whole transaction, event included."""
-    from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.security.role_governance_unit_of_work import (
         SqlAlchemyRoleGovernanceUnitOfWork,
     )
 

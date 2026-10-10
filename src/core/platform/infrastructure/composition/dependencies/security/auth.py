@@ -17,10 +17,10 @@ from src.core.platform.infrastructure.composition.dependencies.repositories impo
 from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
     SqlAlchemyPlatformOverviewRollupReader,
 )
-from src.core.platform.infrastructure.persistence.uow.auth_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.security.auth_unit_of_work import (
     SqlAlchemyAuthUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.uow.session_write_lock import (
+from src.core.platform.infrastructure.persistence.uow.security.session_write_lock import (
     SqlAlchemySessionWriteLock,
 )
 from src.infra.events.in_process_post_commit_event_bus import (

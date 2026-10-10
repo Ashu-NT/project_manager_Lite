@@ -22,10 +22,10 @@ from src.core.platform.infrastructure.persistence.orm.security.auth.auth import 
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.uow.auth_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.security.auth_unit_of_work import (
     SqlAlchemyAuthUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.uow.session_write_lock import (
+from src.core.platform.infrastructure.persistence.uow.security.session_write_lock import (
     SqlAlchemySessionWriteLock,
 )
 from src.infra.time.system_clock import SystemClock

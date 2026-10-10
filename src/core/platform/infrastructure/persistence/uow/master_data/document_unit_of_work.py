@@ -10,17 +10,17 @@ from src.core.platform.application.history.activity.activity_service import (
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.contract.uow.organization_unit_of_work import (
-    OrganizationUnitOfWork,
-)
+from src.core.platform.contract.uow.master_data.document_unit_of_work import DocumentUnitOfWork
 from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
     SqlAlchemyActivityRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
-    SqlAlchemyOrganizationRepository,
+from src.core.platform.infrastructure.persistence.repositories.master_data.documents.documents import (
+    SqlAlchemyDocumentLinkRepository,
+    SqlAlchemyDocumentRepository,
+    SqlAlchemyDocumentStructureRepository,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_event_publisher import (
@@ -33,7 +33,7 @@ from src.infra.persistence.db.unit_of_work import (
 )
 
 
-class SqlAlchemyOrganizationUnitOfWork(SqlAlchemyUnitOfWorkBase, OrganizationUnitOfWork):
+class SqlAlchemyDocumentUnitOfWork(SqlAlchemyUnitOfWorkBase, DocumentUnitOfWork):
     def __init__(
         self,
         *,
@@ -50,7 +50,17 @@ class SqlAlchemyOrganizationUnitOfWork(SqlAlchemyUnitOfWorkBase, OrganizationUni
             post_commit_bus=post_commit_bus,
             context=context,
         )
-        self.organizations = SqlAlchemyOrganizationRepository(session)
+        self.documents = SqlAlchemyDocumentRepository(session)
+        if hasattr(self.documents, "_tenant_context_service"):
+            self.documents._tenant_context_service = tenant_context_service
+
+        self.structures = SqlAlchemyDocumentStructureRepository(session)
+        if hasattr(self.structures, "_tenant_context_service"):
+            self.structures._tenant_context_service = tenant_context_service
+
+        self.links = SqlAlchemyDocumentLinkRepository(session)
+        if hasattr(self.links, "_tenant_context_service"):
+            self.links._tenant_context_service = tenant_context_service
 
         audit_repo = SqlAlchemyAuditRepository(session)
         audit_repo._tenant_context_service = tenant_context_service
@@ -70,26 +80,8 @@ class SqlAlchemyOrganizationUnitOfWork(SqlAlchemyUnitOfWorkBase, OrganizationUni
             tenant_context_service=tenant_context_service,
         )
 
-    @property
-    def session(self) -> Session:
-        """Direct access to this UnitOfWork's own Session, for a service
-        that already knows the exact tenant/organization scope of a write
-        (e.g. seeding a new organization's own default calendar in the same
-        transaction) and so has no need for a TenantScopedRepositorySupport
-        repository's ambient-active-context scoping -- which writes to the
-        CALLER's active organization regardless of what a domain object's
-        own fields say, and would silently redirect a cross-scope write to
-        the wrong organization."""
-        return self._session
 
-
-class SqlAlchemyOrganizationUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
-    """Closes over a session factory (never an already-created `Session`) plus the ambient
-    collaborators (`tenant_context_service`, `user_session`) needed to build each fresh,
-    session-bound `SqlAlchemyOrganizationUnitOfWork`. Neither collaborator is itself
-    Session-bound, so both are reused as-is across calls -- only `organizations`/
-    `_enterprise_audit_service` are rebuilt per call, bound to that call's new `Session`."""
-
+class SqlAlchemyDocumentUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
     def __init__(
         self,
         *,
@@ -107,8 +99,8 @@ class SqlAlchemyOrganizationUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
 
-    def create(self, *, context: DomainEventContext) -> SqlAlchemyOrganizationUnitOfWork:
-        return SqlAlchemyOrganizationUnitOfWork(
+    def create(self, *, context: DomainEventContext) -> SqlAlchemyDocumentUnitOfWork:
+        return SqlAlchemyDocumentUnitOfWork(
             session=self._session_factory(),
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,
@@ -118,4 +110,4 @@ class SqlAlchemyOrganizationUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
         )
 
 
-__all__ = ["SqlAlchemyOrganizationUnitOfWork", "SqlAlchemyOrganizationUnitOfWorkFactory"]
+__all__ = ["SqlAlchemyDocumentUnitOfWork", "SqlAlchemyDocumentUnitOfWorkFactory"]

@@ -24,16 +24,16 @@ from src.core.platform.infrastructure.composition.dependencies.repositories impo
 from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
     SqlAlchemyPlatformOverviewRollupReader,
 )
-from src.core.platform.infrastructure.persistence.uow.department_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.department_unit_of_work import (
     SqlAlchemyDepartmentUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.document_unit_of_work import (
     SqlAlchemyDocumentUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.uow.party_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.party_unit_of_work import (
     SqlAlchemyPartyUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.uow.site_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.site_unit_of_work import (
     SqlAlchemySiteUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import (

@@ -59,8 +59,8 @@ from src.core.platform.contract.repositories.security.auth import (
     RoleRepository,
     UserRepository,
 )
-from src.core.platform.contract.uow.auth_unit_of_work import AuthUnitOfWorkFactory
-from src.core.platform.contract.uow.session_write_lock import SessionWriteLock
+from src.core.platform.contract.uow.security.auth_unit_of_work import AuthUnitOfWorkFactory
+from src.core.platform.contract.uow.security.session_write_lock import SessionWriteLock
 from src.core.platform.domain.security.auth import AuthSession, Role, UserAccount
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,

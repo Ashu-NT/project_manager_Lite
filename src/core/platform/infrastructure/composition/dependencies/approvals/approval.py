@@ -11,7 +11,7 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.infrastructure.composition.dependencies.repositories import (
     PlatformRepositories,
 )
-from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.approval.approval_unit_of_work import (
     SqlAlchemyPlatformUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import (

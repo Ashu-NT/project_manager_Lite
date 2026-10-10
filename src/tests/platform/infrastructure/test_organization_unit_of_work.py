@@ -10,7 +10,7 @@ from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
     TenantORM,
 )
-from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWork,
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )

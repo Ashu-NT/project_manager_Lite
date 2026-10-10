@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.core.platform.domain.approval import ApprovalRequest
-from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.approval.approval_unit_of_work import (
     SqlAlchemyPlatformUnitOfWork,
     SqlAlchemyPlatformUnitOfWorkFactory,
 )
@@ -184,7 +184,7 @@ def test_cross_tenant_context_cannot_read_another_tenants_approval_request(tmp_p
     """Tenant A's `ApprovalRequest` must not be readable through a UoW whose active context
     resolves to Tenant B -- proven with two genuinely different tenants, not just a different
     active organization within the same tenant."""
-    from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.approval.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWorkFactory,
     )
 

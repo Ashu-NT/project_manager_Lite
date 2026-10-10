@@ -22,7 +22,7 @@ from src.core.platform.infrastructure.persistence.read.overview.platform_overvie
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
     SqlAlchemyOrganizationDefaultCalendarWriter,
 )
-from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import (

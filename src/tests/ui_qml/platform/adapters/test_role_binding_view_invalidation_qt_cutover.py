@@ -22,7 +22,7 @@ from src.core.platform.domain.security.authorization.roles.role_binding_scope im
     RoleBindingResourceScope,
     RoleBindingTenantScope,
 )
-from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.security.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWork,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext

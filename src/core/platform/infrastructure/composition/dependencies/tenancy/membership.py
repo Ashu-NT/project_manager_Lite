@@ -12,7 +12,7 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.infrastructure.composition.registrations.security.scope_resolvers import (
     ScopeResolvers,
 )
-from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.tenancy.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import (

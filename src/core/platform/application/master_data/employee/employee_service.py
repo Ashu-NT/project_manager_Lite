@@ -53,7 +53,7 @@ from src.core.platform.contract.repositories.security.auth.auth_repository impor
 from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
     UserTenantMembershipRepository,
 )
-from src.core.platform.contract.uow.employee_unit_of_work import (
+from src.core.platform.contract.uow.master_data.employee_unit_of_work import (
     EmployeeUnitOfWorkFactory,
 )
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType

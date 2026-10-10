@@ -24,7 +24,7 @@ from src.core.platform.contract.repositories.master_data.documents.contracts imp
 from src.core.platform.contract.repositories.master_data.org.contracts import (
     OrganizationRepository,
 )
-from src.core.platform.contract.uow.document_unit_of_work import (
+from src.core.platform.contract.uow.master_data.document_unit_of_work import (
     DocumentUnitOfWorkFactory,
 )
 from src.core.platform.domain.master_data.documents import (

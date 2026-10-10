@@ -4,17 +4,15 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.uow.role_governance_unit_of_work import (
-    RoleGovernanceUnitOfWork,
+from src.core.platform.contract.uow.tenancy.tenant_membership_unit_of_work import (
+    TenantMembershipUnitOfWork,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
-    SqlAlchemyPermissionRepository,
+    SqlAlchemyAuthSessionRepository,
     SqlAlchemyRoleBindingRepository,
-    SqlAlchemyRoleDelegationPolicyRepository,
-    SqlAlchemyRolePermissionRepository,
     SqlAlchemyRoleRepository,
     SqlAlchemyUserRepository,
 )
@@ -35,7 +33,7 @@ from src.infra.persistence.db.unit_of_work import (
 )
 
 
-class SqlAlchemyRoleGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, RoleGovernanceUnitOfWork):
+class SqlAlchemyTenantMembershipUnitOfWork(SqlAlchemyUnitOfWorkBase, TenantMembershipUnitOfWork):
     def __init__(
         self,
         *,
@@ -51,18 +49,16 @@ class SqlAlchemyRoleGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, RoleGovernanc
             context=context,
         )
         self.session = session
-        self.role_bindings = SqlAlchemyRoleBindingRepository(session)
-        self.roles = SqlAlchemyRoleRepository(session)
-        self.role_delegation_policies = SqlAlchemyRoleDelegationPolicyRepository(session)
-        self.role_permissions = SqlAlchemyRolePermissionRepository(session)
-        self.permissions = SqlAlchemyPermissionRepository(session)
+        self.memberships = SqlAlchemyUserTenantMembershipRepository(session)
         self.users = SqlAlchemyUserRepository(session)
         self.tenants = SqlAlchemyTenantRepository(session)
-        self.memberships = SqlAlchemyUserTenantMembershipRepository(session)
+        self.roles = SqlAlchemyRoleRepository(session)
+        self.role_bindings = SqlAlchemyRoleBindingRepository(session)
+        self.auth_sessions = SqlAlchemyAuthSessionRepository(session)
         self.audit = SqlAlchemyAuditRepository(session)
 
 
-class SqlAlchemyRoleGovernanceUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
+class SqlAlchemyTenantMembershipUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
     """Closes over a session factory -- every `create()` call opens a genuinely fresh Session."""
 
     def __init__(
@@ -78,8 +74,8 @@ class SqlAlchemyRoleGovernanceUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase)
             post_commit_bus=post_commit_bus,
         )
 
-    def create(self, *, context: DomainEventContext) -> SqlAlchemyRoleGovernanceUnitOfWork:
-        return SqlAlchemyRoleGovernanceUnitOfWork(
+    def create(self, *, context: DomainEventContext) -> SqlAlchemyTenantMembershipUnitOfWork:
+        return SqlAlchemyTenantMembershipUnitOfWork(
             session=self._session_factory(),
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,
@@ -88,6 +84,6 @@ class SqlAlchemyRoleGovernanceUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase)
 
 
 __all__ = [
-    "SqlAlchemyRoleGovernanceUnitOfWork",
-    "SqlAlchemyRoleGovernanceUnitOfWorkFactory",
+    "SqlAlchemyTenantMembershipUnitOfWork",
+    "SqlAlchemyTenantMembershipUnitOfWorkFactory",
 ]

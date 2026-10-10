@@ -10,17 +10,15 @@ from src.core.platform.application.history.activity.activity_service import (
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.contract.uow.document_unit_of_work import DocumentUnitOfWork
+from src.core.platform.contract.uow.master_data.site_unit_of_work import SiteUnitOfWork
 from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
     SqlAlchemyActivityRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.master_data.documents.documents import (
-    SqlAlchemyDocumentLinkRepository,
-    SqlAlchemyDocumentRepository,
-    SqlAlchemyDocumentStructureRepository,
+from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
+    SqlAlchemySiteRepository,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_event_publisher import (
@@ -33,7 +31,7 @@ from src.infra.persistence.db.unit_of_work import (
 )
 
 
-class SqlAlchemyDocumentUnitOfWork(SqlAlchemyUnitOfWorkBase, DocumentUnitOfWork):
+class SqlAlchemySiteUnitOfWork(SqlAlchemyUnitOfWorkBase, SiteUnitOfWork):
     def __init__(
         self,
         *,
@@ -50,17 +48,9 @@ class SqlAlchemyDocumentUnitOfWork(SqlAlchemyUnitOfWorkBase, DocumentUnitOfWork)
             post_commit_bus=post_commit_bus,
             context=context,
         )
-        self.documents = SqlAlchemyDocumentRepository(session)
-        if hasattr(self.documents, "_tenant_context_service"):
-            self.documents._tenant_context_service = tenant_context_service
-
-        self.structures = SqlAlchemyDocumentStructureRepository(session)
-        if hasattr(self.structures, "_tenant_context_service"):
-            self.structures._tenant_context_service = tenant_context_service
-
-        self.links = SqlAlchemyDocumentLinkRepository(session)
-        if hasattr(self.links, "_tenant_context_service"):
-            self.links._tenant_context_service = tenant_context_service
+        self.sites = SqlAlchemySiteRepository(session)
+        if hasattr(self.sites, "_tenant_context_service"):
+            self.sites._tenant_context_service = tenant_context_service
 
         audit_repo = SqlAlchemyAuditRepository(session)
         audit_repo._tenant_context_service = tenant_context_service
@@ -81,7 +71,7 @@ class SqlAlchemyDocumentUnitOfWork(SqlAlchemyUnitOfWorkBase, DocumentUnitOfWork)
         )
 
 
-class SqlAlchemyDocumentUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
+class SqlAlchemySiteUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
     def __init__(
         self,
         *,
@@ -99,8 +89,8 @@ class SqlAlchemyDocumentUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
 
-    def create(self, *, context: DomainEventContext) -> SqlAlchemyDocumentUnitOfWork:
-        return SqlAlchemyDocumentUnitOfWork(
+    def create(self, *, context: DomainEventContext) -> SqlAlchemySiteUnitOfWork:
+        return SqlAlchemySiteUnitOfWork(
             session=self._session_factory(),
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,
@@ -110,4 +100,4 @@ class SqlAlchemyDocumentUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
         )
 
 
-__all__ = ["SqlAlchemyDocumentUnitOfWork", "SqlAlchemyDocumentUnitOfWorkFactory"]
+__all__ = ["SqlAlchemySiteUnitOfWork", "SqlAlchemySiteUnitOfWorkFactory"]

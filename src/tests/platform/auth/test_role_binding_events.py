@@ -27,7 +27,7 @@ from src.core.platform.infrastructure.persistence.repositories.history.audit.aud
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyRoleBindingRepository,
 )
-from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.security.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWork,
 )
 from src.core.shared.events.domain_event import DomainEvent

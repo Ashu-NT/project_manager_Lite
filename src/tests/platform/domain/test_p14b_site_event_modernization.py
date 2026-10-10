@@ -342,7 +342,7 @@ def test_audit_failure_rolls_back_and_produces_zero_postcommit_event(services, m
 
 
 def test_commit_failure_produces_zero_postcommit_event(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.uow.site_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.master_data.site_unit_of_work import (
         SqlAlchemySiteUnitOfWork,
     )
 
@@ -471,7 +471,7 @@ def test_canonical_site_uow_retained_no_raw_session_commit():
 
 
 def test_no_platform_to_business_module_concrete_infrastructure_import():
-    import src.core.platform.infrastructure.persistence.uow.site_unit_of_work as infra_module
+    import src.core.platform.infrastructure.persistence.uow.master_data.site_unit_of_work as infra_module
 
     source = inspect.getsource(infra_module)
     assert "core.modules" not in source

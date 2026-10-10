@@ -36,7 +36,7 @@ from src.core.platform.infrastructure.composition.dependencies.repositories impo
 from src.core.platform.infrastructure.composition.registrations.security.scope_resolvers import (
     ScopeResolvers,
 )
-from src.core.platform.infrastructure.persistence.uow.auth_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.security.auth_unit_of_work import (
     SqlAlchemyAuthUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import (

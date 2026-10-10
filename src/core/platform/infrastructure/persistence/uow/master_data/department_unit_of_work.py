@@ -4,20 +4,27 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import (
-    TenantContextService,
-)
-from src.core.platform.contract.uow.module_entitlement_unit_of_work import (
-    ModuleEntitlementUnitOfWork,
+from src.core.platform.contract.uow.master_data.department_unit_of_work import DepartmentUnitOfWork
+from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
+    SqlAlchemyActivityRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.tenant.modules.modules import (
-    SqlAlchemyModuleEntitlementRepository,
+from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import (
+    SqlAlchemyDepartmentRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import (
+    SqlAlchemyEmployeeRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
+    SqlAlchemySiteRepository,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_event_publisher import (
@@ -30,10 +37,7 @@ from src.infra.persistence.db.unit_of_work import (
 )
 
 
-class SqlAlchemyModuleEntitlementUnitOfWork(SqlAlchemyUnitOfWorkBase, ModuleEntitlementUnitOfWork):
-    """Owns a fresh Session per instance, distinct from the shared session
-    `ModuleCatalogService`'s lazy default-entitlement seeding still uses."""
-
+class SqlAlchemyDepartmentUnitOfWork(SqlAlchemyUnitOfWorkBase, DepartmentUnitOfWork):
     def __init__(
         self,
         *,
@@ -41,7 +45,7 @@ class SqlAlchemyModuleEntitlementUnitOfWork(SqlAlchemyUnitOfWorkBase, ModuleEnti
         transactional_dispatcher: TransactionalEventDispatcher,
         post_commit_bus: PostCommitEventPublisher,
         context: DomainEventContext,
-        tenant_context_service: TenantContextService,
+        tenant_context_service,
         user_session,
     ) -> None:
         super().__init__(
@@ -50,9 +54,12 @@ class SqlAlchemyModuleEntitlementUnitOfWork(SqlAlchemyUnitOfWorkBase, ModuleEnti
             post_commit_bus=post_commit_bus,
             context=context,
         )
-        self.entitlements = SqlAlchemyModuleEntitlementRepository(
-            session, tenant_context_service=tenant_context_service
-        )
+        self.departments = SqlAlchemyDepartmentRepository(session)
+        self.sites = SqlAlchemySiteRepository(session)
+        self.employees = SqlAlchemyEmployeeRepository(session)
+        for repo in (self.departments, self.sites, self.employees):
+            if hasattr(repo, "_tenant_context_service"):
+                repo._tenant_context_service = tenant_context_service
 
         audit_repo = SqlAlchemyAuditRepository(session)
         audit_repo._tenant_context_service = tenant_context_service
@@ -63,17 +70,24 @@ class SqlAlchemyModuleEntitlementUnitOfWork(SqlAlchemyUnitOfWorkBase, ModuleEnti
             tenant_context_service=tenant_context_service,
         )
 
+        activity_repo = SqlAlchemyActivityRepository(session)
+        activity_repo._tenant_context_service = tenant_context_service
+        self._activity_service = ActivityService(
+            session=session,
+            activity_repo=activity_repo,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+        )
 
-class SqlAlchemyModuleEntitlementUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
-    """Builds a fresh, session-bound UoW on every `create()` call."""
 
+class SqlAlchemyDepartmentUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
     def __init__(
         self,
         *,
         session_factory: Callable[[], Session],
         transactional_dispatcher: TransactionalEventDispatcher,
         post_commit_bus: PostCommitEventPublisher,
-        tenant_context_service: TenantContextService,
+        tenant_context_service,
         user_session,
     ) -> None:
         super().__init__(
@@ -84,8 +98,8 @@ class SqlAlchemyModuleEntitlementUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBa
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
 
-    def create(self, *, context: DomainEventContext) -> SqlAlchemyModuleEntitlementUnitOfWork:
-        return SqlAlchemyModuleEntitlementUnitOfWork(
+    def create(self, *, context: DomainEventContext) -> SqlAlchemyDepartmentUnitOfWork:
+        return SqlAlchemyDepartmentUnitOfWork(
             session=self._session_factory(),
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,
@@ -95,7 +109,4 @@ class SqlAlchemyModuleEntitlementUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBa
         )
 
 
-__all__ = [
-    "SqlAlchemyModuleEntitlementUnitOfWork",
-    "SqlAlchemyModuleEntitlementUnitOfWorkFactory",
-]
+__all__ = ["SqlAlchemyDepartmentUnitOfWork", "SqlAlchemyDepartmentUnitOfWorkFactory"]

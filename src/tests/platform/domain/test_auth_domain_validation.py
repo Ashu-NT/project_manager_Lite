@@ -16,10 +16,10 @@ from src.core.platform.domain.security.auth import (
 from src.core.platform.domain.security.auth.user import (
     normalize_auth_session_timeout_override,
 )
-from src.core.platform.infrastructure.persistence.uow.auth_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.security.auth_unit_of_work import (
     SqlAlchemyAuthUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.uow.session_write_lock import (
+from src.core.platform.infrastructure.persistence.uow.security.session_write_lock import (
     SqlAlchemySessionWriteLock,
 )
 from src.infra.time.system_clock import SystemClock

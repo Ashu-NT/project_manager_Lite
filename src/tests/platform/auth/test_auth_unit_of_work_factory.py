@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.core.platform.infrastructure.persistence.uow.auth_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.security.auth_unit_of_work import (
     SqlAlchemyAuthUnitOfWorkFactory,
 )
 

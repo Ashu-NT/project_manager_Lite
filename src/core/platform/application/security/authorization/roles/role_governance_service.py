@@ -35,7 +35,7 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.common.ids import generate_id
-from src.core.platform.contract.uow.role_governance_unit_of_work import (
+from src.core.platform.contract.uow.security.role_governance_unit_of_work import (
     RoleGovernanceUnitOfWorkFactory,
 )
 from src.core.platform.domain.history.audit import AuditEntry

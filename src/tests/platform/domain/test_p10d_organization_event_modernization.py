@@ -264,7 +264,7 @@ def test_deactivate_organization_audit_failure_rolls_back_with_zero_observable_e
 
 
 def test_update_organization_commit_failure_produces_zero_observable_event(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.master_data.organization_unit_of_work import (
         SqlAlchemyOrganizationUnitOfWork,
     )
 

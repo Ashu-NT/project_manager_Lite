@@ -16,7 +16,7 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.infrastructure.composition.registrations.security.scope_resolvers import (
     ScopeResolvers,
 )
-from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.security.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import (

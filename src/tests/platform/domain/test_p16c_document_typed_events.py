@@ -17,7 +17,7 @@ from src.core.platform.domain.master_data.documents.events import (
     DocumentStructureCreated,
     DocumentStructureProfileUpdated,
 )
-from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.document_unit_of_work import (
     SqlAlchemyDocumentUnitOfWork,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
@@ -581,7 +581,7 @@ def test_no_raw_session_commit_reintroduced():
 def test_canonical_document_uow_retained():
     import inspect
 
-    import src.core.platform.infrastructure.persistence.uow.document_unit_of_work as infra_module
+    import src.core.platform.infrastructure.persistence.uow.master_data.document_unit_of_work as infra_module
 
     source = inspect.getsource(infra_module)
     assert "class SqlAlchemyDocumentUnitOfWork(" in source

@@ -17,7 +17,7 @@ from src.core.platform.infrastructure.composition.dependencies.repositories impo
 from src.core.platform.infrastructure.persistence.read.master_data.employee.employee_headcount_reader import (
     SqlAlchemyEmployeeHeadcountReader,
 )
-from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.employee_unit_of_work import (
     SqlAlchemyEmployeeUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import (

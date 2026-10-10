@@ -16,7 +16,7 @@ from src.core.platform.domain.time_management.time import (
     TimesheetPeriod,
     TimesheetPeriodStatus,
 )
-from src.core.platform.infrastructure.persistence.uow.time_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.time_management.time_unit_of_work import (
     SqlAlchemyTimeUnitOfWorkFactory,
 )
 from src.core.shared.events.domain_event import DomainEvent

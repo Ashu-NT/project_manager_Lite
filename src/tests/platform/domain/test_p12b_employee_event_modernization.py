@@ -245,7 +245,7 @@ def test_canonical_employee_uow_retained_no_raw_session_commit():
 
 
 def test_no_platform_to_pm_concrete_infrastructure_import():
-    import src.core.platform.infrastructure.persistence.uow.employee_unit_of_work as infra_module
+    import src.core.platform.infrastructure.persistence.uow.master_data.employee_unit_of_work as infra_module
 
     source = inspect.getsource(infra_module)
     assert "core.modules.project_management" not in source

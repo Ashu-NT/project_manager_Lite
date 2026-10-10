@@ -34,10 +34,10 @@ from src.core.platform.infrastructure.persistence.repositories.data_operations.r
 from src.core.platform.infrastructure.persistence.repositories.tenant.modules.modules import (
     SqlAlchemyModuleEntitlementRepository,
 )
-from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.tenancy.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.uow.platform_provisioning_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.provisioning.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import (

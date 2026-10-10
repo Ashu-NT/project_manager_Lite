@@ -29,7 +29,7 @@ from src.core.platform.contract.repositories.master_data.org.contracts import (
 from src.core.platform.contract.repositories.master_data.party.contracts import (
     PartyRepository,
 )
-from src.core.platform.contract.uow.party_unit_of_work import PartyUnitOfWorkFactory
+from src.core.platform.contract.uow.master_data.party_unit_of_work import PartyUnitOfWorkFactory
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.party import (
     Party,

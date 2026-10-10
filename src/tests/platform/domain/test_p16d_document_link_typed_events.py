@@ -12,7 +12,7 @@ from src.core.platform.domain.master_data.documents.events import (
     DocumentReferenceLinked,
     DocumentReferenceUnlinked,
 )
-from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.document_unit_of_work import (
     SqlAlchemyDocumentUnitOfWork,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
@@ -585,7 +585,7 @@ def test_document_uow_retained_and_raw_session_commit_not_reintroduced():
 
     import src.core.platform.application.master_data.documents.document_commands as document_commands_module
     import src.core.platform.application.master_data.documents.document_integration_service as document_integration_service_module
-    import src.core.platform.infrastructure.persistence.uow.document_unit_of_work as infra_module
+    import src.core.platform.infrastructure.persistence.uow.master_data.document_unit_of_work as infra_module
 
     assert "class SqlAlchemyDocumentUnitOfWork(" in inspect.getsource(infra_module)
     for module in (document_commands_module, document_integration_service_module):
@@ -597,7 +597,7 @@ def test_document_uow_retained_and_raw_session_commit_not_reintroduced():
 def test_no_platform_to_business_module_concrete_infrastructure_import():
     import inspect
 
-    import src.core.platform.infrastructure.persistence.uow.document_unit_of_work as infra_module
+    import src.core.platform.infrastructure.persistence.uow.master_data.document_unit_of_work as infra_module
 
     source = inspect.getsource(infra_module)
     assert "core.modules" not in source

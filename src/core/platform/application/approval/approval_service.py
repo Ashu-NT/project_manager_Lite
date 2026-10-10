@@ -22,7 +22,7 @@ from src.core.platform.contract.models.approval.contracts import ApprovalHandler
 from src.core.platform.contract.repositories.approval.contracts import (
     ApprovalRepository,
 )
-from src.core.platform.contract.uow.approval_unit_of_work import (
+from src.core.platform.contract.uow.approval.approval_unit_of_work import (
     PlatformUnitOfWorkFactory,
 )
 from src.core.platform.domain.approval import (

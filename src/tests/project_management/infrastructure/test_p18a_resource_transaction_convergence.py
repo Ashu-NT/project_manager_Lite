@@ -495,7 +495,7 @@ def test_employee_update_and_resource_mutation_are_one_atomic_transaction(servic
     """If the Employee mutation's own commit fails, the linked Resource row must not have been
     persisted either -- proving the sync rides inside Employee's own UnitOfWork, not a second,
     independently-committed transaction."""
-    from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.master_data.employee_unit_of_work import (
         SqlAlchemyEmployeeUnitOfWork,
     )
 

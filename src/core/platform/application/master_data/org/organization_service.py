@@ -27,7 +27,7 @@ from src.core.platform.contract.repositories.master_data.org.contracts import (
 from src.core.platform.contract.repositories.master_data.org.default_calendar_writer import (
     OrganizationDefaultCalendarWriter,
 )
-from src.core.platform.contract.uow.organization_unit_of_work import (
+from src.core.platform.contract.uow.master_data.organization_unit_of_work import (
     OrganizationUnitOfWork,
     OrganizationUnitOfWorkFactory,
 )

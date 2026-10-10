@@ -15,7 +15,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.timesh
 )
 from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
-from src.core.platform.infrastructure.persistence.uow.time_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.time_management.time_unit_of_work import (
     SqlAlchemyTimeUnitOfWorkFactory,
 )
 

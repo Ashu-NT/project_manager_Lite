@@ -24,7 +24,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
 )
 from src.core.platform.common.ids import generate_id
-from src.core.platform.contract.uow.tenant_membership_unit_of_work import (
+from src.core.platform.contract.uow.tenancy.tenant_membership_unit_of_work import (
     TenantMembershipUnitOfWork,
     TenantMembershipUnitOfWorkFactory,
 )

@@ -176,7 +176,7 @@ def test_stale_version_update_produces_zero_event(services):
 
 
 def test_commit_failure_produces_zero_postcommit_event(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.uow.party_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.master_data.party_unit_of_work import (
         SqlAlchemyPartyUnitOfWork,
     )
 

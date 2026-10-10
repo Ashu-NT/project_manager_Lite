@@ -28,7 +28,7 @@ from src.core.platform.infrastructure.persistence.repositories.master_data.org.d
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
 )
-from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import (

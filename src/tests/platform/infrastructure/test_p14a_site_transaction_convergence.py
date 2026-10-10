@@ -15,7 +15,7 @@ from src.core.platform.domain.master_data.site.events import (
     SiteCreated,
     SiteProfileUpdated,
 )
-from src.core.platform.infrastructure.persistence.uow.site_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.site_unit_of_work import (
     SqlAlchemySiteUnitOfWork,
 )
 

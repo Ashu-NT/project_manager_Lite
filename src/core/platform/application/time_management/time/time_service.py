@@ -34,7 +34,7 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
     WorkOwnerRepository,
     WorkResourceRepository,
 )
-from src.core.platform.contract.uow.time_unit_of_work import TimeUnitOfWorkFactory
+from src.core.platform.contract.uow.time_management.time_unit_of_work import TimeUnitOfWorkFactory
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.events.domain_event_publisher import (
     PostCommitEventPublisher,

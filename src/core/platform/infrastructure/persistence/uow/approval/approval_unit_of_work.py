@@ -1,30 +1,19 @@
+
 from __future__ import annotations
 
 from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.history.activity.activity_service import (
-    ActivityService,
-)
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.contract.uow.employee_unit_of_work import EmployeeUnitOfWork
-from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
-    SqlAlchemyActivityRepository,
+from src.core.platform.contract.uow.approval.approval_unit_of_work import PlatformUnitOfWork
+from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
+    SqlAlchemyApprovalRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
-)
-from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import (
-    SqlAlchemyDepartmentRepository,
-)
-from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import (
-    SqlAlchemyEmployeeRepository,
-)
-from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
-    SqlAlchemySiteRepository,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_event_publisher import (
@@ -37,7 +26,7 @@ from src.infra.persistence.db.unit_of_work import (
 )
 
 
-class SqlAlchemyEmployeeUnitOfWork(SqlAlchemyUnitOfWorkBase, EmployeeUnitOfWork):
+class SqlAlchemyPlatformUnitOfWork(SqlAlchemyUnitOfWorkBase, PlatformUnitOfWork):
     def __init__(
         self,
         *,
@@ -54,12 +43,9 @@ class SqlAlchemyEmployeeUnitOfWork(SqlAlchemyUnitOfWorkBase, EmployeeUnitOfWork)
             post_commit_bus=post_commit_bus,
             context=context,
         )
-        self.employees = SqlAlchemyEmployeeRepository(session)
-        self.sites = SqlAlchemySiteRepository(session)
-        self.departments = SqlAlchemyDepartmentRepository(session)
-        for repo in (self.employees, self.sites, self.departments):
-            if hasattr(repo, "_tenant_context_service"):
-                repo._tenant_context_service = tenant_context_service
+        approvals = SqlAlchemyApprovalRepository(session)
+        approvals._tenant_context_service = tenant_context_service
+        self.approvals = approvals
 
         audit_repo = SqlAlchemyAuditRepository(session)
         audit_repo._tenant_context_service = tenant_context_service
@@ -70,17 +56,14 @@ class SqlAlchemyEmployeeUnitOfWork(SqlAlchemyUnitOfWorkBase, EmployeeUnitOfWork)
             tenant_context_service=tenant_context_service,
         )
 
-        activity_repo = SqlAlchemyActivityRepository(session)
-        activity_repo._tenant_context_service = tenant_context_service
-        self._activity_service = ActivityService(
-            session=session,
-            activity_repo=activity_repo,
-            user_session=user_session,
-            tenant_context_service=tenant_context_service,
-        )
 
+class SqlAlchemyPlatformUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
+    """Closes over `SessionLocal` (a session factory, never an already-created `Session`) plus
+    the ambient collaborators (`tenant_context_service`, `user_session`) needed to build each
+    fresh, session-bound `SqlAlchemyPlatformUnitOfWork`. Neither collaborator is itself
+    Session-bound, so both are reused as-is across calls -- only `approvals`/
+    `enterprise_audit_service` are rebuilt per call, bound to that call's new `Session`."""
 
-class SqlAlchemyEmployeeUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
     def __init__(
         self,
         *,
@@ -98,8 +81,8 @@ class SqlAlchemyEmployeeUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
 
-    def create(self, *, context: DomainEventContext) -> SqlAlchemyEmployeeUnitOfWork:
-        return SqlAlchemyEmployeeUnitOfWork(
+    def create(self, *, context: DomainEventContext) -> SqlAlchemyPlatformUnitOfWork:
+        return SqlAlchemyPlatformUnitOfWork(
             session=self._session_factory(),
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,
@@ -109,4 +92,4 @@ class SqlAlchemyEmployeeUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
         )
 
 
-__all__ = ["SqlAlchemyEmployeeUnitOfWork", "SqlAlchemyEmployeeUnitOfWorkFactory"]
+__all__ = ["SqlAlchemyPlatformUnitOfWork", "SqlAlchemyPlatformUnitOfWorkFactory"]

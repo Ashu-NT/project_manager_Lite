@@ -4,21 +4,15 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.history.activity.activity_service import (
-    ActivityService,
-)
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.contract.uow.site_unit_of_work import SiteUnitOfWork
-from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
-    SqlAlchemyActivityRepository,
-)
+from src.core.platform.contract.uow.master_data.party_unit_of_work import PartyUnitOfWork
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
-    SqlAlchemySiteRepository,
+from src.core.platform.infrastructure.persistence.repositories.master_data.party.party import (
+    SqlAlchemyPartyRepository,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_event_publisher import (
@@ -31,7 +25,7 @@ from src.infra.persistence.db.unit_of_work import (
 )
 
 
-class SqlAlchemySiteUnitOfWork(SqlAlchemyUnitOfWorkBase, SiteUnitOfWork):
+class SqlAlchemyPartyUnitOfWork(SqlAlchemyUnitOfWorkBase, PartyUnitOfWork):
     def __init__(
         self,
         *,
@@ -48,9 +42,9 @@ class SqlAlchemySiteUnitOfWork(SqlAlchemyUnitOfWorkBase, SiteUnitOfWork):
             post_commit_bus=post_commit_bus,
             context=context,
         )
-        self.sites = SqlAlchemySiteRepository(session)
-        if hasattr(self.sites, "_tenant_context_service"):
-            self.sites._tenant_context_service = tenant_context_service
+        self.parties = SqlAlchemyPartyRepository(session)
+        if hasattr(self.parties, "_tenant_context_service"):
+            self.parties._tenant_context_service = tenant_context_service
 
         audit_repo = SqlAlchemyAuditRepository(session)
         audit_repo._tenant_context_service = tenant_context_service
@@ -61,17 +55,8 @@ class SqlAlchemySiteUnitOfWork(SqlAlchemyUnitOfWorkBase, SiteUnitOfWork):
             tenant_context_service=tenant_context_service,
         )
 
-        activity_repo = SqlAlchemyActivityRepository(session)
-        activity_repo._tenant_context_service = tenant_context_service
-        self._activity_service = ActivityService(
-            session=session,
-            activity_repo=activity_repo,
-            user_session=user_session,
-            tenant_context_service=tenant_context_service,
-        )
 
-
-class SqlAlchemySiteUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
+class SqlAlchemyPartyUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
     def __init__(
         self,
         *,
@@ -89,8 +74,8 @@ class SqlAlchemySiteUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
 
-    def create(self, *, context: DomainEventContext) -> SqlAlchemySiteUnitOfWork:
-        return SqlAlchemySiteUnitOfWork(
+    def create(self, *, context: DomainEventContext) -> SqlAlchemyPartyUnitOfWork:
+        return SqlAlchemyPartyUnitOfWork(
             session=self._session_factory(),
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,
@@ -100,4 +85,4 @@ class SqlAlchemySiteUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
         )
 
 
-__all__ = ["SqlAlchemySiteUnitOfWork", "SqlAlchemySiteUnitOfWorkFactory"]
+__all__ = ["SqlAlchemyPartyUnitOfWork", "SqlAlchemyPartyUnitOfWorkFactory"]
