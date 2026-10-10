@@ -14,9 +14,6 @@ from src.core.platform.access import (
     ScopedRolePolicyRegistry,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.approval.event_handlers.view_invalidation import (
-    build_approval_view_invalidation_handler,
-)
 from src.core.platform.application.data_operations.runtime_tracking import (
     RuntimeExecutionService,
 )
@@ -36,10 +33,6 @@ from src.core.platform.application.master_data.documents import (
 from src.core.platform.application.master_data.employee.employee_service import (
     EmployeeService,
 )
-from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
-    build_organization_created_view_invalidation_handler,
-    build_organization_profile_view_invalidation_handler,
-)
 from src.core.platform.application.master_data.org.organization_service import (
     OrganizationService,
 )
@@ -52,31 +45,18 @@ from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
 )
 from src.core.platform.application.security.auth import AuthService
-from src.core.platform.application.security.auth.event_handlers.view_invalidation import (
-    build_account_security_view_invalidation_handler,
-)
 from src.core.platform.application.security.authorization.roles import (
     RoleGovernanceService,
     TenantRoleAdministrationService,
 )
-from src.core.platform.application.security.authorization.roles.event_handlers.view_invalidation import (
-    build_authorization_context_view_invalidation_handler,
-    build_role_binding_view_invalidation_handler,
-)
 from src.core.platform.application.security.identity import ServicePrincipalService
 from src.core.platform.application.tenant.modules import ModuleCatalogService
-from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
-    build_module_entitlement_view_invalidation_handler,
-)
 from src.core.platform.application.tenant.tenancy import (
     TenancyMode,
     TenantAdminService,
     TenantContextService,
     TenantMembershipService,
     build_tenant_context_policy,
-)
-from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidation import (
-    build_tenant_membership_view_invalidation_handler,
 )
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
@@ -114,11 +94,6 @@ from src.core.platform.contract.repositories.master_data.party.contracts import 
 from src.core.platform.contract.repositories.master_data.site.contracts import (
     SiteRepository,
 )
-from src.core.platform.domain.approval.events import (
-    ApprovalApproved,
-    ApprovalRejected,
-    ApprovalRequested,
-)
 from src.core.platform.domain.master_data.org import (
     ORGANIZATION_STATUS_ACTIVE,
     Organization,
@@ -128,65 +103,34 @@ from src.core.platform.domain.master_data.org.access_policy import (
     normalize_organization_scope_role,
     resolve_organization_scope_permissions,
 )
-from src.core.platform.domain.master_data.org.events import (
-    OrganizationActivated,
-    OrganizationArchived,
-    OrganizationCreated,
-    OrganizationDeactivated,
-    OrganizationProfileUpdated,
-)
 from src.core.platform.domain.master_data.site.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
     resolve_site_scope_permissions,
 )
-from src.core.platform.domain.security.auth.events import (
-    AccountLocked,
-    AccountUnlocked,
-    AuthenticationFailureRecorded,
-    CustomRoleCreated,
-    CustomRoleRetired,
-    CustomRoleUpdated,
-    FederatedIdentityLinked,
-    MfaStatusChanged,
-    PasswordChanged,
-    RolePolicyReconciled,
-    TenantMembershipProvisioned,
-    UserAccountCreated,
-    UserAccountProfileUpdated,
-    UserAccountStatusChanged,
-    UserSessionPolicyChanged,
-    UserSessionsRevoked,
-)
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.domain.security.authorization.roles.events import (
-    RoleBindingAssigned,
-    RoleBindingRevoked,
-)
 from src.core.platform.domain.tenant.modules import (
     DEFAULT_ENTERPRISE_MODULES,
     parse_enabled_module_codes,
     parse_licensed_module_codes,
 )
-from src.core.platform.domain.tenant.modules.events import (
-    ModuleDisabled,
-    ModuleEnabled,
-    ModuleLicensed,
-    ModuleLicenseRevoked,
-    ModuleLifecycleTransitioned,
-)
 from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
-from src.core.platform.domain.tenant.tenancy.events import (
-    TenantMembershipActivated,
-    TenantMembershipReactivated,
-    TenantMembershipRemoved,
-    TenantMembershipSuspended,
+from src.core.platform.infrastructure.composition.events.approvals import (
+    register_approval_views,
 )
 from src.core.platform.infrastructure.composition.events.master_data import (
     register_master_data_view_invalidation,
 )
 from src.core.platform.infrastructure.composition.events.notifications import (
     register_platform_notification_policy,
+)
+from src.core.platform.infrastructure.composition.events.security import (
+    register_account_and_authorization_views,
+    register_role_binding_views,
+)
+from src.core.platform.infrastructure.composition.events.tenancy import (
+    register_membership_views,
+    register_organization_and_entitlement_views,
 )
 from src.core.platform.infrastructure.persistence.read.history.activity_actor_reader import (
     SqlAlchemyActivityActorReader,
@@ -487,114 +431,15 @@ def build_platform_service_bundle(
     register_platform_notification_policy(platform_transactional_dispatcher)
     platform_post_commit_bus = InProcessPostCommitEventBus()
 
-    platform_post_commit_bus.subscribe(
-        OrganizationCreated,
-        build_organization_created_view_invalidation_handler(platform_view_invalidation_channel),
+    register_organization_and_entitlement_views(
+        platform_post_commit_bus, platform_view_invalidation_channel
     )
-    _organization_profile_view_invalidation_handler = build_organization_profile_view_invalidation_handler(
-        platform_view_invalidation_channel
+    register_role_binding_views(platform_post_commit_bus, platform_view_invalidation_channel)
+    register_membership_views(platform_post_commit_bus, platform_view_invalidation_channel)
+    register_account_and_authorization_views(
+        platform_post_commit_bus, platform_view_invalidation_channel
     )
-    for _organization_profile_event_type in (
-        OrganizationProfileUpdated,
-        OrganizationActivated,
-        OrganizationDeactivated,
-        OrganizationArchived,
-    ):
-        platform_post_commit_bus.subscribe(
-            _organization_profile_event_type, _organization_profile_view_invalidation_handler
-        )
-
-    _module_entitlement_view_invalidation_handler = build_module_entitlement_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _module_entitlement_event_type in (
-        ModuleLicensed,
-        ModuleLicenseRevoked,
-        ModuleEnabled,
-        ModuleDisabled,
-        ModuleLifecycleTransitioned,
-    ):
-        platform_post_commit_bus.subscribe(
-            _module_entitlement_event_type, _module_entitlement_view_invalidation_handler
-        )
-
-    _role_binding_view_invalidation_handler = build_role_binding_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _role_binding_event_type in (RoleBindingAssigned, RoleBindingRevoked):
-        platform_post_commit_bus.subscribe(
-            _role_binding_event_type, _role_binding_view_invalidation_handler
-        )
-
-    # P5D-3: direct Qt cutover for Tenant Membership, mirroring the Organization/RoleBinding
-    # precedent above -- no legacy `auth_changed` bridge. All four membership events collapse
-    # onto the SAME single mapping handler (every real UI consumer re-reads the whole
-    # membership-backed user list/rollup, never one membership row at a time).
-    _tenant_membership_view_invalidation_handler = build_tenant_membership_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _tenant_membership_event_type in (
-        TenantMembershipActivated,
-        TenantMembershipSuspended,
-        TenantMembershipReactivated,
-        TenantMembershipRemoved,
-        TenantMembershipProvisioned,
-    ):
-        platform_post_commit_bus.subscribe(
-            _tenant_membership_event_type, _tenant_membership_view_invalidation_handler
-        )
-
-    # P46B: direct Qt cutover for Auth/Security, mirroring the RoleBinding/TenantMembership
-    # precedent above -- no legacy `auth_changed` bridge. `account_security` collapses every
-    # UserAccount-owned fact onto one target; `authorization_context` collapses the four
-    # Role-owned facts (CustomRole create/update/retire, system role-policy reconciliation) onto
-    # a second, non-overlapping target -- RoleBinding grant/revoke stays under its own existing
-    # `role_binding` category above, never duplicated here.
-    _account_security_view_invalidation_handler = build_account_security_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _account_security_event_type in (
-        UserAccountCreated,
-        UserAccountProfileUpdated,
-        UserAccountStatusChanged,
-        AccountLocked,
-        AccountUnlocked,
-        AuthenticationFailureRecorded,
-        PasswordChanged,
-        MfaStatusChanged,
-        FederatedIdentityLinked,
-        UserSessionPolicyChanged,
-        UserSessionsRevoked,
-    ):
-        platform_post_commit_bus.subscribe(
-            _account_security_event_type, _account_security_view_invalidation_handler
-        )
-
-    _authorization_context_view_invalidation_handler = build_authorization_context_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _authorization_context_event_type in (
-        CustomRoleCreated,
-        CustomRoleUpdated,
-        CustomRoleRetired,
-        RolePolicyReconciled,
-    ):
-        platform_post_commit_bus.subscribe(
-            _authorization_context_event_type, _authorization_context_view_invalidation_handler
-        )
-
-    # Approval-P3: direct Qt cutover for Approval, mirroring the Organization/Module
-    # Entitlement/RoleBinding/TenantMembership precedent above -- no legacy `approvals_changed`
-    # bridge. All three Approval events collapse onto the SAME single mapping handler (every real
-    # UI consumer re-reads the whole approval-request collection, never one approval row at a
-    # time).
-    _approval_view_invalidation_handler = build_approval_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _approval_event_type in (ApprovalRequested, ApprovalApproved, ApprovalRejected):
-        platform_post_commit_bus.subscribe(
-            _approval_event_type, _approval_view_invalidation_handler
-        )
+    register_approval_views(platform_post_commit_bus, platform_view_invalidation_channel)
 
     register_master_data_view_invalidation(
         platform_post_commit_bus, platform_view_invalidation_channel
