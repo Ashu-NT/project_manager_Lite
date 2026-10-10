@@ -354,6 +354,23 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   delivery sessions, the latter retains fresh Approval UoW sessions. Targeted
   mypy: 20 files clean; focused notification/Approval checks: 19 passed;
   combined final composition/master-data/calendar/startup check: 28 passed.
+  Module entitlement, provisioning, and runtime tracking construction moved
+  to `dependencies/tenancy/modules.py`; the RLS execution-role guard still
+  runs before module defaults bootstrap. Module/runtime composition tests:
+  51 passed. Organization construction moved to
+  `dependencies/master_data/organization.py` (37 focused tests passed).
+  Role governance and membership UoWs moved separately to
+  `dependencies/security/governance.py` and
+  `dependencies/tenancy/membership.py`, retaining the same resolver map and
+  Auth-service registration order (43 passed, 2 skipped). The mixed root
+  repository bundle is still active. Service-principal, scoped access, and
+  role-administration construction moved to
+  `dependencies/security/administration.py`; 49 focused tests passed and 2
+  skipped. Audit/activity, financial period, tenant admin, and master-data
+  exchange builders now live under their corresponding dependency folders.
+  Bootstrap owns service ordering, shared event buses, and the final bundle;
+  61 combined focused tests passed, 2 skipped. Mypy: 31 composition source
+  files clean. The mixed root repository bundle remains the C5 ownership gap.
   The remaining constructors in
   bootstrap have not yet been
   extracted; C5 is not closed.
