@@ -607,6 +607,8 @@ def _make_tenant_caller_session(services, *, tenant_id: str):
         transactional_dispatcher=auth._transactional_dispatcher,
         post_commit_bus=auth._post_commit_bus,
         clock=auth._clock,
+        uow_factory=auth._uow_factory,
+        session_write_lock=auth._session_write_lock,
     ), viewer.id
 
 
@@ -687,6 +689,8 @@ def test_service_tenant_caller_requires_permission(services):
         transactional_dispatcher=auth._transactional_dispatcher,
         post_commit_bus=auth._post_commit_bus,
         clock=auth._clock,
+        uow_factory=auth._uow_factory,
+        session_write_lock=auth._session_write_lock,
     )
 
     with pytest.raises(BusinessRuleError):

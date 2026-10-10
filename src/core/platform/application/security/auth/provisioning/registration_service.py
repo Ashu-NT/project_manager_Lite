@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -26,10 +27,11 @@ from src.core.platform.domain.security.authorization.roles import (
 from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
     UserTenantMembership,
 )
+from src.core.shared.events.domain_event import DomainEvent
+from src.core.shared.persistence.unit_of_work import UnitOfWork
 
 if TYPE_CHECKING:
     from src.core.platform.application.security.auth.auth_service import AuthService
-    from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 from src.core.platform.application.security.auth.audit.security_audit import (
     add_atomic_security_audit,
@@ -58,7 +60,7 @@ def _assign_roles_for_user(
     *,
     allow_platform_roles: bool,
     tenant_id: str | None,
-    record_event: Callable[[object], None],
+    record_event: Callable[[DomainEvent], None],
     actor,
 ) -> tuple[str, ...]:
     assigned_role_names: list[str] = []
@@ -165,7 +167,7 @@ def _create_user(
     audit_action: str = "user.register",
     system_audit_actor: str | None = None,
     account_type: str = "human",
-    uow: SqlAlchemyUnitOfWorkBase | None = None,
+    uow: UnitOfWork | None = None,
 ) -> UserAccount:
     normalized = normalize_auth_username(username)
     normalized_email = service._normalize_email(email)
@@ -237,9 +239,9 @@ def _create_user(
     if normalized_tenant_id is None:
         requires_tenant = any(
             (
-                role := service._role_repo.get_by_name(role_name)
+                candidate_role := service._role_repo.get_by_name(role_name)
             ) is not None
-            and role.allowed_scope_type != ROLE_SCOPE_PLATFORM
+            and candidate_role.allowed_scope_type != ROLE_SCOPE_PLATFORM
             for role_name in resolved_role_names
         )
         if requires_tenant and service._tenant_context_service is not None:
@@ -262,7 +264,8 @@ def _create_user(
             operation="authorization.infrastructure.denied",
         )
     owns_uow = uow is None
-    active_uow = service._uow() if owns_uow else uow
+    active_uow: UnitOfWork = uow if uow is not None else service._uow()
+    membership_repo = service._user_tenant_repo
     membership: UserTenantMembership | None = None
     occurred_at = datetime.now(timezone.utc)
 
@@ -276,18 +279,22 @@ def _create_user(
                     user_id=user.id,
                     tenant_id=normalized_tenant_id,
                 )
-                service._user_tenant_repo.add(membership)
+                if membership_repo is None:
+                    raise BusinessRuleError(
+                        "Tenant membership persistence is required.",
+                        code="AUTHORIZATION_CONTEXT_REQUIRED",
+                    )
+                membership_repo.add(membership)
             principal = (
                 service._user_session.principal
                 if service._user_session is not None
                 else None
             )
-            if system_audit_actor is not None:
-                from types import SimpleNamespace
-
-                role_binding_actor = SimpleNamespace(user_id=None, username=system_audit_actor)
-            else:
-                role_binding_actor = principal
+            role_binding_actor = (
+                SimpleNamespace(user_id=None, username=system_audit_actor)
+                if system_audit_actor is not None
+                else principal
+            )
             assigned_role_names = _assign_roles_for_user(
                 service,
                 user.id,
@@ -440,7 +447,7 @@ def _register_bootstrap_user(
     role_names: Iterable[str] | None = None,
     must_change_password: bool = True,
     commit: bool = False,
-    uow: SqlAlchemyUnitOfWorkBase | None = None,
+    uow: UnitOfWork | None = None,
 ) -> UserAccount:
     return _create_user(
         service,

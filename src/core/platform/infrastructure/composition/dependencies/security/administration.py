@@ -36,6 +36,9 @@ from src.core.platform.infrastructure.composition.dependencies.repositories impo
 from src.core.platform.infrastructure.composition.registrations.security.scope_resolvers import (
     ScopeResolvers,
 )
+from src.core.platform.infrastructure.persistence.uow.auth_unit_of_work import (
+    SqlAlchemyAuthUnitOfWorkFactory,
+)
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
@@ -122,6 +125,7 @@ def build_security_administration_dependencies(
         transactional_dispatcher=transactional_dispatcher,
         post_commit_bus=post_commit_bus,
         clock=SystemClock(),
+        uow_factory=SqlAlchemyAuthUnitOfWorkFactory(),
     )
     return SecurityAdministrationDependencies(
         service_principal_service=service_principal_service,

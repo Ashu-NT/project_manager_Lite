@@ -79,8 +79,6 @@ def commit_context_switch(
         # write must take the same SQLite write lock a UnitOfWork.commit()
         # would, or it can race one for SQLite's single writer slot and
         # surface as "database is locked" on an unrelated mutation.
-        from src.infra.persistence.db.unit_of_work import sqlite_write_lock
-
         _stage_persisted_session_context(
             service,
             target_principal,
@@ -98,7 +96,7 @@ def commit_context_switch(
             new_tenant_id=new_tenant_id,
             new_organization_id=new_organization_id,
         )
-        with sqlite_write_lock(service._session):
+        with service._session_write_lock.for_session(service._session):
             service._session.commit()
     except Exception as exc:
         service._session.rollback()

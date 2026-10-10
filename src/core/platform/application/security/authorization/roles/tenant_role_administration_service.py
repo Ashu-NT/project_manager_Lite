@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.security.auth.unit_of_work import auth_unit_of_work
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     record_authorization_denial,
@@ -42,6 +41,7 @@ from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,
 )
+from src.core.platform.contract.uow.auth_unit_of_work import AuthUnitOfWorkFactory
 from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.domain.security.auth import (
     Permission,
@@ -98,6 +98,7 @@ class TenantRoleAdministrationService:
         transactional_dispatcher,
         post_commit_bus,
         clock: Clock,
+        uow_factory: AuthUnitOfWorkFactory,
     ) -> None:
         self._session = session
         self._role_repo = role_repo
@@ -114,9 +115,10 @@ class TenantRoleAdministrationService:
         self._transactional_dispatcher = transactional_dispatcher
         self._post_commit_bus = post_commit_bus
         self._clock = clock
+        self._uow_factory = uow_factory
 
     def _uow(self):
-        return auth_unit_of_work(
+        return self._uow_factory.create(
             session=self._session,
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,

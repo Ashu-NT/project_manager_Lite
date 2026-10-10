@@ -21,6 +21,12 @@ from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry 
     AuditEntryORM,
 )
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
+from src.core.platform.infrastructure.persistence.uow.auth_unit_of_work import (
+    SqlAlchemyAuthUnitOfWorkFactory,
+)
+from src.core.platform.infrastructure.persistence.uow.session_write_lock import (
+    SqlAlchemySessionWriteLock,
+)
 from src.infra.time.system_clock import SystemClock
 
 
@@ -51,6 +57,8 @@ def _build_auth_service(session) -> tuple[AuthService, PlatformRepositories]:
             transactional_dispatcher=InProcessTransactionalEventDispatcher(),
             post_commit_bus=InProcessPostCommitEventBus(),
             clock=SystemClock(),
+            uow_factory=SqlAlchemyAuthUnitOfWorkFactory(),
+            session_write_lock=SqlAlchemySessionWriteLock(),
         ),
         repositories,
     )

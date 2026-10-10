@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.security.auth.session.session_utils import (
     rotate_session_revision,
 )
-from src.core.platform.application.security.auth.unit_of_work import auth_unit_of_work
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -26,6 +25,7 @@ from src.core.platform.contract.repositories.security.auth import (
     RoleRepository,
     UserRepository,
 )
+from src.core.platform.contract.uow.auth_unit_of_work import AuthUnitOfWorkFactory
 from src.core.platform.domain.security.auth import (
     RolePermissionBinding,
     UserSessionContext,
@@ -89,6 +89,7 @@ class RolePolicyReconciliationService:
         role_binding_repo: RoleBindingRepository,
         transactional_dispatcher,
         post_commit_bus,
+        uow_factory: AuthUnitOfWorkFactory,
     ) -> None:
         self._session = session
         self._role_repo = role_repo
@@ -101,9 +102,10 @@ class RolePolicyReconciliationService:
         self._role_binding_repo = role_binding_repo
         self._transactional_dispatcher = transactional_dispatcher
         self._post_commit_bus = post_commit_bus
+        self._uow_factory = uow_factory
 
     def _uow(self):
-        return auth_unit_of_work(
+        return self._uow_factory.create(
             session=self._session,
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,

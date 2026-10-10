@@ -64,6 +64,8 @@ def _customer_auth_service(
             transactional_dispatcher=auth._transactional_dispatcher,
             post_commit_bus=auth._post_commit_bus,
             clock=auth._clock,
+            uow_factory=auth._uow_factory,
+            session_write_lock=auth._session_write_lock,
         ),
         actor,
         tenant_id,

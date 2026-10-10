@@ -24,6 +24,7 @@ from src.core.platform.domain.security.authorization.roles import (
     RoleBindingScope,
     RoleBindingTenantScope,
 )
+from src.core.shared.events.domain_event import DomainEvent
 from src.core.shared.time.clock import Clock
 
 OrganizationOwnerResolver = Callable[[Session, str, str], "str | None"]
@@ -107,7 +108,7 @@ def create_role_binding_using(
     role_bindings_repo,
     audit_repo,
     clock: Clock,
-    record_event: Callable[[object], None],
+    record_event: Callable[[DomainEvent], None],
     principal_id: str,
     role_id: str,
     tenant_id: str | None,
@@ -219,7 +220,7 @@ def revoke_role_binding_using(
     role_bindings_repo,
     audit_repo,
     clock: Clock,
-    record_event: Callable[[object], None],
+    record_event: Callable[[DomainEvent], None],
     binding: RoleBinding,
     domain_scope: RoleBindingScope,
     actor,

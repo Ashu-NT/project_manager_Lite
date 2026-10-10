@@ -59,6 +59,8 @@ from src.core.platform.contract.repositories.security.auth import (
     RoleRepository,
     UserRepository,
 )
+from src.core.platform.contract.uow.auth_unit_of_work import AuthUnitOfWorkFactory
+from src.core.platform.contract.uow.session_write_lock import SessionWriteLock
 from src.core.platform.domain.security.auth import AuthSession, Role, UserAccount
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
@@ -118,10 +120,14 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         transactional_dispatcher: TransactionalEventDispatcher,
         post_commit_bus: PostCommitEventPublisher,
         clock: Clock,
+        uow_factory: AuthUnitOfWorkFactory,
+        session_write_lock: SessionWriteLock,
     ):
         self._session: Session = session
         self._transactional_dispatcher = transactional_dispatcher
         self._post_commit_bus = post_commit_bus
+        self._uow_factory = uow_factory
+        self._session_write_lock = session_write_lock
         self._clock = clock
         self._user_repo: UserRepository = user_repo
         self._role_repo: RoleRepository = role_repo
@@ -159,11 +165,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._role_governance_service: RoleGovernanceService | None = None
 
     def _uow(self):
-        from src.core.platform.application.security.auth.unit_of_work import (
-            auth_unit_of_work,
-        )
-
-        return auth_unit_of_work(
+        return self._uow_factory.create(
             session=self._session,
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,

@@ -17,6 +17,12 @@ from src.core.platform.infrastructure.composition.dependencies.repositories impo
 from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
     SqlAlchemyPlatformOverviewRollupReader,
 )
+from src.core.platform.infrastructure.persistence.uow.auth_unit_of_work import (
+    SqlAlchemyAuthUnitOfWorkFactory,
+)
+from src.core.platform.infrastructure.persistence.uow.session_write_lock import (
+    SqlAlchemySessionWriteLock,
+)
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
@@ -74,6 +80,8 @@ def build_auth_service(
         transactional_dispatcher=transactional_dispatcher,
         post_commit_bus=post_commit_bus,
         clock=SystemClock(),
+        uow_factory=SqlAlchemyAuthUnitOfWorkFactory(),
+        session_write_lock=SqlAlchemySessionWriteLock(),
     )
     tenant_context_service.set_principal_rebuilder(
         auth_service.rebuild_current_principal_for_context

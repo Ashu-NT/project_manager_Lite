@@ -22,6 +22,12 @@ from src.core.platform.infrastructure.persistence.orm.security.auth.auth import 
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
+from src.core.platform.infrastructure.persistence.uow.auth_unit_of_work import (
+    SqlAlchemyAuthUnitOfWorkFactory,
+)
+from src.core.platform.infrastructure.persistence.uow.session_write_lock import (
+    SqlAlchemySessionWriteLock,
+)
 from src.infra.time.system_clock import SystemClock
 
 _PASSWORD = "StrongPass123!"
@@ -101,6 +107,8 @@ def _build_bootstrap_auth(
         transactional_dispatcher=InProcessTransactionalEventDispatcher(),
         post_commit_bus=InProcessPostCommitEventBus(),
         clock=SystemClock(),
+        uow_factory=SqlAlchemyAuthUnitOfWorkFactory(),
+        session_write_lock=SqlAlchemySessionWriteLock(),
     )
     return auth, repositories
 

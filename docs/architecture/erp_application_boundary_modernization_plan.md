@@ -358,6 +358,23 @@ The remaining Platform Auth/Time persistence dependencies, PM A4 clusters,
 A5 and A6 remain open. Finance's feature-folder structure and canonical
 financial authorities were not changed.
 
+**A4 Auth transaction boundary in progress.** The application-owned
+`auth/unit_of_work.py` helper was retired. AuthService, tenant custom-role
+administration and role-policy reconciliation now receive the same explicit
+`AuthUnitOfWorkFactory` contract; the Platform persistence implementation still
+wraps the caller's existing Session in `SqlAlchemyUnitOfWorkBase`, uses a fresh
+operation correlation context, rejects absent dispatchers/bus, and retains the
+existing commit, transactional-dispatch, post-commit and SQLite lock behavior.
+Registration helpers now type their UoW as the shared contract rather than the
+concrete SQLAlchemy class. Context switching receives a separate
+`SessionWriteLock` port; its concrete adapter still delegates to the same
+`sqlite_write_lock` immediately around the shared-session commit. No Finance
+folders or financial authorities changed. The Auth/role/reconciliation focused
+run passed 163 tests with 2 skipped; context-switch/architecture follow-up
+passed 55; PostgreSQL runtime security passed 14. Targeted Mypy is clean.
+Time's concrete UoW references and the remaining A4 operation clusters are
+not yet migrated; A4 as a whole is not closed.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |
