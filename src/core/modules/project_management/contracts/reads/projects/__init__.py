@@ -2,6 +2,7 @@ from .catalog_reader import ProjectCatalogReader
 from .models import (
     ProjectActivityFact,
     ProjectActivityPage,
+    ProjectCatalogProjectFact,
     ProjectCatalogReadItem,
     ProjectCatalogReadPage,
     ProjectCatalogSummary,
@@ -14,6 +15,7 @@ __all__ = [
     "ProjectActivityFact",
     "ProjectActivityPage",
     "ProjectCatalogReadItem",
+    "ProjectCatalogProjectFact",
     "ProjectCatalogReadPage",
     "ProjectCatalogReader",
     "ProjectCatalogSummary",

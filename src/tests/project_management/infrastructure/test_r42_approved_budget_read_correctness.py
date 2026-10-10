@@ -8,7 +8,7 @@ from uuid import uuid4
 from src.core.modules.project_management.api.desktop import (
     build_project_management_projects_desktop_api,
 )
-from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
+from src.core.modules.project_management.contracts.use_cases.projects import (
     ProjectCreateCommand,
     ProjectUpdateCommand,
 )
@@ -16,6 +16,9 @@ from src.core.modules.project_management.domain.financials.budget import BudgetS
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.projects import (
+    SqlAlchemyProjectCatalogReader,
 )
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.ui_qml.modules.project_management.controllers.common.workspace_controller_base import (
@@ -274,26 +277,26 @@ def test_only_currently_approved_budget_is_projected(services) -> None:
     assert closed.approved_budget_currency == ""
 
 
-def test_single_project_reader_enforces_tenant_and_organization_scope(services) -> None:
+def test_single_project_reader_enforces_tenant_and_organization_scope(services, session) -> None:
     project = services["project_service"].create_project("Scoped Detail")
     _approve_budget(services, project.id, "333", currency="USD")
-    session = services["user_session"]
-    reader = services["project_service"]._project_catalog_reader
+    user_session = services["user_session"]
+    reader = SqlAlchemyProjectCatalogReader(session=session)
 
     assert reader.read_one(
-        tenant_id=session.stored_active_tenant_id(),
-        organization_id=session.stored_active_organization_id(),
+        tenant_id=user_session.stored_active_tenant_id(),
+        organization_id=user_session.stored_active_organization_id(),
         project_id=project.id,
         include_approved_budget=True,
     ) is not None
     assert reader.read_one(
         tenant_id="another-tenant",
-        organization_id=session.stored_active_organization_id(),
+        organization_id=user_session.stored_active_organization_id(),
         project_id=project.id,
         include_approved_budget=True,
     ) is None
     assert reader.read_one(
-        tenant_id=session.stored_active_tenant_id(),
+        tenant_id=user_session.stored_active_tenant_id(),
         organization_id="another-organization",
         project_id=project.id,
         include_approved_budget=True,

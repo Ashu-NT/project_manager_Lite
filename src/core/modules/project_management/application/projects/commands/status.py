@@ -6,26 +6,60 @@ from datetime import datetime, timezone
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.application.projects.commands.support import (
-    ProjectSupportMixin,
-)
 from src.core.modules.project_management.application.projects.project_events import (
     ProjectStatusChanged,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.uow.projects.project_unit_of_work import (
+    ProjectUnitOfWorkFactory,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.platform.common.ids import generate_id
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
-class ProjectStatusMixin(ProjectSupportMixin):
+class ProjectStatusHandler:
+    def __init__(
+        self,
+        *,
+        project_repo: ProjectRepository,
+        uow_factory: ProjectUnitOfWorkFactory,
+        tenant_context_service: TenantContextService,
+        user_session: UserSessionContext | None,
+    ) -> None:
+        self._project_repo = project_repo
+        self._uow_factory = uow_factory
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
+
+    def _require_project_uow_factory(self) -> ProjectUnitOfWorkFactory:
+        return self._uow_factory
+
+    def _require_project_scope_ids(self, *, operation_label: str) -> ActiveScopeIds:
+        return self._tenant_context_service.require_active_scope_ids(
+            operation_label=operation_label
+        )
+
+    @staticmethod
+    def _new_context() -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id())
     def set_status(
         self, project_id: str, status: ProjectStatus, *, expected_version: int | None = None
     ) -> Project:

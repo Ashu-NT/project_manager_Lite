@@ -17,6 +17,15 @@ from src.core.modules.project_management.application.projects.commands.support i
 from src.core.modules.project_management.application.projects.project_events import (
     ProjectCreated,
 )
+from src.core.modules.project_management.contracts.reads.projects import (
+    ProjectCatalogReader,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.uow.projects.project_unit_of_work import (
+    ProjectUnitOfWorkFactory,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.domain.financials.configuration import (
     ProjectFinancialProfile,
@@ -25,12 +34,47 @@ from src.core.modules.project_management.domain.projects.project import Project
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.repositories.master_data.department.contracts import (
+    DepartmentRepository,
+)
+from src.core.platform.contract.repositories.master_data.party.contracts import (
+    PartyRepository,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 logger = logging.getLogger(__name__)
 
-class ProjectCreateMixin(ProjectSupportMixin):
+class ProjectCreateHandler(ProjectSupportMixin):
+    def __init__(
+        self,
+        *,
+        project_repo: ProjectRepository,
+        project_catalog_reader: ProjectCatalogReader,
+        uow_factory: ProjectUnitOfWorkFactory,
+        tenant_context_service: TenantContextService,
+        user_session: UserSessionContext | None,
+        party_repo: PartyRepository | None,
+        department_repo: DepartmentRepository | None,
+    ) -> None:
+        self._project_repo = project_repo
+        self._project_catalog_reader = project_catalog_reader
+        self._uow_factory = uow_factory
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
+        self._party_repo = party_repo
+        self._department_repo = department_repo
+
+    @staticmethod
+    def _new_context() -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id())
+
     def create_project(
         self,
         name: str,

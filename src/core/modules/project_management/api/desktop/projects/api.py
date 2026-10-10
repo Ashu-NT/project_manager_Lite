@@ -15,10 +15,6 @@ from src.core.modules.project_management.api.desktop.projects.builders.resource_
 from src.core.modules.project_management.api.desktop.projects.builders.status_builder import (
     build_status_options,
 )
-from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
-    ProjectCreateCommand,
-    ProjectUpdateCommand,
-)
 from src.core.modules.project_management.api.desktop.projects.commands.resource_commands import (
     ProjectResourceAssignCommand,
     ProjectResourceUpdateCommand,
@@ -51,6 +47,10 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
+)
+from src.core.modules.project_management.contracts.use_cases.projects import (
+    ProjectCreateCommand,
+    ProjectUpdateCommand,
 )
 from src.core.platform.application.master_data.department.department_service import (
     DepartmentService,

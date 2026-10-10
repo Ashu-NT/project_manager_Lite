@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.contracts.reads.projects import (
     ProjectActivityFact,
     ProjectActivityPage,
+    ProjectCatalogProjectFact,
     ProjectCatalogReadItem,
     ProjectCatalogReadPage,
     ProjectCatalogSummary,
@@ -18,9 +19,6 @@ from src.core.modules.project_management.contracts.reads.projects import (
 )
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.modules.project_management.infrastructure.persistence.mappers.project import (
-    project_from_orm,
-)
 from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
     BudgetLineORM,
     ProjectBudgetORM,
@@ -399,7 +397,7 @@ class SqlAlchemyProjectCatalogReader:
         return ProjectCatalogReadPage(
             items=tuple(
                 ProjectCatalogReadItem(
-                    project=project_from_orm(project_row),
+                    project=self._project_fact(project_row),
                     site_label=str(site_name or ""),
                     financial_currency_code=str(financial_currency_code or ""),
                     approved_budget=approved_budget_value,
@@ -482,13 +480,33 @@ class SqlAlchemyProjectCatalogReader:
             client_label_value,
         ) = row
         return ProjectCatalogReadItem(
-            project=project_from_orm(project_row),
+            project=self._project_fact(project_row),
             site_label=str(site_name or ""),
             financial_currency_code=str(financial_currency_code or ""),
             approved_budget=approved_budget_value,
             approved_budget_currency=str(approved_budget_currency_value or ""),
             approved_budget_visible=bool(approved_budget_visible_value),
             client_label=str(client_label_value or ""),
+        )
+
+    @staticmethod
+    def _project_fact(row: ProjectORM) -> ProjectCatalogProjectFact:
+        return ProjectCatalogProjectFact(
+            id=row.id,
+            name=row.name,
+            code=row.project_code or "",
+            description=row.description or "",
+            start_date=row.start_date,
+            end_date=row.end_date,
+            status=row.status,
+            client_name=row.client_name,
+            client_contact=row.client_contact,
+            organization_id=row.organization_id,
+            site_id=row.site_id,
+            department_id=row.department_id,
+            client_party_id=row.client_party_id,
+            manager_user_id=row.manager_user_id,
+            version=row.version,
         )
 
     @staticmethod

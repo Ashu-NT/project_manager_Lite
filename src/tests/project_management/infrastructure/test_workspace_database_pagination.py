@@ -848,8 +848,7 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
     assert [row.resource_name for row in beyond_last.items] == ["Zoe Reviewer"]
 
 
-def test_workspace_page_query_budgets_are_constant(services) -> None:
-    session = services["project_service"]._session
+def test_workspace_page_query_budgets_are_constant(services, session) -> None:
     engine = session.get_bind()
     statement_count = 0
 

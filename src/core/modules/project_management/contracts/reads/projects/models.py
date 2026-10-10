@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
-from src.core.modules.project_management.domain.projects.project import Project
+from src.core.modules.project_management.domain.enums import ProjectStatus
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,8 +15,27 @@ class ProjectManagerCandidateFact:
 
 
 @dataclass(frozen=True, slots=True)
+class ProjectCatalogProjectFact:
+    id: str
+    name: str
+    code: str
+    description: str
+    start_date: date | None
+    end_date: date | None
+    status: ProjectStatus
+    client_name: str | None
+    client_contact: str | None
+    organization_id: str
+    site_id: str | None
+    department_id: str | None
+    client_party_id: str | None
+    manager_user_id: str | None
+    version: int
+
+
+@dataclass(frozen=True, slots=True)
 class ProjectCatalogReadItem:
-    project: Project
+    project: ProjectCatalogProjectFact
     site_label: str = ""
     financial_currency_code: str = ""
     approved_budget: Decimal | None = None

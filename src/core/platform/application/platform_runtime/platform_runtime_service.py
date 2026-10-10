@@ -4,16 +4,15 @@ from dataclasses import dataclass
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.api.desktop_runtime.service_resolver import (
-    ModuleRuntimeSnapshot,
-    build_module_runtime_snapshot,
-)
 from src.core.platform.application.master_data.org.organization_service import (
     OrganizationPage,
     OrganizationService,
 )
 from src.core.platform.application.platform_runtime.module_access_policy import (
     is_module_accessible,
+)
+from src.core.platform.application.platform_runtime.module_snapshot import (
+    build_module_runtime_snapshot,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -25,6 +24,7 @@ from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.uow.platform_provisioning_unit_of_work import (
     PlatformProvisioningUnitOfWorkFactory,
 )
+from src.core.platform.contract.use_cases.platform_runtime import ModuleRuntimeSnapshot
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.events.domain_event_context import DomainEventContext

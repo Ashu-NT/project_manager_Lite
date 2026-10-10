@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop_runtime.service_resolver import (
-    build_module_runtime_snapshot,
-)
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
+)
+from src.core.platform.application.platform_runtime.module_snapshot import (
+    build_module_runtime_snapshot,
 )
 from src.core.platform.application.tenant.modules import build_default_module_catalog
 

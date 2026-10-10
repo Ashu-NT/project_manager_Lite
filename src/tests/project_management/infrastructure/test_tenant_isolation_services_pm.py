@@ -190,15 +190,22 @@ def test_project_service_lists_only_active_tenant_projects() -> None:
     user_session, tenant_context = _tenant_context("org-a")
     project_repo = _ProjectRepo()
     project_repo._tenant_context_service = tenant_context
+    from src.core.modules.project_management.application.projects.queries.project_query import (
+        ProjectQueryHandler,
+    )
+
     service = ProjectService(
-        session=object(),
-        project_repo=project_repo,
-        task_repo=object(),
-        dependency_repo=object(),
-        assignment_repo=object(),
-        time_entry_repo=None,
         user_session=user_session,
-        tenant_context_service=tenant_context,
+        query_handler=ProjectQueryHandler(
+            project_repo=project_repo,
+            project_catalog_reader=None,
+            tenant_context_service=tenant_context,
+            user_session=user_session,
+        ),
+        status_handler=object(),
+        deletion_handler=object(),
+        create_handler=object(),
+        update_handler=object(),
     )
 
     rows = service.list_projects()

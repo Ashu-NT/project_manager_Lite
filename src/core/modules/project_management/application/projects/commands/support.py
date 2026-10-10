@@ -33,9 +33,16 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ValidationError,
 )
+from src.core.platform.contract.repositories.master_data.department.contracts import (
+    DepartmentRepository,
+)
+from src.core.platform.contract.repositories.master_data.party.contracts import (
+    PartyRepository,
+)
 from src.core.platform.contract.repositories.time_management.time.contracts import (
     TimeEntryRepository,
 )
+from src.core.platform.domain.master_data.party import PartyLifecycleStatus
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -103,6 +110,42 @@ class ProjectSupportMixin:
     _uow_factory: ProjectUnitOfWorkFactory | None
     _tenant_context_service: TenantContextService | None
     _project_catalog_reader: ProjectCatalogReader | None
+    _party_repo: PartyRepository | None
+    _department_repo: DepartmentRepository | None
+
+    def _validate_department_reference(
+        self, department_id: str | None, organization_id: str
+    ) -> None:
+        if not department_id:
+            return
+        if self._department_repo is None:
+            raise RuntimeError("Department directory is not configured.")
+        department = self._department_repo.get(department_id)
+        if department is None or department.organization_id != organization_id:
+            raise ValidationError(
+                "Selected department was not found in the project organization.",
+                code="PROJECT_DEPARTMENT_NOT_FOUND",
+            )
+        if not department.is_active:
+            raise ValidationError(
+                "Selected department is inactive.", code="PROJECT_DEPARTMENT_INACTIVE"
+            )
+
+    def _validate_client_party(self, party_id: str | None, organization_id: str) -> None:
+        if not party_id:
+            return
+        if self._party_repo is None:
+            raise RuntimeError("Party directory is not configured.")
+        party = self._party_repo.get(party_id)
+        if party is None or party.organization_id != organization_id:
+            raise ValidationError(
+                "Selected client was not found in the project organization.",
+                code="PROJECT_CLIENT_PARTY_NOT_FOUND",
+            )
+        if party.status != PartyLifecycleStatus.ACTIVE:
+            raise ValidationError(
+                "Selected client is inactive.", code="PROJECT_CLIENT_PARTY_INACTIVE"
+            )
 
     def _validate_manager_user_id(
         self, manager_user_id: str | None, organization_id: str

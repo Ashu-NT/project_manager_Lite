@@ -34,11 +34,19 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class ProjectQueryMixin:
-    _project_repo: ProjectRepository
-    _project_catalog_reader: ProjectCatalogReader | None
-    _tenant_context_service: TenantContextService | None
-    _user_session: UserSessionContext | None
+class ProjectQueryHandler:
+    def __init__(
+        self,
+        *,
+        project_repo: ProjectRepository,
+        project_catalog_reader: ProjectCatalogReader | None,
+        tenant_context_service: TenantContextService | None,
+        user_session: UserSessionContext | None,
+    ) -> None:
+        self._project_repo = project_repo
+        self._project_catalog_reader = project_catalog_reader
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
 
     def list_eligible_manager_candidates(self) -> tuple[ProjectManagerCandidateFact, ...]:
         require_permission(
@@ -290,4 +298,4 @@ class ProjectQueryMixin:
         return [project for project in self.list_projects() if normalized in project.name.lower()]
 
 
-__all__ = ["ProjectQueryMixin"]
+__all__ = ["ProjectQueryHandler"]

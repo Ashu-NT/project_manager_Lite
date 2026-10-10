@@ -3,10 +3,6 @@
 from src.core.modules.project_management.api.desktop.projects.api import (
     ProjectManagementProjectsDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
-    ProjectCreateCommand,
-    ProjectUpdateCommand,
-)
 from src.core.modules.project_management.api.desktop.projects.commands.resource_commands import (
     ProjectResourceAssignCommand,
     ProjectResourceUpdateCommand,
@@ -20,6 +16,10 @@ from src.core.modules.project_management.api.desktop.projects.models import (
     ProjectResourceDesktopDto,
     ProjectResourceUsageDesktopDto,
     ProjectStatusDescriptor,
+)
+from src.core.modules.project_management.contracts.use_cases.projects import (
+    ProjectCreateCommand,
+    ProjectUpdateCommand,
 )
 
 __all__ = [

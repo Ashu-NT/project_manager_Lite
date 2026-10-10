@@ -16,6 +16,18 @@ from src.core.modules.project_management.application.projects.project_events imp
     ProjectProfileUpdated,
     ProjectStatusChanged,
 )
+from src.core.modules.project_management.contracts.reads.projects import (
+    ProjectCatalogReader,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
+from src.core.modules.project_management.contracts.uow.projects.project_unit_of_work import (
+    ProjectUnitOfWorkFactory,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.hierarchy import (
@@ -24,16 +36,53 @@ from src.core.modules.project_management.domain.tasks.hierarchy import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.repositories.master_data.department.contracts import (
+    DepartmentRepository,
+)
+from src.core.platform.contract.repositories.master_data.party.contracts import (
+    PartyRepository,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
-class ProjectUpdateMixin(ProjectSupportMixin):
+class ProjectUpdateHandler(ProjectSupportMixin):
+    def __init__(
+        self,
+        *,
+        project_repo: ProjectRepository,
+        task_repo: TaskRepository,
+        project_catalog_reader: ProjectCatalogReader,
+        uow_factory: ProjectUnitOfWorkFactory,
+        tenant_context_service: TenantContextService,
+        user_session: UserSessionContext | None,
+        party_repo: PartyRepository | None,
+        department_repo: DepartmentRepository | None,
+    ) -> None:
+        self._project_repo = project_repo
+        self._task_repo = task_repo
+        self._project_catalog_reader = project_catalog_reader
+        self._uow_factory = uow_factory
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
+        self._party_repo = party_repo
+        self._department_repo = department_repo
+
+    @staticmethod
+    def _new_context() -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id())
+
     def update_dates_from_tasks(self, project_id: str) -> None:
         project = self._project_repo.get(project_id)
         if not project:

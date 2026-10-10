@@ -1,25 +1,25 @@
 """Project commands."""
 
 from src.core.modules.project_management.application.projects.commands.create import (
-    ProjectCreateMixin,
+    ProjectCreateHandler,
 )
 from src.core.modules.project_management.application.projects.commands.deletion import (
-    ProjectDeletionMixin,
+    ProjectDeletionHandler,
 )
 from src.core.modules.project_management.application.projects.commands.status import (
-    ProjectStatusMixin,
+    ProjectStatusHandler,
 )
 from src.core.modules.project_management.application.projects.commands.support import (
     ProjectSupportMixin,
 )
 from src.core.modules.project_management.application.projects.commands.update import (
-    ProjectUpdateMixin,
+    ProjectUpdateHandler,
 )
 
 __all__ = [
-    "ProjectCreateMixin",
-    "ProjectDeletionMixin",
-    "ProjectStatusMixin",
+    "ProjectCreateHandler",
+    "ProjectDeletionHandler",
+    "ProjectStatusHandler",
     "ProjectSupportMixin",
-    "ProjectUpdateMixin",
+    "ProjectUpdateHandler",
 ]

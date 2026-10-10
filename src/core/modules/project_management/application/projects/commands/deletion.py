@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from sqlalchemy.orm import Session
+
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
-)
-from src.core.modules.project_management.application.projects.commands.support import (
-    ProjectSupportMixin,
 )
 from src.core.modules.project_management.application.projects.project_events import (
     ProjectRemoved,
@@ -14,20 +13,78 @@ from src.core.modules.project_management.application.projects.project_events imp
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskRemoved,
 )
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+    DependencyRepository,
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.tasks.hierarchy import (
     order_tasks_children_first,
+)
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.common.exceptions import (
-    NotFoundError,
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContextService,
 )
+from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.repositories.time_management.time.contracts import (
+    TimeEntryRepository,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.persistence.unit_of_work import UnitOfWorkFactory
 
 
-class ProjectDeletionMixin(ProjectSupportMixin):
+class ProjectDeletionHandler:
+    def __init__(
+        self,
+        *,
+        session: Session,
+        project_repo: ProjectRepository,
+        task_repo: TaskRepository,
+        dependency_repo: DependencyRepository,
+        assignment_repo: AssignmentRepository,
+        time_entry_repo: TimeEntryRepository | None,
+        shared_uow_factory: UnitOfWorkFactory,
+        tenant_context_service: TenantContextService,
+        user_session: UserSessionContext | None,
+        activity_service: ActivityService | None,
+        enterprise_audit_service: object | None,
+    ) -> None:
+        self._session = session
+        self._project_repo = project_repo
+        self._task_repo = task_repo
+        self._dependency_repo = dependency_repo
+        self._assignment_repo = assignment_repo
+        self._time_entry_repo = time_entry_repo
+        self._shared_uow_factory = shared_uow_factory
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
+        self._activity_service = activity_service
+        self._enterprise_audit_service = enterprise_audit_service
+
+    def _require_shared_uow_factory(self) -> UnitOfWorkFactory:
+        return self._shared_uow_factory
+
+    def _require_project_scope_ids(self, *, operation_label: str) -> ActiveScopeIds:
+        return self._tenant_context_service.require_active_scope_ids(
+            operation_label=operation_label
+        )
+
+    @staticmethod
+    def _new_context() -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id())
     def delete_project(self, project_id: str) -> None:
         require_permission(self._user_session, "project.manage", operation_label="delete project")
         project = self._project_repo.get(project_id)
