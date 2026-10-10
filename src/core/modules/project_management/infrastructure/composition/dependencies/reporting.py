@@ -12,7 +12,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
     SqlAlchemyFinanceBillingReader,
     SqlAlchemyFinanceSnapshotReader,
 )
-from src.infra.composition.modules.platform_registry import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
 from src.infra.composition.persistence.repositories import RepositoryBundle
 
 

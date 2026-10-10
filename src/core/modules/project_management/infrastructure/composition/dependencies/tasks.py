@@ -20,7 +20,7 @@ from src.core.modules.project_management.infrastructure.persistence.uow.tasks.ta
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
-from src.infra.composition.modules.platform_registry import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
 from src.infra.composition.persistence.repositories import RepositoryBundle
 
 

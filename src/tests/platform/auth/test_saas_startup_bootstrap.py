@@ -10,7 +10,7 @@ from src.core.platform.domain.security.authorization.roles.role_permission_catal
     DEFAULT_ROLE_PERMISSIONS,
 )
 from src.core.platform.domain.tenant.tenancy import Tenant
-from src.infra.composition.modules.platform_registry import (
+from src.core.platform.infrastructure.composition.bootstrap import (
     build_platform_service_bundle,
 )
 from src.infra.composition.persistence.repositories import build_repository_bundle

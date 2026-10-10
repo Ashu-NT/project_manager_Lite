@@ -23,7 +23,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.projec
 from src.core.modules.project_management.infrastructure.persistence.uow.portfolio.portfolio_unit_of_work import (
     SqlAlchemyPortfolioUnitOfWorkFactory,
 )
-from src.infra.composition.modules.platform_registry import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
 from src.infra.composition.persistence.repositories import RepositoryBundle
 
 

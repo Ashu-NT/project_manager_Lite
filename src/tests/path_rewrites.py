@@ -239,7 +239,7 @@ PATH_REWRITE_EXACT = {
     "core/platform/modules/repository.py": "src/core/platform/modules/contracts.py",
     "core/platform/modules/service.py": "src/core/platform/modules/application/module_catalog_service.py",
     "core/platform/notifications/__init__.py": "src/core/shared/events/__init__.py",
-    "infra/platform/service_registration/platform_bundle.py": "src/infra/composition/platform_registry.py",
+    "infra/platform/service_registration/platform_bundle.py": "src/core/platform/infrastructure/composition/bootstrap.py",
     "infra/platform/service_registration/project_management_bundle.py": "src/core/modules/project_management/infrastructure/composition/bootstrap.py",
     "infra/services.py": "src/infra/composition/app_container.py",
     "ui/main_window.py": "src/ui/shell/main_window.py",

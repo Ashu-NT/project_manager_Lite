@@ -44,13 +44,13 @@ from src.core.platform.application.global_overview.platform_action_center_contri
 from src.core.platform.application.global_overview.platform_module_overview_contributor import (
     PlatformModuleOverviewContributor,
 )
+from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
 from src.core.platform.infrastructure.persistence.orm.approval.approval import (
     ApprovalRequestORM,
 )
 from src.core.platform.infrastructure.persistence.read.global_overview.action_center_reader import (
     SqlAlchemyPlatformActionCenterReader,
 )
-from src.infra.composition.modules.platform_registry import PlatformServiceBundle
 
 # This module is the ONLY place that knows both Platform's and Project
 # Management's concrete Global Overview contributor classes at once. Every

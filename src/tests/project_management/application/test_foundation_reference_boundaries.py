@@ -102,7 +102,7 @@ def test_project_department_reference_is_optional_and_platform_owned(services):
 
 def test_platform_master_data_and_composition_do_not_import_pm():
     root = Path(__file__).resolve().parents[4]
-    paths = [root / "src/infra/composition/modules/platform_registry.py"]
+    paths = [root / "src/core/platform/infrastructure/composition/bootstrap.py"]
     paths.extend((root / "src/core/platform/application/master_data").rglob("*.py"))
     paths.extend((root / "src/core/platform/contract").rglob("*.py"))
     for path in paths:

@@ -6,7 +6,7 @@ from src.core.modules.project_management.application.common.clock import SystemC
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
-from src.infra.composition.modules.platform_registry import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
 from src.infra.composition.persistence.repositories import RepositoryBundle
 
 

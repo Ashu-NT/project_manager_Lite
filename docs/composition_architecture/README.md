@@ -72,7 +72,7 @@ factory callers have been migrated together.
 | C2 | Move PM access/scope registrations and approval registrations/dependency factories into PM composition | Service identity, reviewer permissions, handler counts, transaction/UoW tests; delete root approval factory package | Complete; mixed repository-bundle dependency remains until C5 |
 | C3 | Extract PM Projects, Tasks, Resources, Scheduling, Timesheets, Collaboration, Portfolio and Risk dependency/event groups | Per-group focused tests; no duplicated factories/subscriptions; preserve PM bundle | Complete; Finance remains C4 |
 | C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | Structural cutover complete; broad regression gate remains open on classified, non-Finance baseline failures |
-| C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | In progress: Platform post-commit registrations extracted; service/repository ownership remains |
+| C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | In progress: Platform bootstrap and post-commit registrations moved; mixed repository ownership remains |
 | C6 | Slim root and move only cross-module integrations/global overview wiring under root | Desktop startup, full PM/Platform, PostgreSQL and architecture guards; delete both central registries and obsolete imports | PM bootstrap ownership cut over early; root/Platform slimming remains |
 
 Do not blindly mirror the proposed folder tree. Add a feature subfolder only
@@ -316,6 +316,21 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   annotations no longer reuse one local across different assignment types.
   Targeted mypy, including the Platform registry: four source files clean.
   Focused calendar/PM integration/composition regressions: 60 passed.
+- C5 Platform bootstrap entry-point cutover: the Platform service builder moved
+  from `src/infra/composition/modules/platform_registry.py` to
+  `src/core/platform/infrastructure/composition/bootstrap.py`. All production
+  imports and test path guards moved with it; the old registry was deleted,
+  not retained as a wrapper. The application root imports only Platform's
+  bootstrap from Platform composition, as an architecture test now asserts.
+  Focused composition, startup, Platform event, PM foundation and architecture
+  checks: 63 passed; the existing unrelated 1,200-line guard was deselected
+  after a confirming run failed on the admin controller (1,275) and calendar
+  repository (1,215). The new
+  bootstrap is 1,032 lines, below that limit. The mixed root repository
+  bundle remains the next C5 ownership boundary; this move did not alter
+  service construction or session lifetimes. Mypy is clean for both moved
+  bootstrap modules; root `app_container.py` still has five pre-existing
+  outbox/dispatcher callable contract mismatches.
 
 ## Closure Gates
 

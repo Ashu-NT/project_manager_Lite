@@ -1,3 +1,5 @@
+"""Build the Platform service graph for the application composition root."""
+
 from __future__ import annotations
 
 import logging

@@ -12,7 +12,7 @@ from src.core.modules.project_management.application.financials.rate_cards.rate_
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
     SqlAlchemyRateResolutionReader,
 )
-from src.infra.composition.modules.platform_registry import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
 from src.infra.composition.persistence.repositories import RepositoryBundle
 
 

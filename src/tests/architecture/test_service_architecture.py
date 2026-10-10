@@ -171,7 +171,7 @@ def test_services_module_delegates_to_modular_registration_builders():
 
     assert any(
         isinstance(node, ast.ImportFrom)
-        and node.module == "src.infra.composition.modules.platform_registry"
+        and node.module == "src.core.platform.infrastructure.composition.bootstrap"
         and any(alias.name == "build_platform_service_bundle" for alias in node.names)
         for node in ast.walk(ast.parse(text))
     )
@@ -188,7 +188,10 @@ def test_service_registration_package_is_split_by_platform_and_module():
 
     assert (root / "__init__.py").exists()
     assert (root / "persistence" / "repositories.py").exists()
-    assert (root / "modules" / "platform_registry.py").exists()
+    assert (
+        REPO_ROOT / "src/core/platform/infrastructure/composition/bootstrap.py"
+    ).exists()
+    assert not (root / "modules" / "platform_registry.py").exists()
     assert (
         REPO_ROOT
         / "src/core/modules/project_management/infrastructure/composition/bootstrap.py"
@@ -209,5 +212,19 @@ def test_application_root_uses_only_pm_composition_bootstrap():
     }
     assert pm_composition_imports == {
         "src.core.modules.project_management.infrastructure.composition.bootstrap"
+    }
+
+
+def test_application_root_uses_only_platform_composition_bootstrap():
+    source = (REPO_ROOT / "src/infra/composition/app_container.py").read_text(encoding="utf-8")
+    platform_composition_imports = {
+        node.module
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ImportFrom)
+        and node.module
+        and node.module.startswith("src.core.platform.infrastructure.composition")
+    }
+    assert platform_composition_imports == {
+        "src.core.platform.infrastructure.composition.bootstrap"
     }
 

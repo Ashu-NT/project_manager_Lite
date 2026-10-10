@@ -167,6 +167,9 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
     CalendarProtocol,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.infrastructure.composition.bootstrap import (
+    build_platform_service_bundle,
+)
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver
 from src.core.shared.events.view_invalidation import ViewInvalidationChannel
@@ -175,9 +178,6 @@ from src.infra.composition.global_overview_registry import (
 )
 from src.infra.composition.integration.accounting.accounting_integration import (
     build_accounting_configuration_commands,
-)
-from src.infra.composition.modules.platform_registry import (
-    build_platform_service_bundle,
 )
 from src.infra.composition.persistence.repositories import build_repository_bundle
 from src.infra.integration.approved_time_dispatcher import (

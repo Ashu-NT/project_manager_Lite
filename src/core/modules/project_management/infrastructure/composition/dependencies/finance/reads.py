@@ -25,10 +25,10 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
     SqlAlchemyFinanceSetupReader,
     SqlAlchemyFinanceSnapshotReader,
 )
+from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
 from src.infra.composition.integration.accounting.accounting_integration import (
     build_accounting_capability,
 )
-from src.infra.composition.modules.platform_registry import PlatformServiceBundle
 
 
 def build_finance_workspace_query(

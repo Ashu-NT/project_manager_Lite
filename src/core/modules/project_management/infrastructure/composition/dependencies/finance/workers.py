@@ -25,7 +25,7 @@ from src.core.platform.application.finance.financial_period_service import (
 from src.core.platform.domain.security.identity.service_principal import (
     ServicePrincipal,
 )
-from src.infra.composition.modules.platform_registry import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
 
 
 def build_finance_worker_uow_factory(
