@@ -3,7 +3,7 @@ from pathlib import Path
 
 PM_FINANCE = Path("src/core/modules/project_management/application/financials")
 INNER_SERVICES = (
-    PM_FINANCE / "procurement_consumer.py",
+    PM_FINANCE / "integration/procurement_consumer.py",
     PM_FINANCE / "commitments/commitment_service.py",
 )
 

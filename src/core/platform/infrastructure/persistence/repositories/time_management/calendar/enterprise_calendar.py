@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import date
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -1124,85 +1125,53 @@ class SqlAlchemyCalendarAssignmentRepository(
 
     def count_active_assignments_for_calendar(self, calendar_id: str) -> int:
         ctx = self._context(operation_label="access calendar assignments")
-        site_count = (
+        return sum(
             self._session.execute(
                 _scoped_assignment_stmt(
-                    select(func.count()),
-                    SiteCalendarAssignmentORM,
-                    SiteORM,
-                    SiteCalendarAssignmentORM.site_id,
-                    ctx,
-                ).where(SiteCalendarAssignmentORM.calendar_id == calendar_id)
-            ).scalar()
-            or 0
+                    select(func.count()), assignment_orm, owner_orm, owner_id, ctx,
+                ).where(assignment_orm.calendar_id == calendar_id)
+            ).scalar() or 0
+            for assignment_orm, owner_orm, owner_id in (
+                (SiteCalendarAssignmentORM, SiteORM, SiteCalendarAssignmentORM.site_id),
+                (DepartmentCalendarAssignmentORM, DepartmentORM, DepartmentCalendarAssignmentORM.department_id),
+                (EmployeeCalendarAssignmentORM, EmployeeORM, EmployeeCalendarAssignmentORM.employee_id),
+            )
         )
-        dept_count = (
-            self._session.execute(
-                _scoped_assignment_stmt(
-                    select(func.count()),
-                    DepartmentCalendarAssignmentORM,
-                    DepartmentORM,
-                    DepartmentCalendarAssignmentORM.department_id,
-                    ctx,
-                ).where(DepartmentCalendarAssignmentORM.calendar_id == calendar_id)
-            ).scalar()
-            or 0
-        )
-        emp_count = (
-            self._session.execute(
-                _scoped_assignment_stmt(
-                    select(func.count()),
-                    EmployeeCalendarAssignmentORM,
-                    EmployeeORM,
-                    EmployeeCalendarAssignmentORM.employee_id,
-                    ctx,
-                ).where(EmployeeCalendarAssignmentORM.calendar_id == calendar_id)
-            ).scalar()
-            or 0
-        )
-        return site_count + dept_count + emp_count
 
     def list_sites_using_calendar(
         self, calendar_id: str
     ) -> list[SiteCalendarAssignment]:
-        ctx = self._context(operation_label="access calendar assignments")
-        stmt = _scoped_assignment_stmt(
-            select(SiteCalendarAssignmentORM),
-            SiteCalendarAssignmentORM,
-            SiteORM,
-            SiteCalendarAssignmentORM.site_id,
-            ctx,
-        ).where(SiteCalendarAssignmentORM.calendar_id == calendar_id)
-        rows = self._session.execute(stmt).scalars().all()
-        return [site_assignment_from_orm(r) for r in rows]
+        return self._list_assignments_using_calendar(
+            calendar_id, SiteCalendarAssignmentORM, SiteORM,
+            SiteCalendarAssignmentORM.site_id, site_assignment_from_orm,
+        )
 
     def list_departments_using_calendar(
         self, calendar_id: str
     ) -> list[DepartmentCalendarAssignment]:
-        ctx = self._context(operation_label="access calendar assignments")
-        stmt = _scoped_assignment_stmt(
-            select(DepartmentCalendarAssignmentORM),
-            DepartmentCalendarAssignmentORM,
-            DepartmentORM,
-            DepartmentCalendarAssignmentORM.department_id,
-            ctx,
-        ).where(DepartmentCalendarAssignmentORM.calendar_id == calendar_id)
-        rows = self._session.execute(stmt).scalars().all()
-        return [dept_assignment_from_orm(r) for r in rows]
+        return self._list_assignments_using_calendar(
+            calendar_id, DepartmentCalendarAssignmentORM, DepartmentORM,
+            DepartmentCalendarAssignmentORM.department_id, dept_assignment_from_orm,
+        )
 
     def list_employees_using_calendar(
         self, calendar_id: str
     ) -> list[EmployeeCalendarAssignment]:
+        return self._list_assignments_using_calendar(
+            calendar_id, EmployeeCalendarAssignmentORM, EmployeeORM,
+            EmployeeCalendarAssignmentORM.employee_id, employee_assignment_from_orm,
+        )
+
+    def _list_assignments_using_calendar(
+        self, calendar_id: str, assignment_orm: Any, owner_orm: Any,
+        owner_id: Any, mapper: Callable[[Any], Any],
+    ) -> list[Any]:
         ctx = self._context(operation_label="access calendar assignments")
         stmt = _scoped_assignment_stmt(
-            select(EmployeeCalendarAssignmentORM),
-            EmployeeCalendarAssignmentORM,
-            EmployeeORM,
-            EmployeeCalendarAssignmentORM.employee_id,
-            ctx,
-        ).where(EmployeeCalendarAssignmentORM.calendar_id == calendar_id)
+            select(assignment_orm), assignment_orm, owner_orm, owner_id, ctx,
+        ).where(assignment_orm.calendar_id == calendar_id)
         rows = self._session.execute(stmt).scalars().all()
-        return [employee_assignment_from_orm(r) for r in rows]
+        return [mapper(row) for row in rows]
 
 
 __all__ = [

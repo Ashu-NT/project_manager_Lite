@@ -34,12 +34,8 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
 )
 from src.core.platform.api.desktop.master_data.party.models.party import (
     PartyDto,
+    PartyPageDto,
     PartyRollupSummaryDto,
-)
-from src.core.platform.domain.master_data.party import (
-    PartyLifecycleStatus,
-    coerce_party_roles,
-    coerce_party_type,
 )
 from src.core.platform.api.desktop.master_data.site.models.site import (
     SiteDto,
@@ -75,6 +71,11 @@ from src.core.platform.domain.approval import ApprovalStatus
 from src.core.platform.domain.master_data.org import (
     ORGANIZATION_STATUS_ACTIVE,
     ORGANIZATION_STATUS_INACTIVE,
+)
+from src.core.platform.domain.master_data.party import (
+    PartyLifecycleStatus,
+    coerce_party_roles,
+    coerce_party_type,
 )
 
 
@@ -723,8 +724,12 @@ class FakePlatformDepartmentApi:
 
 
 class FakePlatformEmployeeApi:
-    def __init__(self, rows: tuple[EmployeeDto, ...]) -> None:
+    def __init__(self, rows: tuple[EmployeeDto, ...], runtime_api: FakePlatformRuntimeApi) -> None:
         self._rows = list(rows)
+        self._runtime_api = runtime_api
+
+    def get_context(self) -> DesktopApiResult[OrganizationDto]:
+        return DesktopApiResult(ok=True, data=self._runtime_api.get_runtime_context().data.active_organization)
 
     def list_employees(
         self,
@@ -818,8 +823,10 @@ class FakePlatformEmployeeApi:
         return DesktopApiResult(ok=True, data=rows)
 
     def create_employee(self, command) -> DesktopApiResult[EmployeeDto]:
+        active_organization = self._runtime_api.get_runtime_context().data.active_organization
         employee = EmployeeDto(
             id=f"emp-{len(self._rows) + 1}",
+            organization_id=active_organization.id,
             employee_code=command.employee_code,
             full_name=command.full_name,
             department_id=command.department_id,
@@ -1038,6 +1045,28 @@ class FakePlatformPartyApi:
         if active_only is not None:
             rows = [row for row in rows if row.is_active == active_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def list_parties_page_for_organization(
+        self, organization_id: str, *, page: int = 1, page_size: int = 25,
+        search: str = "", active_only: bool | None = None,
+        party_type: str | None = None, role: str | None = None,
+    ) -> DesktopApiResult[PartyPageDto]:
+        scoped = [row for row in self._rows if row.organization_id == organization_id]
+        rows = scoped
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        if search:
+            needle = search.casefold()
+            rows = [row for row in rows if needle in row.party_name.casefold() or needle in row.party_code.casefold()]
+        if party_type:
+            rows = [row for row in rows if str(row.party_type).casefold() == party_type.casefold()]
+        if role:
+            rows = [row for row in rows if role in row.roles]
+        start = (page - 1) * page_size
+        return DesktopApiResult(ok=True, data=PartyPageDto(
+            items=tuple(rows[start:start + page_size]), total=len(scoped),
+            filtered_total=len(rows), page=page, page_size=page_size,
+        ))
 
     def get_party_rollup_summary(self) -> DesktopApiResult[PartyRollupSummaryDto]:
         return DesktopApiResult(
@@ -1525,7 +1554,7 @@ def build_connected_platform_registry() -> SimpleNamespace:
     )
     site_api = FakePlatformSiteApi(runtime_api=runtime_api, rows=site_rows)
     department_api = FakePlatformDepartmentApi(runtime_api=runtime_api, site_api=site_api, rows=department_rows)
-    employee_api = FakePlatformEmployeeApi(employee_rows)
+    employee_api = FakePlatformEmployeeApi(employee_rows, runtime_api)
     role_rows = (
         RoleDto(id="role-1", name="admin", description="Platform administrators", is_system=True),
         RoleDto(id="role-2", name="viewer", description="Read-only observers", is_system=False),

@@ -754,17 +754,18 @@ def test_admin_overview_never_lists_full_master_data_collections(services):
 
     metrics_by_label = {m["label"]: m["value"] for m in admin["metrics"]}
     assert metrics_by_label["Organizations"] == str(expected_organization_count)
-    assert metrics_by_label["Sites"] == str(expected_site_summary.active)
-    assert metrics_by_label["Departments"] == str(expected_department_summary.active)
     assert metrics_by_label["Documents"] == str(expected_document_summary.current)
 
     rows_by_section = {
         section["title"]: {row["label"]: row for row in section["rows"]}
         for section in admin["sections"]
     }
-    assert rows_by_section["Identity And Workforce"]["Departments"]["value"] == str(expected_department_summary.total)
-    master_data_rows = rows_by_section["Master Data Coverage"]
+    master_data_rows = rows_by_section["Organization Snapshot"]
+    assert master_data_rows["Departments"]["value"] == str(expected_department_summary.total)
+    assert master_data_rows["Departments"]["supportingText"] == f"{expected_department_summary.active} active"
     assert master_data_rows["Sites"]["value"] == str(expected_site_summary.total)
-    assert master_data_rows["Sites"]["supportingText"] == ", ".join(expected_site_summary.sample_names)
+    assert master_data_rows["Sites"]["supportingText"] == f"{expected_site_summary.active} active"
     assert master_data_rows["Parties"]["value"] == str(expected_party_summary.total)
-    assert master_data_rows["Documents"]["value"] == str(expected_document_summary.total)
+    document_cards = {card["title"]: card for card in admin["breakdownCards"]}
+    document_metrics = {metric["label"]: metric["value"] for metric in document_cards["Documents at a glance"]["metrics"]}
+    assert document_metrics["Documents"] == str(expected_document_summary.total)

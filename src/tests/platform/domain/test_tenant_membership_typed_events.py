@@ -562,7 +562,7 @@ def test_issue_invitation_source_never_records_activated():
     )
 
     source = inspect.getsource(TenantMembershipService.issue_invitation)
-    assert "record_event" not in source
+    assert "uow.record_event(TenantInvitationChanged(" in source
     assert "TenantMembershipActivated" not in source
 
 
@@ -572,4 +572,5 @@ def test_revoke_invitation_source_never_records_a_membership_event():
     )
 
     source = inspect.getsource(TenantMembershipService.revoke_invitation)
-    assert "uow.record_event(" not in source
+    assert "uow.record_event(TenantInvitationChanged(" in source
+    assert "TenantMembershipActivated" not in source

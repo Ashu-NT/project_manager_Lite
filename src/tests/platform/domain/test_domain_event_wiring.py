@@ -156,6 +156,7 @@ def test_approve_baseline_request_emits_project_baseline_view_invalidation(servi
     auth = services["auth_service"]
     auth.register_user("planner-baseline", "StrongPass123", role_names=["planner"])
     _login_as(services, "admin", "ChangeMe123!")
+    auth.assign_role(auth.authenticate("admin", "ChangeMe123!").id, "approver")
 
     ps = services["project_service"]
     ts = services["task_service"]

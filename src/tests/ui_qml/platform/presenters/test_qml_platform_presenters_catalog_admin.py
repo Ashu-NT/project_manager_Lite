@@ -41,7 +41,7 @@ def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
     assert users["items"][0]["supportingText"] == "Admin"
 
     assert parties["title"] == "Parties"
-    assert parties["items"][0]["subtitle"] == "SUP-001 | Supplier"
+    assert parties["items"][0]["subtitle"] == "SUP-001"
 
     assert documents["title"] == "Documents"
     assert documents["items"][0]["supportingText"] == "POL - Policies | Version 1.0 | Current"
@@ -59,7 +59,7 @@ def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
     assert len(catalog.adminWorkspace.departmentEditorOptions["siteOptions"]) == 1
     assert len(catalog.adminWorkspace.employeeEditorOptions["departmentOptions"]) == 1
     assert len(catalog.adminWorkspace.userEditorOptions["roleOptions"]) == 2
-    assert len(catalog.adminWorkspace.partyEditorOptions["typeOptions"]) >= 3
+    assert len(catalog.adminWorkspace.partyEditorOptions["typeOptions"]) == 2
     assert len(catalog.adminWorkspace.documentEditorOptions["structureOptions"]) == 2
     assert len(catalog.adminWorkspace.documentStructureEditorOptions["parentOptions"]) == 2
     assert len(access_workspace.scopeTypeOptions) == 3
@@ -125,7 +125,8 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
         {
             "partyCode": "VEN-100",
             "partyName": "Orbit Supply",
-            "partyType": "VENDOR",
+            "partyType": "ORGANIZATION",
+            "roles": ["SUPPLIER"],
             "contactName": "Helen Morris",
             "email": "orbit@example.com",
             "country": "DE",
@@ -216,7 +217,7 @@ def test_platform_workspace_catalog_updates_extended_admin_actions() -> None:
     assert user_by_id["user-2"]["statusLabel"] == "Locked"
     assert user_by_id["user-2"]["state"]["isActive"] is True
     assert user_by_id["user-2"]["supportingText"] == "Planner"
-    assert party_by_id["party-2"]["statusLabel"] == "Active"
+    assert party_by_id["party-2"]["statusLabel"] == {"label": "Active", "tone": "success"}
     assert document_by_id["doc-2"]["state"]["isActive"] is False
     assert catalog.adminWorkspace.feedbackMessage == "Document active state updated."
 

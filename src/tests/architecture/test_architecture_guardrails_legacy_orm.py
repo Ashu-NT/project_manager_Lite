@@ -126,41 +126,45 @@ def test_legacy_platform_admin_ui_package_is_removed():
 
 
 def test_composition_imports_focused_persistence_adapters():
-    repo_path = (
-        ROOT / "src" / "infra" / "composition" / "persistence" / "repositories.py"
+    platform_path = (
+        ROOT / "src/core/platform/infrastructure/composition/dependencies/repositories.py"
     )
-    text = repo_path.read_text(encoding="utf-8", errors="ignore")
+    pm_path = (
+        ROOT / "src/core/modules/project_management/infrastructure/composition/dependencies/repositories.py"
+    )
+    platform_text = platform_path.read_text(encoding="utf-8")
+    pm_text = pm_path.read_text(encoding="utf-8")
 
     assert not (ROOT / "src" / "infra" / "persistence" / "db" / "platform").exists()
-    assert "from infra.platform.db.repositories import" not in text
-    assert "from infra.platform.db.mappers import" not in text
+    assert "from infra.platform.db.repositories import" not in platform_text
+    assert "from infra.platform.db.mappers import" not in platform_text
     assert (
         "from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import"
-        in text
+        in pm_text
     )
     assert (
         "from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import"
-        in text
+        in platform_text
     )
     assert (
         "from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import"
-        in text
+        in platform_text
     )
     assert (
         "from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import"
-        in text
+        in platform_text
     )
     assert (
         "from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import"
-        in text
+        in platform_text
     )
     assert (
         "from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import"
-        in text
+        in platform_text
     )
     assert (
         "from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import"
-        in text
+        in platform_text
     )
 
 

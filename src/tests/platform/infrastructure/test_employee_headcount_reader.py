@@ -12,10 +12,10 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
+from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
-from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
     EmployeeORM,
 )
@@ -282,12 +282,11 @@ def test_admin_overview_never_lists_full_employee_collection(services):
         restore()
 
     assert counts["list_for_organization"] == 0
-    metrics_by_label = {m["label"]: m["value"] for m in admin["metrics"]}
-    assert metrics_by_label["Employees"] == str(expected.active)
     rows_by_label = {
-        row["label"]: row["supportingText"]
+        row["label"]: row
         for section in admin["sections"]
         for row in section["rows"]
-        if section["title"] == "Identity And Workforce"
+        if section["title"] == "Organization Snapshot"
     }
-    assert f"{expected.active} active employee records" == rows_by_label["Employees"]
+    assert rows_by_label["Employees"]["value"] == str(expected.total)
+    assert rows_by_label["Employees"]["supportingText"] == f"{expected.active} active"

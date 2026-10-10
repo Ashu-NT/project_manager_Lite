@@ -444,35 +444,12 @@ def test_repos_and_audit_share_one_session_within_one_operation(services):
         uow._rollback_and_close()
 
 
-def test_no_platform_to_business_module_concrete_infrastructure_import_added():
-    """The Employee-driven Resource sync path must not import PM's concrete
-    ResourceMasterChanged event class into Platform code -- the same AST-based
-    architecture guard as test_platform_does_not_import_business_modules.py,
-    re-run here narrowly against the files this path touches."""
-    import ast
-
-    from src.tests.path_rewrites import REPO_ROOT
-
-    for relative in (
-        "src/core/platform/application/master_data/employee/employee_service.py",
-        "src/core/platform/application/master_data/employee/employee_support.py",
-        "src/core/platform/contract/interface/master_data/employee/contracts.py",
-    ):
-        path = REPO_ROOT / relative
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.module:
-                assert not node.module.startswith("src.core.modules"), (
-                    f"{relative}:{node.lineno} imports {node.module}"
-                )
-
-
 # ---------------------------------------------------------------------------
 # Employee-driven Resource synchronization path
 # ---------------------------------------------------------------------------
 
 
-def test_employee_update_produces_real_resource_mutation_and_typed_event(services):
+def test_employee_update_does_not_mutate_pm_resource_or_emit_pm_event(services):
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
     department = services["department_service"].create_department(
@@ -492,13 +469,11 @@ def test_employee_update_produces_real_resource_mutation_and_typed_event(service
 
     assert updated_employee.full_name == "Alex Updated"
     refreshed = resource_service.get_resource(resource.id)
-    assert refreshed.name == "Alex Updated"  # real Resource row mutation, not just staleness
-    assert refreshed.role == "Senior Engineer"
-    assert refreshed.version == resource.version + 1
-    assert len(master_events) == 1
-    assert master_events[0].resource_id == resource.id
-    assert master_events[0].version == refreshed.version
-    assert master_events[0].change_type == ResourceMasterChangeType.UPDATED
+    assert refreshed.employee_id == employee.id
+    assert refreshed.name == resource.name
+    assert refreshed.role == resource.role
+    assert refreshed.version == resource.version
+    assert master_events == []
 
 
 def test_employee_update_with_no_linked_employee_resource_produces_zero_resource_events(services):

@@ -108,6 +108,8 @@ def _submitted_budget(services, session):
 
 def _request_budget_approval_as_a_different_user(services, budget):
     active_organization_id = services["tenant_context_service"].get_active_organization_id()
+    admin = services["auth_service"].authenticate("admin", "ChangeMe123!")
+    services["auth_service"].assign_role(admin.id, "approver")
     _login_as_fresh_requester(services)
     if active_organization_id:
         services["user_session"].set_active_organization_id(active_organization_id)
@@ -134,21 +136,21 @@ def _request_budget_approval_as_a_different_user(services, budget):
         (
             ApprovalRequested,
             {
-                "approval_id", "tenant_id", "organization_id", "approval_type",
+                "event_id", "approval_id", "tenant_id", "organization_id", "approval_type",
                 "entity_type", "entity_id", "requested_by_user_id", "occurred_at",
             },
         ),
         (
             ApprovalApproved,
             {
-                "approval_id", "tenant_id", "organization_id", "approval_type",
+                "event_id", "approval_id", "tenant_id", "organization_id", "approval_type",
                 "entity_type", "entity_id", "decided_by_user_id", "occurred_at",
             },
         ),
         (
             ApprovalRejected,
             {
-                "approval_id", "tenant_id", "organization_id", "approval_type",
+                "event_id", "approval_id", "tenant_id", "organization_id", "approval_type",
                 "entity_type", "entity_id", "decided_by_user_id", "occurred_at",
             },
         ),

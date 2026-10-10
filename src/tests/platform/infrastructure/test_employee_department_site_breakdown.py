@@ -14,10 +14,10 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
+from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
-from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
     EmployeeORM,
 )
@@ -316,11 +316,10 @@ def test_admin_overview_shows_real_breakdown_cards_not_placeholder(services):
 
     admin = catalog.adminOverview()
 
-    cards_by_title = {card["title"]: card for card in admin["breakdownCards"]}
-    assert "Employees by Department" in cards_by_title
-    assert "Employees by Site" in cards_by_title
-    department_rows = {row["label"]: row for row in cards_by_title["Employees by Department"]["rows"]}
-    assert department_rows["Overview Dept"]["value"] == "1"
+    sections = {section["title"]: section for section in admin["sections"]}
+    snapshot = {row["label"]: row for row in sections["Organization Snapshot"]["rows"]}
+    assert snapshot["Employees"]["value"] == "1"
+    assert snapshot["Departments"]["value"] == "1"
     # The old hardcoded backlog placeholder text must be gone entirely.
     assert "Not yet available" not in str(admin)
     assert "tracked as backlog" not in str(admin)

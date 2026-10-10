@@ -354,7 +354,7 @@ def test_evm_series_keeps_one_scoped_reader_without_rate_revaluation() -> None:
 
 
 def test_evm_series_runtime_reader_proof_remains_present() -> None:
-    registry = (PM_COMPOSITION / "reporting.py").read_text(encoding="utf-8")
+    registry = (PM_COMPOSITION / "reporting/services.py").read_text(encoding="utf-8")
     source = inspect.getsource(ReportingEvmSeriesMixin._make_evm_series_calculator)
 
     assert "evm_series_reader=SqlAlchemyEvmSeriesReader(session=session)" in registry
@@ -402,7 +402,7 @@ def test_reporting_financial_reads_keep_evm_rate_independent() -> None:
 
 
 def test_reporting_financial_runtime_reader_proof_remains_present() -> None:
-    registry = (PM_COMPOSITION / "reporting.py").read_text(encoding="utf-8")
+    registry = (PM_COMPOSITION / "reporting/services.py").read_text(encoding="utf-8")
     source = inspect.getsource(ReportingCostPolicyMixin._compose_finance_policy)
 
     assert "finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session)" in registry
@@ -450,7 +450,7 @@ def test_phase6_reporting_uses_canonical_finance_composition() -> None:
 def test_portfolio_capacity_uses_one_scoped_reader_and_bulk_calendar_snapshot() -> None:
     source = inspect.getsource(PortfolioResourcePoolService)
     get_pool_source = inspect.getsource(PortfolioResourcePoolService.get_pool_report)
-    registry = (PM_COMPOSITION / "portfolio.py").read_text(encoding="utf-8")
+    registry = (PM_COMPOSITION / "portfolio/services.py").read_text(encoding="utf-8")
     reader_source = PORTFOLIO_POOL_READER.read_text(encoding="utf-8")
 
     assert get_pool_source.count("self._reader.read_facts(") == 1
@@ -475,7 +475,7 @@ def test_portfolio_scenarios_use_one_scoped_fact_graph_and_shared_load_engine() 
     acquisition_source = inspect.getsource(PortfolioScenarioQueryMixin._read_scenario_facts)
     scenario_source = inspect.getsource(PortfolioScenarioQueryMixin)
     reporting_source = inspect.getsource(ReportingKpiMixin.get_resource_load_summary)
-    registry = (PM_COMPOSITION / "portfolio.py").read_text(encoding="utf-8")
+    registry = (PM_COMPOSITION / "portfolio/services.py").read_text(encoding="utf-8")
     reader_source = PORTFOLIO_SCENARIO_READER.read_text(encoding="utf-8")
 
     assert acquisition_source.count("self._scenario_reader.read_facts(") == 1
@@ -505,7 +505,7 @@ def test_portfolio_scenarios_use_one_scoped_fact_graph_and_shared_load_engine() 
 def test_portfolio_heatmap_uses_one_scoped_fact_graph_and_pure_policy_engines() -> None:
     heatmap_source = inspect.getsource(PortfolioExecutiveQueryMixin.list_portfolio_heatmap)
     source = inspect.getsource(PortfolioExecutiveQueryMixin)
-    registry = (PM_COMPOSITION / "portfolio.py").read_text(encoding="utf-8")
+    registry = (PM_COMPOSITION / "portfolio/services.py").read_text(encoding="utf-8")
     reader_source = PORTFOLIO_HEATMAP_READER.read_text(encoding="utf-8")
 
     assert heatmap_source.count("self._heatmap_reader.read_facts(") == 1
@@ -559,7 +559,7 @@ def test_collaboration_cross_project_reads_use_purpose_specific_scoped_readers()
     support_source = inspect.getsource(CollaborationSupportMixin)
     inbox_source = inspect.getsource(CollaborationInboxQueryMixin)
     presence_source = inspect.getsource(CollaborationPresenceQueryMixin.list_active_presence)
-    registry = (PM_COMPOSITION / "collaboration.py").read_text(encoding="utf-8")
+    registry = (PM_COMPOSITION / "collaboration/services.py").read_text(encoding="utf-8")
     reader_source = COLLABORATION_WORKSPACE_READER.read_text(encoding="utf-8")
 
     assert "filter_project_rows(" in support_source

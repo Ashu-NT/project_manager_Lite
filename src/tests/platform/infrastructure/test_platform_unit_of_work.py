@@ -85,6 +85,7 @@ def test_approval_request_commits_via_the_platform_uow(tmp_path):
     factory = _factory(tmp_path)
     request = ApprovalRequest.create(
         request_type="budget.approve",
+        decision_permission="budget.approve",
         entity_type="project_budget",
         entity_id="budget-1",
         tenant_id="tenant-a",
@@ -157,6 +158,7 @@ def test_approval_request_mapper_round_trips_tenant_and_organization_id():
         id="req-1",
         tenant_id="T1",
         request_type="budget.approve",
+        decision_permission="budget.approve",
         entity_type="project_budget",
         entity_id="budget-1",
         organization_id="O1",

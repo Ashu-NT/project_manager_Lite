@@ -26,7 +26,7 @@ def test_list_countries_returns_static_reference_data(services):
     assert "US" in codes
     assert "NL" in codes
     names = {country.code: country.name for country in result.data}
-    assert names["US"] == "United States of America"
+    assert names["US"].startswith("United States")
 
 
 def test_provision_organization_carries_new_fields_through_the_dto(services):

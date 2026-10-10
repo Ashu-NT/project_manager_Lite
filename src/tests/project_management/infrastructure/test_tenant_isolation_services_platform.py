@@ -216,6 +216,7 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
                 "department.read",
                 "party.read",
                 "settings.manage",
+                "calendar.read",
                 "task.read",
             }
         ),

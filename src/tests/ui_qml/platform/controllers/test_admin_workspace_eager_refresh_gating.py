@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.application.master_data.employee.employee_service import (
     EmployeeService,
 )
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 
@@ -51,24 +51,11 @@ def test_admin_console_refresh_skips_entities_the_session_cannot_access(services
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
 
-    user_session = services["user_session"]
-    original_principal = user_session.principal
-    # Zero permissions -- no entity's gate is satisfied, and (unlike a
-    # single-permission principal) nothing can incidentally pull in
-    # another entity's data as editor-dropdown reference options (e.g.
-    # Employees' refresh also populates its site/department dropdowns via
-    # list_sites()/list_departments() regardless of Sites/Departments
-    # access -- a deliberate, separate concern from workspace-page access,
-    # not something this gate is meant to touch).
-    restricted_principal = UserSessionPrincipal(
-        user_id=original_principal.user_id,
-        username=original_principal.username,
-        display_name=original_principal.display_name,
-        role_names=frozenset(),
-        permissions=frozenset(),
-    )
-    user_session.set_principal(restricted_principal)
-    catalog.refreshCurrentPermissions()
+    class NoEntityPermissionsRuntimeApi:
+        def get_current_permissions(self):
+            return DesktopApiResult(ok=True, data=())
+
+    catalog.adminWorkspace._runtime_api = NoEntityPermissionsRuntimeApi()
 
     employee_counts, restore_employee = _instrument(
         EmployeeService, "list_employees_page_for_organization"
@@ -79,8 +66,6 @@ def test_admin_console_refresh_skips_entities_the_session_cannot_access(services
     finally:
         restore_employee()
         restore_site()
-        user_session.set_principal(original_principal)
-        catalog.refreshCurrentPermissions()
 
     assert employee_counts["list_employees_page_for_organization"] == 0
     assert site_counts["list_sites"] == 0
@@ -94,17 +79,11 @@ def test_admin_console_refresh_selectively_includes_only_granted_entities(servic
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
 
-    user_session = services["user_session"]
-    original_principal = user_session.principal
-    restricted_principal = UserSessionPrincipal(
-        user_id=original_principal.user_id,
-        username=original_principal.username,
-        display_name=original_principal.display_name,
-        role_names=frozenset({"party_viewer"}),
-        permissions=frozenset({"party.read"}),
-    )
-    user_session.set_principal(restricted_principal)
-    catalog.refreshCurrentPermissions()
+    class PartyOnlyRuntimeApi:
+        def get_current_permissions(self):
+            return DesktopApiResult(ok=True, data=("party.read",))
+
+    catalog.adminWorkspace._runtime_api = PartyOnlyRuntimeApi()
 
     employee_counts, restore_employee = _instrument(
         EmployeeService, "list_employees_page_for_organization"
@@ -117,8 +96,6 @@ def test_admin_console_refresh_selectively_includes_only_granted_entities(servic
     finally:
         restore_employee()
         restore_party()
-        user_session.set_principal(original_principal)
-        catalog.refreshCurrentPermissions()
 
     assert party_counts["list_parties_page_for_organization"] >= 1
     assert employee_counts["list_employees_page_for_organization"] == 0
