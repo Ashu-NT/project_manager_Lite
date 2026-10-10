@@ -74,7 +74,6 @@ def build_billing_preparation_approval_deps(
         labor_posting_repo=labor_posting_repo,
         rate_resolver=rate_resolver,
         financial_period_service=financial_period_service,
-        approval_service=None,
         tenant_context_service=tenant_context_service,
         clock=clock,
         user_session=user_session,

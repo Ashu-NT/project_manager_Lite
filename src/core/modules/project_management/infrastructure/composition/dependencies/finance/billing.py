@@ -41,7 +41,6 @@ def build_billing_services(
         labor_posting_repo=repositories.pm.approved_time_labor_posting_repo,
         rate_resolver=rate_resolver,
         financial_period_service=platform_services.financial_period_service,
-        approval_service=platform_services.approval_service,
         tenant_context_service=platform_services.tenant_context_service,
         clock=clock,
         user_session=platform_services.user_session,

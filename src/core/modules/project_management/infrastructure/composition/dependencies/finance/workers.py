@@ -12,6 +12,9 @@ from src.core.modules.project_management.application.financials import (
     ProjectCostEntryService,
     RateCardResolver,
 )
+from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import (
+    FinanceGovernanceUnitOfWork,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
     SqlAlchemyRateResolutionReader,
 )
@@ -46,10 +49,12 @@ def build_finance_worker_consumers(
     *,
     clock: SystemClock,
 ) -> tuple[
-    Callable[[SqlAlchemyFinanceGovernanceUnitOfWork, ServicePrincipal], ApprovedTimeLaborCostConsumer],
-    Callable[[SqlAlchemyFinanceGovernanceUnitOfWork, ServicePrincipal], ProcurementFinancialConsumer],
+    Callable[[FinanceGovernanceUnitOfWork, ServicePrincipal], ApprovedTimeLaborCostConsumer],
+    Callable[[FinanceGovernanceUnitOfWork, ServicePrincipal], ProcurementFinancialConsumer],
 ]:
-    def build_cost_service(uow: SqlAlchemyFinanceGovernanceUnitOfWork) -> ProjectCostEntryService:
+    def build_cost_service(uow: FinanceGovernanceUnitOfWork) -> ProjectCostEntryService:
+        if not isinstance(uow, SqlAlchemyFinanceGovernanceUnitOfWork):
+            raise TypeError("Finance worker requires the SQLAlchemy unit of work")
         worker_rate_resolver = RateCardResolver(
             reader=SqlAlchemyRateResolutionReader(session=uow._session),
             tenant_context_service=platform_services.tenant_context_service,
@@ -81,7 +86,7 @@ def build_finance_worker_consumers(
         )
 
     def build_approved_time_consumer(
-        uow: SqlAlchemyFinanceGovernanceUnitOfWork,
+        uow: FinanceGovernanceUnitOfWork,
         principal: ServicePrincipal,
     ) -> ApprovedTimeLaborCostConsumer:
         return ApprovedTimeLaborCostConsumer(
@@ -90,9 +95,11 @@ def build_finance_worker_consumers(
         )
 
     def build_procurement_consumer(
-        uow: SqlAlchemyFinanceGovernanceUnitOfWork,
+        uow: FinanceGovernanceUnitOfWork,
         principal: ServicePrincipal,
     ) -> ProcurementFinancialConsumer:
+        if not isinstance(uow, SqlAlchemyFinanceGovernanceUnitOfWork):
+            raise TypeError("Finance worker requires the SQLAlchemy unit of work")
         worker_commitment_service = ProjectCommitmentService(
             session=uow._session,
             commitment_repo=uow.commitments,

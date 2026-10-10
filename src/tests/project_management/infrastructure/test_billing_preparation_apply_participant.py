@@ -369,10 +369,10 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
             service_a._enterprise_audit_service
         ), "the fresh FinancialPeriodService should share this factory's fresh audit service"
 
-        assert service_a._approval_service is None, (
+        assert not hasattr(service_a, "_approval_service"), (
             "the apply path must never reach back into ApprovalService"
         )
-        assert service_b._approval_service is None
+        assert not hasattr(service_b, "_approval_service")
     finally:
         session_a.close()
         session_b.close()

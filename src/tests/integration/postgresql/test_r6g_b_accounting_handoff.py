@@ -140,7 +140,6 @@ def boundary(environment, scope, actor, *, barrier=None):
             labor_posting_repo=uow.labor_postings,
             rate_resolver=None,
             financial_period_service=None,
-            approval_service=None,
             tenant_context_service=scope,
             clock=SystemClock(),
             user_session=user,

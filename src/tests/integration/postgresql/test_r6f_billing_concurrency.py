@@ -228,7 +228,7 @@ def test_governed_billing_reservation_atomicity(postgres_test_environment, billi
         service = ProjectBillingPreparationService(
             session=uow._session, billing_repo=uow.billing, financial_profile_repo=uow.profiles,
             cost_entry_repo=uow.cost_entries, labor_posting_repo=uow.labor_postings,
-            rate_resolver=None, financial_period_service=None, approval_service=None,
+            rate_resolver=None, financial_period_service=None,
             tenant_context_service=scope, clock=SystemClock(), user_session=user_session,
             enterprise_audit_service=audit, record_event=uow.record_event,
         )
@@ -326,7 +326,7 @@ def test_governed_billing_application_race(postgres_test_environment, billing_sc
         service = ProjectBillingPreparationService(
             session=uow._session, billing_repo=uow.billing, financial_profile_repo=uow.profiles,
             cost_entry_repo=uow.cost_entries, labor_posting_repo=uow.labor_postings,
-            rate_resolver=None, financial_period_service=None, approval_service=None,
+            rate_resolver=None, financial_period_service=None,
             tenant_context_service=scope, clock=SystemClock(), user_session=user,
             enterprise_audit_service=uow._enterprise_audit_service, record_event=uow.record_event,
         )

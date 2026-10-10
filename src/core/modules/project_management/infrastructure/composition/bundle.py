@@ -73,11 +73,13 @@ from src.core.modules.project_management.application.scheduling.calendars.projec
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
+from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import (
+    FinanceGovernanceUnitOfWork,
+)
 from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
 )
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
-    SqlAlchemyFinanceGovernanceUnitOfWork,
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
 from src.core.platform.application.time_management.time import TimeService
@@ -110,11 +112,11 @@ class ProjectManagementServiceBundle:
     cost_entry_service: ProjectCostEntryService
     finance_worker_uow_factory: SqlAlchemyFinanceGovernanceUnitOfWorkFactory
     approved_time_consumer_factory: Callable[
-        [SqlAlchemyFinanceGovernanceUnitOfWork, ServicePrincipal],
+        [FinanceGovernanceUnitOfWork, ServicePrincipal],
         ApprovedTimeLaborCostConsumer,
     ]
     procurement_consumer_factory: Callable[
-        [SqlAlchemyFinanceGovernanceUnitOfWork, ServicePrincipal],
+        [FinanceGovernanceUnitOfWork, ServicePrincipal],
         ProcurementFinancialConsumer,
     ]
     commitment_service: ProjectCommitmentService

@@ -102,8 +102,11 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
             name=PROCUREMENT_FINANCE_PRINCIPAL_NAME
         ),
     )
+    def dispatch_approved_time() -> None:
+        _approved_time_financial_dispatcher.dispatch_pending()
+
     project_management_services.time_service.set_approved_time_dispatcher(
-        _approved_time_financial_dispatcher.dispatch_pending
+        dispatch_approved_time
     )
     try:
         _approved_time_financial_dispatcher.dispatch_pending(limit=50)

@@ -68,7 +68,6 @@ from src.core.modules.project_management.gateway.billing.accounting_billing impo
 from src.core.platform.application.approval.approval_mutation_participant import (
     request_approval_using,
 )
-from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.finance.financial_period_service import (
     FinancialPeriodService,
 )
@@ -101,7 +100,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         labor_posting_repo: ApprovedTimeLaborPostingRepository,
         rate_resolver: RateCardResolver,
         financial_period_service: FinancialPeriodService,
-        approval_service: ApprovalService,
         tenant_context_service: TenantContextService,
         clock: Clock,
         user_session=None,
@@ -117,7 +115,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self._labor_posting_repo = labor_posting_repo
         self._rate_resolver = rate_resolver
         self._financial_period_service = financial_period_service
-        self._approval_service = approval_service
         self._tenant_context_service = tenant_context_service
         self._clock = clock
         self._user_session = user_session

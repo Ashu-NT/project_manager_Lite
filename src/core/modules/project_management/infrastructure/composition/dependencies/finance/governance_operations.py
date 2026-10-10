@@ -206,7 +206,6 @@ def build_finance_governance_operations_factory(
             labor_posting_repo=uow.labor_postings,
             rate_resolver=governed_rate_resolver,
             financial_period_service=governed_financial_period_service,
-            approval_service=platform_services.approval_service,
             tenant_context_service=platform_services.tenant_context_service,
             clock=clock,
             user_session=platform_services.user_session,

@@ -7,6 +7,10 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.repositories.integration.delivery import (
+    IntegrationInboxRepository,
+    IntegrationOutboxRepository,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
@@ -36,7 +40,9 @@ def _envelope(row: Any) -> IntegrationEventEnvelope:
     return envelope
 
 
-class SqlAlchemyIntegrationOutboxRepository(TenantScopedRepositorySupport):
+class SqlAlchemyIntegrationOutboxRepository(
+    TenantScopedRepositorySupport, IntegrationOutboxRepository
+):
     _repository_label = "Integration outbox repository"
 
     def __init__(self, session: Session, *, orm_type: type[Any], owner_module: str) -> None:
@@ -168,7 +174,9 @@ class SqlAlchemyIntegrationOutboxRepository(TenantScopedRepositorySupport):
         )
 
 
-class SqlAlchemyIntegrationInboxRepository(TenantScopedRepositorySupport):
+class SqlAlchemyIntegrationInboxRepository(
+    TenantScopedRepositorySupport, IntegrationInboxRepository
+):
     _repository_label = "Integration inbox repository"
 
     def __init__(self, session: Session, *, orm_type: type[Any]) -> None:
