@@ -1,6 +1,6 @@
 # ERP Application Boundary Modernization: Audit and Plan
 
-Status: audit complete; implementation not started (2026-10-10).
+Status: A0-A3 complete; A4 current (2026-10-10). A5-A6 not started.
 
 ## Executive Decision
 
@@ -289,6 +289,49 @@ Platform application -> desktop dependency and establishes DTO classification
 tests before the more hazardous Project pilot. A2 should not start until A1
 is accepted and its desktop runtime contract is green. A3/A4 may be batched
 by capability after A2 demonstrates a safe handler/facade pattern.
+
+### Implementation Evidence (2026-10-10)
+
+**A1 complete.** `ModuleRuntimeSnapshot` and immutable scalar runtime facts
+now live under `platform/contract/use_cases/platform_runtime`; the builder
+lives in Platform application, and desktop service-dictionary resolution stays
+in the desktop adapter. The application no longer imports that adapter.
+The new architecture test guards Platform and PM application/contract imports
+from API adapters and checks that the runtime snapshot contains no domain
+module or entitlement aggregates. Focused Platform runtime/boundary tests:
+36 passed (including PM desktop architecture guards). No HTTP adapter was
+added.
+
+**A2 complete.** PM composition now injects explicit Project create, update,
+status, deletion and query handlers into a thin guarded `ProjectService`.
+The five operation mixins were retired; `ProjectSupportMixin` remains as a
+feature-specific shared write-policy helper used by create/update handlers,
+both of which declare their dependencies explicitly. The catalog read item
+contains an immutable `ProjectCatalogProjectFact` rather than a domain
+`Project`. SQL reader mapping no longer calls `project_from_orm` for catalog
+rows. Shared Project create/update commands moved from the desktop commands
+file to `contracts/use_cases/projects`; the old command file was deleted.
+The desktop API still exposes its own presentation DTOs and works with the
+neutral input classes. Project CRUD, audit/rollback, tenant isolation, budget
+redaction, sort/page and desktop tests passed: 71 targeted; the broader PM
+application suite passed 1,238 with 2 skipped. Dedicated PostgreSQL runtime
+role/RLS tests passed 14. Targeted Project mypy and scoped Ruff F/I passed.
+No broad Platform/PM suite or full PostgreSQL suite has run yet; those remain
+mandatory A6 gates. A2 did not alter any financial calculation or schema.
+
+**A3 complete by deliberate retention.** Finance workspace's eight query
+mixins are already feature-grouped but share a single permission-aware
+lookup/scope path; Performance's four query mixins share canonical EVM and
+basis authorities. Neither facade owns mutable write state or transaction
+commit. Splitting them now would introduce eight-plus handler objects,
+delegating wrappers and a new shared policy object, while their sole current
+production caller remains the Finance desktop read facade. That increases
+coupling and risks duplicating finance permissions/basis without a demonstrated
+narrow consumer. Per the approved gate rule, retain these read-only query
+aggregators as justified mixins. R6B destination, Performance, canonical
+read-model and variance regression: 77 passed. This is an explicit A3
+decision, not accidental unfinished migration. Revisit only if a real second
+consumer or measured constructor/query problem emerges. A4-A6 remain open.
 
 ## Risk and Verification Matrix
 

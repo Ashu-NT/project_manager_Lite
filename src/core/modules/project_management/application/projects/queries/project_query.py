@@ -97,6 +97,7 @@ class ProjectQueryHandler:
         )
         if self._project_catalog_reader is None or self._tenant_context_service is None:
             raise RuntimeError("Project catalog reader is not configured.")
+        reader = self._project_catalog_reader
         page_request = PageRequest(page=page, page_size=page_size)
         sort = ReadSort.normalize(
             key=sort_key,
@@ -123,35 +124,36 @@ class ProjectQueryHandler:
                 sorted(self._user_session.project_ids_for("project.read"))
             )
         finance_allowed_project_ids = self._finance_allowed_project_ids()
-        read_kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            allowed_project_ids=allowed_project_ids,
-            finance_allowed_project_ids=finance_allowed_project_ids,
-            search_text=str(search_text or "").strip(),
-            status=status,
-            project_name=project_name,
-            client_name=client_name,
-            site_id=site_id,
-            department_id=department_id,
-            manager_user_id=manager_user_id,
-            start_date_from=start_date_from,
-            start_date_to=start_date_to,
-            end_date_from=end_date_from,
-            end_date_to=end_date_to,
-            page=page_request.page,
-            page_size=page_request.page_size,
-            sort=sort,
-        )
-        result = self._project_catalog_reader.read_page(**read_kwargs)
+        def read_page(page_number: int) -> ProjectCatalogReadPage:
+            return reader.read_page(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                allowed_project_ids=allowed_project_ids,
+                finance_allowed_project_ids=finance_allowed_project_ids,
+                search_text=str(search_text or "").strip(),
+                status=status,
+                project_name=project_name,
+                client_name=client_name,
+                site_id=site_id,
+                department_id=department_id,
+                manager_user_id=manager_user_id,
+                start_date_from=start_date_from,
+                start_date_to=start_date_to,
+                end_date_from=end_date_from,
+                end_date_to=end_date_to,
+                page=page_number,
+                page_size=page_request.page_size,
+                sort=sort,
+            )
+
+        result = read_page(page_request.page)
         normalized_page = normalize_page_for_total(
             page=result.page,
             page_size=result.page_size,
             total=result.filtered_total,
         )
         if normalized_page != result.page:
-            read_kwargs["page"] = normalized_page
-            result = self._project_catalog_reader.read_page(**read_kwargs)
+            result = read_page(normalized_page)
         return replace(
             result,
             approved_budget_visible=self._can_read_any_project_finance(),
@@ -196,6 +198,7 @@ class ProjectQueryHandler:
                                    operation_label="view project resources")
         if self._project_catalog_reader is None or self._tenant_context_service is None:
             raise RuntimeError("Project catalog reader is not configured.")
+        reader = self._project_catalog_reader
         request = PageRequest(page=page, page_size=page_size)
         sort = ReadSort.normalize(
             key=sort_key, direction=sort_direction,
@@ -205,15 +208,18 @@ class ProjectQueryHandler:
         )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view project resources")
-        kwargs = dict(tenant_id=scope.tenant_id, organization_id=scope.organization_id,
-                      project_id=normalized_id, search_text=str(search_text or "").strip(),
-                      active=active, page=request.page, page_size=request.page_size, sort=sort)
-        result = self._project_catalog_reader.read_resources_page(**kwargs)
+        def read_page(page_number: int) -> ProjectResourceDetailPage:
+            return reader.read_resources_page(
+                tenant_id=scope.tenant_id, organization_id=scope.organization_id,
+                project_id=normalized_id, search_text=str(search_text or "").strip(),
+                active=active, page=page_number, page_size=request.page_size, sort=sort,
+            )
+
+        result = read_page(request.page)
         normalized_page = normalize_page_for_total(page=result.page, page_size=result.page_size,
                                                    total=result.filtered_total)
         if normalized_page != result.page:
-            kwargs["page"] = normalized_page
-            result = self._project_catalog_reader.read_resources_page(**kwargs)
+            result = read_page(normalized_page)
         return result
 
     def query_project_activity_page(
@@ -225,21 +231,26 @@ class ProjectQueryHandler:
                                    operation_label="view project activity")
         if self._project_catalog_reader is None or self._tenant_context_service is None:
             raise RuntimeError("Project catalog reader is not configured.")
+        reader = self._project_catalog_reader
         request = PageRequest(page=page, page_size=page_size)
         normalized_category = str(category or "all").strip().lower()
         if normalized_category not in {"all", "project", "resources"}:
             normalized_category = "all"
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view project activity")
-        kwargs = dict(tenant_id=scope.tenant_id, organization_id=scope.organization_id,
-                      project_id=normalized_id, search_text=str(search_text or "").strip(),
-                      category=normalized_category, page=request.page, page_size=request.page_size)
-        result = self._project_catalog_reader.read_activity_page(**kwargs)
+        def read_page(page_number: int) -> ProjectActivityPage:
+            return reader.read_activity_page(
+                tenant_id=scope.tenant_id, organization_id=scope.organization_id,
+                project_id=normalized_id, search_text=str(search_text or "").strip(),
+                category=normalized_category, page=page_number,
+                page_size=request.page_size,
+            )
+
+        result = read_page(request.page)
         normalized_page = normalize_page_for_total(page=result.page, page_size=result.page_size,
                                                    total=result.filtered_total)
         if normalized_page != result.page:
-            kwargs["page"] = normalized_page
-            result = self._project_catalog_reader.read_activity_page(**kwargs)
+            result = read_page(normalized_page)
         return result
 
     def _finance_allowed_project_ids(self) -> tuple[str, ...] | None:

@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from sqlalchemy import and_, case, func, literal, or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.core.modules.project_management.contracts.reads.projects import (
     ProjectActivityFact,
@@ -262,12 +263,12 @@ class SqlAlchemyProjectCatalogReader:
         if allowed_project_ids == ():
             return ProjectCatalogReadPage(page=page, page_size=page_size)
 
-        scope_filters = (
+        scope_filters: list[ColumnElement[bool]] = [
             ProjectORM.tenant_id == tenant_id,
             ProjectORM.organization_id == organization_id,
-        )
+        ]
         if allowed_project_ids is not None:
-            scope_filters = (*scope_filters, ProjectORM.id.in_(allowed_project_ids))
+            scope_filters.append(ProjectORM.id.in_(allowed_project_ids))
 
         status_rows = self._session.execute(
             select(ProjectORM.status, func.count(ProjectORM.id))
@@ -516,7 +517,7 @@ class SqlAlchemyProjectCatalogReader:
         if finance_allowed_project_ids == ():
             return literal(None), literal(""), literal(False)
 
-        finance_scope_filters = ()
+        finance_scope_filters: tuple[ColumnElement[bool], ...] = ()
         if finance_allowed_project_ids is not None:
             finance_scope_filters = (ProjectORM.id.in_(finance_allowed_project_ids),)
 
