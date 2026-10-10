@@ -331,6 +331,32 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   service construction or session lifetimes. Mypy is clean for both moved
   bootstrap modules; root `app_container.py` still has five pre-existing
   outbox/dispatcher callable contract mismatches.
+- C5 Platform feature-folder extraction: the existing event registrations now
+  live under `events/{master_data,security,tenancy,notifications,approvals}`;
+  flat event modules were deleted. Shared enterprise-calendar construction and
+  cache invalidation wiring moved to `dependencies/time/calendar.py`, employee
+  construction to `dependencies/master_data/employee.py`, authorization scope
+  resolvers to `registrations/security/scope_resolvers.py`, and local-only
+  tenant defaults to `registrations/tenancy/local_defaults.py`. The shared
+  document, party, site, and department service/UoW group moved to
+  `dependencies/master_data/catalog.py`. Bootstrap still
+  owns their order and returns one Platform bundle. Authentication/session-hook
+  assembly moved to `dependencies/security/auth.py`, reusing the same overview
+  reader instance as master-data consumers. Shared tenant/session construction
+  moved to `dependencies/tenancy/context.py`, preserving the single user session
+  and repository tenant-context injection. Targeted mypy: 16 files clean;
+  focused auth, master-data, event, calendar, notification and composition
+  regressions: 32 passed, followed by 44 passed and 2 skipped after the auth
+  extraction; tenant/auth follow-up: 26 passed; master-data follow-up:
+  48 passed. Notification delivery and Approval construction moved to
+  `dependencies/notifications/delivery.py` and
+  `dependencies/approvals/approval.py`; the former retains fresh scoped
+  delivery sessions, the latter retains fresh Approval UoW sessions. Targeted
+  mypy: 20 files clean; focused notification/Approval checks: 19 passed;
+  combined final composition/master-data/calendar/startup check: 28 passed.
+  The remaining constructors in
+  bootstrap have not yet been
+  extracted; C5 is not closed.
 
 ## Closure Gates
 

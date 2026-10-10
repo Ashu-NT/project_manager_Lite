@@ -228,3 +228,26 @@ def test_application_root_uses_only_platform_composition_bootstrap():
         "src.core.platform.infrastructure.composition.bootstrap"
     }
 
+
+def test_platform_composition_groups_extracted_wiring_by_capability():
+    composition = REPO_ROOT / "src/core/platform/infrastructure/composition"
+    for path in (
+        "dependencies/master_data/employee.py",
+        "dependencies/master_data/catalog.py",
+        "dependencies/security/auth.py",
+        "dependencies/tenancy/context.py",
+        "dependencies/notifications/delivery.py",
+        "dependencies/approvals/approval.py",
+        "dependencies/time/calendar.py",
+        "registrations/security/scope_resolvers.py",
+        "registrations/tenancy/local_defaults.py",
+        "events/master_data/view_invalidation.py",
+        "events/security/view_invalidation.py",
+        "events/tenancy/view_invalidation.py",
+        "events/notifications/approval_notifications.py",
+        "events/approvals/view_invalidation.py",
+    ):
+        assert (composition / path).is_file(), path
+    for stale in ("master_data", "security", "tenancy", "notifications", "approvals"):
+        assert not (composition / "events" / f"{stale}.py").exists()
+

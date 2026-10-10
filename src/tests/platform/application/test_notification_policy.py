@@ -17,7 +17,7 @@ from src.core.modules.project_management.infrastructure.composition.registration
 )
 from src.core.platform.domain.approval.events import ApprovalApproved, ApprovalRequested
 from src.core.platform.domain.tenant.tenancy.events import TenantInvitationChanged
-from src.core.platform.infrastructure.composition.events.notifications import (
+from src.core.platform.infrastructure.composition.events.notifications.approval_notifications import (
     register_platform_notification_policy,
 )
 from src.infra.events.in_process_transactional_event_dispatcher import (
@@ -48,7 +48,7 @@ class _ApprovalRepo:
 def _platform_dispatch(monkeypatch, event):
     writes = []
     monkeypatch.setattr(
-        "src.core.platform.infrastructure.composition.events.notifications.enqueue_notification_work",
+        "src.core.platform.infrastructure.composition.events.notifications.approval_notifications.enqueue_notification_work",
         lambda session, **kwargs: writes.append(kwargs),
     )
     dispatcher = InProcessTransactionalEventDispatcher()

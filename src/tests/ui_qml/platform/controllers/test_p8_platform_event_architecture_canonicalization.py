@@ -255,7 +255,7 @@ def test_no_service_locator_pattern_reintroduced_in_composition_roots():
         "src.ui_qml.platform.context",
         "src.ui_qml.modules.project_management.context",
         "src.core.platform.infrastructure.composition.bootstrap",
-        "src.core.platform.infrastructure.composition.events.master_data",
+        "src.core.platform.infrastructure.composition.events.master_data.view_invalidation",
     ):
         import importlib
 
