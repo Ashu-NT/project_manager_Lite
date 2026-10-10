@@ -26,9 +26,6 @@ class _FakeSession:
     def flush(self) -> None:
         return None
 
-    def flush(self) -> None:
-        return None
-
     def rollback(self) -> None:
         return None
 
@@ -232,6 +229,11 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
     )
     organization_repo = _FakeOrganizationRepo()
     enterprise_audit_service = _FakeEnterpriseAuditService()
+
+    class _FakeDefaultCalendarWriter:
+        def add_default_calendar(self, session, organization) -> None:
+            pass
+
     return OrganizationService(
         session=_FakeSession(),
         organization_repo=organization_repo,
@@ -239,6 +241,7 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
         clock=_FakeClock(),
         user_session=_FakeUserSession(),
         enterprise_audit_service=enterprise_audit_service,
+        default_calendar_writer=_FakeDefaultCalendarWriter(),
     )
 
 

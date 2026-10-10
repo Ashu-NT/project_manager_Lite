@@ -25,6 +25,7 @@ from src.infra.events.in_process_transactional_event_dispatcher import (
 )
 from src.infra.platform.operational_support import current_trace_id
 from src.infra.platform.security_config import RuntimeSecurityConfiguration
+from src.infra.time.system_clock import SystemClock
 
 
 def build_auth_service(
@@ -72,6 +73,7 @@ def build_auth_service(
         ),
         transactional_dispatcher=transactional_dispatcher,
         post_commit_bus=post_commit_bus,
+        clock=SystemClock(),
     )
     tenant_context_service.set_principal_rebuilder(
         auth_service.rebuild_current_principal_for_context

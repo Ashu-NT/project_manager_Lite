@@ -63,6 +63,7 @@ def _customer_auth_service(
             tenant_context_service=services["tenant_context_service"],
             transactional_dispatcher=auth._transactional_dispatcher,
             post_commit_bus=auth._post_commit_bus,
+            clock=auth._clock,
         ),
         actor,
         tenant_id,

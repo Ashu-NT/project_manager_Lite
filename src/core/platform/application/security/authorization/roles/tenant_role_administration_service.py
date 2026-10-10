@@ -64,6 +64,7 @@ from src.core.platform.domain.security.authorization.roles import (
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_ROLE_PERMISSIONS,
 )
+from src.core.shared.time.clock import Clock
 
 ROLE_MANAGE_PERMISSION = "auth.manage"
 ROLE_ASSIGN_PERMISSION = "auth.role.assign"
@@ -96,9 +97,8 @@ class TenantRoleAdministrationService:
         sod_policy: SeparationOfDutiesPolicy | None = None,
         transactional_dispatcher,
         post_commit_bus,
+        clock: Clock,
     ) -> None:
-        from src.infra.time.system_clock import SystemClock
-
         self._session = session
         self._role_repo = role_repo
         self._role_binding_repo = role_binding_repo
@@ -113,7 +113,7 @@ class TenantRoleAdministrationService:
         self._sod_policy = sod_policy or SeparationOfDutiesPolicy()
         self._transactional_dispatcher = transactional_dispatcher
         self._post_commit_bus = post_commit_bus
-        self._clock = SystemClock()
+        self._clock = clock
 
     def _uow(self):
         return auth_unit_of_work(
@@ -228,13 +228,14 @@ class TenantRoleAdministrationService:
         permissions = self._validate_permissions(permission_codes)
         previous_codes = self._permission_codes(current.id)
         updated_codes = set(permissions)
+        updated_at = datetime.now(timezone.utc)
         candidate = replace(
             current,
             display_name=display_name,
             description=description,
             is_assignable=bool(is_assignable),
             policy_version=current.policy_version + 1,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=updated_at,
         )
         if (
             candidate.display_name == current.display_name
@@ -266,7 +267,7 @@ class TenantRoleAdministrationService:
             revoked_session_count = self._revoke_tenant_sessions(
                 affected_user_ids,
                 tenant_id=tenant_id,
-                revoked_at=candidate.updated_at,
+                revoked_at=updated_at,
             )
             self._record_audit(
                 actor=actor,
@@ -292,7 +293,7 @@ class TenantRoleAdministrationService:
                     role_id=candidate.id,
                     tenant_id=tenant_id,
                     policy_version=candidate.policy_version,
-                    occurred_at=candidate.updated_at,
+                    occurred_at=updated_at,
                 )
             )
             uow.commit()

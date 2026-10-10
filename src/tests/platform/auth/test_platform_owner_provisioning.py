@@ -21,6 +21,7 @@ from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry 
     AuditEntryORM,
 )
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
+from src.infra.time.system_clock import SystemClock
 
 
 class _FailingPlatformAuditWriter:
@@ -49,6 +50,7 @@ def _build_auth_service(session) -> tuple[AuthService, PlatformRepositories]:
             user_tenant_repo=repositories.user_tenant_repo,
             transactional_dispatcher=InProcessTransactionalEventDispatcher(),
             post_commit_bus=InProcessPostCommitEventBus(),
+            clock=SystemClock(),
         ),
         repositories,
     )

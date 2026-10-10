@@ -42,6 +42,7 @@ from src.infra.events.in_process_post_commit_event_bus import (
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
+from src.infra.time.system_clock import SystemClock
 
 
 @dataclass(frozen=True)
@@ -120,6 +121,7 @@ def build_security_administration_dependencies(
         tenant_context_service=tenant_context_service,
         transactional_dispatcher=transactional_dispatcher,
         post_commit_bus=post_commit_bus,
+        clock=SystemClock(),
     )
     return SecurityAdministrationDependencies(
         service_principal_service=service_principal_service,

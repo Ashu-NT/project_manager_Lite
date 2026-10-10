@@ -136,6 +136,7 @@ def _make_auth_svc(services, *, role_names):
         tenant_context_service=services["tenant_context_service"],
         transactional_dispatcher=auth._transactional_dispatcher,
         post_commit_bus=auth._post_commit_bus,
+        clock=auth._clock,
     )
     return svc, user
 

@@ -163,7 +163,7 @@ def test_standalone_create_tenant_id_and_organization_id_explicit_not_ambient(se
     hints = []
     channel.subscribe(TenantWide(tenant_id), lambda hint: hints.append(hint))
 
-    organization = organization_service.create_organization(
+    organization_service.create_organization(
         organization_code=_unique_code("EXPLICIT"), display_name="Explicit Org"
     )
 
@@ -331,6 +331,9 @@ def test_cross_tenant_routing_via_real_channel(services):
     from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
         TenantORM,
     )
+    from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
+        SqlAlchemyOrganizationDefaultCalendarWriter,
+    )
 
     organization_service = services["organization_service"]
     session = services["session"]
@@ -357,6 +360,7 @@ def test_cross_tenant_routing_via_real_channel(services):
         enterprise_audit_service=organization_service._enterprise_audit_service,
         tenant_context_service=None,
         overview_rollup_reader=organization_service._overview_rollup_reader,
+        default_calendar_writer=SqlAlchemyOrganizationDefaultCalendarWriter(),
     )
 
     tenant_a_hits = []

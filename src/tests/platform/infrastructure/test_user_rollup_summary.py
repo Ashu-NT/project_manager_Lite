@@ -606,6 +606,7 @@ def _make_tenant_caller_session(services, *, tenant_id: str):
         overview_rollup_reader=auth._overview_rollup_reader,
         transactional_dispatcher=auth._transactional_dispatcher,
         post_commit_bus=auth._post_commit_bus,
+        clock=auth._clock,
     ), viewer.id
 
 
@@ -685,6 +686,7 @@ def test_service_tenant_caller_requires_permission(services):
         overview_rollup_reader=auth._overview_rollup_reader,
         transactional_dispatcher=auth._transactional_dispatcher,
         post_commit_bus=auth._post_commit_bus,
+        clock=auth._clock,
     )
 
     with pytest.raises(BusinessRuleError):

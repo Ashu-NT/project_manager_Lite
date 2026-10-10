@@ -55,12 +55,14 @@ def test_create_organization_rolls_back_entirely_if_default_calendar_seeding_fai
     committed either -- both happen in the one transaction."""
     organization_service = services["organization_service"]
 
-    import src.core.platform.application.master_data.org.organization_service as org_service_module
+    from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
+        SqlAlchemyOrganizationDefaultCalendarWriter,
+    )
 
-    def _boom(session, organization):
+    def _boom(self, session, organization):
         raise RuntimeError("simulated calendar seeding failure")
 
-    monkeypatch.setattr(org_service_module, "_add_default_calendar_rows", _boom)
+    monkeypatch.setattr(SqlAlchemyOrganizationDefaultCalendarWriter, "add_default_calendar", _boom)
 
     with pytest.raises(RuntimeError, match="simulated calendar seeding failure"):
         organization_service.create_organization(

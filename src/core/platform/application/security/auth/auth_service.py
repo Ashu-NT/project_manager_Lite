@@ -67,6 +67,7 @@ from src.core.platform.domain.security.auth.session import (
 from src.core.platform.domain.security.authorization.enforcement.sod import (
     SeparationOfDutiesPolicy,
 )
+from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import (
@@ -116,13 +117,12 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         *,
         transactional_dispatcher: TransactionalEventDispatcher,
         post_commit_bus: PostCommitEventPublisher,
+        clock: Clock,
     ):
-        from src.infra.time.system_clock import SystemClock
-
         self._session: Session = session
         self._transactional_dispatcher = transactional_dispatcher
         self._post_commit_bus = post_commit_bus
-        self._clock = SystemClock()
+        self._clock = clock
         self._user_repo: UserRepository = user_repo
         self._role_repo: RoleRepository = role_repo
         self._permission_repo: PermissionRepository = permission_repo

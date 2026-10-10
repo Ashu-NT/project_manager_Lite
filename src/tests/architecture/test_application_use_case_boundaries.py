@@ -43,3 +43,22 @@ def test_runtime_use_case_facts_do_not_contain_domain_aggregates(services) -> No
     assert all(not isinstance(item, ModuleEntitlement) for item in snapshot.entitlements)
     assert all(isinstance(item, RuntimeModuleFact) for item in snapshot.enabled_modules)
     assert all(not isinstance(item, EnterpriseModule) for item in snapshot.enabled_modules)
+
+
+def test_migrated_platform_services_do_not_import_concrete_infrastructure() -> None:
+    for relative_path in (
+        "platform/application/master_data/org/organization_service.py",
+        "platform/application/security/auth/auth_service.py",
+        "platform/application/security/authorization/roles/tenant_role_administration_service.py",
+    ):
+        path = SRC_ROOT / relative_path
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+        imports = (
+            node.module or ""
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+        )
+        assert not any(
+            ".infrastructure." in imported or imported.startswith("src.infra.")
+            for imported in imports
+        ), relative_path

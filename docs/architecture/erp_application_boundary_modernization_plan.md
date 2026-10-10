@@ -333,6 +333,31 @@ read-model and variance regression: 77 passed. This is an explicit A3
 decision, not accidental unfinished migration. Revisit only if a real second
 consumer or measured constructor/query problem emerges. A4-A6 remain open.
 
+**A4 in progress: Organization default-calendar persistence inversion.** The
+Organization application service no longer imports calendar ORM classes or
+seeds rows directly. A Platform contract writer is injected by Platform
+composition; its SQLAlchemy implementation writes the organization-scoped
+GLOBAL calendar and rules inside the same creation UoW transaction. The
+writer is a required constructor dependency, not an optional runtime fallback.
+Its explicit scope preserves the just-created organization rather than the
+caller's active organization. Rollback, calendar contents, cross-tenant
+creation and desktop invalidation passed in the final 56-test
+organization/architecture run. The two small existing
+Organization typing defects were repaired: bulk updates now select only the
+two supported fields explicitly, and the event helper accepts the declared
+Organization UoW protocol. AuthService no longer constructs an infrastructure
+clock; Platform composition injects the shared `Clock` contract, and 101
+focused Auth/RBAC tests passed. The eight touched production files passed Mypy;
+scoped production Ruff F/I passed. Narrow architecture guards now prevent
+the migrated services from reintroducing concrete infrastructure imports.
+Tenant-role administration also receives `Clock` from Platform composition
+instead of constructing `SystemClock`; its final role-governance/architecture
+suite passed 54 tests with 2 skipped. Its update operation now reuses one
+non-null timestamp for persistence, session revocation and the event.
+The remaining Platform Auth/Time persistence dependencies, PM A4 clusters,
+A5 and A6 remain open. Finance's feature-folder structure and canonical
+financial authorities were not changed.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

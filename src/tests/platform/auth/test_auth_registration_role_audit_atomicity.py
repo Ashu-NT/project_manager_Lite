@@ -22,6 +22,7 @@ from src.core.platform.infrastructure.persistence.orm.security.auth.auth import 
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
+from src.infra.time.system_clock import SystemClock
 
 _PASSWORD = "StrongPass123!"
 
@@ -99,6 +100,7 @@ def _build_bootstrap_auth(
         security_audit_repo=repositories.audit_entry_repo,
         transactional_dispatcher=InProcessTransactionalEventDispatcher(),
         post_commit_bus=InProcessPostCommitEventBus(),
+        clock=SystemClock(),
     )
     return auth, repositories
 

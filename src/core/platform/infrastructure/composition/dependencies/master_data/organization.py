@@ -19,6 +19,9 @@ from src.core.platform.infrastructure.persistence.read.master_data.employee.empl
 from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
     SqlAlchemyPlatformOverviewRollupReader,
 )
+from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
+    SqlAlchemyOrganizationDefaultCalendarWriter,
+)
 from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
@@ -59,4 +62,5 @@ def build_organization_service(
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
         employee_headcount_reader=SqlAlchemyEmployeeHeadcountReader(session),
+        default_calendar_writer=SqlAlchemyOrganizationDefaultCalendarWriter(),
     )

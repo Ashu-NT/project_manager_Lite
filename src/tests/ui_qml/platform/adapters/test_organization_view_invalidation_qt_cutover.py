@@ -153,6 +153,9 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
         UserSessionContext,
         UserSessionPrincipal,
     )
+    from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
+        SqlAlchemyOrganizationDefaultCalendarWriter,
+    )
 
     ctx_b = UserSessionContext()
     ctx_b.set_principal(
@@ -171,6 +174,7 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
         enterprise_audit_service=organization_service._enterprise_audit_service,
         tenant_context_service=None,
         overview_rollup_reader=organization_service._overview_rollup_reader,
+        default_calendar_writer=SqlAlchemyOrganizationDefaultCalendarWriter(),
     )
     service_as_b.create_organization(organization_code=_unique_code("SCOPE-B"), display_name="Scope Tenant B Org")
 
@@ -214,6 +218,9 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
         UserSessionContext,
         UserSessionPrincipal,
     )
+    from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
+        SqlAlchemyOrganizationDefaultCalendarWriter,
+    )
 
     ctx_b = UserSessionContext()
     ctx_b.set_principal(
@@ -232,6 +239,7 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
         enterprise_audit_service=organization_service._enterprise_audit_service,
         tenant_context_service=None,
         overview_rollup_reader=organization_service._overview_rollup_reader,
+        default_calendar_writer=SqlAlchemyOrganizationDefaultCalendarWriter(),
     )
 
     # Simulate the switch: exactly what context.py's _on_tenant_switched does.

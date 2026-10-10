@@ -16,6 +16,7 @@ from src.core.platform.domain.security.auth import (
 from src.core.platform.domain.security.auth.user import (
     normalize_auth_session_timeout_override,
 )
+from src.infra.time.system_clock import SystemClock
 
 
 class _FakeNestedTransaction:
@@ -250,6 +251,7 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         user_tenant_repo=None,
         transactional_dispatcher=InProcessTransactionalEventDispatcher(),
         post_commit_bus=InProcessPostCommitEventBus(),
+        clock=SystemClock(),
     )
 
 
