@@ -29,23 +29,12 @@ from src.core.platform.application.master_data.data_exchange import (
 from src.core.platform.application.master_data.department.department_service import (
     DepartmentService,
 )
-from src.core.platform.application.master_data.department.event_handlers.view_invalidation import (
-    build_department_list_view_invalidation_handler,
-)
 from src.core.platform.application.master_data.documents import (
     DocumentIntegrationService,
     DocumentService,
 )
-from src.core.platform.application.master_data.documents.event_handlers.view_invalidation import (
-    build_document_links_view_invalidation_handler,
-    build_document_list_view_invalidation_handler,
-    build_document_structure_list_view_invalidation_handler,
-)
 from src.core.platform.application.master_data.employee.employee_service import (
     EmployeeService,
-)
-from src.core.platform.application.master_data.employee.event_handlers.view_invalidation import (
-    build_employee_list_view_invalidation_handler,
 )
 from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
     build_organization_created_view_invalidation_handler,
@@ -54,13 +43,7 @@ from src.core.platform.application.master_data.org.event_handlers.view_invalidat
 from src.core.platform.application.master_data.org.organization_service import (
     OrganizationService,
 )
-from src.core.platform.application.master_data.party.event_handlers.view_invalidation import (
-    build_party_list_view_invalidation_handler,
-)
 from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.master_data.site.event_handlers.view_invalidation import (
-    build_site_list_view_invalidation_handler,
-)
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.application.notifications.notification_service import (
     NotificationService,
@@ -136,24 +119,6 @@ from src.core.platform.domain.approval.events import (
     ApprovalRejected,
     ApprovalRequested,
 )
-from src.core.platform.domain.master_data.department.events import (
-    DepartmentActivated,
-    DepartmentCreated,
-    DepartmentDeactivated,
-    DepartmentProfileUpdated,
-)
-from src.core.platform.domain.master_data.documents.events import (
-    DocumentCreated,
-    DocumentProfileUpdated,
-    DocumentReferenceLinked,
-    DocumentReferenceUnlinked,
-    DocumentStructureCreated,
-    DocumentStructureProfileUpdated,
-)
-from src.core.platform.domain.master_data.employee.events import (
-    EmployeeCreated,
-    EmployeeProfileUpdated,
-)
 from src.core.platform.domain.master_data.org import (
     ORGANIZATION_STATUS_ACTIVE,
     Organization,
@@ -170,21 +135,10 @@ from src.core.platform.domain.master_data.org.events import (
     OrganizationDeactivated,
     OrganizationProfileUpdated,
 )
-from src.core.platform.domain.master_data.party.events import (
-    PartyCreated,
-    PartyProfileUpdated,
-)
 from src.core.platform.domain.master_data.site.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
     resolve_site_scope_permissions,
-)
-from src.core.platform.domain.master_data.site.events import (
-    SiteActivated,
-    SiteArchived,
-    SiteCreated,
-    SiteDeactivated,
-    SiteProfileUpdated,
 )
 from src.core.platform.domain.security.auth.events import (
     AccountLocked,
@@ -227,6 +181,9 @@ from src.core.platform.domain.tenant.tenancy.events import (
     TenantMembershipReactivated,
     TenantMembershipRemoved,
     TenantMembershipSuspended,
+)
+from src.core.platform.infrastructure.composition.events.master_data import (
+    register_master_data_view_invalidation,
 )
 from src.core.platform.infrastructure.composition.events.notifications import (
     register_platform_notification_policy,
@@ -639,65 +596,9 @@ def build_platform_service_bundle(
             _approval_event_type, _approval_view_invalidation_handler
         )
 
-    _employee_list_view_invalidation_handler = build_employee_list_view_invalidation_handler(
-        platform_view_invalidation_channel
+    register_master_data_view_invalidation(
+        platform_post_commit_bus, platform_view_invalidation_channel
     )
-    for _employee_event_type in (EmployeeCreated, EmployeeProfileUpdated):
-        platform_post_commit_bus.subscribe(
-            _employee_event_type, _employee_list_view_invalidation_handler
-        )
-
-    _department_list_view_invalidation_handler = build_department_list_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _department_event_type in (
-        DepartmentCreated, DepartmentProfileUpdated, DepartmentActivated, DepartmentDeactivated,
-    ):
-        platform_post_commit_bus.subscribe(
-            _department_event_type, _department_list_view_invalidation_handler
-        )
-
-    _site_list_view_invalidation_handler = build_site_list_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _site_event_type in (
-        SiteCreated, SiteProfileUpdated, SiteActivated, SiteDeactivated, SiteArchived,
-    ):
-        platform_post_commit_bus.subscribe(
-            _site_event_type, _site_list_view_invalidation_handler
-        )
-
-    _party_list_view_invalidation_handler = build_party_list_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _party_event_type in (PartyCreated, PartyProfileUpdated):
-        platform_post_commit_bus.subscribe(
-            _party_event_type, _party_list_view_invalidation_handler
-        )
-
-    _document_list_view_invalidation_handler = build_document_list_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _document_event_type in (DocumentCreated, DocumentProfileUpdated):
-        platform_post_commit_bus.subscribe(
-            _document_event_type, _document_list_view_invalidation_handler
-        )
-
-    _document_structure_list_view_invalidation_handler = build_document_structure_list_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _document_structure_event_type in (DocumentStructureCreated, DocumentStructureProfileUpdated):
-        platform_post_commit_bus.subscribe(
-            _document_structure_event_type, _document_structure_list_view_invalidation_handler
-        )
-
-    _document_links_view_invalidation_handler = build_document_links_view_invalidation_handler(
-        platform_view_invalidation_channel
-    )
-    for _document_link_event_type in (DocumentReferenceLinked, DocumentReferenceUnlinked):
-        platform_post_commit_bus.subscribe(
-            _document_link_event_type, _document_links_view_invalidation_handler
-        )
 
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     approval_uow_factory = SqlAlchemyPlatformUnitOfWorkFactory(

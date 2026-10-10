@@ -254,7 +254,8 @@ def test_no_service_locator_pattern_reintroduced_in_composition_roots():
     for module_name in (
         "src.ui_qml.platform.context",
         "src.ui_qml.modules.project_management.context",
-        "src.infra.composition.platform_registry",
+        "src.infra.composition.modules.platform_registry",
+        "src.core.platform.infrastructure.composition.events.master_data",
     ):
         import importlib
 
@@ -376,10 +377,10 @@ def test_notification_and_platform_event_remain_distinct_from_domain_event():
     governance/audit record) are each their own class, neither inherits from `DomainEvent`'s
     Protocol, and they are not the same class as each other -- never merged into one universal
     "event" type."""
-    from src.core.platform.domain.notifications.notification import Notification
     from src.core.platform.domain.history.platform_events.platform_event import (
         PlatformEvent,
     )
+    from src.core.platform.domain.notifications.notification import Notification
     from src.core.shared.events.domain_event import DomainEvent
 
     assert Notification is not PlatformEvent

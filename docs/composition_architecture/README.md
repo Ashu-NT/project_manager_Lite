@@ -71,8 +71,8 @@ factory callers have been migrated together.
 | C1 | Split Platform Approval vs PM notification registration and PM recipient recheck; inject policy from root | Same transactional subscription counts, recipient/privacy/RLS and startup tests; delete mixed `notifications.py` | Complete |
 | C2 | Move PM access/scope registrations and approval registrations/dependency factories into PM composition | Service identity, reviewer permissions, handler counts, transaction/UoW tests; delete root approval factory package | Complete; mixed repository-bundle dependency remains until C5 |
 | C3 | Extract PM Projects, Tasks, Resources, Scheduling, Timesheets, Collaboration, Portfolio and Risk dependency/event groups | Per-group focused tests; no duplicated factories/subscriptions; preserve PM bundle | Complete; Finance remains C4 |
-| C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | In progress: PM-owned event, service/read, worker, governed-operations, boundary and port assembly; broad closure validation remains |
-| C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | Not started |
+| C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | Structural cutover complete; broad regression gate remains open on classified, non-Finance baseline failures |
+| C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | In progress: Platform master-data post-commit registration extracted; service/repository ownership remains |
 | C6 | Slim root and move only cross-module integrations/global overview wiring under root | Desktop startup, full PM/Platform, PostgreSQL and architecture guards; delete both central registries and obsolete imports | Not started |
 
 Do not blindly mirror the proposed folder tree. Add a feature subfolder only
@@ -243,10 +243,31 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   tested receipt/commitment and foreign tenant. The same live set was rerun
   green. A composition regression also proves both durable Finance startup
   dispatchers are called in order with the existing bound (12 tests in the
-  final composition file run). The broad PM/Platform suite was started and
-  intentionally interrupted at about 8% because of its runtime; it has no
-  pass result. C4 still needs broad regression/atomicity classification before
-  closure; do not mark it closed from these focused suites alone.
+  final composition file run). The complete PM/Platform suite was subsequently
+  run from commit `9589133d1`: 3,482 passed, 26 failed, 7 skipped in 23m45s.
+  All 26 failures reproduce under `pytest --lf` (26 failed). The failures are
+  outside the Finance composition changes: three PM/Platform boundary tests
+  cover a retired Employee contract path, Employee-to-Resource mutation
+  expectations, and calendar permission setup; the other 23 are Platform
+  approval eligibility/event shape, invitation-event expectations, desktop
+  DTO/reference data/catalog expectations, overview labels, persistence layout,
+  and mapper fixture setup. One Employee-to-Resource failure may represent a
+  genuine stale-resource defect; it must not be dismissed as a test-only issue.
+  None of the failed production paths was changed in the C4 Finance cutover.
+  This is a classified red baseline, not a passing broad gate; C4 is not
+  formally closed. Re-run the full suite after resolving these failures.
+- C5 first Platform event slice: master-data post-commit subscriptions now live
+  under Platform composition in `events/master_data.py`, called at their
+  original position. A composition check confirms exactly one Platform handler
+  per event and shared handler identity per family; the PM handler for
+  `EmployeeProfileUpdated` remains a separate legitimate subscriber. An
+  architecture guard was updated from the retired Platform registry import to
+  the live root registry and new registrar. Combined architecture, UI event
+  guard, and composition checks passed (41); targeted mypy and Ruff F/I
+  passed, and compilation passed. A broader Platform headcount test remains red
+  on the pre-existing overview-label mismatch described above. No Platform
+  service factory, repository bundle, domain behavior, or root entry point
+  changed in this slice.
 
 ## Closure Gates
 
