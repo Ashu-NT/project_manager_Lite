@@ -12,7 +12,9 @@ from src.core.platform.application.master_data.org.organization_service import (
 from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 def bootstrap_local_single_tenant_context(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     user_session: UserSessionContext,
     organization_service: OrganizationService,
 ) -> None:

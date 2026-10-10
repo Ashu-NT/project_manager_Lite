@@ -8,13 +8,15 @@ from src.core.platform.application.finance import FinancialPeriodService
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
 
 
 def build_financial_period_service(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
     enterprise_audit_service: EnterpriseAuditService,

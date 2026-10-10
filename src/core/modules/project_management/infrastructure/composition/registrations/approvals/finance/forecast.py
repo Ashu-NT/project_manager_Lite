@@ -10,10 +10,10 @@ from src.core.modules.project_management.infrastructure.approval.forecast_apply_
     ForecastApprovalDeps,
 )
 from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
+    build_approval_repository_context,
     build_enterprise_audit_service,
     wire_tenant_context_service,
 )
-from src.infra.composition.persistence.repositories import build_repository_bundle
 
 
 def build_forecast_approval_deps(
@@ -23,9 +23,9 @@ def build_forecast_approval_deps(
     tenant_context_service,
     module_catalog_service=None,
 ) -> ForecastApprovalDeps:
-    bundle = build_repository_bundle(session)
+    bundle = build_approval_repository_context(session, tenant_context_service)
     forecast_repo = wire_tenant_context_service(
-        bundle.project_forecast_repo, tenant_context_service
+        bundle.pm.project_forecast_repo, tenant_context_service
     )
     audit = build_enterprise_audit_service(
         session,
@@ -36,10 +36,10 @@ def build_forecast_approval_deps(
     service = ForecastVersionService(
         session=session,
         forecast_repo=forecast_repo,
-        project_repo=bundle.project_repo,
-        financial_profile_repo=bundle.project_financial_profile_repo,
-        cost_code_repo=bundle.project_cost_code_repo,
-        task_repo=bundle.task_repo,
+        project_repo=bundle.pm.project_repo,
+        financial_profile_repo=bundle.pm.project_financial_profile_repo,
+        cost_code_repo=bundle.pm.project_cost_code_repo,
+        task_repo=bundle.pm.task_repo,
         clock=SystemClock(),
         user_session=user_session,
         enterprise_audit_service=audit,

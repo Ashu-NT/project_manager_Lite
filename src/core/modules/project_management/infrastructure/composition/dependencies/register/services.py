@@ -3,19 +3,21 @@ from __future__ import annotations
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.infrastructure.composition.context import (
+    ProjectManagementRepositoryContext,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.register import (
     SqlAlchemyRegisterCatalogReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.uow.register.register_unit_of_work import (
     SqlAlchemyRegisterUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
 def build_register_service(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
 ) -> RegisterService:
     uow_factory = SqlAlchemyRegisterUnitOfWorkFactory(
@@ -27,8 +29,8 @@ def build_register_service(
     )
     return RegisterService(
         session=session,
-        project_repo=repositories.project_repo,
-        register_repo=repositories.register_repo,
+        project_repo=repositories.pm.project_repo,
+        register_repo=repositories.pm.register_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_catalog_service,

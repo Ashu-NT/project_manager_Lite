@@ -12,6 +12,9 @@ from src.core.modules.project_management.application.resources.portfolio.resourc
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
     ProjectCalendarAdapter,
 )
+from src.core.modules.project_management.infrastructure.composition.context import (
+    ProjectManagementRepositoryContext,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.portfolio import (
     SqlAlchemyPortfolioHeatmapReader,
     SqlAlchemyPortfolioResourcePoolReader,
@@ -23,13 +26,12 @@ from src.core.modules.project_management.infrastructure.persistence.reads.projec
 from src.core.modules.project_management.infrastructure.persistence.uow.portfolio.portfolio_unit_of_work import (
     SqlAlchemyPortfolioUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
 def build_portfolio_service(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
     project_calendar_adapter: ProjectCalendarAdapter,
@@ -44,12 +46,12 @@ def build_portfolio_service(
     )
     return PortfolioService(
         session=session,
-        intake_repo=repositories.portfolio_intake_repo,
-        dependency_repo=repositories.portfolio_project_dependency_repo,
-        scoring_template_repo=repositories.portfolio_scoring_template_repo,
-        scenario_repo=repositories.portfolio_scenario_repo,
-        audit_repo=repositories.audit_entry_repo,
-        project_repo=repositories.project_repo,
+        intake_repo=repositories.pm.portfolio_intake_repo,
+        dependency_repo=repositories.pm.portfolio_project_dependency_repo,
+        scoring_template_repo=repositories.pm.portfolio_scoring_template_repo,
+        scenario_repo=repositories.pm.portfolio_scenario_repo,
+        audit_repo=repositories.platform.audit_entry_repo,
+        project_repo=repositories.pm.project_repo,
         heatmap_reader=SqlAlchemyPortfolioHeatmapReader(session=session),
         scenario_reader=SqlAlchemyPortfolioScenarioReader(session=session),
         calendar=platform_services.global_calendar_shim,

@@ -11,6 +11,9 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
+from src.core.modules.project_management.infrastructure.composition.context import (
+    ProjectManagementRepositoryContext,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.tasks import (
     SqlAlchemyTaskWorkspaceReader,
 )
@@ -20,13 +23,12 @@ from src.core.modules.project_management.infrastructure.persistence.uow.tasks.ta
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
 def build_task_service(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
     timesheet_service: TimesheetService,
@@ -44,22 +46,22 @@ def build_task_service(
     )
     return TaskService(
         session,
-        repositories.task_repo,
-        repositories.dependency_repo,
-        repositories.assignment_repo,
-        repositories.time_entry_repo,
-        repositories.timesheet_period_repo,
+        repositories.pm.task_repo,
+        repositories.pm.dependency_repo,
+        repositories.pm.assignment_repo,
+        repositories.platform.time_entry_repo,
+        repositories.platform.timesheet_period_repo,
         timesheet_service,
-        repositories.resource_repo,
+        repositories.pm.resource_repo,
         work_calendar_engine,
         scheduling_engine,
-        repositories.project_resource_repo,
-        repositories.project_repo,
+        repositories.pm.project_resource_repo,
+        repositories.pm.project_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_catalog_service,
-        employee_repo=repositories.employee_repo,
+        employee_repo=repositories.platform.employee_repo,
         assignment_skill_validator=assignment_skill_validator,
         tenant_context_service=platform_services.tenant_context_service,
         task_workspace_reader=SqlAlchemyTaskWorkspaceReader(session=session),

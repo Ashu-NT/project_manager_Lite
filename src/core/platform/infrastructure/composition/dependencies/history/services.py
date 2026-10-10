@@ -8,16 +8,18 @@ from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
 from src.core.platform.infrastructure.persistence.read.history.activity_actor_reader import (
     SqlAlchemyActivityActorReader,
 )
-from src.infra.composition.persistence.repositories import RepositoryBundle
 
 
 def build_enterprise_audit_service(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
 ) -> EnterpriseAuditService:
@@ -32,7 +34,7 @@ def build_enterprise_audit_service(
 def build_activity_service(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
 ) -> ActivityService:

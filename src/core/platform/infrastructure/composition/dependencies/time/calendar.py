@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import date
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -36,10 +38,35 @@ from src.core.platform.application.time_management.calendar.definitions.working_
 from src.core.platform.application.time_management.calendar.platform_calendar_service import (
     PlatformCalendarService,
 )
+from src.core.platform.contract.port.time_management.calendar.external_assignment_port import (
+    ProjectCalendarAssignmentPort,
+    ResourceCalendarAssignmentPort,
+)
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class _UnboundExternalCalendarAssignments:
+    """Platform can boot without a module supplying external assignments."""
+
+    def get(self, _id: str, *, at_date: date | None = None) -> None:
+        return None
+
+    def list_for_calendar(self, _calendar_id: str) -> list[Any]:
+        return []
+
+    def create(self, **_kwargs: Any) -> None:
+        raise RuntimeError("External calendar assignments are not configured")
+
+    def save(self, _assignment: Any) -> None:
+        raise RuntimeError("External calendar assignments are not configured")
+
+    def delete(self, _assignment_id: str) -> None:
+        raise RuntimeError("External calendar assignments are not configured")
 
 
 @dataclass(frozen=True)
@@ -58,11 +85,15 @@ class CalendarDependencies:
 def build_calendar_dependencies(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
     activity_service: ActivityService,
+    project_assignment_repo: ProjectCalendarAssignmentPort[Any] | None = None,
+    resource_assignment_repo: ResourceCalendarAssignmentPort[Any] | None = None,
 ) -> CalendarDependencies:
+    project_assignment_repo = project_assignment_repo or _UnboundExternalCalendarAssignments()
+    resource_assignment_repo = resource_assignment_repo or _UnboundExternalCalendarAssignments()
     working_time_calculator = WorkingTimeCalculator()
     platform_calendar_service = PlatformCalendarService(
         session=session,
@@ -87,8 +118,8 @@ def build_calendar_dependencies(
         exception_repo=repositories.calendar_exception_repo,
         recurring_repo=repositories.calendar_recurring_event_repo,
         assignment_repo=repositories.calendar_assignment_repo,
-        project_assignment_repo=repositories.project_calendar_assignment_repo,
-        resource_assignment_repo=repositories.resource_calendar_assignment_repo,
+        project_assignment_repo=project_assignment_repo,
+        resource_assignment_repo=resource_assignment_repo,
         calculator=working_time_calculator,
         shift_pattern_repo=repositories.shift_pattern_repo,
     )
@@ -124,8 +155,8 @@ def build_calendar_dependencies(
         session=session,
         calendar_repo=repositories.platform_calendar_repo,
         assignment_repo=repositories.calendar_assignment_repo,
-        project_assignment_repo=repositories.project_calendar_assignment_repo,
-        resource_assignment_repo=repositories.resource_calendar_assignment_repo,
+        project_assignment_repo=project_assignment_repo,
+        resource_assignment_repo=resource_assignment_repo,
         user_session=user_session,
         activity_service=activity_service,
     )

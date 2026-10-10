@@ -30,10 +30,12 @@ from src.core.platform.domain.master_data.site.access_policy import (
     resolve_site_scope_permissions,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
 from src.core.platform.infrastructure.composition.registrations.security.scope_resolvers import (
     ScopeResolvers,
 )
-from src.infra.composition.persistence.repositories import RepositoryBundle
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
@@ -52,7 +54,7 @@ class SecurityAdministrationDependencies:
 def build_security_administration_dependencies(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
     enterprise_audit_service: EnterpriseAuditService,

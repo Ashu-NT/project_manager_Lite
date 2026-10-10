@@ -8,13 +8,15 @@ from src.core.modules.project_management.application.financials import (
     ProjectBillingProfileService,
     RateCardResolver,
 )
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.modules.project_management.infrastructure.composition.context import (
+    ProjectManagementRepositoryContext,
+)
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
 def build_billing_services(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
     clock: SystemClock,
@@ -22,9 +24,9 @@ def build_billing_services(
 ) -> tuple[ProjectBillingProfileService, ProjectBillingPreparationService]:
     profile_service = ProjectBillingProfileService(
         session=session,
-        billing_repo=repositories.project_billing_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        project_repo=repositories.project_repo,
+        billing_repo=repositories.pm.project_billing_repo,
+        financial_profile_repo=repositories.pm.project_financial_profile_repo,
+        project_repo=repositories.pm.project_repo,
         tenant_context_service=platform_services.tenant_context_service,
         clock=clock,
         user_session=platform_services.user_session,
@@ -33,10 +35,10 @@ def build_billing_services(
     )
     preparation_service = ProjectBillingPreparationService(
         session=session,
-        billing_repo=repositories.project_billing_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_entry_repo=repositories.project_cost_entry_repo,
-        labor_posting_repo=repositories.approved_time_labor_posting_repo,
+        billing_repo=repositories.pm.project_billing_repo,
+        financial_profile_repo=repositories.pm.project_financial_profile_repo,
+        cost_entry_repo=repositories.pm.project_cost_entry_repo,
+        labor_posting_repo=repositories.pm.approved_time_labor_posting_repo,
         rate_resolver=rate_resolver,
         financial_period_service=platform_services.financial_period_service,
         approval_service=platform_services.approval_service,

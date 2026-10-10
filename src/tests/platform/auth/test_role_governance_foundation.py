@@ -92,7 +92,6 @@ def _prepare_canonical_assignment(
     create_policy: bool = True,
 ):
     auth = services["auth_service"]
-    session = services["session"]
     tenant_id = _tenant_id(services)
     actor = auth.register_user(
         f"canonical-actor-{target_role_name}",
@@ -556,9 +555,11 @@ def test_role_domain_enforces_system_and_tenant_ownership() -> None:
 def test_role_repository_uses_system_and_per_tenant_namespaces(
     session,
 ) -> None:
-    from src.infra.composition.persistence.repositories import build_repository_bundle
+    from src.core.platform.infrastructure.composition.dependencies.repositories import (
+        build_platform_repositories,
+    )
 
-    repositories = build_repository_bundle(session)
+    repositories = build_platform_repositories(session)
     tenant_a = Tenant.create(
         tenant_code="ROLE-A",
         display_name="Role Tenant A",

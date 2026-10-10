@@ -18,6 +18,9 @@ from src.core.platform.application.master_data.party.party_service import PartyS
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
 from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
     SqlAlchemyPlatformOverviewRollupReader,
 )
@@ -33,7 +36,6 @@ from src.core.platform.infrastructure.persistence.uow.party_unit_of_work import 
 from src.core.platform.infrastructure.persistence.uow.site_unit_of_work import (
     SqlAlchemySiteUnitOfWorkFactory,
 )
-from src.infra.composition.persistence.repositories import RepositoryBundle
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
@@ -55,7 +57,7 @@ class MasterDataDependencies:
 def build_master_data_dependencies(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
     enterprise_audit_service: EnterpriseAuditService,

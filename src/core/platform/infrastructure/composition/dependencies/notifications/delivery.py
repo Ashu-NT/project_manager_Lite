@@ -10,11 +10,13 @@ from src.core.platform.application.notifications.notification_service import (
     NotificationService,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
 from src.core.shared.events.view_invalidation import (
     RecipientScope,
     ViewInvalidationHint,
 )
-from src.infra.composition.persistence.repositories import RepositoryBundle
 from src.infra.events.in_process_view_invalidation_channel import (
     InProcessViewInvalidationChannel,
 )
@@ -25,7 +27,7 @@ from src.infra.persistence.db.postgresql_rls import configure_session_rls_contex
 def build_notification_service(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     user_session: UserSessionContext,
     view_invalidation_channel: InProcessViewInvalidationChannel,
     recipient_policy: Callable[[Session, object], bool] | None,

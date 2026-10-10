@@ -13,6 +13,7 @@ from src.core.modules.project_management.infrastructure.approval.billing_prepara
     BillingPreparationApprovalDeps,
 )
 from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
+    build_approval_repository_context,
     build_enterprise_audit_service,
     wire_tenant_context_service,
 )
@@ -22,7 +23,6 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.application.finance.financial_period_service import (
     FinancialPeriodService,
 )
-from src.infra.composition.persistence.repositories import build_repository_bundle
 
 
 def build_billing_preparation_approval_deps(
@@ -33,19 +33,19 @@ def build_billing_preparation_approval_deps(
     module_catalog_service=None,
 ) -> BillingPreparationApprovalDeps:
 
-    bundle = build_repository_bundle(session)
-    billing_repo = wire_tenant_context_service(bundle.project_billing_repo, tenant_context_service)
+    bundle = build_approval_repository_context(session, tenant_context_service)
+    billing_repo = wire_tenant_context_service(bundle.pm.project_billing_repo, tenant_context_service)
     financial_profile_repo = wire_tenant_context_service(
-        bundle.project_financial_profile_repo, tenant_context_service
+        bundle.pm.project_financial_profile_repo, tenant_context_service
     )
     cost_entry_repo = wire_tenant_context_service(
-        bundle.project_cost_entry_repo, tenant_context_service
+        bundle.pm.project_cost_entry_repo, tenant_context_service
     )
     labor_posting_repo = wire_tenant_context_service(
-        bundle.approved_time_labor_posting_repo, tenant_context_service
+        bundle.pm.approved_time_labor_posting_repo, tenant_context_service
     )
     financial_period_repo = wire_tenant_context_service(
-        bundle.financial_period_repo, tenant_context_service
+        bundle.platform.financial_period_repo, tenant_context_service
     )
     clock = SystemClock()
     enterprise_audit_service = build_enterprise_audit_service(

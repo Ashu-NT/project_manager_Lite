@@ -25,7 +25,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
     SqlAlchemyFinanceSetupReader,
     SqlAlchemyFinanceSnapshotReader,
 )
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 from src.infra.composition.integration.accounting.accounting_integration import (
     build_accounting_capability,
 )

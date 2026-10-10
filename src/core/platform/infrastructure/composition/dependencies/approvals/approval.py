@@ -8,10 +8,12 @@ from src.core.platform.application.approval.approval_service import ApprovalServ
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
 from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
     SqlAlchemyPlatformUnitOfWorkFactory,
 )
-from src.infra.composition.persistence.repositories import RepositoryBundle
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
@@ -24,7 +26,7 @@ from src.infra.time.system_clock import SystemClock
 def build_approval_service(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
     enterprise_audit_service: EnterpriseAuditService,

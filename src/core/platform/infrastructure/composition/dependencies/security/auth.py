@@ -11,10 +11,12 @@ from src.core.platform.application.tenant.tenancy import (
     TenantContextService,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
 from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
     SqlAlchemyPlatformOverviewRollupReader,
 )
-from src.infra.composition.persistence.repositories import RepositoryBundle
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
@@ -28,7 +30,7 @@ from src.infra.platform.security_config import RuntimeSecurityConfiguration
 def build_auth_service(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
     enterprise_audit_service: EnterpriseAuditService,

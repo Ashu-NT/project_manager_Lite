@@ -7,7 +7,7 @@ from src.core.modules.project_management.application.resources import ResourceSe
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
 def build_dashboard_service(

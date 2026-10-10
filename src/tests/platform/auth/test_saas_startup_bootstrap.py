@@ -13,7 +13,9 @@ from src.core.platform.domain.tenant.tenancy import Tenant
 from src.core.platform.infrastructure.composition.bootstrap import (
     build_platform_service_bundle,
 )
-from src.infra.composition.persistence.repositories import build_repository_bundle
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    build_platform_repositories,
+)
 from src.infra.platform.security_config import (
     DeploymentEnvironment,
     RuntimeSecurityConfiguration,
@@ -28,7 +30,7 @@ def _security_configuration(mode: TenancyMode) -> RuntimeSecurityConfiguration:
 
 
 def test_saas_startup_does_not_create_customer_context_or_legacy_admin(session) -> None:
-    repositories = build_repository_bundle(session)
+    repositories = build_platform_repositories(session)
 
     bundle = build_platform_service_bundle(
         session,
@@ -52,7 +54,7 @@ def test_saas_startup_does_not_create_customer_context_or_legacy_admin(session) 
 
 
 def test_saas_restart_preserves_reviewed_role_permissions(session) -> None:
-    repositories = build_repository_bundle(session)
+    repositories = build_platform_repositories(session)
     configuration = _security_configuration(TenancyMode.SAAS)
     build_platform_service_bundle(
         session,
@@ -88,7 +90,7 @@ def test_saas_restart_preserves_reviewed_role_permissions(session) -> None:
 
 
 def test_saas_startup_does_not_promote_or_backfill_existing_user(session) -> None:
-    repositories = build_repository_bundle(session)
+    repositories = build_platform_repositories(session)
     ordinary_admin_name_user = UserAccount.create(
         username="admin",
         password_hash=hash_password("OrdinaryUser123!"),
@@ -120,7 +122,7 @@ def test_saas_startup_does_not_promote_or_backfill_existing_user(session) -> Non
 
 
 def test_local_single_tenant_startup_retains_explicit_desktop_defaults(session) -> None:
-    repositories = build_repository_bundle(session)
+    repositories = build_platform_repositories(session)
 
     bundle = build_platform_service_bundle(
         session,

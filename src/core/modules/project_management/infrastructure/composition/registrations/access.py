@@ -25,7 +25,7 @@ def register_project_scope_access(repositories, platform_services) -> None:
 
     def _project_belongs_to_tenant(tenant_id: str, project_id: str) -> bool:
         # The ambient organization may differ from the project's organization.
-        return repositories.project_repo.get_for_tenant(project_id, tenant_id) is not None
+        return repositories.pm.project_repo.get_for_tenant(project_id, tenant_id) is not None
 
     platform_services.access_service.register_scope_exists_resolver(
         "project", _project_belongs_to_tenant

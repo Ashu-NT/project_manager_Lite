@@ -72,7 +72,7 @@ factory callers have been migrated together.
 | C2 | Move PM access/scope registrations and approval registrations/dependency factories into PM composition | Service identity, reviewer permissions, handler counts, transaction/UoW tests; delete root approval factory package | Complete; mixed repository-bundle dependency remains until C5 |
 | C3 | Extract PM Projects, Tasks, Resources, Scheduling, Timesheets, Collaboration, Portfolio and Risk dependency/event groups | Per-group focused tests; no duplicated factories/subscriptions; preserve PM bundle | Complete; Finance remains C4 |
 | C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | Structural cutover complete; broad regression gate remains open on classified, non-Finance baseline failures |
-| C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | In progress: Platform bootstrap and post-commit registrations moved; mixed repository ownership remains |
+| C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | Owner bundles and neutral calendar ports cut over; final broad regression/type gates pending |
 | C6 | Slim root and move only cross-module integrations/global overview wiring under root | Desktop startup, full PM/Platform, PostgreSQL and architecture guards; delete both central registries and obsolete imports | PM bootstrap ownership cut over early; root/Platform slimming remains |
 
 Do not blindly mirror the proposed folder tree. Add a feature subfolder only
@@ -374,6 +374,15 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   The remaining constructors in
   bootstrap have not yet been
   extracted; C5 is not closed.
+
+### C5 owner-bundle and capability-folder cutover (2026-10-10)
+
+- Platform constructs `PlatformRepositories`; PM constructs `ProjectManagementRepositories` and holds explicit `pm`/`platform` references in its composition context. The root assembles both once per shared session through owner bootstrap entry points. The mixed root repository factory was deleted, including its approval-factory consumers.
+- Platform receives project/resource calendar assignment ports from root composition; it imports no PM package. When no module supplies those ports, Platform-only bootstrap retains its calendar functionality and rejects unsupported external assignment writes explicitly. An AST guard prevents Platform composition from importing module packages.
+- PM dependency builders and event registrations are grouped by capability. `dependencies/repositories.py` deliberately remains at the dependency root.
+- The cross-module `ServiceGraph` contract and its desktop dictionary projection moved to root-owned `src/infra/composition/service_graph.py`; `app_container.py` is now a 225-line assembly entry point. The graph is not PM-owned or Platform-owned because it combines both plus integrations and Global Overview.
+- Platform and PM service-bundle contracts moved to their respective composition `bundle.py` files. Capability builders depend on the owner bundle contract rather than importing an orchestration bootstrap. The two `bootstrap.py` files still retain the order-sensitive construction and registration sequences; slicing those sequences further without an explicit lifecycle boundary would obscure the shared session/event-bus ordering. Focused root/Platform/PM composition rerun after this split: 48 passed.
+- Focused architecture/Platform auth tests: 63 passed, 2 skipped. PM composition and PM calendar integration: 43 passed. Root graph plus composition rerun: 44 passed. Ruff F/I and `git diff --check` pass. Targeted mypy reports six existing/in-scope type findings (one Billing Approval factory, five root integration call signatures); broader regression and typing cleanup remain before C5 closure. The earlier historical notes above describe states before this cutover.
 
 ## Closure Gates
 

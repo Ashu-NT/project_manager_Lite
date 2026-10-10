@@ -10,10 +10,10 @@ from src.core.modules.project_management.infrastructure.approval.budget_apply_pa
     BudgetApprovalDeps,
 )
 from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
+    build_approval_repository_context,
     build_enterprise_audit_service,
     wire_tenant_context_service,
 )
-from src.infra.composition.persistence.repositories import build_repository_bundle
 
 
 def build_budget_approval_deps(
@@ -24,8 +24,8 @@ def build_budget_approval_deps(
     module_catalog_service=None,
 ) -> BudgetApprovalDeps:
   
-    bundle = build_repository_bundle(session)
-    budget_repo = wire_tenant_context_service(bundle.project_budget_repo, tenant_context_service)
+    bundle = build_approval_repository_context(session, tenant_context_service)
+    budget_repo = wire_tenant_context_service(bundle.pm.project_budget_repo, tenant_context_service)
     enterprise_audit_service = build_enterprise_audit_service(
         session,
         bundle,
@@ -35,10 +35,10 @@ def build_budget_approval_deps(
     budget_service = BudgetService(
         session=session,
         budget_repo=budget_repo,
-        project_repo=bundle.project_repo,
-        financial_profile_repo=bundle.project_financial_profile_repo,
-        cost_code_repo=bundle.project_cost_code_repo,
-        task_repo=bundle.task_repo,
+        project_repo=bundle.pm.project_repo,
+        financial_profile_repo=bundle.pm.project_financial_profile_repo,
+        cost_code_repo=bundle.pm.project_cost_code_repo,
+        task_repo=bundle.pm.task_repo,
         clock=SystemClock(),
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,

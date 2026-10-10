@@ -6,7 +6,7 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
 )
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
 def build_data_import_service(

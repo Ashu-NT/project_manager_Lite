@@ -11,7 +11,9 @@ from src.core.platform.application.tenant.tenancy import (
     build_tenant_context_policy,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
 from src.infra.platform.operational_support import current_trace_id
 from src.infra.platform.security_audit_recorder import DurableSecurityDenialRecorder
 from src.infra.platform.security_config import RuntimeSecurityConfiguration
@@ -26,7 +28,7 @@ class TenancyDependencies:
 def build_tenancy_dependencies(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     security_configuration: RuntimeSecurityConfiguration,
 ) -> TenancyDependencies:
     user_session = UserSessionContext()

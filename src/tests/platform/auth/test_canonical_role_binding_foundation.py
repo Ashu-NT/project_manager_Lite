@@ -17,7 +17,9 @@ from src.core.platform.domain.security.authorization.roles import (
     RoleBinding,
 )
 from src.core.platform.domain.tenant.tenancy import Tenant
-from src.infra.composition.persistence.repositories import build_repository_bundle
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    build_platform_repositories,
+)
 
 
 @pytest.mark.parametrize(
@@ -89,7 +91,7 @@ def test_system_role_catalog_persists_explicit_scope_metadata(services) -> None:
 
 
 def test_role_binding_repository_reads_only_active_exact_tenant_rows(session) -> None:
-    repositories = build_repository_bundle(session)
+    repositories = build_platform_repositories(session)
     user = UserAccount.create(
         username="canonical-user",
         password_hash=hash_password("CanonicalUser123!"),
@@ -151,7 +153,7 @@ def test_role_binding_repository_reads_only_active_exact_tenant_rows(session) ->
 
 
 def test_database_rejects_duplicate_active_tenant_role_binding(session) -> None:
-    repositories = build_repository_bundle(session)
+    repositories = build_platform_repositories(session)
     user = UserAccount.create(
         username="duplicate-binding-user",
         password_hash=hash_password("DuplicateBinding123!"),

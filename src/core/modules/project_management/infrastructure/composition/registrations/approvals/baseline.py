@@ -15,12 +15,12 @@ from src.core.modules.project_management.infrastructure.approval.baseline_apply_
 )
 from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
     build_activity_service,
+    build_approval_repository_context,
     wire_tenant_context_service,
 )
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
-from src.infra.composition.persistence.repositories import build_repository_bundle
 
 
 def build_baseline_approval_deps(
@@ -35,16 +35,16 @@ def build_baseline_approval_deps(
     project_calendar_adapter: Any = None,
 ) -> BaselineApprovalDeps:
 
-    bundle = build_repository_bundle(session)
-    project_repo = wire_tenant_context_service(bundle.project_repo, tenant_context_service)
-    task_repo = wire_tenant_context_service(bundle.task_repo, tenant_context_service)
-    dependency_repo = wire_tenant_context_service(bundle.dependency_repo, tenant_context_service)
-    assignment_repo = wire_tenant_context_service(bundle.assignment_repo, tenant_context_service)
-    resource_repo = wire_tenant_context_service(bundle.resource_repo, tenant_context_service)
+    bundle = build_approval_repository_context(session, tenant_context_service)
+    project_repo = wire_tenant_context_service(bundle.pm.project_repo, tenant_context_service)
+    task_repo = wire_tenant_context_service(bundle.pm.task_repo, tenant_context_service)
+    dependency_repo = wire_tenant_context_service(bundle.pm.dependency_repo, tenant_context_service)
+    assignment_repo = wire_tenant_context_service(bundle.pm.assignment_repo, tenant_context_service)
+    resource_repo = wire_tenant_context_service(bundle.pm.resource_repo, tenant_context_service)
     planned_cost_repo = wire_tenant_context_service(
-        bundle.planned_cost_repo, tenant_context_service
+        bundle.pm.planned_cost_repo, tenant_context_service
     )
-    baseline_repo = wire_tenant_context_service(bundle.baseline_repo, tenant_context_service)
+    baseline_repo = wire_tenant_context_service(bundle.pm.baseline_repo, tenant_context_service)
 
     scheduling_engine = SchedulingEngine(
         session,

@@ -7,24 +7,26 @@ from src.core.modules.project_management.application.financials import (
     ForecastGenerationService,
     ForecastVersionService,
 )
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.modules.project_management.infrastructure.composition.context import (
+    ProjectManagementRepositoryContext,
+)
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
 def build_forecast_services(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
     clock: SystemClock,
 ) -> tuple[ForecastVersionService, ForecastGenerationService]:
     version_service = ForecastVersionService(
         session=session,
-        forecast_repo=repositories.project_forecast_repo,
-        project_repo=repositories.project_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
-        task_repo=repositories.task_repo,
+        forecast_repo=repositories.pm.project_forecast_repo,
+        project_repo=repositories.pm.project_repo,
+        financial_profile_repo=repositories.pm.project_financial_profile_repo,
+        cost_code_repo=repositories.pm.project_cost_code_repo,
+        task_repo=repositories.pm.task_repo,
         clock=clock,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
@@ -33,15 +35,15 @@ def build_forecast_services(
     )
     generation_service = ForecastGenerationService(
         session=session,
-        forecast_repo=repositories.project_forecast_repo,
-        project_repo=repositories.project_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
-        task_repo=repositories.task_repo,
-        planned_cost_repo=repositories.planned_cost_repo,
-        commitment_repo=repositories.project_commitment_repo,
-        cost_entry_repo=repositories.project_cost_entry_repo,
-        register_repo=repositories.register_repo,
+        forecast_repo=repositories.pm.project_forecast_repo,
+        project_repo=repositories.pm.project_repo,
+        financial_profile_repo=repositories.pm.project_financial_profile_repo,
+        cost_code_repo=repositories.pm.project_cost_code_repo,
+        task_repo=repositories.pm.task_repo,
+        planned_cost_repo=repositories.pm.planned_cost_repo,
+        commitment_repo=repositories.pm.project_commitment_repo,
+        cost_entry_repo=repositories.pm.project_cost_entry_repo,
+        register_repo=repositories.pm.register_repo,
         clock=clock,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,

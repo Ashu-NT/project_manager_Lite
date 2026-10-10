@@ -20,7 +20,7 @@ from src.core.modules.project_management.application.global_overview.pm_action_c
 from src.core.modules.project_management.application.global_overview.pm_module_overview_contributor import (
     ProjectManagementModuleOverviewContributor,
 )
-from src.core.modules.project_management.infrastructure.composition.bootstrap import (
+from src.core.modules.project_management.infrastructure.composition.bundle import (
     ProjectManagementServiceBundle,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
@@ -44,7 +44,7 @@ from src.core.platform.application.global_overview.platform_action_center_contri
 from src.core.platform.application.global_overview.platform_module_overview_contributor import (
     PlatformModuleOverviewContributor,
 )
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 from src.core.platform.infrastructure.persistence.orm.approval.approval import (
     ApprovalRequestORM,
 )

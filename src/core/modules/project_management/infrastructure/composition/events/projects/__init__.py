@@ -1,0 +1,1 @@
+"""projects event registrations."""

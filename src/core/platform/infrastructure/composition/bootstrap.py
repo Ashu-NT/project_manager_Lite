@@ -4,95 +4,19 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
 from time import perf_counter
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.access import (
-    AccessControlService,
-)
-from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.data_operations.runtime_tracking import (
-    RuntimeExecutionService,
-)
-from src.core.platform.application.finance import FinancialPeriodService
-from src.core.platform.application.history.activity import ActivityService
-from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.master_data.data_exchange import (
-    MasterDataExchangeService,
-)
-from src.core.platform.application.master_data.department.department_service import (
-    DepartmentService,
-)
-from src.core.platform.application.master_data.documents import (
-    DocumentIntegrationService,
-    DocumentService,
-)
-from src.core.platform.application.master_data.employee.employee_service import (
-    EmployeeService,
-)
-from src.core.platform.application.master_data.org.organization_service import (
-    OrganizationService,
-)
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.application.notifications.notification_service import (
-    NotificationService,
-)
-from src.core.platform.application.platform_runtime import (
-    PlatformRuntimeApplicationService,
-)
-from src.core.platform.application.security.auth import AuthService
-from src.core.platform.application.security.authorization.roles import (
-    RoleGovernanceService,
-    TenantRoleAdministrationService,
-)
-from src.core.platform.application.security.identity import ServicePrincipalService
-from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.application.tenant.tenancy import (
     TenancyMode,
-    TenantAdminService,
-    TenantContextService,
-    TenantMembershipService,
 )
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.contract.port.time_management.calendar.external_assignment_port import (
+    ProjectCalendarAssignmentPort,
+    ResourceCalendarAssignmentPort,
 )
-from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import (
-    GlobalCalendarShim,
-)
-from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
-    PlatformCalendarResolver,
-)
-from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
-    WorkingTimeCalculator,
-)
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
-)
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
-    RecurringEventService,
-)
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
-    ShiftPatternService,
-)
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
-)
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
-)
-from src.core.platform.contract.repositories.master_data.org.contracts import (
-    OrganizationRepository,
-)
-from src.core.platform.contract.repositories.master_data.party.contracts import (
-    PartyRepository,
-)
-from src.core.platform.contract.repositories.master_data.site.contracts import (
-    SiteRepository,
-)
-from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 from src.core.platform.infrastructure.composition.dependencies.approvals.approval import (
     build_approval_service,
 )
@@ -117,6 +41,12 @@ from src.core.platform.infrastructure.composition.dependencies.master_data.organ
 )
 from src.core.platform.infrastructure.composition.dependencies.notifications.delivery import (
     build_notification_service,
+)
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    build_platform_repositories as build_platform_repositories,
 )
 from src.core.platform.infrastructure.composition.dependencies.security.administration import (
     build_security_administration_dependencies,
@@ -168,10 +98,6 @@ from src.core.platform.infrastructure.composition.registrations.tenancy.local_de
 from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
     SqlAlchemyPlatformOverviewRollupReader,
 )
-from src.core.shared.events.view_invalidation import (
-    ViewInvalidationChannel,
-)
-from src.infra.composition.persistence.repositories import RepositoryBundle
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
@@ -193,57 +119,13 @@ from src.infra.platform.security_config import (
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
-class PlatformServiceBundle:
-    session: Session
-    user_session: UserSessionContext
-    organization_repo: OrganizationRepository
-    site_repo: SiteRepository
-    party_repo: PartyRepository
-    tenant_context_service: TenantContextService
-    platform_view_invalidation_channel: ViewInvalidationChannel
-   
-    platform_transactional_dispatcher: InProcessTransactionalEventDispatcher
-    platform_post_commit_bus: InProcessPostCommitEventBus
-    platform_runtime_application_service: PlatformRuntimeApplicationService
-    module_catalog_service: ModuleCatalogService
-    auth_service: AuthService
-    role_governance_service: RoleGovernanceService
-    tenant_role_administration_service: TenantRoleAdministrationService
-    organization_service: OrganizationService
-    document_service: DocumentService
-    document_integration_service: DocumentIntegrationService
-    party_service: PartyService
-    department_service: DepartmentService
-    site_service: SiteService
-    employee_service: EmployeeService
-    master_data_exchange_service: MasterDataExchangeService
-    runtime_execution_service: RuntimeExecutionService
-    access_service: AccessControlService
-    activity_service: ActivityService
-    enterprise_audit_service: EnterpriseAuditService
-    financial_period_service: FinancialPeriodService
-    notification_service: NotificationService
-    approval_service: ApprovalService
-    platform_calendar_service: PlatformCalendarService
-    working_rule_service: WorkingRuleService
-    calendar_exception_service: CalendarExceptionService
-    recurring_event_service: RecurringEventService
-    shift_pattern_service: ShiftPatternService
-    calendar_assignment_service: CalendarAssignmentService
-    platform_calendar_resolver: PlatformCalendarResolver
-    working_time_calculator: WorkingTimeCalculator
-    tenant_admin_service: TenantAdminService
-    tenant_membership_service: TenantMembershipService
-    service_principal_service: ServicePrincipalService
-    global_calendar_shim: GlobalCalendarShim
-    runtime_security_configuration: RuntimeSecurityConfiguration
-
 
 def build_platform_service_bundle(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     *,
+    project_assignment_repo: ProjectCalendarAssignmentPort[Any] | None = None,
+    resource_assignment_repo: ResourceCalendarAssignmentPort[Any] | None = None,
     runtime_security_configuration: RuntimeSecurityConfiguration | None = None,
     notification_recipient_policy: Callable[[Session, object], bool] | None = None,
 ) -> PlatformServiceBundle:
@@ -461,6 +343,8 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         activity_service=activity_service,
+        project_assignment_repo=project_assignment_repo,
+        resource_assignment_repo=resource_assignment_repo,
     )
 
     bundle = PlatformServiceBundle(
@@ -514,4 +398,4 @@ def build_platform_service_bundle(
     return bundle
 
 
-__all__ = ["PlatformServiceBundle", "build_platform_service_bundle"]
+__all__ = ["build_platform_repositories", "build_platform_service_bundle"]

@@ -7,13 +7,15 @@ from src.core.modules.project_management.application.financials import (
     FinancialChangeService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.modules.project_management.infrastructure.composition.context import (
+    ProjectManagementRepositoryContext,
+)
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
 def build_financial_change_service(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
     task_service: TaskService,
@@ -21,13 +23,13 @@ def build_financial_change_service(
 ) -> FinancialChangeService:
     return FinancialChangeService(
         session=session,
-        change_repo=repositories.financial_change_repo,
-        budget_repo=repositories.project_budget_repo,
-        forecast_repo=repositories.project_forecast_repo,
-        project_repo=repositories.project_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
-        task_repo=repositories.task_repo,
+        change_repo=repositories.pm.financial_change_repo,
+        budget_repo=repositories.pm.project_budget_repo,
+        forecast_repo=repositories.pm.project_forecast_repo,
+        project_repo=repositories.pm.project_repo,
+        financial_profile_repo=repositories.pm.project_financial_profile_repo,
+        cost_code_repo=repositories.pm.project_cost_code_repo,
+        task_repo=repositories.pm.task_repo,
         task_service=task_service,
         approval_service=platform_services.approval_service,
         clock=clock,

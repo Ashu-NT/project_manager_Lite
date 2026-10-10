@@ -10,6 +10,9 @@ from src.core.platform.application.master_data.org.organization_service import (
 )
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
 from src.core.platform.infrastructure.persistence.read.master_data.employee.employee_headcount_reader import (
     SqlAlchemyEmployeeHeadcountReader,
 )
@@ -19,7 +22,6 @@ from src.core.platform.infrastructure.persistence.read.overview.platform_overvie
 from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
-from src.infra.composition.persistence.repositories import RepositoryBundle
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
@@ -32,7 +34,7 @@ from src.infra.time.system_clock import SystemClock
 def build_organization_service(
     *,
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: PlatformRepositories,
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
     enterprise_audit_service: EnterpriseAuditService,

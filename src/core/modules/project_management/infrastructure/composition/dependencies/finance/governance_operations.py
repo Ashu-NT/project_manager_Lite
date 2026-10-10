@@ -36,7 +36,7 @@ from src.core.platform.application.finance.financial_period_service import (
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 from src.core.shared.events.domain_event import DomainEvent
 from src.infra.composition.integration.accounting.accounting_integration import (
     build_accounting_capability,

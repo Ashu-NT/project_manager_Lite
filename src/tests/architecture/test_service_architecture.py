@@ -175,8 +175,8 @@ def test_services_module_delegates_to_modular_registration_builders():
         and any(alias.name == "build_platform_service_bundle" for alias in node.names)
         for node in ast.walk(ast.parse(text))
     )
-    assert "from src.infra.composition.persistence.repositories import build_repository_bundle" in text
-    assert "build_repository_bundle(session)" in text
+    assert "build_platform_repositories" in text
+    assert "build_project_management_repository_context" in text
     assert "notification_recipient_policy=pm_notification_recipient_policy" in text
     assert "platform_services = build_platform_service_bundle(" in text
     assert "from src.core.modules.project_management.infrastructure.composition.bootstrap import (" in text
@@ -187,7 +187,14 @@ def test_service_registration_package_is_split_by_platform_and_module():
     root = REPO_ROOT / "src" / "infra" / "composition"
 
     assert (root / "__init__.py").exists()
-    assert (root / "persistence" / "repositories.py").exists()
+    assert not (root / "persistence" / "repositories.py").exists()
+    assert (
+        REPO_ROOT / "src/core/platform/infrastructure/composition/dependencies/repositories.py"
+    ).exists()
+    assert (
+        REPO_ROOT
+        / "src/core/modules/project_management/infrastructure/composition/dependencies/repositories.py"
+    ).exists()
     assert (
         REPO_ROOT / "src/core/platform/infrastructure/composition/bootstrap.py"
     ).exists()
@@ -197,6 +204,20 @@ def test_service_registration_package_is_split_by_platform_and_module():
         / "src/core/modules/project_management/infrastructure/composition/bootstrap.py"
     ).exists()
     assert not (root / "modules" / "project_registry.py").exists()
+
+
+def test_platform_composition_has_no_module_imports():
+    root = REPO_ROOT / "src/core/platform/infrastructure/composition"
+    for path in root.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                assert not node.module.startswith("src.core.modules."), path
+            elif isinstance(node, ast.Import):
+                assert all(
+                    not alias.name.startswith("src.core.modules.")
+                    for alias in node.names
+                ), path
 
 
 def test_application_root_uses_only_pm_composition_bootstrap():

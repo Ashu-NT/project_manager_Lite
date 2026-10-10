@@ -9,16 +9,18 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
     ProjectCalendarAdapter,
 )
+from src.core.modules.project_management.infrastructure.composition.context import (
+    ProjectManagementRepositoryContext,
+)
 from src.core.modules.project_management.infrastructure.persistence.uow.scheduling.baseline_unit_of_work import (
     SqlAlchemyBaselineUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
 def build_scheduling_foundation(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
 ) -> tuple[ProjectCalendarAdapter, SchedulingEngine]:
     adapter = ProjectCalendarAdapter(
@@ -27,11 +29,11 @@ def build_scheduling_foundation(
     )
     engine = SchedulingEngine(
         session,
-        repositories.task_repo,
-        repositories.dependency_repo,
+        repositories.pm.task_repo,
+        repositories.pm.dependency_repo,
         platform_services.global_calendar_shim,
-        assignment_repo=repositories.assignment_repo,
-        resource_repo=repositories.resource_repo,
+        assignment_repo=repositories.pm.assignment_repo,
+        resource_repo=repositories.pm.resource_repo,
         project_calendar_adapter=adapter,
     )
     return adapter, engine
@@ -39,7 +41,7 @@ def build_scheduling_foundation(
 
 def build_baseline_service(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
     scheduling_engine: SchedulingEngine,
@@ -51,10 +53,10 @@ def build_baseline_service(
     )
     return BaselineService(
         session=session,
-        project_repo=repositories.project_repo,
-        task_repo=repositories.task_repo,
-        planned_cost_repo=repositories.planned_cost_repo,
-        baseline_repo=repositories.baseline_repo,
+        project_repo=repositories.pm.project_repo,
+        task_repo=repositories.pm.task_repo,
+        planned_cost_repo=repositories.pm.planned_cost_repo,
+        baseline_repo=repositories.pm.baseline_repo,
         scheduling=scheduling_engine,
         calendar=platform_services.global_calendar_shim,
         user_session=platform_services.user_session,

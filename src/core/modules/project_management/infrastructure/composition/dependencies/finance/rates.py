@@ -9,24 +9,26 @@ from src.core.modules.project_management.application.financials.rate_cards.rate_
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
     ProjectRateCardService,
 )
+from src.core.modules.project_management.infrastructure.composition.context import (
+    ProjectManagementRepositoryContext,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
     SqlAlchemyRateResolutionReader,
 )
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
 def build_rate_card_services(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
     clock: SystemClock,
 ) -> tuple[ProjectRateCardService, RateCardResolver]:
     rate_card_service = ProjectRateCardService(
         session=session,
-        rate_card_repo=repositories.project_rate_card_repo,
-        project_repo=repositories.project_repo,
+        rate_card_repo=repositories.pm.project_rate_card_repo,
+        project_repo=repositories.pm.project_repo,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,

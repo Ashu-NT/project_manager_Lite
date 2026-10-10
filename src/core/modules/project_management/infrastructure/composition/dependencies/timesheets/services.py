@@ -3,6 +3,9 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.timesheets import TimesheetService
+from src.core.modules.project_management.infrastructure.composition.context import (
+    ProjectManagementRepositoryContext,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
     SqlAlchemyResourceIdentityReader,
 )
@@ -11,13 +14,12 @@ from src.core.modules.project_management.infrastructure.persistence.reads.timesh
     SqlAlchemyTimesheetWorkspaceReader,
 )
 from src.core.platform.application.integration import IntegrationOutboxService
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
-from src.infra.composition.persistence.repositories import RepositoryBundle
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
 def build_timesheet_service(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
     approved_time_outbox_service: IntegrationOutboxService | None,
@@ -28,7 +30,7 @@ def build_timesheet_service(
         if not normalized_scope_id:
             return None
         if normalized_scope_type == "project":
-            project = repositories.project_repo.get(normalized_scope_id)
+            project = repositories.pm.project_repo.get(normalized_scope_id)
             return getattr(project, "organization_id", None) if project is not None else None
         if normalized_scope_type == "site":
             site = platform_services.site_repo.get(normalized_scope_id)
@@ -37,12 +39,12 @@ def build_timesheet_service(
 
     return TimesheetService(
         session=session,
-        assignment_repo=repositories.assignment_repo,
-        task_repo=repositories.task_repo,
-        resource_repo=repositories.resource_repo,
-        employee_repo=repositories.employee_repo,
-        time_entry_repo=repositories.time_entry_repo,
-        timesheet_period_repo=repositories.timesheet_period_repo,
+        assignment_repo=repositories.pm.assignment_repo,
+        task_repo=repositories.pm.task_repo,
+        resource_repo=repositories.pm.resource_repo,
+        employee_repo=repositories.platform.employee_repo,
+        time_entry_repo=repositories.platform.time_entry_repo,
+        timesheet_period_repo=repositories.platform.timesheet_period_repo,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,

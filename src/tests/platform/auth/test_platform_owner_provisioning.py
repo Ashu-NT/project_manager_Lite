@@ -13,14 +13,14 @@ from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     RoleBinding,
 )
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+    build_platform_repositories,
+)
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
-from src.infra.composition.persistence.repositories import (
-    RepositoryBundle,
-    build_repository_bundle,
-)
 
 
 class _FailingPlatformAuditWriter:
@@ -28,7 +28,7 @@ class _FailingPlatformAuditWriter:
         raise RuntimeError("audit unavailable")
 
 
-def _build_auth_service(session) -> tuple[AuthService, RepositoryBundle]:
+def _build_auth_service(session) -> tuple[AuthService, PlatformRepositories]:
     from src.infra.events.in_process_post_commit_event_bus import (
         InProcessPostCommitEventBus,
     )
@@ -36,7 +36,7 @@ def _build_auth_service(session) -> tuple[AuthService, RepositoryBundle]:
         InProcessTransactionalEventDispatcher,
     )
 
-    repositories = build_repository_bundle(session)
+    repositories = build_platform_repositories(session)
     return (
         AuthService(
             session=session,

@@ -3,79 +3,27 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
-from dataclasses import dataclass
 from time import perf_counter
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.collaboration import (
-    CollaborationService,
-)
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.application.dashboard import DashboardService
-from src.core.modules.project_management.application.financials import (
-    ApprovedTimeLaborCostConsumer,
-    BudgetService,
-    FinanceService,
-    FinancialChangeService,
-    FinancialConfigurationService,
-    ForecastGenerationService,
-    ForecastVersionService,
-    PlannedCostService,
-    ProcurementFinancialConsumer,
-    ProjectBillingPreparationService,
-    ProjectBillingProfileService,
-    ProjectCommitmentService,
-    ProjectCostEntryService,
-    ProjectFinancePerformanceQuery,
-    ProjectFinanceWorkspaceQuery,
-    ProjectRateCardService,
-    RateCardResolver,
+from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
+    APPROVED_TIME_FINANCE_PRINCIPAL_NAME as APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
 )
-from src.core.modules.project_management.application.financials.governance import (
-    FinanceGovernanceCommandBoundary,
+from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
+    PROCUREMENT_FINANCE_PRINCIPAL_NAME as PROCUREMENT_FINANCE_PRINCIPAL_NAME,
 )
-from src.core.modules.project_management.application.portfolio import PortfolioService
-from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.reporting import (
-    ReportingService,
+from src.core.modules.project_management.infrastructure.composition.bundle import (
+    ProjectManagementServiceBundle,
 )
-from src.core.modules.project_management.application.resources import (
-    ProjectResourceService,
-    ResourceService,
+from src.core.modules.project_management.infrastructure.composition.context import (
+    ProjectManagementRepositoryContext,
 )
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
-)
-from src.core.modules.project_management.application.resources.capacity.resource_capacity_calculator import (
-    ResourceCapacityCalculator,
-)
-from src.core.modules.project_management.application.resources.capacity.resource_workload_service import (
-    ResourceWorkloadService,
-)
-from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
-    AssignmentSkillValidator,
-)
-from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
-    PortfolioResourcePoolService,
-)
-from src.core.modules.project_management.application.risk import RegisterService
-from src.core.modules.project_management.application.scheduling import (
-    SchedulingEngine,
-)
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
-)
-from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
-    ProjectCalendarAdapter,
-)
-from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.modules.project_management.infrastructure.composition.dependencies.collaboration import (
+from src.core.modules.project_management.infrastructure.composition.dependencies.collaboration.services import (
     build_collaboration_service,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.dashboard import (
+from src.core.modules.project_management.infrastructure.composition.dependencies.dashboard.services import (
     build_dashboard_service,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.billing import (
@@ -117,39 +65,42 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_finance_worker_consumers,
     build_finance_worker_uow_factory,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.importers import (
+from src.core.modules.project_management.infrastructure.composition.dependencies.importers.services import (
     build_data_import_service,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.portfolio import (
+from src.core.modules.project_management.infrastructure.composition.dependencies.portfolio.services import (
     build_portfolio_resource_pool_service,
     build_portfolio_service,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.projects import (
+from src.core.modules.project_management.infrastructure.composition.dependencies.projects.services import (
     build_project_service,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.register import (
+from src.core.modules.project_management.infrastructure.composition.dependencies.register.services import (
     build_register_service,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.reporting import (
+from src.core.modules.project_management.infrastructure.composition.dependencies.reporting.services import (
     build_reporting_service,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.resources import (
+from src.core.modules.project_management.infrastructure.composition.dependencies.repositories import (
+    build_project_management_repositories,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.resources.services import (
     build_project_resource_service,
     build_resource_planning_foundation,
     build_resource_planning_services,
     build_resource_service,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.scheduling import (
+from src.core.modules.project_management.infrastructure.composition.dependencies.scheduling.services import (
     build_baseline_service,
     build_scheduling_foundation,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.tasks import (
+from src.core.modules.project_management.infrastructure.composition.dependencies.tasks.services import (
     build_task_service,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.timesheets import (
+from src.core.modules.project_management.infrastructure.composition.dependencies.timesheets.services import (
     build_timesheet_service,
 )
-from src.core.modules.project_management.infrastructure.composition.events.collaboration import (
+from src.core.modules.project_management.infrastructure.composition.events.collaboration.registration import (
     register_collaboration_view_invalidation,
 )
 from src.core.modules.project_management.infrastructure.composition.events.finance.billing import (
@@ -175,25 +126,25 @@ from src.core.modules.project_management.infrastructure.composition.events.finan
 from src.core.modules.project_management.infrastructure.composition.events.finance.rates import (
     register_rate_card_view_invalidation,
 )
-from src.core.modules.project_management.infrastructure.composition.events.portfolio import (
+from src.core.modules.project_management.infrastructure.composition.events.portfolio.registration import (
     register_portfolio_view_invalidation,
 )
-from src.core.modules.project_management.infrastructure.composition.events.projects import (
+from src.core.modules.project_management.infrastructure.composition.events.projects.registration import (
     register_project_view_invalidation,
 )
-from src.core.modules.project_management.infrastructure.composition.events.register import (
+from src.core.modules.project_management.infrastructure.composition.events.register.registration import (
     register_register_view_invalidation,
 )
-from src.core.modules.project_management.infrastructure.composition.events.resources import (
+from src.core.modules.project_management.infrastructure.composition.events.resources.registration import (
     register_resource_view_invalidation,
 )
-from src.core.modules.project_management.infrastructure.composition.events.scheduling import (
+from src.core.modules.project_management.infrastructure.composition.events.scheduling.registration import (
     register_baseline_view_invalidation,
 )
-from src.core.modules.project_management.infrastructure.composition.events.tasks import (
+from src.core.modules.project_management.infrastructure.composition.events.tasks.registration import (
     register_task_events,
 )
-from src.core.modules.project_management.infrastructure.composition.events.timesheets import (
+from src.core.modules.project_management.infrastructure.composition.events.timesheets.registration import (
     register_timesheet_view_invalidation,
 )
 from src.core.modules.project_management.infrastructure.composition.registrations.access import (
@@ -205,81 +156,30 @@ from src.core.modules.project_management.infrastructure.composition.registration
 from src.core.modules.project_management.infrastructure.composition.registrations.notifications import (
     pm_notification_recipient_policy,
 )
-from src.core.modules.project_management.infrastructure.importers import (
-    DataImportService,
-)
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
-    SqlAlchemyFinanceGovernanceUnitOfWork,
-    SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
-)
 from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.application.time_management.time import TimeService
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
-    CalendarProtocol,
+from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
 )
-from src.core.platform.domain.security.identity.service_principal import (
-    ServicePrincipal,
-)
-from src.core.platform.infrastructure.composition.bootstrap import PlatformServiceBundle
-from src.infra.composition.persistence.repositories import RepositoryBundle
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkFactoryBase
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
-class ProjectManagementServiceBundle:
-    time_service: TimeService
-    collaboration_service: CollaborationService
-    project_service: ProjectService
-    task_service: TaskService
-    timesheet_service: TimesheetService
-    resource_service: ResourceService
-    finance_governance_commands: FinanceGovernanceCommandBoundary
-    financial_configuration_service: FinancialConfigurationService
-    forecast_generation_service: ForecastGenerationService
-    forecast_version_service: ForecastVersionService
-    financial_change_service: FinancialChangeService
-    billing_profile_service: ProjectBillingProfileService
-    billing_preparation_service: ProjectBillingPreparationService
-    rate_card_service: ProjectRateCardService
-    rate_card_resolver: RateCardResolver
-    budget_service: BudgetService
-    cost_entry_service: ProjectCostEntryService
-    finance_worker_uow_factory: SqlAlchemyFinanceGovernanceUnitOfWorkFactory
-    approved_time_consumer_factory: Callable[
-        [SqlAlchemyFinanceGovernanceUnitOfWork, ServicePrincipal],
-        ApprovedTimeLaborCostConsumer,
-    ]
-    procurement_consumer_factory: Callable[
-        [SqlAlchemyFinanceGovernanceUnitOfWork, ServicePrincipal],
-        ProcurementFinancialConsumer,
-    ]
-    commitment_service: ProjectCommitmentService
-    planned_cost_service: PlannedCostService
-    finance_workspace_query: ProjectFinanceWorkspaceQuery
-    finance_performance_query: ProjectFinancePerformanceQuery
-    finance_service: FinanceService
-    work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
-    scheduling_engine: SchedulingEngine
-    reporting_service: ReportingService
-    baseline_service: BaselineService
-    dashboard_service: DashboardService
-    portfolio_service: PortfolioService
-    register_service: RegisterService
-    project_resource_service: ProjectResourceService
-    data_import_service: DataImportService
-    assignment_skill_validator: AssignmentSkillValidator
-    project_calendar_adapter: ProjectCalendarAdapter
-    enterprise_resource_availability: EnterpriseResourceAvailabilityService
-    resource_capacity_calculator: ResourceCapacityCalculator
-    resource_workload_service: ResourceWorkloadService
-    portfolio_resource_pool_service: PortfolioResourcePoolService
+def build_project_management_repository_context(
+    session: Session, platform: PlatformRepositories
+) -> ProjectManagementRepositoryContext:
+    return ProjectManagementRepositoryContext(
+        pm=build_project_management_repositories(session),
+        platform=platform,
+    )
+
 
 
 def build_project_management_service_bundle(
     session: Session,
-    repositories: RepositoryBundle,
+    repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
     approved_time_outbox_service: IntegrationOutboxService | None = None,
@@ -287,6 +187,10 @@ def build_project_management_service_bundle(
 ) -> ProjectManagementServiceBundle:
     started = perf_counter()
     logger.debug("Project Management service bundle build begin")
+    for field_name in repositories.pm.__dataclass_fields__:
+        repo = getattr(repositories.pm, field_name)
+        if hasattr(repo, "_tenant_context_service"):
+            repo._tenant_context_service = platform_services.tenant_context_service
     logger.debug("Project Management platform registrations begin")
     register_project_scope_access(repositories, platform_services)
     logger.debug("Project Management platform registrations complete")
@@ -634,7 +538,7 @@ def build_project_management_service_bundle(
     )
 
 __all__ = [
-    "ProjectManagementServiceBundle",
+    "build_project_management_repository_context",
     "build_project_management_service_bundle",
     "pm_notification_recipient_policy",
 ]
