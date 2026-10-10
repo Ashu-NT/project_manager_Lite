@@ -178,6 +178,22 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   all eight Finance event source files. No Finance service construction,
   governed port, UoW factory or worker principal was changed in this slice.
   C4 remains open for those higher-risk dependency and worker migrations.
+- C4 Finance dependency slice: PM-owned `dependencies/finance/` builders now
+  construct Configuration, Rate Card/Resolver, Budget, Cost Entry, Commitment,
+  Planned Cost, and Forecast Version/Generation at their original positions.
+  The existing ambient session, shared clock, rate resolver, and later governed
+  service ports remain unchanged. Composition tests assert service identity and
+  lifetime; focused Cost Entry/Commitment/Planned Cost tests passed (28), and
+  composition/Forecast tests passed (18). The prior Configuration/Rate/Budget
+  slice passed 111 focused tests. Targeted Ruff F/I and mypy pass for the six
+  Finance dependency files. Finance read composition now owns Workspace Query,
+  Performance Reader and Finance Service construction; the workspace query
+  remains before Reporting and Performance remains after it. Reader/session
+  identity checks and workspace tests passed (6 and 4); targeted mypy passes
+  for all seven Finance dependency files. C4 remains open for the fresh-session
+  Finance UoW, worker principal factories, governed ports, Billing and other
+  query composition; these must not be treated as migrated by the raw-service
+  and read-builder moves.
 
 ## Closure Gates
 

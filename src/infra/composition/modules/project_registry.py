@@ -78,6 +78,25 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
 from src.core.modules.project_management.infrastructure.composition.dependencies.dashboard import (
     build_dashboard_service,
 )
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.budgets import (
+    build_budget_service,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.configuration import (
+    build_financial_configuration_service,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.costs import (
+    build_cost_services,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.forecasts import (
+    build_forecast_services,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.rates import (
+    build_rate_card_services,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.reads import (
+    build_finance_performance_services,
+    build_finance_workspace_query,
+)
 from src.core.modules.project_management.infrastructure.composition.dependencies.importers import (
     build_data_import_service,
 )
@@ -170,16 +189,6 @@ from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
-    SqlAlchemyFinanceBillingReader,
-    SqlAlchemyFinanceBudgetReader,
-    SqlAlchemyFinanceChangeReader,
-    SqlAlchemyFinanceForecastReader,
-    SqlAlchemyFinanceIntegrationReader,
-    SqlAlchemyFinanceLookupReader,
-    SqlAlchemyFinancePerformanceReader,
-    SqlAlchemyFinancePlannedCostReader,
-    SqlAlchemyFinanceRateReader,
-    SqlAlchemyFinanceSetupReader,
     SqlAlchemyFinanceSnapshotReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
@@ -199,6 +208,9 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 )
 from src.core.platform.domain.security.identity.service_principal import (
     ServicePrincipal,
+)
+from src.infra.composition.integration.accounting.accounting_integration import (
+    build_accounting_capability,
 )
 from src.infra.composition.modules.platform_registry import PlatformServiceBundle
 from src.infra.composition.persistence.repositories import RepositoryBundle
@@ -358,119 +370,37 @@ def build_project_management_service_bundle(
         platform_services,
         clock=system_clock,
     )
-    financial_configuration_service = FinancialConfigurationService(
-        session=session,
-        profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
-        project_repo=repositories.project_repo,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
+    financial_configuration_service = build_financial_configuration_service(
+        session,
+        repositories,
+        platform_services,
     )
-    rate_card_service = ProjectRateCardService(
-        session=session,
-        rate_card_repo=repositories.project_rate_card_repo,
-        project_repo=repositories.project_repo,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
-    )
-    rate_resolution_reader = SqlAlchemyRateResolutionReader(session=session)
-    rate_card_resolver = RateCardResolver(
-        reader=rate_resolution_reader,
-        tenant_context_service=platform_services.tenant_context_service,
+    rate_card_service, rate_card_resolver = build_rate_card_services(
+        session,
+        repositories,
+        platform_services,
         clock=system_clock,
     )
-    budget_service = BudgetService(
-        session=session,
-        budget_repo=repositories.project_budget_repo,
-        project_repo=repositories.project_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
-        task_repo=repositories.task_repo,
+    budget_service = build_budget_service(
+        session,
+        repositories,
+        platform_services,
         clock=system_clock,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
-        approval_service=platform_services.approval_service,
     )
-    cost_entry_service = ProjectCostEntryService(
-        session=session,
-        entry_repo=repositories.project_cost_entry_repo,
-        project_repo=repositories.project_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
-        task_repo=repositories.task_repo,
-        resource_repo=repositories.resource_repo,
-        financial_period_service=platform_services.financial_period_service,
+    cost_entry_service, commitment_service, planned_cost_service = build_cost_services(
+        session,
+        repositories,
+        platform_services,
         clock=system_clock,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
-        approval_service=platform_services.approval_service,
         rate_resolver=rate_card_resolver,
-        labor_posting_repo=repositories.approved_time_labor_posting_repo,
-    )
-    commitment_service = ProjectCommitmentService(
-        session=session,
-        commitment_repo=repositories.project_commitment_repo,
-        cost_entry_repo=repositories.project_cost_entry_repo,
-        project_repo=repositories.project_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
-        task_repo=repositories.task_repo,
-        party_repo=repositories.party_repo,
-        site_repo=repositories.site_repo,
-        clock=system_clock,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
-    )
-    planned_cost_service = PlannedCostService(
-        session=session,
-        planned_cost_repo=repositories.planned_cost_repo,
-        project_repo=repositories.project_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
-        task_repo=repositories.task_repo,
-        assignment_repo=repositories.assignment_repo,
-        project_resource_repo=repositories.project_resource_repo,
-        rate_resolver=rate_card_resolver,
-        clock=system_clock,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
     )
     from src.core.modules.project_management.application.financials.accounting.request_service import (
         AccountingHandoffRequestService,
     )
-    from src.infra.composition.integration.accounting.accounting_integration import (
-        build_accounting_capability,
-    )
-
-    finance_workspace_query = ProjectFinanceWorkspaceQuery(
-        accounting_capability=build_accounting_capability(
-            session=session, tenant_context_service=platform_services.tenant_context_service,
-            user_session=platform_services.user_session, installed_adapters=accounting_adapter_ids,
-        ),
-        setup_reader=SqlAlchemyFinanceSetupReader(session=session),
-        lookup_reader=SqlAlchemyFinanceLookupReader(session=session),
-        budget_reader=SqlAlchemyFinanceBudgetReader(session=session),
-        planned_cost_reader=SqlAlchemyFinancePlannedCostReader(session=session),
-        forecast_reader=SqlAlchemyFinanceForecastReader(session=session),
-        rate_reader=SqlAlchemyFinanceRateReader(session=session),
-        change_reader=SqlAlchemyFinanceChangeReader(session=session),
-        billing_reader=SqlAlchemyFinanceBillingReader(session=session),
-        integration_reader=SqlAlchemyFinanceIntegrationReader(session=session),
-        tenant_context_service=platform_services.tenant_context_service,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
+    finance_workspace_query = build_finance_workspace_query(
+        session,
+        platform_services,
+        accounting_adapter_ids=accounting_adapter_ids,
     )
     reporting_service = build_reporting_service(
         session,
@@ -479,47 +409,16 @@ def build_project_management_service_bundle(
         scheduling_engine=scheduling_engine,
         rate_resolver=rate_card_resolver,
     )
-    finance_performance_reader = SqlAlchemyFinancePerformanceReader(
-        session=session,
-        calendar=platform_services.global_calendar_shim,
-    )
-    finance_service = FinanceService(
+    finance_performance_reader, finance_service = build_finance_performance_services(
+        session,
+        platform_services,
         rate_resolver=rate_card_resolver,
-        finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
-        finance_performance_reader=finance_performance_reader,
-        tenant_context_service=platform_services.tenant_context_service,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
     )
-    forecast_version_service = ForecastVersionService(
-        session=session,
-        forecast_repo=repositories.project_forecast_repo,
-        project_repo=repositories.project_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
-        task_repo=repositories.task_repo,
+    forecast_version_service, forecast_generation_service = build_forecast_services(
+        session,
+        repositories,
+        platform_services,
         clock=system_clock,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
-    )
-    forecast_generation_service = ForecastGenerationService(
-        session=session,
-        forecast_repo=repositories.project_forecast_repo,
-        project_repo=repositories.project_repo,
-        financial_profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
-        task_repo=repositories.task_repo,
-        planned_cost_repo=repositories.planned_cost_repo,
-        commitment_repo=repositories.project_commitment_repo,
-        cost_entry_repo=repositories.project_cost_entry_repo,
-        register_repo=repositories.register_repo,
-        clock=system_clock,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
     )
 
     finance_governance_uow_session_factory = sessionmaker(

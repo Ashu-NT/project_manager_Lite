@@ -161,3 +161,49 @@ def test_remaining_finance_events_have_one_handler_per_family(services) -> None:
             for event_type in event_types
         )
         assert all(handler is handlers[0] for handler in handlers)
+
+
+def test_finance_setup_rate_and_budget_preserve_raw_service_lifetimes(services, session) -> None:
+    configuration = services["financial_configuration_service"]
+    rate_cards = services["rate_card_service"]
+    budget = services["budget_service"]
+    resolver = services["rate_card_resolver"]
+
+    assert configuration._read_service._session is session
+    assert rate_cards._read_service._session is session
+    assert budget._read_service._session is session
+    assert budget._read_service._clock is resolver._clock
+    assert resolver._clock is services["resource_service"]._clock
+
+
+def test_finance_cost_services_preserve_session_clock_and_rate_resolver(services, session) -> None:
+    cost_entries = services["cost_entry_service"]._read_service
+    commitments = services["commitment_service"]
+    planned_costs = services["planned_cost_service"]._read_service
+    resolver = services["rate_card_resolver"]
+
+    assert cost_entries._session is session
+    assert commitments._session is session
+    assert planned_costs._session is session
+    assert cost_entries._clock is commitments._clock is planned_costs._clock
+    assert cost_entries._clock is resolver._clock
+    assert cost_entries._rate_resolver is planned_costs._rate_resolver is resolver
+
+
+def test_finance_forecast_services_preserve_session_and_clock(services, session) -> None:
+    version = services["forecast_version_service"]._read_service
+    generation = services["forecast_generation_service"]._read_service
+
+    assert version._session is session
+    assert generation._session is session
+    assert version._clock is generation._clock is services["rate_card_resolver"]._clock
+
+
+def test_finance_read_services_preserve_ambient_session(services, session) -> None:
+    workspace = services["finance_workspace_query"]
+    finance = services["finance_service"]
+
+    assert workspace._setup_reader._session is session
+    assert workspace._budget_reader._session is session
+    assert finance._finance_performance_reader._session is session
+    assert finance._finance_snapshot_reader._session is session
