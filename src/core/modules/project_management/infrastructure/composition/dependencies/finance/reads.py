@@ -4,8 +4,13 @@ from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.financials import (
     FinanceService,
+    ProjectFinancePerformanceQuery,
     ProjectFinanceWorkspaceQuery,
     RateCardResolver,
+)
+from src.core.modules.project_management.application.reporting import ReportingService
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
+    BaselineService,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
     SqlAlchemyFinanceBillingReader,
@@ -73,3 +78,22 @@ def build_finance_performance_services(
         module_catalog_service=platform_services.module_catalog_service,
     )
     return reader, service
+
+
+def build_finance_performance_query(
+    session: Session,
+    platform_services: PlatformServiceBundle,
+    *,
+    performance_reader: SqlAlchemyFinancePerformanceReader,
+    reporting_service: ReportingService,
+    baseline_service: BaselineService,
+) -> ProjectFinancePerformanceQuery:
+    return ProjectFinancePerformanceQuery(
+        performance_reader=performance_reader,
+        overview_reader=SqlAlchemyFinanceSnapshotReader(session=session),
+        earned_value_authority=reporting_service,
+        baseline_variance_authority=baseline_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_catalog_service,
+    )

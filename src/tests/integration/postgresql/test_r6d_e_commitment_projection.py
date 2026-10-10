@@ -126,8 +126,9 @@ def seed_procurement_scope(postgres_test_environment):
         ), {"id": SITE_A, "tenant": TENANT_A, "org": ORG_A, "now": now})
         connection.execute(text(
             "INSERT INTO parties (id, tenant_id, organization_id, party_code, party_name, "
-            "party_type, is_active, created_at, updated_at, version) "
-            "VALUES (:id, :tenant, :org, 'PROC', 'Procurement supplier', 'SUPPLIER', true, :now, :now, 1)"
+            "party_type, roles, status, created_at, updated_at, version) "
+            "VALUES (:id, :tenant, :org, 'PROC', 'Procurement supplier', "
+            "'ORGANIZATION', 'SUPPLIER', 'active', :now, :now, 1)"
         ), {"id": SUPPLIER_A, "tenant": TENANT_A, "org": ORG_A, "now": now})
         connection.execute(text(
             "INSERT INTO financial_periods (id, tenant_id, organization_id, code, name, fiscal_year, "
@@ -345,10 +346,13 @@ def test_runtime_worker_and_child_rls(postgres_test_environment):
             "WHERE purchase_order_line_id='r6de-line'"
         )) == 40
         assert connection.scalar(text(
-            "SELECT count(*) FROM project_cost_entries WHERE project_id=:project"
+            "SELECT count(*) FROM project_cost_entries "
+            "WHERE project_id=:project AND source_line_id='r6de-receipt-line'"
         ), {"project": PROJECT_A}) == 1
         assert connection.scalar(text(
-            "SELECT count(*) FROM project_commitment_matches WHERE project_id=:project"
+            "SELECT count(*) FROM project_commitment_matches "
+            "WHERE project_id=:project AND commitment_line_id IN "
+            "(SELECT id FROM project_commitment_lines WHERE purchase_order_line_id='r6de-line')"
         ), {"project": PROJECT_A}) == 1
         assert connection.scalar(text(
             "SELECT count(*) FROM project_finance_inbox_receipts "
@@ -375,7 +379,8 @@ def test_runtime_worker_and_child_rls(postgres_test_environment):
             "project_commitment_source_revisions", "project_commitment_matches",
             "project_cost_entries", "project_finance_inbox_receipts",
         ):
-            assert foreign.scalar(text(f"SELECT count(*) FROM {table}")) == 0
+            assert foreign.scalar(text(f"SELECT count(*) FROM {table} WHERE tenant_id=:local"),
+                                  {"local": TENANT_A}) == 0
             assert foreign.execute(text(f"DELETE FROM {table} WHERE tenant_id=:local"),
                                    {"local": TENANT_A}).rowcount == 0
         foreign.rollback()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import date
 from typing import Protocol
 
@@ -37,14 +38,14 @@ class EarnedValueReadAuthority(Protocol):
 
 
 class BaselineVarianceReadAuthority(Protocol):
-    def list_baselines(self, project_id: str) -> list[object]: ...
+    def list_baselines(self, project_id: str) -> Sequence[object]: ...
 
     def list_variance_records(
         self,
         baseline_id: str,
         *,
         expected_project_id: str | None = None,
-    ) -> list[object]: ...
+    ) -> Sequence[object]: ...
 
 
 from src.core.modules.project_management.application.financials.analytics.performance.cost_phasing import (

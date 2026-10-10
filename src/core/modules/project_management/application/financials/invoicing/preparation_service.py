@@ -14,7 +14,6 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.contracts.approval import pm_reviewer_permission
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     BillingPreparationCreated,
     BillingPreparationLineAdded,
@@ -24,6 +23,9 @@ from src.core.modules.project_management.application.financials.invoicing.billin
 )
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
     RateCardResolver,
+)
+from src.core.modules.project_management.contracts.approval import (
+    pm_reviewer_permission,
 )
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectFinancialProfileRepository,
@@ -77,6 +79,9 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.contract.repositories.approval.contracts import (
+    ApprovalRepository,
+)
 from src.core.platform.domain.finance import DecimalQuantity, Money
 from src.core.platform.integration.canonical_json import canonical_json_sha256
 from src.core.shared.activity import record_activity
@@ -123,7 +128,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         # Wired post-construction by composition, only for the governed direct-command
         # instance. None means "not governed-composition-wired" (e.g. the approval
         # participant's own fresh instance, which never calls submit_preparation).
-        self._approval_repo = None
+        self._approval_repo: ApprovalRepository | None = None
 
     def get_preparation(self, preparation_id: str) -> ProjectBillingPreparation:
         preparation = self._require_preparation(preparation_id)

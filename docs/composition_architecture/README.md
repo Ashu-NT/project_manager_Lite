@@ -1,6 +1,6 @@
 # ERP Composition Architecture
 
-## Current State (2026-10-09)
+## Initial State (2026-10-09)
 
 The ERP has one application root at `src/infra/composition/app_container.py`.
 `build_service_graph()` builds a mixed Platform/PM `RepositoryBundle`, then the
@@ -71,7 +71,7 @@ factory callers have been migrated together.
 | C1 | Split Platform Approval vs PM notification registration and PM recipient recheck; inject policy from root | Same transactional subscription counts, recipient/privacy/RLS and startup tests; delete mixed `notifications.py` | Complete |
 | C2 | Move PM access/scope registrations and approval registrations/dependency factories into PM composition | Service identity, reviewer permissions, handler counts, transaction/UoW tests; delete root approval factory package | Complete; mixed repository-bundle dependency remains until C5 |
 | C3 | Extract PM Projects, Tasks, Resources, Scheduling, Timesheets, Collaboration, Portfolio and Risk dependency/event groups | Per-group focused tests; no duplicated factories/subscriptions; preserve PM bundle | Complete; Finance remains C4 |
-| C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | In progress: events, raw services/readers, and worker factories extracted; governed operations/ports remain |
+| C4 | Extract Finance core/governance/workers last, preserving fresh sessions, governed ports and service-principal factories | Finance integration, atomicity, concurrency, RLS and startup replay tests | In progress: PM-owned event, service/read, worker, governed-operations, boundary and port assembly; broad closure validation remains |
 | C5 | Move Platform services/events and split repository bundle by owner | Platform auth/tenancy/calendar/approval suites; root remains sole assembler | Not started |
 | C6 | Slim root and move only cross-module integrations/global overview wiring under root | Desktop startup, full PM/Platform, PostgreSQL and architecture guards; delete both central registries and obsolete imports | Not started |
 
@@ -204,9 +204,49 @@ rules, schema, authorization semantics or domain behavior change is permitted.
   composition and command tests: 34 passed. The schedule-change port's unused
   `commit` parameter was removed to match its sole TaskService implementation
   and caller; focused participant/schedule tests: 19 passed. Targeted mypy now
-  passes for all ten Finance dependency source files. C4 still requires
-  extraction and integrated proof of the fresh-session governed operations,
-  command ports, and remaining Finance query wiring before closure.
+  passes for all ten Finance dependency source files. At that checkpoint,
+  governed operations, command ports, and remaining Finance query wiring
+  still required migration and integrated proof.
+- C4 governed-operations slice: the fresh-UoW operations factory moved from the
+  central PM registry into `dependencies/finance/governance_operations.py`.
+  Construction remains per command; no service or repository commits were
+  introduced. Governed Planned Cost, Cost Entry and Billing Preparation now
+  share a rate resolver bound to the command UoW; Billing's cost/labor source
+  readers and financial-period service also use that UoW instead of ambient UI
+  repositories. A composition regression asserts one fresh session across the
+  governed services, repositories, rate reader and period service. The UoW
+  event callback checks the existing DomainEvent protocol before forwarding;
+  Billing's optional approval repository now declares the Platform repository
+  contract. Composition checks: 9 passed; affected governance/Billing/Cost
+  command tests: 38 passed; targeted mypy passed for the new factory and
+  Billing service. At that checkpoint, command-port extraction, remaining
+  Finance query wiring, and broad PostgreSQL/atomicity/regression evidence
+  remained open.
+  A further Budget/Forecast/Setup/Rate/Billing command regression passed
+  (144 tests), including the moved event callback in those command families.
+- C4 governed-port and final read assembly: the ten existing Finance mutation
+  families and their method sets live in PM-owned `finance/governed_ports.py`;
+  a composition test confirms every port shares the one command boundary.
+  Performance Query construction moved to `finance/reads.py` at its original
+  point after Reporting and Baseline, reusing their instances and the existing
+  Performance Reader. The SQLite command-preparation helper and boundary
+  constructor moved to `finance/governance_boundary.py`; the concrete UoW is
+  checked before command operations are built. The Baseline read protocol now
+  declares read-only `Sequence` results so its real service satisfies the
+  contract. Focused port/boundary and performance checks: 15 and 23 passed.
+  Targeted Finance dependency mypy passes (14 source files).
+- C4 live PostgreSQL evidence: governance commands and Billing rate/concurrency
+  tests passed (24); combined Finance RLS, Approved-Time posting, Procurement
+  commitment projection and worker tests passed (14). The latter run exposed
+  stale Party seed columns and test-order-dependent whole-project assertions;
+  the seed now uses Party `status`/`roles`, and the assertions scope to the
+  tested receipt/commitment and foreign tenant. The same live set was rerun
+  green. A composition regression also proves both durable Finance startup
+  dispatchers are called in order with the existing bound (12 tests in the
+  final composition file run). The broad PM/Platform suite was started and
+  intentionally interrupted at about 8% because of its runtime; it has no
+  pass result. C4 still needs broad regression/atomicity classification before
+  closure; do not mark it closed from these focused suites alone.
 
 ## Closure Gates
 

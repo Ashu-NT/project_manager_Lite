@@ -33,7 +33,6 @@ from src.core.modules.project_management.application.financials import (
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
-    FinanceGovernedServicePort,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -95,13 +94,20 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.forecasts import (
     build_forecast_services,
 )
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.governance_boundary import (
+    build_finance_governance_boundary,
+)
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.governance_operations import (
     build_finance_governance_operations_factory,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.governed_ports import (
+    wrap_finance_service,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.rates import (
     build_rate_card_services,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.reads import (
+    build_finance_performance_query,
     build_finance_performance_services,
     build_finance_workspace_query,
 )
@@ -197,9 +203,6 @@ from src.core.modules.project_management.infrastructure.composition.registration
 from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
-    SqlAlchemyFinanceSnapshotReader,
-)
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWork,
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
@@ -217,15 +220,6 @@ from src.infra.composition.persistence.repositories import RepositoryBundle
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkFactoryBase
 
 logger = logging.getLogger(__name__)
-
-
-def _prepare_finance_command_session(session: Session) -> None:
-    """Release a retained SQLite transaction before opening a fresh Finance UoW."""
-    bind = session.get_bind()
-    if bind.dialect.name != "sqlite" or not session.in_transaction():
-        return
-    logger.debug("Releasing shared SQLite session transaction before Finance command")
-    session.rollback()
 
 
 @dataclass(frozen=True)
@@ -468,132 +462,39 @@ def build_project_management_service_bundle(
     )
 
     build_finance_governance_operations = build_finance_governance_operations_factory(
-        repositories,
         platform_services,
         clock=system_clock,
-        rate_resolver=rate_card_resolver,
         work_calendar_engine=work_calendar_engine,
         accounting_adapter_ids=accounting_adapter_ids,
     )
-    finance_governance_commands = FinanceGovernanceCommandBoundary(
-        uow_factory=finance_governance_uow_factory,
-        operations_factory=build_finance_governance_operations,
-        prepare_command=lambda: _prepare_finance_command_session(session),
+    finance_governance_commands = build_finance_governance_boundary(
+        session,
+        finance_governance_uow_factory,
+        build_finance_governance_operations,
     )
-    financial_configuration_service = FinanceGovernedServicePort(
-        read_service=financial_configuration_service,
-        boundary=finance_governance_commands,
-        family="financial_setup",
-        mutations=frozenset(
-            {
-                "configure_profile",
-                "transition_profile",
-                "create_cost_code",
-                "update_cost_code",
-                "deactivate_cost_code",
-                "activate_cost_code",
-                "add_project_cost_code",
-                "remove_project_cost_code",
-            }
-        ),
+    financial_configuration_service = wrap_finance_service(
+        financial_configuration_service, finance_governance_commands, family="financial_setup"
     )
-    budget_service = FinanceGovernedServicePort(
-        read_service=budget_service,
-        boundary=finance_governance_commands,
-        family="budget",
-        mutations=frozenset(
-            {
-                "create_budget",
-                "create_successor",
-                "request_budget_approval",
-                "submit_budget",
-                "approve_budget",
-                "reject_budget",
-                "close_budget",
-                "update_budget_header",
-                "delete_budget",
-                "add_line",
-                "update_line",
-                "delete_line",
-            }
-        ),
+    budget_service = wrap_finance_service(
+        budget_service, finance_governance_commands, family="budget"
     )
-    forecast_version_service = FinanceGovernedServicePort(
-        read_service=forecast_version_service,
-        boundary=finance_governance_commands,
-        family="forecast_version",
-        mutations=frozenset(
-            {
-                "create_forecast",
-                "add_line",
-                "update_line",
-                "delete_line",
-                "submit_forecast",
-                "request_forecast_approval",
-                "approve_forecast",
-                "reject_forecast",
-                "delete_forecast",
-            }
-        ),
+    forecast_version_service = wrap_finance_service(
+        forecast_version_service, finance_governance_commands, family="forecast_version"
     )
-    forecast_generation_service = FinanceGovernedServicePort(
-        read_service=forecast_generation_service,
-        boundary=finance_governance_commands,
-        family="forecast_generation",
-        mutations=frozenset({"generate_draft"}),
+    forecast_generation_service = wrap_finance_service(
+        forecast_generation_service, finance_governance_commands, family="forecast_generation"
     )
-    financial_change_service = FinanceGovernedServicePort(
-        read_service=financial_change_service,
-        boundary=finance_governance_commands,
-        family="financial_change",
-        mutations=frozenset(
-            {
-                "create_change",
-                "update_change",
-                "add_impact",
-                "update_impact",
-                "remove_impact",
-                "submit_change",
-            }
-        ),
+    financial_change_service = wrap_finance_service(
+        financial_change_service, finance_governance_commands, family="financial_change"
     )
-    rate_card_service = FinanceGovernedServicePort(
-        read_service=rate_card_service,
-        boundary=finance_governance_commands,
-        family="rate_card",
-        mutations=frozenset(
-            {
-                "create_rate_card",
-                "update_rate_card",
-                "deactivate_rate_card",
-                "create_line",
-                "update_line",
-                "deactivate_line",
-            }
-        ),
+    rate_card_service = wrap_finance_service(
+        rate_card_service, finance_governance_commands, family="rate_card"
     )
-    planned_cost_service = FinanceGovernedServicePort(
-        read_service=planned_cost_service,
-        boundary=finance_governance_commands,
-        family="planned_cost",
-        mutations=frozenset({"calculate_snapshot"}),
+    planned_cost_service = wrap_finance_service(
+        planned_cost_service, finance_governance_commands, family="planned_cost"
     )
-    cost_entry_service = FinanceGovernedServicePort(
-        read_service=cost_entry_service,
-        boundary=finance_governance_commands,
-        family="cost_entry",
-        mutations=frozenset(
-            {
-                "create_manual_entry",
-                "update_draft",
-                "delete_draft",
-                "submit",
-                "approve",
-                "reject",
-                "post",
-                "reverse",
-            }
-        ),
+    cost_entry_service = wrap_finance_service(
+        cost_entry_service, finance_governance_commands, family="cost_entry"
     )
     billing_profile_service, billing_preparation_service = build_billing_services(
         session,
@@ -602,35 +503,11 @@ def build_project_management_service_bundle(
         clock=system_clock,
         rate_resolver=rate_card_resolver,
     )
-    billing_profile_service = FinanceGovernedServicePort(
-        read_service=billing_profile_service,
-        boundary=finance_governance_commands,
-        family="billing_profile",
-        mutations=frozenset(
-            {
-                "create_profile",
-                "activate_profile",
-                "add_schedule_line",
-                "mark_schedule_line_ready",
-            }
-        ),
+    billing_profile_service = wrap_finance_service(
+        billing_profile_service, finance_governance_commands, family="billing_profile"
     )
-    billing_preparation_service = FinanceGovernedServicePort(
-        read_service=billing_preparation_service,
-        boundary=finance_governance_commands,
-        family="billing_preparation",
-        mutations=frozenset(
-            {
-                "create_preparation",
-                "add_fixed_price_source",
-                "add_approved_time_source",
-                "add_cost_plus_source",
-                "remove_draft_line",
-                "cancel_draft_preparation",
-                "submit_preparation",
-                "request_delivery",
-            }
-        ),
+    billing_preparation_service = wrap_finance_service(
+        billing_preparation_service, finance_governance_commands, family="billing_preparation"
     )
     register_collaboration_view_invalidation(
         platform_services.platform_post_commit_bus,
@@ -658,14 +535,12 @@ def build_project_management_service_bundle(
         platform_services,
         scheduling_engine=scheduling_engine,
     )
-    finance_performance_query = ProjectFinancePerformanceQuery(
+    finance_performance_query = build_finance_performance_query(
+        session,
+        platform_services,
         performance_reader=finance_performance_reader,
-        overview_reader=SqlAlchemyFinanceSnapshotReader(session=session),
-        earned_value_authority=reporting_service,
-        baseline_variance_authority=baseline_service,
-        tenant_context_service=platform_services.tenant_context_service,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
+        reporting_service=reporting_service,
+        baseline_service=baseline_service,
     )
     dashboard_service = build_dashboard_service(
         platform_services,

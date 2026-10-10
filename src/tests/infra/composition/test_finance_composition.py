@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from src.core.modules.project_management.application.financials.budgets.budget_events import (
     BudgetLineChanged,
     BudgetProfileUpdated,
@@ -59,6 +61,17 @@ from src.core.modules.project_management.application.financials.rate_cards.rate_
     RateCardLineDeactivated,
     RateCardLineUpdated,
     RateCardUpdated,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.governed_ports import (
+    FINANCE_MUTATIONS,
+)
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.infra.composition.app_container import build_service_dict
+from src.infra.integration.approved_time_dispatcher import (
+    ApprovedTimeFinancialDispatcher,
+)
+from src.infra.integration.procurement_financial_dispatcher import (
+    ProcurementFinancialDispatcher,
 )
 
 
@@ -233,3 +246,90 @@ def test_finance_change_and_billing_preserve_raw_service_dependencies(services, 
     assert change._session is profile._session is preparation._session is session
     assert change._clock is profile._clock is preparation._clock is resolver._clock
     assert preparation._rate_resolver is resolver
+
+
+def test_finance_governed_operations_use_one_fresh_session_for_billing_and_rates(
+    services, session
+) -> None:
+    boundary = services["finance_governance_commands"]
+    uow = boundary._uow_factory.create(context=DomainEventContext(correlation_id="composition-test"))
+    try:
+        operations = boundary._operations_factory(uow)
+        assert uow._session is not session
+        for service in (
+            operations.budgets,
+            operations.forecast_versions,
+            operations.forecast_generation,
+            operations.financial_setup,
+            operations.rate_cards,
+            operations.planned_costs,
+            operations.cost_entries,
+            operations.billing_profiles,
+            operations.billing_preparations,
+        ):
+            assert service._session is uow._session
+
+        billing = operations.billing_preparations
+        assert billing._cost_entry_repo is uow.cost_entries
+        assert billing._labor_posting_repo is uow.labor_postings
+        assert billing._financial_period_service._session is uow._session
+        assert billing._rate_resolver._reader._session is uow._session
+        assert operations.planned_costs._rate_resolver is billing._rate_resolver
+        assert operations.cost_entries._rate_resolver is billing._rate_resolver
+        assert billing._approval_repo is uow.approvals
+        with pytest.raises(TypeError, match="requires a domain event"):
+            billing._record_event(object())
+    finally:
+        uow._session.close()
+
+
+def test_finance_governed_ports_share_one_boundary_and_declared_mutations(services) -> None:
+    boundary = services["finance_governance_commands"]
+    families = {
+        "financial_setup": "financial_configuration_service",
+        "budget": "budget_service",
+        "forecast_version": "forecast_version_service",
+        "forecast_generation": "forecast_generation_service",
+        "financial_change": "financial_change_service",
+        "rate_card": "rate_card_service",
+        "planned_cost": "planned_cost_service",
+        "cost_entry": "cost_entry_service",
+        "billing_profile": "billing_profile_service",
+        "billing_preparation": "billing_preparation_service",
+    }
+    assert set(families) == set(FINANCE_MUTATIONS)
+    for family, service_key in families.items():
+        port = services[service_key]
+        assert port._boundary is boundary
+        assert port._family == family
+        assert port._mutations == FINANCE_MUTATIONS[family]
+
+
+def test_finance_performance_query_reuses_reporting_baseline_and_reader(services, session) -> None:
+    query = services["finance_performance_query"]
+    finance = services["finance_service"]
+
+    assert query._performance_reader is finance._finance_performance_reader
+    assert query._overview_reader._session is session
+    assert query._earned_value_authority is services["reporting_service"]
+    assert query._baseline_variance_authority is services["baseline_service"]
+
+
+def test_finance_startup_replays_both_durable_dispatchers_in_order(monkeypatch, session) -> None:
+    calls: list[tuple[str, int]] = []
+    monkeypatch.setattr(
+        ApprovedTimeFinancialDispatcher,
+        "dispatch_pending",
+        lambda self, *, limit: calls.append(("approved_time", limit)) or 0,
+    )
+    monkeypatch.setattr(
+        ProcurementFinancialDispatcher,
+        "dispatch_pending",
+        lambda self, *, limit: calls.append(("procurement", limit)) or 0,
+    )
+
+    graph = build_service_dict(session)
+
+    assert graph["approved_time_financial_dispatcher"] is not None
+    assert graph["procurement_financial_dispatcher"] is not None
+    assert calls == [("approved_time", 50), ("procurement", 50)]
