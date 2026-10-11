@@ -29,7 +29,7 @@ from src.core.modules.project_management.application.tasks.commands.hierarchy im
     TaskHierarchyMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
-    TaskHierarchySupportMixin,
+    TaskHierarchyPolicy,
 )
 from src.core.modules.project_management.application.tasks.commands.identity import (
     TaskCodePolicy,
@@ -123,7 +123,6 @@ from src.core.shared.events.domain_event_context import DomainEventContext
 class TaskService(
     ProjectManagementModuleGuardMixin,
     ApprovedScheduleChangeMixin,
-    TaskHierarchySupportMixin,
     TaskHierarchyMixin,
     TaskProgressMixin,
     TaskDeletionMixin,
@@ -171,6 +170,7 @@ class TaskService(
         code_policy: TaskCodePolicy,
         validation_policy: TaskValidationPolicy,
         schedule_synchronizer: TaskScheduleSynchronizer,
+        hierarchy_policy: TaskHierarchyPolicy,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -200,6 +200,7 @@ class TaskService(
         self._code_policy = code_policy
         self._validation_policy = validation_policy
         self._schedule_synchronizer = schedule_synchronizer
+        self._hierarchy_policy = hierarchy_policy
         self._enterprise_resource_availability_service = enterprise_resource_availability_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
@@ -266,6 +267,57 @@ class TaskService(
         return self._schedule_synchronizer.sync_project_schedule(
             project_id, commit=commit, exclude_task_ids=exclude_task_ids
         )
+
+    def _is_task_wbs_integrity_error(self, exc: IntegrityError) -> bool:
+        return self._hierarchy_policy._is_task_wbs_integrity_error(exc)
+
+    def _children_by_parent(self, tasks: list[Task]) -> dict[str | None, list[Task]]:
+        return self._hierarchy_policy._children_by_parent(tasks)
+
+    def _require_wbs_parent(
+        self,
+        *,
+        project_id: str,
+        parent_task_id: str | None,
+        moving_task_id: str | None = None,
+        tasks: list[Task] | None = None,
+    ) -> Task | None:
+        return self._hierarchy_policy._require_wbs_parent(
+            project_id=project_id,
+            parent_task_id=parent_task_id,
+            moving_task_id=moving_task_id,
+            tasks=tasks,
+        )
+
+    def _assert_parent_has_no_direct_execution(self, parent: Task) -> None:
+        self._hierarchy_policy._assert_parent_has_no_direct_execution(parent)
+
+    def _next_wbs_code(self, parent: Task | None, siblings: list[Task]) -> str:
+        return self._hierarchy_policy._next_wbs_code(parent, siblings)
+
+    def _validate_wbs_code_for_parent(self, code: str, parent: Task | None) -> str:
+        return self._hierarchy_policy._validate_wbs_code_for_parent(code, parent)
+
+    def _prepare_new_task_hierarchy(
+        self,
+        task: Task,
+        *,
+        parent_task_id: str | None,
+        wbs_code: str,
+        sort_order: int | None,
+    ) -> Task:
+        return self._hierarchy_policy._prepare_new_task_hierarchy(
+            task,
+            parent_task_id=parent_task_id,
+            wbs_code=wbs_code,
+            sort_order=sort_order,
+        )
+
+    def _require_leaf_task(self, task: Task, *, operation_label: str) -> None:
+        self._hierarchy_policy._require_leaf_task(task, operation_label=operation_label)
+
+    def _resequence_for_new_task(self, task: Task) -> Task:
+        return self._hierarchy_policy._resequence_for_new_task(task)
 
     def get_task(self, task_id: str) -> Task | None:
         return self._detail_query.get_task(task_id)

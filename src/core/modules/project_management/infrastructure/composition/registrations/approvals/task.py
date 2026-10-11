@@ -6,6 +6,9 @@ from src.core.modules.project_management.application.scheduling import (
     ProjectCalendarAdapter,
     SchedulingEngine,
 )
+from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
+    TaskHierarchyPolicy,
+)
 from src.core.modules.project_management.application.tasks.commands.identity import (
     TaskCodePolicy,
 )
@@ -150,6 +153,11 @@ def build_task_approval_deps(
         schedule_synchronizer=TaskScheduleSynchronizer(
             scheduling_engine=scheduling_engine,
             task_repo=bundle.pm.task_repo,
+        ),
+        hierarchy_policy=TaskHierarchyPolicy(
+            task_repo=bundle.pm.task_repo,
+            assignment_repo=bundle.pm.assignment_repo,
+            dependency_repo=bundle.pm.dependency_repo,
         ),
     )
     return TaskApprovalDeps(task_service=task_service)

@@ -10,6 +10,9 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
+    TaskHierarchyPolicy,
+)
 from src.core.modules.project_management.application.tasks.commands.identity import (
     TaskCodePolicy,
 )
@@ -135,5 +138,10 @@ def build_task_service(
         schedule_synchronizer=TaskScheduleSynchronizer(
             scheduling_engine=scheduling_engine,
             task_repo=repositories.pm.task_repo,
+        ),
+        hierarchy_policy=TaskHierarchyPolicy(
+            task_repo=repositories.pm.task_repo,
+            assignment_repo=repositories.pm.assignment_repo,
+            dependency_repo=repositories.pm.dependency_repo,
         ),
     )

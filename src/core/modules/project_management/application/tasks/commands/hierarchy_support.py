@@ -23,10 +23,17 @@ from src.core.platform.common.exceptions import (
 )
 
 
-class TaskHierarchySupportMixin:
-    _task_repo: TaskRepository
-    _assignment_repo: AssignmentRepository
-    _dependency_repo: DependencyRepository
+class TaskHierarchyPolicy:
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        assignment_repo: AssignmentRepository,
+        dependency_repo: DependencyRepository,
+    ) -> None:
+        self._task_repo = task_repo
+        self._assignment_repo = assignment_repo
+        self._dependency_repo = dependency_repo
 
     @staticmethod
     def _is_task_wbs_integrity_error(exc: IntegrityError) -> bool:
@@ -78,7 +85,11 @@ class TaskHierarchySupportMixin:
                     code="TASK_WBS_CORRUPT_CYCLE",
                 )
             visited.add(current.id)
-            current = tasks_by_id.get(current.parent_task_id)
+            current = (
+                tasks_by_id.get(current.parent_task_id)
+                if current.parent_task_id is not None
+                else None
+            )
         return parent
 
     def _assert_parent_has_no_direct_execution(self, parent: Task) -> None:
@@ -176,4 +187,4 @@ class TaskHierarchySupportMixin:
         return replace(task, sort_order=target_index)
 
 
-__all__ = ["TaskHierarchySupportMixin"]
+__all__ = ["TaskHierarchyPolicy"]

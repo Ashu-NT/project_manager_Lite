@@ -594,6 +594,24 @@ handler migration. This removes the split transaction but does **not**
 retire the remaining Task command mixins or close A4. PostgreSQL runtime-role
 RLS/concurrency proof is still required before the full Task cutover closes.
 
+**A4 Task WBS support-policy cutover (2026-10-11).**
+`TaskHierarchySupportMixin` became a composition-injected
+`TaskHierarchyPolicy` with explicit Task, Assignment and Dependency
+repositories. `TaskService` retains private delegates for existing hierarchy,
+lifecycle and assignment commands while their transaction ownership remains
+unchanged. The WBS policy no longer relies on facade inheritance; the
+parent-walk also explicitly terminates at a missing parent ID. WBS,
+resource-flow and architecture regression passed 35 tests; targeted Mypy,
+Ruff F/I and compilation passed. A4 remains open for the larger Task command
+groups.
+
+**Next Task write-boundary risk.** `TaskDeletionMixin.delete_tasks` uses its
+outer-session TimeEntry/Assignment/Dependency repositories and flushes the
+outer Session while `TaskUnitOfWorkFactory` creates a fresh session for Task
+deletion. Do not move that mixin into a handler unchanged: characterize and
+align all affected deletes to one operation-owned UoW first, including
+TimeEntry FK cleanup, activity/event rollback, and approval-participant mode.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |
