@@ -269,20 +269,20 @@ def _overlapping_overallocation_setup(services):
 def test_overallocation_warn_policy_allows_mutation_and_sets_warning(services):
     ts = services["task_service"]
     _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
-    assert ts._overallocation_policy == "warn"  # default
+    assert ts._assignment_handler._overallocation_policy == "warn"  # default
 
     # 80% overlapping Task A's 70% => 150% > 100% capacity -- over the line.
     assignment_b = ts.assign_resource(task_b.id, resource.id, allocation_percent=80.0)
 
     assert assignment_b is not None
-    assert ts._last_overallocation_warning is not None
-    assert "over-allocated" in ts._last_overallocation_warning
+    assert ts._assignment_handler._last_overallocation_warning is not None
+    assert "over-allocated" in ts._assignment_handler._last_overallocation_warning
 
 
 def test_overallocation_strict_policy_rejects_mutation(services):
     ts = services["task_service"]
     _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
-    ts._overallocation_policy = "strict"
+    ts._assignment_handler._overallocation_policy = "strict"
 
     with pytest.raises(BusinessRuleError) as exc:
         ts.assign_resource(task_b.id, resource.id, allocation_percent=80.0)
@@ -298,7 +298,7 @@ def test_overallocation_strict_policy_still_allows_non_conflicting_allocation(se
     become a blanket rejection of every assignment."""
     ts = services["task_service"]
     _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
-    ts._overallocation_policy = "strict"
+    ts._assignment_handler._overallocation_policy = "strict"
 
     # 20% overlapping Task A's 70% => 90% <= 100% capacity -- within budget.
     assignment_b = ts.assign_resource(task_b.id, resource.id, allocation_percent=20.0)
@@ -355,33 +355,15 @@ def test_delete_project_resource_without_actuals_still_succeeds(services):
 # ---------------------------------------------------------------------------
 
 
-def test_assign_resource_bridge_requires_project_resource_repository():
-    """The old `if not self._project_resource_repo:` bypass (which allowed
-    creating a TaskAssignment with no ProjectResource behind it at all) has
-    been removed. A TaskService missing that repo now fails closed rather
-    than silently creating an orphaned assignment."""
-    from types import SimpleNamespace
-
-    from src.core.modules.project_management.application.tasks.commands.assignment_bridge import (
-        TaskAssignmentBridgeMixin,
-    )
-
-    class _Bare(TaskAssignmentBridgeMixin):
-        _project_resource_repo = None
-        _user_session = None
-
-        def _require_manage(self, *args, **kwargs):
-            return None
-
-        def _task_repo(self):
-            return None
-
-    instance = _Bare()
-    instance._task_repo = SimpleNamespace(get=lambda task_id: SimpleNamespace(id=task_id, project_id="proj-1"))
-    instance._require_leaf_task = lambda *args, **kwargs: None
+def test_assign_resource_requires_project_resource_repository(services, monkeypatch):
+    """A missing envelope repository cannot create an orphaned assignment."""
+    project = services["project_service"].create_project("Assignment Repository Guard", "")
+    tasks = services["task_service"]
+    task = tasks.create_task(project.id, "Work")
+    monkeypatch.setattr(tasks._assignment_handler, "_project_resource_repo", None)
 
     with pytest.raises(BusinessRuleError) as exc:
-        instance.assign_resource("task-1", "res-1")
+        tasks.assign_resource(task.id, "res-1")
     assert exc.value.code == "PROJECT_RESOURCE_REPO_MISSING"
 
 

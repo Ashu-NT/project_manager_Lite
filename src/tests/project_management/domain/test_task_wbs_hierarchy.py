@@ -13,6 +13,9 @@ from src.core.modules.project_management.domain.enums import DependencyType, Tas
 from src.core.modules.project_management.infrastructure.importers.tasks.csv.task_csv_importer import (
     import_tasks,
 )
+from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
+    SqlAlchemyTaskRepository,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
@@ -79,6 +82,35 @@ def test_task_wbs_move_recodes_subtree_and_prevents_cycles(services) -> None:
     with pytest.raises(BusinessRuleError) as exc:
         tasks.move_task(target.id, parent_task_id=grandchild.id)
     assert exc.value.code == "TASK_WBS_CYCLE"
+
+
+def test_task_wbs_move_rolls_back_partial_subtree_updates(services, monkeypatch) -> None:
+    project = _project(services, "WBS move rollback")
+    tasks = services["task_service"]
+    source = tasks.create_task(project.id, "Source")
+    target = tasks.create_task(project.id, "Target")
+    child = tasks.create_task(project.id, "Child", parent_task_id=source.id)
+    grandchild = tasks.create_task(project.id, "Grandchild", parent_task_id=child.id)
+    original_update = SqlAlchemyTaskRepository.update
+    calls = 0
+
+    def fail_on_second_update(self, candidate):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("simulated WBS move failure")
+        return original_update(self, candidate)
+
+    monkeypatch.setattr(SqlAlchemyTaskRepository, "update", fail_on_second_update)
+    with pytest.raises(RuntimeError, match="simulated WBS move failure"):
+        tasks.move_task(child.id, parent_task_id=target.id)
+
+    services["session"].expire_all()
+    persisted_child = tasks.get_task(child.id)
+    persisted_grandchild = tasks.get_task(grandchild.id)
+    assert persisted_child.parent_task_id == source.id
+    assert persisted_child.wbs_code == child.wbs_code
+    assert persisted_grandchild.wbs_code == grandchild.wbs_code
 
 
 def test_task_wbs_recode_writes_descendants_before_reusing_their_code(services) -> None:

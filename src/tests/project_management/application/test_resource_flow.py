@@ -59,7 +59,7 @@ def test_auto_provisioned_project_resource_rolls_back_with_assignment_failure(
     def fail_assignment(**_kwargs):
         raise RuntimeError("assignment rejected")
 
-    monkeypatch.setattr(tasks, "_assign_project_resource_in_uow", fail_assignment)
+    monkeypatch.setattr(tasks._assignment_handler, "_assign_project_resource_in_uow", fail_assignment)
     with pytest.raises(RuntimeError, match="assignment rejected"):
         tasks.assign_resource(task.id, resource.id)
 

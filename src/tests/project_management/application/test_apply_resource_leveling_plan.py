@@ -1,4 +1,4 @@
-"""ApplyResourceLevelingPlanCommand (ResourceLevelingApplyMixin).
+"""ApplyResourceLevelingPlanCommand (ResourceLevelingCommandHandler).
 
 Persists a previously-computed LevelingProposal: writes each
 ProposedTaskMove's new_start onto Task.resource_leveling_not_before,
@@ -80,6 +80,31 @@ class TestApplyHappyPath:
         ts.apply_resource_leveling_plan(project.id, proposal)
 
         assert ts.get_task(moved_task_id).version > before_version
+
+    def test_schedule_failure_rolls_back_every_proposed_move(self, services, monkeypatch):
+        ts = services["task_service"]
+        project, _, _, proposal = _build_overload_proposal(services)
+        assert proposal.moves
+        before = {
+            move.task_id: ts.get_task(move.task_id).resource_leveling_not_before
+            for move in proposal.moves
+        }
+
+        def fail_schedule(*args, **kwargs):
+            raise RuntimeError("schedule recalculation failed")
+
+        monkeypatch.setattr(
+            ts._resource_leveling_handler._schedule_synchronizer,
+            "sync_project_schedule",
+            fail_schedule,
+        )
+        with pytest.raises(RuntimeError, match="schedule recalculation failed"):
+            ts.apply_resource_leveling_plan(project.id, proposal)
+
+        assert all(
+            ts.get_task(task_id).resource_leveling_not_before == old_floor
+            for task_id, old_floor in before.items()
+        )
 
     def test_applying_an_empty_proposal_is_a_no_op(self, services):
         ps = services["project_service"]

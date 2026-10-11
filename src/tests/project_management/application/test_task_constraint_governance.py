@@ -53,6 +53,30 @@ class TestImmediateApply:
         assert updated.constraint_date == date(2026, 9, 18)
         assert updated.start_date == date(2026, 9, 18)
 
+    def test_schedule_failure_rolls_back_constraint_write(self, services, monkeypatch):
+        ts = services["task_service"]
+        _, task = _make_task(services)
+
+        def fail_schedule(*args, **kwargs):
+            raise RuntimeError("schedule recalculation failed")
+
+        monkeypatch.setattr(
+            ts._scheduling_constraint_handler._schedule_synchronizer,
+            "sync_project_schedule",
+            fail_schedule,
+        )
+        with pytest.raises(RuntimeError, match="schedule recalculation failed"):
+            ts.update_task_scheduling_constraint(
+                task.id,
+                constraint_type=ConstraintType.MUST_START_ON,
+                constraint_date=date(2026, 9, 18),
+                expected_version=task.version,
+            )
+
+        unchanged = ts.get_task(task.id)
+        assert unchanged.constraint_type is None
+        assert unchanged.constraint_date is None
+
     def test_clearing_a_constraint_back_to_asap_applies_immediately(self, services):
         ts = services["task_service"]
         project, task = _make_task(services)

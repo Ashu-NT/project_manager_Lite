@@ -648,6 +648,83 @@ targeted Mypy passed. The Task-scoped page still materializes the task's
 entries before in-memory pagination, so this cutover does not close the
 separate SQL pagination/performance concern. A4 remains open.
 
+**A4 approved Task schedule-change cutover (2026-10-11).**
+`ApprovedScheduleChangeMixin` was retired. Composition now injects an
+`ApprovedScheduleChangeHandler` with explicit Task repository, tenant scope,
+calendar/scheduler, schedule synchronizer, date validation policy and shared
+TaskUowScope. The TaskService facade preserves the Financial Change port's
+validation/apply methods and participant event collection. Validation batches
+target Task and project-hierarchy reads rather than querying per target.
+Persisted result dates are checked fail-closed before audit/activity and
+`AppliedTaskScheduleChange` evidence. Financial Change and schedule-impact
+regressions passed 38 cases, end-to-end Financial Change orders passed 19
+cases, and a targeted test proves approval validation does not use per-target
+`get()` calls; targeted Mypy passed. A4 remains open for the
+other Task command mixins and integrated security/concurrency/RLS proofs.
+
+**A4 Task WBS move/recode command cutover (2026-10-11).**
+`TaskHierarchyMixin` was retired. Composition now injects a
+`TaskHierarchyCommandHandler` with explicit Task repository, user/tenant
+context, existing WBS policy and shared TaskUowScope. `TaskService.move_task`
+and `recode_task` remain thin public delegates. The original WBS conflict,
+cycle, descendant recode, activity and event behavior is preserved. Focused
+WBS/desktop/approval/architecture tests passed 27 cases; an injected second-write failure
+proved full subtree rollback; targeted Mypy passed. A4 remains open for the
+remaining Task command mixins and PostgreSQL RLS/concurrency proof.
+
+**A4 Task scheduling-constraint command cutover (2026-10-11).**
+`TaskSchedulingConstraintMixin` was replaced by an explicitly injected
+`TaskSchedulingConstraintHandler`. Its permission/governance decision,
+apply-time version and calendar checks, schedule recalculation, audit/activity,
+and event recording remain on one operation-owned UoW path. `TaskService`
+retains thin public and approval-participant delegates; Task creation delegates
+the shared calendar policy to the handler. Main and approval composition now
+construct the handler directly. Focused constraint, persistence, desktop and
+approval-participant tests passed 26 cases; a recalculation-failure rollback
+test passed with the constraint unchanged. Targeted Mypy and Ruff F/I passed.
+A4 remains open for the other Task command mixins and wider integration gates.
+
+**A4 Task resource-leveling command cutover (2026-10-11).**
+`ResourceLevelingApplyMixin` was replaced by composition-injected
+`ResourceLevelingCommandHandler`, covering the shared preview/fingerprint and
+governed apply workflow. Main and approval composition pass explicit repository,
+calendar, session, tenant, scheduler and UoW dependencies; `TaskService` keeps
+thin desktop and approval-participant delegates. Fingerprint rejection,
+per-task audit/activity/events and one operation-owned transaction remain in
+place. A new injected recalculation-failure test proves all proposed task floors
+roll back. Focused leveling/desktop/approval tests passed 28 cases; neighboring
+constraint/WBS and architecture tests passed 37 cases. Targeted Mypy passed.
+The remaining Task dependency and assignment mixins still need A4 review or
+cutover; A4 is not closed.
+
+**A4 Task lifecycle command cutover (2026-10-11).**
+`TaskLifecycleMixin` was replaced by `TaskLifecycleCommandHandler`, built by
+main and approval composition with explicit Task repository, user/tenant
+context, calendar, existing Task code/WBS/date/constraint policies and shared
+Task UoW scope. `TaskService.create_task` and `update_task` are thin delegates;
+the commands package no longer exports the retired mixin. Two new
+failure-injection tests prove Task create/update and activity recording roll
+back together. Focused lifecycle/WBS/constraint/leveling/approval tests passed
+45 cases; desktop CRUD and architecture tests passed 25; rollback tests passed
+2. Targeted Mypy and Ruff F/I passed. At this cutover,
+`TaskDependencyMixin`, `TaskAssignmentMixin` and
+`TaskAssignmentBridgeMixin` remained inherited; PostgreSQL and broad A4/A6
+validation remained open.
+
+**A4 Task dependency command/read cutover (2026-10-11).**
+`TaskDependencyMixin` was retired. `TaskDependencyCommandHandler` now owns
+governed add/update/remove and approval apply, with explicit repositories,
+authorization context, WBS policy, diagnostics reader, schedule synchronizer
+and Task UoW scope. `TaskDependencyQueryHandler` owns permission-scoped get/list
+reads, retaining the single project-wide dependency query rather than an N+1
+task loop. PM main/approval composition builds both; `TaskService` retains
+thin public and approval-participant delegates. Dependency governance,
+concurrency, diagnostics, read-performance and approval tests passed 24 cases;
+two injected schedule-failure tests proved add/update rollback. Targeted Mypy
+passed; adjacent dependency/scheduling, desktop CRUD and architecture tests
+passed 79 cases. Only `TaskAssignmentMixin` and `TaskAssignmentBridgeMixin` remain as
+TaskService operation mixins; A4's broader integration gates remain open.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

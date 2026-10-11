@@ -14,8 +14,20 @@ from src.core.modules.project_management.application.financials.forecasts.versio
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.commands.approved_schedule_change import (
+    ApprovedScheduleChangeHandler,
+)
 from src.core.modules.project_management.application.tasks.commands.deletion import (
     TaskDeletionCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.commands.dependency import (
+    TaskDependencyCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.commands.hierarchy import (
+    TaskHierarchyCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
     TaskHierarchyPolicy,
@@ -23,11 +35,20 @@ from src.core.modules.project_management.application.tasks.commands.hierarchy_su
 from src.core.modules.project_management.application.tasks.commands.identity import (
     TaskCodePolicy,
 )
+from src.core.modules.project_management.application.tasks.commands.lifecycle import (
+    TaskLifecycleCommandHandler,
+)
 from src.core.modules.project_management.application.tasks.commands.progress import (
     TaskProgressCommandHandler,
 )
+from src.core.modules.project_management.application.tasks.commands.resource_leveling_apply import (
+    ResourceLevelingCommandHandler,
+)
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSynchronizer,
+)
+from src.core.modules.project_management.application.tasks.commands.scheduling_constraint import (
+    TaskSchedulingConstraintHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.time_entries import (
     TaskTimeEntryHandler,
@@ -37,6 +58,9 @@ from src.core.modules.project_management.application.tasks.commands.validation i
 )
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     TaskDependencyDiagnosticsQueryHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.dependency_query import (
+    TaskDependencyQueryHandler,
 )
 from src.core.modules.project_management.application.tasks.queries.hierarchy_query import (
     TaskHierarchyQueryHandler,
@@ -138,6 +162,39 @@ def build_financial_change_approval_deps(
         project_repo=project_repo,
         availability_service=None,
     )
+    schedule_synchronizer = TaskScheduleSynchronizer(
+        scheduling_engine=scheduling_engine,
+        task_repo=task_repo,
+    )
+    code_policy = TaskCodePolicy(task_repo=task_repo)
+    scheduling_constraint_handler = TaskSchedulingConstraintHandler(
+        task_repo=task_repo,
+        user_session=user_session,
+        approval_service=None,
+        tenant_context_service=tenant_context_service,
+        scheduling_engine=scheduling_engine,
+        work_calendar_engine=work_calendar_engine,
+        schedule_synchronizer=schedule_synchronizer,
+        uow_scope=task_uow_scope,
+    )
+    lifecycle_handler = TaskLifecycleCommandHandler(
+        task_repo=task_repo,
+        work_calendar_engine=work_calendar_engine,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        code_policy=code_policy,
+        hierarchy_policy=hierarchy_policy,
+        validation_policy=validation_policy,
+        scheduling_constraint_handler=scheduling_constraint_handler,
+        uow_scope=task_uow_scope,
+    )
+    dependency_diagnostics_handler = TaskDependencyDiagnosticsQueryHandler(
+        task_repo=task_repo,
+        dependency_repo=dependency_repo,
+        work_calendar_engine=work_calendar_engine,
+        scheduling_engine=scheduling_engine,
+        user_session=user_session,
+    )
     task_service = TaskService(
         session,
         task_repo,
@@ -176,6 +233,68 @@ def build_financial_change_approval_deps(
             assignment_repo=assignment_repo,
             user_session=user_session,
         ),
+        approved_schedule_change_handler=ApprovedScheduleChangeHandler(
+            task_repo=task_repo,
+            tenant_context_service=tenant_context_service,
+            work_calendar_engine=work_calendar_engine,
+            scheduling_engine=scheduling_engine,
+            schedule_synchronizer=schedule_synchronizer,
+            validation_policy=validation_policy,
+            uow_scope=task_uow_scope,
+        ),
+        hierarchy_command_handler=TaskHierarchyCommandHandler(
+            task_repo=task_repo,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+            hierarchy_policy=hierarchy_policy,
+            uow_scope=task_uow_scope,
+        ),
+        scheduling_constraint_handler=scheduling_constraint_handler,
+        lifecycle_handler=lifecycle_handler,
+        dependency_command_handler=TaskDependencyCommandHandler(
+            task_repo=task_repo,
+            dependency_repo=dependency_repo,
+            user_session=user_session,
+            approval_service=None,
+            tenant_context_service=tenant_context_service,
+            hierarchy_policy=hierarchy_policy,
+            diagnostics_handler=dependency_diagnostics_handler,
+            schedule_synchronizer=schedule_synchronizer,
+            uow_scope=task_uow_scope,
+        ),
+        dependency_query_handler=TaskDependencyQueryHandler(
+            task_repo=task_repo,
+            dependency_repo=dependency_repo,
+            user_session=user_session,
+        ),
+        assignment_handler=TaskAssignmentCommandHandler(
+            task_repo=task_repo,
+            assignment_repo=assignment_repo,
+            resource_repo=resource_repo,
+            project_resource_repo=project_resource_repo,
+            time_entry_repo=None,
+            employee_repo=None,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+            hierarchy_policy=hierarchy_policy,
+            validation_policy=validation_policy,
+            assignment_skill_validator=None,
+            enterprise_resource_availability_service=None,
+            uow_scope=task_uow_scope,
+            overallocation_policy="warn",
+        ),
+        resource_leveling_handler=ResourceLevelingCommandHandler(
+            task_repo=task_repo,
+            assignment_repo=assignment_repo,
+            dependency_repo=dependency_repo,
+            resource_repo=resource_repo,
+            work_calendar_engine=work_calendar_engine,
+            user_session=user_session,
+            approval_service=None,
+            tenant_context_service=tenant_context_service,
+            schedule_synchronizer=schedule_synchronizer,
+            uow_scope=task_uow_scope,
+        ),
         detail_query_handler=TaskDetailPageQueryHandler(
             task_repo=task_repo,
             task_workspace_reader=None,
@@ -198,19 +317,10 @@ def build_financial_change_approval_deps(
             work_calendar_engine=work_calendar_engine,
             user_session=user_session,
         ),
-        dependency_diagnostics_handler=TaskDependencyDiagnosticsQueryHandler(
-            task_repo=task_repo,
-            dependency_repo=dependency_repo,
-            work_calendar_engine=work_calendar_engine,
-            scheduling_engine=scheduling_engine,
-            user_session=user_session,
-        ),
-        code_policy=TaskCodePolicy(task_repo=task_repo),
+        dependency_diagnostics_handler=dependency_diagnostics_handler,
+        code_policy=code_policy,
         validation_policy=validation_policy,
-        schedule_synchronizer=TaskScheduleSynchronizer(
-            scheduling_engine=scheduling_engine,
-            task_repo=task_repo,
-        ),
+        schedule_synchronizer=schedule_synchronizer,
         hierarchy_policy=hierarchy_policy,
     )
     clock = SystemClock()

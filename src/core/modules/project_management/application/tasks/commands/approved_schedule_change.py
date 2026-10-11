@@ -3,19 +3,33 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime, timezone
 
+from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    TaskScheduleSynchronizer,
     emit_cascade_schedule_changed,
+)
+from src.core.modules.project_management.application.tasks.commands.validation import (
+    TaskValidationPolicy,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskScheduleChanged,
     TaskScheduleChangeType,
 )
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
+)
 from src.core.modules.project_management.contracts.ports.schedule_change import (
     AppliedTaskScheduleChange,
     ApprovedTaskScheduleChange,
 )
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -29,8 +43,27 @@ from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
-class ApprovedScheduleChangeMixin:
+class ApprovedScheduleChangeHandler:
     """Internal task-owner command used only by governed approval orchestration."""
+
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        tenant_context_service: TenantContextService,
+        work_calendar_engine: CalendarProtocol,
+        scheduling_engine: SchedulingEngine | None,
+        schedule_synchronizer: TaskScheduleSynchronizer,
+        validation_policy: TaskValidationPolicy,
+        uow_scope: TaskUowScope,
+    ) -> None:
+        self._task_repo = task_repo
+        self._tenant_context_service = tenant_context_service
+        self._work_calendar_engine = work_calendar_engine
+        self._scheduling_engine = scheduling_engine
+        self._schedule_synchronizer = schedule_synchronizer
+        self._validation_policy = validation_policy
+        self._uow_scope = uow_scope
 
     def _apply_approved_schedule_changes(
         self,
@@ -39,23 +72,25 @@ class ApprovedScheduleChangeMixin:
         actor_id: str,
     ) -> list[AppliedTaskScheduleChange]:
         """Always runs inside the caller's (ApprovalService's) own transaction
-        -- this TaskService instance has a participant-scoped TaskUowScope,
-        so `self._task_uow()` joins the caller's transaction and never
+        -- this handler has a participant-scoped TaskUowScope, so `create()`
+        joins the caller's transaction and never
         opens a second transaction. Recorded `TaskScheduleChanged` facts are
-        collected via `self._take_pending_task_events()` immediately after
+        collected via the TaskService facade immediately after
         this call returns, for the caller to fold into its own
         `ApprovalHandlerResult.domain_events`."""
         candidates = self._validate_approved_schedule_changes(changes)
         if not candidates:
             return []
         project_id = candidates[0][0].project_id
-        scope = self._active_task_scope(operation_label="apply financial change schedule")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="apply financial change schedule"
+        )
 
         primary_task_ids = frozenset(candidate.id for _, candidate in candidates)
-        with self._task_uow() as uow:
+        with self._uow_scope.create() as uow:
             for _, candidate in candidates:
                 uow.tasks.update(candidate)
-            cascade_ids = self._sync_project_schedule(
+            cascade_ids = self._schedule_synchronizer.sync_project_schedule(
                 project_id, commit=False, exclude_task_ids=primary_task_ids
             )
 
@@ -74,6 +109,13 @@ class ApprovedScheduleChangeMixin:
                         f"{applied.start_date}..{applied.end_date} calculated).",
                         code="FINANCIAL_CHANGE_SCHEDULE_RESULT_CONFLICT",
                     )
+                start_date = applied.start_date
+                end_date = applied.end_date
+                if start_date is None or end_date is None:
+                    raise BusinessRuleError(
+                        "Approved schedule result is missing its required dates.",
+                        code="FINANCIAL_CHANGE_SCHEDULE_RESULT_CONFLICT",
+                    )
                 record_audit_entry(
                     uow,
                     operation="update",
@@ -84,8 +126,8 @@ class ApprovedScheduleChangeMixin:
                     category="APPROVAL",
                     severity="low",
                     changed_fields={
-                        "start_date": {"before": None, "after": applied.start_date.isoformat()},
-                        "end_date": {"before": None, "after": applied.end_date.isoformat()},
+                        "start_date": {"before": None, "after": start_date.isoformat()},
+                        "end_date": {"before": None, "after": end_date.isoformat()},
                     },
                     metadata={
                         "action": "task.apply_financial_change_schedule",
@@ -104,8 +146,8 @@ class ApprovedScheduleChangeMixin:
                     workspace_id=project_id,
                     details={
                         "financial_change_impact_id": change.reference_id,
-                        "start_date": applied.start_date.isoformat(),
-                        "finish_date": applied.end_date.isoformat(),
+                        "start_date": start_date.isoformat(),
+                        "finish_date": end_date.isoformat(),
                         "actor_id": actor_id,
                     },
                     commit=False,
@@ -125,8 +167,8 @@ class ApprovedScheduleChangeMixin:
                         reference_id=change.reference_id,
                         task_id=applied.id,
                         version=applied.version,
-                        start_date=applied.start_date,
-                        finish_date=applied.end_date,
+                        start_date=start_date,
+                        finish_date=end_date,
                     )
                 )
             emit_cascade_schedule_changed(
@@ -159,9 +201,18 @@ class ApprovedScheduleChangeMixin:
             if scheduler is not None
             else self._work_calendar_engine
         )
+        tasks_by_id = {
+            task.id: task
+            for task in self._task_repo.list_by_ids([change.task_id for change in changes])
+        }
+        parents_with_children = {
+            task.parent_task_id
+            for task in self._task_repo.list_by_project(project_id)
+            if task.parent_task_id is not None
+        }
         candidates: list[tuple[ApprovedTaskScheduleChange, Task]] = []
         for change in changes:
-            task = self._task_repo.get(change.task_id)
+            task = tasks_by_id.get(change.task_id)
             if task is None:
                 raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
             if task.project_id != project_id:
@@ -174,7 +225,17 @@ class ApprovedScheduleChangeMixin:
                     "A schedule target changed after the financial change was drafted.",
                     code="FINANCIAL_CHANGE_SCHEDULE_BASE_STALE",
                 )
-            candidates.append((change, self._schedule_candidate(task, change, calendar)))
+            candidates.append(
+                (
+                    change,
+                    self._schedule_candidate(
+                        task,
+                        change,
+                        calendar,
+                        has_children=task.id in parents_with_children,
+                    ),
+                )
+            )
         return candidates
 
     def _schedule_candidate(
@@ -182,8 +243,10 @@ class ApprovedScheduleChangeMixin:
         task: Task,
         change: ApprovedTaskScheduleChange,
         calendar: CalendarProtocol,
+        *,
+        has_children: bool,
     ) -> Task:
-        if self._task_repo.list_children(task.project_id, task.id):
+        if has_children:
             raise BusinessRuleError(
                 "Summary task schedules are rolled up from execution leaves.",
                 code="TASK_WBS_SUMMARY_EXECUTION_FORBIDDEN",
@@ -240,12 +303,12 @@ class ApprovedScheduleChangeMixin:
             end_date=finish,
             duration_days=duration,
         )
-        self._validate_task_within_project_dates(
+        self._validation_policy.validate_task_within_project_dates(
             candidate.project_id, candidate.start_date, candidate.end_date
         )
         return candidate
 
 
 __all__ = [
-    "ApprovedScheduleChangeMixin",
+    "ApprovedScheduleChangeHandler",
 ]

@@ -2,23 +2,41 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
+    TaskHierarchyPolicy,
+)
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    TaskScheduleSynchronizer,
     emit_cascade_schedule_changed,
+)
+from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
+    DependencyDiagnostic,
+    TaskDependencyDiagnosticsQueryHandler,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskDependencyChanged,
     TaskDependencyChangeType,
 )
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    DependencyRepository,
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
+from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     is_admin_session,
     require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -27,19 +45,9 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.domain.approval.policy import is_governance_required
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
-    from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
-        DependencyDiagnostic,
-    )
-    from src.core.modules.project_management.contracts.repositories.tasks.task import (
-        DependencyRepository,
-        TaskRepository,
-    )
 
 
 def _raise_for_invalid_diagnostic(diagnostic: DependencyDiagnostic) -> None:
@@ -56,7 +64,7 @@ def _raise_for_invalid_diagnostic(diagnostic: DependencyDiagnostic) -> None:
     raise ValidationError(message, code=diagnostic.code)
 
 
-class TaskDependencyMixin:
+class TaskDependencyCommandHandler:
     """Governed dependency lifecycle for add/remove/update. All three go
     through matching authorization/project-scope/governance/transaction
     machinery. Approved requests are applied via
@@ -64,26 +72,28 @@ class TaskDependencyMixin:
     CURRENT graph at apply time rather than trusting request-time
     validation."""
 
-    _session: Session
-    _task_repo: TaskRepository
-    _dependency_repo: DependencyRepository
-
-    def get_dependency(self, dep_id: str) -> TaskDependency | None:
-        require_permission(self._user_session, "task.read", operation_label="view dependency")
-        dependency = self._dependency_repo.get(dep_id)
-        if dependency is None:
-            return None
-        predecessor = self._task_repo.get(dependency.predecessor_task_id)
-        successor = self._task_repo.get(dependency.successor_task_id)
-        project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
-        if project_id:
-            require_project_permission(
-                self._user_session,
-                project_id,
-                "task.read",
-                operation_label="view dependency",
-            )
-        return dependency
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        dependency_repo: DependencyRepository,
+        user_session: UserSessionContext | None,
+        approval_service: ApprovalService | None,
+        tenant_context_service: TenantContextService,
+        hierarchy_policy: TaskHierarchyPolicy,
+        diagnostics_handler: TaskDependencyDiagnosticsQueryHandler,
+        schedule_synchronizer: TaskScheduleSynchronizer,
+        uow_scope: TaskUowScope,
+    ) -> None:
+        self._task_repo = task_repo
+        self._dependency_repo = dependency_repo
+        self._user_session = user_session
+        self._approval_service = approval_service
+        self._tenant_context_service = tenant_context_service
+        self._hierarchy_policy = hierarchy_policy
+        self._diagnostics_handler = diagnostics_handler
+        self._schedule_synchronizer = schedule_synchronizer
+        self._uow_scope = uow_scope
 
     def add_dependency(
         self,
@@ -98,8 +108,8 @@ class TaskDependencyMixin:
         successor = self._task_repo.get(successor_id)
         if not successor:
             raise NotFoundError("Successor task not found", code="TASK_NOT_FOUND")
-        self._require_leaf_task(predecessor, operation_label="participate in dependencies")
-        self._require_leaf_task(successor, operation_label="participate in dependencies")
+        self._hierarchy_policy._require_leaf_task(predecessor, operation_label="participate in dependencies")
+        self._hierarchy_policy._require_leaf_task(successor, operation_label="participate in dependencies")
         governed = (
             self._approval_service is not None
             and is_governance_required("dependency.add")
@@ -133,7 +143,7 @@ class TaskDependencyMixin:
                 "approval.request" if governed else "task.manage",
                 operation_label="request dependency change" if governed else "add dependency",
             )
-        diagnostic = self.get_dependency_diagnostics(
+        diagnostic = self._diagnostics_handler.get_dependency_diagnostics(
             predecessor_id=predecessor_id,
             successor_id=successor_id,
             dependency_type=dependency_type,
@@ -142,7 +152,7 @@ class TaskDependencyMixin:
         )
         if not diagnostic.is_valid:
             _raise_for_invalid_diagnostic(diagnostic)
-        if governed:
+        if governed and self._approval_service is not None:
             request = self._approval_service.request_change(
                 request_type="dependency.add",
                 entity_type="task_dependency",
@@ -188,9 +198,9 @@ class TaskDependencyMixin:
         successor = self._task_repo.get(successor_id)
         if successor is None:
             raise NotFoundError("Successor task not found", code="TASK_NOT_FOUND")
-        self._require_leaf_task(predecessor, operation_label="participate in dependencies")
-        self._require_leaf_task(successor, operation_label="participate in dependencies")
-        diagnostic = self.get_dependency_diagnostics(
+        self._hierarchy_policy._require_leaf_task(predecessor, operation_label="participate in dependencies")
+        self._hierarchy_policy._require_leaf_task(successor, operation_label="participate in dependencies")
+        diagnostic = self._diagnostics_handler.get_dependency_diagnostics(
             predecessor_id=predecessor_id,
             successor_id=successor_id,
             dependency_type=dependency_type,
@@ -200,10 +210,12 @@ class TaskDependencyMixin:
         if not diagnostic.is_valid:
             _raise_for_invalid_diagnostic(diagnostic)
         dependency = TaskDependency.create(predecessor_id, successor_id, dependency_type, lag_days)
-        scope = self._active_task_scope(operation_label="add dependency")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="add dependency"
+        )
+        with self._uow_scope.create() as uow:
             uow.dependencies.add(dependency)
-            cascade_ids = self._sync_project_schedule(
+            cascade_ids = self._schedule_synchronizer.sync_project_schedule(
                 predecessor.project_id,
                 commit=False,
                 exclude_task_ids=frozenset({dependency.predecessor_task_id, dependency.successor_task_id}),
@@ -281,7 +293,7 @@ class TaskDependencyMixin:
                 "approval.request" if governed else "task.manage",
                 operation_label="request dependency removal" if governed else "remove dependency",
             )
-        if governed:
+        if governed and self._approval_service is not None:
             request = self._approval_service.request_change(
                 request_type="dependency.remove",
                 entity_type="task_dependency",
@@ -312,10 +324,12 @@ class TaskDependencyMixin:
         predecessor = self._task_repo.get(dependency.predecessor_task_id)
         successor = self._task_repo.get(dependency.successor_task_id)
         project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
-        scope = self._active_task_scope(operation_label="remove dependency")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="remove dependency"
+        )
+        with self._uow_scope.create() as uow:
             uow.dependencies.delete(dependency_id, expected_version=dependency.version)
-            cascade_ids = self._sync_project_schedule(
+            cascade_ids = self._schedule_synchronizer.sync_project_schedule(
                 project_id,
                 commit=False,
                 exclude_task_ids=frozenset({dependency.predecessor_task_id, dependency.successor_task_id}),
@@ -368,33 +382,6 @@ class TaskDependencyMixin:
                 )
             uow.commit()
 
-    def list_dependencies_for_task(self, task_id: str) -> list[TaskDependency]:
-        require_permission(self._user_session, "task.read", operation_label="list task dependencies")
-        task = self._task_repo.get(task_id)
-        if task is None:
-            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
-        require_project_permission(
-            self._user_session,
-            task.project_id,
-            "task.read",
-            operation_label="list task dependencies",
-        )
-        return self._dependency_repo.list_by_task(task_id)
-
-    def list_dependencies_for_project(self, project_id: str) -> list[TaskDependency]:
-        """One-query project-wide dependency read, backed directly by
-        ``DependencyRepository.list_by_project``. Use this instead of
-        looping ``list_dependencies_for_task`` per task, which is an
-        N+1 query pattern."""
-        require_permission(self._user_session, "task.read", operation_label="list project dependencies")
-        require_project_permission(
-            self._user_session,
-            project_id,
-            "task.read",
-            operation_label="list project dependencies",
-        )
-        return self._dependency_repo.list_by_project(project_id)
-
     def update_dependency(
         self,
         dep_id: str,
@@ -441,7 +428,7 @@ class TaskDependencyMixin:
         # own existing row from the duplicate check -- otherwise the
         # duplicate check would always fire on the row being updated and
         # short-circuit before the cycle check ever runs.
-        diagnostic = self.get_dependency_diagnostics(
+        diagnostic = self._diagnostics_handler.get_dependency_diagnostics(
             predecessor_id=dependency.predecessor_task_id,
             successor_id=dependency.successor_task_id,
             dependency_type=resolved_type,
@@ -452,7 +439,7 @@ class TaskDependencyMixin:
         if not diagnostic.is_valid:
             _raise_for_invalid_diagnostic(diagnostic)
 
-        if governed:
+        if governed and self._approval_service is not None:
             request = self._approval_service.request_change(
                 request_type="dependency.update",
                 entity_type="task_dependency",
@@ -505,7 +492,7 @@ class TaskDependencyMixin:
         successor = self._task_repo.get(dependency.successor_task_id)
         project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
 
-        diagnostic = self.get_dependency_diagnostics(
+        diagnostic = self._diagnostics_handler.get_dependency_diagnostics(
             predecessor_id=dependency.predecessor_task_id,
             successor_id=dependency.successor_task_id,
             dependency_type=dependency_type,
@@ -517,12 +504,14 @@ class TaskDependencyMixin:
             _raise_for_invalid_diagnostic(diagnostic)
 
         candidate = replace(dependency, dependency_type=dependency_type, lag_days=lag_days)
-        scope = self._active_task_scope(operation_label="update dependency")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="update dependency"
+        )
+        with self._uow_scope.create() as uow:
             uow.dependencies.update(candidate)
             cascade_ids: list[str] = []
             if project_id:
-                cascade_ids = self._sync_project_schedule(
+                cascade_ids = self._schedule_synchronizer.sync_project_schedule(
                     project_id,
                     commit=False,
                     exclude_task_ids=frozenset(
@@ -581,4 +570,4 @@ class TaskDependencyMixin:
         return candidate
 
 
-__all__ = ["TaskDependencyMixin"]
+__all__ = ["TaskDependencyCommandHandler"]

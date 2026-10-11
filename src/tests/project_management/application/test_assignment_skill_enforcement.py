@@ -11,7 +11,7 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
     SkillViolation,
 )
 from src.core.modules.project_management.application.tasks.commands.assignment import (
-    TaskAssignmentMixin,
+    TaskAssignmentCommandHandler,
 )
 from src.core.modules.project_management.domain.resources.skills import (
     SkillValidationMode,
@@ -56,7 +56,7 @@ def test_noop_when_no_validator_configured():
     fake_self = _make_fake_self(None)
     task = SimpleNamespace(id="task-1")
 
-    TaskAssignmentMixin._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
+    TaskAssignmentCommandHandler._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
 
     assert fake_self._last_skill_violation_warning is None
 
@@ -66,7 +66,7 @@ def test_noop_when_result_has_no_violations():
     fake_self = _make_fake_self(_FakeValidator(result))
     task = SimpleNamespace(id="task-1")
 
-    TaskAssignmentMixin._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
+    TaskAssignmentCommandHandler._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
 
     assert fake_self._last_skill_violation_warning is None
 
@@ -81,7 +81,7 @@ def test_raises_business_rule_error_when_block_mode_violation_present():
     task = SimpleNamespace(id="task-1")
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        TaskAssignmentMixin._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
+        TaskAssignmentCommandHandler._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
 
     assert exc_info.value.code == "ASSIGNMENT_SKILL_BLOCKED"
     assert "missing welding cert" in str(exc_info.value)
@@ -96,7 +96,7 @@ def test_stashes_warning_when_override_mode_requires_approval():
     fake_self = _make_fake_self(_FakeValidator(result))
     task = SimpleNamespace(id="task-1")
 
-    TaskAssignmentMixin._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
+    TaskAssignmentCommandHandler._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
 
     assert fake_self._last_skill_violation_warning is not None
     assert "needs approval override" in fake_self._last_skill_violation_warning
@@ -111,7 +111,7 @@ def test_stashes_warning_when_warn_mode_violation_present():
     fake_self = _make_fake_self(_FakeValidator(result))
     task = SimpleNamespace(id="task-1")
 
-    TaskAssignmentMixin._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
+    TaskAssignmentCommandHandler._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
 
     assert fake_self._last_skill_violation_warning is not None
     assert "soft skill gap" in fake_self._last_skill_violation_warning
@@ -123,6 +123,6 @@ def test_validator_called_with_task_and_resource_id():
     fake_self = _make_fake_self(validator)
     task = SimpleNamespace(id="task-1")
 
-    TaskAssignmentMixin._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
+    TaskAssignmentCommandHandler._check_resource_skill_requirements(fake_self, task=task, resource_id="res-1")
 
     assert validator.calls == [(task, "res-1")]

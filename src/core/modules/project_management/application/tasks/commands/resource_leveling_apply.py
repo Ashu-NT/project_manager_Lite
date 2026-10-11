@@ -16,24 +16,44 @@ from src.core.modules.project_management.application.scheduling.models.leveling 
     LevelingProposal,
 )
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    TaskScheduleSynchronizer,
     emit_cascade_schedule_changed,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskScheduleChanged,
     TaskScheduleChangeType,
 )
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
+)
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+    DependencyRepository,
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.domain.tasks.task import Task
+from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     is_admin_session,
     require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 from src.core.platform.domain.approval.policy import is_governance_required
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
@@ -42,7 +62,7 @@ def _coerce_date(value: date | str) -> date:
     return value if isinstance(value, date) else date.fromisoformat(value)
 
 
-class ResourceLevelingApplyMixin:
+class ResourceLevelingCommandHandler:
     """Persists a previously-computed ``LevelingProposal`` (always built by
     ``ResourceLevelingPlanner`` against an in-memory snapshot that never itself
     writes to the repository).
@@ -55,6 +75,31 @@ class ResourceLevelingApplyMixin:
     version check could pass for some moves while others go unnoticed -- this also re-validates
     a governed request at apply time (TOCTOU-safe).
     """
+
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        assignment_repo: AssignmentRepository,
+        dependency_repo: DependencyRepository,
+        resource_repo: ResourceRepository,
+        work_calendar_engine: CalendarProtocol,
+        user_session: UserSessionContext | None,
+        approval_service: ApprovalService | None,
+        tenant_context_service: TenantContextService,
+        schedule_synchronizer: TaskScheduleSynchronizer,
+        uow_scope: TaskUowScope,
+    ) -> None:
+        self._task_repo = task_repo
+        self._assignment_repo = assignment_repo
+        self._dependency_repo = dependency_repo
+        self._resource_repo = resource_repo
+        self._work_calendar_engine = work_calendar_engine
+        self._user_session = user_session
+        self._approval_service = approval_service
+        self._tenant_context_service = tenant_context_service
+        self._schedule_synchronizer = schedule_synchronizer
+        self._uow_scope = uow_scope
 
     def _leveling_snapshot(self, project_id: str):
         tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
@@ -108,7 +153,7 @@ class ResourceLevelingApplyMixin:
         if not proposal.moves:
             return []
 
-        if governed:
+        if governed and self._approval_service is not None:
             request = self._approval_service.request_change(
                 request_type="scheduling.leveling.apply",
                 entity_type="project",
@@ -165,8 +210,10 @@ class ResourceLevelingApplyMixin:
         if not moves:
             return []
 
-        scope = self._active_task_scope(operation_label="apply resource leveling plan")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="apply resource leveling plan"
+        )
+        with self._uow_scope.create() as uow:
             updated_ids: list[str] = []
             for move in moves:
                 task_id = move["task_id"]
@@ -225,7 +272,7 @@ class ResourceLevelingApplyMixin:
                     )
                 )
 
-            cascade_ids = self._sync_project_schedule(
+            cascade_ids = self._schedule_synchronizer.sync_project_schedule(
                 project_id, commit=False, exclude_task_ids=frozenset(updated_ids)
             )
             emit_cascade_schedule_changed(
@@ -233,7 +280,10 @@ class ResourceLevelingApplyMixin:
             )
             uow.commit()
 
-        return [self._task_repo.get(task_id) for task_id in updated_ids]
+        updated_tasks = [self._task_repo.get(task_id) for task_id in updated_ids]
+        if any(task is None for task in updated_tasks):
+            raise NotFoundError("Task not found after resource leveling.", code="TASK_NOT_FOUND")
+        return [task for task in updated_tasks if task is not None]
 
 
-__all__ = ["ResourceLevelingApplyMixin"]
+__all__ = ["ResourceLevelingCommandHandler"]

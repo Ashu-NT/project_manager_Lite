@@ -5,15 +5,29 @@ from dataclasses import replace
 from datetime import date, datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
+)
+from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
+    TaskHierarchyPolicy,
+)
+from src.core.modules.project_management.application.tasks.commands.identity import (
+    TaskCodePolicy,
+)
+from src.core.modules.project_management.application.tasks.commands.scheduling_constraint import (
+    TaskSchedulingConstraintHandler,
+)
+from src.core.modules.project_management.application.tasks.commands.validation import (
+    TaskValidationPolicy,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskCreated,
     TaskProfileUpdated,
     TaskStatusChanged,
+)
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
 )
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     TaskRepository,
@@ -22,6 +36,9 @@ from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -32,15 +49,35 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 
 logger = logging.getLogger(__name__)
 
 
-class TaskLifecycleMixin:
-    _session: Session
-    _task_repo: TaskRepository
-    _work_calendar_engine: CalendarProtocol
+class TaskLifecycleCommandHandler:
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        work_calendar_engine: CalendarProtocol,
+        user_session: UserSessionContext | None,
+        tenant_context_service: TenantContextService,
+        code_policy: TaskCodePolicy,
+        hierarchy_policy: TaskHierarchyPolicy,
+        validation_policy: TaskValidationPolicy,
+        scheduling_constraint_handler: TaskSchedulingConstraintHandler,
+        uow_scope: TaskUowScope,
+    ) -> None:
+        self._task_repo = task_repo
+        self._work_calendar_engine = work_calendar_engine
+        self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
+        self._code_policy = code_policy
+        self._hierarchy_policy = hierarchy_policy
+        self._validation_policy = validation_policy
+        self._scheduling_constraint_handler = scheduling_constraint_handler
+        self._uow_scope = uow_scope
 
     def create_task(
         self,
@@ -80,9 +117,9 @@ class TaskLifecycleMixin:
             constraint_type=constraint_type,
             constraint_date=constraint_date,
         )
-        self._validate_constraint_date_is_working_day(task)
-        task.code = self._resolve_task_code(code, project_id, task.name)
-        task = self._prepare_new_task_hierarchy(
+        self._scheduling_constraint_handler._validate_constraint_date_is_working_day(task)
+        task.code = self._code_policy.resolve_task_code(code, project_id, task.name)
+        task = self._hierarchy_policy._prepare_new_task_hierarchy(
             task,
             parent_task_id=parent_task_id,
             wbs_code=wbs_code,
@@ -96,12 +133,16 @@ class TaskLifecycleMixin:
                 start_date, int(task.duration_days)
             )
 
-        self._validate_task_within_project_dates(project_id, task.start_date, task.end_date)
-        scope = self._active_task_scope(operation_label="create task")
+        self._validation_policy.validate_task_within_project_dates(
+            project_id, task.start_date, task.end_date
+        )
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="create task"
+        )
 
         try:
-            task = self._resequence_for_new_task(task)
-            with self._task_uow() as uow:
+            task = self._hierarchy_policy._resequence_for_new_task(task)
+            with self._uow_scope.create() as uow:
                 uow.tasks.add(task)
                 record_activity(
                     uow,
@@ -126,9 +167,9 @@ class TaskLifecycleMixin:
             logger.info("Created task %s - %s for project %s", task.id, task.name, project_id)
             return task
         except IntegrityError as exc:
-            if self._is_task_code_integrity_error(exc):
-                self._raise_task_code_duplicate(task.code, exc)
-            if self._is_task_wbs_integrity_error(exc):
+            if self._code_policy.is_task_code_integrity_error(exc):
+                self._code_policy.raise_task_code_duplicate(task.code, exc)
+            if self._hierarchy_policy._is_task_wbs_integrity_error(exc):
                 raise ValidationError(
                     "The WBS code or parent conflicts with another task.",
                     code="TASK_WBS_CONFLICT",
@@ -199,7 +240,7 @@ class TaskLifecycleMixin:
 
         next_code = task.code
         if code is not None and code.strip():
-            next_code = self._resolve_task_code(
+            next_code = self._code_policy.resolve_task_code(
                 code,
                 task.project_id,
                 next_name,
@@ -220,15 +261,17 @@ class TaskLifecycleMixin:
             is_milestone=next_is_milestone,
         )
 
-        self._validate_task_within_project_dates(
+        self._validation_policy.validate_task_within_project_dates(
             candidate.project_id,
             candidate.start_date,
             candidate.end_date,
         )
-        scope = self._active_task_scope(operation_label="update task")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="update task"
+        )
 
         try:
-            with self._task_uow() as uow:
+            with self._uow_scope.create() as uow:
                 uow.tasks.update(candidate)
                 record_activity(
                     uow,
@@ -263,9 +306,9 @@ class TaskLifecycleMixin:
                     )
                 uow.commit()
         except IntegrityError as exc:
-            if self._is_task_code_integrity_error(exc):
-                self._raise_task_code_duplicate(candidate.code, exc)
+            if self._code_policy.is_task_code_integrity_error(exc):
+                self._code_policy.raise_task_code_duplicate(candidate.code, exc)
             raise
         return candidate
 
-__all__ = ["TaskLifecycleMixin"]
+__all__ = ["TaskLifecycleCommandHandler"]

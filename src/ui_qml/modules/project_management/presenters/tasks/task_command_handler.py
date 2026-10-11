@@ -80,7 +80,7 @@ def update_task(desktop_api, payload: dict[str, Any]) -> None:
 def update_task_scheduling_constraint(desktop_api, payload: dict[str, Any]) -> None:
     """Deliberately separate from update_task above: this is the sole,
     governed mutation path for CHANGING an existing task's scheduling
-    constraint (see TaskSchedulingConstraintMixin) -- not a generic
+    constraint (see TaskSchedulingConstraintHandler) -- not a generic
     field edit. constraintType == "" means ASAP: clear the constraint
     back to none."""
     command = TaskConstraintUpdateCommand(

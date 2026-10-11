@@ -275,7 +275,7 @@ Item {
                 payload.taskId = String(state.taskId)
                 payload.expectedVersion = state.version
                 // The scheduling constraint is a separate governed mutation
-                // (TaskSchedulingConstraintMixin) -- update_task's own
+                // (TaskSchedulingConstraintHandler) -- update_task's own
                 // command deliberately excludes constraint fields, so a
                 // changed constraint is applied first, before the rest of
                 // the edit, and a failure here (including an

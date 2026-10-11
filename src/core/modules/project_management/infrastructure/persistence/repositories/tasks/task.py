@@ -526,7 +526,7 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
         """Defense-in-depth: the schema cannot express "both endpoints in the same project" --
         task_dependencies has no project_id column and its FKs target tasks.id alone, not the
         (project_id, id) composite tasks carries for its own self-referential FK. A caller that
-        reaches this repository directly (bypassing TaskDependencyMixin's
+        reaches this repository directly (bypassing the dependency command's
         DEPENDENCY_CROSS_PROJECT diagnostics check) would otherwise be able to persist a
         cross-project edge as long as both tasks share a tenant/org."""
         ctx = self._context()

@@ -1,5 +1,5 @@
 """Governance parity for ApplyResourceLevelingPlanCommand, mirroring
-TaskSchedulingConstraintMixin's governed/ungoverned shape
+TaskSchedulingConstraintHandler's governed/ungoverned shape
 (test_task_constraint_governance.py): approval-gated apply, admin
 bypass, and TOCTOU-safe revalidation at apply time using the schedule
 fingerprint instead of a single task's version.
