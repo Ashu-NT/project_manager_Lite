@@ -29,6 +29,9 @@ from src.core.modules.project_management.application.tasks.commands.progress imp
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSynchronizer,
 )
+from src.core.modules.project_management.application.tasks.commands.time_entries import (
+    TaskTimeEntryHandler,
+)
 from src.core.modules.project_management.application.tasks.commands.validation import (
     TaskValidationPolicy,
 )
@@ -141,8 +144,6 @@ def build_financial_change_approval_deps(
         dependency_repo,
         assignment_repo,
         None,
-        None,
-        None,
         resource_repo,
         work_calendar_engine,
         scheduling_engine=scheduling_engine,
@@ -168,6 +169,12 @@ def build_financial_change_approval_deps(
             hierarchy_policy=hierarchy_policy,
             validation_policy=validation_policy,
             uow_scope=task_uow_scope,
+        ),
+        time_entry_handler=TaskTimeEntryHandler(
+            timesheet_service=None,
+            task_repo=task_repo,
+            assignment_repo=assignment_repo,
+            user_session=user_session,
         ),
         detail_query_handler=TaskDetailPageQueryHandler(
             task_repo=task_repo,

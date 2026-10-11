@@ -25,6 +25,9 @@ from src.core.modules.project_management.application.tasks.commands.progress imp
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSynchronizer,
 )
+from src.core.modules.project_management.application.tasks.commands.time_entries import (
+    TaskTimeEntryHandler,
+)
 from src.core.modules.project_management.application.tasks.commands.validation import (
     TaskValidationPolicy,
 )
@@ -126,8 +129,6 @@ def build_task_service(
         repositories.pm.dependency_repo,
         repositories.pm.assignment_repo,
         repositories.platform.time_entry_repo,
-        repositories.platform.timesheet_period_repo,
-        timesheet_service,
         repositories.pm.resource_repo,
         work_calendar_engine,
         scheduling_engine,
@@ -156,6 +157,12 @@ def build_task_service(
             hierarchy_policy=hierarchy_policy,
             validation_policy=validation_policy,
             uow_scope=task_uow_scope,
+        ),
+        time_entry_handler=TaskTimeEntryHandler(
+            timesheet_service=timesheet_service,
+            task_repo=repositories.pm.task_repo,
+            assignment_repo=repositories.pm.assignment_repo,
+            user_session=platform_services.user_session,
         ),
         detail_query_handler=detail_query_handler,
         workspace_query_handler=workspace_query_handler,

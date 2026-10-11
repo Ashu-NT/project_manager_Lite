@@ -635,6 +635,19 @@ second-write failure proved bulk status rollback. Targeted Mypy passed.
 A4 remains open for the remaining Task command mixins and integrated
 PostgreSQL/security/event proofs.
 
+**A4 Task/Time bridge cutover (2026-10-11).** `TaskTimeEntryMixin` was
+retired. Composition injects a `TaskTimeEntryHandler` with the existing
+TimesheetService, Task/Assignment repositories and user context. TaskService
+retains explicit public delegates; Time remains the sole owner of TimeEntry
+and period writes, authorization, and transactions. The Task-scoped entries
+page preserves the same task/project permission check and one batched
+allocation lookup. The legacy mixin export and unused TaskService timesheet
+repository/service constructor state were removed. Focused Task/Time tests
+passed 42 cases; approved-time labor and concurrency tests passed 36 cases;
+targeted Mypy passed. The Task-scoped page still materializes the task's
+entries before in-memory pagination, so this cutover does not close the
+separate SQL pagination/performance concern. A4 remains open.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

@@ -21,6 +21,9 @@ from src.core.modules.project_management.application.tasks.commands.progress imp
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSynchronizer,
 )
+from src.core.modules.project_management.application.tasks.commands.time_entries import (
+    TaskTimeEntryHandler,
+)
 from src.core.modules.project_management.application.tasks.commands.validation import (
     TaskValidationPolicy,
 )
@@ -130,8 +133,6 @@ def build_task_approval_deps(
         bundle.pm.dependency_repo,
         bundle.pm.assignment_repo,
         bundle.platform.time_entry_repo,
-        bundle.platform.timesheet_period_repo,
-        None,  # timesheet_service -- see module docstring
         bundle.pm.resource_repo,
         work_calendar_engine,
         scheduling_engine,
@@ -158,6 +159,12 @@ def build_task_approval_deps(
             hierarchy_policy=hierarchy_policy,
             validation_policy=validation_policy,
             uow_scope=task_uow_scope,
+        ),
+        time_entry_handler=TaskTimeEntryHandler(
+            timesheet_service=None,
+            task_repo=bundle.pm.task_repo,
+            assignment_repo=bundle.pm.assignment_repo,
+            user_session=user_session,
         ),
         detail_query_handler=TaskDetailPageQueryHandler(
             task_repo=bundle.pm.task_repo,

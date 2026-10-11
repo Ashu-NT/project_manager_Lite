@@ -50,7 +50,7 @@ from src.core.modules.project_management.application.tasks.commands.scheduling_c
     TaskSchedulingConstraintMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.time_entries import (
-    TaskTimeEntryMixin,
+    TaskTimeEntryHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.validation import (
     TaskValidationPolicy,
@@ -74,13 +74,15 @@ from src.core.modules.project_management.application.tasks.queries.task_workspac
 from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
     TaskUowScope,
 )
-from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.contracts.reads.tasks import (
     TaskActivityPage,
     TaskAssignmentReadPage,
     TaskDependencyReadPage,
     TaskWorkspaceReader,
     TaskWorkspaceReadPage,
+)
+from src.core.modules.project_management.contracts.reads.tasks.models import (
+    TaskTimeEntriesPage,
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
@@ -108,14 +110,15 @@ from src.core.platform.application.history.activity.activity_service import (
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
+from src.core.platform.application.time_management.time import TimesheetPeriodAggregate
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
 from src.core.platform.contract.repositories.time_management.time.contracts import (
     TimeEntryRepository,
-    TimesheetPeriodRepository,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 
@@ -128,7 +131,6 @@ class TaskService(
     TaskSchedulingConstraintMixin,
     ResourceLevelingApplyMixin,
     TaskAssignmentMixin,
-    TaskTimeEntryMixin,
     TaskAssignmentBridgeMixin,
 ):
     """Task application service orchestrator."""
@@ -140,8 +142,6 @@ class TaskService(
         dependency_repo: DependencyRepository,
         assignment_repo: AssignmentRepository,
         time_entry_repo: TimeEntryRepository | None,
-        timesheet_period_repo: TimesheetPeriodRepository | None,
-        timesheet_service: TimesheetService | None,
         resource_repo: ResourceRepository,
         work_calendar_engine: CalendarProtocol,
         scheduling_engine: SchedulingEngine | None = None,
@@ -170,14 +170,13 @@ class TaskService(
         task_uow_scope: TaskUowScope,
         deletion_handler: TaskDeletionCommandHandler,
         progress_handler: TaskProgressCommandHandler,
+        time_entry_handler: TaskTimeEntryHandler,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
         self._dependency_repo: DependencyRepository = dependency_repo
         self._assignment_repo: AssignmentRepository = assignment_repo
         self._time_entry_repo = time_entry_repo
-        self._timesheet_period_repo = timesheet_period_repo
-        self._timesheet_service = timesheet_service
         self._resource_repo: ResourceRepository = resource_repo
         self._work_calendar_engine: CalendarProtocol = work_calendar_engine
         self._scheduling_engine: SchedulingEngine | None = scheduling_engine
@@ -208,6 +207,7 @@ class TaskService(
         self._task_uow_scope = task_uow_scope
         self._deletion_handler = deletion_handler
         self._progress_handler = progress_handler
+        self._time_entry_handler = time_entry_handler
         self._enterprise_audit_service: EnterpriseAuditService | None = enterprise_audit_service
 
     def delete_task(self, task_id: str) -> None:
@@ -246,6 +246,122 @@ class TaskService(
             actual_end=actual_end,
             status=status,
             expected_version=expected_version,
+        )
+
+    def initialize_timesheet_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
+        return self._time_entry_handler.initialize_timesheet_for_assignment(assignment_id)
+
+    def list_time_entries_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
+        return self._time_entry_handler.list_time_entries_for_assignment(assignment_id)
+
+    def list_time_entries_for_task_page(
+        self,
+        task_id: str,
+        *,
+        resource_id: str | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        page: int = 1,
+        page_size: int = 25,
+        sort_direction: str = "desc",
+    ) -> TaskTimeEntriesPage:
+        return self._time_entry_handler.list_time_entries_for_task_page(
+            task_id,
+            resource_id=resource_id,
+            date_from=date_from,
+            date_to=date_to,
+            page=page,
+            page_size=page_size,
+            sort_direction=sort_direction,
+        )
+
+    def list_time_entries_for_assignment_period(
+        self, assignment_id: str, *, period_start: date
+    ) -> list[TimeEntry]:
+        return self._time_entry_handler.list_time_entries_for_assignment_period(
+            assignment_id, period_start=period_start
+        )
+
+    def get_time_entry(self, entry_id: str) -> TimeEntry:
+        return self._time_entry_handler.get_time_entry(entry_id)
+
+    def add_time_entry(
+        self, assignment_id: str, *, entry_date: date, hours: float, note: str = ""
+    ) -> TimeEntry:
+        return self._time_entry_handler.add_time_entry(
+            assignment_id, entry_date=entry_date, hours=hours, note=note
+        )
+
+    def update_time_entry(
+        self,
+        entry_id: str,
+        *,
+        expected_version: int,
+        entry_date: date | None = None,
+        hours: float | None = None,
+        note: str | None = None,
+    ) -> TimeEntry:
+        return self._time_entry_handler.update_time_entry(
+            entry_id,
+            expected_version=expected_version,
+            entry_date=entry_date,
+            hours=hours,
+            note=note,
+        )
+
+    def delete_time_entry(self, entry_id: str, *, expected_version: int) -> None:
+        self._time_entry_handler.delete_time_entry(entry_id, expected_version=expected_version)
+
+    def list_timesheet_periods_for_resource(self, resource_id: str) -> list[TimesheetPeriod]:
+        return self._time_entry_handler.list_timesheet_periods_for_resource(resource_id)
+
+    def list_time_entries_for_resource_period(
+        self, resource_id: str, *, period_start: date
+    ) -> list[TimeEntry]:
+        return self._time_entry_handler.list_time_entries_for_resource_period(
+            resource_id, period_start=period_start
+        )
+
+    def submit_timesheet_period(
+        self, resource_id: str, *, period_start: date, note: str = ""
+    ) -> TimesheetPeriodAggregate:
+        return self._time_entry_handler.submit_timesheet_period(
+            resource_id, period_start=period_start, note=note
+        )
+
+    def approve_timesheet_period(
+        self, period_id: str, *, expected_version: int, note: str = ""
+    ) -> TimesheetPeriodAggregate:
+        return self._time_entry_handler.approve_timesheet_period(
+            period_id, expected_version=expected_version, note=note
+        )
+
+    def reject_timesheet_period(
+        self, period_id: str, *, expected_version: int, note: str
+    ) -> TimesheetPeriodAggregate:
+        return self._time_entry_handler.reject_timesheet_period(
+            period_id, expected_version=expected_version, note=note
+        )
+
+    def lock_timesheet_period(
+        self, period_id: str, *, expected_version: int, note: str = ""
+    ) -> TimesheetPeriodAggregate:
+        return self._time_entry_handler.lock_timesheet_period(
+            period_id, expected_version=expected_version, note=note
+        )
+
+    def unlock_timesheet_period(
+        self, period_id: str, *, expected_version: int, note: str = ""
+    ) -> TimesheetPeriodAggregate:
+        return self._time_entry_handler.unlock_timesheet_period(
+            period_id, expected_version=expected_version, note=note
+        )
+
+    def reopen_approved_timesheet_period_for_correction(
+        self, period_id: str, *, expected_version: int, note: str
+    ) -> TimesheetPeriodAggregate:
+        return self._time_entry_handler.reopen_approved_timesheet_period_for_correction(
+            period_id, expected_version=expected_version, note=note
         )
 
     def _resolve_task_code(

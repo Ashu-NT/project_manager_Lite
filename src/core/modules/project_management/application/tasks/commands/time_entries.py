@@ -2,20 +2,43 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.contracts.reads.tasks.models import (
     TaskTimeEntriesPage,
     TaskTimeEntryRow,
 )
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+    TaskRepository,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.application.time_management.time import TimesheetPeriodAggregate
+from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod
 
 
-class TaskTimeEntryMixin:
-    _timesheet_service: TimesheetService | None
+class TaskTimeEntryHandler:
+    def __init__(
+        self,
+        *,
+        timesheet_service: TimesheetService | None,
+        task_repo: TaskRepository,
+        assignment_repo: AssignmentRepository,
+        user_session: UserSessionContext | None,
+    ) -> None:
+        self._timesheet_service = timesheet_service
+        self._task_repo = task_repo
+        self._assignment_repo = assignment_repo
+        self._user_session = user_session
 
     def _require_timesheet_service(self) -> TimesheetService:
-        service = getattr(self, "_timesheet_service", None)
+        service = self._timesheet_service
         if service is None:
             raise RuntimeError("Timesheet service is not configured.")
         return service
@@ -52,7 +75,19 @@ class TaskTimeEntryMixin:
         ever grows large enough for that to stop holding, migrating to a
         dedicated reader is the natural next step.
         """
-        assignments = self.list_assignments_for_task(task_id)
+        require_permission(
+            self._user_session, "task.read", operation_label="list task assignments"
+        )
+        task = self._task_repo.get(task_id)
+        if task is None:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "task.read",
+            operation_label="list task assignments",
+        )
+        assignments = self._assignment_repo.list_by_task(task_id)
         resource_by_assignment_id = {a.id: a.resource_id for a in assignments}
         assignment_ids = list(resource_by_assignment_id)
         entries = (
@@ -221,4 +256,4 @@ class TaskTimeEntryMixin:
         )
 
 
-__all__ = ["TaskTimeEntryMixin"]
+__all__ = ["TaskTimeEntryHandler"]
