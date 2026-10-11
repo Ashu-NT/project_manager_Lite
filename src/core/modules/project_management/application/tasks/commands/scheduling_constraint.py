@@ -139,7 +139,7 @@ class TaskSchedulingConstraintMixin:
         with self._task_uow() as uow:
             uow.tasks.update(candidate)
             # Same one-transaction mutate+recalculate flow every other
-            # schedule-affecting task command uses (TaskScheduleSyncMixin)
+            # schedule-affecting task command uses (TaskScheduleSynchronizer)
             # -- if recalculation raises, the UoW context manager rolls
             # back the constraint write too; there is no separate
             # constraint scheduler.

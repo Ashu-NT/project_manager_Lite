@@ -9,6 +9,9 @@ from src.core.modules.project_management.application.scheduling import (
 from src.core.modules.project_management.application.tasks.commands.identity import (
     TaskCodePolicy,
 )
+from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    TaskScheduleSynchronizer,
+)
 from src.core.modules.project_management.application.tasks.commands.validation import (
     TaskValidationPolicy,
 )
@@ -143,6 +146,10 @@ def build_task_approval_deps(
             resource_repo=bundle.pm.resource_repo,
             project_repo=bundle.pm.project_repo,
             availability_service=None,
+        ),
+        schedule_synchronizer=TaskScheduleSynchronizer(
+            scheduling_engine=scheduling_engine,
+            task_repo=bundle.pm.task_repo,
         ),
     )
     return TaskApprovalDeps(task_service=task_service)

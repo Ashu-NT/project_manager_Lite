@@ -16,7 +16,7 @@ from src.core.modules.project_management.application.tasks.commands.lifecycle im
     TaskLifecycleMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
-    TaskScheduleSyncMixin,
+    TaskScheduleSynchronizer,
 )
 from src.core.modules.project_management.application.tasks.commands.time_entries import (
     TaskTimeEntryMixin,
@@ -30,7 +30,7 @@ __all__ = [
     "TaskAssignmentMixin",
     "TaskDependencyMixin",
     "TaskLifecycleMixin",
-    "TaskScheduleSyncMixin",
+    "TaskScheduleSynchronizer",
     "TaskTimeEntryMixin",
     "TaskValidationPolicy",
     "record_assignment_action",

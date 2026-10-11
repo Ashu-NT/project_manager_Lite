@@ -17,6 +17,9 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.commands.identity import (
     TaskCodePolicy,
 )
+from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    TaskScheduleSynchronizer,
+)
 from src.core.modules.project_management.application.tasks.commands.validation import (
     TaskValidationPolicy,
 )
@@ -153,6 +156,10 @@ def build_financial_change_approval_deps(
             resource_repo=resource_repo,
             project_repo=project_repo,
             availability_service=None,
+        ),
+        schedule_synchronizer=TaskScheduleSynchronizer(
+            scheduling_engine=scheduling_engine,
+            task_repo=task_repo,
         ),
     )
     clock = SystemClock()

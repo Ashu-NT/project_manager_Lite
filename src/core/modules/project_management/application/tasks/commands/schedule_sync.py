@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 
 
 def emit_cascade_schedule_changed(uow, *, scope, project_id: str, changed_task_ids: list[str]) -> None:
@@ -32,14 +35,21 @@ def emit_cascade_schedule_changed(uow, *, scope, project_id: str, changed_task_i
         )
 
 
-class TaskScheduleSyncMixin:
-    _scheduling_engine: SchedulingEngine | None
+class TaskScheduleSynchronizer:
+    def __init__(
+        self,
+        *,
+        scheduling_engine: SchedulingEngine | None,
+        task_repo: TaskRepository,
+    ) -> None:
+        self._scheduling_engine = scheduling_engine
+        self._task_repo = task_repo
 
-    def _sync_project_schedule(
+    def sync_project_schedule(
         self,
         project_id: str | None,
         *,
-        commit: bool = True,
+        commit: bool,
         exclude_task_ids: frozenset[str] = frozenset(),
     ) -> list[str]:
         """Recalculates the project's CPM schedule and returns the ids of
@@ -53,21 +63,18 @@ class TaskScheduleSyncMixin:
         itself is unaffected."""
         if not project_id:
             return []
-        scheduler: SchedulingEngine = getattr(self, "_scheduling_engine", None)
+        scheduler = self._scheduling_engine
         if scheduler is None:
             return []
-        task_repo = getattr(self, "_task_repo", None)
-        before: dict[str, tuple] = {}
-        if task_repo is not None:
-            before = {
-                task.id: (task.start_date, task.end_date)
-                for task in task_repo.list_by_project(project_id)
-            }
+        before = {
+            task.id: (task.start_date, task.end_date)
+            for task in self._task_repo.list_by_project(project_id)
+        }
         scheduler.recalculate_project_schedule(project_id, commit=commit)
-        if task_repo is None or not before:
+        if not before:
             return []
         changed_ids: list[str] = []
-        for task in task_repo.list_by_project(project_id):
+        for task in self._task_repo.list_by_project(project_id):
             if task.id in exclude_task_ids:
                 continue
             previous = before.get(task.id)
@@ -78,4 +85,4 @@ class TaskScheduleSyncMixin:
         return changed_ids
 
 
-__all__ = ["TaskScheduleSyncMixin"]
+__all__ = ["TaskScheduleSynchronizer", "emit_cascade_schedule_changed"]

@@ -44,7 +44,7 @@ from src.core.modules.project_management.application.tasks.commands.resource_lev
     ResourceLevelingApplyMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
-    TaskScheduleSyncMixin,
+    TaskScheduleSynchronizer,
 )
 from src.core.modules.project_management.application.tasks.commands.scheduling_constraint import (
     TaskSchedulingConstraintMixin,
@@ -123,7 +123,6 @@ from src.core.shared.events.domain_event_context import DomainEventContext
 class TaskService(
     ProjectManagementModuleGuardMixin,
     ApprovedScheduleChangeMixin,
-    TaskScheduleSyncMixin,
     TaskHierarchySupportMixin,
     TaskHierarchyMixin,
     TaskProgressMixin,
@@ -171,6 +170,7 @@ class TaskService(
         dependency_diagnostics_handler: TaskDependencyDiagnosticsQueryHandler,
         code_policy: TaskCodePolicy,
         validation_policy: TaskValidationPolicy,
+        schedule_synchronizer: TaskScheduleSynchronizer,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -199,6 +199,7 @@ class TaskService(
         self._dependency_diagnostics = dependency_diagnostics_handler
         self._code_policy = code_policy
         self._validation_policy = validation_policy
+        self._schedule_synchronizer = schedule_synchronizer
         self._enterprise_resource_availability_service = enterprise_resource_availability_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
@@ -254,6 +255,17 @@ class TaskService(
         )
         self._last_overallocation_warning = warning
         return warning
+
+    def _sync_project_schedule(
+        self,
+        project_id: str | None,
+        *,
+        commit: bool,
+        exclude_task_ids: frozenset[str] = frozenset(),
+    ) -> list[str]:
+        return self._schedule_synchronizer.sync_project_schedule(
+            project_id, commit=commit, exclude_task_ids=exclude_task_ids
+        )
 
     def get_task(self, task_id: str) -> Task | None:
         return self._detail_query.get_task(task_id)

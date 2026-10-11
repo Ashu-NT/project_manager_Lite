@@ -559,6 +559,25 @@ regression forbidding per-task reads. The focused Task/capacity/approval/
 tenant-isolation/architecture matrix passed 60 tests; targeted Mypy passed.
 The larger Task command mixins and A4 overall remain open.
 
+**A4 Task schedule-sync extraction (2026-10-11).** `TaskScheduleSyncMixin`
+was retired. PM composition injects a `TaskScheduleSynchronizer` with the
+existing SchedulingEngine and TaskRepository into all three TaskService
+construction paths. Dependency, constraint, leveling and approved-schedule
+commands still own their UoW and call the facade helper with explicit
+`commit=False`; the synchronizer only computes before/after task-date IDs.
+The `commit` argument is now required, preventing an accidental implicit
+scheduler commit in a future UoW caller. A direct test proves changed-ID
+selection, primary-task exclusion and commit-flag forwarding. The focused
+scheduling/approval matrix passed 37 tests; a post-signature Task/
+architecture rerun passed 24; targeted Mypy and Ruff F/I passed.
+
+The remaining `TaskAssignmentBridgeMixin` is **not** a safe rename: when it
+auto-provisions `ProjectResource`, it calls `session.commit()` before
+delegating to the assignment command. A4 must characterize and replace that
+split transaction with one operation-owned UoW before retiring the mixin;
+do not preserve its early commit in a new handler. This risk is separate
+from the completed schedule-sync extraction.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |
