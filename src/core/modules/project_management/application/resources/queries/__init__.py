@@ -4,10 +4,10 @@ from src.core.modules.project_management.application.resources.queries.project_r
     ProjectResourceQueryHandler,
 )
 from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
-    ResourceContextQueryMixin,
+    ResourceContextQueryHandler,
 )
 from src.core.modules.project_management.application.resources.queries.resource_queries import (
     ResourceQueryMixin,
 )
 
-__all__ = ["ProjectResourceQueryHandler", "ResourceContextQueryMixin", "ResourceQueryMixin"]
+__all__ = ["ProjectResourceQueryHandler", "ResourceContextQueryHandler", "ResourceQueryMixin"]

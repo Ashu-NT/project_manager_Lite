@@ -124,10 +124,9 @@ def _count_statements(session, operation):
     return result, statements
 
 
-def test_r5e_projects_are_immutable_server_paged_sorted_and_bounded(services) -> None:
+def test_r5e_projects_are_immutable_server_paged_sorted_and_bounded(services, session) -> None:
     seeded = _seed_resource_context(services)
     resource_service = services["resource_service"]
-    session = services["project_service"]._session
 
     ascending, statements = _count_statements(
         session,
@@ -156,10 +155,9 @@ def test_r5e_projects_are_immutable_server_paged_sorted_and_bounded(services) ->
         ascending.items[0].project_name = "Mutated"  # type: ignore[misc]
 
 
-def test_r5e_assignments_keep_project_envelope_planned_and_actual_distinct(services) -> None:
+def test_r5e_assignments_keep_project_envelope_planned_and_actual_distinct(services, session) -> None:
     seeded = _seed_resource_context(services)
     resource_service = services["resource_service"]
-    session = services["project_service"]._session
 
     page, statements = _count_statements(
         session,
@@ -262,7 +260,7 @@ def test_r5e_project_scope_hides_project_assignment_and_activity_identity(servic
 def test_r5e_readers_fail_closed_for_wrong_tenant_and_organization(services) -> None:
     seeded = _seed_resource_context(services)
     resource_service = services["resource_service"]
-    reader = resource_service._resource_projects_reader
+    reader = resource_service._context_query._resource_projects_reader
     tenant_id = services["user_session"].stored_active_tenant_id()
     organization_id = services["user_session"].stored_active_organization_id()
 
@@ -295,7 +293,7 @@ def test_r5e_readers_fail_closed_for_wrong_tenant_and_organization(services) -> 
     assert wrong_organization.filtered_total == 0
 
 
-def test_r5e_activity_uses_authoritative_ledger_categories_order_and_paging(services) -> None:
+def test_r5e_activity_uses_authoritative_ledger_categories_order_and_paging(services, session) -> None:
     seeded = _seed_resource_context(services)
     resource_service = services["resource_service"]
     desktop_api = build_project_management_resources_desktop_api(
@@ -308,7 +306,6 @@ def test_r5e_activity_uses_authoritative_ledger_categories_order_and_paging(serv
             skill_name="Planning",
         )
     )
-    session = services["project_service"]._session
 
     page, statements = _count_statements(
         session,

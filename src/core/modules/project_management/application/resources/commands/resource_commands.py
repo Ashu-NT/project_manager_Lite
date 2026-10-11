@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from decimal import Decimal
+from typing import cast
 
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
@@ -10,14 +11,27 @@ from src.core.modules.project_management.application.resources.catalog.resource_
     ResourceMasterChanged,
     ResourceMasterChangeType,
 )
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
+from src.core.modules.project_management.contracts.uow.resources.resource_unit_of_work import (
+    ResourceUnitOfWorkFactory,
+)
 from src.core.modules.project_management.domain.enums import (
     CostType,
     ResourceKind,
     WorkerType,
 )
 from src.core.modules.project_management.domain.resources.resource import Resource
+from src.core.platform.application.master_data.department.department_service import (
+    DepartmentService,
+)
+from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -25,15 +39,59 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.repositories.master_data.employee.contracts import (
+    EmployeeRepository,
+)
+from src.core.platform.domain.master_data.employee import Employee
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
 def _employee_contact(employee) -> str:
     return (getattr(employee, "email", None) or getattr(employee, "phone", None) or "").strip()
 
 
-class ResourceCommandMixin:
+class ResourceMasterCommandHandler:
+    def __init__(
+        self,
+        *,
+        resource_repo: ResourceRepository,
+        employee_repo: EmployeeRepository | None,
+        department_service: DepartmentService | None,
+        site_service: SiteService | None,
+        user_session: UserSessionContext | None,
+        tenant_context_service: TenantContextService | None,
+        uow_factory: ResourceUnitOfWorkFactory | None,
+    ) -> None:
+        self._resource_repo = resource_repo
+        self._employee_repo = employee_repo
+        self._department_service = department_service
+        self._site_service = site_service
+        self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
+        self._uow_factory = uow_factory
+
+    def _active_organization_id(self, *, operation_label: str) -> str:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                f"Active organization context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_active_organization_id(
+            operation_label=operation_label
+        )
+
+    def _require_uow_factory(self) -> ResourceUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Resource unit of work is not configured.")
+        return self._uow_factory
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
+
     def _resolve_resource_code(
         self, code: str, name: str, *, resource_repo, exclude_id: str | None = None
     ) -> str:
@@ -91,7 +149,7 @@ class ResourceCommandMixin:
         department_id: str | None,
         site_id: str | None,
         exclude_resource_id: str | None = None,
-    ) -> tuple[ResourceKind, WorkerType, object | None, str | None, str | None]:
+    ) -> tuple[ResourceKind, WorkerType, Employee | None, str | None, str | None]:
         resolved_kind = kind if isinstance(kind, ResourceKind) else ResourceKind(str(kind).upper())
         resolved_worker_type = self._resolved_worker_type(worker_type)
         organization_id = self._active_organization_id(operation_label="validate resource scope")
@@ -214,6 +272,8 @@ class ResourceCommandMixin:
     def _record_resource_master_event(
         self, uow, resource: Resource, *, change_type: ResourceMasterChangeType
     ) -> None:
+        if self._tenant_context_service is None:
+            raise RuntimeError("Resource tenant scope is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="mutate resource master"
         )
@@ -348,7 +408,7 @@ class ResourceCommandMixin:
                 ),
                 kind=kind,
                 role=role,
-                hourly_rate=hourly_rate,
+                hourly_rate=cast(Decimal, hourly_rate),
                 cost_type=cost_type,
                 currency_code=resolve_pm_currency(
                     tenant_context_service=getattr(self, "_tenant_context_service", None),
@@ -445,4 +505,4 @@ class ResourceCommandMixin:
         return resource
 
 
-__all__ = ["ResourceCommandMixin"]
+__all__ = ["ResourceMasterCommandHandler"]

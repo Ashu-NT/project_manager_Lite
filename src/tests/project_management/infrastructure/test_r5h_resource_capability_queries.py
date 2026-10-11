@@ -57,7 +57,7 @@ def test_resource_skills_are_server_paged_filtered_sorted_and_scoped(services) -
     assert descending.items[0].skill_name == "Zulu Planning"
     assert [item.skill_code for item in filtered.items] == ["a-build"]
 
-    reader = resource_service._resource_capability_reader
+    reader = resource_service._capability_query._resource_capability_reader
     organization_id = services["user_session"].stored_active_organization_id()
     wrong_scope = reader.read_skills_page(
         tenant_id="other-tenant",

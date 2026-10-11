@@ -19,12 +19,27 @@ from src.core.modules.project_management.domain.enums import ProjectStatus, Task
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class ResourceContextQueryMixin:
-    _resource_projects_reader: ResourceProjectsReader | None
-    _resource_assignments_reader: ResourceAssignmentsReader | None
-    _resource_activity_reader: ResourceActivityReader | None
+class ResourceContextQueryHandler:
+    def __init__(
+        self,
+        *,
+        resource_projects_reader: ResourceProjectsReader | None,
+        resource_assignments_reader: ResourceAssignmentsReader | None,
+        resource_activity_reader: ResourceActivityReader | None,
+        tenant_context_service: TenantContextService | None,
+        user_session: UserSessionContext | None,
+    ) -> None:
+        self._resource_projects_reader = resource_projects_reader
+        self._resource_assignments_reader = resource_assignments_reader
+        self._resource_activity_reader = resource_activity_reader
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
 
     def _project_scope_for(self, permission_code: str) -> tuple[str, ...] | None:
         session = self._user_session
@@ -220,4 +235,4 @@ class ResourceContextQueryMixin:
         return result
 
 
-__all__ = ["ResourceContextQueryMixin"]
+__all__ = ["ResourceContextQueryHandler"]

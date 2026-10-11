@@ -1,4 +1,4 @@
-"""Skill and certification query methods for ResourceService."""
+"""Scoped skill and certification page queries."""
 
 from __future__ import annotations
 
@@ -17,10 +17,23 @@ from src.core.modules.project_management.contracts.reads.resources import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class SkillQueryMixin:
-    _resource_capability_reader: ResourceCapabilityReader | None
+class ResourceCapabilityQueryHandler:
+    def __init__(
+        self,
+        *,
+        resource_capability_reader: ResourceCapabilityReader | None,
+        tenant_context_service: TenantContextService | None,
+        user_session: UserSessionContext | None,
+    ) -> None:
+        self._resource_capability_reader = resource_capability_reader
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
 
     def _capability_scope(self, operation_label: str):
         if self._tenant_context_service is None:
@@ -131,4 +144,4 @@ class SkillQueryMixin:
             result = self._resource_capability_reader.read_certifications_page(**kwargs)
         return result
 
-__all__ = ["SkillQueryMixin"]
+__all__ = ["ResourceCapabilityQueryHandler"]

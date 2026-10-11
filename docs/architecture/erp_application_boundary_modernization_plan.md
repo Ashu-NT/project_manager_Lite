@@ -438,6 +438,29 @@ handler split remains open because query/support/period transitions share
 authorization, UoW and approved-time event policy; it must not be forced as a
 mechanical move that risks one-effect or transaction semantics.
 
+**A4 Resource capability/context/master cutover complete (2026-10-11).** Resource
+skill and certification page queries now use an explicitly injected scoped
+`ResourceCapabilityQueryHandler`; their governed writes use a separate
+`ResourceCapabilityCommandHandler` with explicit repositories, tenant/user
+scope and the existing Resource UoW. Resource Projects, Assignments and
+Activity server-paged reads use a `ResourceContextQueryHandler`. Resource
+master create/update/lifecycle/purge now use a `ResourceMasterCommandHandler`
+with explicit Employee, Department, Site, tenant, authorization and UoW
+dependencies. `ResourceService` remains the single guarded public facade; the
+same Resource UoW, audit/activity/event staging and optimistic-version checks
+remain. No Finance authority or folder structure changed. All old Resource
+capability/context/master mixin symbols were removed. A 65-test
+resource-context/capability/composition rerun passed after updating stale test
+probes of private ProjectService fields to the approved Project handlers and
+using the session fixture. The final integrated Resource, directory,
+capability, context, architecture and composition run passed 90 tests. Targeted
+Mypy passes on the five changed Resource application files. The live R5H
+PostgreSQL runtime-role/RLS matrix passed 14 tests against the dedicated
+non-owner test database, covering Resource scope and parent/child bypass.
+This closes the
+Resource master/capability/context batch, not A4 overall; Time, Task,
+Collaboration, Portfolio and other characterized clusters remain.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

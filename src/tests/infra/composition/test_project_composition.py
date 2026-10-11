@@ -56,7 +56,7 @@ from src.core.platform.domain.master_data.employee.events import EmployeeProfile
 def test_project_events_share_one_post_commit_handler(services) -> None:
     project = services["project_service"]
     tasks = services["task_service"]
-    bus = project._uow_factory._post_commit_bus
+    bus = project._create_handler._uow_factory._post_commit_bus
 
     assert bus is tasks._task_uow_factory._post_commit_bus
     event_types = (
@@ -83,7 +83,7 @@ def test_project_events_share_one_post_commit_handler(services) -> None:
 
 def test_project_uow_factory_opens_a_fresh_session(services, session) -> None:
     project = services["project_service"]
-    scoped_session = project._uow_factory._session_factory()
+    scoped_session = project._create_handler._uow_factory._session_factory()
     try:
         assert scoped_session is not session
         assert scoped_session.bind is session.bind
@@ -92,8 +92,8 @@ def test_project_uow_factory_opens_a_fresh_session(services, session) -> None:
 
 
 def test_register_uses_shared_bus_and_one_invalidation_handler(services, session) -> None:
-    project_bus = services["project_service"]._uow_factory._post_commit_bus
-    register_uow = services["register_service"]._uow_factory
+    project_bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
+    register_uow = services["register_service"]._lifecycle._uow_factory
     assert register_uow._post_commit_bus is project_bus
     assert sum(
         handler.__name__ == "handle_register_entry_event"
@@ -109,7 +109,7 @@ def test_register_uses_shared_bus_and_one_invalidation_handler(services, session
 
 def test_task_events_share_one_post_commit_handler_and_fresh_uow(services, session) -> None:
     task_uow = services["task_service"]._task_uow_factory
-    bus = services["project_service"]._uow_factory._post_commit_bus
+    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert task_uow._post_commit_bus is bus
     event_types = (
         TaskCreated,
@@ -143,7 +143,7 @@ def test_timesheet_instance_and_invalidation_subscription_are_shared(services) -
     timesheet = services["timesheet_service"]
     assert services["time_service"] is timesheet
     assert services["task_service"]._timesheet_service is timesheet
-    bus = services["project_service"]._uow_factory._post_commit_bus
+    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert sum(
         handler.__name__ == "handle_timesheet_period_event"
         for handler in bus._handlers[TimesheetPeriodStatusChanged]
@@ -154,12 +154,13 @@ def test_resource_readers_clock_uow_and_events_preserve_identity(services, sessi
     resource = services["resource_service"]
     assert resource._resource_catalog_reader is resource._resource_inspector_reader
     assert resource._resource_catalog_reader is resource._resource_summary_reader
-    assert resource._resource_projects_reader is resource._resource_assignments_reader
-    assert resource._resource_projects_reader is resource._resource_activity_reader
-    assert resource._resource_projects_reader is resource._resource_capability_reader
+    context_reader = resource._context_query._resource_projects_reader
+    assert context_reader is resource._context_query._resource_assignments_reader
+    assert context_reader is resource._context_query._resource_activity_reader
+    assert context_reader is resource._capability_query._resource_capability_reader
     assert resource._clock is services["rate_card_resolver"]._clock
 
-    bus = services["project_service"]._uow_factory._post_commit_bus
+    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert resource._uow_factory._post_commit_bus is bus
     for event_type, handler_name in (
         (ResourceMasterChanged, "handle_resource_master_event"),
@@ -187,7 +188,7 @@ def test_scheduling_and_baseline_keep_shared_engine_and_ambient_uow(services, se
     assert baseline._session is session
     assert baseline._uow_factory()._session is session
 
-    bus = services["project_service"]._uow_factory._post_commit_bus
+    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     event_types = (
         ProjectBaselineCreated,
         ProjectBaselineSubmitted,
@@ -212,7 +213,7 @@ def test_scheduling_and_baseline_keep_shared_engine_and_ambient_uow(services, se
 
 def test_collaboration_keeps_fresh_uow_and_one_comment_handler(services, session) -> None:
     collaboration = services["collaboration_service"]
-    bus = services["project_service"]._uow_factory._post_commit_bus
+    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert collaboration._uow_factory._post_commit_bus is bus
     event_types = (TaskCommentChanged, TaskCommentReactionChanged, TaskCommentReadStateChanged)
     handlers = [
@@ -243,7 +244,7 @@ def test_portfolio_reuses_calendar_and_rate_with_one_event_handler(services, ses
     portfolio = services["portfolio_service"]
     assert portfolio._project_calendar_adapter is services["scheduling_engine"]._project_calendar_adapter
     assert portfolio._rate_resolver is services["rate_card_resolver"]
-    bus = services["project_service"]._uow_factory._post_commit_bus
+    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert portfolio._uow_factory._post_commit_bus is bus
     event_types = (
         PortfolioIntakeItemChanged,
@@ -287,7 +288,7 @@ def test_reporting_and_dashboard_reuse_authoritative_services(services) -> None:
 def test_resource_planning_and_imports_keep_shared_dependencies(services) -> None:
     assert (
         services["project_resource_service"]._shared_uow_factory
-        is services["project_service"]._shared_uow_factory
+        is services["project_service"]._deletion_handler._shared_uow_factory
     )
     availability = services["resource_availability_service"]
     assert services["resource_capacity_calculator"]._availability is availability

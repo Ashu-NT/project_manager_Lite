@@ -7,6 +7,9 @@ import pytest
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.resources.catalog.resource_service import (
+    ResourceService,
+)
 from src.core.modules.project_management.application.resources.project_resources.project_resource_service import (
     ProjectResourceService,
 )
@@ -69,6 +72,21 @@ def test_project_resource_read_facade_still_checks_module_before_handler() -> No
     )
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         service.list_by_project("project-1")
+
+
+def test_resource_capability_query_facade_checks_module_before_handler() -> None:
+    service = ResourceService(
+        session=object(),
+        resource_repo=object(),
+        assignment_repo=object(),
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.query_resource_skills_page("resource-1")
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.add_resource_skill("resource-1", "planning", "Planning")
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.create_resource("Resource")
 
 
 def test_composition_root_wiring_setters_are_exempt_from_the_module_gate() -> None:

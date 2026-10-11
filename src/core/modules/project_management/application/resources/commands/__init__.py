@@ -4,7 +4,7 @@ from src.core.modules.project_management.application.resources.commands.project_
     ProjectResourceCommandMixin,
 )
 from src.core.modules.project_management.application.resources.commands.resource_commands import (
-    ResourceCommandMixin,
+    ResourceMasterCommandHandler,
 )
 
-__all__ = ["ProjectResourceCommandMixin", "ResourceCommandMixin"]
+__all__ = ["ProjectResourceCommandMixin", "ResourceMasterCommandHandler"]
