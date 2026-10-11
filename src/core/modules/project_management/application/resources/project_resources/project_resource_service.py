@@ -9,7 +9,10 @@ from src.core.modules.project_management.application.resources.commands.project_
     ProjectResourceCommandMixin,
 )
 from src.core.modules.project_management.application.resources.queries.project_resource_queries import (
-    ProjectResourceQueryMixin,
+    ProjectResourceQueryHandler,
+)
+from src.core.modules.project_management.contracts.reads.projects.models import (
+    ProjectResourceUsageFact,
 )
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectFinancialProfileRepository,
@@ -25,13 +28,13 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     AssignmentRepository,
     TaskRepository,
 )
+from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.shared.persistence.unit_of_work import UnitOfWorkFactory
 
 
 class ProjectResourceService(
     ProjectManagementModuleGuardMixin,
     ProjectResourceCommandMixin,
-    ProjectResourceQueryMixin,
 ):
     """Project-resource membership application service orchestrator."""
 
@@ -64,11 +67,35 @@ class ProjectResourceService(
         self._assignment_repo: AssignmentRepository | None = assignment_repo
         self._financial_profile_repo = financial_profile_repo
         self._shared_uow_factory = shared_uow_factory
+        self._query = ProjectResourceQueryHandler(
+            project_resource_repo=project_resource_repo,
+            task_repo=task_repo,
+            assignment_repo=assignment_repo,
+            user_session=user_session,
+        )
 
     def _require_shared_uow_factory(self) -> UnitOfWorkFactory:
         if self._shared_uow_factory is None:
             raise RuntimeError("Project resource write transaction factory is not configured.")
         return self._shared_uow_factory
+
+    def list_by_project(self, project_id: str) -> list[ProjectResource]:
+        return self._query.list_by_project(project_id)
+
+    def list_for_project_workspace(self, project_id: str) -> list[ProjectResource]:
+        return self._query.list_for_project_workspace(project_id)
+
+    def list_for_task_workspace(self, project_id: str) -> list[ProjectResource]:
+        return self._query.list_for_task_workspace(project_id)
+
+    def get(self, project_resource_id: str) -> ProjectResource | None:
+        return self._query.get(project_resource_id)
+
+    def get_usage(self, project_resource_id: str) -> ProjectResourceUsageFact:
+        return self._query.get_usage(project_resource_id)
+
+    def get_for_project(self, project_id: str, resource_id: str) -> ProjectResource | None:
+        return self._query.get_for_project(project_id, resource_id)
 
 
 __all__ = ["ProjectResourceService"]

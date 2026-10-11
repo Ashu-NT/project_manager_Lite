@@ -75,9 +75,7 @@ class TimeService(
     ) -> None:
         self._session: Session = session
         self._work_allocation_repo: WorkAllocationRepository = assignment_repo
-        self._assignment_repo: WorkAllocationRepository = assignment_repo
         self._work_owner_repo: WorkOwnerRepository = task_repo
-        self._task_repo: WorkOwnerRepository = task_repo
         self._resource_repo: WorkResourceRepository = resource_repo
         self._employee_repo: EmployeeRepository | None = employee_repo
         self._time_entry_repo = time_entry_repo

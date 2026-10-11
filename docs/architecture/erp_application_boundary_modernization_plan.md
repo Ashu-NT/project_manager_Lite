@@ -424,6 +424,20 @@ dependency-guard rerun passed 29 tests, including a disabled-module denial
 before handler entry. A4 remains open for Time and the larger PM operation
 clusters.
 
+**A4 Project Resource read boundary in progress.** The Project Resource
+query mixin was replaced by an explicitly injected query handler. The existing
+guarded service remains the sole public facade; its six read methods delegate
+to the handler, while membership writes and their transaction/audit/event path
+remain untouched. A disabled-module regression verifies that facade delegation
+cannot bypass the PM module gate. Focused resource/task/architecture regression:
+55 passed; targeted Mypy and Ruff passed. TimeService's unused `_assignment_repo`
+and `_task_repo` aliases were removed after confirming that the actual
+`_work_allocation_repo`/`_work_owner_repo` fields serve all consumers; Time,
+TimesheetPeriod and approved-time regressions passed 37 tests. The larger Time
+handler split remains open because query/support/period transitions share
+authorization, UoW and approved-time event policy; it must not be forced as a
+mechanical move that risks one-effect or transaction semantics.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

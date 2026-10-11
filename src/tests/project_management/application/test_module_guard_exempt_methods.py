@@ -7,6 +7,9 @@ import pytest
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.resources.project_resources.project_resource_service import (
+    ProjectResourceService,
+)
 from src.core.modules.project_management.application.risk.register_service import (
     RegisterService,
 )
@@ -54,6 +57,18 @@ def test_register_write_facade_still_checks_module_before_handler() -> None:
     )
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         service.create_entry("project-1", entry_type=RegisterEntryType.RISK, title="Risk")
+
+
+def test_project_resource_read_facade_still_checks_module_before_handler() -> None:
+    service = ProjectResourceService(
+        project_resource_repo=object(),
+        resource_repo=object(),
+        project_repo=object(),
+        session=object(),
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.list_by_project("project-1")
 
 
 def test_composition_root_wiring_setters_are_exempt_from_the_module_gate() -> None:
