@@ -14,11 +14,17 @@ from src.core.modules.project_management.application.financials.forecasts.versio
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.deletion import (
+    TaskDeletionCommandHandler,
+)
 from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
     TaskHierarchyPolicy,
 )
 from src.core.modules.project_management.application.tasks.commands.identity import (
     TaskCodePolicy,
+)
+from src.core.modules.project_management.application.tasks.commands.progress import (
+    TaskProgressCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSynchronizer,
@@ -40,6 +46,9 @@ from src.core.modules.project_management.application.tasks.queries.task_lookup i
 )
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
+)
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
 )
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalDeps,
@@ -104,6 +113,28 @@ def build_financial_change_approval_deps(
         assignment_repo=assignment_repo,
         resource_repo=resource_repo,
     )
+    task_uow_scope = TaskUowScope(
+        factory=None,
+        tasks=task_repo,
+        assignments=assignment_repo,
+        dependencies=dependency_repo,
+        project_resources=project_resource_repo,
+        time_entries=None,
+        enterprise_audit_service=enterprise_audit_service,
+        activity_service=activity_service,
+    )
+    hierarchy_policy = TaskHierarchyPolicy(
+        task_repo=task_repo,
+        assignment_repo=assignment_repo,
+        dependency_repo=dependency_repo,
+    )
+    validation_policy = TaskValidationPolicy(
+        task_repo=task_repo,
+        assignment_repo=assignment_repo,
+        resource_repo=resource_repo,
+        project_repo=project_repo,
+        availability_service=None,
+    )
     task_service = TaskService(
         session,
         task_repo,
@@ -123,6 +154,21 @@ def build_financial_change_approval_deps(
         module_catalog_service=module_catalog_service,
         tenant_context_service=tenant_context_service,
         enterprise_audit_service=enterprise_audit_service,
+        task_uow_scope=task_uow_scope,
+        deletion_handler=TaskDeletionCommandHandler(
+            task_repo=task_repo,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+            uow_scope=task_uow_scope,
+        ),
+        progress_handler=TaskProgressCommandHandler(
+            task_repo=task_repo,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+            hierarchy_policy=hierarchy_policy,
+            validation_policy=validation_policy,
+            uow_scope=task_uow_scope,
+        ),
         detail_query_handler=TaskDetailPageQueryHandler(
             task_repo=task_repo,
             task_workspace_reader=None,
@@ -153,22 +199,12 @@ def build_financial_change_approval_deps(
             user_session=user_session,
         ),
         code_policy=TaskCodePolicy(task_repo=task_repo),
-        validation_policy=TaskValidationPolicy(
-            task_repo=task_repo,
-            assignment_repo=assignment_repo,
-            resource_repo=resource_repo,
-            project_repo=project_repo,
-            availability_service=None,
-        ),
+        validation_policy=validation_policy,
         schedule_synchronizer=TaskScheduleSynchronizer(
             scheduling_engine=scheduling_engine,
             task_repo=task_repo,
         ),
-        hierarchy_policy=TaskHierarchyPolicy(
-            task_repo=task_repo,
-            assignment_repo=assignment_repo,
-            dependency_repo=dependency_repo,
-        ),
+        hierarchy_policy=hierarchy_policy,
     )
     clock = SystemClock()
     budget_authority = BudgetService(

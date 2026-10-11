@@ -20,7 +20,7 @@ from src.core.modules.project_management.application.tasks.commands.assignment_b
     TaskAssignmentBridgeMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.deletion import (
-    TaskDeletionMixin,
+    TaskDeletionCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.dependency import (
     TaskDependencyMixin,
@@ -38,7 +38,7 @@ from src.core.modules.project_management.application.tasks.commands.lifecycle im
     TaskLifecycleMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.progress import (
-    TaskProgressMixin,
+    TaskProgressCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.resource_leveling_apply import (
     ResourceLevelingApplyMixin,
@@ -71,6 +71,9 @@ from src.core.modules.project_management.application.tasks.queries.task_lookup i
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
 )
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
+)
 from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.contracts.reads.tasks import (
     TaskActivityPage,
@@ -92,9 +95,6 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
     TimesheetAssignmentContext,
 )
-from src.core.modules.project_management.contracts.uow.tasks.task_unit_of_work import (
-    TaskUnitOfWorkFactory,
-)
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.modules.project_management.domain.tasks.hierarchy import (
     TaskHierarchyNode,
@@ -108,7 +108,6 @@ from src.core.platform.application.history.activity.activity_service import (
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
@@ -124,8 +123,6 @@ class TaskService(
     ProjectManagementModuleGuardMixin,
     ApprovedScheduleChangeMixin,
     TaskHierarchyMixin,
-    TaskProgressMixin,
-    TaskDeletionMixin,
     TaskLifecycleMixin,
     TaskDependencyMixin,
     TaskSchedulingConstraintMixin,
@@ -159,7 +156,6 @@ class TaskService(
         tenant_context_service=None,
         task_workspace_reader: TaskWorkspaceReader | None = None,
         enterprise_resource_availability_service=None,
-        task_uow_factory: TaskUnitOfWorkFactory | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         *,
         detail_query_handler: TaskDetailPageQueryHandler,
@@ -171,6 +167,9 @@ class TaskService(
         validation_policy: TaskValidationPolicy,
         schedule_synchronizer: TaskScheduleSynchronizer,
         hierarchy_policy: TaskHierarchyPolicy,
+        task_uow_scope: TaskUowScope,
+        deletion_handler: TaskDeletionCommandHandler,
+        progress_handler: TaskProgressCommandHandler,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -206,16 +205,48 @@ class TaskService(
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
         self._last_overallocation_warning: str | None = None
         self._last_skill_violation_warning: str | None = None
-        self._task_uow_factory: TaskUnitOfWorkFactory | None = task_uow_factory
+        self._task_uow_scope = task_uow_scope
+        self._deletion_handler = deletion_handler
+        self._progress_handler = progress_handler
         self._enterprise_audit_service: EnterpriseAuditService | None = enterprise_audit_service
-        # Sidecar for the passthrough (approval/cross-capability) UoW mode: the
-        # caller (e.g. task_apply_participant) owns commit/dispatch and must
-        # collect the typed fact(s) a mutation recorded via this list right
-        # after calling it -- see `application/tasks/task_unit_of_work_scope.py`.
-        self._pending_task_events: list = []
 
-    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
-        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
+    def delete_task(self, task_id: str) -> None:
+        self._deletion_handler.delete_task(task_id)
+
+    def delete_tasks(self, task_ids: tuple[str, ...]) -> tuple[str, ...]:
+        return self._deletion_handler.delete_tasks(task_ids)
+
+    def set_status(self, task_id: str, status: TaskStatus) -> None:
+        self._progress_handler.set_status(task_id, status)
+
+    def set_tasks_status(
+        self,
+        task_ids: tuple[str, ...],
+        status: TaskStatus,
+        *,
+        reopen_percent_complete: float | None = None,
+    ) -> list[Task]:
+        return self._progress_handler.set_tasks_status(
+            task_ids, status, reopen_percent_complete=reopen_percent_complete
+        )
+
+    def update_progress(
+        self,
+        task_id: str,
+        percent_complete: float | None = None,
+        actual_start: date | None = None,
+        actual_end: date | None = None,
+        status: TaskStatus | None = None,
+        expected_version: int | None = None,
+    ) -> Task:
+        return self._progress_handler.update_progress(
+            task_id,
+            percent_complete=percent_complete,
+            actual_start=actual_start,
+            actual_end=actual_end,
+            status=status,
+            expected_version=expected_version,
+        )
 
     def _resolve_task_code(
         self, code: str, project_id: str, name: str, *, exclude_id: str | None = None
@@ -464,38 +495,10 @@ class TaskService(
         )
 
     def _task_uow(self, context: DomainEventContext | None = None):
-        """Direct desktop-API commands (the normal, long-lived `TaskService`
-        instance, always constructed with a `task_uow_factory`) get a real
-        `SqlAlchemyTaskUnitOfWork` -- own commit, own precommit/postcommit
-        dispatch. A participant-scoped `TaskService` (approval participants,
-        Project's cascade-delete transaction, TimeEntry's transaction --
-        constructed with `task_uow_factory=None`) gets
-        `TaskParticipantUnitOfWork` instead: the canonical, permanent
-        transaction-boundary-delegating counterpart (not a legacy shim -- see
-        its own docstring), since that caller already owns the physical
-        transaction."""
-        from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
-            TaskParticipantUnitOfWork,
-        )
-
-        if self._task_uow_factory is not None:
-            return self._task_uow_factory.create(context=context or self._new_context())
-        self._pending_task_events = []
-        return TaskParticipantUnitOfWork(
-            tasks=self._task_repo,
-            assignments=self._assignment_repo,
-            dependencies=self._dependency_repo,
-            project_resources=self._project_resource_repo,
-            time_entries=self._time_entry_repo,
-            enterprise_audit_service=self._enterprise_audit_service,
-            activity_service=self._activity_service,
-            collected_events=self._pending_task_events,
-        )
+        return self._task_uow_scope.create(context)
 
     def _take_pending_task_events(self) -> tuple:
-        events = tuple(self._pending_task_events)
-        self._pending_task_events = []
-        return events
+        return self._task_uow_scope.take_pending_events()
 
     def _active_task_scope(self, *, operation_label: str):
         if self._tenant_context_service is None:

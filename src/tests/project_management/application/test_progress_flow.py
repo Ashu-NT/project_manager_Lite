@@ -1,6 +1,11 @@
 from datetime import date
 
+import pytest
+
 from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
+    SqlAlchemyTaskRepository,
+)
 
 
 def test_task_progress_and_status_transitions(services):
@@ -59,4 +64,28 @@ def test_set_status_updates_percent_complete_defaults(services):
     ts.set_status(task.id, TaskStatus.IN_PROGRESS)
     task = ts.get_task(task.id)
     assert 0.0 < float(task.percent_complete or 0.0) < 100.0
+
+
+def test_bulk_status_failure_rolls_back_all_tasks(services, monkeypatch):
+    project = services["project_service"].create_project("Bulk status rollback")
+    tasks = services["task_service"]
+    first = tasks.create_task(project.id, "First")
+    second = tasks.create_task(project.id, "Second")
+    original_update = SqlAlchemyTaskRepository.update
+    calls = 0
+
+    def fail_on_second_update(self, task):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("simulated status failure")
+        return original_update(self, task)
+
+    monkeypatch.setattr(SqlAlchemyTaskRepository, "update", fail_on_second_update)
+    with pytest.raises(RuntimeError, match="simulated status failure"):
+        tasks.set_tasks_status((first.id, second.id), TaskStatus.DONE)
+
+    services["session"].expire_all()
+    assert tasks.get_task(first.id).status == TaskStatus.TODO
+    assert tasks.get_task(second.id).status == TaskStatus.TODO
 

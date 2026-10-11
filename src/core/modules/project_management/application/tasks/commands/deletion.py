@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -12,9 +11,10 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskRemoved,
 )
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    AssignmentRepository,
-    DependencyRepository,
     TaskRepository,
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import (
@@ -24,33 +24,27 @@ from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.contract.repositories.time_management.time.contracts import (
-    TimeEntryRepository,
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 
-if TYPE_CHECKING:
-    from src.core.modules.project_management.contracts.uow.tasks.task_unit_of_work import (
-        TaskUnitOfWork,
-    )
-    from src.core.platform.application.tenant.tenancy.tenant_context import (
-        ActiveScopeIds,
-    )
 
-
-class TaskDeletionMixin:
-    _task_repo: TaskRepository
-    _dependency_repo: DependencyRepository
-    _assignment_repo: AssignmentRepository
-    _time_entry_repo: TimeEntryRepository | None
-    _user_session: UserSessionContext | None
-
-    if TYPE_CHECKING:
-        def _active_task_scope(self, *, operation_label: str) -> ActiveScopeIds: ...
-
-        def _task_uow(self) -> TaskUnitOfWork: ...
+class TaskDeletionCommandHandler:
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        user_session: UserSessionContext | None,
+        tenant_context_service: TenantContextService,
+        uow_scope: TaskUowScope,
+    ) -> None:
+        self._task_repo = task_repo
+        self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
+        self._uow_scope = uow_scope
 
     def delete_task(self, task_id: str) -> None:
         if self._task_repo.get(task_id) is None:
@@ -113,8 +107,10 @@ class TaskDeletionMixin:
             (task.project_id, task.parent_task_id) for task in selected_tasks
         }
 
-        scope = self._active_task_scope(operation_label="delete tasks")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="delete tasks"
+        )
+        with self._uow_scope.create() as uow:
             assignments = uow.assignments.list_by_tasks(list(selected_ids))
             if uow.time_entries is not None:
                 uow.time_entries.delete_by_work_allocations(
@@ -162,4 +158,4 @@ class TaskDeletionMixin:
         return existing_ids
 
 
-__all__ = ["TaskDeletionMixin"]
+__all__ = ["TaskDeletionCommandHandler"]

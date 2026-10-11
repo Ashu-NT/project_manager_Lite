@@ -6,11 +6,17 @@ from src.core.modules.project_management.application.scheduling import (
     ProjectCalendarAdapter,
     SchedulingEngine,
 )
+from src.core.modules.project_management.application.tasks.commands.deletion import (
+    TaskDeletionCommandHandler,
+)
 from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
     TaskHierarchyPolicy,
 )
 from src.core.modules.project_management.application.tasks.commands.identity import (
     TaskCodePolicy,
+)
+from src.core.modules.project_management.application.tasks.commands.progress import (
+    TaskProgressCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSynchronizer,
@@ -34,6 +40,9 @@ from src.core.modules.project_management.application.tasks.queries.task_workspac
     TaskWorkspacePageQueryHandler,
 )
 from src.core.modules.project_management.application.tasks.service import TaskService
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
+)
 from src.core.modules.project_management.infrastructure.approval.task_apply_participant import (
     TaskApprovalDeps,
 )
@@ -93,6 +102,28 @@ def build_task_approval_deps(
         resource_repo=bundle.pm.resource_repo,
         project_calendar_adapter=project_calendar_adapter,
     )
+    task_uow_scope = TaskUowScope(
+        factory=None,
+        tasks=bundle.pm.task_repo,
+        assignments=bundle.pm.assignment_repo,
+        dependencies=bundle.pm.dependency_repo,
+        project_resources=bundle.pm.project_resource_repo,
+        time_entries=bundle.platform.time_entry_repo,
+        enterprise_audit_service=enterprise_audit_service,
+        activity_service=activity_service,
+    )
+    hierarchy_policy = TaskHierarchyPolicy(
+        task_repo=bundle.pm.task_repo,
+        assignment_repo=bundle.pm.assignment_repo,
+        dependency_repo=bundle.pm.dependency_repo,
+    )
+    validation_policy = TaskValidationPolicy(
+        task_repo=bundle.pm.task_repo,
+        assignment_repo=bundle.pm.assignment_repo,
+        resource_repo=bundle.pm.resource_repo,
+        project_repo=bundle.pm.project_repo,
+        availability_service=None,
+    )
     task_service = TaskService(
         session,
         bundle.pm.task_repo,
@@ -113,6 +144,21 @@ def build_task_approval_deps(
         employee_repo=bundle.platform.employee_repo,
         tenant_context_service=tenant_context_service,
         enterprise_audit_service=enterprise_audit_service,
+        task_uow_scope=task_uow_scope,
+        deletion_handler=TaskDeletionCommandHandler(
+            task_repo=bundle.pm.task_repo,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+            uow_scope=task_uow_scope,
+        ),
+        progress_handler=TaskProgressCommandHandler(
+            task_repo=bundle.pm.task_repo,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+            hierarchy_policy=hierarchy_policy,
+            validation_policy=validation_policy,
+            uow_scope=task_uow_scope,
+        ),
         detail_query_handler=TaskDetailPageQueryHandler(
             task_repo=bundle.pm.task_repo,
             task_workspace_reader=None,
@@ -143,22 +189,12 @@ def build_task_approval_deps(
             user_session=user_session,
         ),
         code_policy=TaskCodePolicy(task_repo=bundle.pm.task_repo),
-        validation_policy=TaskValidationPolicy(
-            task_repo=bundle.pm.task_repo,
-            assignment_repo=bundle.pm.assignment_repo,
-            resource_repo=bundle.pm.resource_repo,
-            project_repo=bundle.pm.project_repo,
-            availability_service=None,
-        ),
+        validation_policy=validation_policy,
         schedule_synchronizer=TaskScheduleSynchronizer(
             scheduling_engine=scheduling_engine,
             task_repo=bundle.pm.task_repo,
         ),
-        hierarchy_policy=TaskHierarchyPolicy(
-            task_repo=bundle.pm.task_repo,
-            assignment_repo=bundle.pm.assignment_repo,
-            dependency_repo=bundle.pm.dependency_repo,
-        ),
+        hierarchy_policy=hierarchy_policy,
     )
     return TaskApprovalDeps(task_service=task_service)
 

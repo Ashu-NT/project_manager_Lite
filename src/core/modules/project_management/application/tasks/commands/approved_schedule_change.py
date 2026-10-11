@@ -39,8 +39,8 @@ class ApprovedScheduleChangeMixin:
         actor_id: str,
     ) -> list[AppliedTaskScheduleChange]:
         """Always runs inside the caller's (ApprovalService's) own transaction
-        -- this TaskService instance is participant-scoped (`task_uow_factory=
-        None`), so `self._task_uow()` returns the passthrough shim and never
+        -- this TaskService instance has a participant-scoped TaskUowScope,
+        so `self._task_uow()` joins the caller's transaction and never
         opens a second transaction. Recorded `TaskScheduleChanged` facts are
         collected via `self._take_pending_task_events()` immediately after
         this call returns, for the caller to fold into its own

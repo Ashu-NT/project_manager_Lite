@@ -613,10 +613,27 @@ in batches, and the production TimeEntry repository deletes the selected
 allocations in one scoped SQL statement. The approval participant uses its
 caller-owned TimeEntry repository, preserving its single transaction owner.
 Focused Task/Time tests passed 36 cases, including injected Task-delete
-failure proving Task, Assignment and TimeEntry rollback. This corrects the
-transaction boundary, but does not retire `TaskDeletionMixin` or close A4.
-Before extracting the handler, retain explicit participant event collection
-and verify audit/event rollback plus PostgreSQL runtime-role RLS.
+failure proving Task, Assignment and TimeEntry rollback. `TaskDeletionMixin`
+was then retired: composition now injects `TaskDeletionCommandHandler` and a
+shared `TaskUowScope` into `TaskService`. The latter preserves normal fresh
+UoWs and approval-participant event collection without hidden facade state.
+Approval-participant regression passed 22 cases; targeted Mypy passed.
+A combined Task/approval/architecture run passed 50 cases; scoped Ruff F/I,
+Python compilation and `git diff --check` passed.
+A4 remains open for the other Task command mixins, audit/event rollback and
+PostgreSQL runtime-role RLS proof.
+
+**A4 Task progress command cutover (2026-10-11).** `TaskProgressMixin` was
+retired. A composition-injected `TaskProgressCommandHandler` now receives the
+Task repository, user/tenant context, the existing WBS/date policies and the
+same TaskUowScope used by the facade. Bulk status changes fetch selected Tasks
+in one batched repository read rather than a per-ID loop. Public TaskService
+methods remain thin delegates; permission, project-scope, leaf, date,
+activity and event behavior is unchanged. Focused Task/desktop/architecture
+tests passed 38 cases, progress/domain tests passed 21 cases, and an injected
+second-write failure proved bulk status rollback. Targeted Mypy passed.
+A4 remains open for the remaining Task command mixins and integrated
+PostgreSQL/security/event proofs.
 
 ## Risk and Verification Matrix
 
