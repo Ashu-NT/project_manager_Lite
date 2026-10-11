@@ -83,7 +83,7 @@ def _allocate(services, ctx, hours: Decimal, *, assignment=None, project_resourc
 
 
 # ---------------------------------------------------------------------------
-# Write-time reconciliation (TaskAssignmentMixin.update_assignment_planned_hours)
+# Write-time reconciliation (TaskAssignmentCommandHandler.update_assignment_planned_hours)
 # ---------------------------------------------------------------------------
 
 

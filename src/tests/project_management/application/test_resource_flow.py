@@ -63,7 +63,7 @@ def test_auto_provisioned_project_resource_rolls_back_with_assignment_failure(
     with pytest.raises(RuntimeError, match="assignment rejected"):
         tasks.assign_resource(task.id, resource.id)
 
-    assert tasks._project_resource_repo.get_for_project(project.id, resource.id) is None
+    assert tasks._assignment_handler._project_resource_repo.get_for_project(project.id, resource.id) is None
     assert tasks._assignment_repo.list_by_task(task.id) == []
 
 
@@ -84,6 +84,6 @@ def test_auto_provisioned_envelope_and_assignment_roll_back_after_staging(
     with pytest.raises(RuntimeError, match="activity staging rejected"):
         tasks.assign_resource(task.id, resource.id)
 
-    assert tasks._project_resource_repo.get_for_project(project.id, resource.id) is None
+    assert tasks._assignment_handler._project_resource_repo.get_for_project(project.id, resource.id) is None
     assert tasks._assignment_repo.list_by_task(task.id) == []
 

@@ -14,11 +14,11 @@ from src.core.modules.project_management.application.financials.forecasts.versio
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.application.tasks.commands.assignment import (
-    TaskAssignmentCommandHandler,
-)
 from src.core.modules.project_management.application.tasks.commands.approved_schedule_change import (
     ApprovedScheduleChangeHandler,
+)
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.deletion import (
     TaskDeletionCommandHandler,
@@ -200,11 +200,8 @@ def build_financial_change_approval_deps(
         task_repo,
         dependency_repo,
         assignment_repo,
-        None,
-        resource_repo,
         work_calendar_engine,
         scheduling_engine=scheduling_engine,
-        project_resource_repo=project_resource_repo,
         project_repo=project_repo,
         user_session=user_session,
         activity_service=activity_service,
@@ -318,10 +315,6 @@ def build_financial_change_approval_deps(
             user_session=user_session,
         ),
         dependency_diagnostics_handler=dependency_diagnostics_handler,
-        code_policy=code_policy,
-        validation_policy=validation_policy,
-        schedule_synchronizer=schedule_synchronizer,
-        hierarchy_policy=hierarchy_policy,
     )
     clock = SystemClock()
     budget_authority = BudgetService(

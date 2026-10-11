@@ -428,7 +428,7 @@ def test_enterprise_resource_availability_service_is_wired_into_task_service_for
     ts = services["task_service"]
     availability_service = services["resource_availability_service"]
     assert isinstance(availability_service, EnterpriseResourceAvailabilityService)
-    assert ts._enterprise_resource_availability_service is availability_service
+    assert ts._assignment_handler._enterprise_resource_availability_service is availability_service
 
 
 def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_authority(

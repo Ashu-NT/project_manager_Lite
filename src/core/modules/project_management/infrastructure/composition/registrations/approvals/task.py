@@ -6,11 +6,11 @@ from src.core.modules.project_management.application.scheduling import (
     ProjectCalendarAdapter,
     SchedulingEngine,
 )
-from src.core.modules.project_management.application.tasks.commands.assignment import (
-    TaskAssignmentCommandHandler,
-)
 from src.core.modules.project_management.application.tasks.commands.approved_schedule_change import (
     ApprovedScheduleChangeHandler,
+)
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.deletion import (
     TaskDeletionCommandHandler,
@@ -189,17 +189,13 @@ def build_task_approval_deps(
         bundle.pm.task_repo,
         bundle.pm.dependency_repo,
         bundle.pm.assignment_repo,
-        bundle.platform.time_entry_repo,
-        bundle.pm.resource_repo,
         work_calendar_engine,
         scheduling_engine,
-        bundle.pm.project_resource_repo,
         bundle.pm.project_repo,
         user_session=user_session,
         activity_service=activity_service,
         approval_service=None,
         module_catalog_service=module_catalog_service,
-        employee_repo=bundle.platform.employee_repo,
         tenant_context_service=tenant_context_service,
         enterprise_audit_service=enterprise_audit_service,
         task_uow_scope=task_uow_scope,
@@ -308,10 +304,6 @@ def build_task_approval_deps(
             user_session=user_session,
         ),
         dependency_diagnostics_handler=dependency_diagnostics_handler,
-        code_policy=code_policy,
-        validation_policy=validation_policy,
-        schedule_synchronizer=schedule_synchronizer,
-        hierarchy_policy=hierarchy_policy,
     )
     return TaskApprovalDeps(task_service=task_service)
 

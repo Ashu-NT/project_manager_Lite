@@ -12,11 +12,11 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.application.tasks.commands.assignment import (
-    TaskAssignmentCommandHandler,
-)
 from src.core.modules.project_management.application.tasks.commands.approved_schedule_change import (
     ApprovedScheduleChangeHandler,
+)
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.deletion import (
     TaskDeletionCommandHandler,
@@ -204,21 +204,15 @@ def build_task_service(
         repositories.pm.task_repo,
         repositories.pm.dependency_repo,
         repositories.pm.assignment_repo,
-        repositories.platform.time_entry_repo,
-        repositories.pm.resource_repo,
         work_calendar_engine,
         scheduling_engine,
-        repositories.pm.project_resource_repo,
         repositories.pm.project_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_catalog_service,
-        employee_repo=repositories.platform.employee_repo,
-        assignment_skill_validator=assignment_skill_validator,
         tenant_context_service=platform_services.tenant_context_service,
         task_workspace_reader=task_workspace_reader,
-        enterprise_resource_availability_service=enterprise_resource_availability,
         task_uow_scope=task_uow_scope,
         deletion_handler=TaskDeletionCommandHandler(
             task_repo=repositories.pm.task_repo,
@@ -296,8 +290,4 @@ def build_task_service(
             user_session=platform_services.user_session,
         ),
         dependency_diagnostics_handler=dependency_diagnostics_handler,
-        code_policy=code_policy,
-        validation_policy=validation_policy,
-        schedule_synchronizer=schedule_synchronizer,
-        hierarchy_policy=hierarchy_policy,
     )

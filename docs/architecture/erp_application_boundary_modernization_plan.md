@@ -725,6 +725,19 @@ passed; adjacent dependency/scheduling, desktop CRUD and architecture tests
 passed 79 cases. Only `TaskAssignmentMixin` and `TaskAssignmentBridgeMixin` remain as
 TaskService operation mixins; A4's broader integration gates remain open.
 
+**A4 Task assignment command cutover (2026-10-11).** The final two operation
+mixins were retired. Composition injects one `TaskAssignmentCommandHandler`
+into the guarded `TaskService` facade for normal PM requests and both approval
+participants. The handler owns assignment writes, reads, response actions,
+capacity warnings and the auto-provision bridge. Auto-provisioning a
+`ProjectResource` and creating its `TaskAssignment` still use one Task UoW;
+the old bridge implementation and dead TaskService policy/UoW wrappers were
+removed. The facade retains the pending-event hook used by approval/Finance.
+Focused assignment and approval-participant tests passed 42 cases; targeted
+Mypy and Ruff F/I passed. TaskService now inherits no operation mixins, but
+A4 remains open for the other service clusters and broad PostgreSQL/security,
+desktop and integration closure gates.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

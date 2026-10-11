@@ -48,6 +48,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
 )
 from src.core.modules.project_management.domain.projects.project import ProjectResource
+from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from src.core.platform.application.security.authorization import (
     get_authorization_engine,
@@ -226,12 +227,12 @@ class TaskAssignmentCommandHandler:
         """Task-scoped (never resource-wide) planned/actual/remaining/overrun totals,
         plus the per-resource breakdown that explains them."""
         assignments = self.list_assignments_for_task(task_id)
-        resources_by_id = {
-            r.id: r
-            for r in self._resource_repo.list_by_ids(
-                list({a.resource_id for a in assignments})
-            )
-        } if assignments else {}
+        resources: list[Resource] = (
+            self._resource_repo.list_by_ids(list({a.resource_id for a in assignments}))
+            if assignments
+            else []
+        )
+        resources_by_id = {resource.id: resource for resource in resources}
 
         rows: list[TaskResourceTimeBreakdownRow] = []
         planned_total = Decimal(0)
@@ -547,7 +548,7 @@ class TaskAssignmentCommandHandler:
                     resource_id=resource_id,
                     hourly_rate=getattr(resource, "hourly_rate", None),
                     currency_code=getattr(resource, "currency_code", None),
-                    planned_hours=0.0,
+                    planned_hours=Decimal(0),
                     is_active=bool(getattr(resource, "is_active", True)),
                 )
                 uow.project_resources.add(project_resource)
@@ -722,8 +723,9 @@ class TaskAssignmentCommandHandler:
         resource = self._resource_repo.get(assignment.resource_id)
         employee_repo = self._employee_repo
         employee = None
-        if resource is not None and employee_repo is not None and getattr(resource, "employee_id", None):
-            employee = employee_repo.get(resource.employee_id)
+        employee_id = getattr(resource, "employee_id", None) if resource is not None else None
+        if employee_repo is not None and employee_id:
+            employee = employee_repo.get(employee_id)
         assignee_user_id = getattr(employee, "user_id", None) if employee is not None else None
         if not assignee_user_id:
             raise BusinessRuleError(
@@ -826,12 +828,9 @@ class TaskAssignmentCommandHandler:
         resource = self._resource_repo.get(assignment.resource_id)
         employee_repo = self._employee_repo
         employee = None
-        if (
-            resource is not None
-            and employee_repo is not None
-            and getattr(resource, "employee_id", None)
-        ):
-            employee = employee_repo.get(resource.employee_id)
+        employee_id = getattr(resource, "employee_id", None) if resource is not None else None
+        if employee_repo is not None and employee_id:
+            employee = employee_repo.get(employee_id)
         assignee_user_id = str(getattr(employee, "user_id", "") or "").strip()
         can_respond = bool(
             can_read

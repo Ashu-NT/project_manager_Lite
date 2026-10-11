@@ -90,7 +90,6 @@ PATH_REWRITE_EXACT = {
     "core/services/task/__init__.py": "src/core/modules/project_management/application/tasks/__init__.py",
     "core/services/task/assignment.py": "src/core/modules/project_management/application/tasks/commands/assignment.py",
     "core/services/task/assignment_audit.py": "src/core/modules/project_management/application/tasks/commands/assignment_activity.py",
-    "core/services/task/assignment_bridge.py": "src/core/modules/project_management/application/tasks/commands/assignment_bridge.py",
     "core/services/task/dependency.py": "src/core/modules/project_management/application/tasks/commands/dependency.py",
     "core/services/task/dependency_diagnostics.py": "src/core/modules/project_management/application/tasks/queries/dependency_diagnostics.py",
     "core/services/task/lifecycle.py": "src/core/modules/project_management/application/tasks/commands/lifecycle.py",
