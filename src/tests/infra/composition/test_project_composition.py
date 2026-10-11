@@ -287,7 +287,7 @@ def test_reporting_and_dashboard_reuse_authoritative_services(services) -> None:
 
 def test_resource_planning_and_imports_keep_shared_dependencies(services) -> None:
     assert (
-        services["project_resource_service"]._shared_uow_factory
+        services["project_resource_service"]._command._shared_uow_factory
         is services["project_service"]._deletion_handler._shared_uow_factory
     )
     availability = services["resource_availability_service"]

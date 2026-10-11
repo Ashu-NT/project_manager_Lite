@@ -20,7 +20,7 @@ _CHANGE_FIELD_LABELS: dict[str, str] = {
     "department_id": "Department",
     "client_party_id": "Client (Party)",
     "manager_user_id": "Manager",
-    # Project-resource fields (from ProjectResourceCommandMixin.update()/
+    # Project-resource fields (from ProjectResourceCommandHandler.update()/
     # set_active()) -- same "changes" diff shape, shown in the same feed.
     "hourly_rate": "Hourly Rate",
     "currency_code": "Currency",

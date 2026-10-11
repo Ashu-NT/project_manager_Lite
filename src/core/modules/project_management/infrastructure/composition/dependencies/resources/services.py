@@ -35,7 +35,6 @@ from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkFactoryBas
 
 
 def build_project_resource_service(
-    session: Session,
     repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
@@ -45,7 +44,6 @@ def build_project_resource_service(
         project_resource_repo=repositories.pm.project_resource_repo,
         resource_repo=repositories.pm.resource_repo,
         project_repo=repositories.pm.project_repo,
-        session=session,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_catalog_service,

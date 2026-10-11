@@ -427,10 +427,15 @@ clusters.
 **A4 Project Resource read boundary in progress.** The Project Resource
 query mixin was replaced by an explicitly injected query handler. The existing
 guarded service remains the sole public facade; its six read methods delegate
-to the handler, while membership writes and their transaction/audit/event path
-remain untouched. A disabled-module regression verifies that facade delegation
-cannot bypass the PM module gate. Focused resource/task/architecture regression:
-55 passed; targeted Mypy and Ruff passed. TimeService's unused `_assignment_repo`
+to the handler. Membership writes now delegate to an explicitly injected
+`ProjectResourceCommandHandler`; the guarded facade no longer retains duplicate
+repositories, session or UoW state. The handler keeps the established single
+transaction, authorization, envelope, audit and event path, and validates
+Decimal inputs through the existing ProjectResource write model. The old
+command mixin and its stale references were removed. Disabled-module regressions
+verify both read and write delegation cannot bypass the PM module gate. The
+expanded Project Resource/resource transaction suite passed 80 tests; targeted
+Mypy passed on the command handler and facade. TimeService's unused `_assignment_repo`
 and `_task_repo` aliases were removed after confirming that the actual
 `_work_allocation_repo`/`_work_owner_repo` fields serve all consumers; Time,
 TimesheetPeriod and approved-time regressions passed 37 tests. The larger Time

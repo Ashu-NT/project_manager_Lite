@@ -16,6 +16,9 @@ from src.core.modules.project_management.application.common.currency_policy impo
 from src.core.modules.project_management.application.resources.project_resources.project_resource_events import (
     ProjectResourceAssignmentChanged,
 )
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
+    ProjectFinancialProfileRepository,
+)
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
     ProjectResourceRepository,
@@ -28,11 +31,21 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
 )
 from src.core.modules.project_management.domain.projects.project import ProjectResource
+from src.core.platform.application.history.activity.activity_service import (
+    ActivityService,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.ids import generate_id
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.persistence.unit_of_work import UnitOfWorkFactory
 
 # Fields diffed for the project_resource.update/set_active activity entries,
 # in the order shown to the user.
@@ -45,7 +58,7 @@ _PROJECT_RESOURCE_DIFF_FIELDS: tuple[str, ...] = (
 
 
 def _diff_project_resource_fields(
-    before: ProjectResource,
+    before: object,
     after: ProjectResource,
     fields: tuple[str, ...] = _PROJECT_RESOURCE_DIFF_FIELDS,
 ) -> dict[str, dict[str, str | None]]:
@@ -62,27 +75,54 @@ def _diff_project_resource_fields(
     return changes
 
 
-class ProjectResourceCommandMixin:
+class ProjectResourceCommandHandler:
     _project_resource_repo: ProjectResourceRepository
     _resource_repo: ResourceRepository
     _project_repo: ProjectRepository
-    # Optional — only needed to enforce the envelope-shrink guard below.
-    # When absent (composition didn't wire them), the guard is skipped
-    # rather than raising, since not every caller composing this mixin
-    # necessarily deals with task assignments.
+    # Optional for callers without task-assignment management; composition
+    # supplies both repositories so envelope-shrink checks are enforced.
     _task_repo: TaskRepository | None = None
     _assignment_repo: AssignmentRepository | None = None
 
-    def _new_context(self):
-        from src.core.platform.common.ids import generate_id
-        from src.core.shared.events.domain_event_context import DomainEventContext
+    def __init__(
+        self,
+        *,
+        project_resource_repo: ProjectResourceRepository,
+        resource_repo: ResourceRepository,
+        project_repo: ProjectRepository,
+        user_session: UserSessionContext | None,
+        activity_service: ActivityService | None,
+        tenant_context_service: TenantContextService | None,
+        task_repo: TaskRepository | None,
+        assignment_repo: AssignmentRepository | None,
+        financial_profile_repo: ProjectFinancialProfileRepository | None,
+        shared_uow_factory: UnitOfWorkFactory | None,
+    ) -> None:
+        self._project_resource_repo = project_resource_repo
+        self._resource_repo = resource_repo
+        self._project_repo = project_repo
+        self._user_session = user_session
+        self._activity_service = activity_service
+        self._tenant_context_service = tenant_context_service
+        self._task_repo = task_repo
+        self._assignment_repo = assignment_repo
+        self._financial_profile_repo = financial_profile_repo
+        self._shared_uow_factory = shared_uow_factory
 
+    def _require_shared_uow_factory(self) -> UnitOfWorkFactory:
+        if self._shared_uow_factory is None:
+            raise RuntimeError("Project resource write transaction factory is not configured.")
+        return self._shared_uow_factory
+
+    def _new_context(self):
         return DomainEventContext(correlation_id=generate_id())
 
     def _project_resource_uow(self):
         return self._require_shared_uow_factory().create(context=self._new_context())
 
     def _record_assignment_changed(self, uow, project_id: str) -> None:
+        if self._tenant_context_service is None:
+            raise RuntimeError("Project resource tenant scope is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="record project resource assignment change"
         )
@@ -230,7 +270,7 @@ class ProjectResourceCommandMixin:
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
-        new_envelope = Decimal(str(planned_hours if planned_hours not in (None, "") else 0))
+        new_envelope = ProjectResource._validate_planned_hours(planned_hours)
         allocated_total = self._allocated_planned_hours_total(
             project_resource.project_id, project_resource.resource_id
         )
@@ -250,9 +290,9 @@ class ProjectResourceCommandMixin:
             planned_hours=project_resource.planned_hours,
             is_active=project_resource.is_active,
         )
-        project_resource.hourly_rate = hourly_rate
+        project_resource.hourly_rate = ProjectResource._validate_hourly_rate(hourly_rate)
         project_resource.currency_code = resolved_currency
-        project_resource.planned_hours = planned_hours
+        project_resource.planned_hours = new_envelope
         project_resource.is_active = is_active
         resource = self._resource_repo.get(project_resource.resource_id)
         resource_name = resource.name if resource is not None else project_resource.resource_id
@@ -388,4 +428,4 @@ class ProjectResourceCommandMixin:
             uow.commit()
 
 
-__all__ = ["ProjectResourceCommandMixin"]
+__all__ = ["ProjectResourceCommandHandler"]

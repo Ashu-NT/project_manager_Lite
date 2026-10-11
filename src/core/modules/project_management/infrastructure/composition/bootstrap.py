@@ -225,7 +225,6 @@ def build_project_management_service_bundle(
         platform_services.platform_view_invalidation_channel,
     )
     project_resource_service = build_project_resource_service(
-        session,
         repositories,
         platform_services,
         shared_uow_factory=shared_session_uow_factory,

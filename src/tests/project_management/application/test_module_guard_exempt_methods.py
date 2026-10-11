@@ -67,11 +67,12 @@ def test_project_resource_read_facade_still_checks_module_before_handler() -> No
         project_resource_repo=object(),
         resource_repo=object(),
         project_repo=object(),
-        session=object(),
         module_catalog_service=_module_catalog(runtime_enabled=False),
     )
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         service.list_by_project("project-1")
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.add_to_project("project-1", "resource-1")
 
 
 def test_resource_capability_query_facade_checks_module_before_handler() -> None:
