@@ -738,6 +738,16 @@ Mypy and Ruff F/I passed. TaskService now inherits no operation mixins, but
 A4 remains open for the other service clusters and broad PostgreSQL/security,
 desktop and integration closure gates.
 
+**A4 TaskService facade simplification audit (2026-10-11).** The current
+facade is smaller than the older line-count estimate but still forwarding-heavy.
+The method/consumer map and capability/lifetime design are in
+[`task_service_facade_a4_inventory.md`](task_service_facade_a4_inventory.md).
+The first verified cut removes four unused facade constructor inputs and an
+uncalled private constraint-validation delegate. Approval/Financial Change
+participant forwarding remains until outer transaction and event-drain parity
+can be demonstrated; no direct handler injection may bypass module entitlement.
+This is an A4 continuation, not A4 closure.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

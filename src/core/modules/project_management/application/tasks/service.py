@@ -76,15 +76,11 @@ from src.core.modules.project_management.contracts.reads.tasks import (
     TaskActivityPage,
     TaskAssignmentReadPage,
     TaskDependencyReadPage,
-    TaskWorkspaceReader,
     TaskWorkspaceReadPage,
 )
 from src.core.modules.project_management.contracts.reads.tasks.models import (
     TaskTimeEntriesPage,
     TaskTimeSummaryFact,
-)
-from src.core.modules.project_management.contracts.repositories.projects.project import (
-    ProjectRepository,
 )
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
@@ -114,9 +110,6 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
     EnterpriseAuditService,
 )
 from src.core.platform.application.time_management.time import TimesheetPeriodAggregate
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
-    CalendarProtocol,
-)
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod
 
@@ -132,15 +125,11 @@ class TaskService(
         task_repo: TaskRepository,
         dependency_repo: DependencyRepository,
         assignment_repo: AssignmentRepository,
-        work_calendar_engine: CalendarProtocol,
         scheduling_engine: SchedulingEngine | None = None,
-        project_repo: ProjectRepository | None = None,
         user_session: UserSessionContext | None = None,
         activity_service: ActivityService | None = None,
         approval_service: ApprovalService | None = None,
         module_catalog_service=None,
-        tenant_context_service=None,
-        task_workspace_reader: TaskWorkspaceReader | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         *,
         detail_query_handler: TaskDetailPageQueryHandler,
@@ -165,15 +154,11 @@ class TaskService(
         self._task_repo: TaskRepository = task_repo
         self._dependency_repo: DependencyRepository = dependency_repo
         self._assignment_repo: AssignmentRepository = assignment_repo
-        self._work_calendar_engine: CalendarProtocol = work_calendar_engine
         self._scheduling_engine: SchedulingEngine | None = scheduling_engine
-        self._project_repo: ProjectRepository | None = project_repo
         self._user_session: UserSessionContext | None = user_session
         self._activity_service: ActivityService | None = activity_service
         self._approval_service: ApprovalService | None = approval_service
         self._module_catalog_service = module_catalog_service
-        self._tenant_context_service = tenant_context_service
-        self._task_workspace_reader = task_workspace_reader
         self._detail_query = detail_query_handler
         self._workspace_query = workspace_query_handler
         self._lookup_query = lookup_query_handler
@@ -447,9 +432,6 @@ class TaskService(
             constraint_date=constraint_date,
             expected_version=expected_version,
         )
-
-    def _validate_constraint_date_is_working_day(self, candidate: Task) -> None:
-        self._scheduling_constraint_handler._validate_constraint_date_is_working_day(candidate)
 
     def build_resource_leveling_preview(self, project_id: str) -> LevelingProposal | None:
         return self._resource_leveling_handler.build_resource_leveling_preview(project_id)
