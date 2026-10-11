@@ -547,6 +547,18 @@ passed 29 cases; the broader business-rule, dependency math/performance and
 architecture matrix passed 67 cases. Targeted Mypy and Ruff F/I passed.
 Task command mixins and A4 overall remain open.
 
+**A4 Task code and validation policies (2026-10-11).** `TaskIdentityMixin`
+and `TaskValidationMixin` were retired. PM composition now constructs and
+injects `TaskCodePolicy` and `TaskValidationPolicy` at the normal Task service
+and both approval-participant sites. Lifecycle/assignment commands still use
+the facade's private helpers and the same Task UoW; code generation, duplicate
+mapping, project-date validation, capacity rules, warning consumption and
+strict/warn policy are preserved. Capacity conflict-name resolution now uses
+one `list_by_ids()` batch instead of `get()` inside a loop, with a direct
+regression forbidding per-task reads. The focused Task/capacity/approval/
+tenant-isolation/architecture matrix passed 60 tests; targeted Mypy passed.
+The larger Task command mixins and A4 overall remain open.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

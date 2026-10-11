@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
+    EnterpriseResourceAvailabilityService,
+)
 from src.core.modules.project_management.application.resources.capacity.task_assignment_capacity_service import (
     CAPACITY_OVER_CAPACITY,
     evaluate_task_assignment_capacity,
@@ -23,15 +26,23 @@ from src.core.platform.common.exceptions import (
 )
 
 
-class TaskValidationMixin:
-    _task_repo: TaskRepository
-    _assignment_repo: AssignmentRepository
-    _resource_repo: ResourceRepository | None
-    _project_repo: ProjectRepository | None
-    _overallocation_policy: str
-    _last_overallocation_warning: str | None
+class TaskValidationPolicy:
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        assignment_repo: AssignmentRepository,
+        resource_repo: ResourceRepository | None,
+        project_repo: ProjectRepository | None,
+        availability_service: EnterpriseResourceAvailabilityService | None,
+    ) -> None:
+        self._task_repo = task_repo
+        self._assignment_repo = assignment_repo
+        self._resource_repo = resource_repo
+        self._project_repo = project_repo
+        self._availability_service = availability_service
 
-    def _validate_task_within_project_dates(
+    def validate_task_within_project_dates(
         self, project_id: str, task_start: date | None, task_end: date | None
     ):
         if self._project_repo is None:
@@ -65,13 +76,15 @@ class TaskValidationMixin:
             )
 
 
-    def _check_resource_overallocation(
+    def check_resource_overallocation(
         self,
         project_id: str,
         resource_id: str,
         new_task_id: str,
         new_alloc_percent: float,
         exclude_assignment_id: str | None = None,
+        *,
+        overallocation_policy: str,
     ) -> str | None:
         """Authoritative calendar-based capacity check (docs §44). Delegates
         the actual capacity calculation to
@@ -81,7 +94,6 @@ class TaskValidationMixin:
         skipping the check (never to the old duplicate arithmetic) when the
         authoritative service isn't configured, e.g. in lightweight test
         construction that doesn't wire every optional dependency."""
-        self._last_overallocation_warning = None
         new_task = self._task_repo.get(new_task_id)
         if not new_task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
@@ -91,7 +103,7 @@ class TaskValidationMixin:
         if not new_start or not new_end:
             return None
 
-        availability_service = getattr(self, "_enterprise_resource_availability_service", None)
+        availability_service = self._availability_service
         if availability_service is None:
             return None
 
@@ -103,7 +115,7 @@ class TaskValidationMixin:
             proposed_allocation_percent=float(new_alloc_percent or 0.0),
             task_repo=self._task_repo,
             assignment_repo=self._assignment_repo,
-            resource_repo=getattr(self, "_resource_repo", None),
+            resource_repo=self._resource_repo,
             availability_service=availability_service,
             exclude_assignment_id=exclude_assignment_id,
         )
@@ -116,8 +128,12 @@ class TaskValidationMixin:
             if day.status == CAPACITY_OVER_CAPACITY:
                 conflict_task_ids.update(day.contributing_task_ids)
         task_names = []
-        for task_id in list(conflict_task_ids)[:6]:
-            task = self._task_repo.get(task_id)
+        visible_task_ids = sorted(conflict_task_ids)[:6]
+        tasks_by_id = {
+            task.id: task for task in self._task_repo.list_by_ids(visible_task_ids)
+        }
+        for task_id in visible_task_ids:
+            task = tasks_by_id.get(task_id)
             if task is not None:
                 task_names.append(getattr(task, "name", task_id))
         task_names.append(getattr(new_task, "name", new_task_id))
@@ -130,10 +146,9 @@ class TaskValidationMixin:
             f"(peak {fact.peak_utilization_percent:.1f}% of effective capacity).\n"
             f"Tasks: {', '.join(task_names)}{extra}"
         )
-        if getattr(self, "_overallocation_policy", "warn") == "strict":
+        if overallocation_policy == "strict":
             raise BusinessRuleError(message, code="RESOURCE_OVERALLOCATED")
-        self._last_overallocation_warning = message
         return message
 
 
-__all__ = ["TaskValidationMixin"]
+__all__ = ["TaskValidationPolicy"]

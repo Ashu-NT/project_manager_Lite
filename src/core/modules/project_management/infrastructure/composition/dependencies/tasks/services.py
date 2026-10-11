@@ -10,6 +10,12 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.identity import (
+    TaskCodePolicy,
+)
+from src.core.modules.project_management.application.tasks.commands.validation import (
+    TaskValidationPolicy,
+)
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     TaskDependencyDiagnosticsQueryHandler,
 )
@@ -114,5 +120,13 @@ def build_task_service(
             work_calendar_engine=work_calendar_engine,
             scheduling_engine=scheduling_engine,
             user_session=platform_services.user_session,
+        ),
+        code_policy=TaskCodePolicy(task_repo=repositories.pm.task_repo),
+        validation_policy=TaskValidationPolicy(
+            task_repo=repositories.pm.task_repo,
+            assignment_repo=repositories.pm.assignment_repo,
+            resource_repo=repositories.pm.resource_repo,
+            project_repo=repositories.pm.project_repo,
+            availability_service=enterprise_resource_availability,
         ),
     )

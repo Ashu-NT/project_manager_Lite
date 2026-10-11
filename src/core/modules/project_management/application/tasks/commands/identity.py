@@ -15,10 +15,11 @@ from src.core.platform.common.code_generation import (
 from src.core.platform.common.exceptions import ValidationError
 
 
-class TaskIdentityMixin:
-    _task_repo: TaskRepository
+class TaskCodePolicy:
+    def __init__(self, *, task_repo: TaskRepository) -> None:
+        self._task_repo = task_repo
 
-    def _resolve_task_code(
+    def resolve_task_code(
         self,
         code: str,
         project_id: str,
@@ -47,7 +48,7 @@ class TaskIdentityMixin:
         )
 
     @staticmethod
-    def _is_task_code_integrity_error(exc: IntegrityError) -> bool:
+    def is_task_code_integrity_error(exc: IntegrityError) -> bool:
         message = " ".join(
             part
             for part in [
@@ -60,11 +61,11 @@ class TaskIdentityMixin:
         return "ux_tasks_project_code" in message or "tasks.task_code" in message
 
     @staticmethod
-    def _raise_task_code_duplicate(code: str, exc: IntegrityError) -> None:
+    def raise_task_code_duplicate(code: str, exc: IntegrityError) -> None:
         raise ValidationError(
             f"Task code '{code}' already exists.",
             code="CODE_DUPLICATE",
         ) from exc
 
 
-__all__ = ["TaskIdentityMixin"]
+__all__ = ["TaskCodePolicy"]

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from datetime import date
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.common.module_guard import (
@@ -31,7 +32,7 @@ from src.core.modules.project_management.application.tasks.commands.hierarchy_su
     TaskHierarchySupportMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.identity import (
-    TaskIdentityMixin,
+    TaskCodePolicy,
 )
 from src.core.modules.project_management.application.tasks.commands.lifecycle import (
     TaskLifecycleMixin,
@@ -52,7 +53,7 @@ from src.core.modules.project_management.application.tasks.commands.time_entries
     TaskTimeEntryMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.validation import (
-    TaskValidationMixin,
+    TaskValidationPolicy,
 )
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     DependencyDiagnostic,
@@ -125,7 +126,6 @@ class TaskService(
     TaskScheduleSyncMixin,
     TaskHierarchySupportMixin,
     TaskHierarchyMixin,
-    TaskIdentityMixin,
     TaskProgressMixin,
     TaskDeletionMixin,
     TaskLifecycleMixin,
@@ -135,7 +135,6 @@ class TaskService(
     TaskAssignmentMixin,
     TaskTimeEntryMixin,
     TaskAssignmentBridgeMixin,
-    TaskValidationMixin,
 ):
     """Task application service orchestrator."""
 
@@ -170,6 +169,8 @@ class TaskService(
         lookup_query_handler: TaskLookupQueryHandler,
         hierarchy_query_handler: TaskHierarchyQueryHandler,
         dependency_diagnostics_handler: TaskDependencyDiagnosticsQueryHandler,
+        code_policy: TaskCodePolicy,
+        validation_policy: TaskValidationPolicy,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -196,6 +197,8 @@ class TaskService(
         self._lookup_query = lookup_query_handler
         self._hierarchy_query = hierarchy_query_handler
         self._dependency_diagnostics = dependency_diagnostics_handler
+        self._code_policy = code_policy
+        self._validation_policy = validation_policy
         self._enterprise_resource_availability_service = enterprise_resource_availability_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
@@ -211,6 +214,46 @@ class TaskService(
 
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
+
+    def _resolve_task_code(
+        self, code: str, project_id: str, name: str, *, exclude_id: str | None = None
+    ) -> str:
+        return self._code_policy.resolve_task_code(
+            code, project_id, name, exclude_id=exclude_id
+        )
+
+    def _is_task_code_integrity_error(self, exc: IntegrityError) -> bool:
+        return self._code_policy.is_task_code_integrity_error(exc)
+
+    def _raise_task_code_duplicate(self, code: str, exc: IntegrityError) -> None:
+        self._code_policy.raise_task_code_duplicate(code, exc)
+
+    def _validate_task_within_project_dates(
+        self, project_id: str, task_start: date | None, task_end: date | None
+    ) -> None:
+        self._validation_policy.validate_task_within_project_dates(
+            project_id, task_start, task_end
+        )
+
+    def _check_resource_overallocation(
+        self,
+        project_id: str,
+        resource_id: str,
+        new_task_id: str,
+        new_alloc_percent: float,
+        exclude_assignment_id: str | None = None,
+    ) -> str | None:
+        self._last_overallocation_warning = None
+        warning = self._validation_policy.check_resource_overallocation(
+            project_id,
+            resource_id,
+            new_task_id,
+            new_alloc_percent,
+            exclude_assignment_id,
+            overallocation_policy=self._overallocation_policy,
+        )
+        self._last_overallocation_warning = warning
+        return warning
 
     def get_task(self, task_id: str) -> Task | None:
         return self._detail_query.get_task(task_id)

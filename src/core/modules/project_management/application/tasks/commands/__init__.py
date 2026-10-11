@@ -22,7 +22,7 @@ from src.core.modules.project_management.application.tasks.commands.time_entries
     TaskTimeEntryMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.validation import (
-    TaskValidationMixin,
+    TaskValidationPolicy,
 )
 
 __all__ = [
@@ -32,6 +32,6 @@ __all__ = [
     "TaskLifecycleMixin",
     "TaskScheduleSyncMixin",
     "TaskTimeEntryMixin",
-    "TaskValidationMixin",
+    "TaskValidationPolicy",
     "record_assignment_action",
 ]

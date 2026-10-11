@@ -6,6 +6,12 @@ from src.core.modules.project_management.application.scheduling import (
     ProjectCalendarAdapter,
     SchedulingEngine,
 )
+from src.core.modules.project_management.application.tasks.commands.identity import (
+    TaskCodePolicy,
+)
+from src.core.modules.project_management.application.tasks.commands.validation import (
+    TaskValidationPolicy,
+)
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     TaskDependencyDiagnosticsQueryHandler,
 )
@@ -129,6 +135,14 @@ def build_task_approval_deps(
             work_calendar_engine=work_calendar_engine,
             scheduling_engine=scheduling_engine,
             user_session=user_session,
+        ),
+        code_policy=TaskCodePolicy(task_repo=bundle.pm.task_repo),
+        validation_policy=TaskValidationPolicy(
+            task_repo=bundle.pm.task_repo,
+            assignment_repo=bundle.pm.assignment_repo,
+            resource_repo=bundle.pm.resource_repo,
+            project_repo=bundle.pm.project_repo,
+            availability_service=None,
         ),
     )
     return TaskApprovalDeps(task_service=task_service)

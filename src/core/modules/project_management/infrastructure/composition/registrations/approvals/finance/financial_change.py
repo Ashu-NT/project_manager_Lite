@@ -14,6 +14,12 @@ from src.core.modules.project_management.application.financials.forecasts.versio
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.identity import (
+    TaskCodePolicy,
+)
+from src.core.modules.project_management.application.tasks.commands.validation import (
+    TaskValidationPolicy,
+)
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     TaskDependencyDiagnosticsQueryHandler,
 )
@@ -139,6 +145,14 @@ def build_financial_change_approval_deps(
             work_calendar_engine=work_calendar_engine,
             scheduling_engine=scheduling_engine,
             user_session=user_session,
+        ),
+        code_policy=TaskCodePolicy(task_repo=task_repo),
+        validation_policy=TaskValidationPolicy(
+            task_repo=task_repo,
+            assignment_repo=assignment_repo,
+            resource_repo=resource_repo,
+            project_repo=project_repo,
+            availability_service=None,
         ),
     )
     clock = SystemClock()
