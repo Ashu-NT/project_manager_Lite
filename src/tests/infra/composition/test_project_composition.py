@@ -58,7 +58,7 @@ def test_project_events_share_one_post_commit_handler(services) -> None:
     tasks = services["task_service"]
     bus = project._create_handler._uow_factory._post_commit_bus
 
-    assert bus is tasks._task_uow_factory._post_commit_bus
+    assert bus is tasks._task_uow_scope._factory._post_commit_bus
     event_types = (
         ProjectCreated,
         ProjectProfileUpdated,
@@ -108,7 +108,7 @@ def test_register_uses_shared_bus_and_one_invalidation_handler(services, session
 
 
 def test_task_events_share_one_post_commit_handler_and_fresh_uow(services, session) -> None:
-    task_uow = services["task_service"]._task_uow_factory
+    task_uow = services["task_service"]._task_uow_scope._factory
     bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert task_uow._post_commit_bus is bus
     event_types = (
@@ -142,7 +142,7 @@ def test_task_events_share_one_post_commit_handler_and_fresh_uow(services, sessi
 def test_timesheet_instance_and_invalidation_subscription_are_shared(services) -> None:
     timesheet = services["timesheet_service"]
     assert services["time_service"] is timesheet
-    assert services["task_service"]._timesheet_service is timesheet
+    assert services["task_service"]._time_entry_handler._timesheet_service is timesheet
     bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert sum(
         handler.__name__ == "handle_timesheet_period_event"
@@ -279,7 +279,8 @@ def test_reporting_and_dashboard_reuse_authoritative_services(services) -> None:
     assert reporting._scheduling_engine is services["scheduling_engine"]
     assert reporting._rate_resolver is services["rate_card_resolver"]
     assert dashboard._reporting is reporting
-    assert dashboard._tasks is services["task_service"]
+    assert dashboard._task_lookup is services["task_service"]._lookup_query
+    assert dashboard._task_assignments is services["task_service"]._assignment_handler
     assert dashboard._projects is services["project_service"]
     assert dashboard._resources is services["resource_service"]
     assert dashboard._registers is services["register_service"]
@@ -295,5 +296,6 @@ def test_resource_planning_and_imports_keep_shared_dependencies(services) -> Non
     assert services["resource_workload_service"]._availability is availability
     imports = services["data_import_service"]
     assert imports._project_service is services["project_service"]
-    assert imports._task_service is services["task_service"]
+    assert imports._task_capabilities.lookup is services["task_service"]._lookup_query
+    assert imports._task_capabilities.lifecycle is services["task_service"]._lifecycle_handler
     assert imports._resource_service is services["resource_service"]

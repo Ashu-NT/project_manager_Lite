@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.infrastructure.importers.tasks.capabilities import (
+    TaskImportCapabilities,
+)
 from src.core.modules.project_management.infrastructure.importers.utils.coercion import (
     optional_date,
     optional_float,
@@ -25,7 +28,7 @@ def preview_tasks(
     rows: list[tuple[int, dict[str, str]]],
     *,
     project_service,
-    task_service,
+    task_capabilities: TaskImportCapabilities,
 ) -> ImportPreview:
     preview = ImportPreview(entity_type="tasks", available_columns=[], mapped_columns={})
     projects = build_project_lookup(project_service)
@@ -39,7 +42,7 @@ def preview_tasks(
             if project is None:
                 raise ValueError("Project reference is required via project_id or project_name.")
             name = required(row, "name")
-            tasks = task_service.list_tasks_for_project(project.id)
+            tasks = task_capabilities.lookup.list_tasks_for_project(project.id)
             task_id = row.get("id") or ""
             task = next((t for t in tasks if t.id == task_id), None) if task_id else None
             if task is None:
@@ -91,7 +94,7 @@ def import_tasks(
     rows: list[tuple[int, dict[str, str]]],
     *,
     project_service,
-    task_service,
+    task_capabilities: TaskImportCapabilities,
 ) -> ImportSummary:
     summary = ImportSummary(entity_type="tasks")
     projects = build_project_lookup(project_service)
@@ -110,7 +113,7 @@ def import_tasks(
                 )
                 if project is None:
                     raise ValueError("Project reference is required via project_id or project_name.")
-                current_tasks = task_service.list_tasks_for_project(project.id)
+                current_tasks = task_capabilities.lookup.list_tasks_for_project(project.id)
                 parent_task = next(
                     (
                         item
@@ -127,7 +130,7 @@ def import_tasks(
                     row,
                     project=project,
                     parent_task=parent_task,
-                    task_service=task_service,
+                    task_capabilities=task_capabilities,
                     summary=summary,
                 )
                 made_progress = True
@@ -156,11 +159,11 @@ def _import_task_row(
     *,
     project,
     parent_task,
-    task_service,
+    task_capabilities: TaskImportCapabilities,
     summary: ImportSummary,
 ) -> None:
     name = required(row, "name")
-    tasks = task_service.list_tasks_for_project(project.id)
+    tasks = task_capabilities.lookup.list_tasks_for_project(project.id)
     task = None
     task_id = row.get("id") or ""
     if task_id:
@@ -170,39 +173,48 @@ def _import_task_row(
             (item for item in tasks if item.name.strip().lower() == name.strip().lower()),
             None,
         )
-    payload = {
-        "name": name,
-        "code": str(row.get("task_code") or "").strip(),
-        "description": row.get("description", ""),
-        "start_date": optional_date(row.get("start_date")),
-        "duration_days": optional_int(row.get("duration_days")),
-        "priority": optional_int(row.get("priority")) or 0,
-        "deadline": optional_date(row.get("deadline")),
-    }
+    code = str(row.get("task_code") or "").strip()
+    description = row.get("description", "")
+    start_date = optional_date(row.get("start_date"))
+    duration_days = optional_int(row.get("duration_days"))
+    priority = optional_int(row.get("priority")) or 0
+    deadline = optional_date(row.get("deadline"))
     status = optional_task_status(row.get("status"))
     percent_complete = optional_float(row.get("percent_complete"))
     wbs_code = str(row.get("wbs_code") or "").strip()
     sort_order = optional_int(row.get("sort_order"))
     hierarchy_requested = bool(wbs_code or parent_task is not None or sort_order is not None)
     if task is None:
-        created = task_service.create_task(
+        created = task_capabilities.lifecycle.create_task(
             project.id,
             status=status or TaskStatus.TODO,
             parent_task_id=parent_task.id if parent_task is not None else None,
             wbs_code=wbs_code,
             sort_order=sort_order,
-            **payload,
+            name=name,
+            code=code,
+            description=description,
+            start_date=start_date,
+            duration_days=duration_days,
+            priority=priority,
+            deadline=deadline,
         )
         if percent_complete is not None:
-            task_service.update_progress(created.id, percent_complete=percent_complete)
+            task_capabilities.progress.update_progress(created.id, percent_complete=percent_complete)
         summary.created_count += 1
         return
 
-    updated = task_service.update_task(
+    updated = task_capabilities.lifecycle.update_task(
         task.id,
         expected_version=task.version,
         status=status,
-        **payload,
+        name=name,
+        code=code,
+        description=description,
+        start_date=start_date,
+        duration_days=duration_days,
+        priority=priority,
+        deadline=deadline,
     )
     target_parent_id = (
         parent_task.id
@@ -214,7 +226,7 @@ def _import_task_row(
         or (wbs_code and wbs_code.upper() != task.wbs_code)
         or (sort_order is not None and sort_order != task.sort_order)
     ):
-        updated = task_service.move_task(
+        updated = task_capabilities.hierarchy.move_task(
             updated.id,
             parent_task_id=target_parent_id,
             wbs_code=wbs_code or None,
@@ -222,7 +234,7 @@ def _import_task_row(
             expected_version=updated.version,
         )
     if percent_complete is not None:
-        task_service.update_progress(
+        task_capabilities.progress.update_progress(
             updated.id,
             percent_complete=percent_complete,
             expected_version=updated.version,

@@ -6,7 +6,12 @@ from src.core.modules.project_management.application.reporting import ReportingS
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
+)
 from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
@@ -14,7 +19,8 @@ def build_dashboard_service(
     platform_services: PlatformServiceBundle,
     *,
     reporting_service: ReportingService,
-    task_service: TaskService,
+    task_lookup: TaskLookupQueryHandler,
+    task_assignments: TaskAssignmentCommandHandler,
     project_service: ProjectService,
     resource_service: ResourceService,
     register_service: RegisterService,
@@ -22,7 +28,8 @@ def build_dashboard_service(
 ) -> DashboardService:
     return DashboardService(
         reporting_service=reporting_service,
-        task_service=task_service,
+        task_lookup=task_lookup,
+        task_assignments=task_assignments,
         project_service=project_service,
         resource_service=resource_service,
         register_service=register_service,

@@ -270,7 +270,7 @@ def test_task_csv_import_resolves_parent_declared_later(services) -> None:
             ),
         ],
         project_service=services["project_service"],
-        task_service=services["task_service"],
+        task_capabilities=services["data_import_service"]._task_capabilities,
     )
 
     nodes = services["task_service"].list_task_hierarchy(project.id)

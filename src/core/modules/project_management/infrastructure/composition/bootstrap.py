@@ -95,7 +95,7 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_scheduling_foundation,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.tasks.services import (
-    build_task_service,
+    build_task_capabilities,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.timesheets.services import (
     build_timesheet_service,
@@ -155,6 +155,9 @@ from src.core.modules.project_management.infrastructure.composition.registration
 )
 from src.core.modules.project_management.infrastructure.composition.registrations.notifications import (
     pm_notification_recipient_policy,
+)
+from src.core.modules.project_management.infrastructure.importers.tasks.capabilities import (
+    TaskImportCapabilities,
 )
 from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.application.time_management.time import TimeService
@@ -249,7 +252,7 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
-    task_service = build_task_service(
+    task_capabilities = build_task_capabilities(
         session,
         repositories,
         platform_services,
@@ -259,6 +262,7 @@ def build_project_management_service_bundle(
         assignment_skill_validator=assignment_skill_validator,
         enterprise_resource_availability=enterprise_resource_availability,
     )
+    task_service = task_capabilities.service
     # The resolver owns the effective-time source for immutable rate snapshots.
     system_clock = SystemClock()
     register_resource_view_invalidation(
@@ -452,7 +456,8 @@ def build_project_management_service_bundle(
     dashboard_service = build_dashboard_service(
         platform_services,
         reporting_service=reporting_service,
-        task_service=task_service,
+        task_lookup=task_capabilities.lookup,
+        task_assignments=task_capabilities.assignment,
         project_service=project_service,
         resource_service=resource_service,
         register_service=register_service,
@@ -461,7 +466,12 @@ def build_project_management_service_bundle(
     data_import_service = build_data_import_service(
         platform_services,
         project_service=project_service,
-        task_service=task_service,
+        task_capabilities=TaskImportCapabilities(
+            lookup=task_capabilities.lookup,
+            lifecycle=task_capabilities.lifecycle,
+            hierarchy=task_capabilities.hierarchy,
+            progress=task_capabilities.progress,
+        ),
         resource_service=resource_service,
     )
     project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine

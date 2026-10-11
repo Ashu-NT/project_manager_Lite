@@ -7,25 +7,32 @@ from src.core.modules.project_management.application.dashboard.models.dashboard_
     MilestoneHealthRow,
 )
 from src.core.modules.project_management.application.scheduling import CPMTaskInfo
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
+)
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 
 
 class DashboardProfessionalMixin:
-    _tasks: TaskService
+    _task_lookup: TaskLookupQueryHandler
+    _task_assignments: TaskAssignmentCommandHandler
 
     def _build_milestone_health(
         self,
         project_id: str,
         *,
         schedule: dict[str, CPMTaskInfo] | None = None,
-        tasks: list[object] | None = None,
+        tasks: list[Task] | None = None,
         owner_by_task: dict[str, str | None] | None = None,
     ) -> list[MilestoneHealthRow]:
         tasks = (
             tasks
             if tasks is not None
-            else select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+            else select_leaf_tasks(self._task_lookup.list_tasks_for_project(project_id))
         )
         if not tasks:
             return []
@@ -66,13 +73,13 @@ class DashboardProfessionalMixin:
         project_id: str,
         *,
         schedule: dict[str, CPMTaskInfo] | None = None,
-        tasks: list[object] | None = None,
+        tasks: list[Task] | None = None,
         owner_by_task: dict[str, str | None] | None = None,
     ) -> list[CriticalPathRow]:
         tasks = (
             tasks
             if tasks is not None
-            else select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+            else select_leaf_tasks(self._task_lookup.list_tasks_for_project(project_id))
         )
         if not tasks:
             return []
@@ -113,9 +120,9 @@ class DashboardProfessionalMixin:
 
     def _build_task_owner_map(
         self,
-        tasks: list[object],
+        tasks: list[Task],
         *,
-        assignments_by_task: dict[str, list[object]] | None = None,
+        assignments_by_task: dict[str, list[TaskAssignment]] | None = None,
         resource_names: dict[str, str] | None = None,
     ) -> dict[str, str | None]:
         owner_by_task: dict[str, str | None] = {}
@@ -128,7 +135,7 @@ class DashboardProfessionalMixin:
             assignments = (
                 assignments_by_task.get(task.id, [])
                 if assignments_by_task is not None
-                else self._tasks.list_assignments_for_task(task.id)
+                else self._task_assignments.list_assignments_for_task(task.id)
             )
             if not assignments:
                 owner_by_task[task.id] = None

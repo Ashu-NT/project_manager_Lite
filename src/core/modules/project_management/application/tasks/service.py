@@ -688,9 +688,6 @@ class TaskService(
     def list_assignments_for_resource(self, resource_id: str) -> list[TaskAssignment]:
         return self._lookup_query.list_assignments_for_resource(resource_id)
 
-    def list_assignments_for_tasks(self, task_ids: list[str]) -> list[TaskAssignment]:
-        return self._lookup_query.list_assignments_for_tasks(task_ids)
-
     def list_timesheet_assignment_contexts(
         self, *, project_id: str | None = None, resource_id: str | None = None
     ) -> list[TimesheetAssignmentContext]:

@@ -79,6 +79,9 @@ from src.core.modules.project_management.application.timesheets import Timesheet
 from src.core.modules.project_management.infrastructure.composition.context import (
     ProjectManagementRepositoryContext,
 )
+from src.core.modules.project_management.infrastructure.composition.dependencies.tasks.bundle import (
+    TaskComposition,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.tasks import (
     SqlAlchemyTaskWorkspaceReader,
 )
@@ -91,7 +94,7 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 
 
-def build_task_service(
+def build_task_capabilities(
     session: Session,
     repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
@@ -101,7 +104,7 @@ def build_task_service(
     scheduling_engine: SchedulingEngine,
     assignment_skill_validator: AssignmentSkillValidator,
     enterprise_resource_availability: EnterpriseResourceAvailabilityService,
-) -> TaskService:
+) -> TaskComposition:
     task_uow_factory = SqlAlchemyTaskUnitOfWorkFactory(
         session_factory=sessionmaker(bind=platform_services.session.bind, future=True),
         transactional_dispatcher=platform_services.platform_transactional_dispatcher,
@@ -175,6 +178,21 @@ def build_task_service(
         scheduling_constraint_handler=scheduling_constraint_handler,
         uow_scope=task_uow_scope,
     )
+    hierarchy_command_handler = TaskHierarchyCommandHandler(
+        task_repo=repositories.pm.task_repo,
+        user_session=platform_services.user_session,
+        tenant_context_service=platform_services.tenant_context_service,
+        hierarchy_policy=hierarchy_policy,
+        uow_scope=task_uow_scope,
+    )
+    progress_handler = TaskProgressCommandHandler(
+        task_repo=repositories.pm.task_repo,
+        user_session=platform_services.user_session,
+        tenant_context_service=platform_services.tenant_context_service,
+        hierarchy_policy=hierarchy_policy,
+        validation_policy=validation_policy,
+        uow_scope=task_uow_scope,
+    )
     dependency_diagnostics_handler = TaskDependencyDiagnosticsQueryHandler(
         task_repo=repositories.pm.task_repo,
         dependency_repo=repositories.pm.dependency_repo,
@@ -199,7 +217,7 @@ def build_task_service(
         uow_scope=task_uow_scope,
         overallocation_policy="strict" if overallocation_policy == "strict" else "warn",
     )
-    return TaskService(
+    service = TaskService(
         session,
         repositories.pm.task_repo,
         repositories.pm.dependency_repo,
@@ -216,14 +234,7 @@ def build_task_service(
             tenant_context_service=platform_services.tenant_context_service,
             uow_scope=task_uow_scope,
         ),
-        progress_handler=TaskProgressCommandHandler(
-            task_repo=repositories.pm.task_repo,
-            user_session=platform_services.user_session,
-            tenant_context_service=platform_services.tenant_context_service,
-            hierarchy_policy=hierarchy_policy,
-            validation_policy=validation_policy,
-            uow_scope=task_uow_scope,
-        ),
+        progress_handler=progress_handler,
         time_entry_handler=TaskTimeEntryHandler(
             timesheet_service=timesheet_service,
             task_repo=repositories.pm.task_repo,
@@ -239,13 +250,7 @@ def build_task_service(
             validation_policy=validation_policy,
             uow_scope=task_uow_scope,
         ),
-        hierarchy_command_handler=TaskHierarchyCommandHandler(
-            task_repo=repositories.pm.task_repo,
-            user_session=platform_services.user_session,
-            tenant_context_service=platform_services.tenant_context_service,
-            hierarchy_policy=hierarchy_policy,
-            uow_scope=task_uow_scope,
-        ),
+        hierarchy_command_handler=hierarchy_command_handler,
         scheduling_constraint_handler=scheduling_constraint_handler,
         lifecycle_handler=lifecycle_handler,
         dependency_command_handler=TaskDependencyCommandHandler(
@@ -286,4 +291,12 @@ def build_task_service(
             user_session=platform_services.user_session,
         ),
         dependency_diagnostics_handler=dependency_diagnostics_handler,
+    )
+    return TaskComposition(
+        service=service,
+        lookup=lookup_query_handler,
+        assignment=assignment_handler,
+        lifecycle=lifecycle_handler,
+        hierarchy=hierarchy_command_handler,
+        progress=progress_handler,
     )

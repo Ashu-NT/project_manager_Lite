@@ -36,7 +36,7 @@ implementation owner and consumer boundary. Each name is listed explicitly.
 | Time bridge / time-entry handler | `initialize_timesheet_for_assignment`, `list_time_entries_for_assignment`, `list_time_entries_for_task_page`, `list_time_entries_for_assignment_period`, `get_time_entry`, `add_time_entry`, `update_time_entry`, `delete_time_entry`, `list_timesheet_periods_for_resource`, `list_time_entries_for_resource_period`, `submit_timesheet_period`, `approve_timesheet_period`, `reject_timesheet_period`, `lock_timesheet_period`, `unlock_timesheet_period`, `reopen_approved_timesheet_period_for_correction` | Tasks/Timesheets desktop APIs; preserve Time-owned evidence and timesheet authority; avoid exposing Task UoW as Time UoW. |
 | Detail/hierarchy queries | `get_task`, `list_task_hierarchy`, `list_leaf_tasks_for_project`, `get_task_hierarchy_rollup`, `list_task_hierarchy_rollups` | Tasks/Scheduling desktop APIs, dashboard helpers, importers; existing detail/hierarchy handlers are candidates for narrow injection. |
 | Dependency diagnostics queries | `get_dependency_diagnostics`, `preview_dependency_removal` | Tasks/Scheduling desktop APIs; existing diagnostics handler is candidate for narrow injection. |
-| Lookup queries | `list_tasks_for_project`, `list_tasks_for_resource`, `list_assignments_for_resource`, `list_assignments_for_tasks`, `list_timesheet_assignment_contexts`, `get_timesheet_assignment_context`, `query_tasks` | Dashboard uses task and batched assignment lookups; CSV importer uses project lookup; Timesheets builders use assignment contexts; Tasks/Scheduling desktop APIs use the rest. The lookup handler enforces task/project permissions but not the facade's module guard. |
+| Lookup queries | `list_tasks_for_project`, `list_tasks_for_resource`, `list_assignments_for_resource`, `list_timesheet_assignment_contexts`, `get_timesheet_assignment_context`, `query_tasks` | CSV import now uses the lookup handler directly; Timesheets builders use assignment contexts; Tasks/Scheduling desktop APIs use the remaining facade methods. The lookup handler enforces task/project permissions while the importer retains its module guard. |
 | Page queries | `query_workspace_page`, `query_task_assignments_page`, `query_task_dependencies_page`, `query_task_activity_page` | Tasks and Dashboard desktop APIs; readers own paging/sorting and DTO projection, not QML. |
 | Warning sidecars / assignment handler | `consume_last_overallocation_warning`, `consume_last_skill_violation_warning` | Tasks desktop API; preserve consumption timing until warning output is part of an explicit result contract. |
 | Approval participant / dependency handler | `_apply_dependency_add_decision`, `_apply_dependency_remove_decision`, `_apply_dependency_update_decision` | `infrastructure/approval/task_apply_participant.py` only. These are participant-owned, not public commands; migrate participant and shared UoW/event scope together. |
@@ -67,9 +67,11 @@ tests must move to the actual handler/UoW before the fields are deleted.
 - Approval participant and Financial Change migrations must retain the outer
   transaction's UoW and pending-event drain. No ordinary command method may
   replace their participant apply entry point.
-- Dashboard and importer are the best next internal cuts: Dashboard needs a
-  read-only task/assignment lookup capability; importer needs lifecycle,
-  hierarchy, progress and lookup. Both require explicit module-guard parity.
+- Dashboard now receives the existing lookup and assignment handlers from a
+  typed PM Task composition result. Its own module guard remains active.
+- CSV import now receives only lifecycle, hierarchy, progress and lookup
+  handlers through `TaskImportCapabilities`; `DataImportService` retains its
+  module guard. The handlers retain their authorization and UoW ownership.
 
 ## Verification and remaining gate
 
@@ -81,3 +83,17 @@ approval participant tests passed 48 cases after the cut. Facade forwarding
 count is not yet materially reduced; the next slice must migrate a real
 consumer before deleting its forwarding methods. PostgreSQL/RLS and broader
 desktop/Task integration verification remain required for A4 closure.
+
+The subsequent Dashboard/CSV import cut migrated two internal consumers off
+TaskService without creating another forwarding facade. The retired
+`list_assignments_for_tasks` facade delegate had no remaining production or
+dynamic caller; Dashboard calls the existing batched lookup handler directly.
+The facade is now 795 lines, 75 methods including `__init__`, and 27
+constructor inputs (from 816/77/31 at the start of this audit). Focused
+Dashboard/composition/WBS tests passed 52 cases; import regressions passed 44;
+architecture guards passed 26; module-guard/permission/lookup tests passed 45;
+Dashboard batching measurement passed 2; live PostgreSQL security/RLS passed
+14. Desktop Tasks, Scheduling, Timesheets and Dashboard adapters still receive
+the large facade, as do Task approval and Financial Change participants. Those
+callers must be migrated before their forwarding methods can be removed; A4
+facade completion is not yet established.

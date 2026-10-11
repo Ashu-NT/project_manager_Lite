@@ -748,6 +748,28 @@ participant forwarding remains until outer transaction and event-drain parity
 can be demonstrated; no direct handler injection may bypass module entitlement.
 This is an A4 continuation, not A4 closure.
 
+**A4 Task capability consumer cutover (2026-10-11).** PM composition now
+returns one typed, session-scoped Task result exposing the existing lookup,
+assignment, lifecycle, hierarchy and progress handlers alongside the current
+facade. Dashboard consumes only lookup/assignment, and CSV import consumes
+only lookup/lifecycle/hierarchy/progress. Their own module guards remain in
+place; the handlers still enforce task/project permissions and own the same
+UoWs. Focused Dashboard/composition/WBS, import, and architecture suites passed
+31, 44, and 26 cases respectively. The desktop adapters and approval/Finance
+participants still depend on TaskService; no facade method used by them was
+retired. The full facade refactor therefore remains open.
+
+**A4 narrow-consumer cleanup verification (2026-10-11).** The only facade
+delegate made unused by the Dashboard/import cutover,
+`list_assignments_for_tasks`, is removed. Dashboard batching instrumentation
+now observes the real lookup handler and passed 2 tests. Dashboard and CSV
+module-entitlement regression tests passed with the existing guards; focused
+permission/lookup tests passed 45; live PostgreSQL runtime-role security/RLS
+passed 14. TaskService is 795 lines, 75 methods including `__init__`, and 27
+constructor inputs versus 816/77/31 at the audit start. Remaining desktop and
+transaction-scoped callers are deliberately unchanged; the broader facade
+refactor and A4 overall remain open.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

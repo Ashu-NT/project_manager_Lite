@@ -7,6 +7,9 @@ import pytest
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.dashboard.services.dashboard_service import (
+    DashboardService,
+)
 from src.core.modules.project_management.application.resources.catalog.resource_service import (
     ResourceService,
 )
@@ -18,6 +21,9 @@ from src.core.modules.project_management.application.risk.register_service impor
 )
 from src.core.modules.project_management.application.tasks.service import TaskService
 from src.core.modules.project_management.domain.risk.register import RegisterEntryType
+from src.core.modules.project_management.infrastructure.importers.services.data_import_service import (
+    DataImportService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
@@ -82,6 +88,20 @@ def test_task_detail_query_facade_checks_module_before_handler() -> None:
     service._detail_query = SimpleNamespace(get_task=lambda _task_id: pytest.fail("handler called"))
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         service.get_task("task-1")
+
+
+def test_dashboard_capability_consumer_keeps_module_gate() -> None:
+    dashboard = DashboardService.__new__(DashboardService)
+    dashboard._module_catalog_service = _module_catalog(runtime_enabled=False)
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        dashboard.get_dashboard_data("project-1")
+
+
+def test_csv_import_capability_consumer_keeps_module_gate() -> None:
+    imports = DataImportService.__new__(DataImportService)
+    imports._module_catalog_service = _module_catalog(runtime_enabled=False)
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        imports.get_import_schema("tasks")
 
 
 def test_resource_capability_query_facade_checks_module_before_handler() -> None:

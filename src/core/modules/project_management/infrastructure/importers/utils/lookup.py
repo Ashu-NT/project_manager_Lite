@@ -26,26 +26,7 @@ def resolve_project(
     return lookup.get(key) if key else None
 
 
-def resolve_task(
-    task_service: Any,
-    *,
-    project_id: str,
-    task_id: str | None,
-    task_name: str | None,
-) -> Any | None:
-    tasks = task_service.list_tasks_for_project(project_id)
-    if task_id:
-        found = next((t for t in tasks if t.id == task_id), None)
-        if found is not None:
-            return found
-    if task_name:
-        key = task_name.strip().lower()
-        return next((t for t in tasks if t.name.strip().lower() == key), None)
-    return None
-
-
 __all__ = [
     "build_project_lookup",
     "resolve_project",
-    "resolve_task",
 ]
