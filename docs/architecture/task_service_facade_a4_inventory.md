@@ -97,3 +97,12 @@ Dashboard batching measurement passed 2; live PostgreSQL security/RLS passed
 the large facade, as do Task approval and Financial Change participants. Those
 callers must be migrated before their forwarding methods can be removed; A4
 facade completion is not yet established.
+
+The Dashboard delayed-tasks desktop adapter now receives the existing
+`TaskWorkspacePageQueryHandler` directly from PM composition, rather than the
+entire TaskService. Its desktop boundary checks the PM module entitlement
+before invoking the handler; the handler still enforces task/project permission
+and tenant/org scope. Tasks desktop still consumes `query_workspace_page`, so
+that facade delegate remains active. The facade remains 795 lines, 75 methods
+and 27 constructor inputs. Focused Dashboard, module-guard, composition and
+architecture tests passed 49 cases.

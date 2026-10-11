@@ -72,6 +72,9 @@ from src.core.modules.project_management.application.scheduling.calendars.projec
     ProjectCalendarAdapter,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
+    TaskWorkspacePageQueryHandler,
+)
 from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import (
     FinanceGovernanceUnitOfWork,
@@ -97,6 +100,7 @@ class ProjectManagementServiceBundle:
     collaboration_service: CollaborationService
     project_service: ProjectService
     task_service: TaskService
+    task_workspace_query: TaskWorkspacePageQueryHandler
     timesheet_service: TimesheetService
     resource_service: ResourceService
     finance_governance_commands: FinanceGovernanceCommandBoundary

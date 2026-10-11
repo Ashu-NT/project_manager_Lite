@@ -295,6 +295,7 @@ def build_task_capabilities(
     return TaskComposition(
         service=service,
         lookup=lookup_query_handler,
+        workspace=workspace_query_handler,
         assignment=assignment_handler,
         lifecycle=lifecycle_handler,
         hierarchy=hierarchy_command_handler,

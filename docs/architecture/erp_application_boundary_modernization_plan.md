@@ -770,6 +770,16 @@ constructor inputs versus 816/77/31 at the audit start. Remaining desktop and
 transaction-scoped callers are deliberately unchanged; the broader facade
 refactor and A4 overall remain open.
 
+**A4 Dashboard desktop read cut (2026-10-11).** The delayed-tasks adapter
+now uses the same composed Task workspace query handler directly, with an
+explicit module-entitlement check at the desktop boundary before handler
+permission and scope checks. No second handler/session was built. Tasks desktop
+still uses the facade workspace-page delegate, so it remains active. Focused
+Dashboard/composition/module-guard/architecture tests passed 49 cases; A4
+remains open for the other desktop and transaction-participant callers.
+Desktop-registry and Finance invalidation regressions passed 22 cases with
+one skip; scoped Ruff F/I, compilation and diff check passed.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

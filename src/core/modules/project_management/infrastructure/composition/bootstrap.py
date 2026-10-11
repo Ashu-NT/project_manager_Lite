@@ -507,6 +507,7 @@ def build_project_management_service_bundle(
         collaboration_service=collaboration_service,
         project_service=project_service,
         task_service=task_service,
+        task_workspace_query=task_capabilities.workspace,
         timesheet_service=timesheet_service,
         resource_service=resource_service,
         finance_governance_commands=finance_governance_commands,

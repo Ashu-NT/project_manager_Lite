@@ -25,9 +25,6 @@ from src.core.modules.project_management.api.desktop_runtime import (
 from src.core.platform.access import AccessControlService
 from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.notifications.notification import (
-    PlatformNotificationDesktopApi,
-)
 from src.core.platform.api.desktop.finance import FinancialPeriodDesktopApi
 from src.core.platform.api.desktop.history.activity.activity import (
     PlatformActivityDesktopApi,
@@ -52,6 +49,9 @@ from src.core.platform.api.desktop.master_data.party.party import (
     PlatformPartyDesktopApi,
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.notifications.notification import (
+    PlatformNotificationDesktopApi,
+)
 from src.core.platform.api.desktop.platform_runtime.runtime import (
     PlatformRuntimeDesktopApi,
 )
@@ -87,6 +87,7 @@ from src.core.platform.application.platform_runtime import (
 )
 from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.security.identity import ServicePrincipalService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
@@ -199,9 +200,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         raise RuntimeError("Platform service-principal service is not configured.")
 
     project_service = services.get("project_service")
-    task_service = services.get("task_service")
-    resource_service = services.get("resource_service")
-    baseline_service = services.get("baseline_service")
     inventory_reservation_service = services.get("inventory_reservation_service")
 
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
@@ -293,6 +291,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             capacity_calculator=resource_capacity_calculator,
         )
 
+    pm_module_catalog = services.get("module_catalog_service")
     project_management_apis = build_project_management_desktop_runtime_apis(
         services=services,
         platform_dependencies=ProjectManagementDesktopRuntimePlatformDependencies(
@@ -300,6 +299,11 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             site_service=site_service,
             department_service=department_service,
             approval_service=approval_service,
+            module_catalog_service=(
+                pm_module_catalog
+                if isinstance(pm_module_catalog, ModuleCatalogService)
+                else None
+            ),
             reservation_service=inventory_reservation_service,
             platform_calendar_api=platform_calendar_api,
         ),

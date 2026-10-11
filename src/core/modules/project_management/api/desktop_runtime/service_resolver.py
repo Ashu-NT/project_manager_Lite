@@ -43,6 +43,9 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
     BaselineService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
+    TaskWorkspacePageQueryHandler,
+)
 from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
@@ -65,6 +68,7 @@ class ProjectManagementDesktopRuntimeServices:
     project_resource_service: ProjectResourceService | None
     timesheet_service: TimesheetService | None
     task_service: TaskService | None
+    task_workspace_query: TaskWorkspacePageQueryHandler | None
     assignment_skill_validator: AssignmentSkillValidator | None
     scheduling_engine: SchedulingEngine | None
     work_calendar_engine: CalendarProtocol | None
@@ -96,6 +100,7 @@ def resolve_project_management_desktop_runtime_services(
     project_resource_service = services.get("project_resource_service")
     timesheet_service = services.get("timesheet_service")
     task_service = services.get("task_service")
+    task_workspace_query = services.get("task_workspace_query")
     assignment_skill_validator = services.get("assignment_skill_validator")
     scheduling_engine = services.get("scheduling_engine")
     work_calendar_engine = services.get("work_calendar_engine")
@@ -158,6 +163,11 @@ def resolve_project_management_desktop_runtime_services(
             else None
         ),
         task_service=task_service if isinstance(task_service, TaskService) else None,
+        task_workspace_query=(
+            task_workspace_query
+            if isinstance(task_workspace_query, TaskWorkspacePageQueryHandler)
+            else None
+        ),
         assignment_skill_validator=(
             assignment_skill_validator
             if isinstance(assignment_skill_validator, AssignmentSkillValidator)

@@ -1,6 +1,8 @@
 from datetime import date, datetime
 from types import SimpleNamespace
 
+import pytest
+
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
 )
@@ -9,6 +11,27 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
+
+
+def test_dashboard_delayed_tasks_query_checks_module_before_handler() -> None:
+    catalog = SimpleNamespace(
+        get_entitlement=lambda _code: SimpleNamespace(
+            runtime_enabled=False,
+            label="Project Management",
+            lifecycle_status="inactive",
+        )
+    )
+    handler = SimpleNamespace(
+        query_workspace_page=lambda **_kwargs: pytest.fail("query handler was called")
+    )
+    api = build_project_management_dashboard_desktop_api(
+        task_workspace_query=handler,
+        module_catalog_service=catalog,
+    )
+
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        api.list_delayed_tasks_page(project_id="project-1")
 
 
 def test_project_management_dashboard_desktop_api_builds_empty_overview() -> None:
