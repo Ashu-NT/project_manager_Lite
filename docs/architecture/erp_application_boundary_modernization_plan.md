@@ -94,7 +94,8 @@ The exact inheritance groups behind that inventory are: `AuthService`:
 this paragraph also inherit `ProjectManagementModuleGuardMixin` where shown
 in their class declarations.
 
-`TaskService` has the following operation mixins:
+At audit baseline, `TaskService` had the following operation mixins (see the
+cutover log below for the current class declaration):
 `ApprovedScheduleChangeMixin`, `TaskScheduleSyncMixin`,
 `TaskHierarchySupportMixin`, `TaskHierarchyQueryMixin`, `TaskHierarchyMixin`,
 `TaskIdentityMixin`, `TaskProgressMixin`, `TaskDeletionMixin`,
@@ -522,6 +523,29 @@ composition/handler/architecture tests passed 16 cases; and the PM service
 tenant-isolation regression passed 3 cases. Targeted Mypy, Ruff F/I, Python
 compilation and `git diff --check` passed. This closes the Task read-query
 mixin, not the larger Task command or A4 gate.
+
+**A4 Task WBS read-query cutover (2026-10-11).** The four hierarchy and
+rollup reads now delegate from `TaskService` to a composition-injected
+`TaskHierarchyQueryHandler`; the normal Task builder and both approval
+participant builders supply its explicit repository, calendar and session
+dependencies. Ordered child grouping moved to the Task domain hierarchy
+module so command and query paths retain one rule without a query-to-command
+mixin dependency. The hierarchy command, scheduling and UoW paths were not
+changed. Focused WBS, scheduling, desktop API and architecture tests passed
+22 cases; targeted Mypy passed. A4 remains open for the Task command and
+other characterized clusters.
+
+**A4 Task dependency diagnostics read cutover (2026-10-11).** The dependency
+impact and removal previews now use a composition-injected
+`TaskDependencyDiagnosticsQueryHandler`; the Task facade keeps typed public
+methods, and dependency commands continue to invoke those methods before
+their existing write/UoW path. The normal builder and both approval
+participant builders supply the task/dependency repositories, calendar,
+scheduling engine and session explicitly. The old diagnostics mixin/export
+was retired. Dependency preview, authorization, concurrency and WBS tests
+passed 29 cases; the broader business-rule, dependency math/performance and
+architecture matrix passed 67 cases. Targeted Mypy and Ruff F/I passed.
+Task command mixins and A4 overall remain open.
 
 ## Risk and Verification Matrix
 

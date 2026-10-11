@@ -7,6 +7,7 @@ from datetime import date
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
     run_cpm,
 )
@@ -22,6 +23,7 @@ from src.core.modules.project_management.domain.tasks.task import Task, TaskDepe
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 @dataclass
@@ -52,10 +54,21 @@ class DependencyDiagnostic:
     risk_level: str = "unknown"
 
 
-class TaskDependencyDiagnosticsMixin:
-    _task_repo: TaskRepository
-    _dependency_repo: DependencyRepository
-    _work_calendar_engine: CalendarProtocol
+class TaskDependencyDiagnosticsQueryHandler:
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        dependency_repo: DependencyRepository,
+        work_calendar_engine: CalendarProtocol,
+        scheduling_engine: SchedulingEngine | None,
+        user_session: UserSessionContext | None,
+    ) -> None:
+        self._task_repo = task_repo
+        self._dependency_repo = dependency_repo
+        self._work_calendar_engine = work_calendar_engine
+        self._scheduling_engine = scheduling_engine
+        self._user_session = user_session
 
     def get_dependency_diagnostics(
         self,
@@ -436,7 +449,7 @@ class TaskDependencyDiagnosticsMixin:
         Falls back to the global work calendar only when no scheduling
         engine is wired (e.g. lightweight test doubles) or the task set
         spans more than one project."""
-        scheduling_engine = getattr(self, "_scheduling_engine", None)
+        scheduling_engine = self._scheduling_engine
         if scheduling_engine is not None:
             project_ids = {task.project_id for task in tasks_by_id.values() if task.project_id}
             if len(project_ids) == 1:
@@ -535,4 +548,8 @@ class TaskDependencyDiagnosticsMixin:
         return "high"
 
 
-__all__ = ["DependencyDiagnostic", "DependencyImpactRow", "TaskDependencyDiagnosticsMixin"]
+__all__ = [
+    "DependencyDiagnostic",
+    "DependencyImpactRow",
+    "TaskDependencyDiagnosticsQueryHandler",
+]

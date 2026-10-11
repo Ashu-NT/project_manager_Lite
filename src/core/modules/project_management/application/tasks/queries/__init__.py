@@ -3,7 +3,7 @@
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     DependencyDiagnostic,
     DependencyImpactRow,
-    TaskDependencyDiagnosticsMixin,
+    TaskDependencyDiagnosticsQueryHandler,
 )
 from src.core.modules.project_management.application.tasks.queries.task_lookup import (
     TaskLookupQueryHandler,
@@ -12,6 +12,6 @@ from src.core.modules.project_management.application.tasks.queries.task_lookup i
 __all__ = [
     "DependencyDiagnostic",
     "DependencyImpactRow",
-    "TaskDependencyDiagnosticsMixin",
+    "TaskDependencyDiagnosticsQueryHandler",
     "TaskLookupQueryHandler",
 ]

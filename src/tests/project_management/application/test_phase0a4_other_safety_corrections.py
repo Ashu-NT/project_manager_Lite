@@ -3,7 +3,7 @@
 1. `PortfolioDependencyCommandMixin.create_project_dependency` checks project-scoped
    `portfolio.manage` on both the predecessor and successor project, not just global
    `portfolio.manage` + project-read accessibility.
-2. `TaskDependencyDiagnosticsMixin.get_dependency_diagnostics` requires `task.read` on the
+2. `TaskDependencyDiagnosticsQueryHandler.get_dependency_diagnostics` requires `task.read` on the
    shared project before returning schedule-impact details.
 3. `capacity_pool_builder.py` and dashboard pending-approvals reporting propagate a builder
    failure instead of swallowing it into empty data.

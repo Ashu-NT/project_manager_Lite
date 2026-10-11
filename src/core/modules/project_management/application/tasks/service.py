@@ -55,10 +55,11 @@ from src.core.modules.project_management.application.tasks.commands.validation i
     TaskValidationMixin,
 )
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
-    TaskDependencyDiagnosticsMixin,
+    DependencyDiagnostic,
+    TaskDependencyDiagnosticsQueryHandler,
 )
 from src.core.modules.project_management.application.tasks.queries.hierarchy_query import (
-    TaskHierarchyQueryMixin,
+    TaskHierarchyQueryHandler,
 )
 from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
     TaskDetailPageQueryHandler,
@@ -93,7 +94,11 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 from src.core.modules.project_management.contracts.uow.tasks.task_unit_of_work import (
     TaskUnitOfWorkFactory,
 )
-from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    TaskHierarchyNode,
+    TaskHierarchyRollup,
+)
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.activity.activity_service import (
@@ -119,13 +124,11 @@ class TaskService(
     ApprovedScheduleChangeMixin,
     TaskScheduleSyncMixin,
     TaskHierarchySupportMixin,
-    TaskHierarchyQueryMixin,
     TaskHierarchyMixin,
     TaskIdentityMixin,
     TaskProgressMixin,
     TaskDeletionMixin,
     TaskLifecycleMixin,
-    TaskDependencyDiagnosticsMixin,
     TaskDependencyMixin,
     TaskSchedulingConstraintMixin,
     ResourceLevelingApplyMixin,
@@ -165,6 +168,8 @@ class TaskService(
         detail_query_handler: TaskDetailPageQueryHandler,
         workspace_query_handler: TaskWorkspacePageQueryHandler,
         lookup_query_handler: TaskLookupQueryHandler,
+        hierarchy_query_handler: TaskHierarchyQueryHandler,
+        dependency_diagnostics_handler: TaskDependencyDiagnosticsQueryHandler,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -189,6 +194,8 @@ class TaskService(
         self._detail_query = detail_query_handler
         self._workspace_query = workspace_query_handler
         self._lookup_query = lookup_query_handler
+        self._hierarchy_query = hierarchy_query_handler
+        self._dependency_diagnostics = dependency_diagnostics_handler
         self._enterprise_resource_availability_service = enterprise_resource_availability_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
@@ -207,6 +214,41 @@ class TaskService(
 
     def get_task(self, task_id: str) -> Task | None:
         return self._detail_query.get_task(task_id)
+
+    def list_task_hierarchy(self, project_id: str) -> list[TaskHierarchyNode]:
+        return self._hierarchy_query.list_task_hierarchy(project_id)
+
+    def list_leaf_tasks_for_project(self, project_id: str) -> list[Task]:
+        return self._hierarchy_query.list_leaf_tasks_for_project(project_id)
+
+    def get_task_hierarchy_rollup(self, task_id: str) -> TaskHierarchyRollup:
+        return self._hierarchy_query.get_task_hierarchy_rollup(task_id)
+
+    def list_task_hierarchy_rollups(
+        self, project_id: str
+    ) -> dict[str, TaskHierarchyRollup]:
+        return self._hierarchy_query.list_task_hierarchy_rollups(project_id)
+
+    def get_dependency_diagnostics(
+        self,
+        predecessor_id: str,
+        successor_id: str,
+        dependency_type: DependencyType = DependencyType.FINISH_TO_START,
+        lag_days: int = 0,
+        include_impact: bool = True,
+        exclude_dependency_id: str | None = None,
+    ) -> DependencyDiagnostic:
+        return self._dependency_diagnostics.get_dependency_diagnostics(
+            predecessor_id,
+            successor_id,
+            dependency_type=dependency_type,
+            lag_days=lag_days,
+            include_impact=include_impact,
+            exclude_dependency_id=exclude_dependency_id,
+        )
+
+    def preview_dependency_removal(self, dependency_id: str) -> DependencyDiagnostic:
+        return self._dependency_diagnostics.preview_dependency_removal(dependency_id)
 
     def list_tasks_for_project(self, project_id: str) -> list[Task]:
         return self._lookup_query.list_tasks_for_project(project_id)

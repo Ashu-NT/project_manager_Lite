@@ -6,6 +6,12 @@ from src.core.modules.project_management.application.scheduling import (
     ProjectCalendarAdapter,
     SchedulingEngine,
 )
+from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
+    TaskDependencyDiagnosticsQueryHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.hierarchy_query import (
+    TaskHierarchyQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
     TaskDetailPageQueryHandler,
 )
@@ -110,6 +116,18 @@ def build_task_approval_deps(
         lookup_query_handler=TaskLookupQueryHandler(
             task_repo=bundle.pm.task_repo,
             assignment_repo=bundle.pm.assignment_repo,
+            user_session=user_session,
+        ),
+        hierarchy_query_handler=TaskHierarchyQueryHandler(
+            task_repo=bundle.pm.task_repo,
+            work_calendar_engine=work_calendar_engine,
+            user_session=user_session,
+        ),
+        dependency_diagnostics_handler=TaskDependencyDiagnosticsQueryHandler(
+            task_repo=bundle.pm.task_repo,
+            dependency_repo=bundle.pm.dependency_repo,
+            work_calendar_engine=work_calendar_engine,
+            scheduling_engine=scheduling_engine,
             user_session=user_session,
         ),
     )

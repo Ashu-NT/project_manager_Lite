@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import replace
 
 from sqlalchemy.exc import IntegrityError
@@ -13,6 +12,9 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    children_by_parent,
+)
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -40,12 +42,7 @@ class TaskHierarchySupportMixin:
 
     @staticmethod
     def _children_by_parent(tasks: list[Task]) -> dict[str | None, list[Task]]:
-        children: dict[str | None, list[Task]] = defaultdict(list)
-        for task in tasks:
-            children[task.parent_task_id].append(task)
-        for siblings in children.values():
-            siblings.sort(key=lambda item: (item.sort_order, item.wbs_code, item.id))
-        return children
+        return children_by_parent(tasks)
 
     def _require_wbs_parent(
         self,
