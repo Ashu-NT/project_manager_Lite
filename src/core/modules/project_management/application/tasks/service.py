@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import date
 
 from sqlalchemy.orm import Session
 
@@ -65,12 +66,16 @@ from src.core.modules.project_management.application.tasks.queries.task_detail_p
 from src.core.modules.project_management.application.tasks.queries.task_query import (
     TaskQueryMixin,
 )
+from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
+    TaskWorkspacePageQueryHandler,
+)
 from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.contracts.reads.tasks import (
     TaskActivityPage,
     TaskAssignmentReadPage,
     TaskDependencyReadPage,
     TaskWorkspaceReader,
+    TaskWorkspaceReadPage,
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
@@ -157,6 +162,7 @@ class TaskService(
         enterprise_audit_service: EnterpriseAuditService | None = None,
         *,
         detail_query_handler: TaskDetailPageQueryHandler,
+        workspace_query_handler: TaskWorkspacePageQueryHandler,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -179,6 +185,7 @@ class TaskService(
         self._tenant_context_service = tenant_context_service
         self._task_workspace_reader = task_workspace_reader
         self._detail_query = detail_query_handler
+        self._workspace_query = workspace_query_handler
         self._enterprise_resource_availability_service = enterprise_resource_availability_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
@@ -197,6 +204,37 @@ class TaskService(
 
     def get_task(self, task_id: str) -> Task | None:
         return self._detail_query.get_task(task_id)
+
+    def query_workspace_page(
+        self,
+        *,
+        project_id: str | None = None,
+        resource_id: str | None = None,
+        search_text: str = "",
+        status: str = "all",
+        priority: str = "all",
+        schedule: str = "all",
+        milestones_only: bool = False,
+        page: int = 1,
+        page_size: int = 25,
+        as_of: date | None = None,
+        sort_key: str = "wbsCode",
+        sort_direction: str = "asc",
+    ) -> TaskWorkspaceReadPage:
+        return self._workspace_query.query_workspace_page(
+            project_id=project_id,
+            resource_id=resource_id,
+            search_text=search_text,
+            status=status,
+            priority=priority,
+            schedule=schedule,
+            milestones_only=milestones_only,
+            page=page,
+            page_size=page_size,
+            as_of=as_of,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
 
     def query_task_assignments_page(
         self, task_id: str, *, search_text: str = "", response_status: str = "all",

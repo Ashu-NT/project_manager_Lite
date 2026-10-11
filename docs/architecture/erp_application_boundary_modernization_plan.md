@@ -491,6 +491,21 @@ Resource, Register, Task Detail, composition and architecture matrix passed
 138 tests; approval participant regressions passed 11. Targeted Mypy and
 Ruff F/I passed. This corrects handler ownership without closing all of A4.
 
+**A4 Task read continuation (2026-10-11).** Task Detail's four read methods
+have dedicated behavior tests for assignment ascending/descending page order,
+out-of-range normalization, predecessor/successor filtering, activity page
+size, and denial before Reader access. The Task workspace's authoritative
+server-page method now delegates to a composition-injected
+`TaskWorkspacePageQueryHandler` with explicit Reader, calendar, session and
+tenant dependencies. The normal Task service and both approval-participant
+compositions inject the handler; there is no service-side construction or
+fallback. Task Detail and workspace handlers share the composed Reader.
+Task workspace pagination/sort, detail, approval participant, architecture
+and composition regression passed 48 tests;
+targeted Mypy and Ruff F/I passed. Task command/participant UoW behavior was
+not changed. A4 remains open for the larger command, Time, Collaboration and
+Portfolio clusters.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |
