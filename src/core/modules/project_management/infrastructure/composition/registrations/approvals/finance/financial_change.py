@@ -17,6 +17,9 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
     TaskDetailPageQueryHandler,
 )
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
 )
@@ -113,6 +116,11 @@ def build_financial_change_approval_deps(
             work_calendar_engine=work_calendar_engine,
             user_session=user_session,
             tenant_context_service=tenant_context_service,
+        ),
+        lookup_query_handler=TaskLookupQueryHandler(
+            task_repo=task_repo,
+            assignment_repo=assignment_repo,
+            user_session=user_session,
         ),
     )
     clock = SystemClock()

@@ -94,7 +94,6 @@ PATH_REWRITE_EXACT = {
     "core/services/task/dependency.py": "src/core/modules/project_management/application/tasks/commands/dependency.py",
     "core/services/task/dependency_diagnostics.py": "src/core/modules/project_management/application/tasks/queries/dependency_diagnostics.py",
     "core/services/task/lifecycle.py": "src/core/modules/project_management/application/tasks/commands/lifecycle.py",
-    "core/services/task/query.py": "src/core/modules/project_management/application/tasks/queries/task_query.py",
     "core/services/task/schedule_sync.py": "src/core/modules/project_management/application/tasks/commands/schedule_sync.py",
     "core/services/task/service.py": "src/core/modules/project_management/application/tasks/service.py",
     "core/services/task/time_entries.py": "src/core/modules/project_management/application/tasks/commands/time_entries.py",

@@ -63,8 +63,8 @@ from src.core.modules.project_management.application.tasks.queries.hierarchy_que
 from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
     TaskDetailPageQueryHandler,
 )
-from src.core.modules.project_management.application.tasks.queries.task_query import (
-    TaskQueryMixin,
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
 )
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
@@ -88,11 +88,13 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
+    TimesheetAssignmentContext,
 )
 from src.core.modules.project_management.contracts.uow.tasks.task_unit_of_work import (
     TaskUnitOfWorkFactory,
 )
-from src.core.modules.project_management.domain.tasks.task import Task
+from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.activity.activity_service import (
     ActivityService,
@@ -130,7 +132,6 @@ class TaskService(
     TaskAssignmentMixin,
     TaskTimeEntryMixin,
     TaskAssignmentBridgeMixin,
-    TaskQueryMixin,
     TaskValidationMixin,
 ):
     """Task application service orchestrator."""
@@ -163,6 +164,7 @@ class TaskService(
         *,
         detail_query_handler: TaskDetailPageQueryHandler,
         workspace_query_handler: TaskWorkspacePageQueryHandler,
+        lookup_query_handler: TaskLookupQueryHandler,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -186,6 +188,7 @@ class TaskService(
         self._task_workspace_reader = task_workspace_reader
         self._detail_query = detail_query_handler
         self._workspace_query = workspace_query_handler
+        self._lookup_query = lookup_query_handler
         self._enterprise_resource_availability_service = enterprise_resource_availability_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
@@ -204,6 +207,50 @@ class TaskService(
 
     def get_task(self, task_id: str) -> Task | None:
         return self._detail_query.get_task(task_id)
+
+    def list_tasks_for_project(self, project_id: str) -> list[Task]:
+        return self._lookup_query.list_tasks_for_project(project_id)
+
+    def list_tasks_for_resource(self, resource_id: str) -> list[Task]:
+        return self._lookup_query.list_tasks_for_resource(resource_id)
+
+    def list_assignments_for_resource(self, resource_id: str) -> list[TaskAssignment]:
+        return self._lookup_query.list_assignments_for_resource(resource_id)
+
+    def list_assignments_for_tasks(self, task_ids: list[str]) -> list[TaskAssignment]:
+        return self._lookup_query.list_assignments_for_tasks(task_ids)
+
+    def list_timesheet_assignment_contexts(
+        self, *, project_id: str | None = None, resource_id: str | None = None
+    ) -> list[TimesheetAssignmentContext]:
+        return self._lookup_query.list_timesheet_assignment_contexts(
+            project_id=project_id, resource_id=resource_id
+        )
+
+    def get_timesheet_assignment_context(
+        self, assignment_id: str
+    ) -> TimesheetAssignmentContext | None:
+        return self._lookup_query.get_timesheet_assignment_context(assignment_id)
+
+    def query_tasks(
+        self,
+        project_id: str | None = None,
+        status: TaskStatus | None = None,
+        resource_id: str | None = None,
+        start_from: date | None = None,
+        start_to: date | None = None,
+        end_from: date | None = None,
+        end_to: date | None = None,
+    ) -> list[Task]:
+        return self._lookup_query.query_tasks(
+            project_id=project_id,
+            status=status,
+            resource_id=resource_id,
+            start_from=start_from,
+            start_to=start_to,
+            end_from=end_from,
+            end_to=end_to,
+        )
 
     def query_workspace_page(
         self,

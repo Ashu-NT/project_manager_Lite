@@ -506,6 +506,23 @@ targeted Mypy and Ruff F/I passed. Task command/participant UoW behavior was
 not changed. A4 remains open for the larger command, Time, Collaboration and
 Portfolio clusters.
 
+**A4 Task lookup cutover (2026-10-11).** The remaining `TaskQueryMixin`
+became a composition-injected `TaskLookupQueryHandler` for project/resource
+Task lookups, Assignment lookups, Timesheet assignment contexts, and scoped
+task queries. The guarded `TaskService` delegates all seven public methods;
+the normal Task composition and both approval-participant compositions inject
+the handler. The old mixin file, export, and stale test-path mapping were
+deleted rather than kept as a compatibility layer. Resource/task Assignment
+lookups now use `TaskRepository.list_by_ids()` once per operation instead of
+`get()` inside a loop; project permission filtering and input order are
+preserved. A direct regression makes per-task `get()` fail and verifies the
+batch call and denied-project filtering. Focused Task, Timesheet, leveling,
+desktop, approval-participant and architecture tests passed 65 cases;
+composition/handler/architecture tests passed 16 cases; and the PM service
+tenant-isolation regression passed 3 cases. Targeted Mypy, Ruff F/I, Python
+compilation and `git diff --check` passed. This closes the Task read-query
+mixin, not the larger Task command or A4 gate.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

@@ -13,6 +13,9 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
     TaskDetailPageQueryHandler,
 )
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
 )
@@ -63,6 +66,11 @@ def build_task_service(
         user_session=platform_services.user_session,
         tenant_context_service=platform_services.tenant_context_service,
     )
+    lookup_query_handler = TaskLookupQueryHandler(
+        task_repo=repositories.pm.task_repo,
+        assignment_repo=repositories.pm.assignment_repo,
+        user_session=platform_services.user_session,
+    )
     return TaskService(
         session,
         repositories.pm.task_repo,
@@ -88,4 +96,5 @@ def build_task_service(
         task_uow_factory=task_uow_factory,
         detail_query_handler=detail_query_handler,
         workspace_query_handler=workspace_query_handler,
+        lookup_query_handler=lookup_query_handler,
     )
