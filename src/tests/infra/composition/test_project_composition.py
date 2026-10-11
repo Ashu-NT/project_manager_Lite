@@ -158,10 +158,10 @@ def test_resource_readers_clock_uow_and_events_preserve_identity(services, sessi
     assert context_reader is resource._context_query._resource_assignments_reader
     assert context_reader is resource._context_query._resource_activity_reader
     assert context_reader is resource._capability_query._resource_capability_reader
-    assert resource._clock is services["rate_card_resolver"]._clock
 
     bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
-    assert resource._uow_factory._post_commit_bus is bus
+    assert resource._master_command._uow_factory._post_commit_bus is bus
+    assert resource._capability_command._uow_factory is resource._master_command._uow_factory
     for event_type, handler_name in (
         (ResourceMasterChanged, "handle_resource_master_event"),
         (ResourceCapabilityChanged, "handle_resource_capability_event"),
@@ -172,7 +172,7 @@ def test_resource_readers_clock_uow_and_events_preserve_identity(services, sessi
         in handler.__qualname__
         for handler in bus._handlers[EmployeeProfileUpdated]
     ) == 1
-    scoped_session = resource._uow_factory._session_factory()
+    scoped_session = resource._master_command._uow_factory._session_factory()
     try:
         assert scoped_session is not session
         assert scoped_session.bind is session.bind

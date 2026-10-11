@@ -45,7 +45,7 @@ def _unique(prefix: str) -> str:
 
 def _spy_master_events(services):
     captured = []
-    services["resource_service"]._uow_factory._post_commit_bus.subscribe(
+    services["resource_service"]._master_command._uow_factory._post_commit_bus.subscribe(
         ResourceMasterChanged, lambda event, context: captured.append(event)
     )
     return captured
@@ -53,7 +53,7 @@ def _spy_master_events(services):
 
 def _spy_capability_events(services):
     captured = []
-    services["resource_service"]._uow_factory._post_commit_bus.subscribe(
+    services["resource_service"]._capability_command._uow_factory._post_commit_bus.subscribe(
         ResourceCapabilityChanged, lambda event, context: captured.append(event)
     )
     return captured
@@ -150,13 +150,13 @@ def test_activity_feed_entry_rides_the_same_transaction_as_the_mutation(services
     service = services["resource_service"]
     resource = service.create_resource(name=_unique("ActivityAtomic"))
 
-    activity = service._activity_service.list_recent(
+    activity = services["activity_service"].list_recent(
         limit=50, entity_type="resource", entity_id=resource.id
     )
     assert any(entry.action == "resource.created" for entry in activity)
 
     service.add_resource_skill(resource.id, "PY", "Python")
-    activity_after_skill = service._activity_service.list_recent(
+    activity_after_skill = services["activity_service"].list_recent(
         limit=50, entity_type="resource", entity_id=resource.id
     )
     assert any(entry.action == "resource.skill.added" for entry in activity_after_skill)
@@ -409,14 +409,15 @@ def test_resource_events_are_plain_frozen_dataclasses_not_qt_signals():
 def test_two_independent_operations_use_two_independent_sessions(services):
     service = services["resource_service"]
     sessions_seen = []
-    original_create = service._uow_factory.create
+    factory = service._master_command._uow_factory
+    original_create = factory.create
 
     def _spy_create(*, context):
         uow = original_create(context=context)
         sessions_seen.append(uow._session)
         return uow
 
-    service._uow_factory.create = _spy_create
+    factory.create = _spy_create
     service.create_resource(name=_unique("SessA"))
     service.create_resource(name=_unique("SessB"))
 
@@ -430,7 +431,7 @@ def test_repos_and_audit_share_one_session_within_one_operation(services):
         SqlAlchemyResourceUnitOfWorkFactory,
     )
 
-    factory = services["resource_service"]._uow_factory
+    factory = services["resource_service"]._master_command._uow_factory
     assert isinstance(factory, SqlAlchemyResourceUnitOfWorkFactory)
     from src.core.shared.events.domain_event_context import DomainEventContext
 

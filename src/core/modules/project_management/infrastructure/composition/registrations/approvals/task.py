@@ -6,6 +6,9 @@ from src.core.modules.project_management.application.scheduling import (
     ProjectCalendarAdapter,
     SchedulingEngine,
 )
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.service import TaskService
 from src.core.modules.project_management.infrastructure.approval.task_apply_participant import (
     TaskApprovalDeps,
@@ -86,6 +89,12 @@ def build_task_approval_deps(
         employee_repo=bundle.platform.employee_repo,
         tenant_context_service=tenant_context_service,
         enterprise_audit_service=enterprise_audit_service,
+        detail_query_handler=TaskDetailPageQueryHandler(
+            task_repo=bundle.pm.task_repo,
+            task_workspace_reader=None,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+        ),
     )
     return TaskApprovalDeps(task_service=task_service)
 

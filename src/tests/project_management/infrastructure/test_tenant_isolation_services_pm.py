@@ -239,9 +239,11 @@ def test_resource_service_lists_only_active_tenant_resources() -> None:
     resource_repo = _ResourceRepo()
     resource_repo._tenant_context_service = tenant_context
     service = ResourceService(
-        session=object(),
         resource_repo=resource_repo,
-        assignment_repo=object(),
+        master_command_handler=object(),
+        capability_command_handler=object(),
+        context_query_handler=object(),
+        capability_query_handler=object(),
         user_session=user_session,
         tenant_context_service=tenant_context,
     )

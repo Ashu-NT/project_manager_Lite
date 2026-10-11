@@ -21,9 +21,6 @@ from src.core.modules.project_management.contracts.repositories.projects.project
 from src.core.modules.project_management.contracts.repositories.register.register import (
     RegisterEntryRepository,
 )
-from src.core.modules.project_management.contracts.uow.register.register_unit_of_work import (
-    RegisterUnitOfWorkFactory,
-)
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
     RegisterEntrySeverity,
@@ -43,7 +40,7 @@ class RegisterService(ProjectManagementModuleGuardMixin, RegisterQueryMixin):
         module_catalog_service=None,
         tenant_context_service=None,
         register_catalog_reader: RegisterCatalogReader | None = None,
-        uow_factory: RegisterUnitOfWorkFactory | None = None,
+        lifecycle_handler: RegisterLifecycleHandler,
     ) -> None:
         self._project_repo: ProjectRepository = project_repo
         self._register_repo: RegisterEntryRepository = register_repo
@@ -51,13 +48,7 @@ class RegisterService(ProjectManagementModuleGuardMixin, RegisterQueryMixin):
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
         self._register_catalog_reader = register_catalog_reader
-        self._lifecycle = RegisterLifecycleHandler(
-            project_repo=project_repo,
-            register_repo=register_repo,
-            user_session=user_session,
-            tenant_context_service=tenant_context_service,
-            uow_factory=uow_factory,
-        )
+        self._lifecycle = lifecycle_handler
 
     def create_entry(
         self,

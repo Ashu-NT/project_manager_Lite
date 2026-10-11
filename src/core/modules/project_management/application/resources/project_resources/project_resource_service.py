@@ -14,22 +14,7 @@ from src.core.modules.project_management.application.resources.queries.project_r
 from src.core.modules.project_management.contracts.reads.projects.models import (
     ProjectResourceUsageFact,
 )
-from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
-    ProjectFinancialProfileRepository,
-)
-from src.core.modules.project_management.contracts.repositories.projects.project import (
-    ProjectRepository,
-    ProjectResourceRepository,
-)
-from src.core.modules.project_management.contracts.repositories.resources.resource import (
-    ResourceRepository,
-)
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    AssignmentRepository,
-    TaskRepository,
-)
 from src.core.modules.project_management.domain.projects.project import ProjectResource
-from src.core.shared.persistence.unit_of_work import UnitOfWorkFactory
 
 
 class ProjectResourceService(ProjectManagementModuleGuardMixin):
@@ -37,38 +22,15 @@ class ProjectResourceService(ProjectManagementModuleGuardMixin):
 
     def __init__(
         self,
-        project_resource_repo: ProjectResourceRepository,
-        resource_repo: ResourceRepository,
-        project_repo: ProjectRepository,
+        command_handler: ProjectResourceCommandHandler,
+        query_handler: ProjectResourceQueryHandler,
         user_session=None,
-        activity_service=None,
         module_catalog_service=None,
-        tenant_context_service=None,
-        task_repo: TaskRepository | None = None,
-        assignment_repo: AssignmentRepository | None = None,
-        financial_profile_repo: ProjectFinancialProfileRepository | None = None,
-        shared_uow_factory: UnitOfWorkFactory | None = None,
     ):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
-        self._command = ProjectResourceCommandHandler(
-            project_resource_repo=project_resource_repo,
-            resource_repo=resource_repo,
-            project_repo=project_repo,
-            user_session=user_session,
-            activity_service=activity_service,
-            tenant_context_service=tenant_context_service,
-            task_repo=task_repo,
-            assignment_repo=assignment_repo,
-            financial_profile_repo=financial_profile_repo,
-            shared_uow_factory=shared_uow_factory,
-        )
-        self._query = ProjectResourceQueryHandler(
-            project_resource_repo=project_resource_repo,
-            task_repo=task_repo,
-            assignment_repo=assignment_repo,
-            user_session=user_session,
-        )
+        self._command = command_handler
+        self._query = query_handler
 
     def add_to_project(
         self,

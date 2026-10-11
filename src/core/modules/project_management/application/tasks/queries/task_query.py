@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date
+from typing import cast
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -15,9 +16,6 @@ from src.core.modules.project_management.application.tasks.workspace_filters imp
 )
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.tasks import (
-    TaskActivityPage,
-    TaskAssignmentReadPage,
-    TaskDependencyReadPage,
     TaskWorkspaceReader,
     TaskWorkspaceReadPage,
 )
@@ -28,149 +26,26 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
-from src.core.platform.application.security.authorization import (
-    get_authorization_engine,
-)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 class TaskQueryMixin:
     _task_repo: TaskRepository
     _assignment_repo: AssignmentRepository
     _task_workspace_reader: TaskWorkspaceReader | None
-
-    def get_task(self, task_id: str) -> Task | None:
-        require_permission(self._user_session, "task.read", operation_label="view task")
-        task = self._task_repo.get(task_id)
-        if task is None:
-            return None
-        require_project_permission(
-            self._user_session,
-            task.project_id,
-            "task.read",
-            operation_label="view task",
-        )
-        return task
-
-    def _require_detail_task(self, task_id: str, operation_label: str) -> Task:
-        task = self.get_task(str(task_id or "").strip())
-        if task is None:
-            raise ValidationError("Task not found.", code="TASK_NOT_FOUND")
-        return task
-
-    def query_task_assignments_page(
-        self, task_id: str, *, search_text: str = "", response_status: str = "all",
-        page: int = 1, page_size: int = 25, sort_key: str = "resourceName",
-        sort_direction: str = "asc",
-    ) -> TaskAssignmentReadPage:
-        task = self._require_detail_task(task_id, "view task assignments")
-        require_project_permission(self._user_session, task.project_id, "task.read",
-                                   operation_label="view task assignments")
-        if self._task_workspace_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Task workspace reader is not configured.")
-        request = PageRequest(page=page, page_size=page_size)
-        sort = ReadSort.normalize(key=sort_key, direction=sort_direction,
-            allowed_keys={"resourceName", "resourceCode", "role", "allocationPercent",
-                          "plannedHours", "actualHours", "remainingHours", "responseStatus"},
-            default_key="resourceName")
-        normalized_status = str(response_status or "all").strip().lower()
-        status = normalized_status if normalized_status in {"pending", "accepted", "declined"} else None
-        scope = self._tenant_context_service.require_active_scope_ids(operation_label="view task assignments")
-        kwargs = dict(tenant_id=scope.tenant_id, organization_id=scope.organization_id,
-                      task_id=task.id, search_text=str(search_text or "").strip(),
-                      response_status=status, page=request.page, page_size=request.page_size, sort=sort)
-        result = self._task_workspace_reader.read_assignments_page(**kwargs)
-        normalized_page = normalize_page_for_total(page=result.page, page_size=result.page_size,
-                                                   total=result.filtered_total)
-        if normalized_page != result.page:
-            kwargs["page"] = normalized_page
-            result = self._task_workspace_reader.read_assignments_page(**kwargs)
-        engine = get_authorization_engine()
-        can_manage = engine.has_permission(
-            self._user_session, "task.manage"
-        ) and engine.has_scope_permission(
-            self._user_session, "project", task.project_id, "task.manage"
-        )
-        principal = self._user_session.principal if self._user_session is not None else None
-        principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
-        return replace(
-            result,
-            items=tuple(
-                replace(
-                    item,
-                    can_manage=bool(can_manage),
-                    can_accept=bool(
-                        principal_user_id
-                        and principal_user_id == str(item.assignee_user_id or "")
-                        and item.response_status == "pending"
-                    ),
-                    can_decline=bool(
-                        principal_user_id
-                        and principal_user_id == str(item.assignee_user_id or "")
-                        and item.response_status == "pending"
-                    ),
-                )
-                for item in result.items
-            ),
-        )
-
-    def query_task_dependencies_page(
-        self, task_id: str, *, search_text: str = "", direction: str = "all",
-        dependency_type: str = "all", page: int = 1, page_size: int = 25,
-        sort_key: str = "linkedTask", sort_direction: str = "asc",
-    ) -> TaskDependencyReadPage:
-        task = self._require_detail_task(task_id, "view task dependencies")
-        require_project_permission(self._user_session, task.project_id, "task.read",
-                                   operation_label="view task dependencies")
-        if self._task_workspace_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Task workspace reader is not configured.")
-        request = PageRequest(page=page, page_size=page_size)
-        sort = ReadSort.normalize(key=sort_key, direction=sort_direction,
-            allowed_keys={"direction", "linkedTask", "taskCode", "dependencyType", "lagDays",
-                          "startDate", "endDate", "statusLabel"}, default_key="linkedTask")
-        normalized_direction = str(direction or "all").strip().upper()
-        if normalized_direction not in {"ALL", "PREDECESSOR", "SUCCESSOR"}: normalized_direction = "ALL"
-        normalized_type = str(dependency_type or "all").strip().upper()
-        dep_type = normalized_type if normalized_type in {"FS", "FF", "SS", "SF"} else None
-        scope = self._tenant_context_service.require_active_scope_ids(operation_label="view task dependencies")
-        kwargs = dict(tenant_id=scope.tenant_id, organization_id=scope.organization_id,
-                      task_id=task.id, search_text=str(search_text or "").strip(),
-                      direction=normalized_direction, dependency_type=dep_type,
-                      page=request.page, page_size=request.page_size, sort=sort)
-        result = self._task_workspace_reader.read_dependencies_page(**kwargs)
-        normalized_page = normalize_page_for_total(page=result.page, page_size=result.page_size,
-                                                   total=result.filtered_total)
-        if normalized_page != result.page:
-            kwargs["page"] = normalized_page
-            result = self._task_workspace_reader.read_dependencies_page(**kwargs)
-        return result
-
-    def query_task_activity_page(
-        self, task_id: str, *, search_text: str = "", category: str = "all",
-        page: int = 1, page_size: int = 25,
-    ) -> TaskActivityPage:
-        task = self._require_detail_task(task_id, "view task activity")
-        require_project_permission(self._user_session, task.project_id, "task.read",
-                                   operation_label="view task activity")
-        if self._task_workspace_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Task workspace reader is not configured.")
-        request = PageRequest(page=page, page_size=page_size)
-        normalized_category = str(category or "all").strip().lower()
-        if normalized_category not in {"all", "task", "assignments"}: normalized_category = "all"
-        scope = self._tenant_context_service.require_active_scope_ids(operation_label="view task activity")
-        kwargs = dict(tenant_id=scope.tenant_id, organization_id=scope.organization_id,
-                      task_id=task.id, search_text=str(search_text or "").strip(),
-                      category=normalized_category, page=request.page, page_size=request.page_size)
-        result = self._task_workspace_reader.read_activity_page(**kwargs)
-        normalized_page = normalize_page_for_total(page=result.page, page_size=result.page_size,
-                                                   total=result.filtered_total)
-        if normalized_page != result.page:
-            kwargs["page"] = normalized_page
-            result = self._task_workspace_reader.read_activity_page(**kwargs)
-        return result
+    _user_session: UserSessionContext | None
+    _tenant_context_service: TenantContextService | None
+    _work_calendar_engine: CalendarProtocol
 
     def list_tasks_for_project(self, project_id: str) -> list[Task]:
         require_permission(self._user_session, "task.read", operation_label="list project tasks")
@@ -245,24 +120,27 @@ class TaskQueryMixin:
             milestones_only=milestones_only,
             as_of=as_of or date.today(),
         )
-        read_kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            allowed_project_ids=allowed_project_ids,
-            criteria=criteria,
-            page=page_request.page,
-            page_size=page_request.page_size,
-            sort=sort,
-        )
-        result = self._task_workspace_reader.read_page(**read_kwargs)
+        reader = self._task_workspace_reader
+
+        def read_page(page_number: int) -> TaskWorkspaceReadPage:
+            return reader.read_page(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                allowed_project_ids=allowed_project_ids,
+                criteria=criteria,
+                page=page_number,
+                page_size=page_request.page_size,
+                sort=sort,
+            )
+
+        result = read_page(page_request.page)
         normalized_page = normalize_page_for_total(
             page=result.page,
             page_size=result.page_size,
             total=result.filtered_total,
         )
         if normalized_page != result.page:
-            read_kwargs["page"] = normalized_page
-            result = self._task_workspace_reader.read_page(**read_kwargs)
+            result = read_page(normalized_page)
         items = tuple(
             replace(
                 item,
@@ -284,12 +162,13 @@ class TaskQueryMixin:
 
     def list_tasks_for_resource(self, resource_id: str) -> list[Task]:
         require_permission(self._user_session, "task.read", operation_label="list resource tasks")
+        session = cast(UserSessionContext, self._user_session)
         assignments = self._assignment_repo.list_by_resource(resource_id)
         task_ids = {assignment.task_id for assignment in assignments}
         tasks: list[Task] = []
         for task_id in task_ids:
             task = self._task_repo.get(task_id)
-            if task and self._user_session.has_project_permission(task.project_id, "task.read"):
+            if task and session.has_project_permission(task.project_id, "task.read"):
                 tasks.append(task)
         return tasks
 
@@ -299,16 +178,18 @@ class TaskQueryMixin:
             "task.read",
             operation_label="list resource assignments",
         )
+        session = cast(UserSessionContext, self._user_session)
         assignments = self._assignment_repo.list_by_resource(resource_id)
         allowed: list[TaskAssignment] = []
         for assignment in assignments:
             task = self._task_repo.get(assignment.task_id)
-            if task and self._user_session.has_project_permission(task.project_id, "task.read"):
+            if task and session.has_project_permission(task.project_id, "task.read"):
                 allowed.append(assignment)
         return allowed
 
     def list_assignments_for_tasks(self, task_ids: list[str]) -> list[TaskAssignment]:
         require_permission(self._user_session, "task.read", operation_label="list task assignments")
+        session = cast(UserSessionContext, self._user_session)
         if not task_ids:
             return []
         allowed_ids: list[str] = []
@@ -316,7 +197,7 @@ class TaskQueryMixin:
             task = self._task_repo.get(task_id)
             if task is None:
                 continue
-            if self._user_session.has_project_permission(task.project_id, "task.read"):
+            if session.has_project_permission(task.project_id, "task.read"):
                 allowed_ids.append(task_id)
         return self._assignment_repo.list_by_tasks(allowed_ids)
 
@@ -331,6 +212,7 @@ class TaskQueryMixin:
             "task.read",
             operation_label="list timesheet assignments",
         )
+        session = cast(UserSessionContext, self._user_session)
         normalized_project_id = str(project_id or "").strip() or None
         if normalized_project_id is not None:
             require_project_permission(
@@ -348,7 +230,7 @@ class TaskQueryMixin:
         return [
             row
             for row in rows
-            if self._user_session.has_project_permission(row.project_id, "task.read")
+            if session.has_project_permission(row.project_id, "task.read")
         ]
 
     def get_timesheet_assignment_context(

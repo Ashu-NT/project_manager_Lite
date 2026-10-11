@@ -302,6 +302,15 @@ module or entitlement aggregates. Focused Platform runtime/boundary tests:
 36 passed (including PM desktop architecture guards). No HTTP adapter was
 added.
 
+**A0/A1 composition recheck (2026-10-11).** A0 is the approved inventory and
+authority map; A1 owns transport-neutral runtime contracts, not handler
+construction. The A1 Platform application/desktop runtime and application
+boundary tests were rerun with the current A4 composition work and passed.
+The A2 Project pilot remains the canonical pattern: PM composition builds
+handlers and injects them into a guarded facade. The recheck identified A4
+drift in Register, Resource, Project Resource, and Task; those corrections
+are recorded below. No A0/A1 contract or desktop runtime behavior changed.
+
 **A2 complete.** PM composition now injects explicit Project create, update,
 status, deletion and query handlers into a thin guarded `ProjectService`.
 The five operation mixins were retired; `ProjectSupportMixin` remains as a
@@ -465,6 +474,22 @@ non-owner test database, covering Resource scope and parent/child bypass.
 This closes the
 Resource master/capability/context batch, not A4 overall; Time, Task,
 Collaboration, Portfolio and other characterized clusters remain.
+
+**A4 handler construction correction and Task Detail read slice
+(2026-10-11).** PM composition now constructs Register lifecycle, Project
+Resource command/query, and Resource master/capability/context handlers and
+injects them into their guarded facades. ResourceService no longer retains an
+unused write UoW, clock, or duplicate write-only dependencies. Task Detail
+lookup and its server-paged Assignment, Dependency, and Activity reads moved
+from the broad Task query mixin into a read-only
+`TaskDetailPageQueryHandler`; the normal Task builder and both approval
+participant builders inject it. The Reader calls now use explicit typed
+parameters rather than heterogeneous `**kwargs`, with the same scope,
+permissions, sort and normalized-page retry behavior. An AST architecture
+guard prevents the A2/A4 PM facades from constructing handlers. The A0/A1,
+Resource, Register, Task Detail, composition and architecture matrix passed
+138 tests; approval participant regressions passed 11. Targeted Mypy and
+Ruff F/I passed. This corrects handler ownership without closing all of A4.
 
 ## Risk and Verification Matrix
 

@@ -270,7 +270,6 @@ def build_project_management_service_bundle(
         session,
         repositories,
         platform_services,
-        clock=system_clock,
     )
     financial_configuration_service = build_financial_configuration_service(
         session,

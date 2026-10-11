@@ -16,6 +16,7 @@ from src.core.modules.project_management.application.resources.project_resources
 from src.core.modules.project_management.application.risk.register_service import (
     RegisterService,
 )
+from src.core.modules.project_management.application.tasks.service import TaskService
 from src.core.modules.project_management.domain.risk.register import RegisterEntryType
 from src.core.platform.common.exceptions import BusinessRuleError
 
@@ -57,6 +58,7 @@ def test_register_write_facade_still_checks_module_before_handler() -> None:
         project_repo=object(),
         register_repo=object(),
         module_catalog_service=_module_catalog(runtime_enabled=False),
+        lifecycle_handler=object(),
     )
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         service.create_entry("project-1", entry_type=RegisterEntryType.RISK, title="Risk")
@@ -64,9 +66,8 @@ def test_register_write_facade_still_checks_module_before_handler() -> None:
 
 def test_project_resource_read_facade_still_checks_module_before_handler() -> None:
     service = ProjectResourceService(
-        project_resource_repo=object(),
-        resource_repo=object(),
-        project_repo=object(),
+        command_handler=object(),
+        query_handler=object(),
         module_catalog_service=_module_catalog(runtime_enabled=False),
     )
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
@@ -75,11 +76,21 @@ def test_project_resource_read_facade_still_checks_module_before_handler() -> No
         service.add_to_project("project-1", "resource-1")
 
 
+def test_task_detail_query_facade_checks_module_before_handler() -> None:
+    service = TaskService.__new__(TaskService)
+    service._module_catalog_service = _module_catalog(runtime_enabled=False)
+    service._detail_query = SimpleNamespace(get_task=lambda _task_id: pytest.fail("handler called"))
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.get_task("task-1")
+
+
 def test_resource_capability_query_facade_checks_module_before_handler() -> None:
     service = ResourceService(
-        session=object(),
         resource_repo=object(),
-        assignment_repo=object(),
+        master_command_handler=object(),
+        capability_command_handler=object(),
+        context_query_handler=object(),
+        capability_query_handler=object(),
         module_catalog_service=_module_catalog(runtime_enabled=False),
     )
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):

@@ -14,6 +14,9 @@ from src.core.modules.project_management.application.financials.forecasts.versio
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalDeps,
 )
@@ -96,6 +99,12 @@ def build_financial_change_approval_deps(
         module_catalog_service=module_catalog_service,
         tenant_context_service=tenant_context_service,
         enterprise_audit_service=enterprise_audit_service,
+        detail_query_handler=TaskDetailPageQueryHandler(
+            task_repo=task_repo,
+            task_workspace_reader=None,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+        ),
     )
     clock = SystemClock()
     budget_authority = BudgetService(

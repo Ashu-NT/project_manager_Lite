@@ -59,11 +59,17 @@ from src.core.modules.project_management.application.tasks.queries.dependency_di
 from src.core.modules.project_management.application.tasks.queries.hierarchy_query import (
     TaskHierarchyQueryMixin,
 )
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_query import (
     TaskQueryMixin,
 )
 from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.contracts.reads.tasks import (
+    TaskActivityPage,
+    TaskAssignmentReadPage,
+    TaskDependencyReadPage,
     TaskWorkspaceReader,
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import (
@@ -81,6 +87,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 from src.core.modules.project_management.contracts.uow.tasks.task_unit_of_work import (
     TaskUnitOfWorkFactory,
 )
+from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.activity.activity_service import (
     ActivityService,
@@ -148,6 +155,8 @@ class TaskService(
         enterprise_resource_availability_service=None,
         task_uow_factory: TaskUnitOfWorkFactory | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
+        *,
+        detail_query_handler: TaskDetailPageQueryHandler,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -169,6 +178,7 @@ class TaskService(
         self._assignment_skill_validator = assignment_skill_validator
         self._tenant_context_service = tenant_context_service
         self._task_workspace_reader = task_workspace_reader
+        self._detail_query = detail_query_handler
         self._enterprise_resource_availability_service = enterprise_resource_availability_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
@@ -184,6 +194,40 @@ class TaskService(
 
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
+
+    def get_task(self, task_id: str) -> Task | None:
+        return self._detail_query.get_task(task_id)
+
+    def query_task_assignments_page(
+        self, task_id: str, *, search_text: str = "", response_status: str = "all",
+        page: int = 1, page_size: int = 25, sort_key: str = "resourceName",
+        sort_direction: str = "asc",
+    ) -> TaskAssignmentReadPage:
+        return self._detail_query.query_task_assignments_page(
+            task_id, search_text=search_text, response_status=response_status,
+            page=page, page_size=page_size, sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
+
+    def query_task_dependencies_page(
+        self, task_id: str, *, search_text: str = "", direction: str = "all",
+        dependency_type: str = "all", page: int = 1, page_size: int = 25,
+        sort_key: str = "linkedTask", sort_direction: str = "asc",
+    ) -> TaskDependencyReadPage:
+        return self._detail_query.query_task_dependencies_page(
+            task_id, search_text=search_text, direction=direction,
+            dependency_type=dependency_type, page=page, page_size=page_size,
+            sort_key=sort_key, sort_direction=sort_direction,
+        )
+
+    def query_task_activity_page(
+        self, task_id: str, *, search_text: str = "", category: str = "all",
+        page: int = 1, page_size: int = 25,
+    ) -> TaskActivityPage:
+        return self._detail_query.query_task_activity_page(
+            task_id, search_text=search_text, category=category,
+            page=page, page_size=page_size,
+        )
 
     def _task_uow(self, context: DomainEventContext | None = None):
         """Direct desktop-API commands (the normal, long-lived `TaskService`

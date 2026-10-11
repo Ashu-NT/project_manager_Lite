@@ -6,6 +6,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
+    RegisterLifecycleHandler,
+)
 from src.core.modules.project_management.application.risk.register_service import (
     RegisterService,
 )
@@ -167,12 +170,20 @@ def _make_service(monkeypatch: pytest.MonkeyPatch, *, project_ids: list[str] | N
     )
     session = _FakeSession()
     register_repo = _FakeRegisterRepo()
+    project_repo = _FakeProjectRepo(project_ids or ["proj-1"])
+    tenant_context_service = _FakeTenantContextService()
     return RegisterService(
-        project_repo=_FakeProjectRepo(project_ids or ["proj-1"]),
+        project_repo=project_repo,
         register_repo=register_repo,
         user_session=object(),
-        tenant_context_service=_FakeTenantContextService(),
-        uow_factory=_FakeRegisterUnitOfWorkFactory(session=session, entries=register_repo),
+        tenant_context_service=tenant_context_service,
+        lifecycle_handler=RegisterLifecycleHandler(
+            project_repo=project_repo,
+            register_repo=register_repo,
+            user_session=object(),
+            tenant_context_service=tenant_context_service,
+            uow_factory=_FakeRegisterUnitOfWorkFactory(session=session, entries=register_repo),
+        ),
     )
 
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.modules.project_management.application.common.clock import SystemClock
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
@@ -18,6 +17,24 @@ from src.core.modules.project_management.application.resources.capacity.resource
 )
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
+)
+from src.core.modules.project_management.application.resources.commands.project_resource_commands import (
+    ProjectResourceCommandHandler,
+)
+from src.core.modules.project_management.application.resources.commands.resource_commands import (
+    ResourceMasterCommandHandler,
+)
+from src.core.modules.project_management.application.resources.commands.skill_commands import (
+    ResourceCapabilityCommandHandler,
+)
+from src.core.modules.project_management.application.resources.queries.project_resource_queries import (
+    ProjectResourceQueryHandler,
+)
+from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
+    ResourceContextQueryHandler,
+)
+from src.core.modules.project_management.application.resources.queries.skill_queries import (
+    ResourceCapabilityQueryHandler,
 )
 from src.core.modules.project_management.infrastructure.composition.context import (
     ProjectManagementRepositoryContext,
@@ -41,17 +58,26 @@ def build_project_resource_service(
     shared_uow_factory: SqlAlchemyUnitOfWorkFactoryBase,
 ) -> ProjectResourceService:
     return ProjectResourceService(
-        project_resource_repo=repositories.pm.project_resource_repo,
-        resource_repo=repositories.pm.resource_repo,
-        project_repo=repositories.pm.project_repo,
+        command_handler=ProjectResourceCommandHandler(
+            project_resource_repo=repositories.pm.project_resource_repo,
+            resource_repo=repositories.pm.resource_repo,
+            project_repo=repositories.pm.project_repo,
+            user_session=platform_services.user_session,
+            activity_service=platform_services.activity_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            task_repo=repositories.pm.task_repo,
+            assignment_repo=repositories.pm.assignment_repo,
+            financial_profile_repo=repositories.pm.project_financial_profile_repo,
+            shared_uow_factory=shared_uow_factory,
+        ),
+        query_handler=ProjectResourceQueryHandler(
+            project_resource_repo=repositories.pm.project_resource_repo,
+            task_repo=repositories.pm.task_repo,
+            assignment_repo=repositories.pm.assignment_repo,
+            user_session=platform_services.user_session,
+        ),
         user_session=platform_services.user_session,
-        activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
-        task_repo=repositories.pm.task_repo,
-        assignment_repo=repositories.pm.assignment_repo,
-        financial_profile_repo=repositories.pm.project_financial_profile_repo,
-        shared_uow_factory=shared_uow_factory,
     )
 
 
@@ -95,8 +121,6 @@ def build_resource_service(
     session: Session,
     repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
-    *,
-    clock: SystemClock,
 ) -> ResourceService:
     catalog_reader = SqlAlchemyResourceCatalogReader(session=session)
     context_reader = SqlAlchemyResourceContextReader(session=session)
@@ -108,27 +132,39 @@ def build_resource_service(
         user_session=platform_services.user_session,
     )
     return ResourceService(
-        session,
-        repositories.pm.resource_repo,
-        repositories.pm.assignment_repo,
-        repositories.pm.project_resource_repo,
-        repositories.platform.time_entry_repo,
-        repositories.platform.employee_repo,
-        skill_repo=repositories.pm.resource_skill_repo,
-        cert_repo=repositories.pm.resource_cert_repo,
+        resource_repo=repositories.pm.resource_repo,
+        master_command_handler=ResourceMasterCommandHandler(
+            resource_repo=repositories.pm.resource_repo,
+            employee_repo=repositories.platform.employee_repo,
+            department_service=platform_services.department_service,
+            site_service=platform_services.site_service,
+            user_session=platform_services.user_session,
+            tenant_context_service=platform_services.tenant_context_service,
+            uow_factory=uow_factory,
+        ),
+        capability_command_handler=ResourceCapabilityCommandHandler(
+            skill_repo=repositories.pm.resource_skill_repo,
+            cert_repo=repositories.pm.resource_cert_repo,
+            user_session=platform_services.user_session,
+            tenant_context_service=platform_services.tenant_context_service,
+            uow_factory=uow_factory,
+        ),
+        context_query_handler=ResourceContextQueryHandler(
+            resource_projects_reader=context_reader,
+            resource_assignments_reader=context_reader,
+            resource_activity_reader=context_reader,
+            tenant_context_service=platform_services.tenant_context_service,
+            user_session=platform_services.user_session,
+        ),
+        capability_query_handler=ResourceCapabilityQueryHandler(
+            resource_capability_reader=context_reader,
+            tenant_context_service=platform_services.tenant_context_service,
+            user_session=platform_services.user_session,
+        ),
         user_session=platform_services.user_session,
-        activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         resource_catalog_reader=catalog_reader,
         resource_inspector_reader=catalog_reader,
         resource_summary_reader=catalog_reader,
-        resource_projects_reader=context_reader,
-        resource_assignments_reader=context_reader,
-        resource_activity_reader=context_reader,
-        resource_capability_reader=context_reader,
-        department_service=platform_services.department_service,
-        site_service=platform_services.site_service,
-        uow_factory=uow_factory,
-        clock=clock,
     )

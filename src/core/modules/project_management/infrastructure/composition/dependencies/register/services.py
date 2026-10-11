@@ -3,6 +3,9 @@ from __future__ import annotations
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
+    RegisterLifecycleHandler,
+)
 from src.core.modules.project_management.infrastructure.composition.context import (
     ProjectManagementRepositoryContext,
 )
@@ -34,5 +37,11 @@ def build_register_service(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         register_catalog_reader=SqlAlchemyRegisterCatalogReader(session=session),
-        uow_factory=uow_factory,
+        lifecycle_handler=RegisterLifecycleHandler(
+            project_repo=repositories.pm.project_repo,
+            register_repo=repositories.pm.register_repo,
+            user_session=platform_services.user_session,
+            tenant_context_service=platform_services.tenant_context_service,
+            uow_factory=uow_factory,
+        ),
     )

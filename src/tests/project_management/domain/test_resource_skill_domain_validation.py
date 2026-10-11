@@ -8,6 +8,9 @@ import pytest
 from src.core.modules.project_management.application.resources.catalog.resource_service import (
     ResourceService,
 )
+from src.core.modules.project_management.application.resources.commands.skill_commands import (
+    ResourceCapabilityCommandHandler,
+)
 from src.core.modules.project_management.domain.resources.skills import (
     CertificationStatus,
     ResourceCertification,
@@ -129,15 +132,21 @@ def _make_resource_service(
     skill_repo: _RecordingSkillRepo | None = None,
     cert_repo: _RecordingCertRepo | None = None,
 ) -> ResourceService:
+    tenant_context_service = _FakeTenantContextService()
+    uow_factory = _FakeResourceUnitOfWorkFactory(skill_repo=skill_repo, cert_repo=cert_repo)
     return ResourceService(
-        session=SimpleNamespace(),
         resource_repo=SimpleNamespace(),
-        assignment_repo=SimpleNamespace(),
-        skill_repo=skill_repo,
-        cert_repo=cert_repo,
-        tenant_context_service=_FakeTenantContextService(),
-        uow_factory=_FakeResourceUnitOfWorkFactory(skill_repo=skill_repo, cert_repo=cert_repo),
-        clock=SimpleNamespace(now=lambda: None),
+        master_command_handler=object(),
+        capability_command_handler=ResourceCapabilityCommandHandler(
+            skill_repo=skill_repo,
+            cert_repo=cert_repo,
+            user_session=None,
+            tenant_context_service=tenant_context_service,
+            uow_factory=uow_factory,
+        ),
+        context_query_handler=object(),
+        capability_query_handler=object(),
+        tenant_context_service=tenant_context_service,
     )
 
 

@@ -45,6 +45,25 @@ def test_runtime_use_case_facts_do_not_contain_domain_aggregates(services) -> No
     assert all(not isinstance(item, EnterpriseModule) for item in snapshot.enabled_modules)
 
 
+def test_pm_handler_facades_leave_handler_construction_to_composition() -> None:
+    for relative_path in (
+        "modules/project_management/application/projects/service.py",
+        "modules/project_management/application/risk/register_service.py",
+        "modules/project_management/application/resources/catalog/resource_service.py",
+        "modules/project_management/application/resources/project_resources/project_resource_service.py",
+        "modules/project_management/application/tasks/service.py",
+    ):
+        path = SRC_ROOT / relative_path
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+        constructors = (
+            node.func.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id.endswith("Handler")
+        )
+        assert not tuple(constructors), relative_path
+
+
 def test_migrated_platform_services_do_not_import_concrete_infrastructure() -> None:
     for relative_path in (
         "platform/application/master_data/org/organization_service.py",

@@ -10,6 +10,9 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.infrastructure.composition.context import (
     ProjectManagementRepositoryContext,
@@ -44,6 +47,13 @@ def build_task_service(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
+    task_workspace_reader = SqlAlchemyTaskWorkspaceReader(session=session)
+    detail_query_handler = TaskDetailPageQueryHandler(
+        task_repo=repositories.pm.task_repo,
+        task_workspace_reader=task_workspace_reader,
+        user_session=platform_services.user_session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
     return TaskService(
         session,
         repositories.pm.task_repo,
@@ -64,7 +74,8 @@ def build_task_service(
         employee_repo=repositories.platform.employee_repo,
         assignment_skill_validator=assignment_skill_validator,
         tenant_context_service=platform_services.tenant_context_service,
-        task_workspace_reader=SqlAlchemyTaskWorkspaceReader(session=session),
+        task_workspace_reader=task_workspace_reader,
         enterprise_resource_availability_service=enterprise_resource_availability,
         task_uow_factory=task_uow_factory,
+        detail_query_handler=detail_query_handler,
     )
