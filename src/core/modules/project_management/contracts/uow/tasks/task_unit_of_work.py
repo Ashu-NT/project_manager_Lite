@@ -16,6 +16,9 @@ from src.core.platform.application.history.activity.activity_service import (
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
+from src.core.platform.contract.repositories.time_management.time.contracts import (
+    TimeEntryRepository,
+)
 from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 
@@ -25,6 +28,7 @@ class TaskUnitOfWork(UnitOfWork, Protocol):
     assignments: AssignmentRepository
     dependencies: DependencyRepository
     project_resources: ProjectResourceRepository
+    time_entries: TimeEntryRepository | None
     _enterprise_audit_service: EnterpriseAuditService
     _activity_service: ActivityService
 

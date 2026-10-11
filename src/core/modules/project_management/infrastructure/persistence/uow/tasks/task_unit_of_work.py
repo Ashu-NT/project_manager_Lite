@@ -27,6 +27,9 @@ from src.core.platform.infrastructure.persistence.repositories.history.activity.
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
+from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import (
+    SqlAlchemyTimeEntryRepository,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_event_publisher import (
     PostCommitEventPublisher,
@@ -60,7 +63,8 @@ class SqlAlchemyTaskUnitOfWork(SqlAlchemyUnitOfWorkBase, TaskUnitOfWork):
         self.assignments = SqlAlchemyAssignmentRepository(session)
         self.dependencies = SqlAlchemyDependencyRepository(session)
         self.project_resources = SqlAlchemyProjectResourceRepository(session)
-        for repo in (self.tasks, self.assignments, self.dependencies, self.project_resources):
+        self.time_entries = SqlAlchemyTimeEntryRepository(session)
+        for repo in (self.tasks, self.assignments, self.dependencies, self.project_resources, self.time_entries):
             if hasattr(repo, "_tenant_context_service"):
                 repo._tenant_context_service = tenant_context_service
 

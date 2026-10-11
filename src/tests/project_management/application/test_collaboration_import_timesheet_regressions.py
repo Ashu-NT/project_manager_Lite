@@ -5,6 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
+    SqlAlchemyTaskRepository,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
     TimeEntryORM,
@@ -237,6 +240,26 @@ def test_deleting_task_removes_associated_time_entries(services):
     ts.delete_task(task.id)
 
     assert _time_entry_count(services) == 0
+
+
+def test_failed_task_delete_rolls_back_time_and_assignment(services, monkeypatch):
+    project = services["project_service"].create_project("Delete rollback")
+    tasks = services["task_service"]
+    resource = services["resource_service"].create_resource("Rollback crew", hourly_rate=100.0)
+    task = tasks.create_task(project.id, "Rollback task", start_date=date(2026, 3, 14), duration_days=1)
+    assignment = tasks.assign_resource(task.id, resource.id, allocation_percent=40.0)
+    tasks.add_time_entry(assignment.id, entry_date=date(2026, 3, 14), hours=2.0)
+
+    def fail_after_time_cleanup(self, task_id, *, expected_version):
+        raise RuntimeError("simulated task delete failure")
+
+    monkeypatch.setattr(SqlAlchemyTaskRepository, "delete_with_version_check", fail_after_time_cleanup)
+    with pytest.raises(RuntimeError, match="simulated task delete failure"):
+        tasks.delete_task(task.id)
+
+    assert tasks.get_task(task.id) is not None
+    assert tasks.get_assignment(assignment.id) is not None
+    assert _time_entry_count(services) == 1
 
 
 def test_deleting_project_removes_time_entries_created_under_its_assignments(services):

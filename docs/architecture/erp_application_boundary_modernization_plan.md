@@ -605,12 +605,18 @@ resource-flow and architecture regression passed 35 tests; targeted Mypy,
 Ruff F/I and compilation passed. A4 remains open for the larger Task command
 groups.
 
-**Next Task write-boundary risk.** `TaskDeletionMixin.delete_tasks` uses its
-outer-session TimeEntry/Assignment/Dependency repositories and flushes the
-outer Session while `TaskUnitOfWorkFactory` creates a fresh session for Task
-deletion. Do not move that mixin into a handler unchanged: characterize and
-align all affected deletes to one operation-owned UoW first, including
-TimeEntry FK cleanup, activity/event rollback, and approval-participant mode.
+**A4 Task deletion transaction boundary (2026-10-11).** Task deletion now uses
+the Task UoW session for TimeEntry, Assignment, Dependency and Task writes;
+the outer-session flush is gone. The UoW also exposes TimeEntry cleanup to
+resource unassignment. Bulk deletion resolves selected Tasks and Assignments
+in batches, and the production TimeEntry repository deletes the selected
+allocations in one scoped SQL statement. The approval participant uses its
+caller-owned TimeEntry repository, preserving its single transaction owner.
+Focused Task/Time tests passed 36 cases, including injected Task-delete
+failure proving Task, Assignment and TimeEntry rollback. This corrects the
+transaction boundary, but does not retire `TaskDeletionMixin` or close A4.
+Before extracting the handler, retain explicit participant event collection
+and verify audit/event rollback plus PostgreSQL runtime-role RLS.
 
 ## Risk and Verification Matrix
 

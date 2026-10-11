@@ -75,6 +75,10 @@ class TimeEntryRepository(ABC):
     def delete_by_assignment(self, assignment_id: str) -> None:
         self.delete_by_work_allocation(assignment_id)
 
+    def delete_by_work_allocations(self, work_allocation_ids: list[str]) -> None:
+        for work_allocation_id in work_allocation_ids:
+            self.delete_by_work_allocation(work_allocation_id)
+
 
 class TimesheetPeriodRepository(ABC):
     @abstractmethod

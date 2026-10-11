@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
@@ -158,16 +158,19 @@ class SqlAlchemyTimeEntryRepository(TenantScopedRepositorySupport, TimeEntryRepo
         return [time_entry_from_orm(row) for row in rows]
 
     def delete_by_work_allocation(self, work_allocation_id: str) -> None:
+        self.delete_by_work_allocations([work_allocation_id])
+
+    def delete_by_work_allocations(self, work_allocation_ids: list[str]) -> None:
+        if not work_allocation_ids:
+            return
         ctx = self._context(operation_label="access time entries")
-        rows = self.session.execute(
-            select(TimeEntryORM).where(
-                TimeEntryORM.work_allocation_id == work_allocation_id,
+        self.session.execute(
+            delete(TimeEntryORM).where(
+                TimeEntryORM.work_allocation_id.in_(set(work_allocation_ids)),
                 TimeEntryORM.tenant_id == ctx.tenant_id,
                 TimeEntryORM.organization_id == ctx.organization_id,
             )
-        ).scalars().all()
-        for row in rows:
-            self.session.delete(row)
+        )
 
 
 class SqlAlchemyTimesheetPeriodRepository(

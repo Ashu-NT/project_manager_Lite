@@ -95,9 +95,8 @@ class TaskAssignmentMixin:
         resource = self._resource_repo.get(assignment.resource_id)
         scope = self._active_task_scope(operation_label="remove assignment")
         with self._task_uow() as uow:
-            time_entry_repo = getattr(self, "_time_entry_repo", None)
-            if time_entry_repo is not None:
-                time_entry_repo.delete_by_assignment(assignment.id)
+            if uow.time_entries is not None:
+                uow.time_entries.delete_by_assignment(assignment.id)
             uow.assignments.delete_with_version_check(
                 assignment_id, expected_version=assignment.version
             )
