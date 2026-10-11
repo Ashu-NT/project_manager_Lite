@@ -70,6 +70,12 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
     BaselineService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
 )
@@ -209,6 +215,8 @@ class ServiceGraph:
     project_service: ProjectService
     task_service: TaskService
     task_workspace_query: TaskWorkspacePageQueryHandler
+    task_lookup_query: TaskLookupQueryHandler
+    task_assignment_commands: TaskAssignmentCommandHandler
     timesheet_service: TimesheetService
     resource_service: ResourceService
     finance_governance_commands: FinanceGovernanceCommandBoundary
@@ -296,6 +304,8 @@ class ServiceGraph:
             "project_service": self.project_service,
             "task_service": self.task_service,
             "task_workspace_query": self.task_workspace_query,
+            "task_lookup_query": self.task_lookup_query,
+            "task_assignment_commands": self.task_assignment_commands,
             "timesheet_service": self.timesheet_service,
             "resource_service": self.resource_service,
             "finance_governance_commands": self.finance_governance_commands,

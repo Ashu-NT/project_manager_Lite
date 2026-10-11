@@ -118,7 +118,9 @@ def build_project_management_desktop_runtime_apis(
         ),
         project_management_timesheets=build_project_management_timesheets_desktop_api(
             project_service=resolved.project_service,
-            task_service=resolved.task_service,
+            task_lookup_query=resolved.task_lookup_query,
+            task_assignment_commands=resolved.task_assignment_commands,
+            module_catalog_service=platform_dependencies.module_catalog_service,
             resource_service=resolved.resource_service,
             timesheet_service=resolved.timesheet_service,
         ),

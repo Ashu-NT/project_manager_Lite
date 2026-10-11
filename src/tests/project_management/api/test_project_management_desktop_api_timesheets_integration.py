@@ -1,6 +1,8 @@
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
+
 from src.core.modules.project_management.api.desktop import (
     build_project_management_timesheets_desktop_api,
 )
@@ -8,6 +10,7 @@ from src.core.modules.project_management.domain.enums import (
     CostType,
     WorkerType,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.tests.project_management.api._timesheets_fakes_services import (
     _FakeProjectService,
     _FakeResourceService,
@@ -16,6 +19,35 @@ from src.tests.project_management.api._timesheets_fakes_services import (
 from src.tests.project_management.api._timesheets_fakes_timesheet import (
     _FakeTimesheetService,
 )
+
+
+@pytest.mark.parametrize("operation", ("list_assignments", "list_resource_assignments", "build_assignment_snapshot"))
+def test_timesheets_task_reads_check_module_before_handler(operation: str) -> None:
+    catalog = SimpleNamespace(
+        get_entitlement=lambda _code: SimpleNamespace(
+            runtime_enabled=False,
+            label="Project Management",
+            lifecycle_status="inactive",
+        )
+    )
+    failing_handler = SimpleNamespace(
+        list_timesheet_assignment_contexts=lambda **_kwargs: pytest.fail("lookup called"),
+        get_timesheet_assignment_context=lambda _id: pytest.fail("lookup called"),
+        get_assignment=lambda _id: pytest.fail("assignment called"),
+    )
+    api = build_project_management_timesheets_desktop_api(
+        task_lookup_query=failing_handler,
+        task_assignment_commands=failing_handler,
+        module_catalog_service=catalog,
+    )
+
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        if operation == "list_assignments":
+            api.list_assignments(project_id="project-1")
+        elif operation == "list_resource_assignments":
+            api.list_resource_assignments(resource_id="resource-1")
+        else:
+            api.build_assignment_snapshot("assignment-1")
 
 
 def test_project_management_timesheets_desktop_api_supports_assignment_periods_and_review() -> None:
@@ -59,7 +91,8 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
     task_service._resource_service = resource_service
     api = build_project_management_timesheets_desktop_api(
         project_service=project_service,
-        task_service=task_service,
+        task_lookup_query=task_service,
+        task_assignment_commands=task_service,
         resource_service=resource_service,
         timesheet_service=timesheet_service,
     )

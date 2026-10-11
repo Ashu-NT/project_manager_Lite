@@ -140,7 +140,8 @@ def test_build_assignment_snapshot_logged_is_task_scoped_not_resource_wide(servi
     snapshot_a = build_assignment_snapshot(
         assignment_a.id,
         period_start=None,
-        task_service=ts,
+        task_lookup_query=ts._lookup_query,
+        task_assignment_commands=ts._assignment_handler,
         timesheet_service=services["timesheet_service"],
     )
 
@@ -178,7 +179,8 @@ def test_build_assignment_snapshot_planned_and_remaining_are_page_independent(se
     snapshot = build_assignment_snapshot(
         assignment.id,
         period_start=date(2026, 6, 1),  # a different, later period with no entries
-        task_service=ts,
+        task_lookup_query=ts._lookup_query,
+        task_assignment_commands=ts._assignment_handler,
         timesheet_service=services["timesheet_service"],
     )
 

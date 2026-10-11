@@ -25,7 +25,7 @@ implementation owner and consumer boundary. Each name is listed explicitly.
 | Classification / handler | Methods | Production consumers and disposition |
 | --- | --- | --- |
 | Command / deletion | `delete_task`, `delete_tasks` | Tasks desktop API; keep guarded facade until API receives explicit command capability. |
-| Command / assignment | `assign_resource`, `assign_project_resource`, `unassign_resource`, `set_assignment_hours`, `set_assignment_allocation`, `update_assignment_planned_hours`, `accept_assignment`, `decline_assignment` | Tasks desktop API, Timesheets desktop API, import/test setup; eventual assignment capability, preserving skill/capacity checks and one UoW. |
+| Command / assignment | `assign_resource`, `assign_project_resource`, `unassign_resource`, `set_assignment_hours`, `set_assignment_allocation`, `update_assignment_planned_hours`, `accept_assignment`, `decline_assignment` | Tasks desktop API and import/test setup; Timesheets desktop uses the composed assignment handler only for a scoped read. Preserve skill/capacity checks and one UoW. |
 | Assignment reads / assignment handler | `list_assignments_for_task`, `get_assignment`, `get_task_time_summary`, `preview_assignment_capacity`, `get_assignment_action_context` | Tasks/Timesheets desktop APIs and Dashboard; split command/read injection only after module-guard and read permission equivalence is proved. |
 | Command / dependency | `add_dependency`, `remove_dependency`, `update_dependency` | Tasks/Scheduling desktop APIs; ordinary command path owns its UoW. |
 | Dependency reads / query handler | `get_dependency`, `list_dependencies_for_task`, `list_dependencies_for_project` | Tasks/Scheduling desktop APIs; query handler is already scoped. |
@@ -36,7 +36,7 @@ implementation owner and consumer boundary. Each name is listed explicitly.
 | Time bridge / time-entry handler | `initialize_timesheet_for_assignment`, `list_time_entries_for_assignment`, `list_time_entries_for_task_page`, `list_time_entries_for_assignment_period`, `get_time_entry`, `add_time_entry`, `update_time_entry`, `delete_time_entry`, `list_timesheet_periods_for_resource`, `list_time_entries_for_resource_period`, `submit_timesheet_period`, `approve_timesheet_period`, `reject_timesheet_period`, `lock_timesheet_period`, `unlock_timesheet_period`, `reopen_approved_timesheet_period_for_correction` | Tasks/Timesheets desktop APIs; preserve Time-owned evidence and timesheet authority; avoid exposing Task UoW as Time UoW. |
 | Detail/hierarchy queries | `get_task`, `list_task_hierarchy`, `list_leaf_tasks_for_project`, `get_task_hierarchy_rollup`, `list_task_hierarchy_rollups` | Tasks/Scheduling desktop APIs, dashboard helpers, importers; existing detail/hierarchy handlers are candidates for narrow injection. |
 | Dependency diagnostics queries | `get_dependency_diagnostics`, `preview_dependency_removal` | Tasks/Scheduling desktop APIs; existing diagnostics handler is candidate for narrow injection. |
-| Lookup queries | `list_tasks_for_project`, `list_tasks_for_resource`, `list_assignments_for_resource`, `list_timesheet_assignment_contexts`, `get_timesheet_assignment_context`, `query_tasks` | CSV import now uses the lookup handler directly; Timesheets builders use assignment contexts; Tasks/Scheduling desktop APIs use the remaining facade methods. The lookup handler enforces task/project permissions while the importer retains its module guard. |
+| Lookup queries | `list_tasks_for_project`, `list_tasks_for_resource`, `list_assignments_for_resource`, `query_tasks` | CSV import and Timesheets desktop now use the lookup handler directly; Tasks/Scheduling desktop APIs use remaining facade methods. The lookup handler enforces task/project permissions; callers retain their module guards. |
 | Page queries | `query_workspace_page`, `query_task_assignments_page`, `query_task_dependencies_page`, `query_task_activity_page` | Tasks and Dashboard desktop APIs; readers own paging/sorting and DTO projection, not QML. |
 | Warning sidecars / assignment handler | `consume_last_overallocation_warning`, `consume_last_skill_violation_warning` | Tasks desktop API; preserve consumption timing until warning output is part of an explicit result contract. |
 | Approval participant / dependency handler | `_apply_dependency_add_decision`, `_apply_dependency_remove_decision`, `_apply_dependency_update_decision` | `infrastructure/approval/task_apply_participant.py` only. These are participant-owned, not public commands; migrate participant and shared UoW/event scope together. |
@@ -93,8 +93,8 @@ constructor inputs (from 816/77/31 at the start of this audit). Focused
 Dashboard/composition/WBS tests passed 52 cases; import regressions passed 44;
 architecture guards passed 26; module-guard/permission/lookup tests passed 45;
 Dashboard batching measurement passed 2; live PostgreSQL security/RLS passed
-14. Desktop Tasks, Scheduling, Timesheets and Dashboard adapters still receive
-the large facade, as do Task approval and Financial Change participants. Those
+14. At that checkpoint Desktop Tasks, Scheduling, Timesheets and Dashboard adapters still received
+the large facade, as did Task approval and Financial Change participants. Those
 callers must be migrated before their forwarding methods can be removed; A4
 facade completion is not yet established.
 
@@ -106,3 +106,14 @@ and tenant/org scope. Tasks desktop still consumes `query_workspace_page`, so
 that facade delegate remains active. The facade remains 795 lines, 75 methods
 and 27 constructor inputs. Focused Dashboard, module-guard, composition and
 architecture tests passed 49 cases.
+
+The Timesheets desktop adapter now receives the existing Task lookup and
+assignment handlers directly. Assignment selectors use the lookup handler;
+assignment snapshots use that handler plus the assignment handler. The adapter
+checks PM module entitlement before calling either handler, while their
+existing task/project permission checks and Timesheet UoW behavior remain in
+place. The measurement test now observes the lookup handler directly, and the
+unused `list_timesheet_assignment_contexts` and
+`get_timesheet_assignment_context` TaskService delegates were deleted. The
+facade is now 782 lines, 73 methods including `__init__`, and 27 constructor
+inputs. Focused Timesheets/composition/guard/registry tests passed 54 cases.

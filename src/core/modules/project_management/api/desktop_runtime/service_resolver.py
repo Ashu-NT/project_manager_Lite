@@ -43,6 +43,12 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
     BaselineService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
 )
@@ -69,6 +75,8 @@ class ProjectManagementDesktopRuntimeServices:
     timesheet_service: TimesheetService | None
     task_service: TaskService | None
     task_workspace_query: TaskWorkspacePageQueryHandler | None
+    task_lookup_query: TaskLookupQueryHandler | None
+    task_assignment_commands: TaskAssignmentCommandHandler | None
     assignment_skill_validator: AssignmentSkillValidator | None
     scheduling_engine: SchedulingEngine | None
     work_calendar_engine: CalendarProtocol | None
@@ -101,6 +109,8 @@ def resolve_project_management_desktop_runtime_services(
     timesheet_service = services.get("timesheet_service")
     task_service = services.get("task_service")
     task_workspace_query = services.get("task_workspace_query")
+    task_lookup_query = services.get("task_lookup_query")
+    task_assignment_commands = services.get("task_assignment_commands")
     assignment_skill_validator = services.get("assignment_skill_validator")
     scheduling_engine = services.get("scheduling_engine")
     work_calendar_engine = services.get("work_calendar_engine")
@@ -166,6 +176,14 @@ def resolve_project_management_desktop_runtime_services(
         task_workspace_query=(
             task_workspace_query
             if isinstance(task_workspace_query, TaskWorkspacePageQueryHandler)
+            else None
+        ),
+        task_lookup_query=(
+            task_lookup_query if isinstance(task_lookup_query, TaskLookupQueryHandler) else None
+        ),
+        task_assignment_commands=(
+            task_assignment_commands
+            if isinstance(task_assignment_commands, TaskAssignmentCommandHandler)
             else None
         ),
         assignment_skill_validator=(

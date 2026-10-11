@@ -780,6 +780,18 @@ remains open for the other desktop and transaction-participant callers.
 Desktop-registry and Finance invalidation regressions passed 22 cases with
 one skip; scoped Ruff F/I, compilation and diff check passed.
 
+**A4 Timesheets desktop read cut (2026-10-11).** The Timesheets adapter now
+receives the composed Task lookup and assignment handlers rather than
+TaskService. Its assignment selectors and snapshot retain module-entitlement
+checks; handlers retain task/project permissions and the Timesheet write path
+is unchanged. Two context-only TaskService forwarding methods with no
+remaining production callers were removed. TaskService is now 782 lines,
+73 methods and 27 constructor inputs. Focused Timesheets, composition,
+module-guard, measurement and registry tests passed 54 cases. The remaining
+Tasks/Scheduling desktop and approval/Financial Change participants still
+need separate safe migrations; A4 remains open. Live PostgreSQL runtime-role
+security/RLS regression passed 14 cases after this cut.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

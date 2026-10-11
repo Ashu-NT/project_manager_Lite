@@ -35,7 +35,7 @@ def test_timesheet_assignment_context_is_one_tenant_scoped_query(
 
     event.listen(engine, "before_cursor_execute", count_statement)
     try:
-        rows = services["task_service"].list_timesheet_assignment_contexts(
+        rows = services["task_lookup_query"].list_timesheet_assignment_contexts(
             project_id=project.id
         )
     finally:

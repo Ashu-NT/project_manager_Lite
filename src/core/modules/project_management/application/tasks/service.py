@@ -86,7 +86,6 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
-    TimesheetAssignmentContext,
 )
 from src.core.modules.project_management.domain.enums import (
     ConstraintType,
@@ -687,18 +686,6 @@ class TaskService(
 
     def list_assignments_for_resource(self, resource_id: str) -> list[TaskAssignment]:
         return self._lookup_query.list_assignments_for_resource(resource_id)
-
-    def list_timesheet_assignment_contexts(
-        self, *, project_id: str | None = None, resource_id: str | None = None
-    ) -> list[TimesheetAssignmentContext]:
-        return self._lookup_query.list_timesheet_assignment_contexts(
-            project_id=project_id, resource_id=resource_id
-        )
-
-    def get_timesheet_assignment_context(
-        self, assignment_id: str
-    ) -> TimesheetAssignmentContext | None:
-        return self._lookup_query.get_timesheet_assignment_context(assignment_id)
 
     def query_tasks(
         self,

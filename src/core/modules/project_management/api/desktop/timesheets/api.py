@@ -63,10 +63,21 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.resources import (
     ResourceService,
 )
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
+)
 from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetScope,
+)
+from src.core.platform.application.tenant.modules.authorization import (
+    require_module_enabled,
+)
+from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
+    SupportsModuleEntitlements,
 )
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
@@ -76,12 +87,16 @@ class ProjectManagementTimesheetsDesktopApi:
         self,
         *,
         project_service: ProjectService | None = None,
-        task_service: TaskService | None = None,
+        task_lookup_query: TaskLookupQueryHandler | None = None,
+        task_assignment_commands: TaskAssignmentCommandHandler | None = None,
+        module_catalog_service: SupportsModuleEntitlements | None = None,
         resource_service: ResourceService | None = None,
         timesheet_service: TimesheetService | None = None,
     ) -> None:
         self._project_service = project_service
-        self._task_service = task_service
+        self._task_lookup_query = task_lookup_query
+        self._task_assignment_commands = task_assignment_commands
+        self._module_catalog_service = module_catalog_service
         self._resource_service = resource_service
         self._timesheet_service = timesheet_service
 
@@ -105,9 +120,11 @@ class ProjectManagementTimesheetsDesktopApi:
         *,
         project_id: str | None = None,
     ) -> tuple[TimesheetAssignmentOptionDescriptor, ...]:
+        if self._task_lookup_query is not None:
+            self._require_pm_module("list timesheet assignments")
         return build_assignment_options(
             project_id=project_id,
-            task_service=self._task_service,
+            task_lookup_query=self._task_lookup_query,
         )
 
     def get_timesheet_workspace_access(self) -> TimesheetWorkspaceAccessDesktopDto:
@@ -143,11 +160,13 @@ class ProjectManagementTimesheetsDesktopApi:
         project_id: str | None = None,
     ) -> tuple[TimesheetAssignmentOptionDescriptor, ...]:
         target = str(resource_id or "").strip()
+        if self._task_lookup_query is not None:
+            self._require_pm_module("list timesheet assignments")
         return tuple(
             build_assignment_options(
                 project_id=project_id,
                 resource_id=target,
-                task_service=self._task_service,
+                task_lookup_query=self._task_lookup_query,
             )
         )
 
@@ -321,10 +340,12 @@ class ProjectManagementTimesheetsDesktopApi:
         *,
         period_start: date | None = None,
     ) -> TimesheetAssignmentSnapshotDesktopDto:
+        self._require_pm_module("view timesheet assignment")
         return build_assignment_snapshot(
             assignment_id,
             period_start=period_start,
-            task_service=self._require_task_service(),
+            task_lookup_query=self._require_task_lookup_query(),
+            task_assignment_commands=self._require_task_assignment_commands(),
             timesheet_service=self._require_timesheet_service(),
         )
 
@@ -519,12 +540,26 @@ class ProjectManagementTimesheetsDesktopApi:
             project_service=self._project_service,
         )
 
-    def _require_task_service(self) -> TaskService:
-        if self._task_service is None:
+    def _require_pm_module(self, operation_label: str) -> None:
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label=operation_label,
+        )
+
+    def _require_task_lookup_query(self) -> TaskLookupQueryHandler:
+        if self._task_lookup_query is None:
             raise RuntimeError(
                 "Project management timesheets desktop API is not connected."
             )
-        return self._task_service
+        return self._task_lookup_query
+
+    def _require_task_assignment_commands(self) -> TaskAssignmentCommandHandler:
+        if self._task_assignment_commands is None:
+            raise RuntimeError(
+                "Project management timesheets desktop API is not connected."
+            )
+        return self._task_assignment_commands
 
     def _require_timesheet_service(self) -> TimesheetService:
         if self._timesheet_service is None:
