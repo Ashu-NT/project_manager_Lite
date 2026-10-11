@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectResourceRepository,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
@@ -21,6 +24,7 @@ class TaskUnitOfWork(UnitOfWork, Protocol):
     tasks: TaskRepository
     assignments: AssignmentRepository
     dependencies: DependencyRepository
+    project_resources: ProjectResourceRepository
     _enterprise_audit_service: EnterpriseAuditService
     _activity_service: ActivityService
 

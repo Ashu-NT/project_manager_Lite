@@ -1,5 +1,11 @@
 from datetime import date
 
+import pytest
+
+from src.core.modules.project_management.application.tasks.commands import (
+    assignment as assignment_commands,
+)
+
 
 def test_resource_assignment_and_overload(services):
     ps = services["project_service"]
@@ -38,4 +44,46 @@ def test_resource_assignment_and_overload(services):
     # Check tasks for resource in project
     tasks_for_res = ts.query_tasks(project_id=pid, resource_id=r.id)
     assert len(tasks_for_res) == 3
+
+
+def test_auto_provisioned_project_resource_rolls_back_with_assignment_failure(
+    services, monkeypatch
+):
+    projects = services["project_service"]
+    tasks = services["task_service"]
+    resources = services["resource_service"]
+    project = projects.create_project("Assignment rollback", "")
+    task = tasks.create_task(project.id, "Work")
+    resource = resources.create_resource("Rollback resource", "Developer")
+
+    def fail_assignment(**_kwargs):
+        raise RuntimeError("assignment rejected")
+
+    monkeypatch.setattr(tasks, "_assign_project_resource_in_uow", fail_assignment)
+    with pytest.raises(RuntimeError, match="assignment rejected"):
+        tasks.assign_resource(task.id, resource.id)
+
+    assert tasks._project_resource_repo.get_for_project(project.id, resource.id) is None
+    assert tasks._assignment_repo.list_by_task(task.id) == []
+
+
+def test_auto_provisioned_envelope_and_assignment_roll_back_after_staging(
+    services, monkeypatch
+):
+    projects = services["project_service"]
+    tasks = services["task_service"]
+    resources = services["resource_service"]
+    project = projects.create_project("Assignment staged rollback", "")
+    task = tasks.create_task(project.id, "Work")
+    resource = resources.create_resource("Staged rollback resource", "Developer")
+
+    def fail_activity(*_args, **_kwargs):
+        raise RuntimeError("activity staging rejected")
+
+    monkeypatch.setattr(assignment_commands, "record_assignment_action", fail_activity)
+    with pytest.raises(RuntimeError, match="activity staging rejected"):
+        tasks.assign_resource(task.id, resource.id)
+
+    assert tasks._project_resource_repo.get_for_project(project.id, resource.id) is None
+    assert tasks._assignment_repo.list_by_task(task.id) == []
 

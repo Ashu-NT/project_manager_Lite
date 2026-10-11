@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -33,6 +34,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     AssignmentRepository,
     TaskRepository,
 )
+from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from src.core.platform.application.security.authorization import (
     get_authorization_engine,
@@ -434,6 +436,31 @@ class TaskAssignmentMixin:
         *,
         allocated_planned_hours: Decimal = Decimal(0),
     ) -> TaskAssignment:
+        with self._task_uow() as uow:
+            project_resource = uow.project_resources.get(project_resource_id)
+            if not project_resource:
+                raise NotFoundError(
+                    "Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND"
+                )
+            return self._assign_project_resource_in_uow(
+                task_id=task_id,
+                project_resource_id=project_resource_id,
+                allocation_percent=allocation_percent,
+                allocated_planned_hours=allocated_planned_hours,
+                project_resource=project_resource,
+                uow=uow,
+            )
+
+    def _assign_project_resource_in_uow(
+        self,
+        task_id: str,
+        project_resource_id: str,
+        allocation_percent: float,
+        *,
+        allocated_planned_hours: Decimal,
+        project_resource: ProjectResource,
+        uow,
+    ) -> TaskAssignment:
         if not self._project_resource_repo:
             raise BusinessRuleError(
                 "Project resource repository is not configured.",
@@ -445,10 +472,6 @@ class TaskAssignmentMixin:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         self._require_manage("add assignment", project_id=task.project_id)
         self._require_leaf_task(task, operation_label="receive resource assignments")
-
-        project_resource = self._project_resource_repo.get(project_resource_id)
-        if not project_resource:
-            raise NotFoundError("Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND")
 
         if project_resource.project_id != task.project_id:
             raise BusinessRuleError(
@@ -499,7 +522,7 @@ class TaskAssignmentMixin:
         resource = resource_for_check
         scope = self._active_task_scope(operation_label="add assignment")
 
-        with self._task_uow() as uow:
+        with nullcontext(uow):
             uow.assignments.add(assignment)
             record_assignment_action(
                 uow,

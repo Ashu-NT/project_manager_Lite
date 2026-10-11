@@ -11,6 +11,7 @@ class TaskParticipantUnitOfWork:
         tasks: Any,
         assignments: Any,
         dependencies: Any,
+        project_resources: Any,
         enterprise_audit_service: Any,
         activity_service: Any,
         collected_events: list,
@@ -18,6 +19,7 @@ class TaskParticipantUnitOfWork:
         self.tasks = tasks
         self.assignments = assignments
         self.dependencies = dependencies
+        self.project_resources = project_resources
         self._enterprise_audit_service = enterprise_audit_service
         self._activity_service = activity_service
         self._collected_events = collected_events

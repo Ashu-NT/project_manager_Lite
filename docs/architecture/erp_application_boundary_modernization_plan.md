@@ -578,6 +578,22 @@ split transaction with one operation-owned UoW before retiring the mixin;
 do not preserve its early commit in a new handler. This risk is separate
 from the completed schedule-sync extraction.
 
+**A4 Task assignment atomicity prerequisite (2026-10-11).** The Task UoW
+now includes the scoped ProjectResource repository. `assign_resource` stages
+an auto-provisioned ProjectResource and its TaskAssignment in the same Task
+UoW; the old `session.commit()` before assignment has been removed. The
+public `assign_project_resource` no longer accepts private UoW/object
+overrides; a private shared-UoW helper handles the bridge and direct command
+paths. Rollback tests inject failure before assignment and after assignment
+staging and verify neither record persists. The focused assignment, capacity,
+approval-participant and architecture matrix passed 61 tests. Scoped Ruff
+F/I and Python compilation passed; targeted Mypy passed on the UoW contract,
+implementation, participant scope and Task facade. Existing direct Mypy
+errors in the legacy Assignment/Bridge mixins remain part of the pending
+handler migration. This removes the split transaction but does **not**
+retire the remaining Task command mixins or close A4. PostgreSQL runtime-role
+RLS/concurrency proof is still required before the full Task cutover closes.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.contracts.uow.tasks.task_unit_of_work import (
     TaskUnitOfWork,
 )
+from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
+    SqlAlchemyProjectResourceRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
@@ -56,7 +59,8 @@ class SqlAlchemyTaskUnitOfWork(SqlAlchemyUnitOfWorkBase, TaskUnitOfWork):
         self.tasks = SqlAlchemyTaskRepository(session)
         self.assignments = SqlAlchemyAssignmentRepository(session)
         self.dependencies = SqlAlchemyDependencyRepository(session)
-        for repo in (self.tasks, self.assignments, self.dependencies):
+        self.project_resources = SqlAlchemyProjectResourceRepository(session)
+        for repo in (self.tasks, self.assignments, self.dependencies, self.project_resources):
             if hasattr(repo, "_tenant_context_service"):
                 repo._tenant_context_service = tenant_context_service
 

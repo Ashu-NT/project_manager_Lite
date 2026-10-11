@@ -433,6 +433,7 @@ class TaskService(
             tasks=self._task_repo,
             assignments=self._assignment_repo,
             dependencies=self._dependency_repo,
+            project_resources=self._project_resource_repo,
             enterprise_audit_service=self._enterprise_audit_service,
             activity_service=self._activity_service,
             collected_events=self._pending_task_events,
