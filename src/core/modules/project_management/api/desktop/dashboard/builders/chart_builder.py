@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 from decimal import Decimal
 from typing import Any
-
-import logging
 
 from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
     fmt_float,

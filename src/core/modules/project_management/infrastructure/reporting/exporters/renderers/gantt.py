@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import ClassVar
-
 from datetime import date
 from pathlib import Path
+from typing import ClassVar
 
 import matplotlib.dates as mdates
 import matplotlib.patches as mpatches

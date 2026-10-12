@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 from typing import Any
-
-import logging
 
 from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
     overloaded_resource_count,

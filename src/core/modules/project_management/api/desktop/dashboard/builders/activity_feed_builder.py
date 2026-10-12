@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import logging
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
     coerce_utc_datetime,

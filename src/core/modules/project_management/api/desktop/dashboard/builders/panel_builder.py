@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import logging
+from typing import Any
 
 from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
     fmt_date,
