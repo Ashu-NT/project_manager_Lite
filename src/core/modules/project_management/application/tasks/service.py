@@ -462,9 +462,6 @@ class TaskService(
             expected_version=expected_version,
         )
 
-    def initialize_timesheet_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
-        return self._time_entry_handler.initialize_timesheet_for_assignment(assignment_id)
-
     def add_time_entry(
         self, assignment_id: str, *, entry_date: date, hours: float, note: str = ""
     ) -> TimeEntry:

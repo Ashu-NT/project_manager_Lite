@@ -153,8 +153,8 @@ def test_initialize_timesheet_is_idempotent_for_legacy_hours(services):
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=50.0)
     services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
 
-    first = ts.initialize_timesheet_for_assignment(assignment.id)
-    second = ts.initialize_timesheet_for_assignment(assignment.id)
+    first = services["timesheet_service"].initialize_timesheet_for_assignment(assignment.id)
+    second = services["timesheet_service"].initialize_timesheet_for_assignment(assignment.id)
 
     assert len(first) == 1
     assert len(second) == 1

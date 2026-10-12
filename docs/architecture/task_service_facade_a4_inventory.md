@@ -222,3 +222,25 @@ lines, 50 methods including `__init__`, and 17 constructor inputs. Combined
 Task/Timesheets/approval/desktop/architecture tests passed 134; live
 PostgreSQL security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation and
 diff checks passed. A4 remains open.
+
+The assignment-hours desktop command now uses the existing composed
+`TaskAssignmentCommandHandler` directly instead of resolving a TaskService
+method dynamically. The adapter still checks the PM module entitlement, and
+the handler still enforces project permission, scope, and its Task UoW.
+Tests that exercised the facade delegate now exercise that same handler.
+The forwarding method was removed; TaskService is 525 lines, 49 methods
+including `__init__`, and 17 constructor inputs. This does not change the
+separate TimeEntry authority or the approval-participant transaction path.
+A4 remains open for remaining real facade consumers and transaction-scoped
+contracts. Focused Task/Time/permissions tests passed 47; desktop and
+composition tests passed 29 with 1 skipped; the additional desktop entitlement
+regression passed with its slice (14 passed); live PostgreSQL security/RLS
+passed 14. Scoped Ruff F/I, Mypy, and compilation passed.
+
+Timesheet initialization was also test-only through TaskService and
+TaskTimeEntryHandler. Its tests now invoke the already-composed
+TimesheetService, and both pass-through methods were deleted. TaskService is
+522 lines, 48 methods including `__init__`, and 17 constructor inputs.
+The focused Time/collaboration/desktop slice passed 32 tests. The remaining
+time-entry write forwards are still present pending their separate caller
+migration; approval-participant transaction methods remain untouched.

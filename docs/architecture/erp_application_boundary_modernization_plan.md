@@ -875,6 +875,26 @@ facade is 528 lines, 50 methods and 17 constructor inputs. Combined focused
 regressions passed 134; live PostgreSQL security/RLS passed 14. Scoped Ruff
 F/I, Mypy, compilation and diff checks passed. A4 remains open.
 
+**A4 assignment-hours capability cut (2026-10-12).** Tasks desktop now
+calls the existing composed assignment command handler directly for manual
+assignment hours, retaining its module guard and the handler's permission,
+scope, and UoW rules. Tests use the owning handler. The obsolete TaskService
+forwarder was removed. TaskService is 525 lines, 49 methods and 17
+constructor inputs. The TimeEntry authority and approval-participant
+transactions are unchanged. A4 remains open.
+Focused Task/Time/permissions tests passed 47; desktop/composition tests
+passed 29 with 1 skipped; desktop entitlement regression passed (14 in its
+slice); live PostgreSQL security/RLS passed 14. Scoped Ruff F/I, Mypy and
+compilation passed. A repository-wide Ruff invocation reported 78 findings;
+the touched Python files pass scoped F/I checks.
+
+**A4 timesheet initialization delegate removal (2026-10-12).** Test-only
+initialization forwards were removed from TaskService and TaskTimeEntryHandler;
+tests now call the owning TimesheetService. The focused Time/collaboration/
+desktop slice passed 32 tests. TaskService is 522 lines, 48 methods and 17
+constructor inputs. Other time-entry write forwards and approval transaction
+contracts remain for later verified migration; A4 remains open.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

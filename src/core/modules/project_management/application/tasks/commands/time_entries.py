@@ -42,9 +42,6 @@ class TaskTimeEntryHandler:
             raise RuntimeError("Timesheet service is not configured.")
         return service
 
-    def initialize_timesheet_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
-        return self._require_timesheet_service().initialize_timesheet_for_assignment(assignment_id)
-
     def list_time_entries_for_task_page(
         self,
         task_id: str,

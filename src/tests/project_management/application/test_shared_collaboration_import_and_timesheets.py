@@ -65,7 +65,9 @@ def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(serv
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=60.0)
 
     services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
-    seeded_entries = ts.initialize_timesheet_for_assignment(assignment.id)
+    seeded_entries = services["timesheet_service"].initialize_timesheet_for_assignment(
+        assignment.id
+    )
 
     assert len(seeded_entries) == 1
     assert seeded_entries[0].hours == pytest.approx(4.0)
