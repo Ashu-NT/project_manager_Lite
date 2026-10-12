@@ -780,7 +780,7 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
                 "A draft or submitted forecast already exists for this project.",
                 code="PROJECT_FORECAST_OPEN_VERSION_EXISTS",
             ) from exc
-        raise
+        raise exc
 
     def _record_audit(
         self,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from src.core.modules.project_management.infrastructure.importers.models.import_models import (
     ImportMappingProfile,
@@ -26,7 +26,7 @@ class MSProjectXmlParser(ImportParser):
 
     _NS = "http://schemas.microsoft.com/project"
 
-    _DEFAULT_MAP: dict[str, str] = {
+    _DEFAULT_MAP: ClassVar[dict[str, str]] = {
         "UID": "uid",
         "ID": "id",
         "Name": "name",

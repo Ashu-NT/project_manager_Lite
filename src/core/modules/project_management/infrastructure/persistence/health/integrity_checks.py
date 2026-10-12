@@ -15,6 +15,7 @@ Usage (code): report = run_pm_data_integrity_checks(session)
 
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass, field
 
 from sqlalchemy import and_, exists, func, select
@@ -181,7 +182,7 @@ def _dependency_cycle_finding(session: Session, *, sample_limit: int) -> Integri
                 # id on the cycle.
                 start = stack.index(successor)
                 cycle_nodes = stack[start:] + [successor]
-                for a, b in zip(cycle_nodes, cycle_nodes[1:]):
+                for a, b in itertools.pairwise(cycle_nodes):
                     edge_id = edge_id_by_pair.get((a, b))
                     if edge_id is not None:
                         cycle_edge_ids.add(edge_id)

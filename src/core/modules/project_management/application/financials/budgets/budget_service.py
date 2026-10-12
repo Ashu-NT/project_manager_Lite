@@ -991,7 +991,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
                 "A draft or submitted budget already exists for this project.",
                 code="PROJECT_BUDGET_OPEN_VERSION_EXISTS",
             ) from exc
-        raise
+        raise exc
 
     # -- Shared helpers -------------------------------------------------------
 

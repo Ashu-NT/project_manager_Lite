@@ -830,17 +830,20 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
 
     def _translate_create_conflict(self, exc: IntegrityError) -> None:
         message = self._integrity_message(exc)
+
         if _REVISION_CONSTRAINT in message or "revision" in message:
             raise ConcurrencyError(
                 "Another forecast revision was created concurrently. Refresh and try again.",
                 code="PROJECT_FORECAST_REVISION_CONFLICT",
             ) from exc
+
         if _OPEN_CONSTRAINT in message or "project_finance_forecasts" in message:
             raise BusinessRuleError(
                 "A draft or submitted forecast already exists for this project.",
                 code="PROJECT_FORECAST_OPEN_VERSION_EXISTS",
             ) from exc
-        raise
+
+        raise exc
 
     def _record_forecast_audit(self, operation: str, forecast: ProjectForecast) -> None:
         full_operation = f"project_forecast.{operation}"

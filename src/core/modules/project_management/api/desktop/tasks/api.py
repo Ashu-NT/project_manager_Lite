@@ -158,6 +158,7 @@ from src.core.modules.project_management.gateway.task.reservation import (
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,
 )
+from src.core.platform.common.exceptions import UnsupportedOperationError
 from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
     SupportsModuleEntitlements,
 )
@@ -466,6 +467,11 @@ class ProjectManagementTasksDesktopApi:
         try:
             project_resource = self._project_resource_service.get(project_resource_id)
         except Exception:
+            logger.exception(
+                "Failed to retrieve project resource version for assignment_id=%s, project_resource_id=%s",
+                getattr(assignment, "id", ""),
+                project_resource_id,
+            )
             return 1
         return int(getattr(project_resource, "version", 1) or 1)
 
@@ -934,6 +940,10 @@ class ProjectManagementTasksDesktopApi:
         try:
             requirements = self._assignment_skill_validator.list_requirements(task_id)
         except Exception:
+            logger.exception(
+                "list_task_skill_requirements failed (task_id=%s)",
+                task_id,
+            )
             return ()
         return tuple(serialize_skill_requirement(req) for req in requirements)
 
@@ -1122,7 +1132,7 @@ class ProjectManagementTasksDesktopApi:
         service = self._require_task_service()
         method = getattr(service, method_name, None)
         if not callable(method):
-            raise RuntimeError(
+            raise UnsupportedOperationError(
                 f"Project management tasks desktop API does not support {method_name}."
             )
         return method

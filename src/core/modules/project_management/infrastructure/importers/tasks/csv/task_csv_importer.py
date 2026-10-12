@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.infrastructure.importers.tasks.capabilities import (
     TaskImportCapabilities,
@@ -22,6 +24,8 @@ from src.core.platform.domain.data_operations.importing import (
     ImportPreviewRow,
     ImportSummary,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def preview_tasks(
@@ -84,6 +88,7 @@ def preview_tasks(
             else:
                 preview.updated_count += 1
         except Exception as exc:
+            logger.exception("Failed to import task row at line %s: %s", line_no, exc)
             preview.rows.append(
                 ImportPreviewRow(line_no=line_no, status="ERROR", action="ERROR", message=str(exc), row=row)
             )
@@ -135,6 +140,7 @@ def import_tasks(
                 )
                 made_progress = True
             except Exception as exc:
+                logger.exception("Failed to import task row at line %s: %s", line_no, exc)
                 summary.add_row_error(line_no=line_no, message=str(exc))
                 made_progress = True
 

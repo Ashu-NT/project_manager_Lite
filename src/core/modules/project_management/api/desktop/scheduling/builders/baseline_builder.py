@@ -1,5 +1,7 @@
 """Baseline view-model assembly."""
 
+import logging
+
 from src.core.modules.project_management.api.desktop.scheduling.formatters.baseline_formatter import (
     format_baseline_row,
 )
@@ -9,6 +11,8 @@ from src.core.modules.project_management.api.desktop.scheduling.models.baselines
     SchedulingBaselineVarianceRowDto,
 )
 from src.core.platform.domain.finance.money import canonical_decimal_text
+
+logger = logging.getLogger(__name__)
 
 
 def build_baseline_options(project_id: str, baseline_service=None) -> tuple[SchedulingBaselineOptionDescriptor, ...]:
@@ -36,6 +40,7 @@ def build_variance_rows(baseline_id: str, baseline_service=None) -> tuple[Schedu
     try:
         records = baseline_service.list_variance_records(baseline_id)
     except Exception:
+        logger.exception("Failed to build variance rows for baseline_id=%s", baseline_id)
         return ()
     return tuple(
         SchedulingBaselineVarianceRowDto(

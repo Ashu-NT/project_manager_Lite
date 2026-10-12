@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, datetime
 
 from src.core.modules.project_management.domain.collaboration import (
@@ -11,6 +12,8 @@ from src.core.modules.project_management.infrastructure.persistence.orm.collabor
     TaskCommentORM,
     TaskPresenceORM,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _coerce_utc_datetime(value: datetime) -> datetime:
@@ -48,6 +51,7 @@ def task_comment_from_orm(obj: TaskCommentORM) -> TaskComment:
         try:
             data = json.loads(value or "[]")
         except Exception:
+            logger.exception("Failed to decode JSON value: %s", value)
             return []
         if not isinstance(data, list):
             return []
@@ -80,6 +84,7 @@ def _decode_reactions(value: str | None) -> dict[str, list[str]]:
     try:
         data = json.loads(value or "{}")
     except Exception:
+        logger.exception("Failed to decode JSON value: %s", value)
         return {}
     if not isinstance(data, dict):
         return {}

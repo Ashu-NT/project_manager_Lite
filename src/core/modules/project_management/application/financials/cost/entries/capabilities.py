@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from src.core.modules.project_management.domain.financials.cost_entry import (
@@ -8,6 +9,8 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryStatus,
 )
 from src.core.platform.domain.approval.policy import is_governance_required
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +115,7 @@ def _has_project_permission(user_session, project_id: str, permission: str) -> b
             and user_session.has_project_permission(project_id, permission)
         )
     except Exception:
+        logger.exception("Failed to check project permission '%s' for project '%s'", permission, project_id)
         return False
 
 
@@ -120,6 +124,7 @@ def _actor_id(user_session) -> str:
         principal = user_session.principal if user_session is not None else None
         return str(getattr(principal, "user_id", "") or "").strip()
     except Exception:
+        logger.exception("Failed to retrieve actor ID from user session")
         return ""
 
 
