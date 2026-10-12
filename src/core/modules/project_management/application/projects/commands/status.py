@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -154,7 +154,7 @@ class ProjectStatusHandler:
                 organization_id=scope.organization_id,
                 project_id=project.id,
                 status=project.status,
-                occurred_at=datetime.now(timezone.utc),
+                occurred_at=datetime.now(UTC),
             )
         )
         return project

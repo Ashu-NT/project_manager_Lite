@@ -23,12 +23,10 @@ from __future__ import annotations
 
 import os
 import time
-from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-import pytest
-from PySide6.QtCore import QCoreApplication, qInstallMessageHandler
+from PySide6.QtCore import qInstallMessageHandler
 from PySide6.QtQuick import QQuickItem
 
 from src.application.runtime import build_desktop_api_registry

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -221,7 +221,7 @@ class TaskSchedulingConstraintHandler:
                     project_id=candidate.project_id,
                     task_id=candidate.id,
                     change_type=TaskScheduleChangeType.CONSTRAINT_UPDATED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             emit_cascade_schedule_changed(

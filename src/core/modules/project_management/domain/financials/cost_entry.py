@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -44,7 +44,7 @@ class ProjectCostEntryKind(str, Enum):
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _required_identifier(value: object, *, field_name: str) -> str:
@@ -62,8 +62,8 @@ def _aware_utc(value: object, *, field_name: str) -> datetime:
             code=f"PROJECT_COST_ENTRY_{field_name.upper()}_INVALID",
         )
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 @validated_dataclass

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -10,7 +10,7 @@ from src.core.platform.common.exceptions import ValidationError
 
 def test_task_presence_dto_normalizes_and_validates_fields():
     started_at = datetime(2026, 7, 1, 9, 0, 0)
-    last_seen_at = datetime(2026, 7, 1, 9, 5, 0, tzinfo=timezone.utc)
+    last_seen_at = datetime(2026, 7, 1, 9, 5, 0, tzinfo=UTC)
 
     presence = TaskPresence(
         id=" presence-1 ",
@@ -29,8 +29,8 @@ def test_task_presence_dto_normalizes_and_validates_fields():
     assert presence.username == "alice"
     assert presence.display_name == "Alice Taylor"
     assert presence.activity == "editing"
-    assert presence.started_at.tzinfo == timezone.utc
-    assert presence.last_seen_at.tzinfo == timezone.utc
+    assert presence.started_at.tzinfo == UTC
+    assert presence.last_seen_at.tzinfo == UTC
 
 
 def test_task_presence_dto_rejects_missing_identity_and_invalid_timestamps():
@@ -52,8 +52,8 @@ def test_task_presence_dto_rejects_missing_identity_and_invalid_timestamps():
             task_id="task-1",
             user_id="user-1",
             username="alice",
-            started_at=datetime(2026, 7, 1, 9, 5, 0, tzinfo=timezone.utc),
-            last_seen_at=datetime(2026, 7, 1, 9, 0, 0, tzinfo=timezone.utc),
+            started_at=datetime(2026, 7, 1, 9, 5, 0, tzinfo=UTC),
+            last_seen_at=datetime(2026, 7, 1, 9, 0, 0, tzinfo=UTC),
         )
     assert exc_range.value.code == "TASK_PRESENCE_SEEN_RANGE_INVALID"
 
@@ -109,7 +109,7 @@ def test_presence_username_change_keeps_one_user_identity(services):
         uow.commit()
 
     rows = collaboration._presence_repo.list_recent_for_tasks(
-        [task.id], since=datetime(2020, 1, 1, tzinfo=timezone.utc)
+        [task.id], since=datetime(2020, 1, 1, tzinfo=UTC)
     )
     assert len(rows) == 1
     assert first.id == renamed.id == rows[0].id

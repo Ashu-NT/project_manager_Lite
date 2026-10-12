@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import sqlalchemy as sa
@@ -42,7 +42,7 @@ class _Context:
 
 class _Clock:
     def __init__(self) -> None:
-        self.value = datetime(2026, 8, 9, 10, tzinfo=timezone.utc)
+        self.value = datetime(2026, 8, 9, 10, tzinfo=UTC)
 
     def now(self) -> datetime:
         return self.value
@@ -61,7 +61,7 @@ def _event(*, event_id: str = "event-1", version: int = 1, amount: str = "10") -
         aggregate_type="purchase_order",
         aggregate_id="po-1",
         aggregate_version=version,
-        occurred_at=datetime(2026, 8, 9, 9, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 8, 9, 9, tzinfo=UTC),
         payload={"amount": amount},
     )
 

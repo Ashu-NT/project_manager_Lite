@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
@@ -23,7 +23,7 @@ class VarianceQueries:
         selected_baseline_id: str | None = None,
     ) -> PerformanceVarianceFacts:
         self._authorize_finance(project_id, "view finance variance")
-        resolved_as_of = as_of_date or datetime.now(timezone.utc).astimezone().date()
+        resolved_as_of = as_of_date or datetime.now(UTC).astimezone().date()
         basis = self._read_basis(project_id, resolved_as_of)
         baselines = tuple(
             item

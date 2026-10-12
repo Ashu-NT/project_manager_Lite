@@ -14,7 +14,9 @@ from src.core.platform.api.desktop.time_management.calendar.models.platform_cale
     DeptCalendarAssignCommand,
     SiteCalendarAssignCommand,
 )
-from src.ui_qml.platform.controllers.calendars.context import department_calendar_summary
+from src.ui_qml.platform.controllers.calendars.context import (
+    department_calendar_summary,
+)
 
 
 def _fake_controller(registry) -> SimpleNamespace:

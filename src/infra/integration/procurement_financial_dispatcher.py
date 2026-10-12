@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
@@ -234,7 +234,7 @@ class ProcurementFinancialDispatcher:
 class _UnitOfWorkClock:
     @staticmethod
     def now() -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 
 __all__ = ["ProcurementFinancialDispatcher"]

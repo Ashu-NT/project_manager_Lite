@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -17,7 +17,7 @@ from src.ui_qml.modules.project_management.presenters.tasks import (
 def _activity_entry(**kw) -> DetailActivityDesktopDto:
     fields = dict(
         id="act-1",
-        occurred_at=datetime(2026, 3, 1, 9, 30, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 3, 1, 9, 30, tzinfo=UTC),
         actor_id="user-1",
         action="task.update_progress",
         entity_type="task",
@@ -58,7 +58,7 @@ class TestBuildTaskActivityPage:
     def test_single_entry_maps_to_the_canonical_activity_shape(self):
         entry = _activity_entry(
             id="act-9", action="task.set_status", summary="Marked in progress",
-            occurred_at=datetime(2026, 3, 5, 14, 45, tzinfo=timezone.utc),
+            occurred_at=datetime(2026, 3, 5, 14, 45, tzinfo=UTC),
         )
         p, tasks_api = _presenter(activity_entries=[entry])
 

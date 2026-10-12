@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
@@ -74,7 +74,7 @@ PROJECT_B = "r6b-billing-project-b"
 
 
 def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str, include_outcome: bool = True) -> None:
-    now = datetime(2026, 8, 28, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 28, 12, 0, tzinfo=UTC)
     project_id = f"r6b-billing-project-{suffix}"
     profile_id = f"r6b-billing-profile-{suffix}"
     schedule_id = f"r6b-billing-schedule-{suffix}"

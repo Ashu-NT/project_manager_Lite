@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from src.core.modules.project_management.application.dashboard.models.report_models import (
@@ -210,7 +210,7 @@ def _build_excel_context(request: ExcelReportRequest) -> ExcelReportContext:
         finance_snapshot=finance_snapshot,
         project_finance_ledger_page=project_finance_ledger_page,
         as_of=as_of,
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
     )
 
 
@@ -257,7 +257,7 @@ def _build_pdf_context(request: PdfReportRequest, gantt_path: Path | None) -> Pd
         finance_snapshot=finance_snapshot,
         project_finance_ledger_page=project_finance_ledger_page,
         as_of=as_of,
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
     )
 
 

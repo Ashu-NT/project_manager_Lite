@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator
 
@@ -74,7 +74,7 @@ class ScopedAccessGrant:
     user_id: str
     scope_role: str
     permission_codes: list[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @field_validator("scope_type", mode="before")
     @classmethod

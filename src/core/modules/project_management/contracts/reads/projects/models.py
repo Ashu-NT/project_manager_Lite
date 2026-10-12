@@ -135,12 +135,12 @@ class ProjectActivityPage:
 
 
 __all__ = [
-    "ProjectManagerCandidateFact",
     "ProjectActivityFact",
     "ProjectActivityPage",
     "ProjectCatalogReadItem",
     "ProjectCatalogReadPage",
     "ProjectCatalogSummary",
+    "ProjectManagerCandidateFact",
     "ProjectResourceDetailFact",
     "ProjectResourceDetailPage",
     "ProjectResourceUsageFact",

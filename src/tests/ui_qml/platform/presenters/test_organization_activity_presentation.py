@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.platform.api.desktop.history.activity.models.activity import (
     ActivityEntryDto,
@@ -28,7 +28,7 @@ def _entry(**overrides) -> ActivityEntryDto:
         entity_id="p1",
         actor_id="u1",
         module="platform",
-        timestamp=datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 3, 5, 14, 30, tzinfo=UTC),
         type="info",
         human_message="Party created — Acme Corp",
         details={},

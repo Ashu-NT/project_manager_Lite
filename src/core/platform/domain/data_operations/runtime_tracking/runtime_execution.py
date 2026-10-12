@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator
 
@@ -40,8 +40,8 @@ def _normalize_optional_datetime(value: object, *, code: str) -> datetime | None
             code=code,
         )
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _normalize_optional_scalar_text(value: object) -> str | None:
@@ -258,7 +258,7 @@ class RuntimeExecution:
         retry_of_execution_id: str | None = None,
         attempt_number: int = 1,
     ) -> RuntimeExecution:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return RuntimeExecution(
             id=generate_id(),
             tenant_id=tenant_id,

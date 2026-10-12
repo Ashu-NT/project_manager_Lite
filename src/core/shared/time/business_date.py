@@ -10,8 +10,7 @@ calendar-aware caller)."""
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from datetime import timezone as _timezone
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
 
@@ -20,9 +19,9 @@ def business_today(timezone_name: str | None, *, now: datetime | None = None) ->
     missing or unrecognized timezone identifier -- callers must still accept
     and display an unrecognized value elsewhere (see is_known_timezone);
     resolving "today" is never allowed to raise."""
-    instant = now if now is not None else datetime.now(_timezone.utc)
+    instant = now if now is not None else datetime.now(UTC)
     if instant.tzinfo is None:
-        instant = instant.replace(tzinfo=_timezone.utc)
+        instant = instant.replace(tzinfo=UTC)
     name = (timezone_name or "").strip() or "UTC"
     try:
         zone = ZoneInfo(name)

@@ -21,7 +21,7 @@ environment this has run against so far, so this is a pure forward-looking
 fix, not a backfill-correction).
 """
 from collections.abc import Sequence
-from datetime import datetime, time, timezone
+from datetime import UTC, datetime, time
 from uuid import uuid4
 
 import sqlalchemy as sa
@@ -78,7 +78,7 @@ def upgrade() -> None:
         )
     ).fetchall()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for organization_id, tenant_id, organization_timezone in missing:
         calendar_id = f"backfill-{uuid4().hex[:12]}"
         op.execute(

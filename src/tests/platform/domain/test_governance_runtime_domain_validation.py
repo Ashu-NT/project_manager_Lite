@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -12,7 +12,9 @@ from src.core.platform.application.data_operations.runtime_tracking.runtime_exec
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 from src.core.platform.domain.data_operations.runtime_tracking import RuntimeExecution
-from src.core.platform.domain.history.platform_events.platform_event import PlatformEvent
+from src.core.platform.domain.history.platform_events.platform_event import (
+    PlatformEvent,
+)
 from src.core.platform.domain.tenant.tenancy.tenant import (
     TENANT_STATUS_ACTIVE,
     TENANT_STATUS_SUSPENDED,
@@ -95,7 +97,7 @@ def test_approval_request_dto_normalizes_and_validates_fields():
 
     assert request.status == ApprovalStatus.APPROVED
     assert request.decision_note == "Approved for release"
-    assert request.decided_at == datetime(2026, 7, 1, 9, 30, 0, tzinfo=timezone.utc)
+    assert request.decided_at == datetime(2026, 7, 1, 9, 30, 0, tzinfo=UTC)
 
     with pytest.raises(ValidationError) as exc_payload:
         ApprovalRequest.create(
@@ -158,7 +160,7 @@ def test_platform_event_dto_normalizes_and_validates_fields():
     assert event.severity == "low"
 
     event.created_at = datetime(2026, 7, 2, 11, 0, 0)
-    assert event.created_at == datetime(2026, 7, 2, 11, 0, 0, tzinfo=timezone.utc)
+    assert event.created_at == datetime(2026, 7, 2, 11, 0, 0, tzinfo=UTC)
 
     with pytest.raises(ValidationError) as exc_metadata:
         event.metadata = ["bad-metadata"]

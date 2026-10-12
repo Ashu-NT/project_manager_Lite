@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import event, select
 
@@ -12,7 +12,7 @@ def test_mark_mentions_read_queries_only_recipient_rows_in_bounded_batches(servi
     project = services["project_service"].create_project("Mention read batch")
     task = services["task_service"].create_task(project.id, "Review")
     principal = services["user_session"].principal
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session = services["session"]
     rows = []
     for index in range(1100):

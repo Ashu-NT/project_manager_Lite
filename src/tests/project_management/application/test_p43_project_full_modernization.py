@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -49,7 +49,7 @@ def test_project_created_maps_to_list_target_only():
     handler(
         ProjectCreated(
             tenant_id="t1", organization_id="o1", project_id="p1",
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -62,15 +62,15 @@ def test_project_created_maps_to_list_target_only():
     [
         ProjectProfileUpdated(
             tenant_id="t1", organization_id="o1", project_id="p1",
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
         ),
         ProjectStatusChanged(
             tenant_id="t1", organization_id="o1", project_id="p1",
-            status=ProjectStatus.ACTIVE, occurred_at=datetime.now(timezone.utc),
+            status=ProjectStatus.ACTIVE, occurred_at=datetime.now(UTC),
         ),
         ProjectRemoved(
             tenant_id="t1", organization_id="o1", project_id="p1",
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
         ),
     ],
 )
@@ -89,7 +89,7 @@ def test_project_resource_assignment_changed_maps_to_detail_only():
     handler(
         ProjectResourceAssignmentChanged(
             tenant_id="t1", organization_id="o1", project_id="p1",
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -101,7 +101,7 @@ def test_dedupe_by_target_within_one_transaction():
     handler = build_project_view_invalidation_handler(channel)
     event = ProjectProfileUpdated(
         tenant_id="t1", organization_id="o1", project_id="p1",
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     context = DomainEventContext(correlation_id="same-trace")
     handler(event, context)

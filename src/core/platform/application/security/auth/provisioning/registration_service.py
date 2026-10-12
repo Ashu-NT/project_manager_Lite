@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
@@ -267,7 +267,7 @@ def _create_user(
     active_uow: UnitOfWork = uow if uow is not None else service._uow()
     membership_repo = service._user_tenant_repo
     membership: UserTenantMembership | None = None
-    occurred_at = datetime.now(timezone.utc)
+    occurred_at = datetime.now(UTC)
 
     def _run() -> tuple[str, ...]:
         nonlocal membership

@@ -11,7 +11,7 @@ import uuid
 from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -44,11 +44,11 @@ _BEARER_PATTERN = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._\-~=+/]+")
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def create_incident_id() -> str:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
     return f"inc-{stamp}-{uuid.uuid4().hex[:8]}"
 
 

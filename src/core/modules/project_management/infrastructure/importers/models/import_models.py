@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -94,7 +94,7 @@ class ImportMappingProfile:
             name=name,
             source_format=source_format,
             owner_id=owner_id,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
 class ImportParser(ABC):

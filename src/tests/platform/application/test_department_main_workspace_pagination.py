@@ -19,7 +19,9 @@ def _presenter(services) -> PlatformDepartmentCatalogPresenter:
     from src.core.platform.api.desktop.master_data.employee.employee import (
         PlatformEmployeeDesktopApi,
     )
-    from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+    from src.core.platform.api.desktop.master_data.site.site import (
+        PlatformSiteDesktopApi,
+    )
 
     return PlatformDepartmentCatalogPresenter(
         department_api=PlatformDepartmentDesktopApi(department_service=services["department_service"]),

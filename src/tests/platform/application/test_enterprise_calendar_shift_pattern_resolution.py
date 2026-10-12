@@ -234,12 +234,12 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
 ):
     from unittest.mock import MagicMock
 
-    from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
-        PlatformCalendarDesktopApi,
-    )
     from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         ShiftPatternCreateCommand,
         ShiftPatternDaySetCommand,
+    )
+    from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
+        PlatformCalendarDesktopApi,
     )
     from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
         CalendarAssignmentService,

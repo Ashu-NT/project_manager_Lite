@@ -140,12 +140,12 @@ def build_resource_capabilities_view_invalidation_handler(channel: ViewInvalidat
 
 
 __all__ = [
-    "build_linked_employee_resource_view_invalidation_handler",
     "RESOURCE_CAPABILITIES_SCOPE_CODE",
     "RESOURCE_CATEGORY",
     "RESOURCE_ENTITY_TYPE",
     "RESOURCE_LIST_SCOPE_CODE",
     "RESOURCE_MODULE_CODE",
+    "build_linked_employee_resource_view_invalidation_handler",
     "build_resource_capabilities_view_invalidation_handler",
     "build_resource_list_view_invalidation_handler",
 ]

@@ -8,15 +8,15 @@ organization unchanged (see test_employee_platform_foundation.py)."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
-from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
     EmployeeORM,
 )
@@ -123,7 +123,7 @@ def test_cross_tenant_organization_id_is_rejected_not_visible(services) -> None:
         )
     )
     session.commit()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add(
         DepartmentORM(
             id="foreign-department-1",

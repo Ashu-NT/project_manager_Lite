@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator, model_validator
 
@@ -281,7 +281,7 @@ class UserTenantMembership:
         user_id: str,
         tenant_id: str,
     ) -> UserTenantMembership:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return UserTenantMembership(
             id=generate_id(),
             user_id=user_id,
@@ -311,7 +311,7 @@ class UserTenantMembership:
         invitation_token_hash: str,
         invited_at: datetime | None = None,
     ) -> UserTenantMembership:
-        now = invited_at or datetime.now(timezone.utc)
+        now = invited_at or datetime.now(UTC)
         return UserTenantMembership(
             id=generate_id(),
             user_id=user_id,
@@ -334,7 +334,7 @@ class UserTenantMembership:
     def invitation_is_expired(self, *, at: datetime | None = None) -> bool:
         if self.invitation_expires_at is None:
             return False
-        evaluated_at = ensure_utc_datetime(at or datetime.now(timezone.utc))
+        evaluated_at = ensure_utc_datetime(at or datetime.now(UTC))
         return evaluated_at >= self.invitation_expires_at
 
     def accept_invitation(
@@ -347,7 +347,7 @@ class UserTenantMembership:
                 "Only invited memberships can be accepted.",
                 code="USER_TENANT_MEMBERSHIP_ACCEPT_INVALID_TRANSITION",
             )
-        now = ensure_utc_datetime(accepted_at or datetime.now(timezone.utc))
+        now = ensure_utc_datetime(accepted_at or datetime.now(UTC))
         if self.invitation_is_expired(at=now):
             raise BusinessRuleError(
                 "The tenant invitation has expired.",
@@ -375,7 +375,7 @@ class UserTenantMembership:
                 "Only active memberships can be suspended.",
                 code="USER_TENANT_MEMBERSHIP_SUSPEND_INVALID_TRANSITION",
             )
-        now = ensure_utc_datetime(suspended_at or datetime.now(timezone.utc))
+        now = ensure_utc_datetime(suspended_at or datetime.now(UTC))
         return replace(
             self,
             status=MEMBERSHIP_STATUS_SUSPENDED,
@@ -393,7 +393,7 @@ class UserTenantMembership:
                 "Only suspended memberships can be reactivated.",
                 code="USER_TENANT_MEMBERSHIP_REACTIVATE_INVALID_TRANSITION",
             )
-        now = ensure_utc_datetime(reactivated_at or datetime.now(timezone.utc))
+        now = ensure_utc_datetime(reactivated_at or datetime.now(UTC))
         return replace(
             self,
             status=MEMBERSHIP_STATUS_ACTIVE,
@@ -411,7 +411,7 @@ class UserTenantMembership:
                 "Only invited memberships can be revoked.",
                 code="USER_TENANT_MEMBERSHIP_REVOKE_INVALID_TRANSITION",
             )
-        now = ensure_utc_datetime(revoked_at or datetime.now(timezone.utc))
+        now = ensure_utc_datetime(revoked_at or datetime.now(UTC))
         return replace(
             self,
             status=MEMBERSHIP_STATUS_REMOVED,
@@ -434,7 +434,7 @@ class UserTenantMembership:
                 "Only active or suspended memberships can be removed.",
                 code="USER_TENANT_MEMBERSHIP_REMOVE_INVALID_TRANSITION",
             )
-        now = ensure_utc_datetime(removed_at or datetime.now(timezone.utc))
+        now = ensure_utc_datetime(removed_at or datetime.now(UTC))
         return replace(
             self,
             status=MEMBERSHIP_STATUS_REMOVED,
@@ -459,7 +459,7 @@ class UserTenantMembership:
                 "Only invited or removed memberships can be reinvited.",
                 code="USER_TENANT_MEMBERSHIP_REINVITE_INVALID_TRANSITION",
             )
-        now = ensure_utc_datetime(invited_at or datetime.now(timezone.utc))
+        now = ensure_utc_datetime(invited_at or datetime.now(UTC))
         return replace(
             self,
             status=MEMBERSHIP_STATUS_INVITED,

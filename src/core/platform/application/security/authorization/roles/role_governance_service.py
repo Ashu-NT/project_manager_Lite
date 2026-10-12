@@ -4,7 +4,7 @@ import hashlib
 import json
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -237,7 +237,7 @@ class RoleGovernanceService:
                 )
             if policy.revoked_at is not None:
                 return policy
-            revoked_at = datetime.now(timezone.utc)
+            revoked_at = datetime.now(UTC)
             uow.role_delegation_policies.revoke(policy.id, revoked_at=revoked_at)
             self._record_audit(
                 uow.audit,

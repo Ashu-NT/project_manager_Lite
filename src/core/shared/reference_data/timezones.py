@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from zoneinfo import available_timezones, ZoneInfo 
+from zoneinfo import available_timezones
 
 # IANA time zone database identifiers (sourced from python-dateutil's bundled
 # tzdata, since zoneinfo.available_timezones() returns nothing on a Windows

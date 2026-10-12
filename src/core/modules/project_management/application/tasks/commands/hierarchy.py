@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 
@@ -211,7 +211,7 @@ class TaskHierarchyCommandHandler:
                         project_id=task.project_id,
                         task_id=task.id,
                         change_type=TaskHierarchyChangeType.MOVED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 uow.commit()

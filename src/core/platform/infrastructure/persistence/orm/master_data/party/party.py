@@ -6,13 +6,15 @@ from datetime import datetime
 
 from sqlalchemy import (
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 

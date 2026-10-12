@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -49,7 +49,7 @@ def _event(*, change_type) -> RegisterEntryChanged:
         register_entry_id="e1",
         entry_type=RegisterEntryType.RISK,
         change_type=change_type,
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
 
 

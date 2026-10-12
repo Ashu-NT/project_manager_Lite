@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator, model_validator
 
@@ -195,7 +195,7 @@ class RoleBinding:
 
     @property
     def is_active(self) -> bool:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return self.revoked_at is None and (
             self.expires_at is None or self.expires_at > now
         )
@@ -220,7 +220,7 @@ class RoleBinding:
             actual_scope_type=actual_scope_type,
             actual_scope_id=actual_scope_id,
             assigned_by=assigned_by,
-            assigned_at=datetime.now(timezone.utc),
+            assigned_at=datetime.now(UTC),
             expires_at=expires_at,
             revoked_at=None,
             version=1,

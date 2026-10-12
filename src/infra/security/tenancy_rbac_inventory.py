@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import inspect, text
@@ -245,7 +245,7 @@ def _inventory_data(
     )
     canonical_without_membership: list[dict[str, Any]] = []
     expired_unrevoked: list[dict[str, Any]] = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for row in canonical_rows:
         tenant_id = str(row.get("tenant_id") or "").strip() or None
         principal_id = str(row.get("principal_id") or "").strip()
@@ -271,7 +271,7 @@ def _inventory_data(
                 expires_at = None
         if isinstance(expires_at, datetime):
             if expires_at.tzinfo is None:
-                expires_at = expires_at.replace(tzinfo=timezone.utc)
+                expires_at = expires_at.replace(tzinfo=UTC)
             if expires_at <= now and row.get("revoked_at") is None:
                 expired_unrevoked.append(
                     {
@@ -385,7 +385,7 @@ def build_tenancy_rbac_inventory(connection: Connection) -> dict[str, Any]:
         default=str,
     )
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "read_only": True,
         "snapshot_sha256": hashlib.sha256(
             canonical_snapshot.encode("utf-8")

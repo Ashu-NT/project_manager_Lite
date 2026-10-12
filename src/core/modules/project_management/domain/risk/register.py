@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from enum import Enum
 
 from pydantic import field_validator
@@ -204,7 +204,7 @@ class RegisterEntry:
         impact_summary: str = "",
         response_plan: str = "",
     ) -> RegisterEntry:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return RegisterEntry(
             id=generate_id(),
             project_id=project_id,

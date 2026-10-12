@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
@@ -406,7 +406,7 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
         *,
         tenant_id: str | None,
     ) -> list[RoleBinding]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             select(RoleBindingORM)
             .where(RoleBindingORM.principal_type == "user")
@@ -436,7 +436,7 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
         *,
         tenant_id: str | None,
     ) -> list[RoleBinding]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             select(RoleBindingORM)
             .where(RoleBindingORM.principal_type == "user")
@@ -459,7 +459,7 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
         self,
         role_id: str,
     ) -> list[RoleBinding]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         rows = self.session.execute(
             select(RoleBindingORM)
             .where(RoleBindingORM.principal_type == "user")
@@ -486,7 +486,7 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
         actual_scope_type: str,
         actual_scope_id: str | None,
     ) -> RoleBinding | None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             select(RoleBindingORM)
             .where(RoleBindingORM.principal_type == "user")

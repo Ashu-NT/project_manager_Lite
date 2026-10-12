@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.notifications.models.notification import (
     NotificationDto,
 )
-from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.application.notifications.notification_service import (
     NotificationService,

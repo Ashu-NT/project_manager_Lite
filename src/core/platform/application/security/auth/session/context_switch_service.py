@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -71,7 +71,7 @@ def commit_context_switch(
         user_session.set_principal(target_principal)
         return
 
-    occurred_at = datetime.now(timezone.utc)
+    occurred_at = datetime.now(UTC)
     try:
         # This commits directly on `service`'s Session rather than through a
         # per-operation UnitOfWork -- it is the long-lived Session the

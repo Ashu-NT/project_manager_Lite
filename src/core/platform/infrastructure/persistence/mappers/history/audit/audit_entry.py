@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from src.core.platform.domain.history.audit.audit_entry import AuditEntry
@@ -33,8 +33,8 @@ def _from_json_required(raw: str | None) -> dict[str, Any]:
 
 def _coerce_utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def audit_entry_to_orm(entry: AuditEntry) -> AuditEntryORM:

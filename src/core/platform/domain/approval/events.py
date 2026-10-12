@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import uuid4
-from dataclasses import field
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

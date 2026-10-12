@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
@@ -159,7 +159,7 @@ class ApprovedScheduleChangeHandler:
                         project_id=project_id,
                         task_id=applied.id,
                         change_type=TaskScheduleChangeType.APPROVED_SCHEDULE_APPLIED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 results.append(

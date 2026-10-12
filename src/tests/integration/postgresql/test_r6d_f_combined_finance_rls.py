@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -198,7 +198,7 @@ def _deliver_legal_paths(environment) -> None:
             supplier_party_id=procurement_case.SUPPLIER_A,
             site_id=procurement_case.SITE_A,
             source_revision=1, source_content_hash="b" * 64,
-            posted_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+            posted_at=datetime(2026, 9, 10, tzinfo=UTC),
             accepted_quantity=DecimalQuantityPayload(value="4", unit="EA"),
             unit_cost=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
         )

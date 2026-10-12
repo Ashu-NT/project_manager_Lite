@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -190,7 +190,7 @@ class TenantRoleAdministrationService:
                         role_id=role.id,
                         tenant_id=tenant_id,
                         policy_version=role.policy_version,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 uow.commit()
@@ -232,7 +232,7 @@ class TenantRoleAdministrationService:
         permissions = self._validate_permissions(permission_codes)
         previous_codes = self._permission_codes(current.id)
         updated_codes = set(permissions)
-        updated_at = datetime.now(timezone.utc)
+        updated_at = datetime.now(UTC)
         candidate = replace(
             current,
             display_name=display_name,
@@ -324,7 +324,7 @@ class TenantRoleAdministrationService:
         if current.status == "retired":
             return current
 
-        retired_at = datetime.now(timezone.utc)
+        retired_at = datetime.now(UTC)
         retired = replace(
             current,
             status="retired",

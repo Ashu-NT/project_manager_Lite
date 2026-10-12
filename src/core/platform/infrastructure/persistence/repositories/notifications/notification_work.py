@@ -1,7 +1,7 @@
 """Transaction-neutral persistence for committed, local in-app delivery work."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -31,7 +31,7 @@ def enqueue_notification_work(
     encoded = json.dumps(metadata or {}, sort_keys=True, separators=(",", ":"))
     if len(encoded) > 4096:
         raise ValueError("Notification metadata exceeds the safe bound")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     values = dict(
         id=str(uuid4()), tenant_id=tenant_id, organization_id=organization_id,
         source_event_id=source_event_id, recipient_user_id=recipient_user_id,
@@ -67,7 +67,7 @@ def next_notification_work(
     session: Session, *, tenant_id: str, organization_id: str | None,
     work_id: str | None = None, lock: bool = True,
 ) -> NotificationWorkORM | None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     stmt = select(NotificationWorkORM).where(
         NotificationWorkORM.tenant_id == tenant_id,
         NotificationWorkORM.organization_id == organization_id,

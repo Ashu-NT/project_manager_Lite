@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from threading import Event
 from time import monotonic, sleep
@@ -137,7 +137,7 @@ class _TenantContext:
 
 
 def seed_approved_time_scope(postgres_test_environment):
-    now = datetime(2026, 9, 10, 9, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 10, 9, 0, tzinfo=UTC)
     with postgres_test_environment.admin_engine.begin() as connection:
         for tenant_id, code in ((TENANT_A, "R6DD-A"), (TENANT_B, "R6DD-B")):
             connection.execute(
@@ -403,7 +403,7 @@ def _approved_time_envelope(
     suffix: str = "a", *, resource_id: str = RESOURCE_A
 ) -> IntegrationEventEnvelope:
     work_date = date(2026, 9, 10)
-    approved_at = datetime(2026, 9, 10, 10, 0, tzinfo=timezone.utc)
+    approved_at = datetime(2026, 9, 10, 10, 0, tzinfo=UTC)
     suffix_token = "" if suffix == "a" else f"-{suffix}"
     time_entry_id = f"r6dd-time-entry-a{suffix_token}"
     facts = {
@@ -497,7 +497,7 @@ def _governed_rate_boundary(environment):
 
 
 def _seed_rate_race_line(environment, *, resource_id: str, line_id: str, code: str):
-    now = datetime(2026, 9, 10, 9, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 10, 9, 0, tzinfo=UTC)
     with environment.admin_engine.begin() as connection:
         connection.execute(text(
             "INSERT INTO users (id, username, password_hash, account_type, is_active, "
@@ -607,7 +607,7 @@ def test_runtime_worker_posts_under_rls_and_denies_hostile_scope_changes(
                     "hash": "a" * 64,
                     "actual": labor.actual_cost_entry_id,
                     "day": date(2026, 9, 10),
-                    "now": datetime.now(timezone.utc),
+                    "now": datetime.now(UTC),
                     "card": RATE_CARD_A,
                     "line": RATE_LINE_A,
                     "resource": RESOURCE_A,

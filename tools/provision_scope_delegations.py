@@ -7,7 +7,7 @@ import getpass
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from src.infra.platform.env_loader import load_env_file
@@ -96,6 +96,7 @@ def main(argv: list[str] | None = None) -> int:
         TenantContextService,
         build_tenant_context_policy,
     )
+    from src.infra.composition.persistence.repositories import build_repository_bundle
 
     from src.core.platform.application.security.auth import AuthService
     from src.core.platform.application.security.authorization.roles import (
@@ -103,7 +104,6 @@ def main(argv: list[str] | None = None) -> int:
         ScopeDelegationProvisioningService,
     )
     from src.core.platform.domain.security.auth import UserSessionContext
-    from src.infra.composition.persistence.repositories import build_repository_bundle
     from src.infra.persistence.db.session_factory import SessionLocal
     from src.infra.platform.logging_config import setup_logging
     from src.infra.platform.security_config import load_runtime_security_configuration
@@ -165,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
         plan = service.preview()
         payload = {
             "schema_version": 1,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "mode": "apply" if args.apply else "dry-run",
             "plan": _plan_payload(plan),
         }

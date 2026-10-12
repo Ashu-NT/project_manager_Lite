@@ -4,6 +4,7 @@ from __future__ import annotations
 import inspect
 import re
 from dataclasses import replace
+from datetime import UTC
 
 import pytest
 
@@ -415,7 +416,7 @@ def test_site_role_assignment_rejects_a_foreign_tenant_site(services):
     current tenant's role governance -- the "site" `scope_exists_resolver`
     (`SqlAlchemySiteRepository.get_for_tenant` in `platform_registry.py`) returns `None` for a
     foreign-tenant site."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
         OrganizationORM,
@@ -427,7 +428,7 @@ def test_site_role_assignment_rejects_a_foreign_tenant_site(services):
         TenantORM,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session = services["session"]
     auth = services["auth_service"]
     tenant_id = _tenant_id(services)

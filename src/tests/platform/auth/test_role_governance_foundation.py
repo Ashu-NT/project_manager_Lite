@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -657,7 +657,7 @@ def test_canonical_assignment_is_tenant_scoped_and_audited(services) -> None:
 
 def test_expired_binding_is_revoked_before_reassignment(services) -> None:
     _, target, target_role = _prepare_canonical_assignment(services)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expired = RoleBinding(
         id="expired-canonical-binding",
         principal_type="user",

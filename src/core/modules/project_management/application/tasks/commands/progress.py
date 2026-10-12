@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -143,7 +143,7 @@ class TaskProgressCommandHandler:
                         task_id=candidate.id,
                         old_status=old_status_by_id[candidate.id],
                         new_status=candidate.status.value,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
             uow.commit()
@@ -225,7 +225,7 @@ class TaskProgressCommandHandler:
                     project_id=candidate.project_id,
                     task_id=candidate.id,
                     percent_complete=candidate.percent_complete,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             if candidate.status != task.status:
@@ -237,7 +237,7 @@ class TaskProgressCommandHandler:
                         task_id=candidate.id,
                         old_status=task.status.value,
                         new_status=candidate.status.value,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
             uow.commit()

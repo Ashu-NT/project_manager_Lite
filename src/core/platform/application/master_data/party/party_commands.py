@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -50,7 +50,7 @@ def _transition_party_status(
         if party is None or party.organization_id != organization.id:
             raise NotFoundError("Party not found in the active organization.", code="PARTY_NOT_FOUND")
         _require_valid_party_transition(party, new_status)
-        candidate = replace(party, status=new_status, updated_at=datetime.now(timezone.utc))
+        candidate = replace(party, status=new_status, updated_at=datetime.now(UTC))
         uow.parties.update(candidate)
         record_audit_entry(
             uow,

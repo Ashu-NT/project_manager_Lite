@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import field_validator
@@ -114,7 +114,7 @@ class Notification:
             category=category,
             title=title,
             body=body,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             read_at=None,
             metadata=metadata or {},
         )

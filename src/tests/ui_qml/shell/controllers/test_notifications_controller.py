@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from src.core.platform.api.desktop.models.common import (
@@ -31,8 +31,8 @@ def _dto(id_: str, *, title: str = "Title", is_read: bool = False) -> Notificati
         category="test.event",
         title=title,
         body="Body",
-        created_at=datetime(2026, 9, 20, 10, 0, tzinfo=timezone.utc),
-        read_at=None if not is_read else datetime(2026, 9, 20, 11, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 9, 20, 10, 0, tzinfo=UTC),
+        read_at=None if not is_read else datetime(2026, 9, 20, 11, 0, tzinfo=UTC),
         is_read=is_read,
         metadata={},
     )

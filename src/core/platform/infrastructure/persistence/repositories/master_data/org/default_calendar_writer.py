@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, time, timezone
+from datetime import UTC, datetime, time
 
 from sqlalchemy.orm import Session
 
@@ -19,7 +19,7 @@ class SqlAlchemyOrganizationDefaultCalendarWriter:
     """Seed an organization's default calendar without ambient-org redirection."""
 
     def add_default_calendar(self, session: Session, organization: Organization) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         calendar_id = f"global-{organization.id[:8]}"
         session.add(
             PlatformCalendarORM(

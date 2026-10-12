@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 from pydantic import field_validator
@@ -284,7 +284,7 @@ class Party:
         # No `status`/`is_active` parameter -- every new Party starts
         # ACTIVE (PartyLifecycleStatus's own default). Use
         # activate_party/deactivate_party to change it afterward.
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return Party(
             id=generate_id(),
             organization_id=organization_id,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -157,7 +157,7 @@ def test_priority_pm_repositories_reject_cross_organization_updates(services):
                 author_user_id="user-b",
                 author_username="bob",
                 body="Blocked",
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
         )
     with pytest.raises(BusinessRuleError):

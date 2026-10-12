@@ -7,7 +7,7 @@ transactions and emit their narrow presentation hint only after commit.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -315,7 +315,7 @@ def test_remove_reaction_rolls_back_on_repository_failure(services, monkeypatch)
 
 
 def _presence_count(collaboration, task_id):
-    since = datetime.now(timezone.utc) - timedelta(days=1)
+    since = datetime.now(UTC) - timedelta(days=1)
     return len(collaboration._presence_repo.list_recent_for_tasks([task_id], since=since))
 
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -25,12 +25,12 @@ from src.infra.events.in_process_post_commit_event_bus import (
 
 @dataclass(frozen=True, slots=True)
 class _EventA:
-    occurred_at: datetime = datetime.now(timezone.utc)
+    occurred_at: datetime = datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)
 class _EventB:
-    occurred_at: datetime = datetime.now(timezone.utc)
+    occurred_at: datetime = datetime.now(UTC)
 
 
 @pytest.fixture()

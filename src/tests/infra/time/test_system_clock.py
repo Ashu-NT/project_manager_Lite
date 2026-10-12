@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from src.core.shared.time.clock import Clock
 from src.infra.time.system_clock import SystemClock
@@ -15,9 +15,9 @@ def test_system_clock_returns_a_timezone_aware_utc_datetime() -> None:
 
 
 def test_system_clock_reflects_real_wall_clock_time() -> None:
-    before = datetime.now(timezone.utc)
+    before = datetime.now(UTC)
     now = SystemClock().now()
-    after = datetime.now(timezone.utc)
+    after = datetime.now(UTC)
 
     assert before <= now <= after
 

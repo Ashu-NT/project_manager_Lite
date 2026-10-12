@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.shared.time.clock import Clock
 
@@ -19,7 +19,7 @@ class _FixedClock:
 def test_a_fixed_test_clock_satisfies_the_clock_protocol_structurally() -> None:
     """Clock is not @runtime_checkable in the approved ADR (unlike DomainEvent) -- checked
     by duck typing (it has a callable now()), not isinstance()."""
-    fixed = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    fixed = datetime(2026, 1, 1, tzinfo=UTC)
     clock = _FixedClock(fixed)
 
     assert callable(getattr(clock, "now", None))

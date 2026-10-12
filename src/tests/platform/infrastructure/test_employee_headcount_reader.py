@@ -8,6 +8,8 @@ equivalence/isolation tests through the real `services` fixture, then SQL-count 
 """
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
@@ -43,7 +45,7 @@ def reader_session():
 
 
 def _seed_department(db, *, id, tenant_id, organization_id, code="DEPT", name="Department"):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     db.add(
         DepartmentORM(
@@ -53,8 +55,8 @@ def _seed_department(db, *, id, tenant_id, organization_id, code="DEPT", name="D
             department_code=code,
             name=name,
             is_active=True,
-            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
             version=1,
         )
     )

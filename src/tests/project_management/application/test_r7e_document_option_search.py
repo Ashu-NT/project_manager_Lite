@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import event
 
@@ -14,7 +14,7 @@ def test_task_document_selector_is_bounded_and_scoped(services) -> None:
         operation_label="seed document selector"
     )
     session = services["session"]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add_all(
         DocumentORM(
             id=f"r7e-doc-{index:04d}",

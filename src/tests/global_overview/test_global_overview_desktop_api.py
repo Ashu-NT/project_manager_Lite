@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
@@ -171,7 +171,7 @@ def test_list_recent_activity_serializes_entries_and_passes_through_limit():
             workspace_id=None,
             tenant_id="tenant-1",
             organization_id="org-1",
-            timestamp=datetime(2026, 9, 1, tzinfo=timezone.utc),
+            timestamp=datetime(2026, 9, 1, tzinfo=UTC),
             type="info",
             human_message="Task created",
         ),

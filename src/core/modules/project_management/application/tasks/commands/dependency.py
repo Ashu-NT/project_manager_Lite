@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -261,7 +261,7 @@ class TaskDependencyCommandHandler:
                     predecessor_task_id=dependency.predecessor_task_id,
                     successor_task_id=dependency.successor_task_id,
                     change_type=TaskDependencyChangeType.ADDED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             emit_cascade_schedule_changed(
@@ -374,7 +374,7 @@ class TaskDependencyCommandHandler:
                         predecessor_task_id=dependency.predecessor_task_id,
                         successor_task_id=dependency.successor_task_id,
                         change_type=TaskDependencyChangeType.REMOVED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 emit_cascade_schedule_changed(
@@ -560,7 +560,7 @@ class TaskDependencyCommandHandler:
                         predecessor_task_id=candidate.predecessor_task_id,
                         successor_task_id=candidate.successor_task_id,
                         change_type=TaskDependencyChangeType.UPDATED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 emit_cascade_schedule_changed(

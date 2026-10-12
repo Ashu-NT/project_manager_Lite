@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator, model_validator
 
@@ -322,7 +322,7 @@ class UserAccount:
         must_change_password: bool = False,
         account_type: str = ACCOUNT_TYPE_HUMAN,
     ) -> UserAccount:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return UserAccount(
             id=generate_id(),
             username=username,
@@ -454,7 +454,7 @@ class Role:
                 "Tenant-owned roles cannot use platform scope.",
                 code="AUTH_CUSTOM_ROLE_SCOPE_INVALID",
             )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if not self.display_name:
             object.__setattr__(
                 self,
@@ -479,7 +479,7 @@ class Role:
         is_assignable: bool = True,
         policy_version: int = 1,
     ) -> Role:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return Role(
             id=generate_id(),
             name=name,

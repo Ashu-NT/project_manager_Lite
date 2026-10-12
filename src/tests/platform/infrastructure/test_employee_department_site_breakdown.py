@@ -10,6 +10,8 @@ tests through the real `services` fixture, then an end-to-end guardrail through 
 overview presenter."""
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
@@ -48,7 +50,7 @@ def reader_session():
 
 
 def _seed_department(db, *, id, tenant_id, organization_id, code, name):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     db.add(
         DepartmentORM(
@@ -58,15 +60,15 @@ def _seed_department(db, *, id, tenant_id, organization_id, code, name):
             department_code=code,
             name=name,
             is_active=True,
-            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
             version=1,
         )
     )
 
 
 def _seed_site(db, *, id, tenant_id, organization_id, code, name):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     db.add(
         SiteORM(
@@ -76,8 +78,8 @@ def _seed_site(db, *, id, tenant_id, organization_id, code, name):
             site_code=code,
             name=name,
             status="active",
-            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
             version=1,
         )
     )

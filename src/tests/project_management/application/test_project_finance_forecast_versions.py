@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -208,7 +208,7 @@ def _generate_through_boundary(
 
 def test_forecast_domain_lifecycle_is_explicit_and_immutable_after_submit() -> None:
     forecast = _forecast()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     with pytest.raises(BusinessRuleError):
         forecast.approve(approved_by="reviewer", approved_at=now)

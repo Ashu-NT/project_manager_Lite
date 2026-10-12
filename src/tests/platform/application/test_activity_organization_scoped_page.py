@@ -8,7 +8,7 @@ bug."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -144,7 +144,7 @@ def test_since_cutoff_excludes_older_entries(services) -> None:
     tenant_context_service.set_active_organization(org.id)
     site_service.create_site(site_code="SINCE-SITE", name="Since Site")
 
-    future_cutoff = datetime.now(timezone.utc) + timedelta(days=1)
+    future_cutoff = datetime.now(UTC) + timedelta(days=1)
     page = activity_service.list_recent_page_for_organization(
         org.id, page=1, page_size=25, since=future_cutoff
     )

@@ -5,8 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from dataclasses import replace
-from datetime import date, datetime
-from datetime import timezone as zone
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -239,7 +238,7 @@ class PlatformCalendarService:
             effective_to=cal.effective_to if effective_to is None else effective_to,
             priority=cal.priority if priority is None else priority,
             version=cal.version + 1,
-            updated_at=datetime.now(zone.utc),
+            updated_at=datetime.now(UTC),
             updated_by=username,
         )
         self._calendar_repo.update(updated)
@@ -281,7 +280,7 @@ class PlatformCalendarService:
         if new_default.is_default:
             return new_default
         username = _resolve_username(self._user_session)
-        now = datetime.now(zone.utc)
+        now = datetime.now(UTC)
         self._unmark_other_defaults(org_id, keep_calendar_id=calendar_id, username=username, now=now)
         updated = replace(
             new_default,
@@ -313,7 +312,7 @@ class PlatformCalendarService:
         username: str | None,
         now: datetime | None = None,
     ) -> None:
-        now = now or datetime.now(zone.utc)
+        now = now or datetime.now(UTC)
         for cal in self._calendar_repo.list_for_organization(organization_id):
             if cal.is_default and cal.id != keep_calendar_id:
                 self._calendar_repo.update(
@@ -381,7 +380,7 @@ class PlatformCalendarService:
         organization = self._organization_repo.get(organization_id) if self._organization_repo else None
         calendar_timezone = getattr(organization, "timezone_name", None) or "UTC"
 
-        now = datetime.now(zone.utc)
+        now = datetime.now(UTC)
         cal = PlatformCalendar(
             id=f"global-{organization_id[:8]}",
             organization_id=organization_id,

@@ -6,12 +6,12 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
-    PlatformCalendarDesktopApi,
-)
 from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
     ResolveCalendarRangeCommand,
     WorkingDaysCommand,
+)
+from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
+    PlatformCalendarDesktopApi,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (

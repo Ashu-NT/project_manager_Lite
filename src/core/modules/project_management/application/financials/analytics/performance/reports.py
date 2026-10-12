@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -36,7 +36,7 @@ class ReportsQueries:
             operation_label="view project finance reports",
         )
         self._authorize_finance(project_id, "view project finance report basis")
-        resolved_as_of = as_of_date or datetime.now(timezone.utc).astimezone().date()
+        resolved_as_of = as_of_date or datetime.now(UTC).astimezone().date()
         basis = self._read_basis(project_id, resolved_as_of)
         return PerformanceReportsFacts(
             project_id=project_id,

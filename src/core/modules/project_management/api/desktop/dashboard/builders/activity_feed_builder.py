@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
     coerce_utc_datetime,
@@ -52,7 +52,7 @@ def build_activity_feed(
         created_at = coerce_utc_datetime(getattr(activity, "created_at", None))
         items.append(
             (
-                created_at or datetime.now(timezone.utc),
+                created_at or datetime.now(UTC),
                 ProjectDashboardActivityItemDescriptor(
                     id=f"comment-{getattr(activity, 'comment_id', '')}",
                     title=f"{getattr(activity, 'task_name', '') or 'Task'} update",

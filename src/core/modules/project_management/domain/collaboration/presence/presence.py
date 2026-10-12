@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator, model_validator
 
@@ -18,8 +18,8 @@ def _coerce_presence_datetime(value: object, *, code: str) -> datetime:
     if not isinstance(value, datetime):
         raise ValidationError("Task presence timestamps must be valid datetimes.", code=code)
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 @validated_dataclass
@@ -30,8 +30,8 @@ class TaskPresence:
     username: str
     display_name: str | None = None
     activity: str = "reviewing"
-    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    last_seen_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    last_seen_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @field_validator("id", mode="before")
     @classmethod
@@ -96,7 +96,7 @@ class TaskPresence:
 
     @staticmethod
     def create(*, task_id: str, user_id: str, username: str, display_name: str | None = None, activity: str = "reviewing") -> TaskPresence:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return TaskPresence(
             id=generate_id(), task_id=task_id, user_id=user_id,
             username=username,
@@ -115,7 +115,7 @@ class TaskPresenceStatusItem:
     username: str
     display_name: str | None = None
     activity: str = "reviewing"
-    last_seen_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_seen_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     is_self: bool = False
     user_id: str = ""
 

@@ -1,6 +1,6 @@
 import json
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from threading import Barrier
 from unittest.mock import Mock
 
@@ -64,7 +64,7 @@ def inbound(request, postgres_test_environment):
         "handoff_payload_hash": handoff.payload_hash,
         "outcome": "acknowledged",
         "sequence": 1,
-        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "occurred_at": datetime.now(UTC).isoformat(),
     }
     ingress = build_external_accounting_ingress(
         engine=env.runtime_engine, authenticator=auth

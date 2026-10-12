@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -174,7 +174,7 @@ def _commitment_source(
 
 
 def _posted_receipt_entry(services, *, organization, project, cost_code, period, amount: str = "40"):
-    now = datetime(2026, 8, 10, 10, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 10, 10, tzinfo=UTC)
     source = FinancialSourceReference(
         tenant_id=organization.tenant_id,
         organization_id=organization.id,
@@ -242,7 +242,7 @@ def test_line_changed_maps_to_single_project_scoped_target():
     event = CommitmentLineChanged(
         tenant_id="t1", organization_id="o1", project_id="p1",
         commitment_line_id="line-1", change_type=CommitmentLineChangeType.CREATED,
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="c1"))
     assert len(channel.notified) == 1
@@ -262,7 +262,7 @@ def test_match_changed_maps_to_the_same_single_target():
         tenant_id="t1", organization_id="o1", project_id="p1",
         commitment_line_id="line-1", match_id="match-1",
         change_type=CommitmentMatchChangeType.MATCHED,
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="c2"))
     assert len(channel.notified) == 1
@@ -272,7 +272,7 @@ def test_match_changed_maps_to_the_same_single_target():
 def test_dedupe_by_target_within_one_transaction_across_both_event_types():
     channel = _fake_channel()
     handler = build_commitment_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     context = DomainEventContext(correlation_id="same-tx")
     handler(
         CommitmentLineChanged(

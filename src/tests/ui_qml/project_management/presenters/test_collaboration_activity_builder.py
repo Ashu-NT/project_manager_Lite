@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from src.ui_qml.modules.project_management.presenters.collaboration.activity_builder import (
@@ -19,7 +19,7 @@ def _activity(**overrides) -> SimpleNamespace:
         body_preview="Let's align on scope.",
         mentions=(),
         mentions_label="",
-        created_at=datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc),
+        created_at=datetime(2026, 3, 5, 14, 30, tzinfo=UTC),
     )
     fields.update(overrides)
     return SimpleNamespace(**fields)

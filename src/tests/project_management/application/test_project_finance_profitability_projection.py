@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import uuid4
 
@@ -391,7 +391,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     assert not hasattr(before_events, "externally_invoiced_amount")
     assert not hasattr(before_events, "externally_paid_amount")
 
-    now = datetime(2026, 8, 21, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 21, tzinfo=UTC)
     accounting_outcome(
         delivery_pending.id,
         outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[BillingExternalEventType.DELIVERY_ACCEPTED.value],
@@ -660,8 +660,8 @@ def test_commercial_statement_shape_ignores_growing_cost_schedule_and_time_colle
         session.add(TimeEntryORM(id=str(uuid4()), tenant_id=organization.tenant_id,
             organization_id=organization.id, work_allocation_id=f"scale-{index}",
             scope_type="project", scope_id=project.id, entry_date=date(2026, 8, 1), hours=1,
-            created_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2026, 8, 1, tzinfo=timezone.utc)))
+            created_at=datetime(2026, 8, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 8, 1, tzinfo=UTC)))
     session.commit()
     second, after = measured()
     assert first == second  # Draft costs/unposted time and billing timing are not revenue.

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -249,7 +249,7 @@ def test_membership_removal_refreshes_membership_and_role_binding_narrowly_with_
 
     target = services["auth_service"].register_user(_unique_code("p5closeout-removal-target"), _PASSWORD)
     issued = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     services["user_session"].set_principal(
         services["auth_service"].build_principal(

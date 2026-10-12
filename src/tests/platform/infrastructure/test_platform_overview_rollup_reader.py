@@ -17,7 +17,7 @@ presenter) SQL-count guardrails.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import create_engine, event
@@ -62,7 +62,7 @@ def reader_session():
         db.close()
 
 
-_NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
+_NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def _seed_organization(db, *, id, tenant_id, code):

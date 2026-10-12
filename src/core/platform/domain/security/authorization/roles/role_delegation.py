@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator, model_validator
 
@@ -161,7 +161,7 @@ class RoleDelegationPolicy:
             assignable_role_policy_version=assignable_role_policy_version,
             assignable_permission_set_hash=assignable_permission_set_hash,
             created_by=created_by,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             revoked_at=None,
         )
 

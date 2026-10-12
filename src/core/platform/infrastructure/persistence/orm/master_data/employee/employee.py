@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Index, Integer, String
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy import ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.platform.domain.master_data.employee import (

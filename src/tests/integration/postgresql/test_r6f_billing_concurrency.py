@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from threading import Barrier
 from types import SimpleNamespace
@@ -273,7 +273,7 @@ def test_live_billing_correction_branch_race(postgres_test_environment, billing_
             correction.idempotency_key = correction.id
             correction.correction_of_preparation_id = scope.preparation
             correction.status = BillingPreparationStatus.DRAFT
-            correction.created_at = datetime.now(timezone.utc)
+            correction.created_at = datetime.now(UTC)
             barrier.wait(timeout=10)
             try:
                 repo.add_preparation(correction)
@@ -292,7 +292,7 @@ def test_live_billing_correction_branch_race(postgres_test_environment, billing_
 def test_governed_billing_application_race(postgres_test_environment, billing_scope, action):
     scope = billing_scope
     actor = str(uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with postgres_test_environment.admin_engine.begin() as connection:
         connection.execute(text(
             "INSERT INTO users (id, username, password_hash, account_type, is_active, created_at, updated_at, version) "

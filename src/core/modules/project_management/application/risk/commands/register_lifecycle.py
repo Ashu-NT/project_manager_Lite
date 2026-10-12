@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
@@ -215,7 +215,7 @@ class RegisterLifecycleHandler:
                         register_entry_id=entry.id,
                         entry_type=as_register_entry_type(entry.entry_type),
                         change_type=RegisterEntryChangeType.CREATED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 uow.commit()
@@ -267,7 +267,7 @@ class RegisterLifecycleHandler:
             due_date=entry.due_date if due_date is self._UNSET else due_date,
             impact_summary=entry.impact_summary if impact_summary is None else impact_summary,
             response_plan=entry.response_plan if response_plan is None else response_plan,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="update register entry"
@@ -318,7 +318,7 @@ class RegisterLifecycleHandler:
                         register_entry_id=candidate.id,
                         entry_type=as_register_entry_type(candidate.entry_type),
                         change_type=RegisterEntryChangeType.UPDATED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 uow.commit()
@@ -356,7 +356,7 @@ class RegisterLifecycleHandler:
                 if entry.status == status:
                     results.append(entry)
                     continue
-                candidate = replace(entry, status=status, updated_at=datetime.now(timezone.utc))
+                candidate = replace(entry, status=status, updated_at=datetime.now(UTC))
                 uow.entries.update(candidate)
                 record_audit_entry(
                     uow,
@@ -390,7 +390,7 @@ class RegisterLifecycleHandler:
                         register_entry_id=candidate.id,
                         entry_type=as_register_entry_type(candidate.entry_type),
                         change_type=RegisterEntryChangeType.UPDATED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 results.append(candidate)
@@ -446,7 +446,7 @@ class RegisterLifecycleHandler:
                     register_entry_id=entry.id,
                     entry_type=as_register_entry_type(entry.entry_type),
                     change_type=RegisterEntryChangeType.REMOVED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()

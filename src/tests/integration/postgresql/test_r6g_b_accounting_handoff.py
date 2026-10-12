@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from threading import Barrier, Event
 from types import SimpleNamespace
 from uuid import uuid4
@@ -54,7 +54,7 @@ pytestmark = pytest.mark.postgresql_integration
 def handoff_scope(postgres_test_environment, request):
     scope = request.getfixturevalue("billing_scope")
     actors = (str(uuid4()), str(uuid4()))
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with postgres_test_environment.admin_engine.begin() as connection:
         for actor in actors:
             connection.execute(

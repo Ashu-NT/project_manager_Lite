@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from src.core.platform.application.security.auth.audit.security_audit import (
@@ -47,7 +47,7 @@ def change_password(service: AuthService, user_id: str, current_password: str, n
         raise ValidationError("Current password is incorrect.", code="AUTH_FAILED")
     service._validate_password(new_password)
     user.password_hash = hash_password(new_password)
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     user.password_changed_at = user.updated_at
     user.must_change_password = False
     rotate_session_revision(user)
@@ -71,7 +71,7 @@ def force_user_password_reset(service: AuthService, user_id: str) -> None:
     )
     user = service._require_user(user_id)
     user.must_change_password = True
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     rotate_session_revision(user)
     revoke_all_persisted_sessions(service, user, revoked_at=user.updated_at)
     _persist_password_mutation(
@@ -92,7 +92,7 @@ def reset_user_password(service: AuthService, user_id: str, new_password: str) -
     user = service._require_user(user_id)
     service._validate_password(new_password)
     user.password_hash = hash_password(new_password)
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     user.password_changed_at = user.updated_at
     user.must_change_password = True
     rotate_session_revision(user)
@@ -115,7 +115,7 @@ def _persist_password_mutation(
     action: str,
     change_type: PasswordChangeType,
 ) -> None:
-    occurred_at = user.updated_at or datetime.now(timezone.utc)
+    occurred_at = user.updated_at or datetime.now(UTC)
     with service._uow() as uow:
         service._user_repo.update(user)
         add_atomic_security_audit(

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -127,7 +127,7 @@ class CalendarExceptionService:
             approval_status=exc.approval_status if approval_status is None else approval_status,
             approved_by=exc.approved_by if approved_by is None else approved_by,
             updated_by=username,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
         self._exception_repo.update(updated)
         self._session.commit()

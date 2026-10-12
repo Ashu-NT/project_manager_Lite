@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from sqlalchemy.exc import IntegrityError
 
@@ -160,7 +160,7 @@ class TaskLifecycleCommandHandler:
                         organization_id=scope.organization_id,
                         project_id=project_id,
                         task_id=task.id,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 uow.commit()
@@ -289,7 +289,7 @@ class TaskLifecycleCommandHandler:
                         organization_id=scope.organization_id,
                         project_id=candidate.project_id,
                         task_id=candidate.id,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 if status is not None and status != task.status:
@@ -301,7 +301,7 @@ class TaskLifecycleCommandHandler:
                             task_id=candidate.id,
                             old_status=task.status.value,
                             new_status=candidate.status.value,
-                            occurred_at=datetime.now(timezone.utc),
+                            occurred_at=datetime.now(UTC),
                         )
                     )
                 uow.commit()

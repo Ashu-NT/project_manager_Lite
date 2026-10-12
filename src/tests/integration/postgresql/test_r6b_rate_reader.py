@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -30,7 +30,7 @@ PROJECT_B = "r6b-rate-project-b"
 
 
 def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str) -> None:
-    now = datetime(2026, 8, 28, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 28, 12, 0, tzinfo=UTC)
     project_id = f"r6b-rate-project-{suffix}"
     connection.execute(
         text(
@@ -260,7 +260,7 @@ def test_rate_governance_runtime_role_denies_foreign_parent_and_child_writes(
     session = postgres_test_environment.runtime_session(
         tenant_id=TENANT_A, organization_id=ORG_A
     )
-    now = datetime(2026, 9, 9, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 9, 12, 0, tzinfo=UTC)
     try:
         assert session.execute(
             text(
@@ -322,7 +322,7 @@ def test_rate_governance_runtime_role_allows_same_scope_card_and_line(
     session = postgres_test_environment.runtime_session(
         tenant_id=TENANT_A, organization_id=ORG_A
     )
-    now = datetime(2026, 9, 9, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 9, 12, 0, tzinfo=UTC)
     card_id = "r6d-b-runtime-card-a"
     line_id = "r6d-b-runtime-line-a"
     try:

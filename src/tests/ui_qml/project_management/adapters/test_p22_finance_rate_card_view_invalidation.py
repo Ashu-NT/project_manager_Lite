@@ -8,7 +8,7 @@ boundary, and the FinancialsWorkspaceController's narrow "costs"-only destinatio
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from src.core.modules.project_management.application.financials.rate_cards.event_handlers.view_invalidation import (
@@ -79,7 +79,7 @@ def _context(correlation_id: str) -> DomainEventContext:
 def test_created_maps_to_list_target_only():
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     handler(
         RateCardCreated(
@@ -100,7 +100,7 @@ def test_created_project_specific_maps_to_project_scoped_list_target():
     not a plain OrganizationScope -- project identity travels only via the scope/entity_id."""
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     handler(
         RateCardCreated(
@@ -125,7 +125,7 @@ def test_deactivated_maps_to_both_list_and_detail_targets():
     so the list hint (P22-FIX) is now a project-scoped ResourceScope, not OrganizationScope."""
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     handler(
         RateCardDeactivated(
@@ -153,7 +153,7 @@ def test_deactivated_maps_to_both_list_and_detail_targets():
 def test_deactivated_org_wide_list_hint_stays_organization_scope():
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     handler(
         RateCardDeactivated(
@@ -172,7 +172,7 @@ def test_project_a_and_project_b_list_hints_are_distinct_scopes():
     with an org-wide OrganizationScope hint (P22-FIX §7)."""
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     handler(
         RateCardCreated(
@@ -197,7 +197,7 @@ def test_org_wide_and_project_specific_list_hints_in_same_transaction_do_not_col
     -- never collapsed into a single hint (P22-FIX §7)."""
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     handler(
         RateCardCreated(
@@ -225,7 +225,7 @@ def test_org_wide_and_project_specific_list_hints_in_same_transaction_do_not_col
 def test_two_project_a_specific_changes_same_transaction_coalesce_to_one_list_hint():
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     context = _context("tx")
 
     handler(
@@ -246,7 +246,7 @@ def test_two_project_a_specific_changes_same_transaction_coalesce_to_one_list_hi
 def test_line_events_map_to_detail_target_only():
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     for event in (
         RateCardLineAdded(
@@ -271,7 +271,7 @@ def test_line_events_map_to_detail_target_only():
 def test_dedupe_by_target_within_one_transaction():
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     context = _context("same-tx")
 
     handler(
@@ -311,7 +311,7 @@ def test_dedupe_by_target_within_one_transaction():
 def test_deactivated_two_targets_never_coalesce_but_repeats_of_each_do():
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     event = RateCardDeactivated(
         tenant_id="t1", organization_id="o1", rate_card_id="c1", project_id="p1", occurred_at=now,
     )
@@ -335,7 +335,7 @@ def test_different_organization_project_scoped_hint_is_not_delivered_to_a_scoped
 
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     handler(
         RateCardCreated(

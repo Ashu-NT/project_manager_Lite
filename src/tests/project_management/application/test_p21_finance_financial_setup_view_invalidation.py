@@ -8,8 +8,15 @@ invalidation.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+from src.core.modules.project_management.application.financials.configuration.event_handlers.view_invalidation import (
+    FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
+    FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
+    FINANCIAL_PROFILE_SCOPE_CODE,
+    FINANCIAL_SETUP_CATEGORY,
+    build_financial_profile_view_invalidation_handler,
+)
 from src.core.modules.project_management.application.financials.configuration.events import (
     CostCodeActivated,
     CostCodeCreated,
@@ -19,13 +26,6 @@ from src.core.modules.project_management.application.financials.configuration.ev
     ProjectCostCodeRestrictionRemoved,
     ProjectFinancialProfileTransitioned,
     ProjectFinancialProfileUpdated,
-)
-from src.core.modules.project_management.application.financials.configuration.event_handlers.view_invalidation import (
-    FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
-    FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
-    FINANCIAL_PROFILE_SCOPE_CODE,
-    FINANCIAL_SETUP_CATEGORY,
-    build_financial_profile_view_invalidation_handler,
 )
 from src.core.modules.project_management.domain.financials.configuration import (
     BudgetControlMode,
@@ -100,7 +100,7 @@ def _seed_project(services):
 def test_profile_updated_maps_to_financial_profile_target():
     channel = _fake_channel()
     handler = build_financial_profile_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     handler(
         ProjectFinancialProfileUpdated(
@@ -122,7 +122,7 @@ def test_profile_updated_maps_to_financial_profile_target():
 def test_profile_transitioned_maps_to_financial_profile_target():
     channel = _fake_channel()
     handler = build_financial_profile_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     handler(
         ProjectFinancialProfileTransitioned(
@@ -137,7 +137,7 @@ def test_profile_transitioned_maps_to_financial_profile_target():
 def test_profile_dedupe_by_project_target_within_one_transaction():
     channel = _fake_channel()
     handler = build_financial_profile_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     context = _context("same-tx")
 
     handler(

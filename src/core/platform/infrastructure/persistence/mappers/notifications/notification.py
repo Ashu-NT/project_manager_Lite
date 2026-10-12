@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from src.core.platform.domain.notifications import Notification
@@ -26,8 +26,8 @@ def _from_json(raw: str | None) -> dict[str, Any]:
 
 def _coerce_utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def notification_to_orm(notification: Notification) -> NotificationORM:

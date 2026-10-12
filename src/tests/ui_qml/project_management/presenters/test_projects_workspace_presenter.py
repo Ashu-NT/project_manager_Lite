@@ -5,7 +5,7 @@ Covers: build_project_tasks_state, build_project_resources_state,
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -97,7 +97,7 @@ def _risk(**kw) -> RegisterEntryDesktopDto:
 def _activity_entry(**kw) -> DetailActivityDesktopDto:
     return DetailActivityDesktopDto(
         id=kw.get("id", "act-1"),
-        occurred_at=kw.get("occurred_at", datetime(2026, 3, 1, 9, 30, tzinfo=timezone.utc)),
+        occurred_at=kw.get("occurred_at", datetime(2026, 3, 1, 9, 30, tzinfo=UTC)),
         actor_id=kw.get("actor_id", "user-1"),
         action=kw.get("action", "project.update"),
         entity_type=kw.get("entity_type", "project"),
@@ -330,7 +330,7 @@ class TestBuildProjectActivityPage:
     def test_single_entry_maps_to_the_canonical_activity_shape(self):
         entry = _activity_entry(
             id="act-42", action="project.update", summary="Renamed project",
-            occurred_at=datetime(2026, 3, 5, 14, 45, tzinfo=timezone.utc),
+            occurred_at=datetime(2026, 3, 5, 14, 45, tzinfo=UTC),
         )
         p, _, projects_api, __ = _presenter(activity_entries=[entry])
 

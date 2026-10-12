@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.api.desktop.dashboard.models.activity_feed import (
     ProjectDashboardActivityFeedDescriptor,
@@ -16,7 +16,7 @@ def _item(**overrides) -> ProjectDashboardActivityItemDescriptor:
         id="comment-1",
         title="Kickoff task update",
         status_label="",
-        occurred_at=datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 3, 5, 14, 30, tzinfo=UTC),
         actor_display="ada",
         subject_display="Project Apollo",
         route_id="project_management.tasks",

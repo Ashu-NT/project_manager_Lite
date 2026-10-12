@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -131,7 +131,7 @@ class ProjectResourceCommandHandler:
                 tenant_id=scope.tenant_id,
                 organization_id=scope.organization_id,
                 project_id=project_id,
-                occurred_at=datetime.now(timezone.utc),
+                occurred_at=datetime.now(UTC),
             )
         )
 

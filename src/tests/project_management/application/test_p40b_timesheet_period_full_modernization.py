@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -42,7 +42,7 @@ def _event(*, change_type, project_ids=("project-1",)) -> TimesheetPeriodStatusC
         resource_id="resource-1",
         change_type=change_type,
         project_ids=project_ids,
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
 
 

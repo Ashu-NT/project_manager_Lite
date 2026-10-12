@@ -9,7 +9,7 @@ SQL predicate reproduces `_canonical_platform_authority`'s full platform-authori
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine, event
@@ -48,7 +48,7 @@ def reader_session():
         db.close()
 
 
-_NOW = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+_NOW = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def _seed_tenant(db, *, id, code=None):

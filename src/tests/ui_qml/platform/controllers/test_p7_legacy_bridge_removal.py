@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+from datetime import UTC
 
 from src.application.runtime import build_desktop_api_registry
 from src.ui_qml.modules.project_management.context import (
@@ -85,7 +86,7 @@ def test_organization_creation_produces_exactly_the_typed_view_invalidation(serv
 
 def test_tenant_membership_mutation_produces_exactly_the_typed_view_invalidation(services):
     """`accept_invitation` produces exactly one typed `tenant_membership` invalidation."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     catalog = _catalog(services)
     typed_calls = []
@@ -98,7 +99,7 @@ def test_tenant_membership_mutation_produces_exactly_the_typed_view_invalidation
     )
     admin_principal = services["user_session"].principal
     issued = services["tenant_membership_service"].issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     target_auth = services["auth_service"].authenticate(target.username, "P7Membership123!")
     services["user_session"].set_principal(services["auth_service"].build_principal(target_auth))

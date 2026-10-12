@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from src.core.platform.application.security.auth.audit.security_audit import (
@@ -72,7 +72,7 @@ def refresh_current_session_if_user(service: AuthService, user_id: str) -> None:
     if user is None or not user.is_active:
         service._user_session.clear()
         return
-    if user.session_expires_at is not None and datetime.now(timezone.utc) >= ensure_utc_datetime(user.session_expires_at):
+    if user.session_expires_at is not None and datetime.now(UTC) >= ensure_utc_datetime(user.session_expires_at):
         service._user_session.clear()
         return
     preferred_session_id = resolve_current_principal_session_id(service, user_id)
@@ -117,7 +117,7 @@ def set_user_session_policy(
     previous_timeout = user.session_timeout_minutes_override
     previous_revision = user.session_revision
     user.session_timeout_minutes_override = session_timeout_minutes_override
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     rotate_session_revision(user)
     user.session_expires_at = next_session_expiry(user.updated_at, user=user)
     revoke_all_persisted_sessions(service, user, revoked_at=user.updated_at)
@@ -173,7 +173,7 @@ def revoke_user_sessions(service: AuthService, user_id: str, *, note: str = "") 
     user = service._require_user(user_id)
     previous_revision = user.session_revision
     rotate_session_revision(user)
-    user.session_expires_at = datetime.now(timezone.utc)
+    user.session_expires_at = datetime.now(UTC)
     user.updated_at = user.session_expires_at
     revoke_all_persisted_sessions(service, user, revoked_at=user.updated_at)
     with service._uow() as uow:
@@ -235,7 +235,7 @@ def persist_session_context(service: AuthService, session_context) -> None:
             session_id,
             last_active_tenant_id=session_context.stored_active_tenant_id(),
             last_active_organization_id=session_context.stored_active_organization_id(),
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
     except Exception:
         logger.exception(
@@ -282,7 +282,7 @@ def revoke_session(service: AuthService, session_id: str, *, note: str = "") -> 
     if auth_session.revoked_at is not None:
         refresh_current_session_if_user(service, auth_session.user_id)
         return auth_session
-    revoked_at = datetime.now(timezone.utc)
+    revoked_at = datetime.now(UTC)
     previous_revoked_at = auth_session.revoked_at
     auth_session.revoked_at = revoked_at
     auth_session.updated_at = revoked_at
@@ -317,7 +317,7 @@ def validate_session_principal(service: AuthService, principal: UserSessionPrinc
     user = service._user_repo.get(principal.user_id)
     if user is None or not user.is_active:
         return None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     current_expires_at = ensure_utc_datetime(user.session_expires_at)
     if current_expires_at is None or now >= current_expires_at:
         return None

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -68,7 +68,7 @@ class NotificationService:
             )
         if notification.read_at is not None:
             return notification
-        read_at = datetime.now(timezone.utc)
+        read_at = datetime.now(UTC)
         self._notification_repo.mark_read(
             notification.id, user_id=principal.user_id,
             tenant_id=tenant_id, organization_id=organization_id, read_at=read_at,
@@ -109,7 +109,7 @@ class NotificationService:
     def mark_all_read(self) -> int:
         principal = self._require_principal()
         tenant_id, organization_id = self._scope(principal.user_id)
-        read_at = datetime.now(timezone.utc)
+        read_at = datetime.now(UTC)
         updated = self._notification_repo.mark_all_read_for_user(
             principal.user_id, tenant_id=tenant_id,
             organization_id=organization_id, read_at=read_at,

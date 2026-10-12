@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -138,7 +138,7 @@ def set_user_active(service: AuthService, user_id: str, is_active: bool) -> User
     user = service._require_user(user_id)
     previous_is_active = user.is_active
     user.is_active = bool(is_active)
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     with service._uow() as uow:
         service._user_repo.update(user)
         add_atomic_security_audit(
@@ -187,7 +187,7 @@ def update_user_profile(
         user.display_name = display_name
     if email is not None:
         user.email = email
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     try:
         with service._uow() as uow:
             service._user_repo.update(user)
@@ -240,7 +240,7 @@ def unlock_user_account(service: AuthService, user_id: str) -> UserAccount:
     previous_locked_until = user.locked_until
     user.failed_login_attempts = 0
     user.locked_until = None
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     with service._uow() as uow:
         service._user_repo.update(user)
         add_atomic_security_audit(

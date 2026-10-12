@@ -1,6 +1,6 @@
 import json
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock
 
 import pytest
@@ -50,7 +50,7 @@ def status_page(services):
 
 
 def _delivery(state, failure=None):
-    now = datetime(2026, 9, 28, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 28, tzinfo=UTC)
     return AccountingDeliveryFact(
         handoff_id="handoff",
         approved_source_version=2,
@@ -173,7 +173,7 @@ def test_existing_handoffs_are_not_requestable(status_page, state, reason):
 def test_transport_projection_is_bounded_scoped_and_redacted(services):
     project, scope = _seed_billing(services)
     session = services["session"]
-    now = datetime(2026, 9, 28, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 28, tzinfo=UTC)
     original = session.get(ProjectBillingPreparationORM, "preparation-zulu")
     preparations = ["preparation-alpha", "preparation-zulu"]
     for index in range(38):

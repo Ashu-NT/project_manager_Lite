@@ -6,7 +6,7 @@ enterprise calendar engine and that the resolver source chain is correct.
 
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import UTC, date, time
 from unittest.mock import MagicMock
 
 import pytest
@@ -332,7 +332,7 @@ def test_allocation_over_capacity_flagged(
 def test_resolver_source_chain_correct(
     global_cal, cal_service, assignment_service, resolver, db_session, tenant_context, org_id
 ):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
         DepartmentORM,
@@ -342,7 +342,7 @@ def test_resolver_source_chain_correct(
     )
 
     ctx = tenant_context.require_organization_context()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db_session.add_all(
         [
             SiteORM(

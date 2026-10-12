@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from datetime import UTC
 
 import pytest
 
@@ -717,9 +718,9 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
 
     class _FixedClock:
         def now(self):
-            from datetime import datetime, timezone
+            from datetime import datetime
 
-            return datetime(2031, 1, 1, tzinfo=timezone.utc)
+            return datetime(2031, 1, 1, tzinfo=UTC)
 
     class _FakeTenantContextService:
         def __init__(self, tenant_id, organization_id):

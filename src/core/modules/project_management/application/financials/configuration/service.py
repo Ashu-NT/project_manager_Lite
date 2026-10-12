@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
@@ -169,7 +169,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         if candidate == current:
             # True no-op: no write, audit, event, or version bump.
             return current
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         candidate = replace(candidate, updated_at=now)
         self._profile_repo.update(candidate)
         self._record_profile_audit("update", candidate, old=current)
@@ -208,7 +208,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
                 organization_id=candidate.organization_id,
                 project_id=candidate.project_id,
                 status=candidate.status.value,
-                occurred_at=datetime.now(timezone.utc),
+                occurred_at=datetime.now(UTC),
             )
         )
         return candidate
@@ -283,7 +283,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         if available_to_project_id and project_profile:
             self._flush(duplicate_message=duplicate_message)
         self._record_cost_code_audit("create", cost_code)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self._emit(
             CostCodeCreated(
                 tenant_id=cost_code.tenant_id,
@@ -365,7 +365,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             candidate.parent_id,
             require_active_ancestors=candidate.is_active,
         )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         candidate = replace(candidate, updated_at=now)
         self._cost_code_repo.update(candidate)
         self._record_cost_code_audit("update", candidate, old=current)
@@ -408,7 +408,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
                 "Cost code is a project default and cannot be deactivated.",
                 code="PROJECT_COST_CODE_IS_DEFAULT",
             )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         candidate = replace(
             current,
             is_active=False,
@@ -443,7 +443,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         if current.is_active:
             return current
         self._ensure_parent_is_acyclic(current.id, current.parent_id)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         candidate = replace(
             current,
             is_active=True,
@@ -494,7 +494,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
                 organization_id=restriction.organization_id,
                 project_id=restriction.project_id,
                 cost_code_id=restriction.cost_code_id,
-                occurred_at=datetime.now(timezone.utc),
+                occurred_at=datetime.now(UTC),
             )
         )
         return restriction
@@ -527,7 +527,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
                 organization_id=current.organization_id,
                 project_id=current.project_id,
                 cost_code_id=current.cost_code_id,
-                occurred_at=datetime.now(timezone.utc),
+                occurred_at=datetime.now(UTC),
             )
         )
         return True

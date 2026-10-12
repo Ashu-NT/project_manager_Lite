@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from textwrap import dedent
@@ -204,7 +204,7 @@ def test_financial_change_event_invalidation_is_typed_and_effect_specific() -> N
         project_id="project-1",
         change_id="change-1",
         change_type=FinancialChangeEventType.APPLIED,
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
         applied_effects=("budget",),
     )
 

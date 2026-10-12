@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import UTC
 from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
@@ -358,8 +359,8 @@ class PortfolioSupportMixin:
 
     @staticmethod
     def _utc_now():
-        from datetime import datetime, timezone
-        return datetime.now(timezone.utc)
+        from datetime import datetime
+        return datetime.now(UTC)
 
 
 __all__ = ["PortfolioSupportMixin"]

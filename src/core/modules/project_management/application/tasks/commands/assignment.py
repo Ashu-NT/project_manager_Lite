@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from src.core.modules.project_management.access.scope_permissions import (
@@ -205,7 +205,7 @@ class TaskAssignmentCommandHandler:
                     assignment_id=assignment.id,
                     resource_id=assignment.resource_id,
                     change_type=TaskAssignmentChangeType.UNASSIGNED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -314,7 +314,7 @@ class TaskAssignmentCommandHandler:
                     assignment_id=updated.id,
                     resource_id=updated.resource_id,
                     change_type=TaskAssignmentChangeType.HOURS_CHANGED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -374,7 +374,7 @@ class TaskAssignmentCommandHandler:
                     assignment_id=updated.id,
                     resource_id=updated.resource_id,
                     change_type=TaskAssignmentChangeType.ALLOCATION_CHANGED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -467,7 +467,7 @@ class TaskAssignmentCommandHandler:
                     assignment_id=updated.id,
                     resource_id=updated.resource_id,
                     change_type=TaskAssignmentChangeType.PLANNED_HOURS_CHANGED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -686,7 +686,7 @@ class TaskAssignmentCommandHandler:
                     assignment_id=assignment.id,
                     resource_id=assignment.resource_id,
                     change_type=TaskAssignmentChangeType.ASSIGNED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -856,7 +856,7 @@ class TaskAssignmentCommandHandler:
         candidate = replace(
             assignment,
             response_status="accepted",
-            responded_at=datetime.now(timezone.utc),
+            responded_at=datetime.now(UTC),
         )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="accept assignment"
@@ -885,7 +885,7 @@ class TaskAssignmentCommandHandler:
                     assignment_id=updated.id,
                     resource_id=updated.resource_id,
                     change_type=TaskAssignmentChangeType.ACCEPTED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -907,7 +907,7 @@ class TaskAssignmentCommandHandler:
         candidate = replace(
             assignment,
             response_status="declined",
-            responded_at=datetime.now(timezone.utc),
+            responded_at=datetime.now(UTC),
         )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="decline assignment"
@@ -937,7 +937,7 @@ class TaskAssignmentCommandHandler:
                     assignment_id=updated.id,
                     resource_id=updated.resource_id,
                     change_type=TaskAssignmentChangeType.DECLINED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()

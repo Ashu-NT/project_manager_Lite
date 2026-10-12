@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.platform.domain.master_data.employee import (
     EmployeeLifecycleStatus,
@@ -41,7 +41,7 @@ def _seed_core_scope_rows(services) -> dict[str, str]:
 
     current_tenant_id = getattr(default_org, "tenant_id", None)
     other_tenant_id = getattr(other_org, "tenant_id", None) or current_tenant_id
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     current_site = SiteORM(
         id="site-current",

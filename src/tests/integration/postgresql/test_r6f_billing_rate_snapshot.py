@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from threading import Event
 from uuid import uuid4
@@ -54,7 +54,7 @@ def test_billing_rate_race_preserves_complete_immutable_snapshot(postgres_test_e
     finally:
         session.close()
     card_id, line_id = str(uuid4()), str(uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with env.admin_engine.begin() as connection:
         connection.execute(text(
             "INSERT INTO project_finance_rate_cards (id, tenant_id, organization_id, project_id, name, version, is_active, created_at, updated_at) "

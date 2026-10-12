@@ -6,8 +6,6 @@ future approved entity) builds on."""
 
 from __future__ import annotations
 
-from src.core.platform.common.exceptions import ValidationError
-
 
 def test_list_documents_page_for_entity_returns_joined_document_metadata(services) -> None:
     document_service = services["document_service"]

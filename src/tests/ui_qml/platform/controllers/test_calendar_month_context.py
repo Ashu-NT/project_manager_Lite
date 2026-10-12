@@ -11,7 +11,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.models.common import (
+    DesktopApiError,
+    DesktopApiResult,
+)
 from src.ui_qml.platform.controllers.calendars.context import (
     calendar_business_today,
     calendar_month_context,

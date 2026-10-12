@@ -7,7 +7,7 @@ so neither presenter re-implements it."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 ACTIVITY_DATE_FILTER_OPTIONS: tuple[dict[str, str], ...] = (
     {"value": "", "label": "All time"},
@@ -18,7 +18,7 @@ ACTIVITY_DATE_FILTER_OPTIONS: tuple[dict[str, str], ...] = (
 
 
 def since_for_date_range(date_range: str) -> datetime | None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if date_range == "today":
         return now.replace(hour=0, minute=0, second=0, microsecond=0)
     if date_range == "7d":

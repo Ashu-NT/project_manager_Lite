@@ -7,7 +7,10 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_permission,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.domain.master_data.employee import Employee, EmployeeLifecycleStatus
+from src.core.platform.domain.master_data.employee import (
+    Employee,
+    EmployeeLifecycleStatus,
+)
 from src.core.platform.domain.master_data.employee.events import (
     EmployeeActivated,
     EmployeeDeactivated,

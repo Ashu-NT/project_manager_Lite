@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, or_, select
@@ -27,7 +27,7 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 def _aware(value: datetime | None) -> datetime | None:
     if value is None or value.tzinfo is not None:
         return value
-    return value.replace(tzinfo=timezone.utc)
+    return value.replace(tzinfo=UTC)
 
 
 def _envelope(row: Any) -> IntegrationEventEnvelope:

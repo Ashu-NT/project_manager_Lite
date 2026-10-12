@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -56,7 +56,7 @@ def _seed_billing(services):
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="seed billing reader"
     )
-    now = datetime(2026, 8, 28, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 28, 12, 0, tzinfo=UTC)
     session = services["session"]
     session.add(ProjectBillingProfileORM(
         id="billing-profile-a", tenant_id=scope.tenant_id,
@@ -192,7 +192,7 @@ def test_billing_readers_are_bounded_sorted_filtered_and_selection_is_explicit(s
 
 def test_accounting_status_reader_is_bounded_isolated_and_scope_safe(services):
     project, scope = _seed_billing(services)
-    now = datetime(2026, 9, 28, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 28, tzinfo=UTC)
     services["session"].add(ProjectBillingExternalEventORM(
         id="authenticated-event", tenant_id=scope.tenant_id,
         organization_id=scope.organization_id, project_id=project.id,

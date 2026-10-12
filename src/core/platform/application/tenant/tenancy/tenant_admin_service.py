@@ -14,7 +14,9 @@ from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,
 )
-from src.core.platform.domain.history.platform_events.platform_event import PlatformEvent
+from src.core.platform.domain.history.platform_events.platform_event import (
+    PlatformEvent,
+)
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.tenant.tenancy.tenant import (
     TENANT_STATUS_ACTIVE,

@@ -167,7 +167,7 @@ def test_approval_request_mapper_round_trips_tenant_and_organization_id():
         status="PENDING",
         requested_by_user_id="user-1",
         requested_by_username="requester",
-        requested_at=_dt.datetime(2026, 8, 1, tzinfo=_dt.timezone.utc),
+        requested_at=_dt.datetime(2026, 8, 1, tzinfo=_dt.UTC),
     )
     domain = approval_from_orm(orm)
     assert domain.tenant_id == "T1"

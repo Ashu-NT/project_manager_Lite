@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -26,7 +26,7 @@ PROJECT_B = "r6b-forecast-project-b"
 
 
 def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str) -> None:
-    now = datetime(2026, 8, 27, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
     project_id = f"r6b-forecast-project-{suffix}"
     forecast_id = f"r6b-forecast-version-{suffix}"
     cost_code_id = f"r6b-forecast-cost-code-{suffix}"

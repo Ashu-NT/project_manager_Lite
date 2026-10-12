@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from src.core.platform.application.security.auth.audit.security_audit import (
@@ -44,7 +44,7 @@ def provision_mfa_secret(service: AuthService, user_id: str) -> str:
     user = service._require_user(user_id)
     user.mfa_secret = generate_mfa_secret()
     user.mfa_enabled = False
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     _persist_mfa_mutation(
         service,
         user,
@@ -74,7 +74,7 @@ def enable_user_mfa(service: AuthService, user_id: str, verification_code: str) 
             code="AUTH_MFA_FAILED",
         )
     user.mfa_enabled = True
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     _persist_mfa_mutation(
         service,
         user,
@@ -99,7 +99,7 @@ def disable_user_mfa(service: AuthService, user_id: str) -> UserAccount:
     )
     user = service._require_user(user_id)
     user.mfa_enabled = False
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     _persist_mfa_mutation(
         service,
         user,
@@ -119,7 +119,7 @@ def _persist_mfa_mutation(
     severity: str,
     change_type: MfaChangeType,
 ) -> None:
-    occurred_at = user.updated_at or datetime.now(timezone.utc)
+    occurred_at = user.updated_at or datetime.now(UTC)
     with service._uow() as uow:
         service._user_repo.update(user)
         add_atomic_security_audit(

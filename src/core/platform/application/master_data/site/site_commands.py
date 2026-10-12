@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -65,7 +65,7 @@ def create_site(
     require_permission(service._user_session, "settings.manage", operation_label="create site")
     organization = active_organization(service)
     tenant_id = organization.tenant_id
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     site = Site.create(
         organization_id=organization.id,
         site_code=site_code,
@@ -180,7 +180,7 @@ def update_site(
                 "Site changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         candidate = replace(
             site,
             site_code=site.site_code if site_code is None else site_code,
@@ -309,7 +309,7 @@ def _transition_site_status(
         if site is None or site.organization_id != organization.id:
             raise NotFoundError("Site not found in the active organization.", code="SITE_NOT_FOUND")
         _require_valid_site_transition(site, new_status)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         next_opened_at = site.opened_at
         next_closed_at = site.closed_at
         if new_status == SITE_STATUS_ACTIVE and next_opened_at is None:

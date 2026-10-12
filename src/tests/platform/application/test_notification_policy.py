@@ -1,7 +1,7 @@
 """Only supported business events stage safe, scoped notification work."""
 
 import inspect
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from src.core.modules.project_management.application.collaboration.collaboration_events import (
@@ -25,7 +25,7 @@ from src.infra.events.in_process_transactional_event_dispatcher import (
 )
 from src.infra.integration import notification_dispatcher
 
-NOW = datetime(2026, 10, 3, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 3, tzinfo=UTC)
 
 
 def test_shared_notification_runtime_does_not_import_pm_implementation():

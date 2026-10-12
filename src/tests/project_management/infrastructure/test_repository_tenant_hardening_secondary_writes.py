@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -97,7 +97,7 @@ def _seed_priority_pm_rows(services):
     assert getattr(default_org, "tenant_id", None)
     other_tenant_id = getattr(other_org, "tenant_id", None) or default_org.tenant_id
     today = date.today()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add_all([
         UserORM(id="user-a", username="scope-alice", password_hash="not-used", created_at=now, updated_at=now),
         UserORM(id="user-b", username="scope-bob", password_hash="not-used", created_at=now, updated_at=now),
@@ -154,7 +154,7 @@ def _seed_pm_secondary_scope_rows(services):
     default_org = seeded["default_org"]
     other_org = seeded["other_org"]
     other_tenant_id = getattr(other_org, "tenant_id", None) or default_org.tenant_id
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     project_a_secondary = ProjectORM(id="project-a-2", tenant_id=default_org.tenant_id, organization_id=default_org.id, name="Project A2", status=ProjectStatus.PLANNED, version=1)
     project_b_secondary = ProjectORM(id="project-b-2", tenant_id=other_tenant_id, organization_id=other_org.id, name="Project B2", status=ProjectStatus.PLANNED, version=1)
     calendar_a = PlatformCalendarORM(id="pm-calendar-a", tenant_id=default_org.tenant_id, organization_id=default_org.id, code="PM-CAL-A", name="PM Calendar A", calendar_type="global", timezone="UTC", is_default=True, is_active=True, priority=0, version=1, created_at=now, updated_at=now)

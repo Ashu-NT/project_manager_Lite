@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from src.core.platform.common.exceptions import ValidationError
@@ -37,7 +37,7 @@ def authenticate(
     device_label: str | None = None,
 ) -> UserAccount:
     normalized = (username or "").strip().lower()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     user = service._user_repo.get_by_username(normalized)
     if (
         not user
@@ -130,7 +130,7 @@ def authenticate_federated(
     normalized_provider = normalize_identity_provider(identity_provider)
     normalized_subject = normalize_federated_subject(federated_subject)
     validate_federated_identity(normalized_provider, normalized_subject)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     user = service._user_repo.get_by_federated_identity(
         normalized_provider,
         normalized_subject,

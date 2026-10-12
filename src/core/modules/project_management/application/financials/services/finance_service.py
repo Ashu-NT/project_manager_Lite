@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import cast
 
@@ -113,7 +113,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             "finance.read",
             operation_label="view finance overview",
         )
-        as_of = as_of or datetime.now(timezone.utc).astimezone().date()
+        as_of = as_of or datetime.now(UTC).astimezone().date()
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="build finance overview"
         )
@@ -144,7 +144,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             "finance.read",
             operation_label="view finance snapshot",
         )
-        as_of = as_of or datetime.now(timezone.utc).astimezone().date()
+        as_of = as_of or datetime.now(UTC).astimezone().date()
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="build finance snapshot"
         )

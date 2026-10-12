@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -38,15 +38,15 @@ _ALLOWED_TRANSITIONS: dict[BudgetStatus, frozenset[BudgetStatus]] = {
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _normalize_timestamp(value: object, *, code: str) -> datetime:
     if not isinstance(value, datetime):
         raise ValidationError("A valid timestamp is required.", code=code)
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _required_identifier(value: object, *, label: str, code: str) -> str:

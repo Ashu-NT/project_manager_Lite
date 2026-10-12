@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from textwrap import dedent
 from types import SimpleNamespace
@@ -19,14 +19,14 @@ from src.core.modules.project_management.api.desktop.financials import (
     FinancialUpdateProfileCommand,
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.application.financials.configuration.events import (
-    CostCodeProfileUpdated,
-    ProjectCostCodeRestrictionAdded,
-)
 from src.core.modules.project_management.application.financials.configuration.event_handlers.view_invalidation import (
     FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
     FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
     build_financial_profile_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.configuration.events import (
+    CostCodeProfileUpdated,
+    ProjectCostCodeRestrictionAdded,
 )
 from src.core.modules.project_management.domain.financials.configuration import (
     CostCodePolicy,
@@ -289,7 +289,7 @@ def test_setup_events_produce_targeted_catalog_and_restriction_hints() -> None:
     channel = SimpleNamespace(hints=[])
     channel.notify = channel.hints.append
     handler = build_financial_profile_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     context = DomainEventContext(correlation_id="r6ce-command")
     handler(
         CostCodeProfileUpdated(

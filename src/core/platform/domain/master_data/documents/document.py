@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from enum import Enum
 
 from pydantic import field_validator, model_validator
@@ -80,8 +80,8 @@ def _normalize_optional_datetime(value: object) -> datetime | None:
             code="DOCUMENT_TIMESTAMP_INVALID",
         )
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _normalize_positive_int(value: object, *, code: str, message: str) -> int:
@@ -246,7 +246,7 @@ class Document:
         notes: str = "",
         is_active: bool = True,
     ) -> Document:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return Document(
             id=generate_id(),
             organization_id=organization_id,

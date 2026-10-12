@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -281,7 +281,7 @@ def test_policy_v1_preview_requires_reviewed_role_assignment_additions(
             from_version=0,
             to_version=1,
             change_set_hash="a" * 64,
-            applied_at=datetime.now(timezone.utc),
+            applied_at=datetime.now(UTC),
             applied_by_user_id=services["user_session"].principal.user_id,
             rollback_json="{}",
         )

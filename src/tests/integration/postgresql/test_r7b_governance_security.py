@@ -1,7 +1,7 @@
 """R7B regressions replacing the unsafe R7A comment characterizations."""
 
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from threading import Event, Thread
 from types import SimpleNamespace
 
@@ -25,7 +25,7 @@ pytestmark = pytest.mark.postgresql_integration
 
 @pytest.fixture(scope="module")
 def governance_rows(postgres_test_environment):
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     with postgres_test_environment.admin_engine.begin() as connection:
         # Shared by the R7C regression matrix in the same dedicated database.
         if connection.scalar(text("SELECT count(*) FROM projects WHERE id='r7a-project-a'")):
@@ -184,11 +184,10 @@ def runtime(environment, user="reviewer", tenant="a", org="a"):
         tenant_id=f"r7a-tenant-{tenant}",
         organization_id=f"r7a-org-{org}",
         actor_user_id=f"r7b-{user}",
-    ):
-        with environment.runtime_session(
-            tenant_id=None, organization_id=None
-        ) as session:
-            yield session
+    ), environment.runtime_session(
+        tenant_id=None, organization_id=None
+    ) as session:
+        yield session
 
 
 def test_runtime_role_has_no_rls_bypass(postgres_test_environment):
@@ -357,7 +356,7 @@ def test_governed_tables_force_rls(postgres_test_environment, table):
 def test_document_link_rls_rejects_foreign_document_and_comment_parent(
     postgres_test_environment, governance_rows
 ):
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     with postgres_test_environment.admin_engine.begin() as connection:
         for suffix in ("a", "b"):
             connection.execute(
@@ -776,7 +775,7 @@ def test_stale_writer_cannot_resurrect_committed_tombstone(
         with runtime(postgres_test_environment) as deleting_session:
             repo = _comments(deleting_session)
             deleted = repo.get(comment.id)
-            deleted.deleted_at = datetime.now(timezone.utc)
+            deleted.deleted_at = datetime.now(UTC)
             repo.update(deleted)
             deleting_session.commit()
         if mutation == "edit":
@@ -914,13 +913,12 @@ def test_reply_parent_lock_serializes_competing_delete(
 def test_scope_change_cannot_move_comment_to_foreign_project(
     postgres_test_environment, governance_rows
 ):
-    with runtime(postgres_test_environment) as session:
-        with pytest.raises(DBAPIError):
-            session.execute(
-                text(
-                    "UPDATE task_comments SET task_id='r7a-task-p' WHERE id='r7a-comment-a'"
-                )
+    with runtime(postgres_test_environment) as session, pytest.raises(DBAPIError):
+        session.execute(
+            text(
+                "UPDATE task_comments SET task_id='r7a-task-p' WHERE id='r7a-comment-a'"
             )
+        )
 
 
 def test_recipient_query_is_single_bounded_statement_and_rechecks_revocation(

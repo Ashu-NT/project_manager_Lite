@@ -3,7 +3,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from src.core.platform.common.exceptions import OperationNotPermittedError
-from src.core.platform.domain.history.platform_events.platform_event import PlatformEvent
+from src.core.platform.domain.history.platform_events.platform_event import (
+    PlatformEvent,
+)
 
 
 class PlatformEventRepository(ABC):

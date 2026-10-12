@@ -1,6 +1,6 @@
 """SQL eligibility projection over the canonical scoped RBAC tables."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import aliased
@@ -44,7 +44,7 @@ def scoped_permission(
                    member.status == "active", member.revoked_at.is_(None),
                    binding.principal_type == "user", tenant_scope,
                    binding.revoked_at.is_(None),
-                   or_(binding.expires_at.is_(None), binding.expires_at > datetime.now(timezone.utc)),
+                   or_(binding.expires_at.is_(None), binding.expires_at > datetime.now(UTC)),
                    role.status == "active", role.allowed_scope_type == binding.actual_scope_type,
                    or_(role.tenant_id.is_(None), role.tenant_id == tenant_id),
                    permission.code.in_(permissions), or_(*scopes))

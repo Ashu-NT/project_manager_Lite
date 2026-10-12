@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -37,7 +37,7 @@ def _seed_time_governance_scope_rows(services) -> dict[str, str]:
 
     current_tenant_id = getattr(default_org, "tenant_id", None)
     other_tenant_id = getattr(other_org, "tenant_id", None) or current_tenant_id
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     earlier = now.replace(hour=max(0, now.hour - 1))
     today = date.today()
 

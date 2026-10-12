@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Mapping
 from dataclasses import field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import field_validator
@@ -24,8 +24,8 @@ def _normalize_required_datetime(value: object, *, code: str) -> datetime:
             code=code,
         )
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _normalize_metadata(value: object) -> dict[str, Any]:
@@ -138,7 +138,7 @@ class PlatformEvent:
             resource_id=resource_id,
             outcome=outcome,
             severity=severity,
-            created_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
             metadata=metadata or {},
         )
 

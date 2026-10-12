@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -31,7 +31,7 @@ def accounting_services(session):
             enabled=True,
             licensed=True,
             lifecycle_status="active",
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
     )
     session.add(

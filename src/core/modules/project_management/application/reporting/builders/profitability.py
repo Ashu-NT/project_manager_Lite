@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.modules.project_management.application.financials.models.finance_models import (
     ProjectCommercialProjection,
@@ -39,7 +39,7 @@ class ReportingProfitabilityMixin:
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             project_id=project_id,
-            as_of_date=as_of_date or datetime.now(timezone.utc).astimezone().date(),
+            as_of_date=as_of_date or datetime.now(UTC).astimezone().date(),
             include_profitability=self._has_profitability_view(project_id),
         )
 

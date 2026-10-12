@@ -163,7 +163,7 @@ def test_sites_section_status_combo_emits_status_filter_requested(qapp) -> None:
     AdminOrganizationDetailPage.qml's `onStatusFilterRequested` handler, so
     selecting a different status in the dropdown silently did nothing.
     Exercises the actual QML ComboBox `activated` signal end-to-end."""
-    from PySide6.QtCore import QCoreApplication, QMetaObject, Qt, Q_ARG
+    from PySide6.QtCore import Q_ARG, QCoreApplication, QMetaObject, Qt
     from PySide6.QtQuick import QQuickItem
 
     from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -30,7 +30,7 @@ def test_integration_event_envelope_normalizes_time_and_has_stable_deduplication
     event = _event()
     replay = _event(payload={"status": "APPROVED", "period_id": "period-1"})
 
-    assert event.occurred_at == datetime(2026, 8, 2, 9, 0, tzinfo=timezone.utc)
+    assert event.occurred_at == datetime(2026, 8, 2, 9, 0, tzinfo=UTC)
     assert event.payload_hash == replay.payload_hash
     assert event.inbox_deduplication_key("pm-finance") == replay.inbox_deduplication_key(
         "pm-finance"

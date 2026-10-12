@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -139,7 +139,7 @@ def _fake_channel():
 def test_billing_events_use_commercial_or_outcome_only_targets():
     channel = _fake_channel()
     handler = build_billing_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     events = (
         BillingProfileCreated(
             tenant_id="t1", organization_id="o1", project_id="p1", billing_profile_id="bp1",
@@ -192,7 +192,7 @@ def test_billing_events_use_commercial_or_outcome_only_targets():
 def test_dedupe_within_one_transaction():
     channel = _fake_channel()
     handler = build_billing_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     event = BillingProfileActivated(
         tenant_id="t1", organization_id="o1", project_id="p1", billing_profile_id="bp1",
         occurred_at=now,
@@ -372,12 +372,12 @@ def test_preparation_creator_cannot_approve_when_another_user_submitted():
     )
     preparation.submit(
         submitted_by="submitter-2",
-        submitted_at=datetime.now(timezone.utc),
+        submitted_at=datetime.now(UTC),
         approval_request_id="request-1",
     )
     with pytest.raises(BusinessRuleError) as exc:
         preparation.approve(
-            approved_by="creator-1", approved_at=datetime.now(timezone.utc)
+            approved_by="creator-1", approved_at=datetime.now(UTC)
         )
     assert exc.value.code == "BILLING_PREPARATION_CREATOR_SELF_APPROVAL"
     assert preparation.status is BillingPreparationStatus.SUBMITTED
@@ -637,7 +637,7 @@ def test_correction_uses_reconciled_parent_without_mutating_its_evidence(account
     for event_type in (BillingExternalEventType.DELIVERY_ACCEPTED, BillingExternalEventType.RECONCILED):
         accounting_outcome(
             parent.id, outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[event_type.value], event_id=_unique("outcome"),
-            occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
+            occurred_at=datetime(2026, 8, 25, tzinfo=UTC),
             reconciliation_reference="external-confirmation",
         )
     reconciled = billing.get_preparation(parent.id)
@@ -685,13 +685,13 @@ def test_external_outcome_replay_produces_zero_hints(accounting_services, accoun
     key = _unique("ext-replay-key")
     accounting_outcome(
         pending.id, outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[BillingExternalEventType.DELIVERY_ACCEPTED.value],
-        event_id=key, occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
+        event_id=key, occurred_at=datetime(2026, 8, 25, tzinfo=UTC),
     )
 
     hints = _spy_hints(services)
     accounting_outcome(
         pending.id, outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[BillingExternalEventType.DELIVERY_ACCEPTED.value],
-        event_id=key, occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
+        event_id=key, occurred_at=datetime(2026, 8, 25, tzinfo=UTC),
     )
 
     assert _billing_hints(hints) == []

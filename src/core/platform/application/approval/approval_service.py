@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -227,7 +227,7 @@ class ApprovalService:
             self._require_reviewer_eligibility(uow.approvals, request.id)
             principal = self._user_session.principal if self._user_session else None
             request.status = ApprovalStatus.REJECTED
-            request.decided_at = datetime.now(timezone.utc)
+            request.decided_at = datetime.now(UTC)
             request.decided_by_user_id = principal.user_id if principal else None
             request.decided_by_username = principal.username if principal else None
             request.decision_note = note
@@ -293,7 +293,7 @@ class ApprovalService:
             handler_result = self._normalize_handler_result(handler(request, deps))
             principal = self._user_session.principal if self._user_session else None
             request.status = ApprovalStatus.APPROVED
-            request.decided_at = datetime.now(timezone.utc)
+            request.decided_at = datetime.now(UTC)
             request.decided_by_user_id = principal.user_id if principal else None
             request.decided_by_username = principal.username if principal else None
             request.decision_note = note

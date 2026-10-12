@@ -1,6 +1,6 @@
 """Committed local work is replay-safe and does not persist partial effects."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import func, select
@@ -50,7 +50,7 @@ def _setup(session, services):
         id="org-one", tenant_id="durable-notification-tenant",
         organization_code="DURABLE-NOTIFY-ORG", display_name="Durable Org",
     ))
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add(UserTenantORM(
         id="durable-member", user_id=user.id, tenant_id="durable-notification-tenant",
         status="active", accepted_at=now, joined_at=now, created_at=now, updated_at=now,
@@ -139,7 +139,7 @@ def test_revoked_membership_blocks_pending_org_delivery(services, session):
     )
     member = session.scalar(select(UserTenantORM).where(UserTenantORM.user_id == recipient))
     member.status = "removed"
-    member.revoked_at = datetime.now(timezone.utc)
+    member.revoked_at = datetime.now(UTC)
     member.removed_at = member.revoked_at
     session.commit()
     worker = NotificationDispatcher(session_factory=sessionmaker(bind=session.bind, future=True))
@@ -153,7 +153,7 @@ def test_removed_membership_blocks_tenant_wide_work(services, session):
     recipient = _setup(session, services)
     member = session.scalar(select(UserTenantORM).where(UserTenantORM.user_id == recipient))
     member.status = "removed"
-    member.revoked_at = datetime.now(timezone.utc)
+    member.revoked_at = datetime.now(UTC)
     member.removed_at = member.revoked_at
     _enqueue(session, recipient)
     session.commit()
@@ -199,7 +199,7 @@ def test_retryable_insert_failure_preserves_pending_effect(monkeypatch, services
     assert _count(session, NotificationORM) == 0
     work = session.scalar(select(NotificationWorkORM))
     assert work.status == "retry" and work.attempt_count == 1
-    work.available_at = datetime.now(timezone.utc)
+    work.available_at = datetime.now(UTC)
     session.commit()
     assert worker.drain(tenant_id="durable-notification-tenant", organization_id=None) == 1
     assert _count(session, NotificationORM) == 1
@@ -230,7 +230,7 @@ def test_failure_after_notification_insert_rolls_back_before_retry(
     assert _count(session, NotificationORM) == 0
     work = session.scalar(select(NotificationWorkORM))
     assert work.status == "retry"
-    work.available_at = datetime.now(timezone.utc)
+    work.available_at = datetime.now(UTC)
     session.commit()
     assert worker.drain(tenant_id="durable-notification-tenant", organization_id=None) == 1
     assert _count(session, NotificationORM) == 1
@@ -258,7 +258,7 @@ def test_commit_failure_does_not_commit_notification_with_retry_state(services, 
     assert _count(session, NotificationORM) == 0
     work = session.scalar(select(NotificationWorkORM))
     assert work.status == "retry"
-    work.available_at = datetime.now(timezone.utc)
+    work.available_at = datetime.now(UTC)
     session.commit()
     assert NotificationDispatcher(session_factory=sessionmaker(
         bind=session.bind, future=True,
@@ -309,7 +309,7 @@ def test_one_event_fans_out_once_per_recipient_across_replay(services, session):
     second = services["auth_service"].register_user(
         "durable-notification-second", "StrongPass123!", display_name="Second",
     )
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add(UserTenantORM(
         id="durable-member-second", user_id=second.id,
         tenant_id="durable-notification-tenant", status="active",
@@ -422,7 +422,7 @@ def test_real_invitation_commit_does_not_create_in_app_notification(services, se
         "durable-invitation-target", "StrongPass123!", display_name="Invitee",
     )
     issued = services["tenant_membership_service"].issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=2),
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=2),
     )
     assert issued.token
     assert session.scalar(select(NotificationWorkORM).where(

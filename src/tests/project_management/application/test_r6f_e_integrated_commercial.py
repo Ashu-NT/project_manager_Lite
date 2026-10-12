@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -89,7 +89,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
             approved.id,
             outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[event_type.value],
             event_id=f"golden-{event_type.value}",
-            occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
+            occurred_at=datetime(2026, 8, 25, tzinfo=UTC),
             reconciliation_reference="external-confirmation",
         )
     parent = billing.get_preparation(approved.id)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.domain.collaboration import (
     TaskComment,
@@ -15,8 +15,8 @@ from src.core.modules.project_management.infrastructure.persistence.orm.collabor
 
 def _coerce_utc_datetime(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def task_comment_to_orm(comment: TaskComment) -> TaskCommentORM:

@@ -170,9 +170,9 @@ def _cost_phasing_availability_label(item) -> str:
 
 
 __all__ = [
-    "project_finance_ledger_headers",
-    "project_finance_ledger_values",
     "finance_metadata_rows",
     "finance_reconciliation_rows",
     "finance_summary_rows",
+    "project_finance_ledger_headers",
+    "project_finance_ledger_values",
 ]

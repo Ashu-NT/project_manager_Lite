@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import fields, is_dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -171,7 +171,7 @@ def test_approval_event_conforms_to_domain_event_and_has_only_the_locked_fields(
             if event_cls is ApprovalRequested
             else {"decided_by_user_id": "user-1"}
         ),
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     assert isinstance(event, DomainEvent)
     assert is_dataclass(event)
@@ -255,7 +255,7 @@ def test_approval_requested_has_exactly_one_recording_responsibility():
 def test_standalone_request_change_uses_the_injected_clock_deterministically(services, monkeypatch):
     _login_as_fresh_requester(services)
     approvals = services["approval_service"]
-    fixed_when = datetime(2031, 5, 6, 8, 0, 0, tzinfo=timezone.utc)
+    fixed_when = datetime(2031, 5, 6, 8, 0, 0, tzinfo=UTC)
     original_clock = approvals._clock
     approvals._clock = _FixedClock(fixed_when)
     try:
@@ -799,7 +799,7 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     approvals_a = ApprovalService(
         session=approval_repo_a.session, approval_repo=approval_repo_a, uow_factory=factory_a,
         user_session=session_a, tenant_context_service=_FakeTenantContextService("evt-tenant-a", "evt-org-a"),
-        clock=_FixedClock(datetime(2031, 1, 1, tzinfo=timezone.utc)),
+        clock=_FixedClock(datetime(2031, 1, 1, tzinfo=UTC)),
     )
     request = approvals_a.request_change(
         request_type="baseline.create", entity_type="project_baseline",
@@ -819,7 +819,7 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     approvals_b = ApprovalService(
         session=session_factory(), approval_repo=None, uow_factory=factory_b,
         user_session=session_b, tenant_context_service=_FakeTenantContextService("evt-tenant-b", "evt-org-b"),
-        clock=_FixedClock(datetime(2031, 1, 1, tzinfo=timezone.utc)),
+        clock=_FixedClock(datetime(2031, 1, 1, tzinfo=UTC)),
     )
 
     with pytest.raises(NotFoundError):

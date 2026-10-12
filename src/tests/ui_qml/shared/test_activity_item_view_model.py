@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.ui_qml.shared.models.activity_item import (
     VALID_TONES,
@@ -64,7 +64,7 @@ def test_badge_label_can_carry_a_real_outcome_when_supplied() -> None:
 
 
 def test_raw_and_formatted_timestamp_are_both_available_independently() -> None:
-    when = datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc)
+    when = datetime(2026, 3, 5, 14, 30, tzinfo=UTC)
     item = _item(occurred_at=when, occurred_at_label="05 Mar 2026, 14:30")
     payload = serialize_activity_item(item)
     assert payload["occurredAt"] == when.isoformat()

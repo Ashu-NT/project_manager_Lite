@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from dataclasses import field
 from uuid import uuid4
 
 

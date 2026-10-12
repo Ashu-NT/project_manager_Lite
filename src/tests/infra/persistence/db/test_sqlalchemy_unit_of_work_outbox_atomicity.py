@@ -22,7 +22,7 @@ which would let a rolled-back transaction still be paired with a durable message
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import Column, Integer, MetaData, String, Table, select
@@ -59,7 +59,7 @@ def _context() -> DomainEventContext:
 
 @dataclass(frozen=True, slots=True)
 class _SomeBusinessFact:
-    occurred_at: datetime = datetime.now(timezone.utc)
+    occurred_at: datetime = datetime.now(UTC)
 
 
 class _SomeAggregate(RecordsDomainEvents):

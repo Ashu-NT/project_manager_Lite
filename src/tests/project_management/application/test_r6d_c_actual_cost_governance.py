@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -140,7 +140,7 @@ def test_source_owned_entry_has_no_interactive_mutation_capability(services):
         task_id=None,
         resource_id=None,
         actor_id=actor_id,
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     capabilities = services["cost_entry_service"].capabilities_for(entry)
     assert capabilities.project_visible is True

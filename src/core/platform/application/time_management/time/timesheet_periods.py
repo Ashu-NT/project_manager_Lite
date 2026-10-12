@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -72,7 +72,7 @@ class TimesheetPeriodsMixin:
         previous_status = period.status
         principal = getattr(self._user_session, "principal", None)
         period.status = TimesheetPeriodStatus.SUBMITTED
-        period.submitted_at = datetime.now(timezone.utc)
+        period.submitted_at = datetime.now(UTC)
         period.submitted_by_user_id = getattr(principal, "user_id", None)
         period.submitted_by_username = getattr(principal, "username", None)
         period.decided_at = None
@@ -108,7 +108,7 @@ class TimesheetPeriodsMixin:
         self._require_timesheet_review_scope("timesheet.approve", entries)
         principal = getattr(self._user_session, "principal", None)
         period.status = TimesheetPeriodStatus.APPROVED
-        period.decided_at = datetime.now(timezone.utc)
+        period.decided_at = datetime.now(UTC)
         period.decided_by_user_id = getattr(principal, "user_id", None)
         period.decided_by_username = getattr(principal, "username", None)
         period.decision_note = str(note or "").strip() or None
@@ -148,7 +148,7 @@ class TimesheetPeriodsMixin:
         self._require_timesheet_review_scope("timesheet.approve", entries)
         principal = getattr(self._user_session, "principal", None)
         period.status = TimesheetPeriodStatus.REJECTED
-        period.decided_at = datetime.now(timezone.utc)
+        period.decided_at = datetime.now(UTC)
         period.decided_by_user_id = getattr(principal, "user_id", None)
         period.decided_by_username = getattr(principal, "username", None)
         period.decision_note = reason
@@ -180,7 +180,7 @@ class TimesheetPeriodsMixin:
         )
         self._require_timesheet_review_scope("timesheet.lock", entries)
         period.status = TimesheetPeriodStatus.LOCKED
-        period.locked_at = datetime.now(timezone.utc)
+        period.locked_at = datetime.now(UTC)
         period.decision_note = str(note or "").strip() or period.decision_note
         return self._persist_timesheet_transition(
             period=period,
@@ -358,7 +358,7 @@ class TimesheetPeriodsMixin:
                     resource_id=period.resource_id,
                     change_type=change_type,
                     project_ids=tuple(project_ids),
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()

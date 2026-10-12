@@ -9,7 +9,7 @@ subclassing it.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.shared.events.domain_event import DomainEvent
 
@@ -29,7 +29,7 @@ def test_a_worked_business_event_satisfies_domain_event_structurally() -> None:
     class SomeWorkedEvent:
         occurred_at: datetime
 
-    event = SomeWorkedEvent(occurred_at=datetime.now(timezone.utc))
+    event = SomeWorkedEvent(occurred_at=datetime.now(UTC))
     assert isinstance(event, DomainEvent)
 
 

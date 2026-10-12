@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -420,7 +420,7 @@ class PartyService:
             )
             if not profile_changed:
                 return party
-            candidate = replace(candidate, updated_at=datetime.now(timezone.utc))
+            candidate = replace(candidate, updated_at=datetime.now(UTC))
             if party_code is not None:
                 existing = uow.parties.get_by_code(organization.id, candidate.party_code)
                 if existing is not None and existing.id != party.id:

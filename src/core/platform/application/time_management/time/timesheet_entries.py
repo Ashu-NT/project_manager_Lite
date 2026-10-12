@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
@@ -279,7 +279,7 @@ class TimesheetEntriesMixin:
             entry.hours = hours
         if note is not None:
             entry.note = note
-        entry.updated_at = datetime.now(timezone.utc)
+        entry.updated_at = datetime.now(UTC)
         project_id = self._resolve_entry_project_id(
             entry=entry,
             work_allocation=work_allocation,

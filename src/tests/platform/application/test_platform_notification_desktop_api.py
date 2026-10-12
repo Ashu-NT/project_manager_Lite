@@ -1,6 +1,10 @@
 """Desktop Notifications adapt authenticated, scoped read and read-state commands."""
 
-from src.tests.platform.application.test_notification_service import principal, register, seed
+from src.tests.platform.application.test_notification_service import (
+    principal,
+    register,
+    seed,
+)
 
 
 def _api(services):

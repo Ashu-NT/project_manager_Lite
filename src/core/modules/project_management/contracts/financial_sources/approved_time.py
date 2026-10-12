@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -54,7 +54,7 @@ class ApprovedTimeFinancialSource(_FinancialSourceContract):
     @field_validator("approved_at", mode="after")
     @classmethod
     def _normalize_approved_at(cls, value: datetime) -> datetime:
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
     @model_validator(mode="after")
     def _validate_time_source(self) -> ApprovedTimeFinancialSource:

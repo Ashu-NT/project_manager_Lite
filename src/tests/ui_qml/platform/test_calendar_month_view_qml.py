@@ -136,7 +136,6 @@ def test_calendar_month_view_mounts_and_loads_business_today(qapp, services) -> 
         # Compare against the CALENDAR's own timezone (the seeded default
         # calendar is UTC), never Python's naive server-local date.today()
         # -- this feature exists specifically to avoid that exact mismatch.
-        from datetime import datetime, timezone
 
         calendar_result = api_registry.platform_calendar.get_calendar(calendar_id)
         assert calendar_result.ok

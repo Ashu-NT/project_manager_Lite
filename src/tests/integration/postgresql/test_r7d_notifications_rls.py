@@ -1,7 +1,7 @@
 """Personal notification RLS, independently of application repository filters."""
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import text
@@ -11,7 +11,7 @@ pytestmark = pytest.mark.postgresql_integration
 
 @pytest.fixture(scope="module")
 def notification_rows(postgres_test_environment):
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     with postgres_test_environment.admin_engine.begin() as connection:
         for tenant in ("r7d-tenant-a", "r7d-tenant-b"):
             connection.execute(text(
@@ -207,7 +207,7 @@ def test_concurrent_runtime_mark_read_is_idempotent(postgres_test_environment, n
             repo.mark_read(
                 "r7d-read-race", user_id="r7d-user-a",
                 tenant_id="r7d-tenant-a", organization_id="r7d-org-other",
-                read_at=datetime.now(timezone.utc),
+                read_at=datetime.now(UTC),
             )
             session.commit()
 

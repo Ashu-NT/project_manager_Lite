@@ -11,7 +11,6 @@ import pytest
 
 from src.core.platform.common.exceptions import ValidationError
 
-
 # ---------------------------------------------------------------------------
 # Organization must match Department
 # ---------------------------------------------------------------------------

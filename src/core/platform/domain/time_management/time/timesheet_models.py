@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from enum import Enum
 
 from pydantic import field_validator, model_validator
@@ -190,7 +190,7 @@ class TimeEntry:
         site_id: str | None = None,
         site_name: str = "",
     ) -> TimeEntry:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return TimeEntry(
             id=generate_id(),
             work_allocation_id=work_allocation_id,

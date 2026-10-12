@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.modules.project_management.infrastructure.importers.models.import_models import (
@@ -84,7 +84,7 @@ class ImportValidationService:
             warning_rows=warning_rows,
             rows=rows,
             issues=issues,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
 class ImportMappingService:

@@ -20,7 +20,7 @@ from src.core.modules.project_management.domain.enums import CostType
 
 def test_reporting_breakdown_keeps_exact_money_and_zero_without_baseline_substitution():
     snapshot = CostPolicySnapshot(
-        project_id="project", project_currency="USD", budget=Decimal("100"),
+        project_id="project", project_currency="USD", budget=Decimal(100),
         planned_map={(CostType.OTHER, "USD"): Decimal("9007199254740993.01")},
         actual_map={(CostType.OTHER, "USD"): Decimal("0.00")}, committed_map={},
     )

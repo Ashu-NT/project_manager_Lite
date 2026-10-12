@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from threading import Event, Thread
 from types import SimpleNamespace
@@ -105,7 +105,7 @@ class _SchedulePort:
 
 @pytest.fixture(scope="module", autouse=True)
 def seeded_r6c_scopes(postgres_test_environment):
-    now = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 1, 10, 0, tzinfo=UTC)
     with postgres_test_environment.admin_engine.begin() as connection:
         for tenant_id, org_id, suffix in (
             (TENANT_A, ORG_A, "A"),
@@ -472,7 +472,7 @@ def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_enviro
                 "UPDATE project_finance_cost_code_restrictions "
                 "SET created_at=:now WHERE id=:id"
             ),
-            {"id": restriction.id, "now": datetime.now(timezone.utc)},
+            {"id": restriction.id, "now": datetime.now(UTC)},
         )
         assert restriction_update.rowcount == 0
         restriction_delete = foreign.execute(
@@ -493,7 +493,7 @@ def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_enviro
                 {
                     "tenant": TENANT_A,
                     "organization": ORG_A,
-                    "now": datetime.now(timezone.utc),
+                    "now": datetime.now(UTC),
                 },
             )
             foreign.commit()
@@ -512,7 +512,7 @@ def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_enviro
                     "organization": ORG_A,
                     "project": PROJECT_A,
                     "cost_code": cost_code.id,
-                    "now": datetime.now(timezone.utc),
+                    "now": datetime.now(UTC),
                 },
             )
             foreign.commit()
@@ -618,7 +618,7 @@ def test_financial_change_impact_child_table_denies_foreign_direct_writes(
                     "change": row["change_request_id"],
                     "project": PROJECT_A,
                     "cost_code": row["cost_code_id"],
-                    "now": datetime.now(timezone.utc),
+                    "now": datetime.now(UTC),
                 },
             )
             foreign.commit()
@@ -790,7 +790,7 @@ def test_forecast_child_tables_deny_foreign_scope_inserts(
                     "forecast": parent["forecast_id"],
                     "project": PROJECT_A,
                     "cost_code": parent["cost_code_id"],
-                    "now": datetime.now(timezone.utc),
+                    "now": datetime.now(UTC),
                 },
             )
             session.commit()
@@ -803,7 +803,7 @@ def test_approval_decision_read_serializes_concurrent_runtime_transactions(
     postgres_test_environment,
 ) -> None:
     request_id = f"r6cf-approval-{uuid4()}"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with postgres_test_environment.admin_engine.begin() as connection:
         connection.execute(
             text(

@@ -3,7 +3,7 @@
 import json
 import logging
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -90,7 +90,7 @@ class NotificationDispatcher:
                         )
                         SqlAlchemyNotificationRepository(session).add_idempotent(notification)
                         work.status = "processed"
-                        work.processed_at = datetime.now(timezone.utc)
+                        work.processed_at = datetime.now(UTC)
                         delivered_scope = (
                             work.tenant_id, work.organization_id, work.recipient_user_id
                         )
@@ -125,7 +125,7 @@ class NotificationDispatcher:
                             retry_work.status = (
                                 "dead_letter" if retry_work.attempt_count >= 8 else "retry"
                             )
-                            retry_work.available_at = datetime.now(timezone.utc) + timedelta(
+                            retry_work.available_at = datetime.now(UTC) + timedelta(
                                 seconds=min(900, 5 * (2 ** (retry_work.attempt_count - 1)))
                             )
                             retry_work.last_error_code = "DELIVERY_FAILED"

@@ -1,6 +1,6 @@
 """Personal notification reads are bounded, scoped and read-state safe."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import event
@@ -38,7 +38,7 @@ def seed(session, *, recipient, notification_id, tenant=TENANT):
         session.flush()
     membership_id = f"notification-membership-{recipient}"
     if session.get(UserTenantORM, membership_id) is None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         session.add(UserTenantORM(
             id=membership_id, user_id=recipient, tenant_id=tenant,
             status="active", accepted_at=now, joined_at=now,
@@ -48,7 +48,7 @@ def seed(session, *, recipient, notification_id, tenant=TENANT):
         id=notification_id, recipient_user_id=recipient, tenant_id=tenant,
         organization_id=None, source_event_id=None, category="platform.notice.v1",
         title="Notice", body="You have a workspace notice.",
-        created_at=datetime(2026, 10, 3, tzinfo=timezone.utc), metadata_json="{}",
+        created_at=datetime(2026, 10, 3, tzinfo=UTC), metadata_json="{}",
     )
     session.add(row)
     session.commit()
@@ -73,7 +73,7 @@ def test_thousand_notification_read_stays_bounded_and_uses_two_data_queries(
 ):
     user = register(services, "volume-notifications")
     seed(session, recipient=user.id, notification_id="volume-0000")
-    created = datetime(2026, 10, 3, tzinfo=timezone.utc)
+    created = datetime(2026, 10, 3, tzinfo=UTC)
     session.add_all(NotificationORM(
         id=f"volume-{index:04d}", recipient_user_id=user.id,
         tenant_id=TENANT, organization_id=None, source_event_id=None,
@@ -154,7 +154,7 @@ def test_other_organization_is_hidden_by_repository_even_on_sqlite(services, ses
     )
     owner = register(services, "scoped-notification-owner")
     seed(session, recipient=owner.id, notification_id="tenant-notice")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for org in ("a", "b"):
         session.add(OrganizationORM(
             id=f"notification-org-{org}", tenant_id=TENANT,

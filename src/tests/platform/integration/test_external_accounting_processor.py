@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from hashlib import sha256
 from threading import Event
 from unittest.mock import Mock
@@ -59,7 +59,7 @@ def delivery():
         adapter_id="test",
         connection_id="connection",
         remote_reference="accepted",
-        accepted_at=datetime.now(timezone.utc),
+        accepted_at=datetime.now(UTC),
     )
     transactions = Mock()
     transactions.claim.return_value = claim

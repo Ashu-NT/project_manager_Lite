@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import event
@@ -16,7 +16,7 @@ def test_task_detail_comment_pages_remain_bounded_and_stably_ordered(services) -
     project = services["project_service"].create_project("R7E discussion paging")
     task = services["task_service"].create_task(project.id, "Discuss")
     session = services["session"]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add_all(
         TaskCommentORM(
             id=f"r7e-page-{index:04d}",

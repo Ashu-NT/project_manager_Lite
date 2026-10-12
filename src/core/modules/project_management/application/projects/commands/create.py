@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from sqlalchemy.exc import IntegrityError
 
@@ -148,7 +148,7 @@ class ProjectCreateHandler(ProjectSupportMixin):
                         tenant_id=scope.tenant_id,
                         organization_id=scope.organization_id,
                         project_id=project.id,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 record_audit_entry(
@@ -182,7 +182,7 @@ class ProjectCreateHandler(ProjectSupportMixin):
                         tenant_id=scope.tenant_id,
                         organization_id=scope.organization_id,
                         project_id=project.id,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 uow.commit()

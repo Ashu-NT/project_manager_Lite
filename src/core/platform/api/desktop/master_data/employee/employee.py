@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from src.core.platform.api.desktop.master_data.documents.models.document import (
     DocumentDto,
-    DocumentPageDto,
     DocumentLinkDto,
+    DocumentPageDto,
 )
 from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeCreateCommand,

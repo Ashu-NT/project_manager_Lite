@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -118,7 +118,7 @@ class ProjectDeletionHandler:
                         organization_id=scope.organization_id,
                         project_id=project_id,
                         task_id=task.id,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
 
@@ -154,7 +154,7 @@ class ProjectDeletionHandler:
                     tenant_id=scope.tenant_id,
                     organization_id=scope.organization_id,
                     project_id=project.id,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()

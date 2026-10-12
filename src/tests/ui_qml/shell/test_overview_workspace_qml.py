@@ -8,7 +8,7 @@ structurally regress its original consumer).
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -88,7 +88,7 @@ class _FakeGlobalOverviewApi:
                     entity_id="t1",
                     actor_id="user-1",
                     module="project_management",
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     type="info",
                     human_message="Task created",
                     icon="tasks",
@@ -112,7 +112,7 @@ class _FakeGlobalOverviewApi:
                         route_id="project_management.tasks",
                         priority="high",
                         due_at=today + timedelta(days=3),
-                        sort_at=datetime.now(timezone.utc),
+                        sort_at=datetime.now(UTC),
                     ),
                     ActionCenterItemDto(
                         id="baseline-1",
@@ -124,7 +124,7 @@ class _FakeGlobalOverviewApi:
                         subject_display="Facility Upgrade",
                         action_state="awaiting_review",
                         route_id="project_management.scheduling",
-                        sort_at=datetime.now(timezone.utc),
+                        sort_at=datetime.now(UTC),
                     ),
                     ActionCenterItemDto(
                         id="approval-1",
@@ -136,7 +136,7 @@ class _FakeGlobalOverviewApi:
                         subject_display="Organization Request",
                         action_state="awaiting_decision",
                         route_id="control_approvals",
-                        sort_at=datetime.now(timezone.utc),
+                        sort_at=datetime.now(UTC),
                     ),
                     ActionCenterItemDto(
                         id="ts-open-1",
@@ -148,7 +148,7 @@ class _FakeGlobalOverviewApi:
                         subject_display="01 Sep - 07 Sep",
                         action_state="open",
                         route_id="project_management.timesheets",
-                        sort_at=datetime.now(timezone.utc),
+                        sort_at=datetime.now(UTC),
                     ),
                     ActionCenterItemDto(
                         id="ts-rejected-1",
@@ -160,7 +160,7 @@ class _FakeGlobalOverviewApi:
                         subject_display="08 Sep - 14 Sep",
                         action_state="rejected",
                         route_id="project_management.timesheets",
-                        sort_at=datetime.now(timezone.utc),
+                        sort_at=datetime.now(UTC),
                     ),
                 ),
                 summary=ActionCenterSummaryDto(5, 2, 2, 1),

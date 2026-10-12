@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -145,7 +145,7 @@ class _FakeOrganizationUnitOfWorkFactory:
 
 class _FakeClock:
     def now(self) -> datetime:
-        return datetime(2026, 1, 1, tzinfo=timezone.utc)
+        return datetime(2026, 1, 1, tzinfo=UTC)
 
 
 class _FakeTenantContext:
@@ -378,7 +378,7 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
 
 
 def test_site_dto_normalizes_and_validates_fields():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     site = Site.create(
         "  org-1  ",
         "  hub  ",
@@ -423,8 +423,8 @@ def test_site_dto_normalizes_and_validates_fields():
             "org-1",
             "HQ",
             "Headquarters",
-            opened_at=datetime(2026, 7, 25, 10, 0, tzinfo=timezone.utc),
-            closed_at=datetime(2026, 7, 24, 10, 0, tzinfo=timezone.utc),
+            opened_at=datetime(2026, 7, 25, 10, 0, tzinfo=UTC),
+            closed_at=datetime(2026, 7, 24, 10, 0, tzinfo=UTC),
         )
     assert exc_range.value.code == "SITE_DATE_RANGE_INVALID"
 

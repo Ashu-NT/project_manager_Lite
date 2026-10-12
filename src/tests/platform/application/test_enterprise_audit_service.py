@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select, update
 
@@ -151,7 +151,7 @@ def test_audit_recent_order_is_stable_when_timestamps_match(services):
     services["session"].execute(
         update(AuditEntryORM)
         .where(AuditEntryORM.id.in_([entry.id for entry in entries]))
-        .values(timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        .values(timestamp=datetime(2026, 1, 1, tzinfo=UTC))
     )
     ids = [entry.id for entry in audit.list_recent_for_organization_id(org.id)]
     assert [entry_id for entry_id in ids if entry_id in {e.id for e in entries}] == sorted(

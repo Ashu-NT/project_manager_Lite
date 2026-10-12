@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import UTC, date, time
 
 import pytest
 from sqlalchemy import create_engine
@@ -172,13 +172,13 @@ def recurring_service(db_session, repos, mock_user_session):
 
 @pytest.fixture
 def seeded_assignment_entities(db_session, org_id):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
         SiteORM,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db_session.add_all(
         [
             SiteORM(
@@ -451,13 +451,17 @@ def test_resolver_business_today_matches_shared_helper_for_the_default_utc_calen
     """ensure_global_calendar seeds UTC when the organization has no
     configured timezone -- business_today() must resolve against that
     calendar's actual timezone, not a hardcoded assumption."""
-    from src.core.shared.time.business_date import business_today as shared_business_today
+    from src.core.shared.time.business_date import (
+        business_today as shared_business_today,
+    )
 
     assert resolver.business_today() == shared_business_today(global_cal.timezone)
 
 
 def test_resolver_business_today_falls_back_to_utc_when_no_global_calendar_exists(resolver):
-    from src.core.shared.time.business_date import business_today as shared_business_today
+    from src.core.shared.time.business_date import (
+        business_today as shared_business_today,
+    )
 
     assert resolver.business_today() == shared_business_today(None)
 
@@ -469,16 +473,17 @@ def test_resolver_business_today_honors_a_non_utc_organization_timezone(
     boundary for an organization configured in a different timezone."""
     from dataclasses import replace
     from datetime import datetime
-    from datetime import timezone as dt_timezone
 
     import src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver as resolver_module
-    from src.core.shared.time.business_date import business_today as shared_business_today
+    from src.core.shared.time.business_date import (
+        business_today as shared_business_today,
+    )
 
     moved = replace(global_cal, timezone="Pacific/Auckland")
     repos["calendar"].update(moved)
 
     # 23:30 UTC is already the next calendar day in Pacific/Auckland (UTC+13).
-    fixed_now = datetime(2026, 1, 1, 23, 30, tzinfo=dt_timezone.utc)
+    fixed_now = datetime(2026, 1, 1, 23, 30, tzinfo=UTC)
     monkeypatch.setattr(
         resolver_module,
         "business_today",

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -90,7 +90,7 @@ class _TenantContext:
 
 
 def seed_procurement_scope(postgres_test_environment):
-    now = datetime(2026, 9, 10, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 10, tzinfo=UTC)
     with postgres_test_environment.admin_engine.begin() as connection:
         for tenant, org, project, suffix in (
             (TENANT_A, ORG_A, PROJECT_A, "A"),
@@ -224,13 +224,13 @@ def _event(event_type, payload, *, event_id, aggregate_id, revision=1):
         tenant_id=TENANT_A, organization_id=ORG_A,
         aggregate_type="purchase_order_line" if event_type == PROCUREMENT_COMMITMENT_EVENT_TYPE else "receipt_line",
         aggregate_id=aggregate_id, aggregate_version=revision,
-        occurred_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 9, 10, tzinfo=UTC),
         correlation_id="r6de-correlation", payload=payload.model_dump(mode="json"),
     )
 
 
 def test_r6d_f_commitment_read_plan_uses_scoped_bounded_query(postgres_test_environment):
-    now = datetime(2026, 9, 10, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 10, tzinfo=UTC)
     with postgres_test_environment.admin_engine.begin() as connection:
         connection.execute(text(
             "INSERT INTO project_commitments "
@@ -327,7 +327,7 @@ def test_runtime_worker_and_child_rls(postgres_test_environment):
             receipt_number="R6DE-REC", purchase_order_id="r6de-po",
             purchase_order_line_id="r6de-line", supplier_party_id=SUPPLIER_A,
             site_id=SITE_A, source_revision=1, source_content_hash="b" * 64,
-            posted_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+            posted_at=datetime(2026, 9, 10, tzinfo=UTC),
             accepted_quantity=DecimalQuantityPayload(value="4", unit="EA"),
             unit_cost=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
         )
@@ -519,7 +519,7 @@ def test_concurrent_duplicate_receipt_has_one_actual_and_match(postgres_test_env
             purchase_order_line_id="r6de-receipt-race-line",
             supplier_party_id=SUPPLIER_A, site_id=SITE_A,
             source_revision=1, source_content_hash="e" * 64,
-            posted_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+            posted_at=datetime(2026, 9, 10, tzinfo=UTC),
             accepted_quantity=DecimalQuantityPayload(value="4", unit="EA"),
             unit_cost=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
         )
@@ -586,7 +586,7 @@ def test_closure_and_accepted_receipt_race_preserves_both_facts(postgres_test_en
             purchase_order_id="r6de-close-po", purchase_order_line_id="r6de-close-line",
             supplier_party_id=SUPPLIER_A, site_id=SITE_A,
             source_revision=1, source_content_hash="f" * 64,
-            posted_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+            posted_at=datetime(2026, 9, 10, tzinfo=UTC),
             accepted_quantity=DecimalQuantityPayload(value="4", unit="EA"),
             unit_cost=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
         )

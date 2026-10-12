@@ -4,7 +4,7 @@ import json
 import logging
 from collections.abc import Iterable
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from hashlib import sha256
 
 from sqlalchemy.exc import IntegrityError
@@ -242,7 +242,7 @@ class CollaborationCommentCommandMixin:
                     task_id=task_id,
                     comment_id=comment.id,
                     change_type=TaskCommentChangeType.CREATED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             if self._document_integration_service is not None and comment.attachments:
@@ -377,7 +377,7 @@ class CollaborationCommentCommandMixin:
                             project_id=task.project_id,
                             task_id=task_id,
                             comment_id=comment.id,
-                            occurred_at=datetime.now(timezone.utc),
+                            occurred_at=datetime.now(UTC),
                         )
                     )
                 if updated_in_batch == 0:
@@ -440,7 +440,7 @@ class CollaborationCommentCommandMixin:
         comment.body = text
         comment.mentions = mentions
         comment.mentioned_user_ids = mentioned_user_ids
-        comment.updated_at = datetime.now(timezone.utc)
+        comment.updated_at = datetime.now(UTC)
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="edit task collaboration update"
         )
@@ -482,7 +482,7 @@ class CollaborationCommentCommandMixin:
                     task_id=task.id,
                     comment_id=comment.id,
                     change_type=TaskCommentChangeType.EDITED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -517,7 +517,7 @@ class CollaborationCommentCommandMixin:
             principal = (
                 self._user_session.principal if self._user_session is not None else None
             )
-            comment.deleted_at = datetime.now(timezone.utc)
+            comment.deleted_at = datetime.now(UTC)
             comment.deleted_by_user_id = getattr(principal, "user_id", None)
             comment.deletion_reason = reason
             scope = self._tenant_context_service.require_active_scope_ids(
@@ -564,7 +564,7 @@ class CollaborationCommentCommandMixin:
                         task_id=task.id,
                         comment_id=comment.id,
                         change_type=TaskCommentChangeType.REMOVED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 uow.commit()
@@ -640,7 +640,7 @@ class CollaborationCommentCommandMixin:
                     task_id=task.id,
                     comment_id=comment.id,
                     change_type=TaskCommentReactionChangeType.ADDED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -680,7 +680,7 @@ class CollaborationCommentCommandMixin:
                     task_id=task.id,
                     comment_id=comment.id,
                     change_type=TaskCommentReactionChangeType.REMOVED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()

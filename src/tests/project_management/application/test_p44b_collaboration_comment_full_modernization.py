@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 import glob
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -49,7 +49,7 @@ def test_task_comment_changed_maps_to_task_and_workspace_targets(change_type):
     handler(
         TaskCommentChanged(
             tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-            comment_id="c1", change_type=change_type, occurred_at=datetime.now(timezone.utc),
+            comment_id="c1", change_type=change_type, occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -65,7 +65,7 @@ def test_reaction_changed_maps_to_task_target_only(change_type):
     handler(
         TaskCommentReactionChanged(
             tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-            comment_id="c1", change_type=change_type, occurred_at=datetime.now(timezone.utc),
+            comment_id="c1", change_type=change_type, occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -78,7 +78,7 @@ def test_read_state_changed_maps_to_task_target_only():
     handler(
         TaskCommentReadStateChanged(
             tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-            comment_id="c1", occurred_at=datetime.now(timezone.utc),
+            comment_id="c1", occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -90,7 +90,7 @@ def test_dedupe_by_target_within_one_transaction():
     handler = build_task_comment_view_invalidation_handler(channel)
     event = TaskCommentChanged(
         tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-        comment_id="c1", change_type=TaskCommentChangeType.CREATED, occurred_at=datetime.now(timezone.utc),
+        comment_id="c1", change_type=TaskCommentChangeType.CREATED, occurred_at=datetime.now(UTC),
     )
     context = DomainEventContext(correlation_id="same-trace")
     handler(event, context)

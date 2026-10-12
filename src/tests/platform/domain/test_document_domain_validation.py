@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -77,7 +77,7 @@ def test_document_dto_normalizes_and_validates_fields() -> None:
     assert document.file_name == "pump-manual.pdf"
     assert document.mime_type == "application/pdf"
     assert document.source_system == "sharepoint"
-    assert document.uploaded_at == datetime(2026, 7, 10, 9, 30, 0, tzinfo=timezone.utc)
+    assert document.uploaded_at == datetime(2026, 7, 10, 9, 30, 0, tzinfo=UTC)
     assert document.uploaded_by_user_id == "user-1"
     assert document.confidentiality_level == "INTERNAL"
     assert document.business_version_label == "Rev B"

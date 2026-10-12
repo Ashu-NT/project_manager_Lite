@@ -3,12 +3,12 @@ timezone/business-calendar infrastructure; that is explicitly out of scope."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class SystemClock:
     def now(self) -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 
 __all__ = ["SystemClock"]

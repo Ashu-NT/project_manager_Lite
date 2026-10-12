@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, aliased
@@ -51,8 +51,8 @@ from src.core.platform.infrastructure.persistence.orm.security.auth.auth import 
 
 def _utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _list(value: str | None, *, lowercase: bool = False) -> tuple[str, ...]:

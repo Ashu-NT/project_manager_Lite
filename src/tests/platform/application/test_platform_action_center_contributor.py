@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC
+
 from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
 )
@@ -58,7 +60,7 @@ def _create_pending_approval(services, *, entity_id: str = "org-request-1"):
 
 
 def test_revoked_reviewer_cannot_act_on_a_previously_visible_action(services):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     import pytest
     from sqlalchemy import update
@@ -76,7 +78,7 @@ def test_revoked_reviewer_cannot_act_on_a_previously_visible_action(services):
     session.execute(
         update(RoleBindingORM)
         .where(RoleBindingORM.principal_id == context.user_id)
-        .values(revoked_at=datetime.now(timezone.utc))
+        .values(revoked_at=datetime.now(UTC))
     )
     session.commit()
     with pytest.raises(BusinessRuleError) as error:

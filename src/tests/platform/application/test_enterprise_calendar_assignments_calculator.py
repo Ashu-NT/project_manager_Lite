@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import UTC, date, time
 
 import pytest
 from sqlalchemy import create_engine
@@ -132,7 +132,7 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 
 @pytest.fixture
 def seeded_assignment_entities(db_session, org_id):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
         DepartmentORM,
@@ -145,7 +145,7 @@ def seeded_assignment_entities(db_session, org_id):
     )
 
     tenant_id = "tenant-platform-foundation"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db_session.add_all(
         [
             SiteORM(

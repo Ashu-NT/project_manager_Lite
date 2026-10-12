@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -129,8 +129,8 @@ def test_role_binding_repository_reads_only_active_exact_tenant_rows(session) ->
         actual_scope_type=ROLE_SCOPE_TENANT,
         actual_scope_id=None,
         assigned_by=None,
-        assigned_at=datetime.now(timezone.utc) - timedelta(days=2),
-        expires_at=datetime.now(timezone.utc) - timedelta(days=1),
+        assigned_at=datetime.now(UTC) - timedelta(days=2),
+        expires_at=datetime.now(UTC) - timedelta(days=1),
         revoked_at=None,
         version=1,
     )

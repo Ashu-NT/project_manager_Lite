@@ -3,20 +3,20 @@ bell/drawer, fake-search removal, and real end-to-end shell wiring."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from PySide6.QtCore import qInstallMessageHandler
 from PySide6.QtTest import QTest
 
-from src.core.platform.api.desktop.notifications.models.notification import (
-    NotificationDto,
-)
 from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationDto,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.notifications.models.notification import (
+    NotificationDto,
+)
 from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
@@ -104,7 +104,7 @@ class _FakeNotificationApi:
             if n.id == notification_id:
                 updated = NotificationDto(
                     id=n.id, category=n.category, title=n.title, body=n.body,
-                    created_at=n.created_at, read_at=datetime.now(timezone.utc),
+                    created_at=n.created_at, read_at=datetime.now(UTC),
                     is_read=True, metadata={},
                 )
                 self._notifications[i] = updated
@@ -117,7 +117,7 @@ class _FakeNotificationApi:
         self._notifications = [
             NotificationDto(
                 id=n.id, category=n.category, title=n.title, body=n.body,
-                created_at=n.created_at, read_at=datetime.now(timezone.utc),
+                created_at=n.created_at, read_at=datetime.now(UTC),
                 is_read=True, metadata={},
             )
             for n in self._notifications
@@ -129,7 +129,7 @@ class _FakeNotificationApi:
 def _notification(id_: str, *, title: str = "Hello", is_read: bool = False) -> NotificationDto:
     return NotificationDto(
         id=id_, category="test.event", title=title, body="Body",
-        created_at=datetime(2026, 9, 20, 10, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 9, 20, 10, 0, tzinfo=UTC),
         read_at=None, is_read=is_read, metadata={},
     )
 

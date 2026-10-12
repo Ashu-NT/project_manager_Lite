@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -68,8 +68,8 @@ def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch)
     assert authenticated.active_session_id is not None
     auth_session = auth_session_repo.get(authenticated.active_session_id)
     assert auth_session is not None
-    auth_session.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
-    auth_session.updated_at = datetime.now(timezone.utc)
+    auth_session.expires_at = datetime.now(UTC) - timedelta(minutes=1)
+    auth_session.updated_at = datetime.now(UTC)
     auth_session_repo.update(auth_session)
     services["session"].commit()
     user_session.set_principal(auth.build_principal(authenticated, session_id=auth_session.id))
@@ -211,7 +211,7 @@ def test_collaboration_inbox_remains_authoritative_beyond_former_snapshot_cap(se
         user_id=viewer.id,
         scope_role="viewer",
     )
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     services["session"].add_all(
         [
             TaskCommentORM(

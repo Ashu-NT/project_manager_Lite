@@ -6,7 +6,7 @@ guard, `record_event()`, and event loss/duplication.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -22,12 +22,12 @@ def _context(correlation_id: str = "corr-1") -> DomainEventContext:
 
 @dataclass(frozen=True, slots=True)
 class _EventA:
-    occurred_at: datetime = datetime.now(timezone.utc)
+    occurred_at: datetime = datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)
 class _EventB:
-    occurred_at: datetime = datetime.now(timezone.utc)
+    occurred_at: datetime = datetime.now(UTC)
 
 
 class _AggregateA(RecordsDomainEvents):
@@ -263,7 +263,7 @@ def test_multiple_rounds_of_re_collection_all_complete_before_commit(
 
     @dataclass(frozen=True, slots=True)
     class _EventC:
-        occurred_at: datetime = datetime.now(timezone.utc)
+        occurred_at: datetime = datetime.now(UTC)
 
     class _AggregateC(RecordsDomainEvents):
         pass

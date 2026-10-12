@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import fields, is_dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -94,7 +94,7 @@ def _active_tenant(services) -> str:
 )
 def test_module_event_conforms_to_domain_event_and_has_only_approved_fields(event_cls, expected_fields):
     kwargs = {name: "x" for name in expected_fields if name != "occurred_at"}
-    kwargs["occurred_at"] = datetime.now(timezone.utc)
+    kwargs["occurred_at"] = datetime.now(UTC)
     event = event_cls(**kwargs)
     assert isinstance(event, DomainEvent)
     assert is_dataclass(event)
@@ -184,7 +184,7 @@ def test_license_module_uses_the_injected_clock_deterministically(services, monk
     catalog = services["module_catalog_service"]
     org = services["tenant_context_service"].get_active_organization()
     catalog.revoke_module_license(org.id, "project_management")
-    fixed_when = datetime(2030, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+    fixed_when = datetime(2030, 6, 15, 12, 0, 0, tzinfo=UTC)
     original_clock = catalog._clock
     catalog._clock = _FixedClock(fixed_when)
     try:

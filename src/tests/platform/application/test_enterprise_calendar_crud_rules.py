@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import UTC, date, time
 
 import pytest
 from sqlalchemy import create_engine
@@ -147,13 +147,13 @@ def rule_service(db_session, repos, mock_user_session):
 
 @pytest.fixture
 def seeded_assignment_entities(db_session, org_id):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import (
         SiteORM,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db_session.add_all(
         [
             SiteORM(

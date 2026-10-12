@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import uuid4
 
@@ -87,7 +87,7 @@ def _envelope(organization, event_type, payload, *, aggregate_id, revision):
         aggregate_type="purchase_order_line" if event_type == PROCUREMENT_COMMITMENT_EVENT_TYPE else "receipt_line",
         aggregate_id=aggregate_id,
         aggregate_version=revision,
-        occurred_at=datetime(2026, 8, 10, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 8, 10, tzinfo=UTC),
         correlation_id=str(uuid4()),
         payload=payload.model_dump(mode="json"),
     )
@@ -135,7 +135,7 @@ def _receipt(
         site_id=site.id,
         source_revision=revision,
         source_content_hash=f"{revision + 100:064x}",
-        posted_at=datetime(2026, 8, 10, tzinfo=timezone.utc),
+        posted_at=datetime(2026, 8, 10, tzinfo=UTC),
         accepted_quantity=DecimalQuantityPayload(value=quantity, unit="EA"),
         unit_cost=MonetaryRatePayload(
             amount="10", currency=organization.base_currency, per_unit="EA"

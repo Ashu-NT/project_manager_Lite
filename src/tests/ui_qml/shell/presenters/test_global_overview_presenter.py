@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from src.core.global_overview.contract.action_center import (
     ActionCenterContribution,
@@ -93,7 +93,7 @@ def _action_item(
         route_id=route_id,
         priority=priority,
         due_at=due_at,
-        sort_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+        sort_at=datetime(2026, 9, 1, tzinfo=UTC),
     )
 
 
@@ -404,7 +404,7 @@ def test_recent_activity_maps_dto_fields():
         actor_kind="human",
         actor_display="History Actor",
         module="project_management",
-        timestamp=datetime(2026, 9, 15, 14, 30, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 9, 15, 14, 30, tzinfo=UTC),
         type="info",
         human_message="Task created",
         icon="tasks",

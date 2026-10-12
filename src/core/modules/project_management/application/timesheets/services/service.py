@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_any_project_permission,
@@ -158,7 +158,7 @@ class TimesheetService(
             assignment_id=work_allocation.id,
             resource_id=getattr(work_allocation, "resource_id", "") or "",
             change_type=TaskAssignmentChangeType.HOURS_LOGGED_CHANGED,
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
         )
 
     def _require_current_principal_resource(self, resource_id: str) -> None:

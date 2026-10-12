@@ -1,5 +1,5 @@
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.api.desktop.collaboration.serializers.collaboration_serializers import (
     serialize_inbox_item,
@@ -18,7 +18,7 @@ def test_deleted_task_dto_hides_all_content_and_actions():
         author_username="author",
         body="private original",
     )
-    comment.deleted_at = datetime.now(timezone.utc)
+    comment.deleted_at = datetime.now(UTC)
     comment.attachments = ["private-file.txt"]
     comment.mentions = ["private-person"]
     comment.reactions = {"like": ["private-person"]}
@@ -36,7 +36,7 @@ def test_deleted_task_dto_hides_all_content_and_actions():
 
 
 def test_inbox_dto_preserves_typed_tombstone_without_original_body():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     item = CollaborationInboxItem(
         comment_id="comment",
         task_id="task",

@@ -14,8 +14,8 @@ from .models import (
 __all__ = [
     "ProjectActivityFact",
     "ProjectActivityPage",
-    "ProjectCatalogReadItem",
     "ProjectCatalogProjectFact",
+    "ProjectCatalogReadItem",
     "ProjectCatalogReadPage",
     "ProjectCatalogReader",
     "ProjectCatalogSummary",

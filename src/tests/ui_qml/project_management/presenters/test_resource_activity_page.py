@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -13,7 +13,7 @@ def _activity_item(**overrides) -> SimpleNamespace:
     fields = dict(
         id="act-1",
         resource_id="res-1",
-        occurred_at=datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 3, 5, 14, 30, tzinfo=UTC),
         event_type="resource.skill.add",
         category="capability",
         actor_id="user-1",

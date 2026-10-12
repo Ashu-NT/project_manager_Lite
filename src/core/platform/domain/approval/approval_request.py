@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import field_validator
@@ -27,8 +27,8 @@ def _normalize_optional_datetime(value: object, *, code: str) -> datetime | None
             code=code,
         )
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _normalize_required_datetime(value: object, *, code: str) -> datetime:
@@ -82,7 +82,7 @@ class ApprovalRequest:
     status: ApprovalStatus = ApprovalStatus.PENDING
     requested_by_user_id: str | None = None
     requested_by_username: str | None = None
-    requested_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    requested_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     decided_by_user_id: str | None = None
     decided_by_username: str | None = None
     decided_at: datetime | None = None

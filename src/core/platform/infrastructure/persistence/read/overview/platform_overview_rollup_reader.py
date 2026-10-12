@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
@@ -154,7 +154,7 @@ class SqlAlchemyPlatformOverviewRollupReader:
             ).one()
             return UserRollupSummary(total=int(total or 0), active=int(active or 0), locked=int(locked or 0))
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         has_platform_authority = (
             select(1)
             .select_from(RoleBindingORM)

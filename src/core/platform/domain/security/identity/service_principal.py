@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator, model_validator
 
@@ -96,7 +96,7 @@ class ServicePrincipal:
 
     @model_validator(mode="after")
     def _initialize_timestamps(self) -> ServicePrincipal:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if self.created_at is None:
             object.__setattr__(self, "created_at", now)
         if self.updated_at is None:
@@ -198,7 +198,7 @@ class ApiKeyCredential:
                 "API keys require at least one permission scope.",
                 code="API_KEY_SCOPE_REQUIRED",
             )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if self.created_at is None:
             object.__setattr__(self, "created_at", now)
         if self.expires_at is None or self.expires_at <= self.created_at:

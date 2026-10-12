@@ -6,7 +6,7 @@ that employee exceptions/recurring events propagate correctly to PM resources.
 
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import UTC, date, time
 from unittest.mock import MagicMock
 
 import pytest
@@ -237,7 +237,7 @@ def global_cal(cal_service, org_id, rule_service):
 
 
 def _seed_department(db_session, tenant_context) -> str:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
         DepartmentORM,
@@ -247,7 +247,7 @@ def _seed_department(db_session, tenant_context) -> str:
     department_id = "dept-pm-calendar-integration"
     if db_session.get(DepartmentORM, department_id) is not None:
         return department_id
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db_session.add(
         DepartmentORM(
             id=department_id,

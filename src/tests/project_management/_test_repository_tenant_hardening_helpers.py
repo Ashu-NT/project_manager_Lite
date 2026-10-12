@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.modules.project_management.domain.enums import (
     CostType,
@@ -26,7 +26,7 @@ from src.tests.project_management._test_repository_tenant_hardening_row_builders
 def _build_priority_core_rows(default_org, other_org, other_tenant_id):
     """Build the core ORM rows (projects, resources, tasks) for priority seed."""
     today = date.today()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     project_a = ProjectORM(
         id="project-a",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -95,7 +95,7 @@ def _create_draft(services, *, command_id: str = "manual-1", amount: str = "125.
 
 
 def test_cost_entry_domain_enforces_signed_lifecycle_and_complete_posting_snapshot() -> None:
-    now = datetime(2026, 1, 10, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 10, tzinfo=UTC)
     with pytest.raises(ValidationError):
         ProjectCostEntry.create_draft(
             tenant_id="tenant-a",
@@ -335,7 +335,7 @@ def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> No
         )
     assert missing_fx.value.code == "PROJECT_COST_ENTRY_FX_SNAPSHOT_REQUIRED"
 
-    captured_at = datetime(2026, 1, 8, 9, 0, tzinfo=timezone.utc)
+    captured_at = datetime(2026, 1, 8, 9, 0, tzinfo=UTC)
     posted = service.post(
         approved.id,
         expected_version=approved.row_version,

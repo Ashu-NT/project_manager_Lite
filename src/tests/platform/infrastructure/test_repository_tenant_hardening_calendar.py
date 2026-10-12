@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 
 from src.core.platform.domain.master_data.employee import (
     EmployeeLifecycleStatus,
@@ -38,7 +38,7 @@ def _seed_calendar_scope_rows(services) -> dict[str, str]:
     assert cur_org is not None and oth_org is not None
     ct = getattr(cur_org, "tenant_id", None)
     ot = getattr(oth_org, "tenant_id", None) or ct
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     today = date.today()
 
     cur_site = SiteORM(id="site-current", tenant_id=ct, organization_id=cur_org.id,

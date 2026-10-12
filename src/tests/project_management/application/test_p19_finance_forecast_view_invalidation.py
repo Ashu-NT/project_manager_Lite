@@ -9,7 +9,7 @@ narrow per-target destination invalidation.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -113,7 +113,7 @@ def test_version_created_maps_to_planning_target():
     handler = build_forecast_view_invalidation_handler(channel)
     event = ForecastVersionChanged(
         tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1",
-        change_type=ForecastVersionChangeType.CREATED, occurred_at=datetime.now(timezone.utc),
+        change_type=ForecastVersionChangeType.CREATED, occurred_at=datetime.now(UTC),
     )
     handler(event, _context("c1"))
     assert len(channel.notified) == 1
@@ -131,7 +131,7 @@ def test_version_approved_maps_to_both_planning_and_approved_basis_targets():
     handler = build_forecast_view_invalidation_handler(channel)
     event = ForecastVersionChanged(
         tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1",
-        change_type=ForecastVersionChangeType.APPROVED, occurred_at=datetime.now(timezone.utc),
+        change_type=ForecastVersionChangeType.APPROVED, occurred_at=datetime.now(UTC),
     )
     handler(event, _context("c2"))
     assert len(channel.notified) == 2
@@ -149,7 +149,7 @@ def test_other_version_change_types_map_to_planning_target(change_type):
     handler = build_forecast_view_invalidation_handler(channel)
     event = ForecastVersionChanged(
         tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1",
-        change_type=change_type, occurred_at=datetime.now(timezone.utc),
+        change_type=change_type, occurred_at=datetime.now(UTC),
     )
     handler(event, _context("c3"))
     assert channel.notified[0].scope_code == FORECAST_PLANNING_SCOPE_CODE
@@ -160,11 +160,11 @@ def test_line_changed_and_draft_generated_map_to_planning_target():
     handler = build_forecast_view_invalidation_handler(channel)
     line_event = ForecastLineChanged(
         tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1", line_id="l1",
-        change_type=ForecastLineChangeType.ADDED, occurred_at=datetime.now(timezone.utc),
+        change_type=ForecastLineChangeType.ADDED, occurred_at=datetime.now(UTC),
     )
     draft_event = ForecastDraftGenerated(
         tenant_id="t1", organization_id="o1", project_id="p2", forecast_id="f2",
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     handler(line_event, _context("c4"))
     handler(draft_event, _context("c4"))
@@ -177,7 +177,7 @@ def test_line_changed_and_draft_generated_map_to_planning_target():
 def test_dedupe_by_target_within_one_transaction_not_by_raw_event_fields():
     channel = _fake_channel()
     handler = build_forecast_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     context = _context("same-tx")
     handler(
         ForecastLineChanged(
@@ -220,7 +220,7 @@ def test_approved_events_two_targets_never_coalesce_but_repeats_of_each_do():
     new (each of its two targets was already notified)."""
     channel = _fake_channel()
     handler = build_forecast_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     event = ForecastVersionChanged(
         tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1",
         change_type=ForecastVersionChangeType.APPROVED, occurred_at=now,

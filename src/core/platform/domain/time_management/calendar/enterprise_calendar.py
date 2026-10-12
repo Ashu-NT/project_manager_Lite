@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, time
-from datetime import timezone as dt_timezone
+from datetime import UTC, date, datetime, time
 from enum import Enum
 
 from pydantic import field_validator, model_validator
@@ -135,8 +134,8 @@ def _normalize_optional_datetime(value: object) -> datetime | None:
             code="CALENDAR_TIMESTAMP_INVALID",
         )
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=dt_timezone.utc)
-    return value.astimezone(dt_timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _normalize_optional_float(
@@ -365,7 +364,7 @@ class PlatformCalendar:
         priority: int = 0,
         created_by: str | None = None,
     ) -> PlatformCalendar:
-        now = datetime.now(dt_timezone.utc)
+        now = datetime.now(UTC)
         return PlatformCalendar(
             id=generate_id(),
             organization_id=organization_id,
@@ -713,7 +712,7 @@ class CalendarException:
         approval_status: str = "APPROVED",
         created_by: str | None = None,
     ) -> CalendarException:
-        now = datetime.now(dt_timezone.utc)
+        now = datetime.now(UTC)
         return CalendarException(
             id=generate_id(),
             calendar_id=calendar_id,

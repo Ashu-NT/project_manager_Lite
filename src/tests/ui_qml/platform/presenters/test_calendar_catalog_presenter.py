@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from types import SimpleNamespace
 
 from src.ui_qml.platform.presenters.calendars.calendar_catalog_presenter import (

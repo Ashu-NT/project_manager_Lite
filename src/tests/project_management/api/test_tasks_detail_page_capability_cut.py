@@ -78,7 +78,7 @@ def test_assignment_hours_command_checks_module_before_composed_handler() -> Non
     )
 
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
-        api.set_assignment_hours(TaskAssignmentHoursCommand("assignment-1", Decimal("2")))
+        api.set_assignment_hours(TaskAssignmentHoursCommand("assignment-1", Decimal(2)))
 
 
 def test_dependency_previews_use_composed_handler(services) -> None:

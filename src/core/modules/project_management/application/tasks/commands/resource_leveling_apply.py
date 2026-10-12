@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -268,7 +268,7 @@ class ResourceLevelingCommandHandler:
                         project_id=project_id,
                         task_id=task_id,
                         change_type=TaskScheduleChangeType.LEVELING_APPLIED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
 

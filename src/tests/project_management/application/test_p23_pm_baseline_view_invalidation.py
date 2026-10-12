@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -95,7 +95,7 @@ def _project_with_tasks(services, name: str | None = None):
 def test_every_baseline_event_maps_to_the_project_baseline_target(event_factory):
     channel = _fake_channel()
     handler = build_baseline_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     event = event_factory(now, "t1", "o1", "p1", "b1")
 
     handler(event, _context("tx"))
@@ -114,7 +114,7 @@ def test_every_baseline_event_maps_to_the_project_baseline_target(event_factory)
 def test_dedupe_by_project_target_within_one_transaction():
     channel = _fake_channel()
     handler = build_baseline_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     context = _context("same-trace")
     handler(
@@ -143,7 +143,7 @@ def test_dedupe_by_project_target_within_one_transaction():
 def test_project_a_hint_does_not_match_project_b_exact_resource_filter():
     channel = _fake_channel()
     handler = build_baseline_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     handler(
         ProjectBaselineApproved(
@@ -170,7 +170,7 @@ def test_different_organization_hint_is_not_delivered_to_a_scoped_subscription()
 
     channel = _fake_channel()
     handler = build_baseline_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     handler(
         ProjectBaselineCreated(tenant_id="t1", organization_id="o2", project_id="p1", baseline_id="b1", occurred_at=now),

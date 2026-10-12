@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -157,7 +157,7 @@ def _commitment_source(
 def _posted_receipt_entry(
     services, *, organization, project, cost_code, period, amount: str = "40"
 ) -> ProjectCostEntry:
-    now = datetime(2026, 8, 10, 10, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 10, 10, tzinfo=UTC)
     source = FinancialSourceReference(
         tenant_id=organization.tenant_id,
         organization_id=organization.id,
@@ -204,7 +204,7 @@ def _posted_receipt_entry(
 
 
 def test_commitment_domain_releases_only_closed_or_cancelled_exposure() -> None:
-    now = datetime(2026, 8, 3, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 3, tzinfo=UTC)
     line = ProjectCommitmentLine(
         id="line-1", tenant_id="tenant-1", organization_id="org-1",
         project_id="project-1", commitment_id="commitment-1",

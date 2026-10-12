@@ -24,7 +24,7 @@ from src.ui_qml.platform.controllers.sites.site_controller import PlatformSiteCo
 def test_empty_history_is_not_an_error() -> None:
     messages: list[str] = []
     result = run_history_preview(
-        operation=lambda: [],
+        operation=list,
         set_error_message=messages.append,
         label="test activity",
     )

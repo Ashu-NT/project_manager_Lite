@@ -6,7 +6,10 @@ from sqlalchemy.orm import Session
 from src.core.platform.contract.repositories.master_data.employee.contracts import (
     EmployeeRepository,
 )
-from src.core.platform.domain.master_data.employee import Employee, EmployeeLifecycleStatus
+from src.core.platform.domain.master_data.employee import (
+    Employee,
+    EmployeeLifecycleStatus,
+)
 from src.core.platform.infrastructure.persistence.mappers.master_data.employee.employee import (
     employee_from_orm,
     employee_to_orm,

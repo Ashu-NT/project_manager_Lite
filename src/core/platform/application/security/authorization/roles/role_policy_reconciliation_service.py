@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -200,7 +200,7 @@ class RolePolicyReconciliationService:
                                 )
                             )
 
-                        applied_at = datetime.now(timezone.utc)
+                        applied_at = datetime.now(UTC)
                         for role in role_map.values():
                             if not self._role_repo.set_policy_version(
                                 role.id,
@@ -379,7 +379,7 @@ class RolePolicyReconciliationService:
         )
 
     def _active_session_ids(self, user_ids: tuple[str, ...]) -> set[str]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         active_ids: set[str] = set()
         for user_id in user_ids:
             for auth_session in self._auth_session_repo.list_by_user(user_id):

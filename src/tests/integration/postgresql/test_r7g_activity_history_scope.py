@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -45,7 +45,7 @@ def test_explicit_organization_activity_read_restores_runtime_rls_scope(
         for organization, tenant in (
             (org_a, tenant_a), (org_b, tenant_a), (org_foreign, tenant_b)
         ):
-            event_time = datetime.now(timezone.utc)
+            event_time = datetime.now(UTC)
             connection.execute(
                 text(
                     "INSERT INTO organizations (id, tenant_id, organization_code, display_name, "
@@ -109,7 +109,7 @@ def test_explicit_organization_activity_read_restores_runtime_rls_scope(
                 "VALUES ('r7g-history-platform-audit', :timestamp, 'platform', "
                 "'bootstrap', 'created', 'platform')"
             ),
-            {"timestamp": datetime.now(timezone.utc)},
+            {"timestamp": datetime.now(UTC)},
         )
         for user_id, tenant in (("r7g-actor-a", tenant_a), ("r7g-actor-b", tenant_b)):
             connection.execute(
@@ -118,7 +118,7 @@ def test_explicit_organization_activity_read_restores_runtime_rls_scope(
                     "account_type, is_active, created_at, updated_at, version) "
                     "VALUES (:id, :id, :id, 'no-login', 'human', true, :now, :now, 1)"
                 ),
-                {"id": user_id, "now": datetime.now(timezone.utc)},
+                {"id": user_id, "now": datetime.now(UTC)},
             )
             connection.execute(
                 text(
@@ -128,7 +128,7 @@ def test_explicit_organization_activity_read_restores_runtime_rls_scope(
                 ),
                 {
                     "id": f"r7g-membership-{user_id}", "user_id": user_id,
-                    "tenant_id": tenant, "now": datetime.now(timezone.utc),
+                    "tenant_id": tenant, "now": datetime.now(UTC),
                 },
             )
 

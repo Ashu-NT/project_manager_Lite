@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -92,7 +92,7 @@ def test_invitation_acceptance_is_self_scoped_atomic_and_one_time(
 
     issued = membership_service.issue_invitation(
         target.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=2),
+        expires_at=datetime.now(UTC) + timedelta(days=2),
     )
 
     stored = _membership_repo(services).get(target.id, tenant_id)
@@ -139,7 +139,7 @@ def test_invitation_cannot_be_accepted_by_another_authenticated_user(
     other = _register_user(services, "invitation_other")
     issued = membership_service.issue_invitation(
         target.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
 
     _set_user_principal(services, other.username)
@@ -162,7 +162,7 @@ def test_revoked_invitation_cannot_be_accepted(
     target = _register_user(services, "revoked_invitation_target")
     issued = membership_service.issue_invitation(
         target.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
 
     revoked = membership_service.revoke_invitation(target.id)
@@ -189,7 +189,7 @@ def test_membership_administration_invalidates_only_affected_sessions(
     target = _register_user(services, "lifecycle_target")
     issued = membership_service.issue_invitation(
         target.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
 
     authenticated = _set_user_principal(services, target.username)
@@ -256,7 +256,7 @@ def test_membership_mutation_rolls_back_when_durable_audit_write_fails(
     with pytest.raises(RuntimeError, match="audit unavailable"):
         membership_service.issue_invitation(
             target.id,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+            expires_at=datetime.now(UTC) + timedelta(days=1),
         )
 
     assert _membership_repo(services).get(target.id, tenant_id) is None
@@ -273,7 +273,7 @@ def test_acceptance_rolls_back_membership_and_binding_when_audit_fails(
     target = _register_user(services, "acceptance_audit_failure")
     issued = membership_service.issue_invitation(
         target.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
     _set_user_principal(services, target.username)
 
@@ -310,7 +310,7 @@ def test_membership_administration_requires_permission_and_blocks_self_lockout(
     target = _register_user(services, "unprivileged_target")
     issued = membership_service.issue_invitation(
         target.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
     _set_user_principal(services, target.username)
 
@@ -322,7 +322,7 @@ def test_membership_administration_requires_permission_and_blocks_self_lockout(
     with pytest.raises(BusinessRuleError) as self_lockout_error:
         membership_service.issue_invitation(
             admin_principal.user_id,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+            expires_at=datetime.now(UTC) + timedelta(days=1),
         )
     assert self_lockout_error.value.code == "TENANT_MEMBERSHIP_SELF_LOCKOUT"
     assert issued.membership.status == MEMBERSHIP_STATUS_INVITED
@@ -344,7 +344,7 @@ def test_invitation_rejects_an_existing_canonical_tenant_member(
     with pytest.raises(BusinessRuleError) as membership_error:
         membership_service.issue_invitation(
             target.id,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+            expires_at=datetime.now(UTC) + timedelta(days=1),
         )
 
     assert membership_error.value.code == "TENANT_MEMBERSHIP_ALREADY_ACTIVE"
@@ -363,7 +363,7 @@ def test_invitation_expiry_is_bounded(
     with pytest.raises(BusinessRuleError) as expiry_error:
         membership_service.issue_invitation(
             target.id,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=31),
+            expires_at=datetime.now(UTC) + timedelta(days=31),
         )
 
     assert expiry_error.value.code == "TENANT_INVITATION_EXPIRY_INVALID"
@@ -378,7 +378,7 @@ def test_issuing_invitation_uses_pending_invitations_not_in_app_notifications(
 
     issued = membership_service.issue_invitation(
         target.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
 
     _set_user_principal(services, target.username)
@@ -393,7 +393,7 @@ def test_revoking_invitation_does_not_create_in_app_notification(services) -> No
     target = _register_user(services, "revoke_notified_invitee")
     membership_service.issue_invitation(
         target.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
 
     membership_service.revoke_invitation(target.id)
@@ -411,7 +411,7 @@ def test_list_my_pending_invitations_is_self_scoped_and_excludes_expired(
     other = _register_user(services, "pending_invitation_other")
     membership_service.issue_invitation(
         owner.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
 
     _set_user_principal(services, owner.username)
@@ -431,7 +431,7 @@ def test_accept_invitation_for_tenant_requires_no_token(services) -> None:
     target = _register_user(services, "token_free_acceptor")
     membership_service.issue_invitation(
         target.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
 
     _set_user_principal(services, target.username)
@@ -451,7 +451,7 @@ def test_accept_invitation_for_tenant_is_self_scoped(services) -> None:
     other = _register_user(services, "token_free_other")
     membership_service.issue_invitation(
         target.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
 
     _set_user_principal(services, other.username)
@@ -468,7 +468,7 @@ def test_desktop_adapter_lists_and_accepts_self_scoped_invitation(services) -> N
     target = _register_user(services, "desktop_invitation_acceptor")
     membership_service.issue_invitation(
         target.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
     _set_user_principal(services, target.username)
     api = PlatformTenantDesktopApi(
