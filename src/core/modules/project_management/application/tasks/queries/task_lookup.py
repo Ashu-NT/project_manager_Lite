@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
 from typing import cast
 
 from src.core.modules.project_management.access.scope_permissions import (
@@ -11,12 +10,10 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
     TimesheetAssignmentContext,
 )
-from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
@@ -156,61 +153,6 @@ class TaskLookupQueryHandler:
             operation_label="view timesheet assignment",
         )
         return row
-
-    def query_tasks(
-        self,
-        project_id: str | None = None,
-        status: TaskStatus | None = None,
-        resource_id: str | None = None,
-        start_from: date | None = None,
-        start_to: date | None = None,
-        end_from: date | None = None,
-        end_to: date | None = None,
-    ) -> list[Task]:
-        require_permission(
-            self._user_session, "task.read", operation_label="query tasks"
-        )
-        if project_id:
-            require_project_permission(
-                self._user_session,
-                project_id,
-                "task.read",
-                operation_label="query tasks",
-            )
-            tasks = self._task_repo.list_by_project(project_id)
-        else:
-            raise ValidationError("project_id is required for query_tasks currently.")
-
-        if status:
-            tasks = [task for task in tasks if task.status == status]
-
-        if start_from:
-            tasks = [
-                task
-                for task in tasks
-                if task.start_date and task.start_date >= start_from
-            ]
-        if start_to:
-            tasks = [
-                task
-                for task in tasks
-                if task.start_date and task.start_date <= start_to
-            ]
-        if end_from:
-            tasks = [
-                task for task in tasks if task.end_date and task.end_date >= end_from
-            ]
-        if end_to:
-            tasks = [
-                task for task in tasks if task.end_date and task.end_date <= end_to
-            ]
-
-        if resource_id:
-            assignments = self._assignment_repo.list_by_resource(resource_id)
-            task_ids = {assignment.task_id for assignment in assignments}
-            tasks = [task for task in tasks if task.id in task_ids]
-
-        return tasks
 
 
 __all__ = ["TaskLookupQueryHandler"]

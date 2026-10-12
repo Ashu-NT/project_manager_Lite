@@ -831,6 +831,16 @@ architecture/API/composition passed 37; live PostgreSQL RLS/security passed
 14. Scoped Ruff F/I, Mypy, compilation and diff checks passed. A4 is still
 open for remaining real consumers and participant-scoped boundaries.
 
+**A4 dead lookup cleanup (2026-10-12).** Three facade methods with no
+production callers were deleted: `list_tasks_for_resource`,
+`list_assignments_for_resource`, and `query_tasks`. The first two remain
+available on the composed lookup handler; its unused in-memory `query_tasks`
+path was retired in favor of the existing paged workspace query. TaskService
+is now 656 lines, 64 methods and 25 constructor inputs. Focused lookup,
+resource and adapter tests passed 31; the combined Task/API/approval/
+architecture slice passed 100 and live PostgreSQL security/RLS passed 14.
+Scoped Ruff F/I, Mypy, compilation, and diff checks passed. A4 remains open.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

@@ -36,7 +36,7 @@ implementation owner and consumer boundary. Each name is listed explicitly.
 | Time bridge / time-entry handler | `initialize_timesheet_for_assignment`, `list_time_entries_for_assignment`, `list_time_entries_for_task_page`, `list_time_entries_for_assignment_period`, `get_time_entry`, `add_time_entry`, `update_time_entry`, `delete_time_entry`, `list_timesheet_periods_for_resource`, `list_time_entries_for_resource_period`, `submit_timesheet_period`, `approve_timesheet_period`, `reject_timesheet_period`, `lock_timesheet_period`, `unlock_timesheet_period`, `reopen_approved_timesheet_period_for_correction` | Tasks/Timesheets desktop APIs; preserve Time-owned evidence and timesheet authority; avoid exposing Task UoW as Time UoW. |
 | Detail/hierarchy queries | `get_task`, `list_task_hierarchy`, `list_leaf_tasks_for_project`, `get_task_hierarchy_rollup`, `list_task_hierarchy_rollups` | Tasks/Scheduling desktop APIs, dashboard helpers, importers; existing detail/hierarchy handlers are candidates for narrow injection. |
 | Dependency diagnostics queries | `get_dependency_diagnostics`, `preview_dependency_removal` | Tasks/Scheduling desktop APIs; existing diagnostics handler is candidate for narrow injection. |
-| Lookup queries | `list_tasks_for_project`, `list_tasks_for_resource`, `list_assignments_for_resource`, `query_tasks` | CSV import and Timesheets desktop now use the lookup handler directly; Tasks/Scheduling desktop APIs use remaining facade methods. The lookup handler enforces task/project permissions; callers retain their module guards. |
+| Lookup queries | `list_tasks_for_project` | CSV import and Timesheets desktop now use the lookup handler directly; Tasks/Scheduling desktop APIs use the remaining facade method. The lookup handler enforces task/project permissions; callers retain their module guards. The resource lookups live only on the handler; unused `query_tasks` was retired. |
 | Page queries | None remain on TaskService | Tasks desktop now receives the composed detail and workspace query handlers directly; Dashboard receives the workspace handler. Readers own paging/sorting and DTO projection, not QML. |
 | Warning sidecars / assignment handler | `consume_last_overallocation_warning`, `consume_last_skill_violation_warning` | Tasks desktop API; preserve consumption timing until warning output is part of an explicit result contract. |
 | Approval participant / dependency handler | `_apply_dependency_add_decision`, `_apply_dependency_remove_decision`, `_apply_dependency_update_decision` | `infrastructure/approval/task_apply_participant.py` only. These are participant-owned, not public commands; migrate participant and shared UoW/event scope together. |
@@ -161,3 +161,15 @@ Task/API/approval/composition tests passed 71; architecture/API/composition
 tests passed 37; live PostgreSQL security/RLS passed 14. Scoped Ruff F/I,
 Mypy, compilation and diff checks passed. A4 remains open for other facade
 callers and transaction-scoped participant contracts.
+
+The next cleanup removed three lookup-only facade delegates with no production
+callers: `list_tasks_for_resource`, `list_assignments_for_resource`, and
+`query_tasks`. The two resource lookup tests now use the already-composed
+`TaskLookupQueryHandler`. The unused handler-level `query_tasks` in-memory
+filter and its test-only missing-project assertion were also removed; current
+Task workspace search uses its authoritative paged query instead. TaskService
+is now 656 lines and 64 methods including `__init__`; constructor inputs stay
+at 25. Focused lookup/resource/API tests passed 31; the combined
+Task/API/approval/architecture slice passed 100 and live PostgreSQL
+security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation, and diff checks
+passed. A4 remains open.

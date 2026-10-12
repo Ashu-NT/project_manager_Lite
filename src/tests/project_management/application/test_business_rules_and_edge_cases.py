@@ -94,12 +94,6 @@ def test_assignment_allocation_and_resource_validation(services):
         ts.assign_resource(task.id, "missing-resource-id", allocation_percent=50.0)
 
 
-def test_query_tasks_requires_project_id(services):
-    ts = services["task_service"]
-    with pytest.raises(ValidationError):
-        ts.query_tasks(project_id=None)
-
-
 def test_work_calendar_next_and_negative_day_math(services):
     # wc is now GlobalCalendarShim backed by the enterprise calendar
     wc = services["work_calendar_engine"]

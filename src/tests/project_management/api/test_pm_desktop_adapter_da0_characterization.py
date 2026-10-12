@@ -332,7 +332,7 @@ def test_da1_task_service_lists_authorized_resource_assignments(services) -> Non
         allocation_percent=60.0,
     )
 
-    rows = services["task_service"].list_assignments_for_resource(resource.id)
+    rows = services["task_lookup_query"].list_assignments_for_resource(resource.id)
 
     assert [row.id for row in rows] == [assignment.id]
 

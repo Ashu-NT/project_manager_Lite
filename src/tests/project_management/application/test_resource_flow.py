@@ -42,7 +42,7 @@ def test_resource_assignment_and_overload(services):
     assert "over-allocated on" in warning_text
 
     # Check tasks for resource in project
-    tasks_for_res = ts.query_tasks(project_id=pid, resource_id=r.id)
+    tasks_for_res = services["task_lookup_query"].list_tasks_for_resource(r.id)
     assert len(tasks_for_res) == 3
 
 

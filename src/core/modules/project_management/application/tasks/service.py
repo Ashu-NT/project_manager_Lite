@@ -643,32 +643,6 @@ class TaskService(
     def list_tasks_for_project(self, project_id: str) -> list[Task]:
         return self._lookup_query.list_tasks_for_project(project_id)
 
-    def list_tasks_for_resource(self, resource_id: str) -> list[Task]:
-        return self._lookup_query.list_tasks_for_resource(resource_id)
-
-    def list_assignments_for_resource(self, resource_id: str) -> list[TaskAssignment]:
-        return self._lookup_query.list_assignments_for_resource(resource_id)
-
-    def query_tasks(
-        self,
-        project_id: str | None = None,
-        status: TaskStatus | None = None,
-        resource_id: str | None = None,
-        start_from: date | None = None,
-        start_to: date | None = None,
-        end_from: date | None = None,
-        end_to: date | None = None,
-    ) -> list[Task]:
-        return self._lookup_query.query_tasks(
-            project_id=project_id,
-            status=status,
-            resource_id=resource_id,
-            start_from=start_from,
-            start_to=start_to,
-            end_from=end_from,
-            end_to=end_to,
-        )
-
     def _take_pending_task_events(self) -> tuple:
         return self._task_uow_scope.take_pending_events()
 
