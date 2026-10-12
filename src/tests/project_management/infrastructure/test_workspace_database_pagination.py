@@ -379,21 +379,21 @@ def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -
         wbs_code="1.1",
     )
 
-    first_page = task_service.query_workspace_page(
+    first_page = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         status="BLOCKED",
         page=1,
         page_size=1,
         as_of=date(2026, 5, 1),
     )
-    second_page = task_service.query_workspace_page(
+    second_page = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         status="BLOCKED",
         page=2,
         page_size=1,
         as_of=date(2026, 5, 1),
     )
-    priority_page = task_service.query_workspace_page(
+    priority_page = services["task_workspace_query"].query_workspace_page(
         search_text="priority>=90",
         page=1,
         page_size=25,
@@ -422,8 +422,8 @@ def test_task_workspace_milestones_only_filter(services) -> None:
         project.id, "Handover", start_date=date(2026, 5, 5), duration_days=5, is_milestone=True
     )
 
-    all_page = task_service.query_workspace_page(project_id=project.id, page=1, page_size=25)
-    milestones_page = task_service.query_workspace_page(
+    all_page = services["task_workspace_query"].query_workspace_page(project_id=project.id, page=1, page_size=25)
+    milestones_page = services["task_workspace_query"].query_workspace_page(
         project_id=project.id, milestones_only=True, page=1, page_size=25
     )
 
@@ -441,42 +441,42 @@ def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
     beta = task_service.create_task(project.id, "Beta Task", wbs_code="2")
     gamma = task_service.create_task(project.id, "Gamma Task", wbs_code="3")
 
-    ascending_first = task_service.query_workspace_page(
+    ascending_first = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
         page=1,
         page_size=2,
     )
-    ascending_second = task_service.query_workspace_page(
+    ascending_second = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
         page=2,
         page_size=2,
     )
-    first = task_service.query_workspace_page(
+    first = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="desc",
         page=1,
         page_size=2,
     )
-    second = task_service.query_workspace_page(
+    second = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="desc",
         page=2,
         page_size=2,
     )
-    unsupported = task_service.query_workspace_page(
+    unsupported = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="unsafe_sql",
         sort_direction="desc",
         page=1,
         page_size=3,
     )
-    beyond_last = task_service.query_workspace_page(
+    beyond_last = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
@@ -861,7 +861,7 @@ def test_workspace_page_query_budgets_are_constant(services, session) -> None:
         budgets = []
         for query in (
             lambda: services["project_service"].query_catalog_page(),
-            lambda: services["task_service"].query_workspace_page(),
+            lambda: services["task_workspace_query"].query_workspace_page(),
             lambda: services["resource_service"].query_catalog_page(),
             lambda: services["register_service"].query_catalog_page(),
             lambda: services["timesheet_service"].query_review_queue_page(),

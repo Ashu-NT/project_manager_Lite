@@ -136,9 +136,18 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
+    TaskWorkspacePageQueryHandler,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.gateway.task.reservation import (
     TaskReservationGateway,
+)
+from src.core.platform.application.tenant.modules.authorization import (
+    require_module_enabled,
+)
+from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
+    SupportsModuleEntitlements,
 )
 
 logger = logging.getLogger(__name__)
@@ -150,6 +159,8 @@ class ProjectManagementTasksDesktopApi:
         *,
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
+        task_workspace_query: TaskWorkspacePageQueryHandler | None = None,
+        module_catalog_service: SupportsModuleEntitlements | None = None,
         project_resource_service: ProjectResourceService | None = None,
         resource_service: ResourceService | None = None,
         reservation_service: TaskReservationGateway | None = None,
@@ -158,6 +169,8 @@ class ProjectManagementTasksDesktopApi:
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
+        self._task_workspace_query = task_workspace_query
+        self._module_catalog_service = module_catalog_service
         self._project_resource_service = project_resource_service
         self._resource_service = resource_service
         self._reservation_service = reservation_service
@@ -252,8 +265,14 @@ class ProjectManagementTasksDesktopApi:
         sort_key: str = "wbsCode",
         sort_direction: str = "asc",
     ) -> TaskWorkspacePageDesktopDto:
-        service = self._require_task_service()
-        result = service.query_workspace_page(
+        if self._task_workspace_query is None:
+            raise RuntimeError("Project management tasks desktop API is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="query workspace page",
+        )
+        result = self._task_workspace_query.query_workspace_page(
             project_id=project_id,
             search_text=search_text,
             status=status,

@@ -110,6 +110,8 @@ def build_project_management_desktop_runtime_apis(
         project_management_tasks=build_project_management_tasks_desktop_api(
             project_service=resolved.project_service,
             task_service=resolved.task_service,
+            task_workspace_query=resolved.task_workspace_query,
+            module_catalog_service=platform_dependencies.module_catalog_service,
             project_resource_service=resolved.project_resource_service,
             resource_service=resolved.resource_service,
             reservation_service=platform_dependencies.reservation_service,

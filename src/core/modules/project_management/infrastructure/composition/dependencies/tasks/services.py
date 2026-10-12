@@ -283,7 +283,6 @@ def build_task_capabilities(
             uow_scope=task_uow_scope,
         ),
         detail_query_handler=detail_query_handler,
-        workspace_query_handler=workspace_query_handler,
         lookup_query_handler=lookup_query_handler,
         hierarchy_query_handler=TaskHierarchyQueryHandler(
             task_repo=repositories.pm.task_repo,

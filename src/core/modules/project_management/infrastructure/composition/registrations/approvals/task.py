@@ -63,9 +63,6 @@ from src.core.modules.project_management.application.tasks.queries.task_detail_p
 from src.core.modules.project_management.application.tasks.queries.task_lookup import (
     TaskLookupQueryHandler,
 )
-from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
-    TaskWorkspacePageQueryHandler,
-)
 from src.core.modules.project_management.application.tasks.service import TaskService
 from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
     TaskUowScope,
@@ -281,12 +278,6 @@ def build_task_approval_deps(
         detail_query_handler=TaskDetailPageQueryHandler(
             task_repo=bundle.pm.task_repo,
             task_workspace_reader=None,
-            user_session=user_session,
-            tenant_context_service=tenant_context_service,
-        ),
-        workspace_query_handler=TaskWorkspacePageQueryHandler(
-            task_workspace_reader=None,
-            work_calendar_engine=work_calendar_engine,
             user_session=user_session,
             tenant_context_service=tenant_context_service,
         ),
