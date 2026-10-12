@@ -10,6 +10,9 @@ from sqlalchemy.exc import IntegrityError
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.risk.register_events import (
     RegisterEntryChanged,
     RegisterEntryChangeType,
@@ -50,7 +53,7 @@ from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 
-class RegisterLifecycleHandler:
+class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
     _UNSET = object()
 
     def __init__(
@@ -61,12 +64,14 @@ class RegisterLifecycleHandler:
         user_session: UserSessionContext | None,
         tenant_context_service: TenantContextService,
         uow_factory: RegisterUnitOfWorkFactory | None,
+        module_catalog_service=None,
     ) -> None:
         self._project_repo = project_repo
         self._register_repo = register_repo
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
         self._uow_factory = uow_factory
+        self._module_catalog_service = module_catalog_service
 
     def _require_uow_factory(self) -> RegisterUnitOfWorkFactory:
         if self._uow_factory is None:

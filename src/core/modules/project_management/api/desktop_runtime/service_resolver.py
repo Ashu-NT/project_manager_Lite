@@ -48,6 +48,9 @@ from src.core.modules.project_management.application.resources.queries.skill_que
     ResourceCapabilityQueryHandler,
 )
 from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
+    RegisterLifecycleHandler,
+)
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
@@ -87,6 +90,7 @@ class ProjectManagementDesktopRuntimeServices:
     portfolio_service: PortfolioService | None
     collaboration_service: CollaborationService | None
     register_service: RegisterService | None
+    register_lifecycle_commands: RegisterLifecycleHandler | None
     resource_service: ResourceService | None
     resource_capability_query: ResourceCapabilityQueryHandler | None
     resource_context_query: ResourceContextQueryHandler | None
@@ -127,6 +131,7 @@ def resolve_project_management_desktop_runtime_services(
     portfolio_service = services.get("portfolio_service")
     collaboration_service = services.get("collaboration_service")
     register_service = services.get("register_service")
+    register_lifecycle_commands = services.get("register_lifecycle_commands")
     resource_service = services.get("resource_service")
     resource_capability_query = services.get("resource_capability_query")
     resource_context_query = services.get("resource_context_query")
@@ -182,6 +187,11 @@ def resolve_project_management_desktop_runtime_services(
         ),
         register_service=(
             register_service if isinstance(register_service, RegisterService) else None
+        ),
+        register_lifecycle_commands=(
+            register_lifecycle_commands
+            if isinstance(register_lifecycle_commands, RegisterLifecycleHandler)
+            else None
         ),
         resource_service=(
             resource_service if isinstance(resource_service, ResourceService) else None

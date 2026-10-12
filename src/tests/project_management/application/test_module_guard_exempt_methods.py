@@ -4,6 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.core.modules.project_management.api.desktop.register.api import (
+    ProjectManagementRegisterDesktopApi,
+)
 from src.core.modules.project_management.api.desktop.resources.api import (
     ProjectManagementResourcesDesktopApi,
 )
@@ -19,11 +22,10 @@ from src.core.modules.project_management.application.resources.catalog.resource_
 from src.core.modules.project_management.application.resources.project_resources.project_resource_service import (
     ProjectResourceService,
 )
-from src.core.modules.project_management.application.risk.register_service import (
-    RegisterService,
+from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
+    RegisterLifecycleHandler,
 )
 from src.core.modules.project_management.application.tasks.service import TaskService
-from src.core.modules.project_management.domain.risk.register import RegisterEntryType
 from src.core.modules.project_management.infrastructure.importers.services.data_import_service import (
     DataImportService,
 )
@@ -62,15 +64,28 @@ def test_business_methods_are_allowed_when_the_module_is_enabled() -> None:
     assert service.create_task() == "created"
 
 
-def test_register_write_facade_still_checks_module_before_handler() -> None:
-    service = RegisterService(
-        project_repo=object(),
-        register_repo=object(),
+def test_register_desktop_commands_check_module_before_handler() -> None:
+    api = ProjectManagementRegisterDesktopApi(
+        register_lifecycle_commands=object(),  # type: ignore[arg-type]
         module_catalog_service=_module_catalog(runtime_enabled=False),
-        lifecycle_handler=object(),
     )
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
-        service.create_entry("project-1", entry_type=RegisterEntryType.RISK, title="Risk")
+        api.create_entry(
+            SimpleNamespace(project_id="project-1", entry_type="RISK", title="Risk")
+        )
+
+
+def test_register_handler_checks_module_before_opening_uow() -> None:
+    commands = RegisterLifecycleHandler(
+        project_repo=object(),  # type: ignore[arg-type]
+        register_repo=object(),  # type: ignore[arg-type]
+        user_session=None,
+        tenant_context_service=object(),  # type: ignore[arg-type]
+        uow_factory=None,
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        commands.create_entry("project-1", entry_type="risk", title="Risk")
 
 
 def test_project_resource_read_facade_still_checks_module_before_handler() -> None:

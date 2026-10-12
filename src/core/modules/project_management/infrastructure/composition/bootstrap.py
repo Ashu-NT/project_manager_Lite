@@ -80,9 +80,9 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.resources.services import (
     build_project_resource_service,
+    build_resource_capabilities,
     build_resource_planning_foundation,
     build_resource_planning_services,
-    build_resource_capabilities,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.scheduling.services import (
     build_baseline_service,
@@ -231,7 +231,8 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
-    register_service = build_register_service(session, repositories, platform_services)
+    register_capabilities = build_register_service(session, repositories, platform_services)
+    register_service = register_capabilities.service
     _pre_project_calendar_adapter, scheduling_engine = build_scheduling_foundation(
         session,
         repositories,
@@ -540,6 +541,7 @@ def build_project_management_service_bundle(
         dashboard_service=dashboard_service,
         portfolio_service=portfolio_service,
         register_service=register_service,
+        register_lifecycle_commands=register_capabilities.lifecycle,
         project_resource_service=project_resource_service,
         data_import_service=data_import_service,
         assignment_skill_validator=assignment_skill_validator,

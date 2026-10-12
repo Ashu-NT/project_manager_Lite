@@ -33,10 +33,19 @@ from src.core.modules.project_management.api.desktop.register.utils.register_enu
 )
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
+    RegisterLifecycleHandler,
+)
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
+)
+from src.core.platform.application.tenant.modules.authorization import (
+    require_module_enabled,
+)
+from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
+    SupportsModuleEntitlements,
 )
 
 
@@ -46,9 +55,13 @@ class ProjectManagementRegisterDesktopApi:
         *,
         project_service: ProjectService | None = None,
         register_service: RegisterService | None = None,
+        register_lifecycle_commands: RegisterLifecycleHandler | None = None,
+        module_catalog_service: SupportsModuleEntitlements | None = None,
     ) -> None:
         self._project_service = project_service
         self._register_service = register_service
+        self._register_lifecycle_commands = register_lifecycle_commands
+        self._module_catalog_service = module_catalog_service
 
     def list_projects(self) -> tuple[RegisterProjectOptionDescriptor, ...]:
         return build_project_options(self._project_service)
@@ -142,8 +155,8 @@ class ProjectManagementRegisterDesktopApi:
         self,
         command: RegisterEntryCreateCommand,
     ) -> RegisterEntryDesktopDto:
-        service = self._require_register_service()
-        entry = service.create_entry(
+        commands = self._require_register_lifecycle_commands()
+        entry = commands.create_entry(
             command.project_id,
             entry_type=coerce_entry_type(command.entry_type),
             title=command.title,
@@ -162,8 +175,8 @@ class ProjectManagementRegisterDesktopApi:
         self,
         command: RegisterEntryUpdateCommand,
     ) -> RegisterEntryDesktopDto:
-        service = self._require_register_service()
-        entry = service.update_entry(
+        commands = self._require_register_lifecycle_commands()
+        entry = commands.update_entry(
             command.entry_id,
             expected_version=command.expected_version,
             entry_type=coerce_entry_type(command.entry_type),
@@ -180,13 +193,13 @@ class ProjectManagementRegisterDesktopApi:
         return serialize_entry(entry, project_name_by_id=self._project_name_by_id())
 
     def delete_entry(self, entry_id: str) -> None:
-        self._require_register_service().delete_entry(entry_id)
+        self._require_register_lifecycle_commands().delete_entry(entry_id)
 
     def bulk_set_entry_status(
         self, entry_ids: tuple[str, ...], status: str
     ) -> tuple[RegisterEntryDesktopDto, ...]:
-        service = self._require_register_service()
-        entries = service.bulk_set_entry_status(entry_ids, coerce_entry_status(status))
+        commands = self._require_register_lifecycle_commands()
+        entries = commands.bulk_set_entry_status(entry_ids, coerce_entry_status(status))
         project_name_by_id = self._project_name_by_id()
         return tuple(serialize_entry(entry, project_name_by_id=project_name_by_id) for entry in entries)
 
@@ -200,6 +213,16 @@ class ProjectManagementRegisterDesktopApi:
         if self._register_service is None:
             raise RuntimeError("Project management register desktop API is not connected.")
         return self._register_service
+
+    def _require_register_lifecycle_commands(self) -> RegisterLifecycleHandler:
+        if self._register_lifecycle_commands is None:
+            raise RuntimeError("Project management register commands are not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="manage register",
+        )
+        return self._register_lifecycle_commands
 
 
 __all__ = ["ProjectManagementRegisterDesktopApi"]

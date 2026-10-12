@@ -41,8 +41,9 @@ def test_bulk_set_entry_status_updates_every_entry_in_one_transaction(services) 
         "Bulk register project", financial_currency_code=organization.base_currency
     )
     register_service = services["register_service"]
+    register_commands = services["register_lifecycle_commands"]
     entries = [
-        register_service.create_entry(
+        register_commands.create_entry(
             project.id, entry_type=RegisterEntryType.RISK, title=f"Bulk risk {i}"
         )
         for i in range(3)
@@ -52,7 +53,7 @@ def test_bulk_set_entry_status_updates_every_entry_in_one_transaction(services) 
 
     counts, restore = _count_uow_creations(SqlAlchemyRegisterUnitOfWorkFactory)
     try:
-        results = register_service.bulk_set_entry_status(entry_ids, RegisterEntryStatus.CLOSED)
+        results = register_commands.bulk_set_entry_status(entry_ids, RegisterEntryStatus.CLOSED)
     finally:
         restore()
 

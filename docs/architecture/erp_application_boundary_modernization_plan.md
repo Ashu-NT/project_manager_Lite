@@ -942,6 +942,34 @@ The PostgreSQL security slice was invoked but all 14 tests skipped because
 the required live test database was not configured for this run; it is not
 claimed as fresh RLS evidence for this cut.
 
+**A4 PM application-service disposition (2026-10-12).** This inventory covers
+the PM-owned application service families, not Platform services consumed by
+PM. A service is not a defect merely because it remains a service: retain
+actual orchestration, policy, calculation, and transaction coordination.
+The open rows below are implementation work, not closure claims.
+
+| PM family | Current boundary | A4 disposition |
+| --- | --- | --- |
+| Projects | `ProjectService` commands and two still-used lookups; `ProjectQueryHandler` directly exposed | Keep guarded command facade while active callers need it; migrate remaining lookups only with their scope/module checks, then remove dead forwards. |
+| Tasks | `TaskService` remains 45 methods/16 constructor inputs; composed command/query capabilities are already separately exposed | Continue caller-by-caller removal of ordinary delegates. Keep approval-participant, scheduling-constraint, resource-leveling, and pending-event/UoW operations until shared-transaction equivalence is proven. |
+| Resources | `ResourceService` still owns active command delegates and catalog reads; capability/context detail query handlers are direct | Move command consumers to the already composed master/capability handlers only with equivalent module, permission, event, and UoW checks. Retain read methods that are not forwarding to those handlers. |
+| Project resources | `ProjectResourceService` forwards command and query handlers | Candidate for direct capability injection; Projects and Tasks desktop plus assignment builders must migrate together before retiring the facade. |
+| Register | `RegisterService` forwards `RegisterLifecycleHandler` and owns query mixin state | Candidate for direct command injection; first characterize read scope and command module guard. Do not split the lifecycle UoW. |
+| Portfolio | `PortfolioService` composes intake, template, scenario, dependency, executive, and support mixins over one UoW | Extract cohesive operations only after shared scope, scoring, and UoW policy is characterized; do not instantiate one service per mixin or duplicate sessions. |
+| Collaboration | `CollaborationService` coordinates comment/mention/evidence operations and a shared collaboration UoW | Split only independently transactional capabilities after privacy, recipient, audit, and event proofs. |
+| Timesheets | `TimesheetService` owns owner/reviewer authorization, period/entry workflows, and approval interactions | Retain as workflow authority; split read capabilities only if they remove a measured dependency without bypassing period/UoW policy. |
+| Dashboard and Reporting | Dashboard assembles cross-feature read facts; Reporting owns guarded analytical/report queries | Retain current read orchestration. Narrow upstream dependencies where safe; do not duplicate EVM or Finance calculations in new handlers. |
+| Scheduling and baselines | `SchedulingEngine`, `BaselineService`, comparison and impact services own scheduling/baseline rules | Retain domain/workflow services. Any caller cut must preserve project scope, baseline approval and schedule transaction ownership. |
+| Resource planning | availability, capacity, workload, and portfolio pool services own distinct calculations/read rules | Retain; they are not forwarding facades. |
+| Data import | PM importer coordinates schema, validation, and Project/Task writes through existing capabilities | Retain as an infrastructure adapter/orchestrator; do not bypass feature commands or their module guards. |
+| Finance | Budget, Forecast, Changes, Configuration, Rates, Actuals, Commitments, Planned Cost, Billing, handoff, Finance read/performance/workspace services | Retain separate canonical business authorities and existing governed command/read boundaries. No blanket handler rewrite or second financial formula path. |
+
+The immediate A4 migration backlog is therefore Task ordinary delegates,
+Resource command delegates, Project Resource, Register, Portfolio, and
+Collaboration. Closure requires migrated production consumers and removal of
+superseded paths, not just constructing handlers in composition. The other
+families above are explicitly reviewed and intentionally retained.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

@@ -65,6 +65,9 @@ from src.core.modules.project_management.application.resources.queries.skill_que
     ResourceCapabilityQueryHandler,
 )
 from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
+    RegisterLifecycleHandler,
+)
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
 )
@@ -161,6 +164,7 @@ class ProjectManagementServiceBundle:
     dashboard_service: DashboardService
     portfolio_service: PortfolioService
     register_service: RegisterService
+    register_lifecycle_commands: RegisterLifecycleHandler
     project_resource_service: ProjectResourceService
     data_import_service: DataImportService
     assignment_skill_validator: AssignmentSkillValidator

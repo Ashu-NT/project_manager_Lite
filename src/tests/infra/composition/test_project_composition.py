@@ -93,7 +93,7 @@ def test_project_uow_factory_opens_a_fresh_session(services, session) -> None:
 
 def test_register_uses_shared_bus_and_one_invalidation_handler(services, session) -> None:
     project_bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
-    register_uow = services["register_service"]._lifecycle._uow_factory
+    register_uow = services["register_lifecycle_commands"]._uow_factory
     assert register_uow._post_commit_bus is project_bus
     assert sum(
         handler.__name__ == "handle_register_entry_event"

@@ -37,6 +37,8 @@ def build_project_management_desktop_runtime_apis(
     register_desktop_api = build_project_management_register_desktop_api(
         project_service=resolved.project_service,
         register_service=resolved.register_service,
+        register_lifecycle_commands=resolved.register_lifecycle_commands,
+        module_catalog_service=platform_dependencies.module_catalog_service,
     )
     change_impact_service = build_schedule_change_impact_service(
         resolved.task_service,
