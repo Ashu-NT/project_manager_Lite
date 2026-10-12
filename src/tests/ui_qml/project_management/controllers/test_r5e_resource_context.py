@@ -126,11 +126,10 @@ def _count_statements(session, operation):
 
 def test_r5e_projects_are_immutable_server_paged_sorted_and_bounded(services, session) -> None:
     seeded = _seed_resource_context(services)
-    resource_service = services["resource_service"]
 
     ascending, statements = _count_statements(
         session,
-        lambda: resource_service.query_resource_projects_page(
+        lambda: services["resource_context_query"].query_resource_projects_page(
             seeded.resource.id,
             page=1,
             page_size=1,
@@ -138,7 +137,7 @@ def test_r5e_projects_are_immutable_server_paged_sorted_and_bounded(services, se
             sort_direction="asc",
         ),
     )
-    descending = resource_service.query_resource_projects_page(
+    descending = services["resource_context_query"].query_resource_projects_page(
         seeded.resource.id,
         page=1,
         page_size=1,
@@ -157,11 +156,10 @@ def test_r5e_projects_are_immutable_server_paged_sorted_and_bounded(services, se
 
 def test_r5e_assignments_keep_project_envelope_planned_and_actual_distinct(services, session) -> None:
     seeded = _seed_resource_context(services)
-    resource_service = services["resource_service"]
 
     page, statements = _count_statements(
         session,
-        lambda: resource_service.query_resource_assignments_page(
+        lambda: services["resource_context_query"].query_resource_assignments_page(
             seeded.resource.id,
             lifecycle="all",
             page=1,
@@ -186,9 +184,8 @@ def test_r5e_assignments_keep_project_envelope_planned_and_actual_distinct(servi
 
 def test_r5e_assignment_filters_and_cross_page_sort_are_authoritative(services) -> None:
     seeded = _seed_resource_context(services)
-    resource_service = services["resource_service"]
 
-    first = resource_service.query_resource_assignments_page(
+    first = services["resource_context_query"].query_resource_assignments_page(
         seeded.resource.id,
         lifecycle="all",
         page=1,
@@ -196,7 +193,7 @@ def test_r5e_assignment_filters_and_cross_page_sort_are_authoritative(services) 
         sort_key="taskName",
         sort_direction="asc",
     )
-    second = resource_service.query_resource_assignments_page(
+    second = services["resource_context_query"].query_resource_assignments_page(
         seeded.resource.id,
         lifecycle="all",
         page=2,
@@ -204,7 +201,7 @@ def test_r5e_assignment_filters_and_cross_page_sort_are_authoritative(services) 
         sort_key="taskName",
         sort_direction="asc",
     )
-    september = resource_service.query_resource_assignments_page(
+    september = services["resource_context_query"].query_resource_assignments_page(
         seeded.resource.id,
         lifecycle="all",
         start_date=date(2026, 9, 1),
@@ -220,7 +217,6 @@ def test_r5e_assignment_filters_and_cross_page_sort_are_authoritative(services) 
 
 def test_r5e_project_scope_hides_project_assignment_and_activity_identity(services) -> None:
     seeded = _seed_resource_context(services)
-    resource_service = services["resource_service"]
     user_session = services["user_session"]
     original = user_session.principal
     assert original is not None
@@ -241,11 +237,11 @@ def test_r5e_project_scope_hides_project_assignment_and_activity_identity(servic
         )
     )
     try:
-        projects = resource_service.query_resource_projects_page(seeded.resource.id)
-        assignments = resource_service.query_resource_assignments_page(
+        projects = services["resource_context_query"].query_resource_projects_page(seeded.resource.id)
+        assignments = services["resource_context_query"].query_resource_assignments_page(
             seeded.resource.id, lifecycle="all"
         )
-        activity = resource_service.query_resource_activity_page(
+        activity = services["resource_context_query"].query_resource_activity_page(
             seeded.resource.id, category="all", page_size=100
         )
     finally:
@@ -259,8 +255,7 @@ def test_r5e_project_scope_hides_project_assignment_and_activity_identity(servic
 
 def test_r5e_readers_fail_closed_for_wrong_tenant_and_organization(services) -> None:
     seeded = _seed_resource_context(services)
-    resource_service = services["resource_service"]
-    reader = resource_service._context_query._resource_projects_reader
+    reader = services["resource_context_query"]._resource_projects_reader
     tenant_id = services["user_session"].stored_active_tenant_id()
     organization_id = services["user_session"].stored_active_organization_id()
 
@@ -297,7 +292,8 @@ def test_r5e_activity_uses_authoritative_ledger_categories_order_and_paging(serv
     seeded = _seed_resource_context(services)
     resource_service = services["resource_service"]
     desktop_api = build_project_management_resources_desktop_api(
-        resource_service=resource_service
+        resource_service=resource_service,
+        resource_context_query=services["resource_context_query"],
     )
     desktop_api.add_resource_skill(
         ResourceAddSkillCommand(
@@ -309,7 +305,7 @@ def test_r5e_activity_uses_authoritative_ledger_categories_order_and_paging(serv
 
     page, statements = _count_statements(
         session,
-        lambda: resource_service.query_resource_activity_page(
+        lambda: services["resource_context_query"].query_resource_activity_page(
             seeded.resource.id, page=1, page_size=100
         ),
     )
@@ -324,14 +320,14 @@ def test_r5e_activity_uses_authoritative_ledger_categories_order_and_paging(serv
     assert [item.occurred_at for item in page.items] == sorted(
         (item.occurred_at for item in page.items), reverse=True
     )
-    assert resource_service.query_resource_activity_page(
+    assert services["resource_context_query"].query_resource_activity_page(
         seeded.resource.id, category="projects", page_size=100
     ).items
-    assert resource_service.query_resource_activity_page(
+    assert services["resource_context_query"].query_resource_activity_page(
         seeded.resource.id, category="assignments", page_size=100
     ).items
     assert len(
-        resource_service.query_resource_activity_page(
+        services["resource_context_query"].query_resource_activity_page(
             seeded.resource.id, page=1, page_size=1
         ).items
     ) == 1

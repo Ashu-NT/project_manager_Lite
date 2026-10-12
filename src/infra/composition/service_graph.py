@@ -50,12 +50,6 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
-from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
-    ResourceContextQueryHandler,
-)
-from src.core.modules.project_management.application.resources.queries.skill_queries import (
-    ResourceCapabilityQueryHandler,
-)
 from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
 )
@@ -70,6 +64,12 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
 )
 from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
     PortfolioResourcePoolService,
+)
+from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
+    ResourceContextQueryHandler,
+)
+from src.core.modules.project_management.application.resources.queries.skill_queries import (
+    ResourceCapabilityQueryHandler,
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (

@@ -158,10 +158,12 @@ def test_resource_readers_clock_uow_and_events_preserve_identity(services, sessi
     resource = services["resource_service"]
     assert resource._resource_catalog_reader is resource._resource_inspector_reader
     assert resource._resource_catalog_reader is resource._resource_summary_reader
-    context_reader = resource._context_query._resource_projects_reader
-    assert context_reader is resource._context_query._resource_assignments_reader
-    assert context_reader is resource._context_query._resource_activity_reader
-    assert context_reader is resource._capability_query._resource_capability_reader
+    context_query = services["resource_context_query"]
+    capability_query = services["resource_capability_query"]
+    context_reader = context_query._resource_projects_reader
+    assert context_reader is context_query._resource_assignments_reader
+    assert context_reader is context_query._resource_activity_reader
+    assert context_reader is capability_query._resource_capability_reader
 
     bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert resource._master_command._uow_factory._post_commit_bus is bus

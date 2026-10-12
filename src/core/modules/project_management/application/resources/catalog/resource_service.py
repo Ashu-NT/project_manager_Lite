@@ -12,23 +12,12 @@ from src.core.modules.project_management.application.resources.commands.resource
 from src.core.modules.project_management.application.resources.commands.skill_commands import (
     ResourceCapabilityCommandHandler,
 )
-from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
-    ResourceContextQueryHandler,
-)
 from src.core.modules.project_management.application.resources.queries.resource_queries import (
     ResourceQueryMixin,
 )
-from src.core.modules.project_management.application.resources.queries.skill_queries import (
-    ResourceCapabilityQueryHandler,
-)
 from src.core.modules.project_management.contracts.reads.resources import (
-    ResourceActivityReadPage,
-    ResourceAssignmentReadPage,
     ResourceCatalogReader,
-    ResourceCertificationReadPage,
     ResourceInspectorReader,
-    ResourceProjectReadPage,
-    ResourceSkillReadPage,
     ResourceSummaryReader,
 )
 from src.core.modules.project_management.contracts.repositories.resources.resource import (
@@ -36,9 +25,7 @@ from src.core.modules.project_management.contracts.repositories.resources.resour
 )
 from src.core.modules.project_management.domain.enums import (
     CostType,
-    ProjectStatus,
     ResourceKind,
-    TaskStatus,
     WorkerType,
 )
 from src.core.modules.project_management.domain.resources.resource import Resource
@@ -60,8 +47,6 @@ class ResourceService(
         *,
         master_command_handler: ResourceMasterCommandHandler,
         capability_command_handler: ResourceCapabilityCommandHandler,
-        context_query_handler: ResourceContextQueryHandler,
-        capability_query_handler: ResourceCapabilityQueryHandler,
         user_session=None,
         module_catalog_service=None,
         tenant_context_service=None,
@@ -78,50 +63,6 @@ class ResourceService(
         self._resource_catalog_reader = resource_catalog_reader
         self._resource_inspector_reader = resource_inspector_reader
         self._resource_summary_reader = resource_summary_reader
-        self._context_query = context_query_handler
-        self._capability_query = capability_query_handler
-
-    def query_resource_skills_page(
-        self,
-        resource_id: str,
-        *,
-        search_text: str = "",
-        proficiency: str | None = None,
-        page: int = 1,
-        page_size: int = 25,
-        sort_key: str = "skillName",
-        sort_direction: str = "asc",
-    ) -> ResourceSkillReadPage:
-        return self._capability_query.query_resource_skills_page(
-            resource_id,
-            search_text=search_text,
-            proficiency=proficiency,
-            page=page,
-            page_size=page_size,
-            sort_key=sort_key,
-            sort_direction=sort_direction,
-        )
-
-    def query_resource_certifications_page(
-        self,
-        resource_id: str,
-        *,
-        search_text: str = "",
-        status: str | None = None,
-        page: int = 1,
-        page_size: int = 25,
-        sort_key: str = "certificationName",
-        sort_direction: str = "asc",
-    ) -> ResourceCertificationReadPage:
-        return self._capability_query.query_resource_certifications_page(
-            resource_id,
-            search_text=search_text,
-            status=status,
-            page=page,
-            page_size=page_size,
-            sort_key=sort_key,
-            sort_direction=sort_direction,
-        )
 
     def add_resource_skill(
         self,
@@ -303,79 +244,5 @@ class ResourceService(
         return self._master_command.purge_resource(
             resource_id=resource_id, expected_version=expected_version
         )
-
-    def query_resource_projects_page(
-        self,
-        resource_id: str,
-        *,
-        search_text: str = "",
-        active: bool | None = None,
-        status: ProjectStatus | None = None,
-        page: int = 1,
-        page_size: int = 25,
-        sort_key: str = "projectName",
-        sort_direction: str = "asc",
-    ) -> ResourceProjectReadPage:
-        return self._context_query.query_resource_projects_page(
-            resource_id,
-            search_text=search_text,
-            active=active,
-            status=status,
-            page=page,
-            page_size=page_size,
-            sort_key=sort_key,
-            sort_direction=sort_direction,
-        )
-
-    def query_resource_assignments_page(
-        self,
-        resource_id: str,
-        *,
-        search_text: str = "",
-        project_id: str | None = None,
-        task_status: TaskStatus | None = None,
-        assignment_status: str | None = None,
-        lifecycle: str = "current",
-        start_date: date | None = None,
-        end_date: date | None = None,
-        page: int = 1,
-        page_size: int = 25,
-        sort_key: str = "scheduledStart",
-        sort_direction: str = "asc",
-    ) -> ResourceAssignmentReadPage:
-        return self._context_query.query_resource_assignments_page(
-            resource_id,
-            search_text=search_text,
-            project_id=project_id,
-            task_status=task_status,
-            assignment_status=assignment_status,
-            lifecycle=lifecycle,
-            start_date=start_date,
-            end_date=end_date,
-            page=page,
-            page_size=page_size,
-            sort_key=sort_key,
-            sort_direction=sort_direction,
-        )
-
-    def query_resource_activity_page(
-        self,
-        resource_id: str,
-        *,
-        category: str = "all",
-        start_date: date | None = None,
-        end_date: date | None = None,
-        page: int = 1,
-        page_size: int = 25,
-    ) -> ResourceActivityReadPage:
-        return self._context_query.query_resource_activity_page(
-            resource_id,
-            category=category,
-            start_date=start_date,
-            end_date=end_date,
-            page=page,
-            page_size=page_size,
-        )
-
 
 __all__ = ["ResourceService"]

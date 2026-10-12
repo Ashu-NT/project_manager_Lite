@@ -36,11 +36,11 @@ from src.core.modules.project_management.application.resources.queries.resource_
 from src.core.modules.project_management.application.resources.queries.skill_queries import (
     ResourceCapabilityQueryHandler,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.resources.bundle import (
-    ResourceComposition,
-)
 from src.core.modules.project_management.infrastructure.composition.context import (
     ProjectManagementRepositoryContext,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.resources.bundle import (
+    ResourceComposition,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
     SqlAlchemyResourceCatalogReader,
@@ -164,8 +164,6 @@ def build_resource_capabilities(
             tenant_context_service=platform_services.tenant_context_service,
             uow_factory=uow_factory,
         ),
-        context_query_handler=context_query,
-        capability_query_handler=capability_query,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,

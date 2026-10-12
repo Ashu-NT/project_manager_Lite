@@ -91,6 +91,9 @@ def build_project_management_desktop_runtime_apis(
         project_management_risk=register_desktop_api,
         project_management_resources=build_project_management_resources_desktop_api(
             resource_service=resolved.resource_service,
+            resource_capability_query=resolved.resource_capability_query,
+            resource_context_query=resolved.resource_context_query,
+            module_catalog_service=platform_dependencies.module_catalog_service,
             employee_service=platform_dependencies.employee_service,
             workload_service=resolved.resource_workload_service,
             department_service=platform_dependencies.department_service,

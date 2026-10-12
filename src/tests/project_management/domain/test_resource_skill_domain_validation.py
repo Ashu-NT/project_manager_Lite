@@ -144,8 +144,6 @@ def _make_resource_service(
             tenant_context_service=tenant_context_service,
             uow_factory=uow_factory,
         ),
-        context_query_handler=object(),
-        capability_query_handler=object(),
         tenant_context_service=tenant_context_service,
     )
 

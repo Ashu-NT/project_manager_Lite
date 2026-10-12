@@ -38,8 +38,7 @@ def _measure(session, operation):
     return result, statement_count, elapsed_ms
 
 
-def test_r5e_bounded_pages_at_long_lived_resource_scale(services) -> None:
-    session = services["project_service"]._session
+def test_r5e_bounded_pages_at_long_lived_resource_scale(services, session) -> None:
     user_session = services["user_session"]
     tenant_id = user_session.stored_active_tenant_id()
     organization_id = user_session.stored_active_organization_id()
@@ -147,22 +146,22 @@ def test_r5e_bounded_pages_at_long_lived_resource_scale(services) -> None:
     )
     session.commit()
 
-    resource_service = services["resource_service"]
+    context_query = services["resource_context_query"]
     projects, project_statements, project_ms = _measure(
         session,
-        lambda: resource_service.query_resource_projects_page(
+        lambda: context_query.query_resource_projects_page(
             resource.id, page=20, page_size=25
         ),
     )
     assignments, assignment_statements, assignment_ms = _measure(
         session,
-        lambda: resource_service.query_resource_assignments_page(
+        lambda: context_query.query_resource_assignments_page(
             resource.id, lifecycle="all", page=200, page_size=25
         ),
     )
     activity, activity_statements, activity_ms = _measure(
         session,
-        lambda: resource_service.query_resource_activity_page(
+        lambda: context_query.query_resource_activity_page(
             resource.id, page=200, page_size=25
         ),
     )

@@ -12,8 +12,8 @@ def build_resource_availability(
     resource_id: str,
     *,
     workload_service,
-    start_date: date,
-    end_date: date,
+    start_date: date | None,
+    end_date: date | None,
 ):
     normalized_id = str(resource_id or "").strip()
     if not normalized_id:

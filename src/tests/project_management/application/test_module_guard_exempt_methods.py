@@ -4,6 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.core.modules.project_management.api.desktop.resources.api import (
+    ProjectManagementResourcesDesktopApi,
+)
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
@@ -109,16 +112,24 @@ def test_resource_capability_query_facade_checks_module_before_handler() -> None
         resource_repo=object(),
         master_command_handler=object(),
         capability_command_handler=object(),
-        context_query_handler=object(),
-        capability_query_handler=object(),
         module_catalog_service=_module_catalog(runtime_enabled=False),
     )
-    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
-        service.query_resource_skills_page("resource-1")
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         service.add_resource_skill("resource-1", "planning", "Planning")
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         service.create_resource("Resource")
+
+
+def test_resource_query_desktop_boundary_checks_module_before_handler() -> None:
+    api = ProjectManagementResourcesDesktopApi(
+        resource_capability_query=object(),  # type: ignore[arg-type]
+        resource_context_query=object(),  # type: ignore[arg-type]
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        api.list_resource_skills_page("resource-1")
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        api.list_resource_projects_page("resource-1")
 
 
 def test_composition_root_wiring_setters_are_exempt_from_the_module_gate() -> None:

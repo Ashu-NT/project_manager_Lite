@@ -41,6 +41,12 @@ from src.core.modules.project_management.application.resources.capacity.enterpri
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
 )
+from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
+    ResourceContextQueryHandler,
+)
+from src.core.modules.project_management.application.resources.queries.skill_queries import (
+    ResourceCapabilityQueryHandler,
+)
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
@@ -82,6 +88,8 @@ class ProjectManagementDesktopRuntimeServices:
     collaboration_service: CollaborationService | None
     register_service: RegisterService | None
     resource_service: ResourceService | None
+    resource_capability_query: ResourceCapabilityQueryHandler | None
+    resource_context_query: ResourceContextQueryHandler | None
     availability_service: EnterpriseResourceAvailabilityService | None
     resource_workload_service: ResourceWorkloadService | None
     pool_service: PortfolioResourcePoolService | None
@@ -120,6 +128,8 @@ def resolve_project_management_desktop_runtime_services(
     collaboration_service = services.get("collaboration_service")
     register_service = services.get("register_service")
     resource_service = services.get("resource_service")
+    resource_capability_query = services.get("resource_capability_query")
+    resource_context_query = services.get("resource_context_query")
     availability_service = services.get("resource_availability_service")
     resource_workload_service = services.get("resource_workload_service")
     pool_service = services.get("portfolio_resource_pool_service")
@@ -175,6 +185,16 @@ def resolve_project_management_desktop_runtime_services(
         ),
         resource_service=(
             resource_service if isinstance(resource_service, ResourceService) else None
+        ),
+        resource_capability_query=(
+            resource_capability_query
+            if isinstance(resource_capability_query, ResourceCapabilityQueryHandler)
+            else None
+        ),
+        resource_context_query=(
+            resource_context_query
+            if isinstance(resource_context_query, ResourceContextQueryHandler)
+            else None
         ),
         availability_service=(
             availability_service

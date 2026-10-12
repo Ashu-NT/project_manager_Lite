@@ -922,6 +922,23 @@ and capability/context query handlers. Those consumers require separate
 guard/transaction characterization before direct injection, not duplicate
 handler creation.
 
+**A4 Resource detail-query capability cut (2026-10-12).** PM-owned
+composition exposes the existing `ResourceCapabilityQueryHandler` and
+`ResourceContextQueryHandler` beside `ResourceService` in a typed
+`ResourceComposition`. The application root and desktop resolver reuse the
+same instances. Resources desktop checks the PM module entitlement before
+calling either handler; the handlers retain permission and tenant/project
+scope enforcement. Skills, certifications, projects, assignments, and
+activity detail pages no longer pass through five ResourceService query
+forwards. The forwards and their two facade constructor dependencies were
+deleted after test callers migrated. ResourceService remains for active
+catalog reads and commands. The focused Resource/context/composition slice
+passed 52 tests; the guard/domain/desktop slice passed 26 tests. Scoped
+Mypy and Ruff F/I passed. Pylance/Pyright CLI is not installed in the
+environment, so editor diagnostics were not independently run. A4 remains
+open: TaskService still has 45 methods and 16 constructor inputs, and
+Portfolio/other consumers have not yet been migrated to narrow capabilities.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |
