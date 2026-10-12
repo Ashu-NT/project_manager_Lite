@@ -1078,7 +1078,7 @@ class ProjectManagementTasksDesktopApi:
 
     def _project_name_by_id(self) -> dict[str, str]:
         return {
-            project.id: project.name
+            getattr(project, "id"): getattr(project, "name")
             for project in project_rows_for_task_scope(
                 project_service=self._project_service,
             )

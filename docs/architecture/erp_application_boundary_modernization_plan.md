@@ -792,6 +792,21 @@ Tasks/Scheduling desktop and approval/Financial Change participants still
 need separate safe migrations; A4 remains open. Live PostgreSQL runtime-role
 security/RLS regression passed 14 cases after this cut.
 
+**A4 Tasks workspace-page cut (2026-10-12).** Tasks desktop now calls the
+existing composed Task workspace page handler directly, with the same
+module-entitlement check before the handler's task/project and tenant/org
+checks. Dashboard already used that handler. The last production facade caller
+was migrated, so `TaskService.query_workspace_page` and its constructor input
+were deleted; approval and Financial Change participant compositions also
+stopped constructing unused workspace handlers. The guarded desktop query
+budget remains four statements. TaskService is now 745 lines, 72 methods and
+26 constructor inputs. Focused page/serialization/composition tests passed 45;
+approval/Financial Change/Tasks API/Dashboard/architecture tests passed 41.
+QML task presenter/controller regressions passed 20; live PostgreSQL
+security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation and diff checks
+passed. A4 remains open for remaining Task facade consumers and participant
+contracts.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

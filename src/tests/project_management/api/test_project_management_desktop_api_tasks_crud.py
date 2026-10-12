@@ -1,13 +1,36 @@
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
+
 from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.tests.project_management.api._fake_project_resource_services import (
     _FakeProjectService,
 )
 from src.tests.project_management.api._fake_task_service import _FakeTaskService
+
+
+def test_task_workspace_page_checks_module_before_query_handler() -> None:
+    catalog = SimpleNamespace(
+        get_entitlement=lambda _code: SimpleNamespace(
+            runtime_enabled=False,
+            label="Project Management",
+            lifecycle_status="inactive",
+        )
+    )
+    query = SimpleNamespace(
+        query_workspace_page=lambda **_kwargs: pytest.fail("query handler called")
+    )
+    api = build_project_management_tasks_desktop_api(
+        task_workspace_query=query,
+        module_catalog_service=catalog,
+    )
+
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        api.list_task_page()
 
 
 def test_project_management_tasks_desktop_api_lists_statuses() -> None:

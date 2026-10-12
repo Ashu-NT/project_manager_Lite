@@ -37,7 +37,7 @@ implementation owner and consumer boundary. Each name is listed explicitly.
 | Detail/hierarchy queries | `get_task`, `list_task_hierarchy`, `list_leaf_tasks_for_project`, `get_task_hierarchy_rollup`, `list_task_hierarchy_rollups` | Tasks/Scheduling desktop APIs, dashboard helpers, importers; existing detail/hierarchy handlers are candidates for narrow injection. |
 | Dependency diagnostics queries | `get_dependency_diagnostics`, `preview_dependency_removal` | Tasks/Scheduling desktop APIs; existing diagnostics handler is candidate for narrow injection. |
 | Lookup queries | `list_tasks_for_project`, `list_tasks_for_resource`, `list_assignments_for_resource`, `query_tasks` | CSV import and Timesheets desktop now use the lookup handler directly; Tasks/Scheduling desktop APIs use remaining facade methods. The lookup handler enforces task/project permissions; callers retain their module guards. |
-| Page queries | `query_workspace_page`, `query_task_assignments_page`, `query_task_dependencies_page`, `query_task_activity_page` | Tasks and Dashboard desktop APIs; readers own paging/sorting and DTO projection, not QML. |
+| Page queries | `query_task_assignments_page`, `query_task_dependencies_page`, `query_task_activity_page` | Tasks desktop API retains these detail-page delegates; Tasks and Dashboard workspace pages now use the composed workspace query handler directly. Readers own paging/sorting and DTO projection, not QML. |
 | Warning sidecars / assignment handler | `consume_last_overallocation_warning`, `consume_last_skill_violation_warning` | Tasks desktop API; preserve consumption timing until warning output is part of an explicit result contract. |
 | Approval participant / dependency handler | `_apply_dependency_add_decision`, `_apply_dependency_remove_decision`, `_apply_dependency_update_decision` | `infrastructure/approval/task_apply_participant.py` only. These are participant-owned, not public commands; migrate participant and shared UoW/event scope together. |
 | Approval participant / constraint and leveling handlers | `_apply_task_scheduling_constraint_decision`, `_apply_resource_leveling_plan_decision` | Same Task approval participant; preserve outer approval transaction and event drain. |
@@ -102,8 +102,9 @@ The Dashboard delayed-tasks desktop adapter now receives the existing
 `TaskWorkspacePageQueryHandler` directly from PM composition, rather than the
 entire TaskService. Its desktop boundary checks the PM module entitlement
 before invoking the handler; the handler still enforces task/project permission
-and tenant/org scope. Tasks desktop still consumes `query_workspace_page`, so
-that facade delegate remains active. The facade remains 795 lines, 75 methods
+and tenant/org scope. At that checkpoint Tasks desktop still consumed
+`query_workspace_page`, so the facade delegate remained active. The facade was
+795 lines, 75 methods
 and 27 constructor inputs. Focused Dashboard, module-guard, composition and
 architecture tests passed 49 cases.
 
@@ -117,3 +118,17 @@ unused `list_timesheet_assignment_contexts` and
 `get_timesheet_assignment_context` TaskService delegates were deleted. The
 facade is now 782 lines, 73 methods including `__init__`, and 27 constructor
 inputs. Focused Timesheets/composition/guard/registry tests passed 54 cases.
+
+The Tasks desktop workspace page now receives the same composed
+`TaskWorkspacePageQueryHandler` used by Dashboard and checks PM entitlement at
+its adapter boundary. All production callers of the facade
+`query_workspace_page` delegate were migrated; the delegate and its unused
+constructor dependency were removed. The two approval/Financial Change
+participant-only TaskService constructions no longer build an unused workspace
+query handler. Query-count measurement still exercises the guarded Tasks
+desktop route. TaskService is now 745 lines, 72 methods including `__init__`,
+and 26 constructor inputs. Focused page/serialization/composition tests passed
+45; approval/Financial Change/Tasks API/Dashboard/architecture tests passed 41.
+QML task presenter/controller regressions passed 20; live PostgreSQL
+security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation and diff checks
+passed after this cut.

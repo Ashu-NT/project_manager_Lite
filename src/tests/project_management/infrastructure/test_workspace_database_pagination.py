@@ -4,6 +4,9 @@ from datetime import date
 
 from sqlalchemy import event
 
+from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
+    build_project_management_tasks_desktop_api,
+)
 from src.core.modules.project_management.domain.enums import (
     CostType,
     ProjectStatus,
@@ -849,6 +852,11 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
 
 
 def test_workspace_page_query_budgets_are_constant(services, session) -> None:
+    tasks_api = build_project_management_tasks_desktop_api(
+        task_service=services["task_service"],
+        task_workspace_query=services["task_workspace_query"],
+        module_catalog_service=services["module_catalog_service"],
+    )
     engine = session.get_bind()
     statement_count = 0
 
@@ -861,7 +869,7 @@ def test_workspace_page_query_budgets_are_constant(services, session) -> None:
         budgets = []
         for query in (
             lambda: services["project_service"].query_catalog_page(),
-            lambda: services["task_workspace_query"].query_workspace_page(),
+            lambda: tasks_api.list_task_page(),
             lambda: services["resource_service"].query_catalog_page(),
             lambda: services["register_service"].query_catalog_page(),
             lambda: services["timesheet_service"].query_review_queue_page(),
