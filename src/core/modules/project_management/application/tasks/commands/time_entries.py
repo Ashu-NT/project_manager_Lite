@@ -17,10 +17,9 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.time_management.time import TimesheetPeriodAggregate
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod
+from src.core.platform.domain.time_management.time import TimeEntry
 
 
 class TaskTimeEntryHandler:
@@ -45,9 +44,6 @@ class TaskTimeEntryHandler:
 
     def initialize_timesheet_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
         return self._require_timesheet_service().initialize_timesheet_for_assignment(assignment_id)
-
-    def list_time_entries_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
-        return self._require_timesheet_service().list_time_entries_for_assignment(assignment_id)
 
     def list_time_entries_for_task_page(
         self,
@@ -135,20 +131,6 @@ class TaskTimeEntryHandler:
             page_size=page_size,
         )
 
-    def list_time_entries_for_assignment_period(
-        self,
-        assignment_id: str,
-        *,
-        period_start: date,
-    ) -> list[TimeEntry]:
-        return self._require_timesheet_service().list_time_entries_for_assignment_period(
-            assignment_id,
-            period_start=period_start,
-        )
-
-    def get_time_entry(self, entry_id: str) -> TimeEntry:
-        return self._require_timesheet_service().get_time_entry(entry_id)
-
     def add_time_entry(
         self,
         assignment_id: str,
@@ -185,74 +167,6 @@ class TaskTimeEntryHandler:
         self._require_timesheet_service().delete_time_entry(
             entry_id,
             expected_version=expected_version,
-        )
-
-    def list_timesheet_periods_for_resource(self, resource_id: str) -> list[TimesheetPeriod]:
-        return self._require_timesheet_service().list_timesheet_periods_for_resource(resource_id)
-
-    def list_time_entries_for_resource_period(
-        self,
-        resource_id: str,
-        *,
-        period_start: date,
-    ) -> list[TimeEntry]:
-        return self._require_timesheet_service().list_time_entries_for_resource_period(
-            resource_id,
-            period_start=period_start,
-        )
-
-    def submit_timesheet_period(
-        self,
-        resource_id: str,
-        *,
-        period_start: date,
-        note: str = "",
-    ) -> TimesheetPeriodAggregate:
-        return self._require_timesheet_service().submit_timesheet_period(
-            resource_id,
-            period_start=period_start,
-            note=note,
-        )
-
-    def approve_timesheet_period(
-        self, period_id: str, *, expected_version: int, note: str = ""
-    ) -> TimesheetPeriodAggregate:
-        return self._require_timesheet_service().approve_timesheet_period(
-            period_id, expected_version=expected_version, note=note
-        )
-
-    def reject_timesheet_period(
-        self, period_id: str, *, expected_version: int, note: str
-    ) -> TimesheetPeriodAggregate:
-        return self._require_timesheet_service().reject_timesheet_period(
-            period_id, expected_version=expected_version, note=note
-        )
-
-    def lock_timesheet_period(
-        self,
-        period_id: str,
-        *,
-        expected_version: int,
-        note: str = "",
-    ) -> TimesheetPeriodAggregate:
-        return self._require_timesheet_service().lock_timesheet_period(
-            period_id,
-            expected_version=expected_version,
-            note=note,
-        )
-
-    def unlock_timesheet_period(
-        self, period_id: str, *, expected_version: int, note: str = ""
-    ) -> TimesheetPeriodAggregate:
-        return self._require_timesheet_service().unlock_timesheet_period(
-            period_id, expected_version=expected_version, note=note
-        )
-
-    def reopen_approved_timesheet_period_for_correction(
-        self, period_id: str, *, expected_version: int, note: str
-    ) -> TimesheetPeriodAggregate:
-        return self._require_timesheet_service().reopen_approved_timesheet_period_for_correction(
-            period_id, expected_version=expected_version, note=note
         )
 
 

@@ -197,7 +197,7 @@ def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
         note="April work",
     )
 
-    period = ts.submit_timesheet_period(
+    period = services["timesheet_service"].submit_timesheet_period(
         resource.id,
         period_start=date(2026, 3, 15),
         note="Ready for review",
@@ -205,7 +205,7 @@ def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
 
     assert period.status == TimesheetPeriodStatus.SUBMITTED
     assert period.period_start == date(2026, 3, 1)
-    assert len(ts.list_time_entries_for_resource_period(resource.id, period_start=date(2026, 3, 1))) == 1
+    assert len(services["timesheet_service"].list_time_entries_for_resource_period(resource.id, period_start=date(2026, 3, 1))) == 1
 
     with pytest.raises(ValidationError, match="submitted"):
         ts.add_time_entry(
@@ -248,8 +248,8 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
         note="May work",
     )
 
-    submitted = ts.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-    approved = ts.approve_timesheet_period(
+    submitted = services["timesheet_service"].submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
+    approved = services["timesheet_service"].approve_timesheet_period(
         submitted.period_id,
         expected_version=submitted.version,
         note="Approved for payroll",
@@ -264,14 +264,14 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
             hours=7.0,
         )
 
-    locked = ts.lock_timesheet_period(
+    locked = services["timesheet_service"].lock_timesheet_period(
         approved.period_id,
         expected_version=approved.version,
         note="Payroll closed",
     )
     assert locked.status == TimesheetPeriodStatus.LOCKED
 
-    unlocked = ts.unlock_timesheet_period(
+    unlocked = services["timesheet_service"].unlock_timesheet_period(
         locked.period_id,
         expected_version=locked.version,
         note="Administrative unlock",

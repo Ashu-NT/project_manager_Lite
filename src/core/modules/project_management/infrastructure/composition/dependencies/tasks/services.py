@@ -224,14 +224,7 @@ def build_task_capabilities(
         user_session=platform_services.user_session,
     )
     service = TaskService(
-        session,
-        repositories.pm.task_repo,
-        repositories.pm.dependency_repo,
-        repositories.pm.assignment_repo,
-        scheduling_engine,
         user_session=platform_services.user_session,
-        activity_service=platform_services.activity_service,
-        approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_catalog_service,
         task_uow_scope=task_uow_scope,
         deletion_handler=TaskDeletionCommandHandler(

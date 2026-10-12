@@ -47,8 +47,8 @@ def test_cleared_session_denies_core_read_models(services):
     audit = services["enterprise_audit_service"]
 
     project = ps.create_project("Read Permission Project")
-    task = ts.create_task(project.id, "Read Permission Task", start_date=date(2026, 5, 1), duration_days=2)
-    resource = rs.create_resource("Read Permission Resource", hourly_rate=120.0)
+    ts.create_task(project.id, "Read Permission Task", start_date=date(2026, 5, 1), duration_days=2)
+    rs.create_resource("Read Permission Resource", hourly_rate=120.0)
 
     services["user_session"].clear()
 
@@ -133,7 +133,6 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
     rs = services["resource_service"]
     prs = services["project_resource_service"]
     ecs = services["platform_calendar_service"]
-    ds = services["dashboard_service"]
 
     project = ps.create_project("Ops permission project")
     resource = rs.create_resource("Ops resource", hourly_rate=100.0)
@@ -235,24 +234,24 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     )
 
     _login_as(services, "planner-timesheet", "StrongPass123")
-    submitted = ts.submit_timesheet_period(resource.id, period_start=date(2026, 6, 9))
+    submitted = services["timesheet_service"].submit_timesheet_period(resource.id, period_start=date(2026, 6, 9))
     assert submitted.status.value == "SUBMITTED"
 
     with pytest.raises(BusinessRuleError, match="timesheet.approve"):
-        ts.approve_timesheet_period(
+        services["timesheet_service"].approve_timesheet_period(
             submitted.period_id,
             expected_version=submitted.version,
         )
 
     with pytest.raises(BusinessRuleError, match="timesheet.lock"):
-        ts.lock_timesheet_period(
+        services["timesheet_service"].lock_timesheet_period(
             submitted.period_id,
             expected_version=submitted.version,
         )
 
     _login_as(services, "viewer-timesheet", "StrongPass123")
     with pytest.raises(BusinessRuleError, match="timesheet.submit"):
-        ts.submit_timesheet_period(resource.id, period_start=date(2026, 6, 1))
+        services["timesheet_service"].submit_timesheet_period(resource.id, period_start=date(2026, 6, 1))
 
 
 def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):

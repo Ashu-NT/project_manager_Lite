@@ -193,16 +193,8 @@ def build_financial_change_approval_deps(
         user_session=user_session,
     )
     task_service = TaskService(
-        session,
-        task_repo,
-        dependency_repo,
-        assignment_repo,
-        scheduling_engine=scheduling_engine,
         user_session=user_session,
-        activity_service=activity_service,
-        approval_service=None,
         module_catalog_service=module_catalog_service,
-        enterprise_audit_service=enterprise_audit_service,
         task_uow_scope=task_uow_scope,
         deletion_handler=TaskDeletionCommandHandler(
             task_repo=task_repo,

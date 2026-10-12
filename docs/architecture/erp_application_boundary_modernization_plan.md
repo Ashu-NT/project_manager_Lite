@@ -857,6 +857,24 @@ inputs. Migrated tests passed 21; combined Task/API/UI/composition/
 architecture tests passed 94 and live PostgreSQL security/RLS passed 14.
 Scoped Ruff F/I, Mypy, compilation, and diff checks passed. A4 remains open.
 
+**A4 Timesheet period authority cut (2026-10-12).** Nine TaskService
+period/read forwards with no production caller were retired; tests now use
+TimesheetService for governed period transitions. Dead TaskTimeEntryHandler
+pass-throughs were deleted while its live task-page query and entry operations
+remain. TaskService is 559 lines, 50 methods and 25 constructor inputs.
+Focused Time/permissions tests passed 69; combined Task/Timesheets/approval/
+desktop/architecture tests passed 123; live PostgreSQL security/RLS passed
+14. Scoped Ruff F/I, Mypy, compilation and diff checks passed. A4 remains open.
+
+**A4 TaskService constructor cleanup (2026-10-12).** Removed eight
+stored-but-unused constructor inputs from TaskService and all three PM-owned
+builders. Approval and Financial Change transaction tests now assert supplied
+session and service identity on the real UoW and handlers, rather than on
+facade aliases. The guard retains its user session and module catalog. The
+facade is 528 lines, 50 methods and 17 constructor inputs. Combined focused
+regressions passed 134; live PostgreSQL security/RLS passed 14. Scoped Ruff
+F/I, Mypy, compilation and diff checks passed. A4 remains open.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

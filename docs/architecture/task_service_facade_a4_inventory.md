@@ -33,7 +33,7 @@ implementation owner and consumer boundary. Each name is listed explicitly.
 | Command / constraint and leveling | `update_task_scheduling_constraint`, `build_resource_leveling_preview`, `apply_resource_leveling_plan` | Scheduling desktop API; keep approval-controlled execution distinct from ordinary command UoW. |
 | Command / progress | `set_status`, `set_tasks_status`, `update_progress` | Tasks desktop API and CSV importer; progress handler owns validation/UoW. |
 | Command / hierarchy | `move_task`, `recode_task` | Tasks desktop API and CSV importer; hierarchy handler owns subtree checks/UoW. |
-| Time bridge / time-entry handler | `initialize_timesheet_for_assignment`, `list_time_entries_for_assignment_period`, `add_time_entry`, `update_time_entry`, `delete_time_entry`, `list_timesheet_periods_for_resource`, `list_time_entries_for_resource_period`, `submit_timesheet_period`, `approve_timesheet_period`, `reject_timesheet_period`, `lock_timesheet_period`, `unlock_timesheet_period`, `reopen_approved_timesheet_period_for_correction` | Tasks/Timesheets desktop APIs; preserve Time-owned evidence and timesheet authority; avoid exposing Task UoW as Time UoW. Task Detail's time-entry page uses the composed handler directly. |
+| Time bridge / time-entry handler | `initialize_timesheet_for_assignment`, `add_time_entry`, `update_time_entry`, `delete_time_entry` | These remaining test-setup-facing forwards require migration to the Time owner before deletion. Production Timesheets desktop uses TimesheetService directly; Task Detail's time-entry page uses the composed task-scoped handler. Preserve Time-owned evidence and UoW authority. |
 | Detail/hierarchy queries | `get_task`, `list_task_hierarchy`, `list_leaf_tasks_for_project`, `get_task_hierarchy_rollup`, `list_task_hierarchy_rollups` | Tasks/Scheduling desktop APIs, dashboard helpers, importers; existing detail/hierarchy handlers are candidates for narrow injection. |
 | Dependency diagnostics queries | `get_dependency_diagnostics`, `preview_dependency_removal` | Tasks/Scheduling desktop APIs; existing diagnostics handler is candidate for narrow injection. |
 | Lookup queries | `list_tasks_for_project` | CSV import and Timesheets desktop now use the lookup handler directly; Tasks/Scheduling desktop APIs use the remaining facade method. The lookup handler enforces task/project permissions; callers retain their module guards. The resource lookups live only on the handler; unused `query_tasks` was retired. |
@@ -193,3 +193,32 @@ inputs. The migrated collaboration/timesheet tests passed 21; the combined
 Task/API/UI/composition/architecture slice passed 94 and live PostgreSQL
 security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation, and diff checks
 passed. A4 remains open.
+
+The Timesheet period/read bridge was retired from TaskService. Five
+unconsumed methods (`list_time_entries_for_assignment_period`,
+`list_timesheet_periods_for_resource`, `list_time_entries_for_resource_period`,
+`reject_timesheet_period`, and
+`reopen_approved_timesheet_period_for_correction`) and four test-only period
+transition forwards (`submit_timesheet_period`, `approve_timesheet_period`,
+`lock_timesheet_period`, `unlock_timesheet_period`) were removed. Affected
+tests now call TimesheetService, which already owns these workflows in
+production. The corresponding dead TaskTimeEntryHandler pass-through methods
+were also deleted; its live task-scoped page query and entry operations remain.
+TaskService is now 559 lines, 50 methods including `__init__`, and 25
+constructor inputs. Focused Time/permissions tests passed 69; combined
+Task/Timesheets/approval/desktop/architecture tests passed 123; live
+PostgreSQL security/RLS passed 14. Ruff F/I, Mypy, compilation and diff
+checks passed. A4 remains open.
+
+Constructor cleanup removed eight stored-but-unused TaskService inputs:
+session, task/dependency/assignment repositories, scheduling engine, activity
+service, approval service, and enterprise audit service. The guard's
+`user_session` and `module_catalog_service` remain. The three module-owned
+construction paths now pass only live dependencies. Approval and Financial
+Change tests verify session binding on the real Task UoW/repositories and
+scheduling handler, activity/audit isolation on the UoW, and the dependency
+handler's lack of an approval-service back-reference. TaskService is now 528
+lines, 50 methods including `__init__`, and 17 constructor inputs. Combined
+Task/Timesheets/approval/desktop/architecture tests passed 134; live
+PostgreSQL security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation and
+diff checks passed. A4 remains open.
