@@ -299,6 +299,10 @@ def test_resource_planning_and_imports_keep_shared_dependencies(services) -> Non
     assert imports._task_capabilities.lookup is services["task_service"]._lookup_query
     assert services["task_lookup_query"] is services["task_service"]._lookup_query
     assert services["task_detail_query"] is services["task_service"]._detail_query
+    assert (
+        services["task_dependency_diagnostics"]
+        is services["task_service"]._dependency_command_handler._diagnostics_handler
+    )
     assert services["task_assignment_commands"] is services["task_service"]._assignment_handler
     assert imports._task_capabilities.lifecycle is services["task_service"]._lifecycle_handler
     assert imports._resource_service is services["resource_service"]

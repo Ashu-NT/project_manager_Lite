@@ -291,7 +291,6 @@ def build_task_approval_deps(
             work_calendar_engine=work_calendar_engine,
             user_session=user_session,
         ),
-        dependency_diagnostics_handler=dependency_diagnostics_handler,
     )
     return TaskApprovalDeps(task_service=task_service)
 

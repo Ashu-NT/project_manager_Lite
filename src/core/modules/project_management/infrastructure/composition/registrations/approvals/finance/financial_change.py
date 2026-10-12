@@ -302,7 +302,6 @@ def build_financial_change_approval_deps(
             work_calendar_engine=work_calendar_engine,
             user_session=user_session,
         ),
-        dependency_diagnostics_handler=dependency_diagnostics_handler,
     )
     clock = SystemClock()
     budget_authority = BudgetService(

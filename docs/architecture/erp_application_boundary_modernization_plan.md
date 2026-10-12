@@ -821,6 +821,16 @@ The desktop architecture guard now distinguishes the explicit
 `require_module_enabled` policy call from application-object construction;
 its negative construction regression and the affected API suite passed 27.
 
+**A4 dependency-preview read cut (2026-10-12).** Tasks desktop now receives
+the same composed diagnostics handler used by dependency commands and guards
+module entitlement before the read. Two unused TaskService preview delegates
+and their constructor input were deleted. Approval/Financial Change
+participant transactions remain unchanged. The facade is now 682 lines, 67
+methods and 25 constructor inputs. Focused regressions passed 71;
+architecture/API/composition passed 37; live PostgreSQL RLS/security passed
+14. Scoped Ruff F/I, Mypy, compilation and diff checks passed. A4 is still
+open for remaining real consumers and participant-scoped boundaries.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

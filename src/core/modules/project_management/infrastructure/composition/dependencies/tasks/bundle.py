@@ -14,6 +14,9 @@ from src.core.modules.project_management.application.tasks.commands.lifecycle im
 from src.core.modules.project_management.application.tasks.commands.progress import (
     TaskProgressCommandHandler,
 )
+from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
+    TaskDependencyDiagnosticsQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
     TaskDetailPageQueryHandler,
 )
@@ -32,6 +35,7 @@ class TaskComposition:
     lookup: TaskLookupQueryHandler
     workspace: TaskWorkspacePageQueryHandler
     detail: TaskDetailPageQueryHandler
+    dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler
     assignment: TaskAssignmentCommandHandler
     lifecycle: TaskLifecycleCommandHandler
     hierarchy: TaskHierarchyCommandHandler

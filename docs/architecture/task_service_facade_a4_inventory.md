@@ -147,3 +147,17 @@ The desktop construction guard was narrowed to permit only the explicit
 `require_module_enabled` policy call; a regression proves it still rejects
 application-object construction. The affected API/architecture rerun passed
 27 tests.
+
+The Tasks desktop dependency-impact previews now use the composed
+`TaskDependencyDiagnosticsQueryHandler` directly. The same instance remains
+inside `TaskDependencyCommandHandler`, so preview and committed dependency
+validation share one authority. Tasks desktop checks PM module entitlement
+before invoking it; the handler retains task/project permission and scope
+checks. Its two unused TaskService preview delegates and constructor input
+were removed, including from approval-participant-only constructions without
+changing their transaction-scoped command handler. TaskService is now 682
+lines, 67 methods including `__init__`, and 25 constructor inputs. Focused
+Task/API/approval/composition tests passed 71; architecture/API/composition
+tests passed 37; live PostgreSQL security/RLS passed 14. Scoped Ruff F/I,
+Mypy, compilation and diff checks passed. A4 remains open for other facade
+callers and transaction-scoped participant contracts.

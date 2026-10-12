@@ -136,6 +136,9 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
+    TaskDependencyDiagnosticsQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
     TaskDetailPageQueryHandler,
 )
@@ -164,6 +167,7 @@ class ProjectManagementTasksDesktopApi:
         task_service: TaskService | None = None,
         task_workspace_query: TaskWorkspacePageQueryHandler | None = None,
         task_detail_query: TaskDetailPageQueryHandler | None = None,
+        task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,
         project_resource_service: ProjectResourceService | None = None,
         resource_service: ResourceService | None = None,
@@ -175,6 +179,7 @@ class ProjectManagementTasksDesktopApi:
         self._task_service = task_service
         self._task_workspace_query = task_workspace_query
         self._task_detail_query = task_detail_query
+        self._task_dependency_diagnostics = task_dependency_diagnostics
         self._module_catalog_service = module_catalog_service
         self._project_resource_service = project_resource_service
         self._resource_service = resource_service
@@ -835,10 +840,7 @@ class ProjectManagementTasksDesktopApi:
         """Non-persisting impact preview for a proposed CREATE. Uses the
         same canonical, non-persisting engine the committed schedule uses
         -- never a second formula, never QML-side math."""
-        service = self._require_task_service()
-        get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
-        if not callable(get_diagnostics):
-            return None
+        diagnostics = self._require_dependency_diagnostics()
         relationship_direction = coerce_dependency_direction(command.relationship_direction)
         predecessor_id = (
             command.linked_task_id if relationship_direction == "PREDECESSOR" else command.task_id
@@ -846,7 +848,7 @@ class ProjectManagementTasksDesktopApi:
         successor_id = (
             command.task_id if relationship_direction == "PREDECESSOR" else command.linked_task_id
         )
-        diagnostic = get_diagnostics(
+        diagnostic = diagnostics.get_dependency_diagnostics(
             predecessor_id=predecessor_id,
             successor_id=successor_id,
             dependency_type=coerce_dependency_type(command.dependency_type),
@@ -861,9 +863,9 @@ class ProjectManagementTasksDesktopApi:
     ) -> TaskDependencyImpactPreviewDesktopDto | None:
         """Non-persisting impact preview for a proposed UPDATE."""
         service = self._require_task_service()
-        get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
+        diagnostics = self._require_dependency_diagnostics()
         get_dependency = getattr(service, "get_dependency", None)
-        if not callable(get_diagnostics) or not callable(get_dependency):
+        if not callable(get_dependency):
             return None
         normalized_id = (command.dependency_id or "").strip()
         if not normalized_id:
@@ -871,7 +873,7 @@ class ProjectManagementTasksDesktopApi:
         existing = get_dependency(normalized_id)
         if existing is None:
             return None
-        diagnostic = get_diagnostics(
+        diagnostic = diagnostics.get_dependency_diagnostics(
             predecessor_id=existing.predecessor_task_id,
             successor_id=existing.successor_task_id,
             dependency_type=coerce_dependency_type(command.dependency_type),
@@ -885,11 +887,9 @@ class ProjectManagementTasksDesktopApi:
         self, dependency_id: str
     ) -> TaskDependencyImpactPreviewDesktopDto | None:
         """Non-persisting impact preview for a proposed DELETE."""
-        service = self._require_task_service()
-        preview = getattr(service, "preview_dependency_removal", None)
-        if not callable(preview):
-            return None
-        diagnostic = preview(dependency_id)
+        diagnostic = self._require_dependency_diagnostics().preview_dependency_removal(
+            dependency_id
+        )
         return serialize_dependency_impact_preview(diagnostic)
 
     def delete_task(self, task_id: str) -> None:
@@ -1081,6 +1081,16 @@ class ProjectManagementTasksDesktopApi:
             operation_label="query task detail page",
         )
         return self._task_detail_query
+
+    def _require_dependency_diagnostics(self) -> TaskDependencyDiagnosticsQueryHandler:
+        if self._task_dependency_diagnostics is None:
+            raise RuntimeError("Project management tasks desktop API is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="preview task dependency",
+        )
+        return self._task_dependency_diagnostics
 
     def _require_task_method(self, method_name: str):
         service = self._require_task_service()

@@ -73,6 +73,9 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
 )
+from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
+    TaskDependencyDiagnosticsQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
     TaskDetailPageQueryHandler,
 )
@@ -219,6 +222,7 @@ class ServiceGraph:
     task_service: TaskService
     task_workspace_query: TaskWorkspacePageQueryHandler
     task_detail_query: TaskDetailPageQueryHandler
+    task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler
     task_lookup_query: TaskLookupQueryHandler
     task_assignment_commands: TaskAssignmentCommandHandler
     timesheet_service: TimesheetService
@@ -309,6 +313,7 @@ class ServiceGraph:
             "task_service": self.task_service,
             "task_workspace_query": self.task_workspace_query,
             "task_detail_query": self.task_detail_query,
+            "task_dependency_diagnostics": self.task_dependency_diagnostics,
             "task_lookup_query": self.task_lookup_query,
             "task_assignment_commands": self.task_assignment_commands,
             "timesheet_service": self.timesheet_service,

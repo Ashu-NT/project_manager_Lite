@@ -219,7 +219,7 @@ class TestUpdateValidation:
         existing = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
         unrelated = ts.add_dependency(a.id, c.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-        diagnostic = ts.get_dependency_diagnostics(
+        diagnostic = services["task_dependency_diagnostics"].get_dependency_diagnostics(
             predecessor_id=a.id,
             successor_id=b.id,
             dependency_type=DependencyType.START_TO_START,
@@ -231,7 +231,7 @@ class TestUpdateValidation:
         assert diagnostic.code == "DEPENDENCY_DUPLICATE"
 
         # Excluding the edge's OWN id is what makes updating it possible.
-        diagnostic_self_excluded = ts.get_dependency_diagnostics(
+        diagnostic_self_excluded = services["task_dependency_diagnostics"].get_dependency_diagnostics(
             predecessor_id=a.id,
             successor_id=b.id,
             dependency_type=DependencyType.START_TO_START,

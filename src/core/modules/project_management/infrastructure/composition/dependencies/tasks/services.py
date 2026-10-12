@@ -289,13 +289,13 @@ def build_task_capabilities(
             work_calendar_engine=work_calendar_engine,
             user_session=platform_services.user_session,
         ),
-        dependency_diagnostics_handler=dependency_diagnostics_handler,
     )
     return TaskComposition(
         service=service,
         lookup=lookup_query_handler,
         workspace=workspace_query_handler,
         detail=detail_query_handler,
+        dependency_diagnostics=dependency_diagnostics_handler,
         assignment=assignment_handler,
         lifecycle=lifecycle_handler,
         hierarchy=hierarchy_command_handler,

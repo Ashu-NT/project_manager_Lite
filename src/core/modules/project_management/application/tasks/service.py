@@ -46,10 +46,6 @@ from src.core.modules.project_management.application.tasks.commands.scheduling_c
 from src.core.modules.project_management.application.tasks.commands.time_entries import (
     TaskTimeEntryHandler,
 )
-from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
-    DependencyDiagnostic,
-    TaskDependencyDiagnosticsQueryHandler,
-)
 from src.core.modules.project_management.application.tasks.queries.dependency_query import (
     TaskDependencyQueryHandler,
 )
@@ -125,7 +121,6 @@ class TaskService(
         detail_query_handler: TaskDetailPageQueryHandler,
         lookup_query_handler: TaskLookupQueryHandler,
         hierarchy_query_handler: TaskHierarchyQueryHandler,
-        dependency_diagnostics_handler: TaskDependencyDiagnosticsQueryHandler,
         task_uow_scope: TaskUowScope,
         deletion_handler: TaskDeletionCommandHandler,
         progress_handler: TaskProgressCommandHandler,
@@ -151,7 +146,6 @@ class TaskService(
         self._detail_query = detail_query_handler
         self._lookup_query = lookup_query_handler
         self._hierarchy_query = hierarchy_query_handler
-        self._dependency_diagnostics = dependency_diagnostics_handler
         self._task_uow_scope = task_uow_scope
         self._deletion_handler = deletion_handler
         self._progress_handler = progress_handler
@@ -645,27 +639,6 @@ class TaskService(
         self, project_id: str
     ) -> dict[str, TaskHierarchyRollup]:
         return self._hierarchy_query.list_task_hierarchy_rollups(project_id)
-
-    def get_dependency_diagnostics(
-        self,
-        predecessor_id: str,
-        successor_id: str,
-        dependency_type: DependencyType = DependencyType.FINISH_TO_START,
-        lag_days: int = 0,
-        include_impact: bool = True,
-        exclude_dependency_id: str | None = None,
-    ) -> DependencyDiagnostic:
-        return self._dependency_diagnostics.get_dependency_diagnostics(
-            predecessor_id,
-            successor_id,
-            dependency_type=dependency_type,
-            lag_days=lag_days,
-            include_impact=include_impact,
-            exclude_dependency_id=exclude_dependency_id,
-        )
-
-    def preview_dependency_removal(self, dependency_id: str) -> DependencyDiagnostic:
-        return self._dependency_diagnostics.preview_dependency_removal(dependency_id)
 
     def list_tasks_for_project(self, project_id: str) -> list[Task]:
         return self._lookup_query.list_tasks_for_project(project_id)
