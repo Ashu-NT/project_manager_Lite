@@ -14,6 +14,9 @@ from src.core.modules.project_management.application.tasks.commands.lifecycle im
 from src.core.modules.project_management.application.tasks.commands.progress import (
     TaskProgressCommandHandler,
 )
+from src.core.modules.project_management.application.tasks.commands.time_entries import (
+    TaskTimeEntryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     TaskDependencyDiagnosticsQueryHandler,
 )
@@ -37,6 +40,7 @@ class TaskComposition:
     detail: TaskDetailPageQueryHandler
     dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler
     assignment: TaskAssignmentCommandHandler
+    time_entries: TaskTimeEntryHandler
     lifecycle: TaskLifecycleCommandHandler
     hierarchy: TaskHierarchyCommandHandler
     progress: TaskProgressCommandHandler

@@ -217,6 +217,12 @@ def build_task_capabilities(
         uow_scope=task_uow_scope,
         overallocation_policy="strict" if overallocation_policy == "strict" else "warn",
     )
+    time_entry_handler = TaskTimeEntryHandler(
+        timesheet_service=timesheet_service,
+        task_repo=repositories.pm.task_repo,
+        assignment_repo=repositories.pm.assignment_repo,
+        user_session=platform_services.user_session,
+    )
     service = TaskService(
         session,
         repositories.pm.task_repo,
@@ -235,12 +241,7 @@ def build_task_capabilities(
             uow_scope=task_uow_scope,
         ),
         progress_handler=progress_handler,
-        time_entry_handler=TaskTimeEntryHandler(
-            timesheet_service=timesheet_service,
-            task_repo=repositories.pm.task_repo,
-            assignment_repo=repositories.pm.assignment_repo,
-            user_session=platform_services.user_session,
-        ),
+        time_entry_handler=time_entry_handler,
         approved_schedule_change_handler=ApprovedScheduleChangeHandler(
             task_repo=repositories.pm.task_repo,
             tenant_context_service=platform_services.tenant_context_service,
@@ -297,6 +298,7 @@ def build_task_capabilities(
         detail=detail_query_handler,
         dependency_diagnostics=dependency_diagnostics_handler,
         assignment=assignment_handler,
+        time_entries=time_entry_handler,
         lifecycle=lifecycle_handler,
         hierarchy=hierarchy_command_handler,
         progress=progress_handler,

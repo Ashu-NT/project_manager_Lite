@@ -65,10 +65,6 @@ from src.core.modules.project_management.contracts.ports.schedule_change import 
     AppliedTaskScheduleChange,
     ApprovedTaskScheduleChange,
 )
-from src.core.modules.project_management.contracts.reads.tasks.models import (
-    TaskTimeEntriesPage,
-    TaskTimeSummaryFact,
-)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
@@ -191,9 +187,6 @@ class TaskService(
 
     def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
         return self._assignment_handler.get_assignment(assignment_id)
-
-    def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryFact:
-        return self._assignment_handler.get_task_time_summary(task_id)
 
     def set_assignment_hours(self, assignment_id: str, hours_logged: Decimal) -> TaskAssignment:
         return self._assignment_handler.set_assignment_hours(assignment_id, hours_logged)
@@ -512,27 +505,6 @@ class TaskService(
 
     def list_time_entries_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
         return self._time_entry_handler.list_time_entries_for_assignment(assignment_id)
-
-    def list_time_entries_for_task_page(
-        self,
-        task_id: str,
-        *,
-        resource_id: str | None = None,
-        date_from: date | None = None,
-        date_to: date | None = None,
-        page: int = 1,
-        page_size: int = 25,
-        sort_direction: str = "desc",
-    ) -> TaskTimeEntriesPage:
-        return self._time_entry_handler.list_time_entries_for_task_page(
-            task_id,
-            resource_id=resource_id,
-            date_from=date_from,
-            date_to=date_to,
-            page=page,
-            page_size=page_size,
-            sort_direction=sort_direction,
-        )
 
     def list_time_entries_for_assignment_period(
         self, assignment_id: str, *, period_start: date

@@ -15,6 +15,12 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.commands.time_entries import (
+    TaskTimeEntryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     TaskDependencyDiagnosticsQueryHandler,
 )
@@ -39,6 +45,8 @@ def build_project_management_tasks_desktop_api(
     task_workspace_query: TaskWorkspacePageQueryHandler | None = None,
     task_detail_query: TaskDetailPageQueryHandler | None = None,
     task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler | None = None,
+    task_assignment_commands: TaskAssignmentCommandHandler | None = None,
+    task_time_entries: TaskTimeEntryHandler | None = None,
     module_catalog_service: SupportsModuleEntitlements | None = None,
     project_resource_service: ProjectResourceService | None = None,
     resource_service: ResourceService | None = None,
@@ -52,6 +60,8 @@ def build_project_management_tasks_desktop_api(
         task_workspace_query=task_workspace_query,
         task_detail_query=task_detail_query,
         task_dependency_diagnostics=task_dependency_diagnostics,
+        task_assignment_commands=task_assignment_commands,
+        task_time_entries=task_time_entries,
         module_catalog_service=module_catalog_service,
         project_resource_service=project_resource_service,
         resource_service=resource_service,

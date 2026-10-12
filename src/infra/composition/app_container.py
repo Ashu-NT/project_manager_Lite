@@ -165,6 +165,7 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
         task_dependency_diagnostics=project_management_services.task_dependency_diagnostics,
         task_lookup_query=project_management_services.task_lookup_query,
         task_assignment_commands=project_management_services.task_assignment_commands,
+        task_time_entries=project_management_services.task_time_entries,
         timesheet_service=project_management_services.timesheet_service,
         resource_service=project_management_services.resource_service,
         finance_governance_commands=(

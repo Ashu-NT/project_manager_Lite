@@ -512,6 +512,7 @@ def build_project_management_service_bundle(
         task_dependency_diagnostics=task_capabilities.dependency_diagnostics,
         task_lookup_query=task_capabilities.lookup,
         task_assignment_commands=task_capabilities.assignment,
+        task_time_entries=task_capabilities.time_entries,
         timesheet_service=timesheet_service,
         resource_service=resource_service,
         finance_governance_commands=finance_governance_commands,

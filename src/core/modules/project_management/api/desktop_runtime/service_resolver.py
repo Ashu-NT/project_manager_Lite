@@ -46,6 +46,9 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
 )
+from src.core.modules.project_management.application.tasks.commands.time_entries import (
+    TaskTimeEntryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     TaskDependencyDiagnosticsQueryHandler,
 )
@@ -85,6 +88,7 @@ class ProjectManagementDesktopRuntimeServices:
     task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler | None
     task_lookup_query: TaskLookupQueryHandler | None
     task_assignment_commands: TaskAssignmentCommandHandler | None
+    task_time_entries: TaskTimeEntryHandler | None
     assignment_skill_validator: AssignmentSkillValidator | None
     scheduling_engine: SchedulingEngine | None
     work_calendar_engine: CalendarProtocol | None
@@ -121,6 +125,7 @@ def resolve_project_management_desktop_runtime_services(
     task_dependency_diagnostics = services.get("task_dependency_diagnostics")
     task_lookup_query = services.get("task_lookup_query")
     task_assignment_commands = services.get("task_assignment_commands")
+    task_time_entries = services.get("task_time_entries")
     assignment_skill_validator = services.get("assignment_skill_validator")
     scheduling_engine = services.get("scheduling_engine")
     work_calendar_engine = services.get("work_calendar_engine")
@@ -203,6 +208,9 @@ def resolve_project_management_desktop_runtime_services(
             task_assignment_commands
             if isinstance(task_assignment_commands, TaskAssignmentCommandHandler)
             else None
+        ),
+        task_time_entries=(
+            task_time_entries if isinstance(task_time_entries, TaskTimeEntryHandler) else None
         ),
         assignment_skill_validator=(
             assignment_skill_validator

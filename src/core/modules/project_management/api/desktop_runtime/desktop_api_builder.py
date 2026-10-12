@@ -113,6 +113,8 @@ def build_project_management_desktop_runtime_apis(
             task_workspace_query=resolved.task_workspace_query,
             task_detail_query=resolved.task_detail_query,
             task_dependency_diagnostics=resolved.task_dependency_diagnostics,
+            task_assignment_commands=resolved.task_assignment_commands,
+            task_time_entries=resolved.task_time_entries,
             module_catalog_service=platform_dependencies.module_catalog_service,
             project_resource_service=resolved.project_resource_service,
             resource_service=resolved.resource_service,

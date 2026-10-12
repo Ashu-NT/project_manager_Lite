@@ -75,6 +75,9 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
 )
+from src.core.modules.project_management.application.tasks.commands.time_entries import (
+    TaskTimeEntryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     TaskDependencyDiagnosticsQueryHandler,
 )
@@ -117,6 +120,7 @@ class ProjectManagementServiceBundle:
     task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler
     task_lookup_query: TaskLookupQueryHandler
     task_assignment_commands: TaskAssignmentCommandHandler
+    task_time_entries: TaskTimeEntryHandler
     timesheet_service: TimesheetService
     resource_service: ResourceService
     finance_governance_commands: FinanceGovernanceCommandBoundary

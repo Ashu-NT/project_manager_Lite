@@ -841,6 +841,14 @@ resource and adapter tests passed 31; the combined Task/API/approval/
 architecture slice passed 100 and live PostgreSQL security/RLS passed 14.
 Scoped Ruff F/I, Mypy, compilation, and diff checks passed. A4 remains open.
 
+**A4 Task Detail time-read cut (2026-10-12).** Tasks desktop now injects the
+composed assignment and time-entry handlers for time summary and entry-page
+reads. Adapter entitlement and handler task/project scope checks remain in
+place. The two superseded TaskService delegates were deleted; the facade is
+now 628 lines, 62 methods and 25 constructor inputs. Task/UI/composition/
+architecture tests passed 77; live PostgreSQL security/RLS passed 14.
+Scoped Ruff F/I, Mypy, compilation and diff checks passed. A4 remains open.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

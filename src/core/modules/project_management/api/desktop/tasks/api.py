@@ -136,6 +136,12 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.commands.time_entries import (
+    TaskTimeEntryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     TaskDependencyDiagnosticsQueryHandler,
 )
@@ -168,6 +174,8 @@ class ProjectManagementTasksDesktopApi:
         task_workspace_query: TaskWorkspacePageQueryHandler | None = None,
         task_detail_query: TaskDetailPageQueryHandler | None = None,
         task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler | None = None,
+        task_assignment_commands: TaskAssignmentCommandHandler | None = None,
+        task_time_entries: TaskTimeEntryHandler | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,
         project_resource_service: ProjectResourceService | None = None,
         resource_service: ResourceService | None = None,
@@ -180,6 +188,8 @@ class ProjectManagementTasksDesktopApi:
         self._task_workspace_query = task_workspace_query
         self._task_detail_query = task_detail_query
         self._task_dependency_diagnostics = task_dependency_diagnostics
+        self._task_assignment_commands = task_assignment_commands
+        self._task_time_entries = task_time_entries
         self._module_catalog_service = module_catalog_service
         self._project_resource_service = project_resource_service
         self._resource_service = resource_service
@@ -564,11 +574,7 @@ class ProjectManagementTasksDesktopApi:
         None when the task can't be resolved."""
         if not task_id:
             return None
-        service = self._require_task_service()
-        get_summary = getattr(service, "get_task_time_summary", None)
-        if not callable(get_summary):
-            return None
-        fact = get_summary(task_id)
+        fact = self._require_task_assignment_commands().get_task_time_summary(task_id)
         return serialize_task_time_summary(fact)
 
     def list_task_time_entries(
@@ -585,11 +591,7 @@ class ProjectManagementTasksDesktopApi:
         None when the task can't be resolved."""
         if not task_id:
             return None
-        service = self._require_task_service()
-        list_page = getattr(service, "list_time_entries_for_task_page", None)
-        if not callable(list_page):
-            return None
-        page_result = list_page(
+        page_result = self._require_task_time_entries().list_time_entries_for_task_page(
             task_id,
             resource_id=resource_id or None,
             page=page,
@@ -1091,6 +1093,26 @@ class ProjectManagementTasksDesktopApi:
             operation_label="preview task dependency",
         )
         return self._task_dependency_diagnostics
+
+    def _require_task_assignment_commands(self) -> TaskAssignmentCommandHandler:
+        if self._task_assignment_commands is None:
+            raise RuntimeError("Project management tasks desktop API is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="view task time summary",
+        )
+        return self._task_assignment_commands
+
+    def _require_task_time_entries(self) -> TaskTimeEntryHandler:
+        if self._task_time_entries is None:
+            raise RuntimeError("Project management tasks desktop API is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="view task time entries",
+        )
+        return self._task_time_entries
 
     def _require_task_method(self, method_name: str):
         service = self._require_task_service()

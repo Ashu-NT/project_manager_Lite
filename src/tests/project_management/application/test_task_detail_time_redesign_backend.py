@@ -42,6 +42,8 @@ def test_task_time_summary_aggregates_across_all_assignments_on_the_task(service
 
     api = build_project_management_tasks_desktop_api(
         project_service=ps, task_service=ts, resource_service=rs, project_resource_service=prs,
+        task_assignment_commands=services["task_assignment_commands"],
+        task_time_entries=services["task_time_entries"],
     )
     summary = api.get_task_time_summary(task.id)
 
@@ -68,6 +70,8 @@ def test_task_time_summary_reports_overrun_when_actual_exceeds_planned(services)
 
     api = build_project_management_tasks_desktop_api(
         project_service=ps, task_service=ts, resource_service=rs, project_resource_service=prs,
+        task_assignment_commands=services["task_assignment_commands"],
+        task_time_entries=services["task_time_entries"],
     )
     summary = api.get_task_time_summary(task.id)
 
@@ -103,6 +107,8 @@ def test_task_time_summary_and_entries_are_task_scoped_not_resource_wide(service
 
     api = build_project_management_tasks_desktop_api(
         project_service=ps, task_service=ts, resource_service=rs, project_resource_service=prs,
+        task_assignment_commands=services["task_assignment_commands"],
+        task_time_entries=services["task_time_entries"],
     )
 
     summary_a = api.get_task_time_summary(task_a.id)
@@ -136,6 +142,8 @@ def test_list_task_time_entries_paginates_authoritatively(services):
 
     api = build_project_management_tasks_desktop_api(
         project_service=ps, task_service=ts, resource_service=rs, project_resource_service=prs,
+        task_assignment_commands=services["task_assignment_commands"],
+        task_time_entries=services["task_time_entries"],
     )
 
     page1 = api.list_task_time_entries(task.id, page=1, page_size=3)
@@ -170,6 +178,8 @@ def test_list_task_time_entries_filters_by_resource(services):
 
     api = build_project_management_tasks_desktop_api(
         project_service=ps, task_service=ts, resource_service=rs, project_resource_service=prs,
+        task_assignment_commands=services["task_assignment_commands"],
+        task_time_entries=services["task_time_entries"],
     )
 
     alice_only = api.list_task_time_entries(task.id, resource_id=alice.id, page=1, page_size=25)
@@ -187,6 +197,8 @@ def test_get_task_time_summary_returns_none_for_blank_task_id(services):
     prs = services["project_resource_service"]
     api = build_project_management_tasks_desktop_api(
         project_service=ps, task_service=ts, resource_service=rs, project_resource_service=prs,
+        task_assignment_commands=services["task_assignment_commands"],
+        task_time_entries=services["task_time_entries"],
     )
     assert api.get_task_time_summary("") is None
     assert api.list_task_time_entries("") is None

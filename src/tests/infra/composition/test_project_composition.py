@@ -304,5 +304,6 @@ def test_resource_planning_and_imports_keep_shared_dependencies(services) -> Non
         is services["task_service"]._dependency_command_handler._diagnostics_handler
     )
     assert services["task_assignment_commands"] is services["task_service"]._assignment_handler
+    assert services["task_time_entries"] is services["task_service"]._time_entry_handler
     assert imports._task_capabilities.lifecycle is services["task_service"]._lifecycle_handler
     assert imports._resource_service is services["resource_service"]

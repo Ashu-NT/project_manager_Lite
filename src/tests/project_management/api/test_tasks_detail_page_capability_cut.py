@@ -110,3 +110,28 @@ def test_dependency_previews_check_module_before_handler(method: str) -> None:
     }
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         calls[method]()
+
+
+@pytest.mark.parametrize("method", ("get_task_time_summary", "list_task_time_entries"))
+def test_task_detail_time_checks_module_before_handler(method: str) -> None:
+    catalog = SimpleNamespace(
+        get_entitlement=lambda _code: SimpleNamespace(
+            runtime_enabled=False,
+            label="Project Management",
+            lifecycle_status="inactive",
+        )
+    )
+    assignment = SimpleNamespace(
+        get_task_time_summary=lambda *_args: pytest.fail("summary called")
+    )
+    time_entries = SimpleNamespace(
+        list_time_entries_for_task_page=lambda *_args, **_kwargs: pytest.fail("query called")
+    )
+    api = build_project_management_tasks_desktop_api(
+        task_assignment_commands=assignment,
+        task_time_entries=time_entries,
+        module_catalog_service=catalog,
+    )
+
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        getattr(api, method)("task-1")
