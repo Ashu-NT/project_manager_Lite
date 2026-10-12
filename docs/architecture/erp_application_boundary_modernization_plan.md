@@ -807,6 +807,20 @@ security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation and diff checks
 passed. A4 remains open for remaining Task facade consumers and participant
 contracts.
 
+**A4 Task Detail page cut (2026-10-12).** Tasks desktop now receives the
+composed Task detail query handler directly for assignment, dependency and
+activity pages. The adapter retains PM module-entitlement checks, and the
+handler retains task/project and tenant/org checks. The three page-query
+facade delegates were deleted; its detail handler remains required by the
+active `get_task` facade method. TaskService is now 709 lines, 69 methods and
+26 constructor inputs. Focused detail/composition passed 46; API/guard/
+architecture passed 28; QML/approval/Financial Change passed 40; live
+PostgreSQL security/RLS passed 14. A4 remains open for other facade callers and
+transaction-scoped participant contracts.
+The desktop architecture guard now distinguishes the explicit
+`require_module_enabled` policy call from application-object construction;
+its negative construction regression and the affected API suite passed 27.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

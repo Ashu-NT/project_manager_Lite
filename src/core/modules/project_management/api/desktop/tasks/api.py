@@ -136,6 +136,9 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
 )
@@ -160,6 +163,7 @@ class ProjectManagementTasksDesktopApi:
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
         task_workspace_query: TaskWorkspacePageQueryHandler | None = None,
+        task_detail_query: TaskDetailPageQueryHandler | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,
         project_resource_service: ProjectResourceService | None = None,
         resource_service: ResourceService | None = None,
@@ -170,6 +174,7 @@ class ProjectManagementTasksDesktopApi:
         self._project_service = project_service
         self._task_service = task_service
         self._task_workspace_query = task_workspace_query
+        self._task_detail_query = task_detail_query
         self._module_catalog_service = module_catalog_service
         self._project_resource_service = project_resource_service
         self._resource_service = resource_service
@@ -531,7 +536,7 @@ class ProjectManagementTasksDesktopApi:
         page: int = 1, page_size: int = 25, sort_key: str = "resourceName",
         sort_direction: str = "asc",
     ) -> TaskAssignmentPageDesktopDto:
-        result = self._require_task_service().query_task_assignments_page(
+        result = self._require_task_detail_query().query_task_assignments_page(
             task_id, search_text=search_text, response_status=response_status,
             page=page, page_size=page_size, sort_key=sort_key, sort_direction=sort_direction)
         return TaskAssignmentPageDesktopDto(items=tuple(TaskAssignmentDesktopDto(
@@ -734,7 +739,7 @@ class ProjectManagementTasksDesktopApi:
         dependency_type: str = "all", page: int = 1, page_size: int = 25,
         sort_key: str = "linkedTask", sort_direction: str = "asc",
     ) -> TaskDependencyPageDesktopDto:
-        result = self._require_task_service().query_task_dependencies_page(
+        result = self._require_task_detail_query().query_task_dependencies_page(
             task_id, search_text=search_text, direction=direction,
             dependency_type=dependency_type, page=page, page_size=page_size,
             sort_key=sort_key, sort_direction=sort_direction)
@@ -759,7 +764,7 @@ class ProjectManagementTasksDesktopApi:
         self, task_id: str, *, search_text: str = "", category: str = "all",
         page: int = 1, page_size: int = 25,
     ) -> DetailActivityPageDesktopDto:
-        result = self._require_task_service().query_task_activity_page(
+        result = self._require_task_detail_query().query_task_activity_page(
             task_id, search_text=search_text, category=category, page=page, page_size=page_size)
         return DetailActivityPageDesktopDto(items=tuple(DetailActivityDesktopDto(
             id=item.activity_id, occurred_at=item.occurred_at, actor_id=item.actor_id,
@@ -1066,6 +1071,16 @@ class ProjectManagementTasksDesktopApi:
         if self._task_service is None:
             raise RuntimeError("Project management tasks desktop API is not connected.")
         return self._task_service
+
+    def _require_task_detail_query(self) -> TaskDetailPageQueryHandler:
+        if self._task_detail_query is None:
+            raise RuntimeError("Project management tasks desktop API is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="query task detail page",
+        )
+        return self._task_detail_query
 
     def _require_task_method(self, method_name: str):
         service = self._require_task_service()

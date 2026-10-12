@@ -14,6 +14,9 @@ from src.core.modules.project_management.application.tasks.commands.lifecycle im
 from src.core.modules.project_management.application.tasks.commands.progress import (
     TaskProgressCommandHandler,
 )
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_lookup import (
     TaskLookupQueryHandler,
 )
@@ -28,6 +31,7 @@ class TaskComposition:
     service: TaskService
     lookup: TaskLookupQueryHandler
     workspace: TaskWorkspacePageQueryHandler
+    detail: TaskDetailPageQueryHandler
     assignment: TaskAssignmentCommandHandler
     lifecycle: TaskLifecycleCommandHandler
     hierarchy: TaskHierarchyCommandHandler

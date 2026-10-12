@@ -15,6 +15,9 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
 )
@@ -31,6 +34,7 @@ def build_project_management_tasks_desktop_api(
     project_service: ProjectService | None = None,
     task_service: TaskService | None = None,
     task_workspace_query: TaskWorkspacePageQueryHandler | None = None,
+    task_detail_query: TaskDetailPageQueryHandler | None = None,
     module_catalog_service: SupportsModuleEntitlements | None = None,
     project_resource_service: ProjectResourceService | None = None,
     resource_service: ResourceService | None = None,
@@ -42,6 +46,7 @@ def build_project_management_tasks_desktop_api(
         project_service=project_service,
         task_service=task_service,
         task_workspace_query=task_workspace_query,
+        task_detail_query=task_detail_query,
         module_catalog_service=module_catalog_service,
         project_resource_service=project_resource_service,
         resource_service=resource_service,

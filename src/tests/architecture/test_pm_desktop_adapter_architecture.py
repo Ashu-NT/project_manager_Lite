@@ -25,6 +25,9 @@ KNOWN_REPOSITORY_IMPORTS: set[str] = set()
 KNOWN_PRIVATE_COLLABORATOR_ACCESS: set[str] = set()
 KNOWN_APPLICATION_CONSTRUCTION: set[str] = set()
 KNOWN_PRIVATE_MODULE_IMPORTS: set[str] = set()
+APPLICATION_POLICY_CALLS = frozenset({
+    "src.core.platform.application.tenant.modules.authorization.require_module_enabled",
+})
 
 
 def _python_files(root: Path) -> tuple[Path, ...]:
@@ -114,7 +117,7 @@ def _application_construction_for_tree(path_label: str, tree: ast.AST) -> set[st
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
             continue
         qualified_name = application_imports.get(node.func.id)
-        if qualified_name:
+        if qualified_name and qualified_name not in APPLICATION_POLICY_CALLS:
             violations.add(f"{path_label}:{qualified_name}")
     return violations
 
@@ -164,6 +167,18 @@ def test_desktop_adds_no_private_collaborator_access() -> None:
 
 def test_desktop_adds_no_application_object_construction() -> None:
     assert _application_construction_violations() == KNOWN_APPLICATION_CONSTRUCTION
+
+
+def test_application_construction_guard_only_exempts_the_module_policy_call() -> None:
+    tree = ast.parse(
+        "from src.core.platform.application.tenant.modules.authorization import require_module_enabled\n"
+        "from src.core.modules.project_management.application.tasks.service import TaskService\n"
+        "require_module_enabled(catalog, 'project_management')\n"
+        "TaskService()\n"
+    )
+    assert _application_construction_for_tree("adapter.py", tree) == {
+        "adapter.py:src.core.modules.project_management.application.tasks.service.TaskService"
+    }
 
 
 def test_desktop_adds_no_private_module_imports() -> None:

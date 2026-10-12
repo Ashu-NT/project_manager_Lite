@@ -69,11 +69,6 @@ from src.core.modules.project_management.contracts.ports.schedule_change import 
     AppliedTaskScheduleChange,
     ApprovedTaskScheduleChange,
 )
-from src.core.modules.project_management.contracts.reads.tasks import (
-    TaskActivityPage,
-    TaskAssignmentReadPage,
-    TaskDependencyReadPage,
-)
 from src.core.modules.project_management.contracts.reads.tasks.models import (
     TaskTimeEntriesPage,
     TaskTimeSummaryFact,
@@ -699,37 +694,6 @@ class TaskService(
             start_to=start_to,
             end_from=end_from,
             end_to=end_to,
-        )
-
-    def query_task_assignments_page(
-        self, task_id: str, *, search_text: str = "", response_status: str = "all",
-        page: int = 1, page_size: int = 25, sort_key: str = "resourceName",
-        sort_direction: str = "asc",
-    ) -> TaskAssignmentReadPage:
-        return self._detail_query.query_task_assignments_page(
-            task_id, search_text=search_text, response_status=response_status,
-            page=page, page_size=page_size, sort_key=sort_key,
-            sort_direction=sort_direction,
-        )
-
-    def query_task_dependencies_page(
-        self, task_id: str, *, search_text: str = "", direction: str = "all",
-        dependency_type: str = "all", page: int = 1, page_size: int = 25,
-        sort_key: str = "linkedTask", sort_direction: str = "asc",
-    ) -> TaskDependencyReadPage:
-        return self._detail_query.query_task_dependencies_page(
-            task_id, search_text=search_text, direction=direction,
-            dependency_type=dependency_type, page=page, page_size=page_size,
-            sort_key=sort_key, sort_direction=sort_direction,
-        )
-
-    def query_task_activity_page(
-        self, task_id: str, *, search_text: str = "", category: str = "all",
-        page: int = 1, page_size: int = 25,
-    ) -> TaskActivityPage:
-        return self._detail_query.query_task_activity_page(
-            task_id, search_text=search_text, category=category,
-            page=page, page_size=page_size,
         )
 
     def _take_pending_task_events(self) -> tuple:

@@ -508,6 +508,7 @@ def build_project_management_service_bundle(
         project_service=project_service,
         task_service=task_service,
         task_workspace_query=task_capabilities.workspace,
+        task_detail_query=task_capabilities.detail,
         task_lookup_query=task_capabilities.lookup,
         task_assignment_commands=task_capabilities.assignment,
         timesheet_service=timesheet_service,

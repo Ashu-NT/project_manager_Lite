@@ -55,7 +55,7 @@ def test_project_and_task_detail_activity_decode_canonical_payloads(services) ->
         page=1,
         page_size=25,
     )
-    task_activity = task_service.query_task_activity_page(
+    task_activity = services["task_detail_query"].query_task_activity_page(
         task.id,
         page=1,
         page_size=25,

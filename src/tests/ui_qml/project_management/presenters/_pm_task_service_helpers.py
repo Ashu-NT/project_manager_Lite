@@ -729,6 +729,7 @@ def build_task_controller_bundle(tmp_path: Path) -> dict:
         ),
         task_service=task_service,
         task_workspace_query=task_service,
+        task_detail_query=task_service,
         project_resource_service=SimpleNamespace(
             list_for_task_workspace=lambda project_id: [
                 SimpleNamespace(

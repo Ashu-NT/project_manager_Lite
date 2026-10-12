@@ -75,6 +75,9 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
 )
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_lookup import (
     TaskLookupQueryHandler,
 )
@@ -107,6 +110,7 @@ class ProjectManagementServiceBundle:
     project_service: ProjectService
     task_service: TaskService
     task_workspace_query: TaskWorkspacePageQueryHandler
+    task_detail_query: TaskDetailPageQueryHandler
     task_lookup_query: TaskLookupQueryHandler
     task_assignment_commands: TaskAssignmentCommandHandler
     timesheet_service: TimesheetService

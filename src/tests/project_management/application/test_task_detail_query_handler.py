@@ -11,6 +11,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services) -> None:
     projects = services["project_service"]
     tasks = services["task_service"]
+    detail = services["task_detail_query"]
     resources = services["resource_service"]
 
     project = projects.create_project("Task detail query project")
@@ -24,13 +25,13 @@ def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services)
     tasks.add_dependency(predecessor.id, task.id, DependencyType.FINISH_TO_START)
     tasks.add_dependency(task.id, successor.id, DependencyType.FINISH_TO_START)
 
-    first = tasks.query_task_assignments_page(
+    first = detail.query_task_assignments_page(
         task.id, page=1, page_size=1, sort_key="resourceName", sort_direction="asc"
     )
-    last = tasks.query_task_assignments_page(
+    last = detail.query_task_assignments_page(
         task.id, page=99, page_size=1, sort_key="resourceName", sort_direction="asc"
     )
-    descending = tasks.query_task_assignments_page(
+    descending = detail.query_task_assignments_page(
         task.id, page=1, page_size=1, sort_key="resourceName", sort_direction="desc"
     )
     assert first.filtered_total == last.filtered_total == descending.filtered_total == 2
@@ -41,19 +42,20 @@ def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services)
     assert last.page == 2
     assert descending.items[0].resource_name == "Zed Resource"
 
-    before = tasks.query_task_dependencies_page(task.id, direction="predecessor")
-    after = tasks.query_task_dependencies_page(task.id, direction="successor")
+    before = detail.query_task_dependencies_page(task.id, direction="predecessor")
+    after = detail.query_task_dependencies_page(task.id, direction="successor")
     assert before.filtered_total == after.filtered_total == 1
     assert before.items[0].linked_task_id == predecessor.id
     assert after.items[0].linked_task_id == successor.id
-    assert tasks.query_task_activity_page(task.id, page_size=1).page_size == 1
+    assert detail.query_task_activity_page(task.id, page_size=1).page_size == 1
 
 
 def test_task_detail_scope_denial_stops_before_reader(services, monkeypatch) -> None:
     tasks = services["task_service"]
     project = services["project_service"].create_project("Task detail scope project")
     task = tasks.create_task(project.id, "Scoped task")
-    reader = tasks._detail_query._task_workspace_reader
+    detail = services["task_detail_query"]
+    reader = detail._task_workspace_reader
     read_page = Mock(side_effect=AssertionError("reader reached after denial"))
     monkeypatch.setattr(reader, "read_assignments_page", read_page)
 
@@ -65,10 +67,12 @@ def test_task_detail_scope_denial_stops_before_reader(services, monkeypatch) -> 
         deny_project,
     )
     with pytest.raises(BusinessRuleError, match="Project access denied"):
-        tasks.query_task_assignments_page(task.id)
+        detail.query_task_assignments_page(task.id)
     read_page.assert_not_called()
 
 
 def test_task_read_handlers_share_the_composed_workspace_reader(services) -> None:
-    tasks = services["task_service"]
-    assert tasks._detail_query._task_workspace_reader is tasks._workspace_query._task_workspace_reader
+    assert (
+        services["task_detail_query"]._task_workspace_reader
+        is services["task_workspace_query"]._task_workspace_reader
+    )

@@ -37,7 +37,7 @@ implementation owner and consumer boundary. Each name is listed explicitly.
 | Detail/hierarchy queries | `get_task`, `list_task_hierarchy`, `list_leaf_tasks_for_project`, `get_task_hierarchy_rollup`, `list_task_hierarchy_rollups` | Tasks/Scheduling desktop APIs, dashboard helpers, importers; existing detail/hierarchy handlers are candidates for narrow injection. |
 | Dependency diagnostics queries | `get_dependency_diagnostics`, `preview_dependency_removal` | Tasks/Scheduling desktop APIs; existing diagnostics handler is candidate for narrow injection. |
 | Lookup queries | `list_tasks_for_project`, `list_tasks_for_resource`, `list_assignments_for_resource`, `query_tasks` | CSV import and Timesheets desktop now use the lookup handler directly; Tasks/Scheduling desktop APIs use remaining facade methods. The lookup handler enforces task/project permissions; callers retain their module guards. |
-| Page queries | `query_task_assignments_page`, `query_task_dependencies_page`, `query_task_activity_page` | Tasks desktop API retains these detail-page delegates; Tasks and Dashboard workspace pages now use the composed workspace query handler directly. Readers own paging/sorting and DTO projection, not QML. |
+| Page queries | None remain on TaskService | Tasks desktop now receives the composed detail and workspace query handlers directly; Dashboard receives the workspace handler. Readers own paging/sorting and DTO projection, not QML. |
 | Warning sidecars / assignment handler | `consume_last_overallocation_warning`, `consume_last_skill_violation_warning` | Tasks desktop API; preserve consumption timing until warning output is part of an explicit result contract. |
 | Approval participant / dependency handler | `_apply_dependency_add_decision`, `_apply_dependency_remove_decision`, `_apply_dependency_update_decision` | `infrastructure/approval/task_apply_participant.py` only. These are participant-owned, not public commands; migrate participant and shared UoW/event scope together. |
 | Approval participant / constraint and leveling handlers | `_apply_task_scheduling_constraint_decision`, `_apply_resource_leveling_plan_decision` | Same Task approval participant; preserve outer approval transaction and event drain. |
@@ -132,3 +132,18 @@ and 26 constructor inputs. Focused page/serialization/composition tests passed
 QML task presenter/controller regressions passed 20; live PostgreSQL
 security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation and diff checks
 passed after this cut.
+
+The Tasks desktop adapter now receives the same composed
+`TaskDetailPageQueryHandler` that TaskService used for assignment, dependency
+and activity pages. Its boundary checks PM entitlement before calling the
+handler, which continues to enforce task/project and tenant/org scope. The
+three unused facade page-query delegates were removed; `get_task` remains on
+the facade for still-active callers, so its detail-handler constructor input
+remains. TaskService is now 709 lines, 69 methods including `__init__`, and 26
+constructor inputs. Focused detail/reader/composition tests passed 46;
+adapter/module-guard/architecture tests passed 28; QML and approval/Financial
+Change regressions passed 40; live PostgreSQL security/RLS passed 14.
+The desktop construction guard was narrowed to permit only the explicit
+`require_module_enabled` policy call; a regression proves it still rejects
+application-object construction. The affected API/architecture rerun passed
+27 tests.

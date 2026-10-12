@@ -46,6 +46,9 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
 )
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 from src.core.modules.project_management.application.tasks.queries.task_lookup import (
     TaskLookupQueryHandler,
 )
@@ -75,6 +78,7 @@ class ProjectManagementDesktopRuntimeServices:
     timesheet_service: TimesheetService | None
     task_service: TaskService | None
     task_workspace_query: TaskWorkspacePageQueryHandler | None
+    task_detail_query: TaskDetailPageQueryHandler | None
     task_lookup_query: TaskLookupQueryHandler | None
     task_assignment_commands: TaskAssignmentCommandHandler | None
     assignment_skill_validator: AssignmentSkillValidator | None
@@ -109,6 +113,7 @@ def resolve_project_management_desktop_runtime_services(
     timesheet_service = services.get("timesheet_service")
     task_service = services.get("task_service")
     task_workspace_query = services.get("task_workspace_query")
+    task_detail_query = services.get("task_detail_query")
     task_lookup_query = services.get("task_lookup_query")
     task_assignment_commands = services.get("task_assignment_commands")
     assignment_skill_validator = services.get("assignment_skill_validator")
@@ -177,6 +182,9 @@ def resolve_project_management_desktop_runtime_services(
             task_workspace_query
             if isinstance(task_workspace_query, TaskWorkspacePageQueryHandler)
             else None
+        ),
+        task_detail_query=(
+            task_detail_query if isinstance(task_detail_query, TaskDetailPageQueryHandler) else None
         ),
         task_lookup_query=(
             task_lookup_query if isinstance(task_lookup_query, TaskLookupQueryHandler) else None
