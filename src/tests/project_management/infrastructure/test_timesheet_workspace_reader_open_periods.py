@@ -39,7 +39,7 @@ def _setup_resource_with_open_periods(services, *, month_count: int):
         task.id, resource.id, allocation_percent=50.0
     )
     for month in range(1, month_count + 1):
-        services["task_service"].add_time_entry(
+        services["timesheet_service"].add_time_entry(
             assignment.id, entry_date=date(2026, month, 4), hours=2
         )
     return resource, tenant_id, organization_id

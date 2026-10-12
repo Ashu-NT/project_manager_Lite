@@ -21,13 +21,13 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
     resource = rs.create_resource("Time Logger", hourly_rate=110.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=50.0)
 
-    first = ts.add_time_entry(
+    first = services["timesheet_service"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 3, 2),
         hours=2.5,
         note="Design review",
     )
-    second = ts.add_time_entry(
+    second = services["timesheet_service"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 3, 3),
         hours=3.0,
@@ -37,7 +37,7 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
     assert len(services["timesheet_service"].list_time_entries_for_assignment(assignment.id)) == 2
     assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(5.5)
 
-    ts.update_time_entry(
+    services["timesheet_service"].update_time_entry(
         first.id,
         expected_version=first.version,
         hours=3.0,
@@ -45,7 +45,9 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
     )
     assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(6.0)
 
-    ts.delete_time_entry(second.id, expected_version=second.version)
+    services["timesheet_service"].delete_time_entry(
+        second.id, expected_version=second.version
+    )
     remaining = services["timesheet_service"].list_time_entries_for_assignment(assignment.id)
     assert len(remaining) == 1
     assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(3.0)
@@ -75,7 +77,7 @@ def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(serv
     assert seeded_entries[0].author_username == "system"
     assert "Opening balance" in seeded_entries[0].note
 
-    ts.add_time_entry(
+    services["timesheet_service"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 3, 5),
         hours=2.0,
@@ -122,7 +124,7 @@ def test_time_entries_capture_platform_work_entry_context_for_employee_resources
     )
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
 
-    entry = ts.add_time_entry(
+    entry = services["timesheet_service"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 8, 4),
         hours=5.0,
@@ -186,13 +188,13 @@ def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
     resource = rs.create_resource("Submitted Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
 
-    march_entry = ts.add_time_entry(
+    march_entry = services["timesheet_service"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 3, 5),
         hours=4.0,
         note="March work",
     )
-    april_entry = ts.add_time_entry(
+    april_entry = services["timesheet_service"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 4, 2),
         hours=2.5,
@@ -210,22 +212,24 @@ def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
     assert len(services["timesheet_service"].list_time_entries_for_resource_period(resource.id, period_start=date(2026, 3, 1))) == 1
 
     with pytest.raises(ValidationError, match="submitted"):
-        ts.add_time_entry(
+        services["timesheet_service"].add_time_entry(
             assignment.id,
             entry_date=date(2026, 3, 6),
             hours=1.0,
             note="Blocked follow-up",
         )
     with pytest.raises(ValidationError, match="submitted"):
-        ts.update_time_entry(
+        services["timesheet_service"].update_time_entry(
             march_entry.id,
             expected_version=march_entry.version,
             hours=5.0,
         )
     with pytest.raises(ValidationError, match="submitted"):
-        ts.delete_time_entry(march_entry.id, expected_version=march_entry.version)
+        services["timesheet_service"].delete_time_entry(
+            march_entry.id, expected_version=march_entry.version
+        )
 
-    ts.update_time_entry(
+    services["timesheet_service"].update_time_entry(
         april_entry.id,
         expected_version=april_entry.version,
         hours=3.0,
@@ -243,7 +247,7 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
     task = ts.create_task(project.id, "Lock Task", start_date=date(2026, 5, 1), duration_days=3)
     resource = rs.create_resource("Locked Dev", hourly_rate=90.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
-    may_entry = ts.add_time_entry(
+    may_entry = services["timesheet_service"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 5, 3),
         hours=6.0,
@@ -260,7 +264,7 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
     assert approved.locked_at is None
 
     with pytest.raises(ValidationError, match="approved"):
-        ts.update_time_entry(
+        services["timesheet_service"].update_time_entry(
             may_entry.id,
             expected_version=may_entry.version,
             hours=7.0,

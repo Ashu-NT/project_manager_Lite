@@ -42,9 +42,6 @@ from src.core.modules.project_management.application.tasks.commands.schedule_syn
 from src.core.modules.project_management.application.tasks.commands.scheduling_constraint import (
     TaskSchedulingConstraintHandler,
 )
-from src.core.modules.project_management.application.tasks.commands.time_entries import (
-    TaskTimeEntryHandler,
-)
 from src.core.modules.project_management.application.tasks.commands.validation import (
     TaskValidationPolicy,
 )
@@ -198,12 +195,6 @@ def build_task_approval_deps(
             hierarchy_policy=hierarchy_policy,
             validation_policy=validation_policy,
             uow_scope=task_uow_scope,
-        ),
-        time_entry_handler=TaskTimeEntryHandler(
-            timesheet_service=None,
-            task_repo=bundle.pm.task_repo,
-            assignment_repo=bundle.pm.assignment_repo,
-            user_session=user_session,
         ),
         approved_schedule_change_handler=ApprovedScheduleChangeHandler(
             task_repo=bundle.pm.task_repo,

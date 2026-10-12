@@ -142,7 +142,7 @@ def test_task_events_share_one_post_commit_handler_and_fresh_uow(services, sessi
 def test_timesheet_instance_and_invalidation_subscription_are_shared(services) -> None:
     timesheet = services["timesheet_service"]
     assert services["time_service"] is timesheet
-    assert services["task_service"]._time_entry_handler._timesheet_service is timesheet
+    assert services["task_time_entries"]._timesheet_service is timesheet
     bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert sum(
         handler.__name__ == "handle_timesheet_period_event"
@@ -304,6 +304,5 @@ def test_resource_planning_and_imports_keep_shared_dependencies(services) -> Non
         is services["task_service"]._dependency_command_handler._diagnostics_handler
     )
     assert services["task_assignment_commands"] is services["task_service"]._assignment_handler
-    assert services["task_time_entries"] is services["task_service"]._time_entry_handler
     assert imports._task_capabilities.lifecycle is services["task_service"]._lifecycle_handler
     assert imports._resource_service is services["resource_service"]

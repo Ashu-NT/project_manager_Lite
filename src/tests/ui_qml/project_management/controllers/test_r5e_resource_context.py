@@ -84,13 +84,13 @@ def _seed_resource_context(services):
         allocation_percent=25,
         allocated_planned_hours=Decimal(30),
     )
-    task_service.add_time_entry(
+    services["timesheet_service"].add_time_entry(
         alpha_assignment.id,
         entry_date=date(2026, 8, 12),
         hours=25,
         note="Alpha actual work",
     )
-    task_service.add_time_entry(
+    services["timesheet_service"].add_time_entry(
         zulu_assignment.id,
         entry_date=date(2026, 9, 12),
         hours=10,

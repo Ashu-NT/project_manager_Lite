@@ -234,7 +234,6 @@ def build_task_capabilities(
             uow_scope=task_uow_scope,
         ),
         progress_handler=progress_handler,
-        time_entry_handler=time_entry_handler,
         approved_schedule_change_handler=ApprovedScheduleChangeHandler(
             task_repo=repositories.pm.task_repo,
             tenant_context_service=platform_services.tenant_context_service,

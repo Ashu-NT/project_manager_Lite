@@ -19,7 +19,6 @@ from src.core.platform.application.security.authorization.enforcement.permission
 )
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.domain.time_management.time import TimeEntry
 
 
 class TaskTimeEntryHandler:
@@ -126,44 +125,6 @@ class TaskTimeEntryHandler:
             total=total,
             page=normalized_page,
             page_size=page_size,
-        )
-
-    def add_time_entry(
-        self,
-        assignment_id: str,
-        *,
-        entry_date: date,
-        hours: float,
-        note: str = "",
-    ) -> TimeEntry:
-        return self._require_timesheet_service().add_time_entry(
-            assignment_id,
-            entry_date=entry_date,
-            hours=hours,
-            note=note,
-        )
-
-    def update_time_entry(
-        self,
-        entry_id: str,
-        *,
-        expected_version: int,
-        entry_date: date | None = None,
-        hours: float | None = None,
-        note: str | None = None,
-    ) -> TimeEntry:
-        return self._require_timesheet_service().update_time_entry(
-            entry_id,
-            expected_version=expected_version,
-            entry_date=entry_date,
-            hours=hours,
-            note=note,
-        )
-
-    def delete_time_entry(self, entry_id: str, *, expected_version: int) -> None:
-        self._require_timesheet_service().delete_time_entry(
-            entry_id,
-            expected_version=expected_version,
         )
 
 

@@ -186,13 +186,13 @@ def test_add_work_entry_transactional_handler_failure_rolls_back_time_entry_and_
     dispatcher.subscribe(TaskAssignmentChanged, _raising_handler)
 
     with pytest.raises(RuntimeError):
-        services["task_service"].add_time_entry(
+        services["timesheet_service"].add_time_entry(
             assignment.id, entry_date=date(2026, 9, 5), hours=4
         )
 
     time_service = services["time_service"]
     assert time_service._time_entry_repo.list_by_work_allocation(assignment.id) == []
-    reloaded_assignment = services["task_service"]._assignment_repo.get(assignment.id)
+    reloaded_assignment = services["task_assignment_commands"].get_assignment(assignment.id)
     assert float(reloaded_assignment.hours_logged) == 0.0
     assert _task_hints(hints) == []
 
@@ -206,19 +206,19 @@ def test_service_remains_usable_after_add_work_entry_transactional_handler_failu
 
     subscription = dispatcher.subscribe(TaskAssignmentChanged, _raising_handler)
     with pytest.raises(RuntimeError):
-        services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 5), hours=4)
+        services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 5), hours=4)
 
     subscription.dispose()
-    entry = services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 6), hours=3)
+    entry = services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 6), hours=3)
 
     assert entry.hours == 3
-    reloaded_assignment = services["task_service"]._assignment_repo.get(assignment.id)
+    reloaded_assignment = services["task_assignment_commands"].get_assignment(assignment.id)
     assert float(reloaded_assignment.hours_logged) == 3.0
 
 
 def test_update_time_entry_transactional_handler_failure_rolls_back_the_revision(services, monkeypatch):
     project, _resource, _task, assignment = _setup_time_entry_case(services)
-    entry = services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 5), hours=4)
+    entry = services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 5), hours=4)
     hints = _spy_hints(services)
     dispatcher = services["time_service"]._transactional_dispatcher
 
@@ -232,7 +232,7 @@ def test_update_time_entry_transactional_handler_failure_rolls_back_the_revision
 
     reloaded_entry = services["time_service"]._time_entry_repo.get(entry.id)
     assert reloaded_entry.hours == 4
-    reloaded_assignment = services["task_service"]._assignment_repo.get(assignment.id)
+    reloaded_assignment = services["task_assignment_commands"].get_assignment(assignment.id)
     assert float(reloaded_assignment.hours_logged) == 4.0
     assert _task_hints(hints) == []
 
@@ -257,7 +257,7 @@ def test_submit_timesheet_period_stales_only_the_referenced_project_task_list(se
         referenced_project.id, "Class-B Task", start_date=date(2026, 9, 1), duration_days=10
     )
     assignment = services["task_service"].assign_resource(task.id, resource.id, allocation_percent=100)
-    services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 4), hours=4)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 4), hours=4)
 
     hints = _spy_hints(services)
     services["timesheet_service"].submit_timesheet_period(resource.id, period_start=date(2026, 9, 1))
@@ -284,7 +284,7 @@ def test_submit_timesheet_period_records_zero_real_task_domain_event(services, m
         project.id, "Class-B No Typed Event Task", start_date=date(2026, 9, 1), duration_days=10
     )
     assignment = services["task_service"].assign_resource(task.id, resource.id, allocation_percent=100)
-    services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 4), hours=4)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 4), hours=4)
 
     seen: list[object] = []
     dispatcher = services["time_service"]._transactional_dispatcher

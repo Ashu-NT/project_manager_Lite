@@ -244,3 +244,17 @@ TimesheetService, and both pass-through methods were deleted. TaskService is
 The focused Time/collaboration/desktop slice passed 32 tests. The remaining
 time-entry write forwards are still present pending their separate caller
 migration; approval-participant transaction methods remain untouched.
+
+The remaining TaskService time-entry write forwards (`add_time_entry`,
+`update_time_entry`, `delete_time_entry`) and the duplicate TaskTimeEntryHandler
+write pass-throughs are now retired. Test setup calls the already-composed
+TimesheetService, which has always been the actual write authority; Task Detail
+retains the composed read-only task time page handler. TaskService no longer
+receives a time-entry handler, and approval-only composition no longer builds
+unused handlers. TaskService is 489 lines, 45 methods including `__init__`,
+and 16 constructor inputs. An unrelated stale root-composition import was
+corrected to import the two worker principal names from their application
+owners. Approval-participant transaction code itself remains unchanged.
+The affected Task/Time/Approval/UI/composition slice passed 178 tests, and
+live PostgreSQL security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation,
+and diff checks passed. A4 remains open for its other facade capabilities.

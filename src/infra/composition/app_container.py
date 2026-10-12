@@ -6,9 +6,13 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.infrastructure.composition.bootstrap import (
+from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
     APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
+)
+from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
+)
+from src.core.modules.project_management.infrastructure.composition.bootstrap import (
     build_project_management_repository_context,
     build_project_management_service_bundle,
     pm_notification_recipient_policy,

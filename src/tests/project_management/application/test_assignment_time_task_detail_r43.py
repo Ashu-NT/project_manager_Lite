@@ -134,8 +134,8 @@ def test_build_assignment_snapshot_logged_is_task_scoped_not_resource_wide(servi
     assignment_b = ts.assign_resource(task_b.id, resource.id, allocation_percent=50.0)
 
     entry_date = date(2026, 4, 6)
-    ts.add_time_entry(assignment_a.id, entry_date=entry_date, hours=2.0, note="Task A work")
-    ts.add_time_entry(assignment_b.id, entry_date=entry_date, hours=5.0, note="Task B work")
+    services["timesheet_service"].add_time_entry(assignment_a.id, entry_date=entry_date, hours=2.0, note="Task A work")
+    services["timesheet_service"].add_time_entry(assignment_b.id, entry_date=entry_date, hours=5.0, note="Task B work")
 
     snapshot_a = build_assignment_snapshot(
         assignment_a.id,
@@ -174,7 +174,7 @@ def test_build_assignment_snapshot_planned_and_remaining_are_page_independent(se
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,
     )
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 5, 1), hours=4.0, note="Logged work")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 5, 1), hours=4.0, note="Logged work")
 
     snapshot = build_assignment_snapshot(
         assignment.id,

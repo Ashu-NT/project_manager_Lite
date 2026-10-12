@@ -307,10 +307,10 @@ def test_timesheets_include_open_and_rejected_but_not_approved_or_locked(service
     assignment = services["task_service"].assign_resource(task.id, resource.id, allocation_percent=100.0)
 
     # OPEN period: entries logged, never submitted.
-    services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=4)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=4)
 
     # REJECTED period: a different period, submitted then rejected.
-    services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 7, 4), hours=4)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 7, 4), hours=4)
     submitted = services["timesheet_service"].submit_timesheet_period(
         resource.id, period_start=date(2026, 7, 1)
     )
@@ -319,7 +319,7 @@ def test_timesheets_include_open_and_rejected_but_not_approved_or_locked(service
     )
 
     # APPROVED period: submitted then approved -- must be excluded.
-    services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 8, 4), hours=4)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 8, 4), hours=4)
     approved_submission = services["timesheet_service"].submit_timesheet_period(
         resource.id, period_start=date(2026, 8, 1)
     )
@@ -371,7 +371,7 @@ def test_all_action_items_equals_the_sum_of_the_three_pm_categories(services):
         resource.id,
         allocation_percent=50.0,
     )
-    services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=2)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=2)
 
     reader = _resource_identity_reader(services)
     contributor = _contributor(services, reader)

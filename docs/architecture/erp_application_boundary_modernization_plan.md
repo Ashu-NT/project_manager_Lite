@@ -895,6 +895,18 @@ desktop slice passed 32 tests. TaskService is 522 lines, 48 methods and 17
 constructor inputs. Other time-entry write forwards and approval transaction
 contracts remain for later verified migration; A4 remains open.
 
+**A4 TimeEntry write ownership cut (2026-10-12).** Tests now call the
+authoritative TimesheetService for TimeEntry creation, correction, and
+deletion. Removed three TaskService forwards, three duplicate
+TaskTimeEntryHandler forwards, one facade constructor input, and two unused
+approval-only handler constructions. The Task Detail time page retains its
+read-only handler. TaskService is 489 lines, 45 methods and 16 constructor
+inputs. Approval participant transaction paths are unchanged. A4 remains open.
+The affected Task/Time/Approval/UI/composition slice passed 178 tests;
+live PostgreSQL security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation,
+and diff checks passed. A stale composition import of PM worker principal
+names was also corrected to resolve directly from their application owners.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

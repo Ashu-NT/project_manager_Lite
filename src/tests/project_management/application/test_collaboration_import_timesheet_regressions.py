@@ -173,7 +173,7 @@ def test_add_time_entry_bootstraps_legacy_hours_without_explicit_initialize(serv
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=75.0)
     services["task_assignment_commands"].set_assignment_hours(assignment.id, 5.0)
 
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 12), hours=2.0, note="Follow-up work")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 12), hours=2.0, note="Follow-up work")
     entries = services["timesheet_service"].list_time_entries_for_assignment(assignment.id)
 
     assert len(entries) == 2
@@ -211,7 +211,7 @@ def test_unassigning_resource_with_actuals_is_blocked_to_preserve_history(servic
     task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 13), duration_days=1)
     resource = rs.create_resource("Cleanup Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 13), hours=2.0, note="Cleanup")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 13), hours=2.0, note="Cleanup")
 
     assert _time_entry_count(services) == 1
 
@@ -233,7 +233,7 @@ def test_deleting_task_removes_associated_time_entries(services):
     task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 14), duration_days=1)
     resource = rs.create_resource("Cleanup Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 14), hours=2.0, note="Cleanup")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 14), hours=2.0, note="Cleanup")
 
     assert _time_entry_count(services) == 1
 
@@ -248,7 +248,7 @@ def test_failed_task_delete_rolls_back_time_and_assignment(services, monkeypatch
     resource = services["resource_service"].create_resource("Rollback crew", hourly_rate=100.0)
     task = tasks.create_task(project.id, "Rollback task", start_date=date(2026, 3, 14), duration_days=1)
     assignment = tasks.assign_resource(task.id, resource.id, allocation_percent=40.0)
-    tasks.add_time_entry(assignment.id, entry_date=date(2026, 3, 14), hours=2.0)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 14), hours=2.0)
 
     def fail_after_time_cleanup(self, task_id, *, expected_version):
         raise RuntimeError("simulated task delete failure")
@@ -271,7 +271,7 @@ def test_deleting_project_removes_time_entries_created_under_its_assignments(ser
     task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 15), duration_days=1)
     resource = rs.create_resource("Cleanup Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 15), hours=2.0, note="Cleanup")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 15), hours=2.0, note="Cleanup")
 
     assert _time_entry_count(services) == 1
 
@@ -291,5 +291,5 @@ def test_time_entry_hours_must_be_greater_than_zero(services):
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=25.0)
 
     with pytest.raises(ValidationError, match="greater than zero"):
-        ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 17), hours=0.0, note="Invalid")
+        services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 17), hours=0.0, note="Invalid")
 

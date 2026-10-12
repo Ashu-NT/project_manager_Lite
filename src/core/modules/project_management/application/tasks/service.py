@@ -40,9 +40,6 @@ from src.core.modules.project_management.application.tasks.commands.resource_lev
 from src.core.modules.project_management.application.tasks.commands.scheduling_constraint import (
     TaskSchedulingConstraintHandler,
 )
-from src.core.modules.project_management.application.tasks.commands.time_entries import (
-    TaskTimeEntryHandler,
-)
 from src.core.modules.project_management.application.tasks.queries.dependency_query import (
     TaskDependencyQueryHandler,
 )
@@ -77,7 +74,6 @@ from src.core.modules.project_management.domain.tasks.task import (
     TaskDependency,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.domain.time_management.time import TimeEntry
 
 
 class TaskService(
@@ -96,7 +92,6 @@ class TaskService(
         task_uow_scope: TaskUowScope,
         deletion_handler: TaskDeletionCommandHandler,
         progress_handler: TaskProgressCommandHandler,
-        time_entry_handler: TaskTimeEntryHandler,
         approved_schedule_change_handler: ApprovedScheduleChangeHandler,
         hierarchy_command_handler: TaskHierarchyCommandHandler,
         scheduling_constraint_handler: TaskSchedulingConstraintHandler,
@@ -114,7 +109,6 @@ class TaskService(
         self._task_uow_scope = task_uow_scope
         self._deletion_handler = deletion_handler
         self._progress_handler = progress_handler
-        self._time_entry_handler = time_entry_handler
         self._approved_schedule_change_handler = approved_schedule_change_handler
         self._hierarchy_command_handler = hierarchy_command_handler
         self._scheduling_constraint_handler = scheduling_constraint_handler
@@ -461,33 +455,6 @@ class TaskService(
             status=status,
             expected_version=expected_version,
         )
-
-    def add_time_entry(
-        self, assignment_id: str, *, entry_date: date, hours: float, note: str = ""
-    ) -> TimeEntry:
-        return self._time_entry_handler.add_time_entry(
-            assignment_id, entry_date=entry_date, hours=hours, note=note
-        )
-
-    def update_time_entry(
-        self,
-        entry_id: str,
-        *,
-        expected_version: int,
-        entry_date: date | None = None,
-        hours: float | None = None,
-        note: str | None = None,
-    ) -> TimeEntry:
-        return self._time_entry_handler.update_time_entry(
-            entry_id,
-            expected_version=expected_version,
-            entry_date=entry_date,
-            hours=hours,
-            note=note,
-        )
-
-    def delete_time_entry(self, entry_id: str, *, expected_version: int) -> None:
-        self._time_entry_handler.delete_time_entry(entry_id, expected_version=expected_version)
 
     def get_task(self, task_id: str) -> Task | None:
         return self._detail_query.get_task(task_id)

@@ -37,8 +37,8 @@ def test_task_time_summary_aggregates_across_all_assignments_on_the_task(service
         task_id=task.id, project_resource_id=pr_bob.id,
         allocation_percent=40.0, allocated_planned_hours=Decimal(24),
     )
-    ts.add_time_entry(a1.id, entry_date=date(2026, 8, 16), hours=18.0, note="Wiring")
-    ts.add_time_entry(a2.id, entry_date=date(2026, 8, 17), hours=20.0, note="Docs")
+    services["timesheet_service"].add_time_entry(a1.id, entry_date=date(2026, 8, 16), hours=18.0, note="Wiring")
+    services["timesheet_service"].add_time_entry(a2.id, entry_date=date(2026, 8, 17), hours=20.0, note="Docs")
 
     api = build_project_management_tasks_desktop_api(
         project_service=ps, task_service=ts, resource_service=rs, project_resource_service=prs,
@@ -65,8 +65,8 @@ def test_task_time_summary_reports_overrun_when_actual_exceeds_planned(services)
         task_id=task.id, project_resource_id=pr_alice.id,
         allocation_percent=100.0, allocated_planned_hours=Decimal(8),
     )
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 8, 16), hours=6.0, note="Work")
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 8, 17), hours=6.0, note="More work")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 8, 16), hours=6.0, note="Work")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 8, 17), hours=6.0, note="More work")
 
     api = build_project_management_tasks_desktop_api(
         project_service=ps, task_service=ts, resource_service=rs, project_resource_service=prs,
@@ -102,8 +102,8 @@ def test_task_time_summary_and_entries_are_task_scoped_not_resource_wide(service
         task_id=task_b.id, project_resource_id=pr_alice.id,
         allocation_percent=50.0, allocated_planned_hours=Decimal(50),
     )
-    ts.add_time_entry(assignment_a.id, entry_date=date(2026, 8, 16), hours=18.0, note="Task A work")
-    ts.add_time_entry(assignment_b.id, entry_date=date(2026, 8, 16), hours=42.0, note="Task B work")
+    services["timesheet_service"].add_time_entry(assignment_a.id, entry_date=date(2026, 8, 16), hours=18.0, note="Task A work")
+    services["timesheet_service"].add_time_entry(assignment_b.id, entry_date=date(2026, 8, 16), hours=42.0, note="Task B work")
 
     api = build_project_management_tasks_desktop_api(
         project_service=ps, task_service=ts, resource_service=rs, project_resource_service=prs,
@@ -136,7 +136,7 @@ def test_list_task_time_entries_paginates_authoritatively(services):
     )
     base_date = date(2026, 8, 1)
     for i in range(7):
-        ts.add_time_entry(
+        services["timesheet_service"].add_time_entry(
             assignment.id, entry_date=base_date + timedelta(days=i), hours=1.0 + i, note=f"Entry {i}"
         )
 
@@ -173,8 +173,8 @@ def test_list_task_time_entries_filters_by_resource(services):
     a2 = ts.assign_project_resource(
         task_id=task.id, project_resource_id=pr_bob.id, allocation_percent=50.0
     )
-    ts.add_time_entry(a1.id, entry_date=date(2026, 8, 16), hours=3.0, note="Alice work")
-    ts.add_time_entry(a2.id, entry_date=date(2026, 8, 16), hours=4.0, note="Bob work")
+    services["timesheet_service"].add_time_entry(a1.id, entry_date=date(2026, 8, 16), hours=3.0, note="Alice work")
+    services["timesheet_service"].add_time_entry(a2.id, entry_date=date(2026, 8, 16), hours=4.0, note="Bob work")
 
     api = build_project_management_tasks_desktop_api(
         project_service=ps, task_service=ts, resource_service=rs, project_resource_service=prs,

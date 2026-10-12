@@ -152,9 +152,9 @@ def test_project_resource_usage_reconciles_planned_allocated_actual_remaining(se
         expected_assignment_version=assignment_c.version,
         expected_project_resource_version=prs.get(project_resource.id).version,
     )
-    ts.add_time_entry(assignment_a.id, entry_date=date(2026, 6, 1), hours=18.0, note="A")
-    ts.add_time_entry(assignment_b.id, entry_date=date(2026, 6, 1), hours=42.0, note="B")
-    ts.add_time_entry(assignment_c.id, entry_date=date(2026, 6, 1), hours=12.0, note="C")
+    services["timesheet_service"].add_time_entry(assignment_a.id, entry_date=date(2026, 6, 1), hours=18.0, note="A")
+    services["timesheet_service"].add_time_entry(assignment_b.id, entry_date=date(2026, 6, 1), hours=42.0, note="B")
+    services["timesheet_service"].add_time_entry(assignment_c.id, entry_date=date(2026, 6, 1), hours=12.0, note="C")
 
     usage = prs.get_usage(project_resource.id)
 
@@ -175,7 +175,7 @@ def test_project_resource_usage_is_task_page_independent(services):
     assignment = ts.assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 6, 1), hours=5.0, note="x")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 1), hours=5.0, note="x")
 
     # Even though nothing about a "current page" is passed here, the usage
     # fact still reflects the complete, authoritative assignment set.
@@ -331,7 +331,7 @@ def test_delete_project_resource_with_historical_actuals_is_blocked(services):
     assignment = ts.assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 6, 1), hours=3.0, note="worked")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 1), hours=3.0, note="worked")
 
     with pytest.raises(BusinessRuleError) as exc:
         prs.delete(project_resource.id)
@@ -398,12 +398,12 @@ def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
     login_as(services, "time-scoped-manager", "StrongPass123")
 
     # Authorized on Alpha: succeeds.
-    ts.add_time_entry(assignment_alpha.id, entry_date=date(2026, 6, 2), hours=2.0, note="alpha work")
+    services["timesheet_service"].add_time_entry(assignment_alpha.id, entry_date=date(2026, 6, 2), hours=2.0, note="alpha work")
 
     # Not authorized on Beta: the global time.manage/task.manage grant from
     # project_alpha's "owner" scope role must not leak into project_beta.
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ts.add_time_entry(assignment_beta.id, entry_date=date(2026, 6, 2), hours=2.0, note="beta work")
+        services["timesheet_service"].add_time_entry(assignment_beta.id, entry_date=date(2026, 6, 2), hours=2.0, note="beta work")
 
 
 # ---------------------------------------------------------------------------

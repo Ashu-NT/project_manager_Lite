@@ -226,7 +226,7 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     task = ts.create_task(project.id, "Timesheet Permission Task", start_date=date(2026, 6, 1), duration_days=2)
     resource = rs.create_resource("Planner Logger", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
-    ts.add_time_entry(
+    services["timesheet_service"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 6, 2),
         hours=5.0,

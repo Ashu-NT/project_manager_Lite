@@ -145,7 +145,7 @@ def _setup(services):
     assignment = services["task_service"].assign_resource(
         task.id, resource.id, allocation_percent=100
     )
-    services["task_service"].add_time_entry(
+    services["timesheet_service"].add_time_entry(
         assignment.id, entry_date=date(2026, 6, 4), hours=4
     )
     return organization, project, resource
