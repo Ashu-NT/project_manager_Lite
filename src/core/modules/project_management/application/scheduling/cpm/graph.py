@@ -8,7 +8,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def build_project_dependency_graph(
-    tasks_by_id: Dict[str, Task],
+    tasks_by_id: dict[str, Task],
     deps: list[TaskDependency],
     priority_value: Callable[[Task], int],
 ) -> tuple[list[str], dict[str, list[TaskDependency]], dict[str, list[TaskDependency]]]:

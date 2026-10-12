@@ -28,6 +28,8 @@ class ConcurrencyError(DomainError):
 class OperationNotPermittedError(DomainError):
     """Raised when an operation is structurally forbidden on an entity (e.g. update/delete on append-only logs)."""
 
+class UnsupportedOperationError(DomainError):
+    """Raised when a requested operation is not implemented or supported."""
 
 __all__ = [
     "BusinessRuleError",
@@ -36,4 +38,5 @@ __all__ = [
     "NotFoundError",
     "OperationNotPermittedError",
     "ValidationError",
+    "UnsupportedOperationError",
 ]

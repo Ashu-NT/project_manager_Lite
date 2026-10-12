@@ -141,7 +141,6 @@ def _build_portfolio_delayed_table(dashboard_data: Any, *, selected_period_key: 
 
 
 def _build_high_risks_table(dashboard_data: Any) -> ProjectDashboardOperationalTableDescriptor:
-    project_id = str(getattr(getattr(dashboard_data, "kpi", None), "project_id", "") or "")
     risk_rows = tuple(getattr(dashboard_data, "high_risks", ()) or ())
     return ProjectDashboardOperationalTableDescriptor(
         id="high_risks", title="High Risks",

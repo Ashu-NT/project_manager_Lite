@@ -91,16 +91,17 @@ class DashboardSnapshotService:
         view_options = build_view_options()
         selected_view_key = resolve_view_key(view_key, view_options)
 
-        _selectors = dict(
-            project_options=project_options,
-            selected_project_id=selected_project_id,
-            baseline_options=baseline_options,
-            selected_baseline_id=selected_baseline_id,
-            period_options=period_options,
-            selected_period_key=selected_period_key,
-            view_options=view_options,
-            selected_view_key=selected_view_key,
-        )
+        _selectors = {
+            "project_options": project_options,
+            "selected_project_id": selected_project_id,
+            "baseline_options": baseline_options,
+            "selected_baseline_id": selected_baseline_id,
+            "period_options": period_options,
+            "selected_period_key": selected_period_key,
+            "view_options": view_options,
+            "selected_view_key": selected_view_key,
+        }
+        
 
         if self._dashboard_service is None:
             preview_tables = build_preview_operational_tables()

@@ -99,20 +99,20 @@ class RegisterQueryMixin:
             allowed_project_ids = tuple(
                 sorted(self._user_session.project_ids_for("register.read"))
             )
-        read_kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            allowed_project_ids=allowed_project_ids,
-            project_id=project_id,
-            entry_type=entry_type,
-            status=status,
-            severity=severity,
-            search_text=str(search_text or "").strip(),
-            as_of=as_of or date.today(),
-            page=page_request.page,
-            page_size=page_request.page_size,
-            sort=sort,
-        )
+        read_kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "allowed_project_ids": allowed_project_ids,
+            "project_id": project_id,
+            "entry_type": entry_type,
+            "status": status,
+            "severity": severity,
+            "search_text": str(search_text or "").strip(),
+            "as_of": as_of or date.today(),
+            "page": page_request.page,
+            "page_size": page_request.page_size,
+            "sort": sort,
+        }
         result = self._register_catalog_reader.read_page(**read_kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page,

@@ -284,18 +284,19 @@ class TimesheetService(
             default_key="resource",
             default_direction=ReadSortDirection.ASCENDING,
         )
-        kwargs = dict(
-            scope=resolved_scope,
-            actor_user_id=actor_user_id,
-            explicit_team_project_ids=self._team_project_ids(),
-            tenant_id=tenant_id,
-            organization_id=organization_id,
-            criteria=TimesheetResourceSelectorCriteria(
+        kwargs = {
+            "scope": resolved_scope,
+            "actor_user_id": actor_user_id,
+            "explicit_team_project_ids": self._team_project_ids(),
+            "tenant_id": tenant_id,
+            "organization_id": organization_id,
+            "criteria": TimesheetResourceSelectorCriteria(
                 search_text=str(search_text or "").strip(), sort=sort
             ),
-            page=request.page,
-            page_size=request.page_size,
-        )
+            "page": request.page,
+            "page_size": request.page_size,
+        }
+       
         result = self._timesheet_workspace_reader.read_resource_page(**kwargs)  # type: ignore[union-attr]
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.total
@@ -456,21 +457,22 @@ class TimesheetService(
             default_key="date",
             default_direction=ReadSortDirection.DESCENDING,
         )
-        kwargs = dict(
-            resource=resource,
-            tenant_id=tenant_id,
-            organization_id=organization_id,
-            visible_project_ids=visible_ids,
-            criteria=TimesheetEntryCriteria(
+        kwargs = {
+            "resource": resource,
+            "tenant_id": tenant_id,
+            "organization_id": organization_id,
+            "visible_project_ids": visible_ids,
+            "criteria": TimesheetEntryCriteria(
                 period_start=period_start,
                 search_text=str(search_text or "").strip(),
                 project_id=normalized_project_id,
                 task_id=str(task_id or "").strip() or None,
                 sort=sort,
             ),
-            page=request.page,
-            page_size=request.page_size,
-        )
+            "page": request.page,
+            "page_size": request.page_size,
+        }
+        
         result = self._timesheet_workspace_reader.read_entries(**kwargs)  # type: ignore[union-attr]
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.total
@@ -509,14 +511,14 @@ class TimesheetService(
             scope=scope, resource_id=resource_id, operation_label="list Timesheet history"
         )
         request = PageRequest(page=page, page_size=page_size)
-        kwargs = dict(
-            resource=resource,
-            tenant_id=tenant_id,
-            organization_id=organization_id,
-            criteria=TimesheetHistoryCriteria(),
-            page=request.page,
-            page_size=request.page_size,
-        )
+        kwargs = {
+            "resource": resource,
+            "tenant_id": tenant_id,
+            "organization_id": organization_id,
+            "criteria": TimesheetHistoryCriteria(),
+            "page": request.page,
+            "page_size": request.page_size,
+        }
         result = self._timesheet_workspace_reader.read_history(**kwargs)  # type: ignore[union-attr]
         return replace(
             result,
@@ -764,11 +766,11 @@ class TimesheetService(
             operation_label="view timesheet review queue"
         )
         allowed_project_ids = self._review_allowed_project_ids()
-        read_kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            allowed_project_ids=allowed_project_ids,
-            criteria=TimesheetReviewCriteria(
+        read_kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "allowed_project_ids": allowed_project_ids,
+            "criteria": TimesheetReviewCriteria(
                 status=status,
                 search_text=str(search_text or "").strip(),
                 project_id=str(project_id or "").strip() or None,
@@ -777,9 +779,10 @@ class TimesheetService(
                 period_start_to=period_start_to,
                 sort=sort,
             ),
-            page=page_request.page,
-            page_size=page_request.page_size,
-        )
+            "page": page_request.page,
+            "page_size": page_request.page_size,
+        }
+        
         result = self._timesheet_review_reader.read_page(**read_kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page,

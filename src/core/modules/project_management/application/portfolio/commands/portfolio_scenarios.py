@@ -92,12 +92,8 @@ class PortfolioScenarioCommandMixin:
         candidate = replace(
             scenario,
             name=scenario.name if changes.get("name") is None else changes["name"],
-            budget_limit=scenario.budget_limit if "budget_limit" not in changes else changes["budget_limit"],
-            capacity_limit_percent=(
-                scenario.capacity_limit_percent
-                if "capacity_limit_percent" not in changes
-                else changes["capacity_limit_percent"]
-            ),
+            budget_limit=changes.get("budget_limit", scenario.budget_limit),
+            capacity_limit_percent=changes.get("capacity_limit_percent", scenario.capacity_limit_percent),
             project_ids=(
                 scenario.project_ids
                 if "project_ids" not in changes or changes["project_ids"] is None

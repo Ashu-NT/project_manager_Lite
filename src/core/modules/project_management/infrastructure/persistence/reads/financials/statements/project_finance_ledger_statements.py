@@ -18,7 +18,7 @@ from .finance_snapshot_statements import (
 
 def project_finance_ledger_relation(*, tenant_id, organization_id, project_id, as_of,
                             project_currency, forecast_id):
-    scope = dict(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id)
+    scope = {"tenant_id": tenant_id, "organization_id": organization_id, "project_id": project_id}
     timed = dict(**scope, as_of=as_of)
     planned = planned_cost_facts_statement(**timed).order_by(None).subquery()
     actual = actual_cost_facts_statement(**timed).order_by(None).subquery()
@@ -31,18 +31,18 @@ def project_finance_ledger_relation(*, tenant_id, organization_id, project_id, a
 
     def project(source, *, source_key, source_label, reference_type, cost_type, stage,
                 amount, currency_matches, occurred_on, description, **optional):
-        columns = dict(
-            fact_id=source.c.id, task_id=source.c.task_id,
-            resource_id=cast(literal(None), String), description=description,
-            source_key=source_key, source_label=source_label,
-            reference_type=literal(reference_type), cost_type=cost_type,
-            stage=literal(stage), currency_code=literal(project_currency),
-            amount=amount, occurred_on=occurred_on, cost_code_id=source.c.cost_code_id,
-            source_type=func.lower(source_key),
-            financial_period_id=cast(literal(None), String),
-            period_start=cast(literal(None), Date), period_end=cast(literal(None), Date),
-            currency_mismatch_count=case((currency_matches, 0), else_=1),
-        )
+        columns = {
+            "fact_id": source.c.id, "task_id": source.c.task_id,
+            "resource_id": cast(literal(None), String), "description": description,
+            "source_key": source_key, "source_label": source_label,
+            "reference_type": literal(reference_type), "cost_type": cost_type,
+            "stage": literal(stage), "currency_code": literal(project_currency),
+            "amount": amount, "occurred_on": occurred_on, "cost_code_id": source.c.cost_code_id,
+            "source_type": func.lower(source_key),
+            "financial_period_id": cast(literal(None), String),
+            "period_start": cast(literal(None), Date), "period_end": cast(literal(None), Date),
+            "currency_mismatch_count": case((currency_matches, 0), else_=1),
+        }
         columns.update(optional)
         return select(*(value.label(key) for key, value in columns.items())).select_from(source)
 
@@ -90,17 +90,17 @@ def visible_ledger_relation(ledger, *, include_sensitive: bool, as_of: date):
         return ledger
     # Redact/group before counting and paging, never aggregate only a page.
     group = [ledger.c.source_key, ledger.c.source_label, ledger.c.stage, ledger.c.currency_code]
-    replacements = dict(
-        fact_id=literal("restricted:") + ledger.c.source_key + literal(":") + ledger.c.stage,
-        task_id=cast(literal(None), String), resource_id=cast(literal(None), String),
-        description=literal("Restricted labor cost"), reference_type=literal("restricted_finance"),
-        amount=func.sum(ledger.c.amount), occurred_on=literal(as_of),
-        cost_code_id=cast(literal(None), String), source_type=literal("restricted"),
-        financial_period_id=cast(literal(None), String),
-        period_start=cast(literal(None), Date), period_end=cast(literal(None), Date),
-        currency_mismatch_count=func.sum(ledger.c.currency_mismatch_count),
-        cost_type=literal("LABOR"),
-    )
+    replacements = {
+        "fact_id": literal("restricted:") + ledger.c.source_key + literal(":") + ledger.c.stage,
+        "task_id": cast(literal(None), String), "resource_id": cast(literal(None), String),
+        "description": literal("Restricted labor cost"), "reference_type": literal("restricted_finance"),
+        "amount": func.sum(ledger.c.amount), "occurred_on": literal(as_of),
+        "cost_code_id": cast(literal(None), String), "source_type": literal("restricted"),
+        "financial_period_id": cast(literal(None), String),
+        "period_start": cast(literal(None), Date), "period_end": cast(literal(None), Date),
+        "currency_mismatch_count": func.sum(ledger.c.currency_mismatch_count),
+        "cost_type": literal("LABOR"),
+    }
     restricted = select(*(
         replacements.get(column.key, column).label(column.key) for column in ledger.c
     )).where(ledger.c.cost_type == "LABOR").group_by(*group)

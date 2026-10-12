@@ -8,12 +8,6 @@ from time import perf_counter
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
-    APPROVED_TIME_FINANCE_PRINCIPAL_NAME as APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
-)
-from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
-    PROCUREMENT_FINANCE_PRINCIPAL_NAME as PROCUREMENT_FINANCE_PRINCIPAL_NAME,
-)
 from src.core.modules.project_management.infrastructure.composition.bundle import (
     ProjectManagementServiceBundle,
 )

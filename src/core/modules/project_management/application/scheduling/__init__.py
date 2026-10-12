@@ -46,38 +46,30 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 )
 
 __all__ = [
-    # Models
-    "CPMTaskInfo",
-    "ResourceConflict",
-    "ResourceConflictEntry",
-    # CPM
+    "BaselineComparisonReport",
+    "BaselineComparisonService",
+    "BaselineService",
+    "BoundProjectCalendar",
     "CPMResult",
-    "run_cpm",
+    "CPMTaskInfo",
+    "CalendarProtocol",
     "ConstraintType",
     "ConstraintValidationResult",
     "ConstraintValidator",
     "ConstraintViolation",
+    "GlobalCalendarShim",
+    "ProjectCalendarAdapter",
+    "ResourceConflict",
+    "ResourceConflictEntry",
+    "ResourceLevelingPlanner",
+    "ScheduleChangeImpactReport",
+    "ScheduleChangeImpactService",
+    "SchedulingEngine",
+    "TaskImpact",
+    "TaskVariance",
     "build_project_dependency_graph",
     "build_schedule_result",
     "run_backward_pass",
+    "run_cpm",
     "run_forward_pass",
-    # Leveling
-    "ResourceLevelingPlanner",
-    # Calendars
-    "BoundProjectCalendar",
-    "ProjectCalendarAdapter",
-    # Baselines
-    "BaselineComparisonReport",
-    "BaselineComparisonService",
-    "BaselineService",
-    "TaskVariance",
-    # Forecasting
-    "ScheduleChangeImpactReport",
-    "ScheduleChangeImpactService",
-    "TaskImpact",
-    # Main service
-    "SchedulingEngine",
-    # Platform re-exports (kept for backward compat)
-    "CalendarProtocol",
-    "GlobalCalendarShim",
 ]

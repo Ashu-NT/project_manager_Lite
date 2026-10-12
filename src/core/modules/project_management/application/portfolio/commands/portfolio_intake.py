@@ -133,11 +133,7 @@ class PortfolioIntakeCommandMixin:
                 if changes.get("requested_capacity_percent") is None
                 else changes["requested_capacity_percent"]
             ),
-            target_start_date=(
-                item.target_start_date
-                if "target_start_date" not in changes
-                else changes["target_start_date"]
-            ),
+            target_start_date=changes.get("target_start_date", item.target_start_date),
             strategic_score=(
                 item.strategic_score
                 if changes.get("strategic_score") is None

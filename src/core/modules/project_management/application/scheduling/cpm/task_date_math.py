@@ -126,8 +126,10 @@ def apply_actual_date_constraints(
             fixed_es = fixed_ef
         return fixed_es, fixed_ef
 
-    if a_start is not None:
-        if est is None or a_start > est:
+    if (
+        a_start is not None
+        and (est is None or a_start > est)
+    ):
             est = a_start
             eft = est if duration_days <= 0 else calendar.add_working_days(est, duration_days)
 
@@ -282,13 +284,19 @@ def apply_backward_scheduling_constraints(
     lst = est if actual_start is not None else raw_lst
     lft = raw_lft
 
-    if ct == ConstraintType.START_NO_LATER_THAN and actual_start is None:
-        if lst is not None and cd is not None and lst > cd:
+    if (
+        ct == ConstraintType.START_NO_LATER_THAN 
+        and actual_start is None
+        and lst is not None 
+        and cd is not None and lst > cd
+    ):
             lst = cd
             lft = shift_working_days(calendar, lst, duration - 1) if duration > 0 else lst
 
-    if ct == ConstraintType.FINISH_NO_LATER_THAN:
-        if lft is not None and cd is not None and lft > cd:
+    if (ct == ConstraintType.FINISH_NO_LATER_THAN
+        and lft is not None and cd is not None 
+        and lft > cd
+    ):
             lft = cd
             if actual_start is None:
                 lst = shift_working_days(calendar, lft, -(duration - 1)) if duration > 0 else lft

@@ -28,14 +28,8 @@ from src.core.modules.project_management.application.financials import (
     ProjectRateCardService,
     RateCardResolver,
 )
-from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
-    APPROVED_TIME_FINANCE_PRINCIPAL_NAME as APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
-)
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
-)
-from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
-    PROCUREMENT_FINANCE_PRINCIPAL_NAME as PROCUREMENT_FINANCE_PRINCIPAL_NAME,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService

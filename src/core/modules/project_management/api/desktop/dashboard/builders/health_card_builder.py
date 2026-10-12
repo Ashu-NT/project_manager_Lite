@@ -5,6 +5,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+import logging
+
 from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
     overloaded_resource_count,
     peak_utilization_percent,
@@ -18,6 +20,8 @@ from src.core.modules.project_management.api.desktop.dashboard.formatters.number
 from src.core.modules.project_management.api.desktop.dashboard.models.health_cards import (
     ProjectDashboardHealthCardDescriptor,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def build_preview_health_cards() -> tuple[ProjectDashboardHealthCardDescriptor, ...]:
@@ -46,6 +50,7 @@ def build_baseline_variance_card(
     try:
         approved = baseline_service.get_approved_baseline(project_id)
     except Exception:
+        logger.exception("Failed to load approved baseline for project_id=%s", project_id)
         approved = None
     if approved is None:
         return ProjectDashboardHealthCardDescriptor(
@@ -58,6 +63,7 @@ def build_baseline_variance_card(
     try:
         records = tuple(baseline_service.list_variance_records(approved.id) or [])
     except Exception:
+        logger.exception("Failed to load variance records for baseline_id=%s", approved.id)
         records = ()
     behind = sum(1 for r in records if getattr(r, "finish_variance_days", 0) > 0)
     ahead = sum(1 for r in records if getattr(r, "finish_variance_days", 0) < 0)

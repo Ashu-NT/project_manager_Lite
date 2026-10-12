@@ -80,16 +80,17 @@ class ResourceQueryMixin:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="list resource catalog"
         )
-        read_kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            search_text=str(search_text or "").strip(),
-            active=active,
-            category=category,
-            page=page_request.page,
-            page_size=page_request.page_size,
-            sort=sort,
-        )
+        read_kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "search_text": str(search_text or "").strip(),
+            "active": active,
+            "category": category,
+            "page": page_request.page,
+            "page_size": page_request.page_size,
+            "sort": sort,
+        }
+        
         result = self._resource_catalog_reader.read_page(**read_kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page,

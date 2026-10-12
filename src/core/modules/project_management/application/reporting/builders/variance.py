@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from src.core.modules.project_management.application.dashboard.models.report_models import (
     TaskVarianceRow,
 )
@@ -11,6 +13,8 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.platform.common.exceptions import NotFoundError
+
+logger = logging.getLogger(__name__)
 
 
 class ReportingVarianceMixin:
@@ -42,7 +46,8 @@ class ReportingVarianceMixin:
             cp = self.get_critical_path(project_id)
             critical_ids = {info.task.id for info in cp}
         except Exception:
-            pass
+            logger.exception("Failed to resolve critical path project_id=%s",
+                            project_id,)
 
         rows: list[TaskVarianceRow] = []
         for bt in b_tasks:

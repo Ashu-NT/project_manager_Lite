@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.domain.risk.register import RegisterEntry
@@ -32,8 +32,8 @@ class RegisterCatalogReadPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    summary: RegisterCatalogSummary = RegisterCatalogSummary()
-    sort: ReadSort = ReadSort("triage")
+    summary: RegisterCatalogSummary = field(default_factory=RegisterCatalogSummary)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("triage"))
 
 
 __all__ = [

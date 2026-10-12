@@ -88,6 +88,8 @@ class ProjectCalendarAdapter:
         except Exception:
             # Don't let this fast-path optimization itself become a new
             # failure mode -- fall through to the real (slower) resolution.
+            logger.exception("Failed to check calendar chain project_id=%s at_date=%s",
+                             project_id, at_date)
             return True
 
     def get_context(
@@ -111,6 +113,8 @@ class ProjectCalendarAdapter:
             return sum(1 for d in days if d.available_hours > 0)
         except Exception:
             # Fallback: day-by-day (safe but slower)
+            logger.exception("Failed to resolve range for project_id=%s start=%s end=%s; falling back to day-by-day check",
+                             project_id, start, end)
             count = 0
             current = start
             while current <= end:
@@ -235,6 +239,10 @@ class ProjectCalendarAdapter:
                 return None
             return BoundProjectCalendar(self, project_id)
         except Exception:
+            logger.exception(
+                "Failed to bind project calendar for project_id=%s; falling back to WorkCalendarEngine",
+                project_id,
+            )   
             return None
 
 

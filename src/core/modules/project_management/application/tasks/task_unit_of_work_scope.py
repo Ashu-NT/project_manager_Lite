@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Self
 
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectResourceRepository,
@@ -55,7 +55,7 @@ class TaskParticipantUnitOfWork:
     def commit(self) -> None:
         return None
 
-    def __enter__(self) -> TaskParticipantUnitOfWork:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

@@ -95,18 +95,18 @@ class ResourceContextQueryHandler:
             default_key="projectName",
         )
         scope = self._active_scope("view resource projects")
-        kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            resource_id=str(resource_id or "").strip(),
-            allowed_project_ids=self._project_scope_for("project.read"),
-            search_text=str(search_text or "").strip(),
-            active=active,
-            status=status,
-            page=request.page,
-            page_size=request.page_size,
-            sort=sort,
-        )
+        kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "resource_id": str(resource_id or "").strip(),
+            "allowed_project_ids": self._project_scope_for("project.read"),
+            "search_text": str(search_text or "").strip(),
+            "active": active,
+            "status": status,
+            "page": request.page,
+            "page_size": request.page_size,
+            "sort": sort,
+        }
         result = self._resource_projects_reader.read_projects_page(**kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total
@@ -161,22 +161,22 @@ class ResourceContextQueryHandler:
             normalized_lifecycle = "current"
         normalized_assignment_status = str(assignment_status or "").strip().lower() or None
         scope = self._active_scope("view resource assignments")
-        kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            resource_id=str(resource_id or "").strip(),
-            allowed_project_ids=self._project_scope_for("task.read"),
-            search_text=str(search_text or "").strip(),
-            project_id=str(project_id or "").strip() or None,
-            task_status=task_status,
-            assignment_status=normalized_assignment_status,
-            lifecycle=normalized_lifecycle,
-            start_date=start_date,
-            end_date=end_date,
-            page=request.page,
-            page_size=request.page_size,
-            sort=sort,
-        )
+        kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "resource_id": str(resource_id or "").strip(),
+            "allowed_project_ids": self._project_scope_for("task.read"),
+            "search_text": str(search_text or "").strip(),
+            "project_id": str(project_id or "").strip() or None,
+            "task_status": task_status,
+            "assignment_status": normalized_assignment_status,
+            "lifecycle": normalized_lifecycle,
+            "start_date": start_date,
+            "end_date": end_date,
+            "page": request.page,
+            "page_size": request.page_size,
+            "sort": sort,
+        }
         result = self._resource_assignments_reader.read_assignments_page(**kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total
@@ -213,18 +213,18 @@ class ResourceContextQueryHandler:
         }:
             normalized_category = "all"
         scope = self._active_scope("view resource activity")
-        kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            resource_id=str(resource_id or "").strip(),
-            allowed_project_ids=self._project_scope_for("project.read"),
-            allowed_task_project_ids=self._project_scope_for("task.read"),
-            category=normalized_category,
-            start_date=start_date,
-            end_date=end_date,
-            page=request.page,
-            page_size=request.page_size,
-        )
+        kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "resource_id": str(resource_id or "").strip(),
+            "allowed_project_ids": self._project_scope_for("project.read"),
+            "allowed_task_project_ids": self._project_scope_for("task.read"),
+            "category": normalized_category,
+            "start_date": start_date,
+            "end_date": end_date,
+            "page": request.page,
+            "page_size": request.page_size,
+        }
         result = self._resource_activity_reader.read_activity_page(**kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total

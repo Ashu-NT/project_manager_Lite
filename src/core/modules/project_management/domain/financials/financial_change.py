@@ -393,8 +393,10 @@ class FinancialChangeImpact:
             FinancialChangeImpactType.BUDGET,
             FinancialChangeImpactType.FORECAST,
         }
-        if self.impact_type in monetary:
-            if self.amount == 0 or not self.currency_code or not self.cost_code_id:
+        if (
+            self.impact_type in monetary
+            and( self.amount == 0 or not self.currency_code or not self.cost_code_id)
+        ):
                 raise ValidationError(
                     "Monetary change impacts require a non-zero amount, currency, and cost code.",
                     code="FINANCIAL_CHANGE_IMPACT_MONETARY_FIELDS_REQUIRED",

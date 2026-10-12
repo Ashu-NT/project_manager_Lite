@@ -71,16 +71,16 @@ class ResourceCapabilityQueryHandler:
         }:
             normalized_proficiency = None
         scope = self._capability_scope("view resource skills")
-        kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            resource_id=str(resource_id or "").strip(),
-            search_text=str(search_text or "").strip(),
-            proficiency=normalized_proficiency,
-            page=request.page,
-            page_size=request.page_size,
-            sort=sort,
-        )
+        kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "resource_id": str(resource_id or "").strip(),
+            "search_text": str(search_text or "").strip(),
+            "proficiency": normalized_proficiency,
+            "page": request.page,
+            "page_size": request.page_size,
+            "sort": sort,
+        }
         result = self._resource_capability_reader.read_skills_page(**kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total
@@ -124,17 +124,17 @@ class ResourceCapabilityQueryHandler:
         }:
             normalized_status = None
         scope = self._capability_scope("view resource certifications")
-        kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            resource_id=str(resource_id or "").strip(),
-            search_text=str(search_text or "").strip(),
-            status=normalized_status,
-            as_of=date.today(),
-            page=request.page,
-            page_size=request.page_size,
-            sort=sort,
-        )
+        kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "resource_id": str(resource_id or "").strip(),
+            "search_text": str(search_text or "").strip(),
+            "status": normalized_status,
+            "as_of": date.today(),
+            "page": request.page,
+            "page_size": request.page_size,
+            "sort": sort,
+        }
         result = self._resource_capability_reader.read_certifications_page(**kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import logging
 
 from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
     coerce_utc_datetime,
@@ -14,6 +15,8 @@ from src.core.modules.project_management.api.desktop.dashboard.models.activity_f
     ProjectDashboardActivityFeedDescriptor,
     ProjectDashboardActivityItemDescriptor,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def build_preview_activity_feed() -> ProjectDashboardActivityFeedDescriptor:
@@ -41,6 +44,8 @@ def build_activity_feed(
             limit=120,
         )
     except Exception:
+        logger.exception("Failed to load recent activity for project_id=%s, period=%s",
+                         project_id, selected_period_key,)
         return ProjectDashboardActivityFeedDescriptor(
             title="Recent Activity",
             subtitle="Activity feed is unavailable for the current session.",

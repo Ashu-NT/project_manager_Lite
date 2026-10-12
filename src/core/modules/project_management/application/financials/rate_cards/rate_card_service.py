@@ -493,8 +493,10 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
                 "immutable; end-date it for the future and add a new Rate Line.",
                 code="RATE_CARD_LINE_HISTORICAL_IMMUTABLE",
             )
-        if candidate.effective_to != current.effective_to:
-            if candidate.effective_to is None or candidate.effective_to < date.today():
+        if (
+            candidate.effective_to != current.effective_to
+            and (candidate.effective_to is None or candidate.effective_to < date.today())
+        ):
                 raise BusinessRuleError(
                     "A consumed Rate Line may only be end-dated today or in the future.",
                     code="RATE_CARD_LINE_HISTORICAL_END_DATE_INVALID",

@@ -56,6 +56,7 @@ from src.core.platform.application.master_data.department.department_service imp
     DepartmentService,
 )
 from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.common.exceptions import UnsupportedOperationError
 
 
 class ProjectManagementProjectsDesktopApi:
@@ -421,7 +422,7 @@ class ProjectManagementProjectsDesktopApi:
         service = self._require_project_resource_service()
         add_fn = getattr(service, "add_to_project", None) or getattr(service, "create", None)
         if not callable(add_fn):
-            raise RuntimeError("Project resource service does not support project assignment.")
+            raise UnsupportedOperationError("Project resource service does not support project assignment.")
         project_resource = add_fn(
             project_id=normalized_project_id,
             resource_id=normalized_resource_id,
@@ -443,7 +444,7 @@ class ProjectManagementProjectsDesktopApi:
         service = self._require_project_resource_service()
         update = getattr(service, "update", None)
         if not callable(update):
-            raise RuntimeError("Project resource service does not support updates.")
+            raise UnsupportedOperationError("Project resource service does not support updates.")
         update(
             normalized_id,
             hourly_rate=command.hourly_rate,
@@ -470,19 +471,19 @@ class ProjectManagementProjectsDesktopApi:
         service = self._require_project_resource_service()
         delete = getattr(service, "delete", None)
         if not callable(delete):
-            raise RuntimeError("Project resource service does not support deletion.")
+            raise UnsupportedOperationError("Project resource service does not support deletion.")
         delete(normalized_id)
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _require_project_service(self) -> ProjectService:
         if self._project_service is None:
-            raise RuntimeError("Project management projects desktop API is not connected.")
+            raise UnsupportedOperationError("Project management projects desktop API is not connected.")
         return self._project_service
 
     def _require_project_resource_service(self) -> ProjectResourceService:
         if self._project_resource_service is None:
-            raise RuntimeError("Project management project-resource desktop API is not connected.")
+            raise UnsupportedOperationError("Project management project-resource desktop API is not connected.")
         return self._project_resource_service
 
     def _site_lookup(self) -> dict[str, str]:

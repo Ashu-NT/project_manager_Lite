@@ -6,6 +6,8 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
+import logging
+
 from src.core.modules.project_management.api.desktop.dashboard.formatters.number_formatter import (
     fmt_float,
     fmt_int,
@@ -19,6 +21,8 @@ from src.core.modules.project_management.api.desktop.dashboard.models.charts imp
     ProjectDashboardChartDescriptor,
     ProjectDashboardChartPointDescriptor,
 )
+
+logger = logging.getLogger(__name__)
 
 _PT = ProjectDashboardChartPointDescriptor
 
@@ -76,6 +80,7 @@ def _filtered_evm_series(*, project_id: str, baseline_id: str | None, selected_p
             return ()
         series = tuple(get_series(project_id, baseline_id=baseline_id or None, as_of=date.today()) or ())
     except Exception:
+        logger.exception("Failed to load EVM series for project_id=%s, baseline_id=%s, period=%s", project_id, baseline_id, selected_period_key,)
         return ()
     cutoff = period_cutoff_date(selected_period_key)
     if cutoff is None:
@@ -96,14 +101,12 @@ def _build_portfolio_status_chart(*, dashboard_data: Any) -> ProjectDashboardCha
 
 def _build_portfolio_cost_chart(*, dashboard_data: Any) -> ProjectDashboardChartDescriptor:
     rankings = sorted(
-        tuple(
             getattr(
                 getattr(dashboard_data, "portfolio", None),
                 "project_rankings",
                 [],
             )
-            or []
-        ),
+            or [],
         key=lambda row: abs(row.cost_variance or 0),
         reverse=True,
     )

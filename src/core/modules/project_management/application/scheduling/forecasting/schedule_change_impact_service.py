@@ -214,7 +214,7 @@ class ScheduleChangeImpactService:
         orig_critical: set[str] = set(original.critical_path_task_ids)
         prop_critical: set[str] = set(proposed.critical_path_task_ids)
 
-        for task_id in tasks_by_id:
+        for task_id, task in tasks_by_id.items():
             orig_info = original.schedule.get(task_id)
             prop_info = proposed.schedule.get(task_id)
             if orig_info is None or prop_info is None:
@@ -233,7 +233,7 @@ class ScheduleChangeImpactService:
 
             affected.append(TaskImpact(
                 task_id=task_id,
-                task_name=tasks_by_id[task_id].name,
+                task_name=task.name,
                 original_start=orig_s,
                 original_finish=orig_f,
                 proposed_start=prop_s,
@@ -241,7 +241,7 @@ class ScheduleChangeImpactService:
                 start_shift_days=start_shift,
                 finish_shift_days=finish_shift,
                 is_critical=(task_id in prop_critical),
-                is_milestone=bool(getattr(tasks_by_id[task_id], "is_milestone", False)),
+                is_milestone=bool(getattr(task, "is_milestone", False)),
             ))
 
         orig_ef = original.project_early_finish

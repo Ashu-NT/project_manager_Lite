@@ -59,8 +59,8 @@ class ProjectCatalogReadPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    summary: ProjectCatalogSummary = ProjectCatalogSummary()
-    sort: ReadSort = ReadSort("title")
+    summary: ProjectCatalogSummary = field(default_factory=ProjectCatalogSummary)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("title"))
     approved_budget_visible: bool = False
 
 
@@ -108,7 +108,7 @@ class ProjectResourceDetailPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("resourceName")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("resourceName"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,7 +130,7 @@ class ProjectActivityPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("occurredAt")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("occurredAt"))
     reference_labels: dict[str, dict[str, str]] = field(default_factory=dict)
 
 

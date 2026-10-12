@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import logging
+
 from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
     fmt_date,
 )
@@ -20,6 +22,8 @@ from src.core.modules.project_management.api.desktop.dashboard.models.panels imp
     ProjectDashboardPanelDescriptor,
     ProjectDashboardPanelRowDescriptor,
 )
+
+logger = logging.getLogger(__name__)
 
 _PREVIEW_MSG = "Project-management dashboard desktop API is not connected in this QML preview."
 
@@ -135,6 +139,7 @@ def _build_baseline_variance_panel(*, selected_baseline_id: str, portfolio_mode:
     try:
         records = baseline_service.list_variance_records(selected_baseline_id)
     except Exception:
+        logger.exception("Failed to load variance records for baseline_id=%s", selected_baseline_id)
         records = []
     if not records:
         return ProjectDashboardPanelDescriptor(title="Baseline Variance", subtitle="Task schedule and cost drift between baselines.", empty_state="No variance records found for the selected baseline.")

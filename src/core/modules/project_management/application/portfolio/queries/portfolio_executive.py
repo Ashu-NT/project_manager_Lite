@@ -353,7 +353,6 @@ class PortfolioExecutiveQueryMixin:
                 getattr(row, "action", None)
                 or (getattr(row, "metadata", None) or {}).get("action")
                 or f"{entity_type}.{getattr(row, 'operation', 'update')}"
-                or ""
             )
             rows.append(
                 PortfolioRecentAction(

@@ -79,15 +79,13 @@ def _enum_value(value: object) -> str:
 
 def _activity_category(action: str) -> str:
     normalized = str(action or "").lower()
-    if normalized.startswith("resource.skill") or normalized.startswith(
-        "resource.certification"
-    ):
+    if normalized.startswith(("resource.skill", "resource.certification")):
         return "capability"
     if normalized.startswith("project_resource"):
         return "projects"
     if normalized.startswith("assignment"):
         return "assignments"
-    if normalized.startswith("time") or normalized.startswith("timesheet"):
+    if normalized.startswith(("time", "timesheet")):
         return "work"
     return "resource"
 

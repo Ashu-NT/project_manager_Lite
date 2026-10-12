@@ -48,8 +48,11 @@ def find_dependency_actual_variances(
             continue
 
         actual_start = getattr(task, "actual_start", None)
-        if actual_start is not None and info.dependency_implied_start is not None:
-            if actual_start < info.dependency_implied_start:
+        if (
+            actual_start is not None 
+            and info.dependency_implied_start is not None
+            and actual_start < info.dependency_implied_start
+        ):
                 variances.append(
                     _variance(
                         calendar,
@@ -61,12 +64,15 @@ def find_dependency_actual_variances(
                 )
 
         actual_finish = getattr(task, "actual_end", None)
-        if actual_finish is not None and info.dependency_implied_finish is not None:
-            if actual_finish < info.dependency_implied_finish:
-                variances.append(
-                    _variance(
-                        calendar,
-                        task,
+        if (
+            actual_finish is not None 
+            and info.dependency_implied_finish is not None
+            and actual_finish < info.dependency_implied_finish
+        ):
+            variances.append(
+                _variance(
+                    calendar,
+                    task,
                         direction="finish",
                         actual_date=actual_finish,
                         required_date=info.dependency_implied_finish,
