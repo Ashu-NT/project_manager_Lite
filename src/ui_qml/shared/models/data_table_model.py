@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import logging
 from time import monotonic
-from typing import Any
+from typing import Any, TypeAlias
 
 from PySide6.QtCore import (
     Property,
     QAbstractTableModel,
     QByteArray,
     QModelIndex,
+    QPersistentModelIndex,
     Qt,
     Signal,
     Slot,
@@ -26,6 +27,11 @@ QML_IMPORT_NAME = "App.Models"
 QML_IMPORT_MAJOR_VERSION = 1
 
 logger = logging.getLogger(__name__)
+
+ModelIndex: TypeAlias = (
+    QModelIndex | QPersistentModelIndex
+)
+
 _LARGE_ROW_WARNING_THRESHOLD = 5_000
 _RESET_STORM_WINDOW_SECONDS = 2.0
 _RESET_STORM_THRESHOLD = 10
@@ -53,25 +59,25 @@ class DynamicTableModel(QAbstractTableModel):
     """
 
     # ── Custom roles ──────────────────────────────────────────────────
-    RawValueRole      = Qt.UserRole + 1
-    RowDataRole       = Qt.UserRole + 2
-    ColumnDataRole    = Qt.UserRole + 3
-    RowIdRole         = Qt.UserRole + 4
-    ColumnKeyRole     = Qt.UserRole + 5
-    ColumnLabelRole   = Qt.UserRole + 6
-    ColumnTypeRole    = Qt.UserRole + 7
-    RowIndexRole      = Qt.UserRole + 8
-    ColumnIndexRole   = Qt.UserRole + 9
-    SortableRole      = Qt.UserRole + 10
-    MinWidthRole      = Qt.UserRole + 11
-    FlexRole          = Qt.UserRole + 12
-    AlignRole         = Qt.UserRole + 13
-    EditableRole      = Qt.UserRole + 14
-    IsRequiredRole    = Qt.UserRole + 15
-    ColumnVisibleRole = Qt.UserRole + 16
-    StatusRole        = Qt.UserRole + 17   # row-level status string (for row tinting)
-    MetadataRole      = Qt.UserRole + 18   # per-row metadata dict (for contextual actions)
-    WidthRole         = Qt.UserRole + 19   # explicit column pixel width override
+    RawValueRole      = Qt.ItemDataRole.UserRole + 1
+    RowDataRole       = Qt.ItemDataRole.UserRole + 2
+    ColumnDataRole    = Qt.ItemDataRole.UserRole + 3
+    RowIdRole         = Qt.ItemDataRole.UserRole + 4
+    ColumnKeyRole     = Qt.ItemDataRole.UserRole + 5
+    ColumnLabelRole   = Qt.ItemDataRole.UserRole + 6
+    ColumnTypeRole    = Qt.ItemDataRole.UserRole + 7
+    RowIndexRole      = Qt.ItemDataRole.UserRole + 8
+    ColumnIndexRole   = Qt.ItemDataRole.UserRole + 9
+    SortableRole      = Qt.ItemDataRole.UserRole + 10
+    MinWidthRole      = Qt.ItemDataRole.UserRole + 11
+    FlexRole          = Qt.ItemDataRole.UserRole + 12
+    AlignRole         = Qt.ItemDataRole.UserRole + 13
+    EditableRole      = Qt.ItemDataRole.UserRole + 14
+    IsRequiredRole    = Qt.ItemDataRole.UserRole + 15
+    ColumnVisibleRole = Qt.ItemDataRole.UserRole + 16
+    StatusRole        = Qt.ItemDataRole.UserRole + 17   # row-level status string (for row tinting)
+    MetadataRole      = Qt.ItemDataRole.UserRole + 18   # per-row metadata dict (for contextual actions)
+    WidthRole         = Qt.ItemDataRole.UserRole + 19   # explicit column pixel width override
 
     # ── Notify signals (must be declared before Property uses them) ───
     rowsChanged      = Signal()
@@ -90,15 +96,15 @@ class DynamicTableModel(QAbstractTableModel):
 
     # ── QAbstractTableModel interface ─────────────────────────────────
 
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
+    def rowCount(self, parent: ModelIndex = QModelIndex()) -> int:  
         return 0 if parent.isValid() else len(self._rows)
 
-    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
+    def columnCount(self, parent: ModelIndex = QModelIndex()) -> int: 
         return 0 if parent.isValid() else len(self._vis_cols)
 
     def roleNames(self) -> dict[int, QByteArray]:
         return {
-            Qt.DisplayRole:           QByteArray(b"display"),
+            Qt.ItemDataRole.DisplayRole:           QByteArray(b"display"),
             self.RawValueRole:        QByteArray(b"rawValue"),
             self.RowDataRole:         QByteArray(b"rowData"),
             self.ColumnDataRole:      QByteArray(b"columnData"),
@@ -120,7 +126,7 @@ class DynamicTableModel(QAbstractTableModel):
             self.WidthRole:           QByteArray(b"columnWidth"),
         }
 
-    def data(self, index: QModelIndex, role: int = Qt.DisplayRole) -> Any:  # type: ignore[override]
+    def data(self, index: ModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:  
         if not index.isValid():
             return None
         r, c = index.row(), index.column()
@@ -137,7 +143,7 @@ class DynamicTableModel(QAbstractTableModel):
         key = col_def.get("key", "")
         raw = row_dict.get(key) if key else None
 
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             return self._to_display(raw, col_def)
         if role == self.RawValueRole:
             return raw
@@ -185,7 +191,7 @@ class DynamicTableModel(QAbstractTableModel):
 
     # ── QML-bindable properties ───────────────────────────────────────
 
-    def _get_rows(self) -> list:
+    def _get_rows(self) -> list[dict[str, Any]]:
         return self._rows
 
     def _set_rows(self, value) -> None:
@@ -217,8 +223,8 @@ class DynamicTableModel(QAbstractTableModel):
         self.endResetModel()
         self.columnsChanged.emit()
 
-    rows          = Property("QVariantList", _get_rows,    _set_rows,    notify=rowsChanged)
-    columns       = Property("QVariantList", _get_columns, _set_columns, notify=columnsChanged)
+    rows          = Property(list, _get_rows,    _set_rows,    notify=rowsChanged)
+    columns       = Property(list, _get_columns, _set_columns, notify=columnsChanged)
     rowCountValue = Property(int, lambda self: len(self._rows), notify=rowCountChanged)
 
     # ── Public controller API ─────────────────────────────────────────
