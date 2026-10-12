@@ -4,6 +4,9 @@ from datetime import date
 
 from sqlalchemy import event
 
+from src.core.modules.project_management.api.desktop.projects.factories.projects_api_factory import (
+    build_project_management_projects_desktop_api,
+)
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
 )
@@ -26,9 +29,9 @@ def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
     beta = project_service.create_project("Beta Upgrade", client_name="Contoso")
     project_service.set_status(beta.id, ProjectStatus.ACTIVE)
 
-    first_page = project_service.query_catalog_page(page=1, page_size=1)
-    second_page = project_service.query_catalog_page(page=2, page_size=1)
-    search_page = project_service.query_catalog_page(
+    first_page = services["project_query"].query_catalog_page(page=1, page_size=1)
+    second_page = services["project_query"].query_catalog_page(page=2, page_size=1)
+    search_page = services["project_query"].query_catalog_page(
         search_text="northwind",
         page=1,
         page_size=25,
@@ -50,7 +53,7 @@ def test_project_and_task_detail_activity_decode_canonical_payloads(services) ->
     project = project_service.create_project("Activity Contract Project")
     task = task_service.create_task(project.id, "Activity Contract Task")
 
-    project_activity = project_service.query_project_activity_page(
+    project_activity = services["project_query"].query_project_activity_page(
         project.id,
         page=1,
         page_size=25,
@@ -121,12 +124,12 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
     )
 
     # Site alone narrows to the three Hamburg-site projects (excludes Rotterdam).
-    site_only = project_service.query_catalog_page(site_id=site_a.id, page=1, page_size=25)
+    site_only = services["project_query"].query_catalog_page(site_id=site_a.id, page=1, page_size=25)
     assert site_only.filtered_total == 3
     assert {row.project.site_id for row in site_only.items} == {site_a.id}
 
     # Manager alone excludes the unassigned "Other Dept" project.
-    manager_only = project_service.query_catalog_page(
+    manager_only = services["project_query"].query_catalog_page(
         manager_user_id=manager_id, page=1, page_size=25
     )
     assert manager_only.filtered_total == 3
@@ -134,7 +137,7 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
 
     # Site + department + manager + start-date range together return exactly
     # the single project matching the full intersection.
-    composed = project_service.query_catalog_page(
+    composed = services["project_query"].query_catalog_page(
         site_id=site_a.id,
         department_id=dept_a.id,
         manager_user_id=manager_id,
@@ -147,14 +150,14 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
     assert composed.items[0].project.id == match.id
 
     # Department alone still returns both dept_a projects across sites.
-    department_only = project_service.query_catalog_page(
+    department_only = services["project_query"].query_catalog_page(
         department_id=dept_a.id, page=1, page_size=25
     )
     assert department_only.filtered_total == 3
 
     # A start-date range excluding the out-of-range project proves the range
     # predicate is applied, not merely accepted and ignored.
-    date_ranged = project_service.query_catalog_page(
+    date_ranged = services["project_query"].query_catalog_page(
         department_id=dept_a.id,
         start_date_from=date(2026, 1, 1),
         start_date_to=date(2026, 12, 31),
@@ -228,24 +231,24 @@ def test_project_catalog_project_name_and_client_name_filters_compose(services) 
     project_service.create_project("Rotterdam Refit", client_name="Northwind Shipping")
 
     # Project name alone narrows to both "Hamburg" projects regardless of client.
-    by_name = project_service.query_catalog_page(project_name="hamburg", page=1, page_size=25)
+    by_name = services["project_query"].query_catalog_page(project_name="hamburg", page=1, page_size=25)
     assert by_name.filtered_total == 2
     assert all("hamburg" in row.project.name.lower() for row in by_name.items)
 
     # Client name alone narrows to both Northwind projects regardless of site/name.
-    by_client = project_service.query_catalog_page(client_name="northwind", page=1, page_size=25)
+    by_client = services["project_query"].query_catalog_page(client_name="northwind", page=1, page_size=25)
     assert by_client.filtered_total == 2
     assert all((row.project.client_name or "").lower() == "northwind shipping" for row in by_client.items)
 
     # Composed AND: only the single project matching both narrows to it.
-    composed = project_service.query_catalog_page(
+    composed = services["project_query"].query_catalog_page(
         project_name="hamburg", client_name="northwind", page=1, page_size=25
     )
     assert composed.filtered_total == 1
     assert composed.items[0].project.id == hamburg.id
 
     # No match anywhere -> zero results, not an error.
-    no_match = project_service.query_catalog_page(project_name="nonexistent-xyz", page=1, page_size=25)
+    no_match = services["project_query"].query_catalog_page(project_name="nonexistent-xyz", page=1, page_size=25)
     assert no_match.filtered_total == 0
 
 
@@ -327,22 +330,22 @@ def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
     beta = project_service.create_project("Beta Sort")
     gamma = project_service.create_project("Gamma Sort")
 
-    ascending_first = project_service.query_catalog_page(
+    ascending_first = services["project_query"].query_catalog_page(
         sort_key="title", sort_direction="asc", page=1, page_size=2
     )
-    ascending_second = project_service.query_catalog_page(
+    ascending_second = services["project_query"].query_catalog_page(
         sort_key="title", sort_direction="asc", page=2, page_size=2
     )
-    descending_first = project_service.query_catalog_page(
+    descending_first = services["project_query"].query_catalog_page(
         sort_key="title", sort_direction="desc", page=1, page_size=2
     )
-    descending_second = project_service.query_catalog_page(
+    descending_second = services["project_query"].query_catalog_page(
         sort_key="title", sort_direction="desc", page=2, page_size=2
     )
-    unsupported = project_service.query_catalog_page(
+    unsupported = services["project_query"].query_catalog_page(
         sort_key="arbitrary_sql", sort_direction="desc", page=1, page_size=3
     )
-    beyond_last = project_service.query_catalog_page(
+    beyond_last = services["project_query"].query_catalog_page(
         sort_key="title", sort_direction="asc", page=99, page_size=2
     )
 
@@ -852,6 +855,10 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
 
 
 def test_workspace_page_query_budgets_are_constant(services, session) -> None:
+    projects_api = build_project_management_projects_desktop_api(
+        project_query=services["project_query"],
+        module_catalog_service=services["module_catalog_service"],
+    )
     tasks_api = build_project_management_tasks_desktop_api(
         task_service=services["task_service"],
         task_workspace_query=services["task_workspace_query"],
@@ -868,7 +875,7 @@ def test_workspace_page_query_budgets_are_constant(services, session) -> None:
     try:
         budgets = []
         for query in (
-            lambda: services["project_service"].query_catalog_page(),
+            lambda: projects_api.list_project_page(),
             lambda: tasks_api.list_task_page(),
             lambda: services["resource_service"].query_catalog_page(),
             lambda: services["register_service"].query_catalog_page(),

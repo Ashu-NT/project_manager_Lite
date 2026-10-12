@@ -907,6 +907,21 @@ live PostgreSQL security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation,
 and diff checks passed. A stale composition import of PM worker principal
 names was also corrected to resolve directly from their application owners.
 
+**A4 Project read capability cut (2026-10-12).** PM-owned composition now
+exposes the existing `ProjectQueryHandler` alongside `ProjectService` in a
+typed `ProjectComposition`; the application root and desktop resolver pass
+that same instance to Projects desktop. The adapter checks the PM entitlement
+before read calls, while the query handler keeps project permission and scope
+checks. Projects desktop no longer uses service query forwards or the old
+detail fallback. Seven now-unconsumed ProjectService query forwards were
+removed after test callers migrated to the composed handler. Project command
+operations and the still-used `get_project`/`list_projects` facade reads remain.
+No duplicate handler or session graph was introduced. Portfolio already has
+feature command/query packages; Resource already has master/capability command
+and capability/context query handlers. Those consumers require separate
+guard/transaction characterization before direct injection, not duplicate
+handler creation.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

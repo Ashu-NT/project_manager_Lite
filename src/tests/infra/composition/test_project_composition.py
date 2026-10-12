@@ -139,6 +139,10 @@ def test_task_events_share_one_post_commit_handler_and_fresh_uow(services, sessi
         scoped_session.close()
 
 
+def test_project_query_capability_reuses_the_composed_handler(services) -> None:
+    assert services["project_query"] is services["project_service"]._query_handler
+
+
 def test_timesheet_instance_and_invalidation_subscription_are_shared(services) -> None:
     timesheet = services["timesheet_service"]
     assert services["time_service"] is timesheet

@@ -163,6 +163,7 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
         approval_service=platform_services.approval_service,
         collaboration_service=project_management_services.collaboration_service,
         project_service=project_management_services.project_service,
+        project_query=project_management_services.project_query,
         task_service=project_management_services.task_service,
         task_workspace_query=project_management_services.task_workspace_query,
         task_detail_query=project_management_services.task_detail_query,
@@ -172,6 +173,8 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
         task_time_entries=project_management_services.task_time_entries,
         timesheet_service=project_management_services.timesheet_service,
         resource_service=project_management_services.resource_service,
+        resource_capability_query=project_management_services.resource_capability_query,
+        resource_context_query=project_management_services.resource_context_query,
         finance_governance_commands=(
             project_management_services.finance_governance_commands
         ),

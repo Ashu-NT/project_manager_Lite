@@ -40,12 +40,21 @@ from src.core.modules.project_management.application.financials.governance impor
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.application.reporting import (
     ReportingService,
 )
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
+)
+from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
+    ResourceContextQueryHandler,
+)
+from src.core.modules.project_management.application.resources.queries.skill_queries import (
+    ResourceCapabilityQueryHandler,
 )
 from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
@@ -222,6 +231,7 @@ class ServiceGraph:
     approval_service: ApprovalService
     collaboration_service: CollaborationService
     project_service: ProjectService
+    project_query: ProjectQueryHandler
     task_service: TaskService
     task_workspace_query: TaskWorkspacePageQueryHandler
     task_detail_query: TaskDetailPageQueryHandler
@@ -231,6 +241,8 @@ class ServiceGraph:
     task_time_entries: TaskTimeEntryHandler
     timesheet_service: TimesheetService
     resource_service: ResourceService
+    resource_capability_query: ResourceCapabilityQueryHandler
+    resource_context_query: ResourceContextQueryHandler
     finance_governance_commands: FinanceGovernanceCommandBoundary
     financial_configuration_service: FinancialConfigurationService
     forecast_generation_service: ForecastGenerationService
@@ -314,6 +326,7 @@ class ServiceGraph:
             "approval_service": self.approval_service,
             "collaboration_service": self.collaboration_service,
             "project_service": self.project_service,
+            "project_query": self.project_query,
             "task_service": self.task_service,
             "task_workspace_query": self.task_workspace_query,
             "task_detail_query": self.task_detail_query,
@@ -323,6 +336,8 @@ class ServiceGraph:
             "task_time_entries": self.task_time_entries,
             "timesheet_service": self.timesheet_service,
             "resource_service": self.resource_service,
+            "resource_capability_query": self.resource_capability_query,
+            "resource_context_query": self.resource_context_query,
             "finance_governance_commands": self.finance_governance_commands,
             "financial_configuration_service": self.financial_configuration_service,
             "forecast_generation_service": self.forecast_generation_service,

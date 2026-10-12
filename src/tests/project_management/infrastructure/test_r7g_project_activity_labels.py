@@ -38,7 +38,7 @@ def test_project_activity_resolves_only_page_references_in_bounded_queries(
 
     event.listen(session.bind, "before_cursor_execute", track)
     try:
-        page = services["project_service"].query_project_activity_page(project.id)
+        page = services["project_query"].query_project_activity_page(project.id)
     finally:
         event.remove(session.bind, "before_cursor_execute", track)
 

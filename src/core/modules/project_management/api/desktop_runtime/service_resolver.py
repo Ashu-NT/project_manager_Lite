@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import cast
 
 from src.core.modules.project_management.application.collaboration import (
     CollaborationService,
@@ -22,6 +23,9 @@ from src.core.modules.project_management.application.financials.governance impor
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.application.reporting import (
     ReportingService,
 )
@@ -73,6 +77,7 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 @dataclass(frozen=True)
 class ProjectManagementDesktopRuntimeServices:
     project_service: ProjectService | None
+    project_query: ProjectQueryHandler | None
     portfolio_service: PortfolioService | None
     collaboration_service: CollaborationService | None
     register_service: RegisterService | None
@@ -110,6 +115,7 @@ def resolve_project_management_desktop_runtime_services(
     services: Mapping[str, object],
 ) -> ProjectManagementDesktopRuntimeServices:
     project_service = services.get("project_service")
+    project_query = services.get("project_query")
     portfolio_service = services.get("portfolio_service")
     collaboration_service = services.get("collaboration_service")
     register_service = services.get("register_service")
@@ -150,6 +156,9 @@ def resolve_project_management_desktop_runtime_services(
     return ProjectManagementDesktopRuntimeServices(
         project_service=(
             project_service if isinstance(project_service, ProjectService) else None
+        ),
+        project_query=(
+            project_query if isinstance(project_query, ProjectQueryHandler) else None
         ),
         portfolio_service=(
             portfolio_service
@@ -222,7 +231,7 @@ def resolve_project_management_desktop_runtime_services(
             if isinstance(scheduling_engine, SchedulingEngine)
             else None
         ),
-        work_calendar_engine=work_calendar_engine,
+        work_calendar_engine=cast(CalendarProtocol | None, work_calendar_engine),
         dashboard_service=(
             dashboard_service
             if isinstance(dashboard_service, DashboardService)

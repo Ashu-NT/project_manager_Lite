@@ -80,6 +80,8 @@ def build_project_management_desktop_runtime_apis(
         ),
         project_management_projects=build_project_management_projects_desktop_api(
             project_service=resolved.project_service,
+            project_query=resolved.project_query,
+            module_catalog_service=platform_dependencies.module_catalog_service,
             project_resource_service=resolved.project_resource_service,
             resource_service=resolved.resource_service,
             site_service=platform_dependencies.site_service,

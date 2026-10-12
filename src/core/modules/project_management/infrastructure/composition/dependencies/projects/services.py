@@ -21,6 +21,9 @@ from src.core.modules.project_management.application.projects.queries.project_qu
 from src.core.modules.project_management.infrastructure.composition.context import (
     ProjectManagementRepositoryContext,
 )
+from src.core.modules.project_management.infrastructure.composition.dependencies.projects.bundle import (
+    ProjectComposition,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.projects import (
     SqlAlchemyProjectCatalogReader,
 )
@@ -31,12 +34,12 @@ from src.core.platform.infrastructure.composition.bundle import PlatformServiceB
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkFactoryBase
 
 
-def build_project_service(
+def build_project_capabilities(
     session: Session,
     repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     shared_uow_factory: SqlAlchemyUnitOfWorkFactoryBase,
-) -> ProjectService:
+) -> ProjectComposition:
     project_uow_factory = SqlAlchemyProjectUnitOfWorkFactory(
         session_factory=sessionmaker(bind=platform_services.session.bind, future=True),
         transactional_dispatcher=platform_services.platform_transactional_dispatcher,
@@ -51,7 +54,7 @@ def build_project_service(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
-    return ProjectService(
+    service = ProjectService(
         query_handler=query_handler,
         module_catalog_service=platform_services.module_catalog_service,
         user_session=platform_services.user_session,
@@ -94,3 +97,4 @@ def build_project_service(
             department_repo=repositories.platform.department_repo,
         ),
     )
+    return ProjectComposition(service=service, query=query_handler)

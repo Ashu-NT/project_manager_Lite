@@ -67,7 +67,7 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_portfolio_service,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.projects.services import (
-    build_project_service,
+    build_project_capabilities,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.register.services import (
     build_register_service,
@@ -82,7 +82,7 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_project_resource_service,
     build_resource_planning_foundation,
     build_resource_planning_services,
-    build_resource_service,
+    build_resource_capabilities,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.scheduling.services import (
     build_baseline_service,
@@ -203,12 +203,13 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
-    project_service = build_project_service(
+    project_capabilities = build_project_capabilities(
         session,
         repositories,
         platform_services,
         shared_session_uow_factory,
     )
+    project_service = project_capabilities.service
 
     timesheet_service = build_timesheet_service(
         session,
@@ -264,11 +265,12 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
-    resource_service = build_resource_service(
+    resource_capabilities = build_resource_capabilities(
         session,
         repositories,
         platform_services,
     )
+    resource_service = resource_capabilities.service
     financial_configuration_service = build_financial_configuration_service(
         session,
         repositories,
@@ -500,6 +502,7 @@ def build_project_management_service_bundle(
         time_service=time_service,
         collaboration_service=collaboration_service,
         project_service=project_service,
+        project_query=project_capabilities.query,
         task_service=task_service,
         task_workspace_query=task_capabilities.workspace,
         task_detail_query=task_capabilities.detail,
@@ -509,6 +512,8 @@ def build_project_management_service_bundle(
         task_time_entries=task_capabilities.time_entries,
         timesheet_service=timesheet_service,
         resource_service=resource_service,
+        resource_capability_query=resource_capabilities.capability_query,
+        resource_context_query=resource_capabilities.context_query,
         finance_governance_commands=finance_governance_commands,
         financial_configuration_service=financial_configuration_service,
         forecast_generation_service=forecast_generation_service,

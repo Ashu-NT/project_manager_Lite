@@ -26,11 +26,12 @@ def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -
     )
     assert user_id != resource.id
 
-    candidates = project_service.list_eligible_manager_candidates()
+    candidates = services["project_query"].list_eligible_manager_candidates()
     assert any(row.user_id == user_id and row.display_name == "Manager Employee" for row in candidates)
     assert all(row.user_id != resource.id for row in candidates)
     options = ProjectManagementProjectsDesktopApi(
-        project_service=project_service
+        project_service=project_service,
+        project_query=services["project_query"],
     ).list_manager_candidates()
     assert any(row.user_id == user_id for row in options)
 
@@ -52,7 +53,7 @@ def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -
     )
     assert all(
         row.user_id != user_id
-        for row in project_service.list_eligible_manager_candidates()
+        for row in services["project_query"].list_eligible_manager_candidates()
     )
     with pytest.raises(ValidationError) as inactive_error:
         project_service.create_project("Inactive Manager Resource", manager_user_id=user_id)

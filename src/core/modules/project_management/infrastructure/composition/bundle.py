@@ -33,12 +33,21 @@ from src.core.modules.project_management.application.financials.governance impor
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.application.reporting import (
     ReportingService,
 )
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
+)
+from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
+    ResourceContextQueryHandler,
+)
+from src.core.modules.project_management.application.resources.queries.skill_queries import (
+    ResourceCapabilityQueryHandler,
 )
 from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
@@ -108,6 +117,7 @@ class ProjectManagementServiceBundle:
     time_service: TimeService
     collaboration_service: CollaborationService
     project_service: ProjectService
+    project_query: ProjectQueryHandler
     task_service: TaskService
     task_workspace_query: TaskWorkspacePageQueryHandler
     task_detail_query: TaskDetailPageQueryHandler
@@ -117,6 +127,8 @@ class ProjectManagementServiceBundle:
     task_time_entries: TaskTimeEntryHandler
     timesheet_service: TimesheetService
     resource_service: ResourceService
+    resource_capability_query: ResourceCapabilityQueryHandler
+    resource_context_query: ResourceContextQueryHandler
     finance_governance_commands: FinanceGovernanceCommandBoundary
     financial_configuration_service: FinancialConfigurationService
     forecast_generation_service: ForecastGenerationService

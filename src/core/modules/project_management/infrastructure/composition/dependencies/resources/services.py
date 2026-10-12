@@ -36,6 +36,9 @@ from src.core.modules.project_management.application.resources.queries.resource_
 from src.core.modules.project_management.application.resources.queries.skill_queries import (
     ResourceCapabilityQueryHandler,
 )
+from src.core.modules.project_management.infrastructure.composition.dependencies.resources.bundle import (
+    ResourceComposition,
+)
 from src.core.modules.project_management.infrastructure.composition.context import (
     ProjectManagementRepositoryContext,
 )
@@ -117,11 +120,11 @@ def build_resource_planning_services(
     )
 
 
-def build_resource_service(
+def build_resource_capabilities(
     session: Session,
     repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
-) -> ResourceService:
+) -> ResourceComposition:
     catalog_reader = SqlAlchemyResourceCatalogReader(session=session)
     context_reader = SqlAlchemyResourceContextReader(session=session)
     uow_factory = SqlAlchemyResourceUnitOfWorkFactory(
@@ -131,7 +134,19 @@ def build_resource_service(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
-    return ResourceService(
+    context_query = ResourceContextQueryHandler(
+        resource_projects_reader=context_reader,
+        resource_assignments_reader=context_reader,
+        resource_activity_reader=context_reader,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    capability_query = ResourceCapabilityQueryHandler(
+        resource_capability_reader=context_reader,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    service = ResourceService(
         resource_repo=repositories.pm.resource_repo,
         master_command_handler=ResourceMasterCommandHandler(
             resource_repo=repositories.pm.resource_repo,
@@ -149,22 +164,17 @@ def build_resource_service(
             tenant_context_service=platform_services.tenant_context_service,
             uow_factory=uow_factory,
         ),
-        context_query_handler=ResourceContextQueryHandler(
-            resource_projects_reader=context_reader,
-            resource_assignments_reader=context_reader,
-            resource_activity_reader=context_reader,
-            tenant_context_service=platform_services.tenant_context_service,
-            user_session=platform_services.user_session,
-        ),
-        capability_query_handler=ResourceCapabilityQueryHandler(
-            resource_capability_reader=context_reader,
-            tenant_context_service=platform_services.tenant_context_service,
-            user_session=platform_services.user_session,
-        ),
+        context_query_handler=context_query,
+        capability_query_handler=capability_query,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         resource_catalog_reader=catalog_reader,
         resource_inspector_reader=catalog_reader,
         resource_summary_reader=catalog_reader,
+    )
+    return ResourceComposition(
+        service=service,
+        capability_query=capability_query,
+        context_query=context_query,
     )

@@ -8,6 +8,8 @@ from src.core.modules.project_management.api.desktop.projects.api import (
 def build_project_management_projects_desktop_api(
     *,
     project_service=None,
+    project_query=None,
+    module_catalog_service=None,
     project_resource_service=None,
     resource_service=None,
     site_service=None,
@@ -15,6 +17,8 @@ def build_project_management_projects_desktop_api(
 ) -> ProjectManagementProjectsDesktopApi:
     return ProjectManagementProjectsDesktopApi(
         project_service=project_service,
+        project_query=project_query,
+        module_catalog_service=module_catalog_service,
         project_resource_service=project_resource_service,
         resource_service=resource_service,
         site_service=site_service,
