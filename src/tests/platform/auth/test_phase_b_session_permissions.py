@@ -118,7 +118,7 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
         ts.set_assignment_allocation(assignment.id, 40.0, expected_version=assignment.version)
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ts.set_assignment_hours(assignment.id, 2.0)
+        services["task_assignment_commands"].set_assignment_hours(assignment.id, 2.0)
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         ts.unassign_resource(assignment.id)

@@ -109,6 +109,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
         task_service=task_service,
+        task_assignment_commands=task_service,
         project_resource_service=project_resource_service,
         resource_service=resource_service,
     )

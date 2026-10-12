@@ -664,7 +664,9 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskAssignmentHoursCommand,
     ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_method("set_assignment_hours")(
+        assignment = self._require_task_assignment_commands(
+            operation_label="log assignment hours"
+        ).set_assignment_hours(
             assignment_id=command.assignment_id,
             hours_logged=command.hours_logged,
         )
@@ -1094,13 +1096,15 @@ class ProjectManagementTasksDesktopApi:
         )
         return self._task_dependency_diagnostics
 
-    def _require_task_assignment_commands(self) -> TaskAssignmentCommandHandler:
+    def _require_task_assignment_commands(
+        self, *, operation_label: str = "view task time summary"
+    ) -> TaskAssignmentCommandHandler:
         if self._task_assignment_commands is None:
             raise RuntimeError("Project management tasks desktop API is not connected.")
         require_module_enabled(
             self._module_catalog_service,
             "project_management",
-            operation_label="view task time summary",
+            operation_label=operation_label,
         )
         return self._task_assignment_commands
 

@@ -153,9 +153,6 @@ class TaskService(
     def list_assignments_for_task(self, task_id: str) -> list[TaskAssignment]:
         return self._assignment_handler.list_assignments_for_task(task_id)
 
-    def set_assignment_hours(self, assignment_id: str, hours_logged: Decimal) -> TaskAssignment:
-        return self._assignment_handler.set_assignment_hours(assignment_id, hours_logged)
-
     def set_assignment_allocation(
         self, assignment_id: str, allocation_percent: float, *, expected_version: int
     ) -> TaskAssignment:

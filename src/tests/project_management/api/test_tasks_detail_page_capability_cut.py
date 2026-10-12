@@ -1,7 +1,11 @@
+from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
 
+from src.core.modules.project_management.api.desktop.tasks.commands.assignment_commands import (
+    TaskAssignmentHoursCommand,
+)
 from src.core.modules.project_management.api.desktop.tasks.commands.dependency_commands import (
     TaskDependencyCreateCommand,
     TaskDependencyUpdateCommand,
@@ -55,6 +59,26 @@ def test_task_detail_pages_check_module_before_query_handler(method: str) -> Non
 
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         getattr(api, method)("task-1")
+
+
+def test_assignment_hours_command_checks_module_before_composed_handler() -> None:
+    catalog = SimpleNamespace(
+        get_entitlement=lambda _code: SimpleNamespace(
+            runtime_enabled=False,
+            label="Project Management",
+            lifecycle_status="inactive",
+        )
+    )
+    assignment_commands = SimpleNamespace(
+        set_assignment_hours=lambda *_args, **_kwargs: pytest.fail("command called")
+    )
+    api = build_project_management_tasks_desktop_api(
+        task_assignment_commands=assignment_commands,
+        module_catalog_service=catalog,
+    )
+
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        api.set_assignment_hours(TaskAssignmentHoursCommand("assignment-1", Decimal("2")))
 
 
 def test_dependency_previews_use_composed_handler(services) -> None:

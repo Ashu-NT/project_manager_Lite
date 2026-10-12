@@ -73,7 +73,7 @@ def _setup_report_project(services):
         resource_id=res.id,
     )
     assignment = ts.assign_resource(t1.id, res.id, allocation_percent=50.0)
-    ts.set_assignment_hours(assignment.id, 4.0)
+    services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
 
     baseline = bs.create_baseline(pid, "Baseline Export", rate_as_of=date.today())
     bs.submit_baseline(baseline.id, submitted_by="admin")

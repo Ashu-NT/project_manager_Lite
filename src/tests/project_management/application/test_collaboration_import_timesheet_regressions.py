@@ -151,7 +151,7 @@ def test_initialize_timesheet_is_idempotent_for_legacy_hours(services):
     task = ts.create_task(project.id, "Idempotent Task", start_date=date(2026, 3, 10), duration_days=1)
     resource = rs.create_resource("Idempotent Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=50.0)
-    ts.set_assignment_hours(assignment.id, 4.0)
+    services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
 
     first = ts.initialize_timesheet_for_assignment(assignment.id)
     second = ts.initialize_timesheet_for_assignment(assignment.id)
@@ -171,7 +171,7 @@ def test_add_time_entry_bootstraps_legacy_hours_without_explicit_initialize(serv
     task = ts.create_task(project.id, "Bootstrap Task", start_date=date(2026, 3, 11), duration_days=1)
     resource = rs.create_resource("Implicit Dev", hourly_rate=110.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=75.0)
-    ts.set_assignment_hours(assignment.id, 5.0)
+    services["task_assignment_commands"].set_assignment_hours(assignment.id, 5.0)
 
     ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 12), hours=2.0, note="Follow-up work")
     entries = services["timesheet_service"].list_time_entries_for_assignment(assignment.id)

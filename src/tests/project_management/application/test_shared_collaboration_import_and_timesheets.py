@@ -51,7 +51,7 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
     assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(3.0)
 
     with pytest.raises(ValidationError, match="timesheet"):
-        ts.set_assignment_hours(assignment.id, 10.0)
+        services["task_assignment_commands"].set_assignment_hours(assignment.id, 10.0)
 
 
 def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(services):
@@ -64,7 +64,7 @@ def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(serv
     resource = rs.create_resource("Legacy Logger", hourly_rate=95.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=60.0)
 
-    ts.set_assignment_hours(assignment.id, 4.0)
+    services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
     seeded_entries = ts.initialize_timesheet_for_assignment(assignment.id)
 
     assert len(seeded_entries) == 1
@@ -85,7 +85,7 @@ def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(serv
     assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(6.0)
 
     with pytest.raises(ValidationError, match="timesheet"):
-        ts.set_assignment_hours(assignment.id, 8.0)
+        services["task_assignment_commands"].set_assignment_hours(assignment.id, 8.0)
 
 
 def test_time_entries_capture_platform_work_entry_context_for_employee_resources(services):

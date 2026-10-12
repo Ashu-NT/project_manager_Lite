@@ -143,7 +143,9 @@ def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
             resource_id=resource.id,
             allocation_percent=50.0 + float(idx % 3) * 10.0,
         )
-        ts.set_assignment_hours(assignment.id, 2.0 + float(idx % 5))
+        services["task_assignment_commands"].set_assignment_hours(
+            assignment.id, 2.0 + float(idx % 5)
+        )
         assignment_count += 1
 
     for idx, task in enumerate(tasks):

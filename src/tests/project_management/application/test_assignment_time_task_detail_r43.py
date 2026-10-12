@@ -210,15 +210,12 @@ def test_task_assignment_hours_dialog_qml_file_was_removed():
 
 
 def test_backend_set_assignment_hours_command_is_intentionally_retained(services):
-    """The backend command is kept (not deleted) for non-UI/import paths,
-    but is no longer reachable from any Task Detail QML dialog -- this test
-    documents that decision so a future cleanup pass doesn't delete it by
-    mistake believing it to be dead, nor re-add the UI affordance without
-    revisiting the ownership boundary."""
-    ts = services["task_service"]
+    """The assignment command remains available without a Task Detail dialog."""
     _, _, _, assignment = _setup_assignment(services)
 
-    updated = ts.set_assignment_hours(assignment.id, Decimal("3.5"))
+    updated = services["task_assignment_commands"].set_assignment_hours(
+        assignment.id, Decimal("3.5")
+    )
     assert updated.hours_logged == Decimal("3.5")
 
 
