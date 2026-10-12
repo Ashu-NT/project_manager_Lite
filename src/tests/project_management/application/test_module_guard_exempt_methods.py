@@ -107,7 +107,7 @@ def test_csv_import_capability_consumer_keeps_module_gate() -> None:
         imports.get_import_schema("tasks")
 
 
-def test_resource_capability_query_facade_checks_module_before_handler() -> None:
+def test_resource_commands_facade_checks_module_before_handler() -> None:
     service = ResourceService(
         resource_repo=object(),
         master_command_handler=object(),

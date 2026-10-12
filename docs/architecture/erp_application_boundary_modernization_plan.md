@@ -938,6 +938,9 @@ Mypy and Ruff F/I passed. Pylance/Pyright CLI is not installed in the
 environment, so editor diagnostics were not independently run. A4 remains
 open: TaskService still has 45 methods and 16 constructor inputs, and
 Portfolio/other consumers have not yet been migrated to narrow capabilities.
+The PostgreSQL security slice was invoked but all 14 tests skipped because
+the required live test database was not configured for this run; it is not
+claimed as fresh RLS evidence for this cut.
 
 ## Risk and Verification Matrix
 
