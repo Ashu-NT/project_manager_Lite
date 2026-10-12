@@ -849,6 +849,14 @@ now 628 lines, 62 methods and 25 constructor inputs. Task/UI/composition/
 architecture tests passed 77; live PostgreSQL security/RLS passed 14.
 Scoped Ruff F/I, Mypy, compilation and diff checks passed. A4 remains open.
 
+**A4 unused read-delegate cleanup (2026-10-12).** Removed test-only
+`get_assignment`, `list_time_entries_for_assignment`, and `get_time_entry`
+from TaskService. Tests now use the existing assignment handler or
+TimesheetService. The facade is 619 lines, 59 methods and 25 constructor
+inputs. Migrated tests passed 21; combined Task/API/UI/composition/
+architecture tests passed 94 and live PostgreSQL security/RLS passed 14.
+Scoped Ruff F/I, Mypy, compilation, and diff checks passed. A4 remains open.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

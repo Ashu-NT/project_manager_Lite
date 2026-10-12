@@ -34,8 +34,8 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
         note="Implementation",
     )
 
-    assert len(ts.list_time_entries_for_assignment(assignment.id)) == 2
-    assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(5.5)
+    assert len(services["timesheet_service"].list_time_entries_for_assignment(assignment.id)) == 2
+    assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(5.5)
 
     ts.update_time_entry(
         first.id,
@@ -43,12 +43,12 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
         hours=3.0,
         note="Design workshop",
     )
-    assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(6.0)
+    assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(6.0)
 
     ts.delete_time_entry(second.id, expected_version=second.version)
-    remaining = ts.list_time_entries_for_assignment(assignment.id)
+    remaining = services["timesheet_service"].list_time_entries_for_assignment(assignment.id)
     assert len(remaining) == 1
-    assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(3.0)
+    assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(3.0)
 
     with pytest.raises(ValidationError, match="timesheet"):
         ts.set_assignment_hours(assignment.id, 10.0)
@@ -80,9 +80,9 @@ def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(serv
         note="Testing",
     )
 
-    entries = ts.list_time_entries_for_assignment(assignment.id)
+    entries = services["timesheet_service"].list_time_entries_for_assignment(assignment.id)
     assert len(entries) == 2
-    assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(6.0)
+    assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(6.0)
 
     with pytest.raises(ValidationError, match="timesheet"):
         ts.set_assignment_hours(assignment.id, 8.0)
@@ -229,7 +229,7 @@ def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
         hours=3.0,
         note="April still editable",
     )
-    assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(7.0)
+    assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(7.0)
 
 
 def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):

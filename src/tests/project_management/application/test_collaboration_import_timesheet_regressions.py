@@ -159,7 +159,7 @@ def test_initialize_timesheet_is_idempotent_for_legacy_hours(services):
     assert len(first) == 1
     assert len(second) == 1
     assert first[0].id == second[0].id
-    assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(4.0)
+    assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(4.0)
 
 
 def test_add_time_entry_bootstraps_legacy_hours_without_explicit_initialize(services):
@@ -174,13 +174,13 @@ def test_add_time_entry_bootstraps_legacy_hours_without_explicit_initialize(serv
     ts.set_assignment_hours(assignment.id, 5.0)
 
     ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 12), hours=2.0, note="Follow-up work")
-    entries = ts.list_time_entries_for_assignment(assignment.id)
+    entries = services["timesheet_service"].list_time_entries_for_assignment(assignment.id)
 
     assert len(entries) == 2
     assert entries[0].author_username == "system"
     assert entries[0].hours == pytest.approx(5.0)
     assert entries[1].note == "Follow-up work"
-    assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(7.0)
+    assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(7.0)
 
 
 def test_unassigning_resource_without_actuals_still_succeeds(services):
@@ -195,7 +195,7 @@ def test_unassigning_resource_without_actuals_still_succeeds(services):
 
     ts.unassign_resource(assignment.id)
 
-    assert ts.get_assignment(assignment.id) is None
+    assert services["task_assignment_commands"].get_assignment(assignment.id) is None
 
 
 def test_unassigning_resource_with_actuals_is_blocked_to_preserve_history(services):
@@ -220,7 +220,7 @@ def test_unassigning_resource_with_actuals_is_blocked_to_preserve_history(servic
     assert exc.value.code == "ASSIGNMENT_HAS_HISTORICAL_ACTUALS"
 
     # Neither the assignment nor its time entry were touched.
-    assert ts.get_assignment(assignment.id) is not None
+    assert services["task_assignment_commands"].get_assignment(assignment.id) is not None
     assert _time_entry_count(services) == 1
 
 
@@ -258,7 +258,7 @@ def test_failed_task_delete_rolls_back_time_and_assignment(services, monkeypatch
         tasks.delete_task(task.id)
 
     assert tasks.get_task(task.id) is not None
-    assert tasks.get_assignment(assignment.id) is not None
+    assert services["task_assignment_commands"].get_assignment(assignment.id) is not None
     assert _time_entry_count(services) == 1
 
 

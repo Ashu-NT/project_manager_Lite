@@ -185,9 +185,6 @@ class TaskService(
     def list_assignments_for_task(self, task_id: str) -> list[TaskAssignment]:
         return self._assignment_handler.list_assignments_for_task(task_id)
 
-    def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
-        return self._assignment_handler.get_assignment(assignment_id)
-
     def set_assignment_hours(self, assignment_id: str, hours_logged: Decimal) -> TaskAssignment:
         return self._assignment_handler.set_assignment_hours(assignment_id, hours_logged)
 
@@ -503,18 +500,12 @@ class TaskService(
     def initialize_timesheet_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
         return self._time_entry_handler.initialize_timesheet_for_assignment(assignment_id)
 
-    def list_time_entries_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
-        return self._time_entry_handler.list_time_entries_for_assignment(assignment_id)
-
     def list_time_entries_for_assignment_period(
         self, assignment_id: str, *, period_start: date
     ) -> list[TimeEntry]:
         return self._time_entry_handler.list_time_entries_for_assignment_period(
             assignment_id, period_start=period_start
         )
-
-    def get_time_entry(self, entry_id: str) -> TimeEntry:
-        return self._time_entry_handler.get_time_entry(entry_id)
 
     def add_time_entry(
         self, assignment_id: str, *, entry_date: date, hours: float, note: str = ""

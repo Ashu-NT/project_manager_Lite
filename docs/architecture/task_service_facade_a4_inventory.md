@@ -26,14 +26,14 @@ implementation owner and consumer boundary. Each name is listed explicitly.
 | --- | --- | --- |
 | Command / deletion | `delete_task`, `delete_tasks` | Tasks desktop API; keep guarded facade until API receives explicit command capability. |
 | Command / assignment | `assign_resource`, `assign_project_resource`, `unassign_resource`, `set_assignment_hours`, `set_assignment_allocation`, `update_assignment_planned_hours`, `accept_assignment`, `decline_assignment` | Tasks desktop API and import/test setup; Timesheets desktop uses the composed assignment handler only for a scoped read. Preserve skill/capacity checks and one UoW. |
-| Assignment reads / assignment handler | `list_assignments_for_task`, `get_assignment`, `preview_assignment_capacity`, `get_assignment_action_context` | Tasks/Timesheets desktop APIs and Dashboard; split command/read injection only after module-guard and read permission equivalence is proved. Task Detail's time summary uses the composed handler directly. |
+| Assignment reads / assignment handler | `list_assignments_for_task`, `preview_assignment_capacity`, `get_assignment_action_context` | Tasks/Timesheets desktop APIs and Dashboard; split command/read injection only after module-guard and read permission equivalence is proved. Task Detail's time summary and Timesheets' assignment lookup use the composed handler directly. |
 | Command / dependency | `add_dependency`, `remove_dependency`, `update_dependency` | Tasks/Scheduling desktop APIs; ordinary command path owns its UoW. |
 | Dependency reads / query handler | `get_dependency`, `list_dependencies_for_task`, `list_dependencies_for_project` | Tasks/Scheduling desktop APIs; query handler is already scoped. |
 | Command / lifecycle and WBS | `create_task`, `update_task`, `move_task`, `recode_task` | Tasks desktop API and CSV importer; importer uses several capabilities and may justify one narrow import workflow rather than full TaskService. |
 | Command / constraint and leveling | `update_task_scheduling_constraint`, `build_resource_leveling_preview`, `apply_resource_leveling_plan` | Scheduling desktop API; keep approval-controlled execution distinct from ordinary command UoW. |
 | Command / progress | `set_status`, `set_tasks_status`, `update_progress` | Tasks desktop API and CSV importer; progress handler owns validation/UoW. |
 | Command / hierarchy | `move_task`, `recode_task` | Tasks desktop API and CSV importer; hierarchy handler owns subtree checks/UoW. |
-| Time bridge / time-entry handler | `initialize_timesheet_for_assignment`, `list_time_entries_for_assignment`, `list_time_entries_for_assignment_period`, `get_time_entry`, `add_time_entry`, `update_time_entry`, `delete_time_entry`, `list_timesheet_periods_for_resource`, `list_time_entries_for_resource_period`, `submit_timesheet_period`, `approve_timesheet_period`, `reject_timesheet_period`, `lock_timesheet_period`, `unlock_timesheet_period`, `reopen_approved_timesheet_period_for_correction` | Tasks/Timesheets desktop APIs; preserve Time-owned evidence and timesheet authority; avoid exposing Task UoW as Time UoW. Task Detail's time-entry page uses the composed handler directly. |
+| Time bridge / time-entry handler | `initialize_timesheet_for_assignment`, `list_time_entries_for_assignment_period`, `add_time_entry`, `update_time_entry`, `delete_time_entry`, `list_timesheet_periods_for_resource`, `list_time_entries_for_resource_period`, `submit_timesheet_period`, `approve_timesheet_period`, `reject_timesheet_period`, `lock_timesheet_period`, `unlock_timesheet_period`, `reopen_approved_timesheet_period_for_correction` | Tasks/Timesheets desktop APIs; preserve Time-owned evidence and timesheet authority; avoid exposing Task UoW as Time UoW. Task Detail's time-entry page uses the composed handler directly. |
 | Detail/hierarchy queries | `get_task`, `list_task_hierarchy`, `list_leaf_tasks_for_project`, `get_task_hierarchy_rollup`, `list_task_hierarchy_rollups` | Tasks/Scheduling desktop APIs, dashboard helpers, importers; existing detail/hierarchy handlers are candidates for narrow injection. |
 | Dependency diagnostics queries | `get_dependency_diagnostics`, `preview_dependency_removal` | Tasks/Scheduling desktop APIs; existing diagnostics handler is candidate for narrow injection. |
 | Lookup queries | `list_tasks_for_project` | CSV import and Timesheets desktop now use the lookup handler directly; Tasks/Scheduling desktop APIs use the remaining facade method. The lookup handler enforces task/project permissions; callers retain their module guards. The resource lookups live only on the handler; unused `query_tasks` was retired. |
@@ -183,3 +183,13 @@ lines, 62 methods including `__init__`, and 25 constructor inputs. Task
 Detail, desktop, presenter, composition and architecture regressions passed
 77; live PostgreSQL security/RLS passed 14. Scoped Ruff F/I, Mypy,
 compilation and diff checks passed. A4 remains open.
+
+Three more test-only facade delegates were retired: `get_assignment`,
+`list_time_entries_for_assignment`, and `get_time_entry`. Regression tests
+now query the existing composed assignment handler or authoritative
+TimesheetService rather than preserving TaskService as a read shim. TaskService
+is now 619 lines, 59 methods including `__init__`, and 25 constructor
+inputs. The migrated collaboration/timesheet tests passed 21; the combined
+Task/API/UI/composition/architecture slice passed 94 and live PostgreSQL
+security/RLS passed 14. Scoped Ruff F/I, Mypy, compilation, and diff checks
+passed. A4 remains open.
