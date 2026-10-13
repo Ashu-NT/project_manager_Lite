@@ -14,7 +14,7 @@ commits; the caller owns the commit. Returns the typed
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
     ProjectBaselineCreated,
@@ -54,7 +54,7 @@ class BaselineApprovalParticipant:
                     organization_id=context.organization_id,
                     project_id=project_id,
                     baseline_id=baseline.id,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 ),
             )
         )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.application.resources.task_assignment_capacity_service import (
+from src.core.modules.project_management.application.resources.capacity.task_assignment_capacity_service import (
     CAPACITY_AVAILABLE,
     CAPACITY_NEAR_CAPACITY,
     CAPACITY_OVER_CAPACITY,

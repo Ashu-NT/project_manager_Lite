@@ -53,11 +53,13 @@ def test_curated_feed_covers_organization_site_department_employee_document_even
 
     # Employee: create (assigned) + a NOISE profile update (must be excluded)
     # + deactivate (removed).
-    employee = employee_service.create_employee(employee_code=_unique("EMP-"), full_name="Jane Doe")
+    employee = employee_service.create_employee(
+        employee_code=_unique("EMP-"), full_name="Jane Doe", department_id=department.id
+    )
     employee = employee_service.update_employee(
         employee.id, title="Senior Engineer", expected_version=employee.version
     )
-    employee_service.update_employee(employee.id, is_active=False, expected_version=employee.version)
+    employee_service.deactivate_employee(employee.id)
 
     # Document: create (added) + a NOISE profile update (must be excluded)
     # + deactivate (removed).
@@ -104,15 +106,19 @@ def test_curated_feed_respects_limit_even_with_noise_ahead_of_it(services):
     below the requested limit."""
     organization_service = services["organization_service"]
     employee_service = services["employee_service"]
+    department_service = services["department_service"]
     activity_api = PlatformActivityDesktopApi(activity_service=services["activity_service"])
     org = organization_service.list_organizations()[0]
 
-    employee = employee_service.create_employee(employee_code=_unique("EMP-"), full_name="Noise Test")
+    department = department_service.create_department(department_code=_unique("DEPT-"), name="Operations")
+    employee = employee_service.create_employee(
+        employee_code=_unique("EMP-"), full_name="Noise Test", department_id=department.id
+    )
     for i in range(10):
         employee = employee_service.update_employee(
             employee.id, title=f"Title {i}", expected_version=employee.version
         )
-    employee_service.update_employee(employee.id, is_active=False, expected_version=employee.version)
+    employee_service.deactivate_employee(employee.id)
 
     items = activity_api.list_for_organization_overview(org.id, limit=5)
     titles = [item.human_message for item in items]

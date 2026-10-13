@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
@@ -73,8 +73,8 @@ PROJECT_A = "r6b-billing-project-a"
 PROJECT_B = "r6b-billing-project-b"
 
 
-def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str) -> None:
-    now = datetime(2026, 8, 28, 12, 0, tzinfo=timezone.utc)
+def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str, include_outcome: bool = True) -> None:
+    now = datetime(2026, 8, 28, 12, 0, tzinfo=UTC)
     project_id = f"r6b-billing-project-{suffix}"
     profile_id = f"r6b-billing-profile-{suffix}"
     schedule_id = f"r6b-billing-schedule-{suffix}"
@@ -113,10 +113,12 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
         "(id, tenant_id, organization_id, project_id, source_type, source_id, source_revision, source_content_hash, preparation_id, preparation_line_id, status, reserved_at, finalized_at) "
         "VALUES (:id, :tenant, :organization, :project, 'schedule_line', :source, '1', :hash, :preparation, :line, 'finalized', :now, :now)"
     ), {"id": f"r6b-billing-lock-{suffix}", "tenant": tenant_id, "organization": organization_id, "project": project_id, "source": schedule_id, "hash": (suffix * 64)[:64], "preparation": preparation_id, "line": line_id, "now": now})
+    if not include_outcome:
+        return
     connection.execute(text(
         "INSERT INTO project_billing_external_events "
         "(id, tenant_id, organization_id, project_id, preparation_id, event_type, external_system, external_status, idempotency_key, occurred_at, external_invoice_reference, message, recorded_at) "
-        "VALUES (:id, :tenant, :organization, :project, :preparation, 'delivery_accepted', 'ACCOUNTING', 'accepted', :key, :now, :invoice, '', :now)"
+        "VALUES (:id, :tenant, :organization, :project, :preparation, 'delivery_accepted', 'external_accounting', 'acknowledged', :key, :now, :invoice, '', :now)"
     ), {"id": f"r6b-billing-event-{suffix}", "tenant": tenant_id, "organization": organization_id, "project": project_id, "preparation": preparation_id, "key": f"billing-event-key-{suffix}", "invoice": f"INV-{suffix.upper()}", "now": now})
 
 
@@ -163,7 +165,7 @@ def test_billing_reader_is_bounded_through_runtime_rls_role(postgres_test_enviro
         assert (profile_count, schedule_count, preparation_count, detail_count, line_count) == (1, 2, 2, 1, 2)
         assert profile is not None and profile.contract_value == Decimal("125000.2500")
         assert schedule.total == 1 and schedule.items[0].source_state == "finalized"
-        assert preparations.total == 1 and preparations.items[0].latest_external_status == "accepted"
+        assert preparations.total == 1 and preparations.items[0].latest_external_status == "acknowledged"
         assert detail is not None and detail.finalized_lock_count == 1
         assert lines.total == 1 and lines.items[0].net_amount == Decimal("5000.2500")
     finally:
@@ -183,12 +185,12 @@ def test_accounting_status_reader_is_isolated_and_rls_scoped(postgres_test_envir
                 tenant_id=TENANT_A,
                 organization_id=ORG_A,
                 project_id=PROJECT_A,
-                request=AccountingStatusQuery(page_size=1, search="ACCOUNTING"),
+                request=AccountingStatusQuery(page_size=1, search="BP-A"),
             ),
         )
-        assert query_count == 2
+        assert query_count == 3
         assert page.total == 1
-        assert page.items[0].latest_external_status == "accepted"
+        assert page.items[0].latest_external_status == "acknowledged"
         assert page.items[0].latest_external_invoice_reference == "INV-A"
         assert reader.list_accounting_statuses(
             tenant_id=TENANT_B,
@@ -287,8 +289,16 @@ def test_local_billing_child_cannot_attach_foreign_parent(
     with environment.runtime_session(tenant_id=TENANT_A, organization_id=ORG_A) as session:
         validate_postgresql_execution_role(session)
         with pytest.raises(DBAPIError) as error:
-            session.execute(update(table).where(table.c.id == row_id).values({
-                parent_column: f"r6b-billing-{parent_prefix}-{suffix}",
-            }))
+            if table_name == "project_billing_external_events":
+                # Authenticated evidence is immutable. Exercise the scoped FK on
+                # insertion rather than stopping at the immutable-update trigger.
+                candidate = dict(session.execute(select(table).where(table.c.id == row_id)).mappings().one())
+                candidate.update(id=str(uuid4()), idempotency_key=str(uuid4()))
+                candidate[parent_column] = f"r6b-billing-{parent_prefix}-{suffix}"
+                session.execute(insert(table).values(**candidate))
+            else:
+                session.execute(update(table).where(table.c.id == row_id).values({
+                    parent_column: f"r6b-billing-{parent_prefix}-{suffix}",
+                }))
         assert error.value.orig.sqlstate == "23503"
         session.rollback()

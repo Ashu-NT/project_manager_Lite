@@ -67,7 +67,7 @@ def to_collaboration_comment_record_view_model(comment) -> CollaborationRecordVi
 
 def to_collaboration_presence_record_view_model(presence) -> CollaborationRecordViewModel:
     return CollaborationRecordViewModel(
-        id=f"{presence.task_id}:{presence.username}",
+        id=f"{presence.task_id}:{presence.user_id}",
         title=presence.who_label,
         status_label=presence.activity_label,
         subtitle=f"Last seen {presence.last_seen_at_label}",
@@ -78,6 +78,7 @@ def to_collaboration_presence_record_view_model(presence) -> CollaborationRecord
         state={
             "taskId": presence.task_id,
             "username": presence.username,
+            "userId": presence.user_id,
             "isSelf": presence.is_self,
         },
     )

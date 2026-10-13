@@ -5,7 +5,7 @@ import platform
 import shutil
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -54,7 +54,7 @@ def build_diagnostics_bundle(
         normalized_incident = (incident_id or "").strip()
 
         metadata = {
-            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            "generated_at_utc": datetime.now(UTC).isoformat(),
             "app_version": get_app_version(),
             "python_version": sys.version,
             "platform": platform.platform(),

@@ -14,7 +14,7 @@ class FinancialCommitmentSummaryDto:
     open_commitment_label: str
     available_after_commitment: str | None
     available_after_commitment_label: str
-    commitment_rate_pct: float
+    commitment_rate_pct: float | None
 
 
 @dataclass(frozen=True)

@@ -6,6 +6,7 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
 from src.core.platform.api.desktop.master_data.party.models.party import (
     PartyCreateCommand,
     PartyDto,
+    PartyPageDto,
     PartyRollupSummaryDto,
     PartyUpdateCommand,
 )
@@ -41,6 +42,31 @@ class PlatformPartyDesktopApi:
             )
         )
 
+    def list_parties_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+        party_type: str | None = None,
+        role: str | None = None,
+    ) -> DesktopApiResult[PartyPageDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_party_page(
+                self._party_service.list_parties_page_for_organization(
+                    organization_id,
+                    page=page,
+                    page_size=page_size,
+                    search=search,
+                    active_only=active_only,
+                    party_type=party_type,
+                    role=role,
+                )
+            )
+        )
+
     def get_party_rollup_summary(self) -> DesktopApiResult[PartyRollupSummaryDto]:
         return execute_desktop_operation(
             lambda: self._serialize_rollup_summary(
@@ -55,6 +81,7 @@ class PlatformPartyDesktopApi:
                     party_code=command.party_code,
                     party_name=command.party_name,
                     party_type=command.party_type,
+                    roles=command.roles,
                     legal_name=command.legal_name,
                     contact_name=command.contact_name,
                     email=command.email,
@@ -65,9 +92,9 @@ class PlatformPartyDesktopApi:
                     address_line_2=command.address_line_2,
                     postal_code=command.postal_code,
                     website=command.website,
-                    tax_registration_number=command.tax_registration_number,
+                    registration_number=command.registration_number,
+                    tax_identifier=command.tax_identifier,
                     external_reference=command.external_reference,
-                    is_active=command.is_active,
                     notes=command.notes,
                 )
             )
@@ -81,6 +108,7 @@ class PlatformPartyDesktopApi:
                     party_code=command.party_code,
                     party_name=command.party_name,
                     party_type=command.party_type,
+                    roles=command.roles,
                     legal_name=command.legal_name,
                     contact_name=command.contact_name,
                     email=command.email,
@@ -91,18 +119,37 @@ class PlatformPartyDesktopApi:
                     address_line_2=command.address_line_2,
                     postal_code=command.postal_code,
                     website=command.website,
-                    tax_registration_number=command.tax_registration_number,
+                    registration_number=command.registration_number,
+                    tax_identifier=command.tax_identifier,
                     external_reference=command.external_reference,
-                    is_active=command.is_active,
                     notes=command.notes,
                     expected_version=command.expected_version,
                 )
             )
         )
 
+    def activate_party(self, party_id: str) -> DesktopApiResult[PartyDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_party(self._party_service.activate_party(party_id))
+        )
+
+    def deactivate_party(self, party_id: str) -> DesktopApiResult[PartyDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_party(self._party_service.deactivate_party(party_id))
+        )
+
     @staticmethod
     def _serialize_rollup_summary(summary) -> PartyRollupSummaryDto:
         return PartyRollupSummaryDto(total=summary.total, active=summary.active)
+
+    def _serialize_party_page(self, page) -> PartyPageDto:
+        return PartyPageDto(
+            items=tuple(self._serialize_party(party) for party in page.items),
+            total=page.total,
+            filtered_total=page.filtered_total,
+            page=page.page,
+            page_size=page.page_size,
+        )
 
     @staticmethod
     def _serialize_party(party: Party) -> PartyDto:
@@ -112,6 +159,7 @@ class PlatformPartyDesktopApi:
             party_code=party.party_code,
             party_name=party.party_name,
             party_type=party.party_type,
+            roles=party.roles,
             legal_name=party.legal_name,
             contact_name=party.contact_name,
             email=party.email,
@@ -122,8 +170,10 @@ class PlatformPartyDesktopApi:
             address_line_2=party.address_line_2,
             postal_code=party.postal_code,
             website=party.website,
-            tax_registration_number=party.tax_registration_number,
+            registration_number=party.registration_number,
+            tax_identifier=party.tax_identifier,
             external_reference=party.external_reference,
+            status=party.status.value,
             is_active=party.is_active,
             created_at=party.created_at,
             updated_at=party.updated_at,

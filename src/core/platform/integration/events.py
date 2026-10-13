@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, JsonValue, field_validator
 
@@ -69,7 +69,7 @@ class IntegrationEventEnvelope(BaseModel):
     @field_validator("occurred_at", mode="after")
     @classmethod
     def _normalize_occurred_at(cls, value: datetime) -> datetime:
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
     @property
     def payload_hash(self) -> str:

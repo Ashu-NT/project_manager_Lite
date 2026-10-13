@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.application.resources.resource_capability_events import (
+from collections.abc import Callable
+
+from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
     ResourceCapabilityChanged,
 )
-from src.core.modules.project_management.application.resources.resource_master_events import (
+from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
     ResourceMasterChanged,
 )
+from src.core.platform.domain.master_data.employee.events import EmployeeProfileUpdated
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import (
     OrganizationScope,
@@ -43,14 +46,14 @@ def _resource_scope_target(scope_code: str, scope: ResourceScope) -> tuple[str, 
 
 def build_resource_list_view_invalidation_handler(channel: ViewInvalidationChannel):
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_targets: set[tuple[str, str, str]] = set()
 
     def handle_resource_master_event(
         event: ResourceMasterChanged, context: DomainEventContext
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_targets.clear()
 
         scope = OrganizationScope(event.tenant_id, event.organization_id)
@@ -72,20 +75,43 @@ def build_resource_list_view_invalidation_handler(channel: ViewInvalidationChann
     return handle_resource_master_event
 
 
+def build_linked_employee_resource_view_invalidation_handler(
+    channel: ViewInvalidationChannel,
+    resolve_resource_id: Callable[..., str | None],
+):
+    def handle(event: EmployeeProfileUpdated, context: DomainEventContext) -> None:
+        resource_id = resolve_resource_id(
+            employee_id=event.employee_id,
+            tenant_id=event.tenant_id,
+            organization_id=event.organization_id,
+        )
+        if resource_id is None:
+            return
+        channel.notify(ViewInvalidationHint(
+            scope=OrganizationScope(event.tenant_id, event.organization_id),
+            category=RESOURCE_CATEGORY,
+            scope_code=RESOURCE_LIST_SCOPE_CODE,
+            entity_type=RESOURCE_ENTITY_TYPE,
+            entity_id=resource_id,
+        ))
+
+    return handle
+
+
 def build_resource_capabilities_view_invalidation_handler(channel: ViewInvalidationChannel):
     """`resource_capabilities` is exact-resource (`ResourceScope`) -- its dedupe target identity
     includes the resource itself, so the same resource repeated within one transaction collapses
     to one hint, but two distinct resources' capability changes within the same transaction
     still produce two hints (two genuinely different targets)."""
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_targets: set[tuple[str, str, str, str, str, str]] = set()
 
     def handle_resource_capability_event(
         event: ResourceCapabilityChanged, context: DomainEventContext
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_targets.clear()
 
         scope = ResourceScope(
@@ -119,6 +145,7 @@ __all__ = [
     "RESOURCE_ENTITY_TYPE",
     "RESOURCE_LIST_SCOPE_CODE",
     "RESOURCE_MODULE_CODE",
+    "build_linked_employee_resource_view_invalidation_handler",
     "build_resource_capabilities_view_invalidation_handler",
     "build_resource_list_view_invalidation_handler",
 ]

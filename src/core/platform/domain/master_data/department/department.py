@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
-from datetime import timezone as dt_timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator
 
@@ -78,7 +77,13 @@ class Department:
     @field_validator("cost_center_code", mode="before")
     @classmethod
     def _normalize_cost_center_code(cls, value: object) -> str:
-        return normalize_optional_text(value).upper()
+        normalized = normalize_optional_text(value).upper()
+        if len(normalized) > 64:
+            raise ValidationError(
+                "Cost center code cannot exceed 64 characters.",
+                code="DEPARTMENT_COST_CENTER_CODE_TOO_LONG",
+            )
+        return normalized
 
     @field_validator("created_at", "updated_at", mode="before")
     @classmethod
@@ -129,7 +134,7 @@ class Department:
         updated_at: datetime | None = None,
         notes: str = "",
     ) -> Department:
-        now = datetime.now(dt_timezone.utc)
+        now = datetime.now(UTC)
         return Department(
             id=generate_id(),
             organization_id=organization_id,

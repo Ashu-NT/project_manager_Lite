@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
@@ -29,7 +29,7 @@ from src.core.shared.audit import record_audit_entry
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class FinancialPeriodService:
@@ -293,8 +293,8 @@ class FinancialPeriodService:
     def _now(self) -> datetime:
         value = self._now_provider()
         if value.tzinfo is None or value.utcoffset() is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
 
     def _record_audit(
         self,

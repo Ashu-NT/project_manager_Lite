@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
@@ -53,6 +54,7 @@ from src.core.platform.application.master_data.documents import (
 from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.repositories.security.auth import UserRepository
 from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.time.clock import Clock
 
 
 class CollaborationService(
@@ -82,11 +84,16 @@ class CollaborationService(
         tenant_context_service=None,
         role_repo=None,
         role_binding_repo=None,
-        notification_service=None,
         view_invalidation_channel=None,
         uow_factory: CollaborationUnitOfWorkFactory | None = None,
+        attachment_store: Callable[..., list[str]] | None = None,
+        attachment_cleanup: Callable[[list[str]], None] | None = None,
+        clock: Clock | None = None,
     ) -> None:
         self._session = session
+        self._attachment_store = attachment_store
+        self._attachment_cleanup = attachment_cleanup
+        self._clock = clock
         self._comment_repo = comment_repo
         self._presence_repo = presence_repo
         self._task_repo = task_repo
@@ -99,7 +106,6 @@ class CollaborationService(
         self._tenant_context_service = tenant_context_service
         self._role_repo = role_repo
         self._role_binding_repo = role_binding_repo
-        self._notification_service = notification_service
         self._view_invalidation_channel = view_invalidation_channel
         self._uow_factory: CollaborationUnitOfWorkFactory | None = uow_factory
         self._presence_ttl_seconds = max(int(os.getenv("PM_TASK_PRESENCE_TTL_SECONDS", "900") or 900), 60)

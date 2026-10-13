@@ -11,8 +11,8 @@ NESTED_AREA_FILES = {
     "history/activity/activity.py",
     "history/audit/audit_entry.py",
     "approval/approval.py",
-    "events/notifications/notification.py",
-    "events/platform_events/platform_events.py",
+    "notifications/notification.py",
+    "history/platform_events/platform_events.py",
     "master_data/employee/employee.py",
     "master_data/site/sites.py",
     "master_data/department/departments.py",
@@ -48,7 +48,7 @@ def test_platform_persistence_uses_module_style_layout() -> None:
         if path.is_dir() and path.name != "__pycache__"
     }
 
-    assert source_dirs == {"mappers", "orm", "repositories", "read", "uow"}
+    assert source_dirs == {"common", "mappers", "orm", "repositories", "read", "uow"}
     for area in ("orm", "repositories"):
         assert _source_file_stems(PERSISTENCE_ROOT / area) == FLAT_AREAS
         for nested_file in NESTED_AREA_FILES | NESTED_AREA_FILES_NO_MAPPER:

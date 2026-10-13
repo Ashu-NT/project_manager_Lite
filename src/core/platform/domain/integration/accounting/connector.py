@@ -24,6 +24,7 @@ class AccountingHandoffDenial(StrEnum):
     ADAPTER_NOT_INSTALLED = "adapter_not_installed"
     MODULE_NOT_ENABLED = "module_not_enabled"
     INTEGRATION_NOT_CONFIGURED = "integration_not_configured"
+    CONNECTION_DISABLED = "connection_disabled"
     PERMISSION_DENIED = "permission_denied"
     BUSINESS_PRECONDITION_FAILED = "business_precondition_failed"
 
@@ -40,6 +41,7 @@ class AccountingHandoffCapability(BaseModel):
             AccountingHandoffDenial.ADAPTER_NOT_INSTALLED: "Accounting integration is not installed.",
             AccountingHandoffDenial.MODULE_NOT_ENABLED: "Accounting integration is not enabled.",
             AccountingHandoffDenial.INTEGRATION_NOT_CONFIGURED: "Accounting integration is not configured.",
+            AccountingHandoffDenial.CONNECTION_DISABLED: "Accounting connection is disabled.",
             AccountingHandoffDenial.PERMISSION_DENIED: "You do not have permission to request Accounting handoff.",
             AccountingHandoffDenial.BUSINESS_PRECONDITION_FAILED: "Billing Preparation is not eligible for Accounting handoff.",
             None: "",

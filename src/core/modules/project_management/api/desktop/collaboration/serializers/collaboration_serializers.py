@@ -24,7 +24,9 @@ def serialize_inbox_item(item) -> CollaborationInboxDesktopDto:
         project_id=item.project_id,
         project_name=item.project_name,
         author_username=item.author_username,
-        body_preview=item.body_preview,
+        body_preview="This comment was deleted." if item.is_deleted else item.body_preview,
+        is_deleted=item.is_deleted,
+        deleted_at=item.deleted_at,
         mentions=mentions,
         mentions_label=(
             ", ".join(f"@{m}" for m in mentions) if mentions else "No direct mentions"
@@ -57,6 +59,7 @@ def serialize_presence_item(item) -> CollaborationPresenceDesktopDto:
         last_seen_at=item.last_seen_at,
         last_seen_at_label=format_datetime(item.last_seen_at),
         is_self=bool(item.is_self),
+        user_id=str(getattr(item, "user_id", "") or ""),
     )
 
 
@@ -85,8 +88,14 @@ def serialize_task_comment(
         format_linked_document_label(document) for document in linked_documents
     )
     is_deleted = bool(getattr(comment, "deleted_at", None))
+    if is_deleted:
+        mentions = ()
+        attachments = ()
+        linked_document_labels = ()
     updated_at = getattr(comment, "updated_at", None)
-    reactions_map = getattr(comment, "reactions", None) or {}
+    reactions_map = {} if is_deleted else (getattr(comment, "reactions", None) or {})
+    if isinstance(reactions_map, tuple):
+        reactions_map = dict(reactions_map)
     reactions = tuple(
         TaskCollaborationReactionSummaryDto(
             emoji=emoji,

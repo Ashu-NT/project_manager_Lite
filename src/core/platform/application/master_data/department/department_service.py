@@ -24,7 +24,7 @@ from src.core.platform.contract.repositories.master_data.org.contracts import (
 from src.core.platform.contract.repositories.master_data.site.contracts import (
     SiteRepository,
 )
-from src.core.platform.contract.uow.department_unit_of_work import (
+from src.core.platform.contract.uow.master_data.department_unit_of_work import (
     DepartmentUnitOfWorkFactory,
 )
 from src.core.platform.domain.master_data.department import Department

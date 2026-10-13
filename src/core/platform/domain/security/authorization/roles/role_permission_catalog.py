@@ -5,6 +5,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "project.manage": "Create and edit projects",
     "task.read": "View tasks",
     "task.manage": "Create and edit tasks",
+    "task.approve": "Approve governed task and schedule changes",
     "time.read": "View shared labor bookings and time entries",
     "time.manage": "Create and edit shared labor bookings and time entries",
     "resource.read": "View resources",
@@ -14,8 +15,13 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "inventory.read": "View inventory and procurement workspaces",
     "inventory.manage": "Create and edit inventory and procurement records",
     "site.read": "View shared site directory records",
+    "site.manage": "Create and edit shared site directory records",
     "department.read": "View shared department directory records",
+    "department.manage": "Create and edit shared department directory records",
+    "calendar.read": "View shared operational calendars and assignments",
+    "calendar.manage": "Create and edit shared operational calendars and assignments",
     "party.read": "View shared supplier, vendor, and contractor directory records",
+    "party.manage": "Create and edit shared supplier, vendor, and contractor directory records",
     "cost.read": "View costs",
     "project_cost.create": "Create canonical project cost-entry drafts",
     "project_cost.update_draft": "Update or delete canonical project cost-entry drafts",
@@ -43,6 +49,8 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "forecast.manage": "Create, edit, and submit project forecasts",
     "forecast.approve": "Approve or reject project forecasts",
     "financial_change.manage": "Create and submit governed financial change orders",
+    "financial_change.approve": "Approve or reject governed financial changes",
+    "billing_preparation.approve": "Approve or reject project billing preparations",
     "register.read": "View risk, issue, and change register data",
     "register.manage": "Create and edit register entries",
     "report.view": "View reports",
@@ -142,6 +150,8 @@ _RESOURCE_MANAGER = {
     "employee.manage",
     "site.read",
     "department.read",
+    "calendar.read",
+    "calendar.manage",
     "report.view",
     "report.export",
     "collaboration.read",
@@ -234,8 +244,11 @@ _PORTFOLIO_MANAGER = {
 
 _APPROVER = {
     "baseline.approve",
+    "task.approve",
     "budget.approve",
     "forecast.approve",
+    "financial_change.approve",
+    "billing_preparation.approve",
     "project.read",
     "resource.read",
     "task.read",
@@ -301,6 +314,14 @@ _TENANT_ADMIN = {
     "auth.read",
     "auth.manage",
     "auth.role.assign",
+    "party.read",
+    "party.manage",
+    "site.read",
+    "site.manage",
+    "department.read",
+    "department.manage",
+    "calendar.read",
+    "calendar.manage",
 }
 
 _ORG_ADMIN = {
@@ -312,6 +333,14 @@ _ORG_ADMIN = {
     "auth.read",
     "auth.manage",
     "auth.role.assign",
+    "party.read",
+    "party.manage",
+    "site.read",
+    "site.manage",
+    "department.read",
+    "department.manage",
+    "calendar.read",
+    "calendar.manage",
 }
 
 _ORG_VIEWER = set(_VIEWER)
@@ -424,7 +453,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 11
+SYSTEM_ROLE_POLICY_VERSION = 13
 
 __all__ = [
     "DEFAULT_PERMISSIONS",

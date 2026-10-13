@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
@@ -10,6 +11,8 @@ from src.core.modules.project_management.api.desktop.scheduling.models.change_im
 from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
     serialize_change_impact,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def build_change_impact(
@@ -32,6 +35,7 @@ def build_change_impact(
             proposed_duration_days=proposed_duration_days,
         )
     except Exception:
+        logger.exception("Failed to build change impact for project_id=%s, task_id=%s", project_id, task_id)
         return None
     return serialize_change_impact(task_id, report)
 

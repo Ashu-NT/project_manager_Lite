@@ -38,6 +38,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskAssignmentORM,
     TaskORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.history.activity_actor_projection import (
+    actor_labels_for_page,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
     stable_order_by,
 )
@@ -76,15 +79,13 @@ def _enum_value(value: object) -> str:
 
 def _activity_category(action: str) -> str:
     normalized = str(action or "").lower()
-    if normalized.startswith("resource.skill") or normalized.startswith(
-        "resource.certification"
-    ):
+    if normalized.startswith(("resource.skill", "resource.certification")):
         return "capability"
     if normalized.startswith("project_resource"):
         return "projects"
     if normalized.startswith("assignment"):
         return "assignments"
-    if normalized.startswith("time") or normalized.startswith("timesheet"):
+    if normalized.startswith(("time", "timesheet")):
         return "work"
     return "resource"
 
@@ -728,6 +729,10 @@ class SqlAlchemyResourceContextReader:
             .offset((page - 1) * page_size)
             .limit(page_size)
         ).all()
+        actors = actor_labels_for_page(
+            self._session, tenant_id=tenant_id,
+            actor_ids=tuple(str(row[3]) if row[3] else None for row in rows),
+        )
         facts: list[ResourceActivityFact] = []
         for row in rows:
             category_value = _activity_category(str(row[2] or ""))
@@ -743,6 +748,8 @@ class SqlAlchemyResourceContextReader:
                     event_type=str(row[2] or "activity"),
                     category=category_value,
                     actor_id=str(row[3]) if row[3] else None,
+                    actor_kind=(actors.get(str(row[3]), ("missing", "Deleted user"))[0] if row[3] else "system"),
+                    actor_display=(actors.get(str(row[3]), ("missing", "Deleted user"))[1] if row[3] else "System"),
                     summary=str(row[4] or row[2] or "Activity recorded"),
                     source_type=source_type,
                     source_id=source_id,

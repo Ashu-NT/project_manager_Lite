@@ -1,6 +1,6 @@
 # src/core/modules/project_management/application/scheduling/baseline_service.py
 from collections.abc import Callable
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -179,7 +179,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                     organization_id=context.organization_id,
                     project_id=project_id,
                     baseline_id=baseline.id,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -365,7 +365,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                     organization_id=context.organization_id,
                     project_id=baseline.project_id,
                     baseline_id=baseline_id,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -413,7 +413,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                     organization_id=context.organization_id,
                     project_id=baseline.project_id,
                     baseline_id=baseline.id,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -490,7 +490,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                         if previous_approved is not None and previous_approved.id != baseline_id
                         else None
                     ),
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -537,7 +537,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                     organization_id=context.organization_id,
                     project_id=baseline.project_id,
                     baseline_id=baseline.id,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()

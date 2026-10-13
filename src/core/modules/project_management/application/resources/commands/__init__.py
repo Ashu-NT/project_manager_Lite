@@ -1,10 +1,10 @@
 """Resource commands."""
 
 from src.core.modules.project_management.application.resources.commands.project_resource_commands import (
-    ProjectResourceCommandMixin,
+    ProjectResourceCommandHandler,
 )
 from src.core.modules.project_management.application.resources.commands.resource_commands import (
-    ResourceCommandMixin,
+    ResourceMasterCommandHandler,
 )
 
-__all__ = ["ProjectResourceCommandMixin", "ResourceCommandMixin"]
+__all__ = ["ProjectResourceCommandHandler", "ResourceMasterCommandHandler"]

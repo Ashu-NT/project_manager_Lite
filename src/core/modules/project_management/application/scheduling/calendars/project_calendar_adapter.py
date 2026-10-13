@@ -12,8 +12,8 @@ from datetime import date, timedelta
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
     ResolvedCalendarContext,
 )
 
@@ -50,17 +50,20 @@ class BoundProjectCalendar:
     def working_day_dates_between(self, start: date, end: date) -> frozenset[date]:
         return self._adapter.working_day_dates_between(self._project_id, start, end)
 
+    def business_today(self) -> date:
+        return self._adapter.business_today()
+
 
 class ProjectCalendarAdapter:
     """
-    Wraps EnterpriseCalendarResolver for a project scope.
+    Wraps PlatformCalendarResolver for a project scope.
     Provides the same date-arithmetic interface as WorkCalendarEngine
     so the scheduling engine can swap in without behavioral changes.
     """
 
     def __init__(
         self,
-        resolver: EnterpriseCalendarResolver,
+        resolver: PlatformCalendarResolver,
         assignment_service: CalendarAssignmentService,
     ) -> None:
         self._resolver = resolver
@@ -85,6 +88,8 @@ class ProjectCalendarAdapter:
         except Exception:
             # Don't let this fast-path optimization itself become a new
             # failure mode -- fall through to the real (slower) resolution.
+            logger.exception("Failed to check calendar chain project_id=%s at_date=%s",
+                             project_id, at_date)
             return True
 
     def get_context(
@@ -108,6 +113,8 @@ class ProjectCalendarAdapter:
             return sum(1 for d in days if d.available_hours > 0)
         except Exception:
             # Fallback: day-by-day (safe but slower)
+            logger.exception("Failed to resolve range for project_id=%s start=%s end=%s; falling back to day-by-day check",
+                             project_id, start, end)
             count = 0
             current = start
             while current <= end:
@@ -205,6 +212,11 @@ class ProjectCalendarAdapter:
     def get_source_chain(self, project_id: str) -> list[str]:
         return self._resolver.get_source_chain(project_id=project_id)
 
+    def business_today(self) -> date:
+        """"Today" in the organization's own configured business timezone,
+        not server-local time -- see PlatformCalendarResolver.business_today."""
+        return self._resolver.business_today()
+
     def bind_for_project(self, project_id: str) -> BoundProjectCalendar | None:
         """
         Always returns a BoundProjectCalendar so the SchedulingEngine uses the enterprise
@@ -227,6 +239,10 @@ class ProjectCalendarAdapter:
                 return None
             return BoundProjectCalendar(self, project_id)
         except Exception:
+            logger.exception(
+                "Failed to bind project calendar for project_id=%s; falling back to WorkCalendarEngine",
+                project_id,
+            )   
             return None
 
 

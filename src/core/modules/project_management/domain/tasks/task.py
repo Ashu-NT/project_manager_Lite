@@ -223,7 +223,7 @@ class Task:
         if self.duration_days is None:
             return None
         remaining_ratio = max(0.0, 1.0 - (self.percent_complete / 100.0))
-        return max(0, int(round(self.duration_days * remaining_ratio)))
+        return max(0, round(self.duration_days * remaining_ratio))
 
     @staticmethod
     def create(project_id: str, name: str, description: str = "", **extra) -> Task:

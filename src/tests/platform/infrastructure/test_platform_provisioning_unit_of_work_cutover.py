@@ -12,7 +12,7 @@ from src.core.platform.application.platform_runtime import (
     platform_runtime_service as platform_runtime_service_module,
 )
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.infrastructure.persistence.uow.platform_provisioning_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.provisioning.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWork,
 )
 

@@ -22,7 +22,7 @@ from src.core.platform.contract.read.tenant.modules.module_entitlement_reader im
 from src.core.platform.contract.repositories.tenant.modules.contracts import (
     ModuleEntitlementRepository,
 )
-from src.core.platform.contract.uow.module_entitlement_unit_of_work import (
+from src.core.platform.contract.uow.tenancy.module_entitlement_unit_of_work import (
     ModuleEntitlementUnitOfWorkFactory,
 )
 from src.core.platform.domain.master_data.org import Organization

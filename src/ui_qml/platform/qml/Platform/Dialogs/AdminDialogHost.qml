@@ -114,12 +114,20 @@ Item {
         calendarEditorDialog.openForEdit(state || {})
     }
 
-    function openCalendarExceptionCreate(calendarId) {
-        calendarExceptionDialog.openForCreate(calendarId || "")
+    function openCalendarExceptionCreate(calendarId, prefillDate) {
+        calendarExceptionDialog.openForCreate(calendarId || "", prefillDate || "")
+    }
+
+    function openCalendarExceptionEdit(calendarId, exceptionState) {
+        calendarExceptionDialog.openForEdit(calendarId || "", exceptionState || {})
     }
 
     function openCalendarRecurringEventCreate(calendarId) {
         calendarRecurringEventDialog.openForCreate(calendarId || "")
+    }
+
+    function openCalendarRecurringEventEdit(calendarId, eventState) {
+        calendarRecurringEventDialog.openForEdit(calendarId || "", eventState || {})
     }
 
     function openCalendarAssign(entityType, entityId, entityLabel, calendars) {
@@ -139,10 +147,10 @@ Item {
         if (root.workspaceController === null) {
             return
         }
-        departmentDialog.openForEdit(
-            state || {},
-            root.workspaceController.departmentEditorOptions || {}
-        )
+        const departmentId = (state && (state.departmentId || state.id)) || ""
+        const scoped = root.workspaceController.headOfDepartmentOptionsFor(departmentId) || {}
+        const options = Object.assign({}, root.workspaceController.departmentEditorOptions || {}, scoped)
+        departmentDialog.openForEdit(state || {}, options)
     }
 
     function openEmployeeCreate() {
@@ -160,6 +168,18 @@ Item {
             state || {},
             root.workspaceController.employeeEditorOptions || {}
         )
+    }
+
+    function openEmployeeUserLink(employeeId, employeeLabel, userOptions) {
+        userLinkDialog.openForLink(employeeId || "", employeeLabel || "", userOptions || [])
+    }
+
+    function openEmployeeDocumentLink(employeeId, employeeLabel) {
+        if (root.workspaceController === null) {
+            return
+        }
+        const options = root.workspaceController.employeeDocumentOptions() || []
+        employeeDocumentLinkDialog.openForEmployee(employeeId || "", employeeLabel || "", options)
     }
 
     function openUserCreate() {
@@ -304,6 +324,41 @@ Item {
         }
     }
 
+    EmployeeDialogs.UserLinkDialog {
+        id: userLinkDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.linkEmployeeUserAccount(payload.employeeId, payload.userId)
+            root._handleResult(userLinkDialog, result)
+        }
+    }
+
+    EmployeeDialogs.EmployeeDocumentLinkDialog {
+        id: employeeDocumentLinkDialog
+
+        parent: Overlay.overlay
+
+        onLinkExistingRequested: function(employeeId, documentId) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.linkEmployeeDocument(employeeId, documentId)
+            root._handleResult(employeeDocumentLinkDialog, result)
+        }
+        onCreateAndLinkRequested: function(employeeId, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.createAndLinkEmployeeDocument(employeeId, payload)
+            root._handleResult(employeeDocumentLinkDialog, result)
+        }
+    }
+
     UserDialogs.UserEditorDialog {
         id: userDialog
 
@@ -395,8 +450,8 @@ Item {
                 return
             }
             const result = mode === "create"
-                ? root.workspaceController.createEnterpriseCalendar(payload)
-                : root.workspaceController.updateEnterpriseCalendar(payload)
+                ? root.workspaceController.createPlatformCalendar(payload)
+                : root.workspaceController.updatePlatformCalendar(payload)
             root._handleResult(calendarEditorDialog, result)
         }
     }
@@ -407,11 +462,13 @@ Item {
         parent: Overlay.overlay
         calendarOptions: root._calendarOptions()
 
-        onSaveRequested: function(payload) {
+        onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
                 return
             }
-            const result = root.workspaceController.addCalendarException(payload)
+            const result = mode === "edit"
+                ? root.workspaceController.updateCalendarException(payload)
+                : root.workspaceController.addCalendarException(payload)
             root._handleResult(calendarExceptionDialog, result)
         }
     }
@@ -421,12 +478,15 @@ Item {
 
         parent: Overlay.overlay
         calendarOptions: root._calendarOptions()
+        workspaceController: root.workspaceController
 
-        onSaveRequested: function(payload) {
+        onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
                 return
             }
-            const result = root.workspaceController.addCalendarRecurringEvent(payload)
+            const result = mode === "edit"
+                ? root.workspaceController.updateCalendarRecurringEvent(payload)
+                : root.workspaceController.addCalendarRecurringEvent(payload)
             root._handleResult(calendarRecurringEventDialog, result)
         }
     }

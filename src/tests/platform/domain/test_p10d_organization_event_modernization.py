@@ -264,7 +264,7 @@ def test_deactivate_organization_audit_failure_rolls_back_with_zero_observable_e
 
 
 def test_update_organization_commit_failure_produces_zero_observable_event(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.master_data.organization_unit_of_work import (
         SqlAlchemyOrganizationUnitOfWork,
     )
 
@@ -474,7 +474,7 @@ def test_no_generic_compatibility_bridge_was_introduced():
 
     import src.core.platform.application.master_data.org.event_handlers.view_invalidation as vi_module
     import src.core.platform.application.master_data.org.organization_service as org_service_module
-    import src.infra.composition.modules.platform_registry as registry_module
+    import src.core.platform.infrastructure.composition.bootstrap as registry_module
 
     for module in (org_service_module, vi_module, registry_module):
         source = inspect.getsource(module)

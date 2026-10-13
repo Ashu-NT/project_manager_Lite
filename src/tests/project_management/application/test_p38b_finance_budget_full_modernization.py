@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -96,7 +96,7 @@ def _fake_channel():
 def test_every_budget_event_maps_to_both_planning_and_summary_targets():
     channel = _fake_channel()
     handler = build_budget_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     events = (
         BudgetVersionCreated(
             tenant_id="t1", organization_id="o1", project_id="p1", budget_id="b1",
@@ -133,7 +133,7 @@ def test_every_budget_event_maps_to_both_planning_and_summary_targets():
 def test_dedupe_by_target_within_one_transaction():
     channel = _fake_channel()
     handler = build_budget_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     event = BudgetProfileUpdated(
         tenant_id="t1", organization_id="o1", project_id="p1", budget_id="b1", occurred_at=now
     )

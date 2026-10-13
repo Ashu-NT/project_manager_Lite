@@ -5,6 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
+    SqlAlchemyTaskRepository,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
     TimeEntryORM,
@@ -148,15 +151,15 @@ def test_initialize_timesheet_is_idempotent_for_legacy_hours(services):
     task = ts.create_task(project.id, "Idempotent Task", start_date=date(2026, 3, 10), duration_days=1)
     resource = rs.create_resource("Idempotent Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=50.0)
-    ts.set_assignment_hours(assignment.id, 4.0)
+    services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
 
-    first = ts.initialize_timesheet_for_assignment(assignment.id)
-    second = ts.initialize_timesheet_for_assignment(assignment.id)
+    first = services["timesheet_service"].initialize_timesheet_for_assignment(assignment.id)
+    second = services["timesheet_service"].initialize_timesheet_for_assignment(assignment.id)
 
     assert len(first) == 1
     assert len(second) == 1
     assert first[0].id == second[0].id
-    assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(4.0)
+    assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(4.0)
 
 
 def test_add_time_entry_bootstraps_legacy_hours_without_explicit_initialize(services):
@@ -168,16 +171,16 @@ def test_add_time_entry_bootstraps_legacy_hours_without_explicit_initialize(serv
     task = ts.create_task(project.id, "Bootstrap Task", start_date=date(2026, 3, 11), duration_days=1)
     resource = rs.create_resource("Implicit Dev", hourly_rate=110.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=75.0)
-    ts.set_assignment_hours(assignment.id, 5.0)
+    services["task_assignment_commands"].set_assignment_hours(assignment.id, 5.0)
 
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 12), hours=2.0, note="Follow-up work")
-    entries = ts.list_time_entries_for_assignment(assignment.id)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 12), hours=2.0, note="Follow-up work")
+    entries = services["timesheet_service"].list_time_entries_for_assignment(assignment.id)
 
     assert len(entries) == 2
     assert entries[0].author_username == "system"
     assert entries[0].hours == pytest.approx(5.0)
     assert entries[1].note == "Follow-up work"
-    assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(7.0)
+    assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(7.0)
 
 
 def test_unassigning_resource_without_actuals_still_succeeds(services):
@@ -192,7 +195,7 @@ def test_unassigning_resource_without_actuals_still_succeeds(services):
 
     ts.unassign_resource(assignment.id)
 
-    assert ts.get_assignment(assignment.id) is None
+    assert services["task_assignment_commands"].get_assignment(assignment.id) is None
 
 
 def test_unassigning_resource_with_actuals_is_blocked_to_preserve_history(services):
@@ -208,7 +211,7 @@ def test_unassigning_resource_with_actuals_is_blocked_to_preserve_history(servic
     task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 13), duration_days=1)
     resource = rs.create_resource("Cleanup Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 13), hours=2.0, note="Cleanup")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 13), hours=2.0, note="Cleanup")
 
     assert _time_entry_count(services) == 1
 
@@ -217,7 +220,7 @@ def test_unassigning_resource_with_actuals_is_blocked_to_preserve_history(servic
     assert exc.value.code == "ASSIGNMENT_HAS_HISTORICAL_ACTUALS"
 
     # Neither the assignment nor its time entry were touched.
-    assert ts.get_assignment(assignment.id) is not None
+    assert services["task_assignment_commands"].get_assignment(assignment.id) is not None
     assert _time_entry_count(services) == 1
 
 
@@ -230,13 +233,33 @@ def test_deleting_task_removes_associated_time_entries(services):
     task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 14), duration_days=1)
     resource = rs.create_resource("Cleanup Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 14), hours=2.0, note="Cleanup")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 14), hours=2.0, note="Cleanup")
 
     assert _time_entry_count(services) == 1
 
     ts.delete_task(task.id)
 
     assert _time_entry_count(services) == 0
+
+
+def test_failed_task_delete_rolls_back_time_and_assignment(services, monkeypatch):
+    project = services["project_service"].create_project("Delete rollback")
+    tasks = services["task_service"]
+    resource = services["resource_service"].create_resource("Rollback crew", hourly_rate=100.0)
+    task = tasks.create_task(project.id, "Rollback task", start_date=date(2026, 3, 14), duration_days=1)
+    assignment = tasks.assign_resource(task.id, resource.id, allocation_percent=40.0)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 14), hours=2.0)
+
+    def fail_after_time_cleanup(self, task_id, *, expected_version):
+        raise RuntimeError("simulated task delete failure")
+
+    monkeypatch.setattr(SqlAlchemyTaskRepository, "delete_with_version_check", fail_after_time_cleanup)
+    with pytest.raises(RuntimeError, match="simulated task delete failure"):
+        tasks.delete_task(task.id)
+
+    assert tasks.get_task(task.id) is not None
+    assert services["task_assignment_commands"].get_assignment(assignment.id) is not None
+    assert _time_entry_count(services) == 1
 
 
 def test_deleting_project_removes_time_entries_created_under_its_assignments(services):
@@ -248,7 +271,7 @@ def test_deleting_project_removes_time_entries_created_under_its_assignments(ser
     task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 15), duration_days=1)
     resource = rs.create_resource("Cleanup Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 15), hours=2.0, note="Cleanup")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 15), hours=2.0, note="Cleanup")
 
     assert _time_entry_count(services) == 1
 
@@ -268,5 +291,5 @@ def test_time_entry_hours_must_be_greater_than_zero(services):
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=25.0)
 
     with pytest.raises(ValidationError, match="greater than zero"):
-        ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 17), hours=0.0, note="Invalid")
+        services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 3, 17), hours=0.0, note="Invalid")
 

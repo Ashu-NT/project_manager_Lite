@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 
 def fmt_date(value: date | None) -> str:
@@ -15,8 +15,8 @@ def coerce_utc_datetime(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def fmt_utc_datetime(value: datetime | None) -> str:

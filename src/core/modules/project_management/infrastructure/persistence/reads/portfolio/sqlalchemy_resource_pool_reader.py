@@ -20,6 +20,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskAssignmentORM,
     TaskORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.resources.identity_expressions import (
+    resource_display_name,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
+)
 
 
 class SqlAlchemyPortfolioResourcePoolReader:
@@ -39,9 +45,13 @@ class SqlAlchemyPortfolioResourcePoolReader:
     ) -> PortfolioResourcePoolFacts:
         resource_stmt = select(
             ResourceORM.id,
-            ResourceORM.name,
+            resource_display_name().label("name"),
             ResourceORM.capacity_percent,
-        ).where(
+        ).outerjoin(EmployeeORM, (
+            (EmployeeORM.id == ResourceORM.employee_id)
+            & (EmployeeORM.tenant_id == tenant_id)
+            & (EmployeeORM.organization_id == organization_id)
+        )).where(
             ResourceORM.tenant_id == tenant_id,
             ResourceORM.organization_id == organization_id,
         )
@@ -51,7 +61,7 @@ class SqlAlchemyPortfolioResourcePoolReader:
             return PortfolioResourcePoolFacts(tenant_id, organization_id, (), ())
         else:
             resource_stmt = resource_stmt.where(ResourceORM.id.in_(resource_ids))
-        resource_stmt = resource_stmt.order_by(ResourceORM.name, ResourceORM.id)
+        resource_stmt = resource_stmt.order_by(resource_display_name(), ResourceORM.id)
 
         resources = tuple(
             PortfolioResourceFact(

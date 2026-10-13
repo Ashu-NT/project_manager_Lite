@@ -628,6 +628,20 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.loadSelectedTaskCollaboration()
                         }
                     }
+                    onCommentPageRequested: function(page) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.requestCommentPage(
+                                root.workspaceController.selectedTaskId, page
+                            )
+                        }
+                    }
+                    onCommentPageSizeRequested: function(pageSize) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.requestCommentPageSize(
+                                root.workspaceController.selectedTaskId, pageSize
+                            )
+                        }
+                    }
                 }
             }
         }

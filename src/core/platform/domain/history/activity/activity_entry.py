@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from src.core.platform.common.ids import generate_id
@@ -65,7 +65,7 @@ class ActivityEntry:
             workspace_id=workspace_id,
             tenant_id=tenant_id,
             organization_id=organization_id,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             type=type,
             human_message=human_message or action,
             details=details or {},

@@ -21,11 +21,13 @@ def _scoped_policy_statements(
     *,
     policy_scope: str,
     predicate: str,
+    write_predicate: str | None = None,
     quote: Callable[[str], str],
 ) -> tuple[str, ...]:
     table = _validate_identifier(table_name, label="table name")
     prefix = _validate_identifier(f"{table}_{policy_scope}", label="policy name")
     quoted_table = quote(table)
+    write_scope = write_predicate or predicate
 
     def policy(command: str) -> str:
         return quote(_validate_identifier(f"{prefix}_{command}", label="policy name"))
@@ -34,12 +36,12 @@ def _scoped_policy_statements(
         f"ALTER TABLE {quoted_table} ENABLE ROW LEVEL SECURITY",
         f"ALTER TABLE {quoted_table} FORCE ROW LEVEL SECURITY",
         f"CREATE POLICY {policy('select')} ON {quoted_table} FOR SELECT USING ({predicate})",
-        f"CREATE POLICY {policy('insert')} ON {quoted_table} FOR INSERT WITH CHECK ({predicate})",
+        f"CREATE POLICY {policy('insert')} ON {quoted_table} FOR INSERT WITH CHECK ({write_scope})",
         (
             f"CREATE POLICY {policy('update')} ON {quoted_table} FOR UPDATE "
-            f"USING ({predicate}) WITH CHECK ({predicate})"
+            f"USING ({write_scope}) WITH CHECK ({write_scope})"
         ),
-        f"CREATE POLICY {policy('delete')} ON {quoted_table} FOR DELETE USING ({predicate})",
+        f"CREATE POLICY {policy('delete')} ON {quoted_table} FOR DELETE USING ({write_scope})",
     )
 
 
@@ -96,6 +98,7 @@ def build_parent_scoped_rls_enable_statements(
     table_name: str,
     *,
     predicate: str,
+    write_predicate: str | None = None,
     quote: Callable[[str], str],
 ) -> tuple[str, ...]:
     """Build forced RLS for a child whose scope is resolved through its parent."""
@@ -106,6 +109,7 @@ def build_parent_scoped_rls_enable_statements(
         table_name,
         policy_scope="parent_scope",
         predicate=normalized_predicate,
+        write_predicate=write_predicate,
         quote=quote,
     )
 
@@ -219,6 +223,8 @@ def enable_parent_scoped_rls(
     bind: Any,
     table_name: str,
     predicate: str,
+    *,
+    write_predicate: str | None = None,
 ) -> None:
     quote = bind.dialect.identifier_preparer.quote
     _execute_statements(
@@ -227,6 +233,7 @@ def enable_parent_scoped_rls(
         build_parent_scoped_rls_enable_statements(
             table_name,
             predicate=predicate,
+            write_predicate=write_predicate,
             quote=quote,
         ),
     )

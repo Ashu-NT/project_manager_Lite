@@ -7,25 +7,29 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
-from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.domain.financials.rate_cards import RateType
-from src.core.modules.project_management.infrastructure.reporting import (
-    api as reporting_api,
-)
-from src.core.modules.project_management.infrastructure.reporting.models import (
-    CostBreakdownRow,
-    CostSourceBreakdown,
-    CostSourceRow,
-    EarnedValueMetrics,
-    EvmSeriesPoint,
+from src.core.modules.project_management.application.dashboard.models.report_models import (
     GanttTaskBar,
     ProjectKPI,
     ResourceLoadRow,
     TaskVarianceRow,
 )
+from src.core.modules.project_management.application.financials.models import (
+    CostBreakdownRow,
+    CostSourceBreakdown,
+    CostSourceRow,
+    EarnedValueMetrics,
+    EvmSeriesPoint,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
+    ProjectFinanceLedgerQuery,
+)
+from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.modules.project_management.infrastructure.reporting import (
+    export_runtime as reporting_api,
+)
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
-    MAX_FINANCE_LEDGER_EXPORT_ROWS,
-    FinanceLedgerExportPage,
+    MAX_PROJECT_FINANCE_LEDGER_EXPORT_ROWS,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
@@ -69,7 +73,7 @@ def _setup_report_project(services):
         resource_id=res.id,
     )
     assignment = ts.assign_resource(t1.id, res.id, allocation_percent=50.0)
-    ts.set_assignment_hours(assignment.id, 4.0)
+    services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
 
     baseline = bs.create_baseline(pid, "Baseline Export", rate_as_of=date.today())
     bs.submit_baseline(baseline.id, submitted_by="admin")
@@ -123,7 +127,7 @@ def test_pdf_export_succeeds_when_gantt_generation_fails(services, tmp_path, mon
     def _raise_gantt(*_args, **_kwargs):
         raise ValueError("No tasks with dates available for Gantt chart.")
 
-    monkeypatch.setattr("src.core.modules.project_management.infrastructure.reporting.api.generate_gantt_png", _raise_gantt)
+    monkeypatch.setattr("src.core.modules.project_management.infrastructure.reporting.export_runtime.generate_gantt_png", _raise_gantt)
 
     output = tmp_path / "report.pdf"
     reporting_api.generate_pdf_report(
@@ -271,7 +275,7 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
     )
 
     class DummyReportingService:
-        def get_project_kpis(self, _project_id):
+        def get_project_kpis(self, _project_id, *, as_of=None):
             return kpi
 
         def get_gantt_data(self, _project_id):
@@ -417,13 +421,12 @@ def test_excel_export_omits_finance_sections_without_finance_read(services, tmp_
     assert restricted_value == "Restricted (finance.read required)"
 
 
-def test_finance_ledger_export_page_rejects_unbounded_requests():
+def test_project_finance_ledger_export_page_rejects_unbounded_requests():
     with pytest.raises(ValueError, match="non-negative"):
-        FinanceLedgerExportPage.build([], offset=-1, limit=1)
+        ProjectFinanceLedgerQuery(offset=-1, limit=1)
 
     with pytest.raises(ValueError, match="between 1"):
-        FinanceLedgerExportPage.build(
-            [],
+        ProjectFinanceLedgerQuery(
             offset=0,
-            limit=MAX_FINANCE_LEDGER_EXPORT_ROWS + 1,
+            limit=MAX_PROJECT_FINANCE_LEDGER_EXPORT_ROWS + 1,
         )

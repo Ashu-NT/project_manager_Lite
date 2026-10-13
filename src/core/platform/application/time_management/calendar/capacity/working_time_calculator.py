@@ -21,7 +21,7 @@ def _minutes_between(t1: time, t2: time) -> int:
     return (t2.hour * 60 + t2.minute) - (t1.hour * 60 + t1.minute)
 
 
-def _event_occurs_on(event: CalendarRecurringEvent, target_date: date) -> bool:
+def recurring_event_occurs_on(event: CalendarRecurringEvent, target_date: date) -> bool:
     """Check whether a recurring event fires on target_date using dateutil.rrule."""
     if target_date < event.effective_from:
         return False
@@ -171,7 +171,7 @@ class WorkingTimeCalculator:
 
         # --- Apply recurring events ---
         for event in recurring_events:
-            if not _event_occurs_on(event, target_date):
+            if not recurring_event_occurs_on(event, target_date):
                 continue
             impact = event.impact_type
             duration = event.duration_hours()

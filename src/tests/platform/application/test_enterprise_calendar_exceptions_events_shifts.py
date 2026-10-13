@@ -16,8 +16,8 @@ from src.core.platform.application.time_management.calendar.definitions.recurrin
 from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
     ShiftPatternService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
@@ -122,7 +122,7 @@ def repos(db_session, tenant_context):
 
 @pytest.fixture
 def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return EnterpriseCalendarService(
+    return PlatformCalendarService(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -282,6 +282,36 @@ def test_recurring_event_delete(recurring_service, global_cal):
     recurring_service.delete_recurring_event(event.id)
     events = recurring_service.list_recurring_events(global_cal.id)
     assert all(e.id != event.id for e in events)
+
+
+def test_recurring_event_repository_page_is_bounded_and_filtered(
+    recurring_service, repos, global_cal
+):
+    for title, event_type in (
+        ("Alpha Meeting", RecurringEventType.MEETING.value),
+        ("Beta Meeting", RecurringEventType.MEETING.value),
+        ("Gamma Admin", RecurringEventType.ADMIN.value),
+    ):
+        recurring_service.add_recurring_event(
+            global_cal.id,
+            title=title,
+            event_type=event_type,
+            recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
+            start_time=time(9, 0),
+            end_time=time(10, 0),
+            impact_type=ImpactType.INFORMATION_ONLY.value,
+            effective_from=date(2026, 1, 1),
+        )
+
+    first, total, filtered_total = repos["recurring"].list_page_for_calendar(
+        global_cal.id, page=1, page_size=1, search="Meeting"
+    )
+    second, _, _ = repos["recurring"].list_page_for_calendar(
+        global_cal.id, page=2, page_size=1, search="Meeting"
+    )
+    assert (total, filtered_total) == (3, 2)
+    assert [event.title for event in first] == ["Alpha Meeting"]
+    assert [event.title for event in second] == ["Beta Meeting"]
 
 
 # ---------------------------------------------------------------------------

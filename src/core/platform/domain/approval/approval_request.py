@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import field_validator
@@ -27,8 +27,8 @@ def _normalize_optional_datetime(value: object, *, code: str) -> datetime | None
             code=code,
         )
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _normalize_required_datetime(value: object, *, code: str) -> datetime:
@@ -77,11 +77,12 @@ class ApprovalRequest:
     entity_id: str
     project_id: str | None
     payload: dict[str, Any]
+    decision_permission: str = "approval.decide"
     organization_id: str | None = None
     status: ApprovalStatus = ApprovalStatus.PENDING
     requested_by_user_id: str | None = None
     requested_by_username: str | None = None
-    requested_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    requested_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     decided_by_user_id: str | None = None
     decided_by_username: str | None = None
     decided_at: datetime | None = None
@@ -94,6 +95,15 @@ class ApprovalRequest:
             value,
             message="Approval request type is required.",
             code="APPROVAL_REQUEST_TYPE_REQUIRED",
+        ).lower()
+
+    @field_validator("decision_permission", mode="before")
+    @classmethod
+    def _validate_decision_permission(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Approval decision permission is required.",
+            code="APPROVAL_DECISION_PERMISSION_REQUIRED",
         ).lower()
 
     @field_validator("tenant_id", mode="before")
@@ -178,6 +188,7 @@ class ApprovalRequest:
         payload: dict[str, Any] | None = None,
         requested_by_user_id: str | None = None,
         requested_by_username: str | None = None,
+        decision_permission: str = "approval.decide",
     ) -> ApprovalRequest:
         return ApprovalRequest(
             id=generate_id(),
@@ -190,6 +201,7 @@ class ApprovalRequest:
             organization_id=organization_id,
             requested_by_user_id=requested_by_user_id,
             requested_by_username=requested_by_username,
+            decision_permission=decision_permission,
         )
 
 

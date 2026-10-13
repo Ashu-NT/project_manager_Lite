@@ -15,12 +15,12 @@ from src.core.modules.project_management.application.dashboard.models.portfolio_
     PortfolioProjectRow,
     PortfolioStatusRollupRow,
 )
-from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
-from src.core.modules.project_management.infrastructure.reporting import (
+from src.core.modules.project_management.application.dashboard.models.report_models import (
     ProjectKPI,
     ResourceLoadRow,
 )
+from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -88,9 +88,9 @@ class DashboardPortfolioMixin:
         resources_by_id = {resource.id: resource for resource in self._resources.list_resources()}
 
         for project in projects:
-            tasks = select_leaf_tasks(self._tasks.list_tasks_for_project(project.id))
+            tasks = select_leaf_tasks(self._task_lookup.list_tasks_for_project(project.id))
             schedule = self._sched.recalculate_project_schedule(project.id, persist=False)
-            assignments = self._tasks.list_assignments_for_tasks([task.id for task in tasks])
+            assignments = self._task_lookup.list_assignments_for_tasks([task.id for task in tasks])
             assignments_by_task: dict[str, list[object]] = {}
             for assignment in assignments:
                 assignments_by_task.setdefault(assignment.task_id, []).append(assignment)

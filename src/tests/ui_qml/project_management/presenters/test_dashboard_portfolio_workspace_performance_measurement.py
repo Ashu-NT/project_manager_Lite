@@ -86,6 +86,7 @@ def _seed_single_project_workspace(services):
     portfolio_api = build_project_management_portfolio_desktop_api(
         project_service=services["project_service"],
         portfolio_service=services["portfolio_service"],
+        portfolio_intake_query=services["portfolio_intake_query"],
         pool_service=services["portfolio_resource_pool_service"],
     )
     template = portfolio_api.create_scoring_template(
@@ -135,9 +136,8 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
     project, portfolio_api = _seed_single_project_workspace(services)
     dashboard = services["dashboard_service"]
     reporting = services["reporting_service"]
-    tasks = services["task_service"]
     resources = services["resource_service"]
-    registers = services["register_service"]
+    registers = services["register_query"]
     baselines = services["baseline_service"]
     collaboration = services["collaboration_service"]
     approvals = services["approval_service"]
@@ -164,9 +164,9 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
         (reporting, "get_project_cost_source_breakdown", "reporting.get_cost_sources"),
         (reporting, "get_earned_value", "reporting.get_earned_value"),
         (reporting, "get_evm_series", "reporting.get_evm_series"),
-        (tasks, "list_tasks_for_project", "tasks.list_for_project"),
-        (tasks, "list_assignments_for_tasks", "tasks.list_assignments_for_tasks"),
-        (tasks, "list_assignments_for_task", "tasks.list_assignments_for_task"),
+        (dashboard._task_lookup, "list_tasks_for_project", "tasks.list_for_project"),
+        (dashboard._task_lookup, "list_assignments_for_tasks", "tasks.list_assignments_for_tasks"),
+        (dashboard._task_assignments, "list_assignments_for_task", "tasks.list_assignments_for_task"),
         (resources, "list_resources", "resources.list_resources"),
         (registers, "get_dashboard_snapshot", "register.get_dashboard_snapshot"),
         (baselines, "list_baselines", "baseline.list_baselines"),
@@ -268,13 +268,12 @@ def test_dashboard_portfolio_scope_batches_shared_lookups_once_per_project(
 
     dashboard = services["dashboard_service"]
     resources = services["resource_service"]
-    tasks = services["task_service"]
     scheduling_targets = [
         (dashboard._sched, "recalculate_project_schedule", "sched.recalculate"),
         (resources, "list_resources", "resources.list_resources"),
-        (tasks, "list_tasks_for_project", "tasks.list_for_project"),
-        (tasks, "list_assignments_for_tasks", "tasks.list_assignments_for_tasks"),
-        (tasks, "list_assignments_for_task", "tasks.list_assignments_for_task"),
+        (dashboard._task_lookup, "list_tasks_for_project", "tasks.list_for_project"),
+        (dashboard._task_lookup, "list_assignments_for_tasks", "tasks.list_assignments_for_tasks"),
+        (dashboard._task_assignments, "list_assignments_for_task", "tasks.list_assignments_for_task"),
     ]
 
     with count_calls(scheduling_targets) as calls:

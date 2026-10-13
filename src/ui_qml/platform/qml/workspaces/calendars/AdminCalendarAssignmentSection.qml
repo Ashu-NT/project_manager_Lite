@@ -24,6 +24,15 @@ Item {
     // view. Department/Employee sections leave this at its default empty
     // object and keep today's raw-assignment-only view unchanged.
     property var effectiveCalendarSummary: ({})
+    // Opt-out for the informational banner and the separate "Calendar
+    // Management" explanatory card below -- both stay on by default so
+    // Department's own Calendar tab (which doesn't pass this) renders
+    // exactly as before. Site's Calendar tab turns this off: once the
+    // Effective Calendar card is well-designed, an unconditional banner
+    // plus a whole card devoted to explaining another screen is redundant,
+    // and Site already surfaces the same "open calendar management" action
+    // through its own section toolbar.
+    property bool showGuidanceCard: true
 
     signal assignCalendarRequested()
     signal removeAssignmentRequested(string assignmentId)
@@ -37,6 +46,23 @@ Item {
     readonly property var _chainItems: Array.isArray(root.sourceChain) ? root.sourceChain : []
     readonly property bool _hasEffectiveSummary: String(root.effectiveCalendarSummary && root.effectiveCalendarSummary.calendarName ? root.effectiveCalendarSummary.calendarName : "").length > 0
     readonly property bool _effectiveIsOverride: root.effectiveCalendarSummary && root.effectiveCalendarSummary.source === "override"
+    // Site's own resolver only distinguishes two states ("override"/
+    // "inherited"), synthesized below into an entity-labeled string.
+    // Department's resolver already returns a fully display-ready, 3-way
+    // label ("Department override" / "Inherited from Site" / "Inherited
+    // from Organization" -- see department_calendar_summary()) since it
+    // must distinguish which level actually resolved the calendar, not just
+    // whether it did -- used verbatim instead of being collapsed back down
+    // to Site's binary vocabulary.
+    readonly property string _effectiveSourceLabel: {
+        const raw = String(root.effectiveCalendarSummary.source || "")
+        if (raw === "override" || raw === "inherited" || raw.length === 0) {
+            return root._effectiveIsOverride
+                ? (root.entityType.length > 0 ? root.entityType.charAt(0).toUpperCase() + root.entityType.slice(1) + " override" : "Override")
+                : "Inherited from Organization"
+        }
+        return raw
+    }
     readonly property real _cardHeaderHeight: Theme.AppTheme.sectionTitleSize + Theme.AppTheme.spacingMd * 2 + Theme.AppTheme.spacingSm
 
     implicitHeight: contentColumn.implicitHeight
@@ -65,6 +91,7 @@ Item {
 
             AppWidgets.InlineMessage {
                 Layout.fillWidth: true
+                visible: root.showGuidanceCard
                 tone: "info"
                 message: "Calendar rules define working hours, holidays, and availability. Manage calendar definitions in Calendar Management."
             }
@@ -93,9 +120,7 @@ Item {
                         Repeater {
                             model: [
                                 { "label": "Effective Calendar", "value": String(root.effectiveCalendarSummary.calendarName || "") },
-                                { "label": "Source", "value": root._effectiveIsOverride
-                                    ? (root.entityType.length > 0 ? root.entityType.charAt(0).toUpperCase() + root.entityType.slice(1) + " override" : "Override")
-                                    : "Inherited from Organization" },
+                                { "label": "Source", "value": root._effectiveSourceLabel },
                                 { "label": "Working Week", "value": String(root.effectiveCalendarSummary.workingWeekLabel || "-") },
                                 { "label": "Time Zone", "value": String(root.effectiveCalendarSummary.timeZone || "-") },
                                 { "label": "Holiday Rules", "value": String(root.effectiveCalendarSummary.holidaySetLabel || "-") }
@@ -228,6 +253,7 @@ Item {
 
             AppWidgets.SectionCard {
                 Layout.fillWidth: true
+                visible: root.showGuidanceCard
                 implicitHeight: root._cardHeight(mgmtContent.implicitHeight)
                 title: "Calendar Management"
                 outlined: true

@@ -124,7 +124,12 @@ def test_department_row_activation_emits_related_record_request(services, qapp) 
 
 
 def test_employee_row_activation_emits_related_record_request(services, qapp) -> None:
-    employee = services["employee_service"].create_employee(employee_code="NAV-EMP-1", full_name="Nav Employee One")
+    department = services["department_service"].create_department(
+        department_code="NAV-EMP-DEPT-1", name="Nav Employee Department One"
+    )
+    employee = services["employee_service"].create_employee(
+        employee_code="NAV-EMP-1", full_name="Nav Employee One", department_id=department.id
+    )
 
     engine, root, admin, _catalog = _load_detail_page(services, qapp, org_code="NAV-ORG-3", org_name="Nav Org Three")
     try:

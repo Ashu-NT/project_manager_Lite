@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import fields, is_dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -108,6 +108,8 @@ def _submitted_budget(services, session):
 
 def _request_budget_approval_as_a_different_user(services, budget):
     active_organization_id = services["tenant_context_service"].get_active_organization_id()
+    admin = services["auth_service"].authenticate("admin", "ChangeMe123!")
+    services["auth_service"].assign_role(admin.id, "approver")
     _login_as_fresh_requester(services)
     if active_organization_id:
         services["user_session"].set_active_organization_id(active_organization_id)
@@ -134,21 +136,21 @@ def _request_budget_approval_as_a_different_user(services, budget):
         (
             ApprovalRequested,
             {
-                "approval_id", "tenant_id", "organization_id", "approval_type",
+                "event_id", "approval_id", "tenant_id", "organization_id", "approval_type",
                 "entity_type", "entity_id", "requested_by_user_id", "occurred_at",
             },
         ),
         (
             ApprovalApproved,
             {
-                "approval_id", "tenant_id", "organization_id", "approval_type",
+                "event_id", "approval_id", "tenant_id", "organization_id", "approval_type",
                 "entity_type", "entity_id", "decided_by_user_id", "occurred_at",
             },
         ),
         (
             ApprovalRejected,
             {
-                "approval_id", "tenant_id", "organization_id", "approval_type",
+                "event_id", "approval_id", "tenant_id", "organization_id", "approval_type",
                 "entity_type", "entity_id", "decided_by_user_id", "occurred_at",
             },
         ),
@@ -169,7 +171,7 @@ def test_approval_event_conforms_to_domain_event_and_has_only_the_locked_fields(
             if event_cls is ApprovalRequested
             else {"decided_by_user_id": "user-1"}
         ),
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     assert isinstance(event, DomainEvent)
     assert is_dataclass(event)
@@ -253,7 +255,7 @@ def test_approval_requested_has_exactly_one_recording_responsibility():
 def test_standalone_request_change_uses_the_injected_clock_deterministically(services, monkeypatch):
     _login_as_fresh_requester(services)
     approvals = services["approval_service"]
-    fixed_when = datetime(2031, 5, 6, 8, 0, 0, tzinfo=timezone.utc)
+    fixed_when = datetime(2031, 5, 6, 8, 0, 0, tzinfo=UTC)
     original_clock = approvals._clock
     approvals._clock = _FixedClock(fixed_when)
     try:
@@ -601,7 +603,7 @@ def test_standalone_request_audit_failure_emits_zero_observable_approval_request
 
 
 def test_no_approval_requested_observable_on_commit_failure(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.approval.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWork,
     )
 
@@ -738,7 +740,7 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
         SqlAlchemyApprovalRepository,
     )
-    from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.approval.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWorkFactory,
     )
     from src.infra.events.in_process_post_commit_event_bus import (
@@ -797,7 +799,7 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     approvals_a = ApprovalService(
         session=approval_repo_a.session, approval_repo=approval_repo_a, uow_factory=factory_a,
         user_session=session_a, tenant_context_service=_FakeTenantContextService("evt-tenant-a", "evt-org-a"),
-        clock=_FixedClock(datetime(2031, 1, 1, tzinfo=timezone.utc)),
+        clock=_FixedClock(datetime(2031, 1, 1, tzinfo=UTC)),
     )
     request = approvals_a.request_change(
         request_type="baseline.create", entity_type="project_baseline",
@@ -817,7 +819,7 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     approvals_b = ApprovalService(
         session=session_factory(), approval_repo=None, uow_factory=factory_b,
         user_session=session_b, tenant_context_service=_FakeTenantContextService("evt-tenant-b", "evt-org-b"),
-        clock=_FixedClock(datetime(2031, 1, 1, tzinfo=timezone.utc)),
+        clock=_FixedClock(datetime(2031, 1, 1, tzinfo=UTC)),
     )
 
     with pytest.raises(NotFoundError):

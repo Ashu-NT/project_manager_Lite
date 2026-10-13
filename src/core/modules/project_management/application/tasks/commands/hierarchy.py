@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
+    TaskHierarchyPolicy,
+)
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskHierarchyChanged,
     TaskHierarchyChangeType,
+)
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
 )
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     TaskRepository,
@@ -22,18 +27,34 @@ from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 
 
-class TaskHierarchyMixin:
-    _session: Session
-    _task_repo: TaskRepository
+class TaskHierarchyCommandHandler:
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        user_session: UserSessionContext | None,
+        tenant_context_service: TenantContextService,
+        hierarchy_policy: TaskHierarchyPolicy,
+        uow_scope: TaskUowScope,
+    ) -> None:
+        self._task_repo = task_repo
+        self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
+        self._hierarchy_policy = hierarchy_policy
+        self._uow_scope = uow_scope
 
     def move_task(
         self,
@@ -60,15 +81,15 @@ class TaskHierarchyMixin:
                 code="STALE_WRITE",
             )
         tasks = self._task_repo.list_by_project(task.project_id)
-        parent = self._require_wbs_parent(
+        parent = self._hierarchy_policy._require_wbs_parent(
             project_id=task.project_id,
             parent_task_id=parent_task_id,
             moving_task_id=task.id,
             tasks=tasks,
         )
         if parent is not None:
-            self._assert_parent_has_no_direct_execution(parent)
-        children = self._children_by_parent(tasks)
+            self._hierarchy_policy._assert_parent_has_no_direct_execution(parent)
+        children = self._hierarchy_policy._children_by_parent(tasks)
         subtree_ids: set[str] = set()
 
         def collect(parent_id: str) -> None:
@@ -98,12 +119,12 @@ class TaskHierarchyMixin:
             for item in tasks
             if item.parent_task_id == parent_task_id and item.id not in subtree_ids
         ]
-        resolved_wbs = self._validate_wbs_code_for_parent(
+        resolved_wbs = self._hierarchy_policy._validate_wbs_code_for_parent(
             wbs_code
             or (
                 task.wbs_code
                 if task.parent_task_id == parent_task_id
-                else self._next_wbs_code(parent, siblings)
+                else self._hierarchy_policy._next_wbs_code(parent, siblings)
             ),
             parent,
         )
@@ -161,9 +182,11 @@ class TaskHierarchyMixin:
                 -original_by_id[candidate.id].wbs_code.count("."),
             ),
         )
-        scope = self._active_task_scope(operation_label="move task in WBS")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="move task in WBS"
+        )
         try:
-            with self._task_uow() as uow:
+            with self._uow_scope.create() as uow:
                 # Deepest-first subtree writes avoid transient unique-code conflicts.
                 for candidate in ordered_updates:
                     uow.tasks.update(candidate)
@@ -188,7 +211,7 @@ class TaskHierarchyMixin:
                         project_id=task.project_id,
                         task_id=task.id,
                         change_type=TaskHierarchyChangeType.MOVED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 uow.commit()
@@ -218,4 +241,4 @@ class TaskHierarchyMixin:
         )
 
 
-__all__ = ["TaskHierarchyMixin"]
+__all__ = ["TaskHierarchyCommandHandler"]

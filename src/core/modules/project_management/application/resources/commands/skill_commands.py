@@ -1,11 +1,12 @@
-"""Skill and certification command methods for ResourceService."""
+"""Governed skill and certification commands."""
 
 from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date
+from typing import cast
 
-from src.core.modules.project_management.application.resources.resource_capability_events import (
+from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
     ResourceCapabilityChanged,
     ResourceCapabilityChangeType,
 )
@@ -13,25 +14,55 @@ from src.core.modules.project_management.contracts.repositories.resources.skills
     ResourceCertificationRepository,
     ResourceSkillRepository,
 )
+from src.core.modules.project_management.contracts.uow.resources.resource_unit_of_work import (
+    ResourceUnitOfWorkFactory,
+)
 from src.core.modules.project_management.domain.resources.skills import (
     ResourceCertification,
     ResourceSkill,
+    SkillProficiencyLevel,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.common.ids import generate_id
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
-class SkillCommandMixin:
-    _skill_repo: ResourceSkillRepository | None
-    _cert_repo: ResourceCertificationRepository | None
+class ResourceCapabilityCommandHandler:
+    def __init__(
+        self,
+        *,
+        skill_repo: ResourceSkillRepository | None,
+        cert_repo: ResourceCertificationRepository | None,
+        user_session: UserSessionContext | None,
+        tenant_context_service: TenantContextService | None,
+        uow_factory: ResourceUnitOfWorkFactory | None,
+    ) -> None:
+        self._skill_repo = skill_repo
+        self._cert_repo = cert_repo
+        self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
+        self._uow_factory = uow_factory
+
+    def _require_uow_factory(self) -> ResourceUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Resource unit of work is not configured.")
+        return self._uow_factory
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
     def _stage_capability_audit(self, uow, child, *, operation: str, action: str) -> None:
         record_audit_entry(
@@ -65,6 +96,8 @@ class SkillCommandMixin:
     def _record_resource_capability_event(
         self, uow, child, *, change_type: ResourceCapabilityChangeType
     ) -> None:
+        if self._tenant_context_service is None:
+            raise RuntimeError("Resource capability tenant scope is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="mutate resource capability"
         )
@@ -93,11 +126,12 @@ class SkillCommandMixin:
         )
         if self._skill_repo is None:
             raise RuntimeError("Skill repository is not configured.")
+        # The validated domain dataclass normalizes text to SkillProficiencyLevel.
         skill = ResourceSkill.create(
             resource_id=resource_id,
             skill_code=skill_code,
             skill_name=skill_name,
-            proficiency=proficiency,
+            proficiency=cast(SkillProficiencyLevel, proficiency),
             notes=notes,
         )
         if self._skill_repo.code_exists(resource_id, skill.skill_code):
@@ -142,7 +176,7 @@ class SkillCommandMixin:
             existing,
             skill_code=skill_code,
             skill_name=skill_name,
-            proficiency=proficiency,
+            proficiency=cast(SkillProficiencyLevel, proficiency),
             notes=notes,
         )
         if candidate == existing:
@@ -323,4 +357,4 @@ class SkillCommandMixin:
         return existing
 
 
-__all__ = ["SkillCommandMixin"]
+__all__ = ["ResourceCapabilityCommandHandler"]

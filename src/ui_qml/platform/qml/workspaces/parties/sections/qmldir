@@ -1,0 +1,3 @@
+module workspaces.parties.sections
+PartyOverviewSection 1.0 PartyOverviewSection.qml
+PartyActivitySection 1.0 PartyActivitySection.qml

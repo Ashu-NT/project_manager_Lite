@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -83,14 +82,9 @@ def _create_draft(services, project, cost_code, *, command_id="p37-manual-1", am
 
 
 def _become_independent_decider(services) -> None:
-    user_session = services["user_session"]
-    user_session.set_principal(
-        replace(
-            user_session.principal,
-            user_id="p37-independent-finance-decider",
-            username="p37-independent-finance-decider",
-        )
-    )
+    auth = services["auth_service"]
+    user = auth.register_user("p37-independent-finance-decider", "StrongPass123", role_names=["finance_controller"])
+    services["user_session"].set_principal(auth.build_principal(user))
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +108,7 @@ def test_draft_recorded_maps_to_list_target_only():
     handler = build_cost_entry_view_invalidation_handler(channel)
     event = CostEntryRecorded(
         tenant_id="t1", organization_id="o1", project_id="p1", cost_entry_id="e1",
-        status=ProjectCostEntryStatus.DRAFT, occurred_at=datetime.now(timezone.utc),
+        status=ProjectCostEntryStatus.DRAFT, occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="c1"))
     assert len(channel.notified) == 1
@@ -131,7 +125,7 @@ def test_posted_recorded_maps_to_both_list_and_actuals_targets():
     handler = build_cost_entry_view_invalidation_handler(channel)
     event = CostEntryRecorded(
         tenant_id="t1", organization_id="o1", project_id="p1", cost_entry_id="e1",
-        status=ProjectCostEntryStatus.POSTED, occurred_at=datetime.now(timezone.utc),
+        status=ProjectCostEntryStatus.POSTED, occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="c2"))
     scope_codes = {hint.scope_code for hint in channel.notified}
@@ -155,7 +149,7 @@ def test_status_changed_maps_to_source_derived_targets(change_type, expected_sco
     handler = build_cost_entry_view_invalidation_handler(channel)
     event = CostEntryStatusChanged(
         tenant_id="t1", organization_id="o1", project_id="p1", cost_entry_id="e1",
-        change_type=change_type, occurred_at=datetime.now(timezone.utc),
+        change_type=change_type, occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="c3"))
     assert {hint.scope_code for hint in channel.notified} == expected_scope_codes
@@ -164,7 +158,7 @@ def test_status_changed_maps_to_source_derived_targets(change_type, expected_sco
 def test_updated_and_removed_map_to_list_target_only():
     channel = _fake_channel()
     handler = build_cost_entry_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     handler(
         CostEntryUpdated(tenant_id="t1", organization_id="o1", project_id="p1", cost_entry_id="e1", occurred_at=now),
         DomainEventContext(correlation_id="c4"),
@@ -181,7 +175,7 @@ def test_reversed_maps_to_both_list_and_actuals_targets():
     handler = build_cost_entry_view_invalidation_handler(channel)
     event = CostEntryReversed(
         tenant_id="t1", organization_id="o1", project_id="p1", cost_entry_id="e2",
-        reverses_entry_id="e1", occurred_at=datetime.now(timezone.utc),
+        reverses_entry_id="e1", occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="c6"))
     assert {hint.scope_code for hint in channel.notified} == {
@@ -192,7 +186,7 @@ def test_reversed_maps_to_both_list_and_actuals_targets():
 def test_dedupe_by_target_within_one_transaction():
     channel = _fake_channel()
     handler = build_cost_entry_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     event = CostEntryUpdated(
         tenant_id="t1", organization_id="o1", project_id="p1", cost_entry_id="e1", occurred_at=now
     )

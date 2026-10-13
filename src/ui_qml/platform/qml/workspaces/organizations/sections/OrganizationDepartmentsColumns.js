@@ -17,7 +17,7 @@ function columns() {
         { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 90, "type": "status", "required": true, "visible": true },
         { "key": "departmentType", "label": "Type", "flex": 1, "minWidth": 120, "visible": false },
         { "key": "parentDepartmentName", "label": "Parent Department", "flex": 1, "minWidth": 150, "visible": false },
-        { "key": "costCenterCode", "label": "Cost Center", "flex": 1, "minWidth": 120, "visible": false },
+        { "key": "costCenterCode", "label": "Cost Center Code", "flex": 1, "minWidth": 120, "visible": false },
         { "key": "createdAt", "label": "Created", "flex": 1, "minWidth": 140, "visible": false },
         { "key": "updatedAt", "label": "Updated", "flex": 1, "minWidth": 140, "visible": false }
     ]

@@ -5,6 +5,8 @@ zero-legacy-Signal application-wide guard."""
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 from sqlalchemy import select
 
@@ -105,7 +107,7 @@ def test_register_failed_login_bounded_retry_recovers_from_concurrent_write(
     """Two failed-login attempts race on the same account's real CAS -- the second call is
     handed a stale `UserAccount` (as if loaded before the first attempt committed). It must not
     lose its own increment: exactly one bounded retry reloads fresh state and reapplies it."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     auth = services["auth_service"]
     target = auth.register_user(_unique("p46b-race-target"), _PASSWORD, role_names=[])
@@ -115,12 +117,12 @@ def test_register_failed_login_bounded_retry_recovers_from_concurrent_write(
 
     register_failed_login(
         auth, auth._user_repo.get(target.id), username=target.username,
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     # `stale_copy` still holds the pre-first-attempt version -- its own commit must conflict,
     # then recover via the bounded retry rather than silently losing this second attempt.
     register_failed_login(
-        auth, stale_copy, username=target.username, occurred_at=datetime.now(timezone.utc)
+        auth, stale_copy, username=target.username, occurred_at=datetime.now(UTC)
     )
 
     refreshed = auth._user_repo.get(target.id)
@@ -136,7 +138,7 @@ def test_register_failed_login_exhausted_retry_propagates_not_silently_swallowed
     """A conflict on the bounded retry's OWN commit attempt (a second concurrent writer) must
     propagate as `ConcurrencyError` -- never be silently discarded, unlike the prior bare
     `except Exception: ... return`."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
         SqlAlchemyUserRepository,
@@ -156,7 +158,7 @@ def test_register_failed_login_exhausted_retry_propagates_not_silently_swallowed
     monkeypatch.setattr(SqlAlchemyUserRepository, "update", _always_conflict)
     with pytest.raises(ConcurrencyError):
         register_failed_login(
-            auth, stale_copy, username=target.username, occurred_at=datetime.now(timezone.utc)
+            auth, stale_copy, username=target.username, occurred_at=datetime.now(UTC)
         )
     assert call_count["n"] == 2, "exactly the bounded max (2 attempts), not silently retried forever"
 
@@ -165,7 +167,7 @@ def test_register_failed_login_audit_failure_propagates_and_rolls_back(services,
     """Any exception OTHER than `ConcurrencyError` (e.g. the required audit write failing) must
     propagate immediately -- and, since it happens inside the UoW, roll back the whole attempt
     rather than leaving a half-recorded lockout state."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     auth = services["auth_service"]
     target = auth.register_user(_unique("p46b-audit-fail"), _PASSWORD, role_names=[])
@@ -180,7 +182,7 @@ def test_register_failed_login_audit_failure_propagates_and_rolls_back(services,
     with pytest.raises(RuntimeError, match="security audit unavailable"):
         register_failed_login(
             auth, auth._user_repo.get(target.id), username=target.username,
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
         )
 
     assert auth._user_repo.get(target.id).failed_login_attempts == before, (

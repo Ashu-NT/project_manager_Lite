@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from decimal import Decimal
+from typing import cast
 
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioScenarioChanged,
@@ -15,8 +16,11 @@ from src.core.platform.common.exceptions import NotFoundError
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
+_SCENARIO_UNSET = object()
+
 
 class PortfolioScenarioCommandMixin:
+
     def create_scenario(
         self,
         *,
@@ -82,7 +86,17 @@ class PortfolioScenarioCommandMixin:
             uow.commit()
         return scenario
 
-    def update_scenario(self, scenario_id: str, **changes) -> PortfolioScenario:
+    def update_scenario(
+        self,
+        scenario_id: str,
+        *,
+        name: str | None = None,
+        budget_limit: Decimal | int | str | None | object = _SCENARIO_UNSET,
+        capacity_limit_percent: float | int | str | None | object = _SCENARIO_UNSET,
+        project_ids: list[str] | None = None,
+        intake_item_ids: list[str] | None = None,
+        notes: str | None = None,
+    ) -> PortfolioScenario:
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio scenario")
         self._active_portfolio_organization_id(operation_label="update portfolio scenario")
         scope = self._active_portfolio_scope(operation_label="update portfolio scenario")
@@ -91,32 +105,36 @@ class PortfolioScenarioCommandMixin:
             raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
         candidate = replace(
             scenario,
-            name=scenario.name if changes.get("name") is None else changes["name"],
-            budget_limit=scenario.budget_limit if "budget_limit" not in changes else changes["budget_limit"],
+            name=scenario.name if name is None else name,
+            budget_limit=(
+                scenario.budget_limit
+                if budget_limit is _SCENARIO_UNSET
+                else cast(Decimal | int | str | None, budget_limit)
+            ),
             capacity_limit_percent=(
                 scenario.capacity_limit_percent
-                if "capacity_limit_percent" not in changes
-                else changes["capacity_limit_percent"]
+                if capacity_limit_percent is _SCENARIO_UNSET
+                else cast(float | int | str | None, capacity_limit_percent)
             ),
             project_ids=(
                 scenario.project_ids
-                if "project_ids" not in changes or changes["project_ids"] is None
-                else changes["project_ids"]
+                if project_ids is None
+                else project_ids
             ),
             intake_item_ids=(
                 scenario.intake_item_ids
-                if "intake_item_ids" not in changes or changes["intake_item_ids"] is None
-                else changes["intake_item_ids"]
+                if intake_item_ids is None
+                else intake_item_ids
             ),
-            notes=scenario.notes if changes.get("notes") is None else changes["notes"],
+            notes=scenario.notes if notes is None else notes,
             updated_at=self._utc_now(),
         )
-        if "project_ids" in changes and changes["project_ids"] is not None:
+        if project_ids is not None:
             candidate = replace(
                 candidate,
                 project_ids=self._validate_project_ids(candidate.project_ids),
             )
-        if "intake_item_ids" in changes and changes["intake_item_ids"] is not None:
+        if intake_item_ids is not None:
             candidate = replace(
                 candidate,
                 intake_item_ids=self._validate_intake_ids(candidate.intake_item_ids),

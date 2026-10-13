@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, field_validator
 
@@ -70,7 +70,7 @@ class ApprovedTimeEntryEventPayload(BaseModel):
     @field_validator("approved_at", mode="after")
     @classmethod
     def _approved_at(cls, value: datetime) -> datetime:
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
 
 __all__ = ["APPROVED_TIME_ENTRY_EVENT_TYPE", "ApprovedTimeEntryEventPayload"]

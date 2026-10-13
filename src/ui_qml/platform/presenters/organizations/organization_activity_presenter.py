@@ -21,17 +21,6 @@ from src.core.platform.api.desktop.history.activity.activity import (
 from src.core.platform.api.desktop.history.activity.models.activity import (
     ActivityEntryDto,
 )
-from src.core.platform.api.desktop.master_data.department.department import (
-    PlatformDepartmentDesktopApi,
-)
-from src.core.platform.api.desktop.master_data.documents.document import (
-    PlatformDocumentDesktopApi,
-)
-from src.core.platform.api.desktop.master_data.employee.employee import (
-    PlatformEmployeeDesktopApi,
-)
-from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
-from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.platform.presenters.common.activity_presenter_support import (
     ACTIVITY_DATE_FILTER_OPTIONS,
     since_for_date_range,
@@ -107,40 +96,13 @@ def _split_document_link_remainder(remainder: str) -> tuple[str, str]:
     return remainder, ""
 
 
-def _paginate_all(api_call, organization_id: str, *, max_pages: int = 20):
-    """Yields every DTO across an organization-scoped paginated API,
-    page_size=100, capped at max_pages -- the same bounded, no-N+1 pattern
-    already used by PlatformDepartmentCatalogPresenter's Site/Department
-    name lookups."""
-    page = 1
-    while page <= max_pages:
-        result = api_call(organization_id, page=page, page_size=100, active_only=None)
-        if not result.ok or result.data is None:
-            return
-        for row in result.data.items:
-            yield row
-        if page * 100 >= result.data.total:
-            return
-        page += 1
-
-
 class PlatformOrganizationActivityPresenter:
     def __init__(
         self,
         *,
         activity_api: PlatformActivityDesktopApi | None = None,
-        site_api: PlatformSiteDesktopApi | None = None,
-        department_api: PlatformDepartmentDesktopApi | None = None,
-        employee_api: PlatformEmployeeDesktopApi | None = None,
-        document_api: PlatformDocumentDesktopApi | None = None,
-        user_api: PlatformUserDesktopApi | None = None,
     ) -> None:
         self._activity_api = activity_api
-        self._site_api = site_api
-        self._department_api = department_api
-        self._employee_api = employee_api
-        self._document_api = document_api
-        self._user_api = user_api
 
     def build_activity_page_for_organization(
         self,
@@ -178,9 +140,8 @@ class PlatformOrganizationActivityPresenter:
             return self._empty_result(page=page, page_size=page_size, message=message)
 
         entry_page = result.data
-        actor_lookup, entity_lookups = self._build_lookups_for_organization(organization_id)
         items = [
-            self._to_rich_activity_item(entry, actor_lookup=actor_lookup, entity_lookups=entity_lookups)
+            self._to_rich_activity_item(entry)
             for entry in entry_page.items
         ]
         return {
@@ -205,71 +166,9 @@ class PlatformOrganizationActivityPresenter:
             "noResultsState": message,
         }
 
-    def _build_lookups_for_organization(
-        self, organization_id: str
-    ) -> tuple[dict[str, str], dict[str, dict[str, str]]]:
-        entity_lookups: dict[str, dict[str, str]] = {
-            "site": {}, "department": {}, "employee": {}, "document": {},
-        }
-        employee_dtos: list[Any] = []
-
-        if self._site_api is not None:
-            for row in _paginate_all(self._site_api.list_sites_page_for_organization, organization_id):
-                entity_lookups["site"][row.id] = row.name
-        if self._department_api is not None:
-            for row in _paginate_all(self._department_api.list_departments_page_for_organization, organization_id):
-                entity_lookups["department"][row.id] = row.name
-        if self._employee_api is not None:
-            for row in _paginate_all(self._employee_api.list_employees_page_for_organization, organization_id):
-                entity_lookups["employee"][row.id] = row.full_name
-                employee_dtos.append(row)
-        if self._document_api is not None:
-            for row in _paginate_all(self._document_api.list_documents_page_for_organization, organization_id):
-                entity_lookups["document"][row.id] = row.title
-
-        actor_lookup = self._build_actor_lookup(employee_dtos)
-        return actor_lookup, entity_lookups
-
-    def _build_actor_lookup(self, employee_dtos: list[Any]) -> dict[str, str]:
-        """actor_id (a User id) -> human-readable name. Preference order:
-        explicit User.display_name, then the linked Employee's full_name,
-        then User.username, then User.email -- never falls back to a raw
-        user id. A user/employee not present here resolves to "" and the
-        caller decides the final "Deleted user"/"System" fallback."""
-        fallback: dict[str, str] = {}
-        display_name: dict[str, str] = {}
-        if self._user_api is not None:
-            result = self._user_api.list_users()
-            if result.ok and result.data is not None:
-                for user in result.data:
-                    name = str(user.username or "").strip() or str(user.email or "").strip()
-                    if name:
-                        fallback[user.id] = name
-                    explicit = str(user.display_name or "").strip()
-                    if explicit:
-                        display_name[user.id] = explicit
-
-        employee_names: dict[str, str] = {}
-        for employee in employee_dtos:
-            user_id = getattr(employee, "user_id", None)
-            full_name = str(getattr(employee, "full_name", "") or "").strip()
-            if user_id and full_name:
-                employee_names[str(user_id)] = full_name
-
-        # Lowest to highest priority -- each .update() lets a higher-priority
-        # source win only where it actually has a value.
-        lookup: dict[str, str] = {}
-        lookup.update(fallback)
-        lookup.update(employee_names)
-        lookup.update(display_name)
-        return lookup
-
     def _to_rich_activity_item(
         self,
         entry: ActivityEntryDto,
-        *,
-        actor_lookup: dict[str, str],
-        entity_lookups: dict[str, dict[str, str]],
     ) -> ActivityItemViewModel:
         title, remainder = split_human_message(entry.human_message or "")
         # Safety net: if the human_message didn't follow the expected
@@ -286,12 +185,8 @@ class PlatformOrganizationActivityPresenter:
         else:
             subject_raw = remainder
 
-        subject_display = entity_lookups.get(entry.entity_type, {}).get(entry.entity_id, "") or subject_raw
-
-        if not entry.actor_id:
-            actor_display = "System"
-        else:
-            actor_display = actor_lookup.get(entry.actor_id) or "Deleted user"
+        subject_display = subject_raw
+        actor_display = entry.actor_display
 
         tone = _ACTIVITY_TONE_OVERRIDE.get(entry.action) or tone_for_action(entry.action)
         icon_key = entry.icon or icon_key_for_entity_type(entry.entity_type)

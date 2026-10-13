@@ -36,7 +36,9 @@ def build_project_management_desktop_runtime_apis(
     resolved = resolve_project_management_desktop_runtime_services(services)
     register_desktop_api = build_project_management_register_desktop_api(
         project_service=resolved.project_service,
-        register_service=resolved.register_service,
+        register_query=resolved.register_query,
+        register_lifecycle_commands=resolved.register_lifecycle_commands,
+        module_catalog_service=platform_dependencies.module_catalog_service,
     )
     change_impact_service = build_schedule_change_impact_service(
         resolved.task_service,
@@ -56,7 +58,8 @@ def build_project_management_desktop_runtime_apis(
             reporting_service=resolved.reporting_service,
             collaboration_service=resolved.collaboration_service,
             approval_service=platform_dependencies.approval_service,
-            task_service=resolved.task_service,
+            task_workspace_query=resolved.task_workspace_query,
+            module_catalog_service=platform_dependencies.module_catalog_service,
         ),
         project_management_collaboration=build_project_management_collaboration_desktop_api(
             collaboration_service=resolved.collaboration_service,
@@ -75,10 +78,13 @@ def build_project_management_desktop_runtime_apis(
         project_management_portfolio=build_project_management_portfolio_desktop_api(
             project_service=resolved.project_service,
             portfolio_service=resolved.portfolio_service,
+            portfolio_intake_query=resolved.portfolio_intake_query,
             pool_service=resolved.pool_service,
         ),
         project_management_projects=build_project_management_projects_desktop_api(
             project_service=resolved.project_service,
+            project_query=resolved.project_query,
+            module_catalog_service=platform_dependencies.module_catalog_service,
             project_resource_service=resolved.project_resource_service,
             resource_service=resolved.resource_service,
             site_service=platform_dependencies.site_service,
@@ -88,6 +94,9 @@ def build_project_management_desktop_runtime_apis(
         project_management_risk=register_desktop_api,
         project_management_resources=build_project_management_resources_desktop_api(
             resource_service=resolved.resource_service,
+            resource_capability_query=resolved.resource_capability_query,
+            resource_context_query=resolved.resource_context_query,
+            module_catalog_service=platform_dependencies.module_catalog_service,
             employee_service=platform_dependencies.employee_service,
             workload_service=resolved.resource_workload_service,
             department_service=platform_dependencies.department_service,
@@ -97,7 +106,7 @@ def build_project_management_desktop_runtime_apis(
             project_service=resolved.project_service,
             task_service=resolved.task_service,
             scheduling_engine=resolved.scheduling_engine,
-            platform_calendar_api=platform_dependencies.enterprise_calendar_api,
+            platform_calendar_api=platform_dependencies.platform_calendar_api,
             work_calendar_service=None,
             work_calendar_engine=resolved.work_calendar_engine,
             baseline_service=resolved.baseline_service,
@@ -109,6 +118,12 @@ def build_project_management_desktop_runtime_apis(
         project_management_tasks=build_project_management_tasks_desktop_api(
             project_service=resolved.project_service,
             task_service=resolved.task_service,
+            task_workspace_query=resolved.task_workspace_query,
+            task_detail_query=resolved.task_detail_query,
+            task_dependency_diagnostics=resolved.task_dependency_diagnostics,
+            task_assignment_commands=resolved.task_assignment_commands,
+            task_time_entries=resolved.task_time_entries,
+            module_catalog_service=platform_dependencies.module_catalog_service,
             project_resource_service=resolved.project_resource_service,
             resource_service=resolved.resource_service,
             reservation_service=platform_dependencies.reservation_service,
@@ -117,7 +132,9 @@ def build_project_management_desktop_runtime_apis(
         ),
         project_management_timesheets=build_project_management_timesheets_desktop_api(
             project_service=resolved.project_service,
-            task_service=resolved.task_service,
+            task_lookup_query=resolved.task_lookup_query,
+            task_assignment_commands=resolved.task_assignment_commands,
+            module_catalog_service=platform_dependencies.module_catalog_service,
             resource_service=resolved.resource_service,
             timesheet_service=resolved.timesheet_service,
         ),

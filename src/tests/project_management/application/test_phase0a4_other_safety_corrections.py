@@ -3,7 +3,7 @@
 1. `PortfolioDependencyCommandMixin.create_project_dependency` checks project-scoped
    `portfolio.manage` on both the predecessor and successor project, not just global
    `portfolio.manage` + project-read accessibility.
-2. `TaskDependencyDiagnosticsMixin.get_dependency_diagnostics` requires `task.read` on the
+2. `TaskDependencyDiagnosticsQueryHandler.get_dependency_diagnostics` requires `task.read` on the
    shared project before returning schedule-impact details.
 3. `capacity_pool_builder.py` and dashboard pending-approvals reporting propagate a builder
    failure instead of swallowing it into empty data.
@@ -72,7 +72,7 @@ def test_create_project_dependency_denies_caller_without_project_scope(services)
 
 
 # ---------------------------------------------------------------------------
-# 3. TaskService.get_dependency_diagnostics requires task.read on the project.
+# 3. Dependency diagnostics require task.read on the project.
 # ---------------------------------------------------------------------------
 
 
@@ -90,9 +90,9 @@ def _seed_diagnostics_tasks(services):
 
 def test_get_dependency_diagnostics_succeeds_for_authorized_caller(services):
     _project, predecessor, successor = _seed_diagnostics_tasks(services)
-    task_service = services["task_service"]
+    diagnostics = services["task_dependency_diagnostics"]
 
-    diagnostic = task_service.get_dependency_diagnostics(predecessor.id, successor.id)
+    diagnostic = diagnostics.get_dependency_diagnostics(predecessor.id, successor.id)
 
     assert diagnostic.predecessor_task_id == predecessor.id
     assert diagnostic.successor_task_id == successor.id
@@ -100,7 +100,7 @@ def test_get_dependency_diagnostics_succeeds_for_authorized_caller(services):
 
 def test_get_dependency_diagnostics_denies_caller_without_project_scope(services):
     _project, predecessor, successor = _seed_diagnostics_tasks(services)
-    task_service = services["task_service"]
+    diagnostics = services["task_dependency_diagnostics"]
     principal = services["user_session"].principal
     services["user_session"].set_principal(
         UserSessionPrincipal(
@@ -116,7 +116,7 @@ def test_get_dependency_diagnostics_denies_caller_without_project_scope(services
     )
 
     with pytest.raises(BusinessRuleError, match="Permission denied") as exc:
-        task_service.get_dependency_diagnostics(predecessor.id, successor.id)
+        diagnostics.get_dependency_diagnostics(predecessor.id, successor.id)
 
     assert exc.value.code == "PERMISSION_DENIED"
 

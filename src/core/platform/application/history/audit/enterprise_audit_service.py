@@ -8,6 +8,10 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.repositories.history.audit.contracts import (
     AuditRepository,
 )
@@ -21,7 +25,7 @@ class EnterpriseAuditService:
         session: Session,
         audit_repo: AuditRepository,
         user_session: UserSessionContext | None = None,
-        tenant_context_service: Any = None,
+        tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._session = session
         self._audit_repo = audit_repo
@@ -68,15 +72,14 @@ class EnterpriseAuditService:
         commit: bool = False,
     ) -> AuditEntry:
         principal = self._user_session.principal if self._user_session else None
-        resolved_actor_id = actor_id if actor_id is not None else (
-            principal.user_id if principal else None
-        )
-        resolved_actor_username = actor_username if actor_username is not None else (
-            principal.username if principal else None
-        )
-        resolved_actor_display_name = actor_display_name if actor_display_name is not None else (
-            getattr(principal, "display_name", None) if principal else None
-        )
+        human_actor = actor_type in {"user", "authentication_subject"}
+        resolved_actor_id = actor_id
+        resolved_actor_username = actor_username
+        resolved_actor_display_name = actor_display_name
+        if human_actor and actor_id is None and principal is not None:
+            resolved_actor_id = principal.user_id
+            resolved_actor_username = actor_username or principal.username
+            resolved_actor_display_name = actor_display_name or principal.display_name
         resolved_organization_id = organization_id
         if resolved_organization_id is None:
             resolved_organization_id = self._active_organization_id()
@@ -146,22 +149,10 @@ class EnterpriseAuditService:
         operation_prefixes: Sequence[str] | None = None,
     ) -> list[AuditEntry]:
         require_permission(self._user_session, "audit.read", operation_label="view audit entries")
-        organization_id = self._active_organization_id()
-        if organization_id and hasattr(self._audit_repo, "list_recent_for_organization"):
-            return self._audit_repo.list_recent_for_organization(
-                organization_id,
-                limit=limit,
-                entity_type=entity_type,
-                operation=operation,
-                severity=severity,
-                category=category,
-                result=result,
-                project_id=project_id,
-                module=module,
-                workspace_id=workspace_id,
-                operation_prefixes=operation_prefixes,
-            )
-        return self._audit_repo.list_recent(
+        organization_id = self._require_active_organization_id()
+        self._require_explicit_organization(organization_id)
+        return self._audit_repo.list_recent_for_organization(
+            organization_id,
             limit=limit,
             entity_type=entity_type,
             operation=operation,
@@ -195,6 +186,7 @@ class EnterpriseAuditService:
         Organization Detail, which may be viewing an organization the user
         hasn't switched their active context to."""
         require_permission(self._user_session, "audit.read", operation_label="view audit entries")
+        self._require_explicit_organization(organization_id)
         return self._audit_repo.list_recent_for_organization(
             organization_id,
             limit=limit,
@@ -218,6 +210,28 @@ class EnterpriseAuditService:
             return tc.require_active_organization_id(operation_label="enterprise audit")
         except Exception:
             return None
+
+    def _require_active_organization_id(self) -> str:
+        tc = self._tenant_context_service
+        if tc is None:
+            raise BusinessRuleError(
+                "Enterprise Audit requires tenant context.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return tc.require_active_organization_id(operation_label="view audit entries")
+
+    def _require_explicit_organization(self, organization_id: str) -> None:
+        tc = self._tenant_context_service
+        if tc is None:
+            raise BusinessRuleError(
+                "Enterprise Audit requires tenant context.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tc.require_history_organization_access(
+            organization_id,
+            operation_label="view organization audit entries",
+            permission_codes=("audit.read",),
+        )
 
 
 __all__ = ["EnterpriseAuditService"]

@@ -5,21 +5,21 @@ from decimal import Decimal
 
 from sqlalchemy import and_, case, func, literal, or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.core.modules.project_management.contracts.reads.projects import (
     ProjectActivityFact,
     ProjectActivityPage,
+    ProjectCatalogProjectFact,
     ProjectCatalogReadItem,
     ProjectCatalogReadPage,
     ProjectCatalogSummary,
+    ProjectManagerCandidateFact,
     ProjectResourceDetailFact,
     ProjectResourceDetailPage,
 )
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.modules.project_management.infrastructure.persistence.mappers.project import (
-    project_from_orm,
-)
 from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
     BudgetLineORM,
     ProjectBudgetORM,
@@ -37,6 +37,16 @@ from src.core.modules.project_management.infrastructure.persistence.orm.resource
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskAssignmentORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.projects.activity_labels import (
+    resolve_project_activity_labels,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.projects.manager_candidates import (
+    is_eligible_manager,
+    list_eligible_manager_candidates,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.resources.identity_expressions import (
+    resource_display_name,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
     stable_order_by,
 )
@@ -45,6 +55,9 @@ from src.core.platform.infrastructure.persistence.mappers.history.activity.activ
 )
 from src.core.platform.infrastructure.persistence.orm.history.activity.activity import (
     ActivityEntryORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
 )
 from src.core.platform.infrastructure.persistence.orm.master_data.party.party import (
     PartyORM,
@@ -65,6 +78,21 @@ def _contains_pattern(value: str) -> str:
 class SqlAlchemyProjectCatalogReader:
     def __init__(self, *, session: Session) -> None:
         self._session = session
+
+    def list_eligible_manager_candidates(
+        self, *, tenant_id: str, organization_id: str
+    ) -> tuple[ProjectManagerCandidateFact, ...]:
+        return list_eligible_manager_candidates(
+            self._session, tenant_id=tenant_id, organization_id=organization_id
+        )
+
+    def is_eligible_manager(
+        self, *, tenant_id: str, organization_id: str, user_id: str
+    ) -> bool:
+        return is_eligible_manager(
+            self._session, tenant_id=tenant_id,
+            organization_id=organization_id, user_id=user_id,
+        )
 
     def read_resources_page(
         self, *, tenant_id: str, organization_id: str, project_id: str,
@@ -113,7 +141,7 @@ class SqlAlchemyProjectCatalogReader:
         if normalized_search:
             pattern = _contains_pattern(normalized_search)
             filters.append(or_(
-                func.lower(ResourceORM.name).like(pattern, escape="\\"),
+                func.lower(resource_display_name()).like(pattern, escape="\\"),
                 func.lower(func.coalesce(ResourceORM.resource_code, "")).like(pattern, escape="\\"),
                 func.lower(func.coalesce(ResourceORM.role, "")).like(pattern, escape="\\"),
             ))
@@ -121,6 +149,11 @@ class SqlAlchemyProjectCatalogReader:
             ProjectResourceORM.__table__
             .join(ProjectORM, ProjectORM.id == ProjectResourceORM.project_id)
             .join(ResourceORM, ResourceORM.id == ProjectResourceORM.resource_id)
+            .outerjoin(EmployeeORM, and_(
+                EmployeeORM.id == ResourceORM.employee_id,
+                EmployeeORM.tenant_id == tenant_id,
+                EmployeeORM.organization_id == organization_id,
+            ))
             .outerjoin(usage, usage.c.project_resource_id == ProjectResourceORM.id)
         )
         total = int(self._session.scalar(
@@ -129,7 +162,7 @@ class SqlAlchemyProjectCatalogReader:
         allocated = func.coalesce(usage.c.allocated, 0)
         actual = func.coalesce(usage.c.actual, 0)
         sort_expressions = {
-            "resourceName": (func.lower(ResourceORM.name),),
+            "resourceName": (func.lower(resource_display_name()),),
             "resourceCode": (func.lower(func.coalesce(ResourceORM.resource_code, "")),),
             "role": (func.lower(func.coalesce(ResourceORM.role, "")),),
             "plannedHours": (ProjectResourceORM.planned_hours,),
@@ -139,7 +172,7 @@ class SqlAlchemyProjectCatalogReader:
         rows = self._session.execute(
             select(
                 ProjectResourceORM.id, ResourceORM.id, ResourceORM.resource_code,
-                ResourceORM.name, ResourceORM.role, ProjectResourceORM.planned_hours,
+                resource_display_name(), ResourceORM.role, ProjectResourceORM.planned_hours,
                 allocated, actual, ProjectResourceORM.is_active, ProjectResourceORM.version,
             ).select_from(from_clause).where(*filters).order_by(*stable_order_by(
                 sort=sort, expressions=sort_expressions, default_key="resourceName",
@@ -186,12 +219,23 @@ class SqlAlchemyProjectCatalogReader:
             ActivityEntryORM.human_message, ActivityEntryORM.details_json,
         ).where(*filters).order_by(ActivityEntryORM.timestamp.desc(), ActivityEntryORM.id.desc())
           .offset((page - 1) * page_size).limit(page_size)).all()
+        details = [activity_payload_from_json(row[6]) for row in rows]
+        actors, reference_labels = resolve_project_activity_labels(
+            self._session, tenant_id=tenant_id, organization_id=organization_id,
+            entries=tuple(
+                (str(row[2]) if row[2] else None, payload)
+                for row, payload in zip(rows, details)
+            ),
+        )
         return ProjectActivityPage(items=tuple(ProjectActivityFact(
             activity_id=str(r[0]), occurred_at=r[1], actor_id=str(r[2]) if r[2] else None,
             action=str(r[3] or "activity"), entity_type=str(r[4] or "project"),
             summary=str(r[5] or r[3] or "Activity recorded"),
-            details=activity_payload_from_json(r[6]),
-        ) for r in rows), filtered_total=total, page=page, page_size=page_size,
+            details=payload,
+            actor_kind=(actors.get(str(r[2]), ("missing", "Deleted user"))[0] if r[2] else "system"),
+            actor_display=(actors.get(str(r[2]), ("missing", "Deleted user"))[1] if r[2] else "System"),
+        ) for r, payload in zip(rows, details)), filtered_total=total, page=page, page_size=page_size,
+                         reference_labels=reference_labels,
                          sort=ReadSort.normalize(key="occurredAt", direction="desc", allowed_keys={"occurredAt"}, default_key="occurredAt"))
 
     def read_page(
@@ -219,12 +263,12 @@ class SqlAlchemyProjectCatalogReader:
         if allowed_project_ids == ():
             return ProjectCatalogReadPage(page=page, page_size=page_size)
 
-        scope_filters = (
+        scope_filters: list[ColumnElement[bool]] = [
             ProjectORM.tenant_id == tenant_id,
             ProjectORM.organization_id == organization_id,
-        )
+        ]
         if allowed_project_ids is not None:
-            scope_filters = (*scope_filters, ProjectORM.id.in_(allowed_project_ids))
+            scope_filters.append(ProjectORM.id.in_(allowed_project_ids))
 
         status_rows = self._session.execute(
             select(ProjectORM.status, func.count(ProjectORM.id))
@@ -354,7 +398,7 @@ class SqlAlchemyProjectCatalogReader:
         return ProjectCatalogReadPage(
             items=tuple(
                 ProjectCatalogReadItem(
-                    project=project_from_orm(project_row),
+                    project=self._project_fact(project_row),
                     site_label=str(site_name or ""),
                     financial_currency_code=str(financial_currency_code or ""),
                     approved_budget=approved_budget_value,
@@ -437,7 +481,7 @@ class SqlAlchemyProjectCatalogReader:
             client_label_value,
         ) = row
         return ProjectCatalogReadItem(
-            project=project_from_orm(project_row),
+            project=self._project_fact(project_row),
             site_label=str(site_name or ""),
             financial_currency_code=str(financial_currency_code or ""),
             approved_budget=approved_budget_value,
@@ -447,13 +491,33 @@ class SqlAlchemyProjectCatalogReader:
         )
 
     @staticmethod
+    def _project_fact(row: ProjectORM) -> ProjectCatalogProjectFact:
+        return ProjectCatalogProjectFact(
+            id=row.id,
+            name=row.name,
+            code=row.project_code or "",
+            description=row.description or "",
+            start_date=row.start_date,
+            end_date=row.end_date,
+            status=row.status,
+            client_name=row.client_name,
+            client_contact=row.client_contact,
+            organization_id=row.organization_id,
+            site_id=row.site_id,
+            department_id=row.department_id,
+            client_party_id=row.client_party_id,
+            manager_user_id=row.manager_user_id,
+            version=row.version,
+        )
+
+    @staticmethod
     def _approved_budget_projections(
         finance_allowed_project_ids: tuple[str, ...] | None,
     ):
         if finance_allowed_project_ids == ():
             return literal(None), literal(""), literal(False)
 
-        finance_scope_filters = ()
+        finance_scope_filters: tuple[ColumnElement[bool], ...] = ()
         if finance_allowed_project_ids is not None:
             finance_scope_filters = (ProjectORM.id.in_(finance_allowed_project_ids),)
 

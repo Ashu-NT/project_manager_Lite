@@ -14,11 +14,9 @@ _LARGE_MODULE_BUDGETS = {
     "src/ui_qml/modules/project_management/controllers/financials/financials_workspace_controller.py": 1470,
     "src/tests/ui_qml/platform/presenters/_platform_test_helpers.py": 1281,
     "src/tests/project_management/infrastructure/test_r6b_finance_destination_queries.py": 1290,
-    "src/infra/composition/modules/platform_registry.py": 1216,
-    "src/infra/composition/modules/project_registry.py": 1727,
+    "src/core/modules/project_management/infrastructure/composition/bootstrap.py": 1727,
     "src/infra/persistence/migrations/versions/f3c89cac079d_initial_schema.py": 3782,
     "src/core/platform/domain/time_management/calendar/enterprise_calendar.py": 1408,
-    "src/core/modules/project_management/application/financials/workspace_query.py": 1297,
     "src/core/modules/project_management/api/desktop/financials/api.py": 2041,
 }
 
@@ -227,7 +225,7 @@ def test_shared_access_platform_layers_do_not_import_pm_access_code():
 
 
 def test_platform_bundle_only_registers_platform_owned_scope_policies():
-    platform_bundle_path = ROOT / "src" / "infra" / "composition" / "modules" / "platform_registry.py"
+    platform_bundle_path = ROOT / "src/core/platform/infrastructure/composition/bootstrap.py"
     source = platform_bundle_path.read_text(encoding="utf-8", errors="ignore")
     tree = ast.parse(source)
     forbidden_import_targets = (
@@ -250,11 +248,17 @@ def test_platform_bundle_only_registers_platform_owned_scope_policies():
 
 
 def test_module_service_bundles_register_their_owned_scope_policies():
-    project_bundle_path = ROOT / "src" / "infra" / "composition" / "modules" / "project_registry.py"
+    project_bundle_path = ROOT / "src/core/modules/project_management/infrastructure/composition/bootstrap.py"
     project_text = project_bundle_path.read_text(encoding="utf-8", errors="ignore")
+    project_access_path = (
+        ROOT
+        / "src/core/modules/project_management/infrastructure/composition/registrations/access.py"
+    )
+    access_text = project_access_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from src.core.modules.project_management.access.policy import" in project_text
-    assert 'scope_type="project"' in project_text
+    assert "register_project_scope_access(repositories, platform_services)" in project_text
+    assert "from src.core.modules.project_management.access.policy import" in access_text
+    assert 'scope_type="project"' in access_text
 
 
 def test_legacy_widget_ui_roots_are_removed():

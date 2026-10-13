@@ -169,7 +169,7 @@ def test_project_management_workspace_catalog_exposes_typed_register_controller(
                 SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
             ]
         ),
-        register_service=_FakeRegisterService(
+        register_query=_FakeRegisterService(
             [
                 _build_register_record(
                     entry_id="reg-1",

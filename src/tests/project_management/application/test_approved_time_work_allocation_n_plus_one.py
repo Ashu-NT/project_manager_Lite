@@ -74,7 +74,7 @@ def _count_allocation_selects(engine, fn):
 def _approve_n_entries(services, session, *, entry_count: int, suffix: str):
     project, resource, task, assignment = _setup(services, suffix=suffix)
     for day in range(entry_count):
-        services["task_service"].add_time_entry(
+        services["timesheet_service"].add_time_entry(
             assignment.id,
             entry_date=date(2026, 5, 1 + (day % 28)),
             hours=Decimal(1),

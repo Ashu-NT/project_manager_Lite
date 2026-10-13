@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from src.core.modules.project_management.application.risk import (
     RegisterDashboardSnapshot,
-    RegisterService,
+    RegisterQueryHandler,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
 class DashboardRegisterMixin:
-    _registers: RegisterService | None
+    _registers: RegisterQueryHandler | None
 
     def _build_register_snapshot(
         self,

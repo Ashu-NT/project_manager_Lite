@@ -1,5 +1,6 @@
 import hashlib
 from dataclasses import replace
+from datetime import UTC
 
 import pytest
 from sqlalchemy import func, select, update
@@ -169,7 +170,7 @@ def test_handoff_failure_rolls_back_everything_then_retry(
     "state,reason",
     [
         ("module", "module_not_enabled"),
-        ("connector", "integration_not_configured"),
+        ("connector", "connection_disabled"),
         ("adapter", "adapter_not_installed"),
     ],
 )
@@ -552,7 +553,7 @@ def test_handoff_uses_one_scoped_line_query(accounting_services, session, line_c
 
 def test_correction_gets_new_identity_without_changing_parent(
     accounting_services, session, accounting_outcome):
-    from datetime import date, datetime, timezone
+    from datetime import date, datetime
     from decimal import Decimal
 
     from src.core.modules.project_management.domain.financials.billing_preparation import (
@@ -576,7 +577,7 @@ def test_correction_gets_new_identity_without_changing_parent(
             approved.id,
             outcome={"delivery_accepted": "acknowledged", "reconciled": "reconciled"}[event_type.value],
             event_id=event_type.value,
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
             reconciliation_reference="confirmed",
         )
     profiles = services["billing_profile_service"]

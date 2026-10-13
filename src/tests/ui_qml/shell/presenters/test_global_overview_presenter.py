@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
     ActionCenterContribution,
     ActionCenterItemDto,
     ActionCenterSummaryDto,
 )
-from src.core.application.global_overview.contracts.module_summary import (
+from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
 )
-from src.core.application.global_overview.contracts.overview import (
+from src.core.global_overview.contract.overview import (
     GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
 )
@@ -61,7 +61,7 @@ class _FakeGlobalOverviewApi:
     def list_recent_activity(self, *, limit: int = 50):
         return self.recent_activity_result
 
-    def list_action_center(self, *, limit: int = 50):
+    def list_action_center(self, *, limit: int = 50, after=None):
         return self.action_center_result
 
     def get_capabilities(self):
@@ -93,7 +93,7 @@ def _action_item(
         route_id=route_id,
         priority=priority,
         due_at=due_at,
-        sort_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+        sort_at=datetime(2026, 9, 1, tzinfo=UTC),
     )
 
 
@@ -401,8 +401,10 @@ def test_recent_activity_maps_dto_fields():
         entity_type="task",
         entity_id="t1",
         actor_id="user-42",
+        actor_kind="human",
+        actor_display="History Actor",
         module="project_management",
-        timestamp=datetime(2026, 9, 15, 14, 30, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 9, 15, 14, 30, tzinfo=UTC),
         type="info",
         human_message="Task created",
         icon="tasks",
@@ -415,10 +417,7 @@ def test_recent_activity_maps_dto_fields():
     assert result.ok is True
     row = result.data[0]
     assert row.title == "Task created"
-    # actor_id is a raw internal id, never a resolved display name -- this
-    # layer has no lookup to resolve one, so the canonical "System" default
-    # applies rather than showing a raw id to the user.
-    assert row.actor_display == "System"
+    assert row.actor_display == "History Actor"
     assert row.subject_display == "Project Management"
     assert row.icon_key == "tasks"
     assert row.tone == "success"

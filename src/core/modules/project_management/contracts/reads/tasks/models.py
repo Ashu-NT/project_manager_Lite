@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -87,7 +87,7 @@ class TaskAssignmentReadPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("resourceName")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("resourceName"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,7 +113,7 @@ class TaskDependencyReadPage:
     successor_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("linkedTask")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("linkedTask"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,6 +125,8 @@ class TaskActivityFact:
     entity_type: str
     summary: str
     details: dict[str, object]
+    actor_kind: str = "missing"
+    actor_display: str = "Deleted user"
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,7 +135,7 @@ class TaskActivityPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("occurredAt")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("occurredAt"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,8 +144,8 @@ class TaskWorkspaceReadPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    summary: TaskWorkspaceSummary = TaskWorkspaceSummary()
-    sort: ReadSort = ReadSort("wbsCode")
+    summary: TaskWorkspaceSummary = field(default_factory=TaskWorkspaceSummary)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("wbsCode"))
 
 
 @dataclass(frozen=True, slots=True)

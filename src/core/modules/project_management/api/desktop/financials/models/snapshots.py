@@ -9,13 +9,13 @@ class FinancialOverviewDto:
     project_id: str
     project_currency: str | None
     as_of: date | None
-    budget: str
+    budget: str | None
     budget_label: str
-    actual: str
+    actual: str | None
     actual_label: str
-    committed: str
+    committed: str | None
     committed_label: str
-    available: str
+    available: str | None
     available_label: str
     forecast_etc: str | None
     forecast_etc_label: str

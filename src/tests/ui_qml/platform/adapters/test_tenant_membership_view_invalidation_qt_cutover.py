@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 import inspect
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -23,7 +23,7 @@ from src.core.platform.domain.tenant.tenancy.events import (
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.tenancy.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWork,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -70,7 +70,7 @@ def _issue_and_accept(services, membership_service, *, admin_principal, username
     target = services["auth_service"].register_user(username, _PASSWORD, display_name=username)
     services["user_session"].set_principal(admin_principal)
     issued = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     target_auth = services["auth_service"].authenticate(target.username, _PASSWORD)
     services["user_session"].set_principal(services["auth_service"].build_principal(target_auth))
@@ -92,7 +92,7 @@ def test_mapper_maps_each_event_type_to_the_same_tenant_scoped_hint():
             hints.append(hint)
 
     handler = build_tenant_membership_view_invalidation_handler(_FakeChannel())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     events = [
         TenantMembershipActivated(membership_id="m-1", tenant_id="t-1", user_id="u-1", occurred_at=now),
         TenantMembershipSuspended(membership_id="m-1", tenant_id="t-1", user_id="u-1", occurred_at=now),
@@ -287,7 +287,6 @@ def test_organization_switch_does_not_re_scope_the_membership_subscription(servi
     re-subscription at all (unlike the RoleBinding/ModuleEntitlement adapters, which DO re-scope
     on `refreshCurrentPermissions()`)."""
     catalog = _catalog(services)
-    channel = services["platform_view_invalidation_channel"]
     adapter = catalog._tenant_membership_view_invalidation_adapter
     # The raw channel Subscription (`adapter._subscription._subscription`), not the
     # always-present `ScopedViewInvalidationSubscription` wrapper itself, is what must keep its
@@ -397,7 +396,7 @@ def test_invalid_transition_triggers_no_refresh(services):
     membership_service = services["tenant_membership_service"]
     target = services["auth_service"].register_user(_unique_code("p5d3-invalid"), _PASSWORD)
     membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
 
     with pytest.raises(BusinessRuleError):
@@ -415,7 +414,7 @@ def test_audit_failure_triggers_no_refresh(services, monkeypatch):
     membership_service = services["tenant_membership_service"]
     target = services["auth_service"].register_user(_unique_code("p5d3-audit-fail"), _PASSWORD)
     issued = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     services["user_session"].set_principal(
         services["auth_service"].build_principal(
@@ -442,7 +441,7 @@ def test_commit_failure_triggers_no_refresh(services, monkeypatch):
     membership_service = services["tenant_membership_service"]
     target = services["auth_service"].register_user(_unique_code("p5d3-commit-fail"), _PASSWORD)
     issued = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     services["user_session"].set_principal(
         services["auth_service"].build_principal(

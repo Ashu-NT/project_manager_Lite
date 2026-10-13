@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -39,7 +39,7 @@ def _fake_channel():
 
 
 def _now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def test_every_sub_aggregate_event_maps_to_the_one_workspace_target():
@@ -86,11 +86,12 @@ def test_dedupe_by_target_within_one_transaction_across_sub_aggregate_types():
         tenant_id="t1", organization_id="o1", scoring_template_id="tpl1",
         change_type=PortfolioScoringTemplateChangeType.CREATED, occurred_at=_now(),
     )
-    handler(intake_event, DomainEventContext(correlation_id="same-tx"))
-    handler(template_event, DomainEventContext(correlation_id="same-tx"))
+    context = DomainEventContext(correlation_id="same-trace")
+    handler(intake_event, context)
+    handler(template_event, context)
     assert len(channel.notified) == 1
 
-    handler(intake_event, DomainEventContext(correlation_id="next-tx"))
+    handler(intake_event, DomainEventContext(correlation_id="same-trace"))
     assert len(channel.notified) == 2
 
 

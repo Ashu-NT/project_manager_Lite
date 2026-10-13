@@ -1,6 +1,6 @@
 """External Accounting business outcomes, never transport or monetary authority."""
 
-from datetime import timezone
+from datetime import UTC
 from enum import StrEnum
 from typing import Annotated, Literal, Protocol
 
@@ -66,7 +66,7 @@ class ExternalAccountingOutcome(BaseModel):
     @field_validator("occurred_at")
     @classmethod
     def normalize_timestamp(cls, value):
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
     @model_validator(mode="after")
     def validate_reconciliation(self):

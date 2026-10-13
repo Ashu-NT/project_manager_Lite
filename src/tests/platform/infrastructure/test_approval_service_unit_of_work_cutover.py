@@ -9,7 +9,7 @@ import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.approval import ApprovalStatus
-from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.approval.approval_unit_of_work import (
     SqlAlchemyPlatformUnitOfWork,
 )
 
@@ -24,6 +24,7 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _login_as_fresh_requester(services) -> None:
+    _login(services, "admin", "ChangeMe123!")
     _REQUESTER_COUNTER["n"] += 1
     username = f"uow-cutover-requester-{_REQUESTER_COUNTER['n']}"
     services["auth_service"].register_user(username, "StrongPass123", role_names=["planner"])
@@ -78,6 +79,9 @@ def _request_budget_approval_as_a_different_user(services, budget):
         payload={"budget_id": budget.id, "expected_version": budget.row_version, "notes": ""},
     )
     _login(services, "admin", "ChangeMe123!")
+    auth = services["auth_service"]
+    reviewer = auth.register_user(f"reviewer-{request.id}", "StrongPass123", role_names=["approver"])
+    services["user_session"].set_principal(auth.build_principal(reviewer))
     return request
 
 
@@ -269,7 +273,8 @@ def test_shared_legacy_session_is_not_touched_by_approval_mutation(services, ses
 
     # The shared session must not have picked up an implicit transaction as a side effect of
     # the approval mutation, which ran entirely on its own fresh UoW Session.
-    assert not session.in_transaction() or session.in_transaction().nested is False
+    transaction = session.get_transaction()
+    assert transaction is None or transaction.nested is False
 
 
 def test_apply_handler_missing_does_not_open_or_leak_a_session(services, session, monkeypatch):

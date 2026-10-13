@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import UTC, date, time
 
 import pytest
 from sqlalchemy import create_engine
@@ -12,8 +12,8 @@ from src.core.platform.application.time_management.calendar.assignment.calendar_
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     ExceptionType,
@@ -120,7 +120,7 @@ def repos(db_session, tenant_context):
 
 @pytest.fixture
 def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return EnterpriseCalendarService(
+    return PlatformCalendarService(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -132,7 +132,7 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 
 @pytest.fixture
 def seeded_assignment_entities(db_session, org_id):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
         DepartmentORM,
@@ -145,7 +145,7 @@ def seeded_assignment_entities(db_session, org_id):
     )
 
     tenant_id = "tenant-platform-foundation"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db_session.add_all(
         [
             SiteORM(
@@ -176,6 +176,7 @@ def seeded_assignment_entities(db_session, org_id):
                 id=emp_id,
                 tenant_id=tenant_id,
                 organization_id=org_id,
+                department_id="dept-eng",
                 employee_code=emp_id,
                 full_name=emp_id,
             )

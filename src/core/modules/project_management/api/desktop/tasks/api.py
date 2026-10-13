@@ -129,16 +129,38 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
-from src.core.modules.project_management.application.resources.assignment_validation import (
+from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
 )
 from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.commands.time_entries import (
+    TaskTimeEntryHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
+    TaskDependencyDiagnosticsQueryHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
+    TaskWorkspacePageQueryHandler,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.gateway.task.reservation import (
     TaskReservationGateway,
+)
+from src.core.platform.application.tenant.modules.authorization import (
+    require_module_enabled,
+)
+from src.core.platform.common.exceptions import UnsupportedOperationError
+from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
+    SupportsModuleEntitlements,
 )
 
 logger = logging.getLogger(__name__)
@@ -150,6 +172,12 @@ class ProjectManagementTasksDesktopApi:
         *,
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
+        task_workspace_query: TaskWorkspacePageQueryHandler | None = None,
+        task_detail_query: TaskDetailPageQueryHandler | None = None,
+        task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler | None = None,
+        task_assignment_commands: TaskAssignmentCommandHandler | None = None,
+        task_time_entries: TaskTimeEntryHandler | None = None,
+        module_catalog_service: SupportsModuleEntitlements | None = None,
         project_resource_service: ProjectResourceService | None = None,
         resource_service: ResourceService | None = None,
         reservation_service: TaskReservationGateway | None = None,
@@ -158,6 +186,12 @@ class ProjectManagementTasksDesktopApi:
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
+        self._task_workspace_query = task_workspace_query
+        self._task_detail_query = task_detail_query
+        self._task_dependency_diagnostics = task_dependency_diagnostics
+        self._task_assignment_commands = task_assignment_commands
+        self._task_time_entries = task_time_entries
+        self._module_catalog_service = module_catalog_service
         self._project_resource_service = project_resource_service
         self._resource_service = resource_service
         self._reservation_service = reservation_service
@@ -252,8 +286,14 @@ class ProjectManagementTasksDesktopApi:
         sort_key: str = "wbsCode",
         sort_direction: str = "asc",
     ) -> TaskWorkspacePageDesktopDto:
-        service = self._require_task_service()
-        result = service.query_workspace_page(
+        if self._task_workspace_query is None:
+            raise RuntimeError("Project management tasks desktop API is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="query workspace page",
+        )
+        result = self._task_workspace_query.query_workspace_page(
             project_id=project_id,
             search_text=search_text,
             status=status,
@@ -427,6 +467,11 @@ class ProjectManagementTasksDesktopApi:
         try:
             project_resource = self._project_resource_service.get(project_resource_id)
         except Exception:
+            logger.exception(
+                "Failed to retrieve project resource version for assignment_id=%s, project_resource_id=%s",
+                getattr(assignment, "id", ""),
+                project_resource_id,
+            )
             return 1
         return int(getattr(project_resource, "version", 1) or 1)
 
@@ -512,7 +557,7 @@ class ProjectManagementTasksDesktopApi:
         page: int = 1, page_size: int = 25, sort_key: str = "resourceName",
         sort_direction: str = "asc",
     ) -> TaskAssignmentPageDesktopDto:
-        result = self._require_task_service().query_task_assignments_page(
+        result = self._require_task_detail_query().query_task_assignments_page(
             task_id, search_text=search_text, response_status=response_status,
             page=page, page_size=page_size, sort_key=sort_key, sort_direction=sort_direction)
         return TaskAssignmentPageDesktopDto(items=tuple(TaskAssignmentDesktopDto(
@@ -535,11 +580,7 @@ class ProjectManagementTasksDesktopApi:
         None when the task can't be resolved."""
         if not task_id:
             return None
-        service = self._require_task_service()
-        get_summary = getattr(service, "get_task_time_summary", None)
-        if not callable(get_summary):
-            return None
-        fact = get_summary(task_id)
+        fact = self._require_task_assignment_commands().get_task_time_summary(task_id)
         return serialize_task_time_summary(fact)
 
     def list_task_time_entries(
@@ -556,11 +597,7 @@ class ProjectManagementTasksDesktopApi:
         None when the task can't be resolved."""
         if not task_id:
             return None
-        service = self._require_task_service()
-        list_page = getattr(service, "list_time_entries_for_task_page", None)
-        if not callable(list_page):
-            return None
-        page_result = list_page(
+        page_result = self._require_task_time_entries().list_time_entries_for_task_page(
             task_id,
             resource_id=resource_id or None,
             page=page,
@@ -633,7 +670,9 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskAssignmentHoursCommand,
     ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_method("set_assignment_hours")(
+        assignment = self._require_task_assignment_commands(
+            operation_label="log assignment hours"
+        ).set_assignment_hours(
             assignment_id=command.assignment_id,
             hours_logged=command.hours_logged,
         )
@@ -715,7 +754,7 @@ class ProjectManagementTasksDesktopApi:
         dependency_type: str = "all", page: int = 1, page_size: int = 25,
         sort_key: str = "linkedTask", sort_direction: str = "asc",
     ) -> TaskDependencyPageDesktopDto:
-        result = self._require_task_service().query_task_dependencies_page(
+        result = self._require_task_detail_query().query_task_dependencies_page(
             task_id, search_text=search_text, direction=direction,
             dependency_type=dependency_type, page=page, page_size=page_size,
             sort_key=sort_key, sort_direction=sort_direction)
@@ -740,12 +779,13 @@ class ProjectManagementTasksDesktopApi:
         self, task_id: str, *, search_text: str = "", category: str = "all",
         page: int = 1, page_size: int = 25,
     ) -> DetailActivityPageDesktopDto:
-        result = self._require_task_service().query_task_activity_page(
+        result = self._require_task_detail_query().query_task_activity_page(
             task_id, search_text=search_text, category=category, page=page, page_size=page_size)
         return DetailActivityPageDesktopDto(items=tuple(DetailActivityDesktopDto(
             id=item.activity_id, occurred_at=item.occurred_at, actor_id=item.actor_id,
             action=item.action, entity_type=item.entity_type, summary=item.summary,
             details=item.details,
+            actor_kind=item.actor_kind, actor_display=item.actor_display,
         ) for item in result.items), filtered_total=result.filtered_total,
             page=result.page, page_size=result.page_size)
 
@@ -810,10 +850,7 @@ class ProjectManagementTasksDesktopApi:
         """Non-persisting impact preview for a proposed CREATE. Uses the
         same canonical, non-persisting engine the committed schedule uses
         -- never a second formula, never QML-side math."""
-        service = self._require_task_service()
-        get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
-        if not callable(get_diagnostics):
-            return None
+        diagnostics = self._require_dependency_diagnostics()
         relationship_direction = coerce_dependency_direction(command.relationship_direction)
         predecessor_id = (
             command.linked_task_id if relationship_direction == "PREDECESSOR" else command.task_id
@@ -821,7 +858,7 @@ class ProjectManagementTasksDesktopApi:
         successor_id = (
             command.task_id if relationship_direction == "PREDECESSOR" else command.linked_task_id
         )
-        diagnostic = get_diagnostics(
+        diagnostic = diagnostics.get_dependency_diagnostics(
             predecessor_id=predecessor_id,
             successor_id=successor_id,
             dependency_type=coerce_dependency_type(command.dependency_type),
@@ -836,9 +873,9 @@ class ProjectManagementTasksDesktopApi:
     ) -> TaskDependencyImpactPreviewDesktopDto | None:
         """Non-persisting impact preview for a proposed UPDATE."""
         service = self._require_task_service()
-        get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
+        diagnostics = self._require_dependency_diagnostics()
         get_dependency = getattr(service, "get_dependency", None)
-        if not callable(get_diagnostics) or not callable(get_dependency):
+        if not callable(get_dependency):
             return None
         normalized_id = (command.dependency_id or "").strip()
         if not normalized_id:
@@ -846,7 +883,7 @@ class ProjectManagementTasksDesktopApi:
         existing = get_dependency(normalized_id)
         if existing is None:
             return None
-        diagnostic = get_diagnostics(
+        diagnostic = diagnostics.get_dependency_diagnostics(
             predecessor_id=existing.predecessor_task_id,
             successor_id=existing.successor_task_id,
             dependency_type=coerce_dependency_type(command.dependency_type),
@@ -860,11 +897,9 @@ class ProjectManagementTasksDesktopApi:
         self, dependency_id: str
     ) -> TaskDependencyImpactPreviewDesktopDto | None:
         """Non-persisting impact preview for a proposed DELETE."""
-        service = self._require_task_service()
-        preview = getattr(service, "preview_dependency_removal", None)
-        if not callable(preview):
-            return None
-        diagnostic = preview(dependency_id)
+        diagnostic = self._require_dependency_diagnostics().preview_dependency_removal(
+            dependency_id
+        )
         return serialize_dependency_impact_preview(diagnostic)
 
     def delete_task(self, task_id: str) -> None:
@@ -905,6 +940,10 @@ class ProjectManagementTasksDesktopApi:
         try:
             requirements = self._assignment_skill_validator.list_requirements(task_id)
         except Exception:
+            logger.exception(
+                "list_task_skill_requirements failed (task_id=%s)",
+                task_id,
+            )
             return ()
         return tuple(serialize_skill_requirement(req) for req in requirements)
 
@@ -1047,11 +1086,53 @@ class ProjectManagementTasksDesktopApi:
             raise RuntimeError("Project management tasks desktop API is not connected.")
         return self._task_service
 
+    def _require_task_detail_query(self) -> TaskDetailPageQueryHandler:
+        if self._task_detail_query is None:
+            raise RuntimeError("Project management tasks desktop API is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="query task detail page",
+        )
+        return self._task_detail_query
+
+    def _require_dependency_diagnostics(self) -> TaskDependencyDiagnosticsQueryHandler:
+        if self._task_dependency_diagnostics is None:
+            raise RuntimeError("Project management tasks desktop API is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="preview task dependency",
+        )
+        return self._task_dependency_diagnostics
+
+    def _require_task_assignment_commands(
+        self, *, operation_label: str = "view task time summary"
+    ) -> TaskAssignmentCommandHandler:
+        if self._task_assignment_commands is None:
+            raise RuntimeError("Project management tasks desktop API is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label=operation_label,
+        )
+        return self._task_assignment_commands
+
+    def _require_task_time_entries(self) -> TaskTimeEntryHandler:
+        if self._task_time_entries is None:
+            raise RuntimeError("Project management tasks desktop API is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="view task time entries",
+        )
+        return self._task_time_entries
+
     def _require_task_method(self, method_name: str):
         service = self._require_task_service()
         method = getattr(service, method_name, None)
         if not callable(method):
-            raise RuntimeError(
+            raise UnsupportedOperationError(
                 f"Project management tasks desktop API does not support {method_name}."
             )
         return method

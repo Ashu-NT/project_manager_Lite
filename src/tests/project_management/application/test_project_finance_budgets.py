@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -83,7 +83,7 @@ def _budget(**overrides) -> ProjectBudget:
 def test_lifecycle_transitions_are_explicit_and_exhaustive() -> None:
     budget = _budget()
     assert budget.status == BudgetStatus.DRAFT
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     with pytest.raises(BusinessRuleError, match="cannot transition"):
         budget.approve(approved_by="u1", approved_at=now)
@@ -111,7 +111,6 @@ def test_lifecycle_transitions_are_explicit_and_exhaustive() -> None:
 
 
 def test_ensure_mutable_blocks_every_non_draft_status() -> None:
-    now = datetime.now(timezone.utc)
     for status in BudgetStatus:
         budget = _budget()
         if status != BudgetStatus.DRAFT:
@@ -125,7 +124,7 @@ def test_ensure_mutable_blocks_every_non_draft_status() -> None:
 
 
 def test_rejected_and_superseded_never_reopen() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rejected = _budget()
     rejected.submit(submitted_by="u1", submitted_at=now)
     rejected.reject(rejected_by="u2", rejected_at=now)
@@ -140,7 +139,7 @@ def test_revision_is_independent_of_row_version() -> None:
     assert budget.revision == 3
     assert budget.row_version == 1
     budget.rename("New Name")
-    budget.touch(updated_at=datetime.now(timezone.utc))
+    budget.touch(updated_at=datetime.now(UTC))
     # rename()/touch() never touch revision — only row_version is a
     # separate optimistic-concurrency token, bumped by the repository, not
     # by the domain object itself.
@@ -148,7 +147,7 @@ def test_revision_is_independent_of_row_version() -> None:
 
 
 def test_per_transition_notes_do_not_overwrite_each_other() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     budget = _budget()
     budget.update_notes("general notes")
     budget.submit(submitted_by="u1", submitted_at=now, notes="submission note")
@@ -969,15 +968,17 @@ def test_governed_approve_creates_request_and_actor_is_the_deciding_principal(
     requester_user_id = req.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
-    admin_user_id = services["user_session"].principal.user_id
+    auth.register_user("budget-reviewer", "StrongPass123", role_names=["approver"])
+    _login(services, "budget-reviewer", "StrongPass123")
+    reviewer_user_id = services["user_session"].principal.user_id
     approvals.approve_and_apply(req.id, note="Approved via governance")
 
     approved = budget_service.get_budget(budget.id)
     assert approved.status == BudgetStatus.APPROVED
-    # The deciding principal (admin) is recorded, never the requester —
+    # The deciding principal is recorded, never the requester.
     # the payload was written by budget-requester, but the actor sourced by
     # the apply handler must be whoever is deciding right now.
-    assert approved.approved_by == admin_user_id
+    assert approved.approved_by == reviewer_user_id
     assert approved.approved_by != requester_user_id
     assert approved.approval_notes == ""
 
@@ -1006,12 +1007,14 @@ def test_governed_reject_drives_domain_reject(services, monkeypatch) -> None:
     requester_user_id = req.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
-    admin_user_id = services["user_session"].principal.user_id
+    auth.register_user("budget-reject-reviewer", "StrongPass123", role_names=["approver"])
+    _login(services, "budget-reject-reviewer", "StrongPass123")
+    reviewer_user_id = services["user_session"].principal.user_id
     approvals.reject(req.id, note="Not this time")
 
     rejected = budget_service.get_budget(budget.id)
     assert rejected.status == BudgetStatus.REJECTED
-    assert rejected.rejected_by == admin_user_id
+    assert rejected.rejected_by == reviewer_user_id
     assert rejected.rejected_by != requester_user_id
 
 
@@ -1186,8 +1189,8 @@ def test_line_project_scope_is_enforced_by_the_composite_fk_at_db_level(services
         cost_code_id=code.id,
         amount=Decimal(10),
         currency_code="USD",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     session.add(bad_line)
     with pytest.raises(Exception):
@@ -1327,7 +1330,7 @@ def test_fresh_baseline_creates_budget_tables_and_cascades_line_delete(tmp_path)
             ),
             {"tenant_id": tenant_id, "organization_id": organization_id},
         )
-        cost_code_id = connection.execute(
+        connection.execute(
             sa.text(
                 "INSERT INTO project_finance_cost_codes "
                 "(id, tenant_id, organization_id, code, name, is_active, version, "

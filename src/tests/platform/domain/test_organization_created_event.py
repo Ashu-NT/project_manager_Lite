@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import fields, is_dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -58,7 +58,7 @@ def test_organization_created_conforms_to_domain_event_and_has_only_approved_fie
         organization_id="org-a",
         name="North Division",
         code="NORTH",
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     assert isinstance(event, DomainEvent)
     assert is_dataclass(event)
@@ -136,7 +136,7 @@ def test_standalone_create_records_exactly_one_event_before_commit(services, mon
 
 def test_standalone_create_uses_injected_clock_deterministically(services):
     organization_service = services["organization_service"]
-    fixed_when = datetime(2030, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+    fixed_when = datetime(2030, 6, 15, 12, 0, 0, tzinfo=UTC)
     original_clock = organization_service._clock
     organization_service._clock = _FixedClock(fixed_when)
     try:
@@ -163,7 +163,7 @@ def test_standalone_create_tenant_id_and_organization_id_explicit_not_ambient(se
     hints = []
     channel.subscribe(TenantWide(tenant_id), lambda hint: hints.append(hint))
 
-    organization = organization_service.create_organization(
+    organization_service.create_organization(
         organization_code=_unique_code("EXPLICIT"), display_name="Explicit Org"
     )
 
@@ -191,7 +191,7 @@ def test_no_event_observable_on_validation_failure(services):
 
 
 def test_no_event_observable_on_commit_failure(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.master_data.organization_unit_of_work import (
         SqlAlchemyOrganizationUnitOfWork,
     )
 
@@ -280,7 +280,7 @@ def test_view_invalidation_mapper_produces_exactly_the_two_documented_hints():
     handler = build_organization_created_view_invalidation_handler(_FakeChannel())
     event = OrganizationCreated(
         tenant_id="tenant-x", organization_id="org-x", name="X Org", code="X",
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="corr-1"))
 
@@ -331,6 +331,9 @@ def test_cross_tenant_routing_via_real_channel(services):
     from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
         TenantORM,
     )
+    from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
+        SqlAlchemyOrganizationDefaultCalendarWriter,
+    )
 
     organization_service = services["organization_service"]
     session = services["session"]
@@ -357,6 +360,7 @@ def test_cross_tenant_routing_via_real_channel(services):
         enterprise_audit_service=organization_service._enterprise_audit_service,
         tenant_context_service=None,
         overview_rollup_reader=organization_service._overview_rollup_reader,
+        default_calendar_writer=SqlAlchemyOrganizationDefaultCalendarWriter(),
     )
 
     tenant_a_hits = []

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -84,6 +84,7 @@ def create_department(
             uow.employees,
             department.head_of_department_employee_id,
             organization_id=organization.id,
+            current_department_id=department.id,
         )
         try:
             uow.departments.add(department)
@@ -177,7 +178,10 @@ def update_department(
         target_head_of_department_employee_id = department.head_of_department_employee_id
         if head_of_department_employee_id is not None:
             target_head_of_department_employee_id = validate_head_of_department_employee_id(
-                uow.employees, head_of_department_employee_id, organization_id=organization.id
+                uow.employees,
+                head_of_department_employee_id,
+                organization_id=organization.id,
+                current_department_id=department.id,
             )
 
         candidate = replace(
@@ -209,7 +213,7 @@ def update_department(
         )
         if not profile_changed:
             return department
-        candidate = replace(candidate, updated_at=datetime.now(timezone.utc))
+        candidate = replace(candidate, updated_at=datetime.now(UTC))
         if department_code is not None:
             existing = uow.departments.get_by_code(organization.id, candidate.department_code)
             if existing is not None and existing.id != department.id:
@@ -295,7 +299,7 @@ def _transition_department_status(
         candidate = replace(
             department,
             is_active=new_is_active,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
         uow.departments.update(candidate)
         record_audit_entry(

@@ -6,7 +6,10 @@ from sqlalchemy.orm import Session
 from src.core.platform.contract.repositories.master_data.employee.contracts import (
     EmployeeRepository,
 )
-from src.core.platform.domain.master_data.employee import Employee
+from src.core.platform.domain.master_data.employee import (
+    Employee,
+    EmployeeLifecycleStatus,
+)
 from src.core.platform.infrastructure.persistence.mappers.master_data.employee.employee import (
     employee_from_orm,
     employee_to_orm,
@@ -54,7 +57,7 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
                 "employment_type": employee.employment_type,
                 "email": employee.email,
                 "phone": employee.phone,
-                "is_active": employee.is_active,
+                "status": employee.status,
                 "user_id": employee.user_id,
             },
             extra_filters={
@@ -109,6 +112,15 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
         obj = self.session.execute(stmt).scalars().first()
         return employee_from_orm(obj) if obj else None
 
+    def find_by_user_id(self, user_id: str) -> Employee | None:
+        ctx = self._context(operation_label="access employees")
+        stmt = select(EmployeeORM).where(
+            EmployeeORM.user_id == user_id,
+            EmployeeORM.tenant_id == ctx.tenant_id,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return employee_from_orm(obj) if obj else None
+
     def list_for_organization(
         self,
         organization_id: str,
@@ -125,7 +137,8 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
             EmployeeORM.tenant_id == ctx.tenant_id,
         )
         if active_only is not None:
-            stmt = stmt.where(EmployeeORM.is_active == bool(active_only))
+            status = EmployeeLifecycleStatus.ACTIVE if active_only else EmployeeLifecycleStatus.INACTIVE
+            stmt = stmt.where(EmployeeORM.status == status)
         if department_id is not None:
             stmt = stmt.where(EmployeeORM.department_id == department_id)
         if site_id is not None:
@@ -145,16 +158,14 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
         department_id: str | None = None,
         site_id: str | None = None,
     ) -> tuple[list[Employee], int, int]:
-        # Deliberately bypasses self._context()/_organization_in_scope() --
-        # both organization_id and tenant_id are caller-supplied and trusted
-        # (the service layer verifies the organization actually belongs to
-        # this tenant before calling here), not the session's ambient active
-        # organization. See SqlAlchemySiteRepository.list_page_for_organization_in_tenant
-        # for the same pattern.
-        base_condition = (
+        base_condition = [
             EmployeeORM.organization_id == organization_id,
             EmployeeORM.tenant_id == tenant_id,
-        )
+        ]
+        if site_id is not None:
+            base_condition.append(EmployeeORM.site_id == site_id)
+        if department_id is not None:
+            base_condition.append(EmployeeORM.department_id == department_id)
         total = self.session.execute(
             select(func.count()).select_from(EmployeeORM).where(*base_condition)
         ).scalar_one()
@@ -162,15 +173,8 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
         filtered_stmt = select(EmployeeORM).where(*base_condition)
         filtered_count_stmt = select(func.count()).select_from(EmployeeORM).where(*base_condition)
         if active_only is not None:
-            condition = EmployeeORM.is_active == bool(active_only)
-            filtered_stmt = filtered_stmt.where(condition)
-            filtered_count_stmt = filtered_count_stmt.where(condition)
-        if department_id is not None:
-            condition = EmployeeORM.department_id == department_id
-            filtered_stmt = filtered_stmt.where(condition)
-            filtered_count_stmt = filtered_count_stmt.where(condition)
-        if site_id is not None:
-            condition = EmployeeORM.site_id == site_id
+            status = EmployeeLifecycleStatus.ACTIVE if active_only else EmployeeLifecycleStatus.INACTIVE
+            condition = EmployeeORM.status == status
             filtered_stmt = filtered_stmt.where(condition)
             filtered_count_stmt = filtered_count_stmt.where(condition)
         normalized_search = (search or "").strip()

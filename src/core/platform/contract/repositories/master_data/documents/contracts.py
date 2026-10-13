@@ -92,6 +92,32 @@ class DocumentLinkRepository(ABC):
     ) -> list[DocumentLink]: ...
 
     @abstractmethod
+    def list_page_for_entity_in_tenant(
+        self,
+        organization_id: str,
+        tenant_id: str,
+        *,
+        module_code: str,
+        entity_type: str,
+        entity_id: str,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        active_only: bool | None = None,
+        document_type: str | None = None,
+    ) -> tuple[list[tuple[Document, DocumentLink]], int, int]:
+        """Entity-scoped, paginated, Document-joined read -- the real
+        capability list_for_entity() alone never provided (bare
+        DocumentLink rows, no Document title/type/status, no pagination).
+        Tenant-scoped like DocumentRepository.list_page_for_organization_in_tenant
+        (organization_id/tenant_id are caller-supplied and trusted, not the
+        session's ambient active organization) so this works correctly
+        regardless of which organization is active in the caller's session.
+        Returns (page_items as (Document, DocumentLink) pairs, total_count,
+        filtered_total_count)."""
+        ...
+
+    @abstractmethod
     def list_for_module(
         self,
         organization_id: str,

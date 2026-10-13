@@ -11,7 +11,7 @@ from src.core.modules.project_management.application.financials.revenue.commerci
 from src.core.modules.project_management.application.financials.revenue.profitability_calculator import (
     ProjectProfitabilityCalculator,
 )
-from src.core.modules.project_management.infrastructure.reporting.builders.profitability import (
+from src.core.modules.project_management.application.reporting.builders.profitability import (
     ReportingProfitabilityMixin,
 )
 

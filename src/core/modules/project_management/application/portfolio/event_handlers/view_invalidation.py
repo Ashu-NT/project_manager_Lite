@@ -33,15 +33,15 @@ def _organization_scope_target(scope_code: str, scope: OrganizationScope) -> _Or
 
 def build_portfolio_view_invalidation_handler(channel: ViewInvalidationChannel):
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_targets: set[_OrgTarget] = set()
 
     def handle_portfolio_event(
         event: _PortfolioEvent,
         context: DomainEventContext,
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_targets.clear()
 
         scope = OrganizationScope(event.tenant_id, event.organization_id)

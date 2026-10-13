@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import replace
 
 from sqlalchemy.exc import IntegrityError
@@ -13,6 +12,9 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    children_by_parent,
+)
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -21,10 +23,17 @@ from src.core.platform.common.exceptions import (
 )
 
 
-class TaskHierarchySupportMixin:
-    _task_repo: TaskRepository
-    _assignment_repo: AssignmentRepository
-    _dependency_repo: DependencyRepository
+class TaskHierarchyPolicy:
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        assignment_repo: AssignmentRepository,
+        dependency_repo: DependencyRepository,
+    ) -> None:
+        self._task_repo = task_repo
+        self._assignment_repo = assignment_repo
+        self._dependency_repo = dependency_repo
 
     @staticmethod
     def _is_task_wbs_integrity_error(exc: IntegrityError) -> bool:
@@ -40,12 +49,7 @@ class TaskHierarchySupportMixin:
 
     @staticmethod
     def _children_by_parent(tasks: list[Task]) -> dict[str | None, list[Task]]:
-        children: dict[str | None, list[Task]] = defaultdict(list)
-        for task in tasks:
-            children[task.parent_task_id].append(task)
-        for siblings in children.values():
-            siblings.sort(key=lambda item: (item.sort_order, item.wbs_code, item.id))
-        return children
+        return children_by_parent(tasks)
 
     def _require_wbs_parent(
         self,
@@ -81,7 +85,11 @@ class TaskHierarchySupportMixin:
                     code="TASK_WBS_CORRUPT_CYCLE",
                 )
             visited.add(current.id)
-            current = tasks_by_id.get(current.parent_task_id)
+            current = (
+                tasks_by_id.get(current.parent_task_id)
+                if current.parent_task_id is not None
+                else None
+            )
         return parent
 
     def _assert_parent_has_no_direct_execution(self, parent: Task) -> None:
@@ -179,4 +187,4 @@ class TaskHierarchySupportMixin:
         return replace(task, sort_order=target_index)
 
 
-__all__ = ["TaskHierarchySupportMixin"]
+__all__ = ["TaskHierarchyPolicy"]

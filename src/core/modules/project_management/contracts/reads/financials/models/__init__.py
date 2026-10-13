@@ -67,10 +67,10 @@ from .finance_rate_facts import (
 from .finance_setup_facts import FinanceSetupFacts
 from .finance_snapshot_facts import (
     CostAggregateFact,
-    FinanceLedgerFact,
     FinanceProjectFact,
     FinanceSnapshotFacts,
     LaborAssignmentFact,
+    ProjectFinanceLedgerFact,
     ProjectResourceFact,
     ResourceFact,
     TaskFact,
@@ -98,7 +98,6 @@ __all__ = [
     "FinanceBudgetWorkspaceFacts",
     "FinanceChangeWorkspaceFacts",
     "FinanceForecastWorkspaceFacts",
-    "FinanceLedgerFact",
     "FinanceLookupOptionFact",
     "FinanceLookupPageFacts",
     "FinanceLookupQuery",
@@ -129,6 +128,7 @@ __all__ = [
     "PerformanceVarianceMetricFact",
     "PlannedCostLineFact",
     "PlannedCostVersionFact",
+    "ProjectFinanceLedgerFact",
     "ProjectResourceFact",
     "RateCardFact",
     "RateCardRequest",

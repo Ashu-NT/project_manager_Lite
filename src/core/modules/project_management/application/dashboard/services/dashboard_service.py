@@ -22,6 +22,9 @@ from src.core.modules.project_management.application.dashboard.models.dashboard_
 from src.core.modules.project_management.application.dashboard.reporting.portfolio import (
     DashboardPortfolioMixin,
 )
+from src.core.modules.project_management.application.dashboard.reporting.query import (
+    DashboardReportingQuery,
+)
 from src.core.modules.project_management.application.dashboard.widgets.professional import (
     DashboardProfessionalMixin,
 )
@@ -33,13 +36,16 @@ from src.core.modules.project_management.application.dashboard.widgets.upcoming 
 )
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ResourceService
-from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.application.risk import RegisterQueryHandler
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
-from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
-from src.core.modules.project_management.infrastructure.reporting import (
-    ReportingService,
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
 )
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
+)
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -60,21 +66,23 @@ class DashboardService(
 ):
     def __init__(
         self,
-        reporting_service: ReportingService,
-        task_service: TaskService,
+        reporting_service: DashboardReportingQuery,
+        task_lookup: TaskLookupQueryHandler,
+        task_assignments: TaskAssignmentCommandHandler,
         project_service: ProjectService,
         resource_service: ResourceService,
-        register_service: RegisterService | None,
+        register_query: RegisterQueryHandler | None,
         scheduling_engine: SchedulingEngine,
         work_calendar_engine: CalendarProtocol,
         user_session=None,
         module_catalog_service=None,
     ):
-        self._reporting: ReportingService = reporting_service
-        self._tasks: TaskService = task_service
+        self._reporting: DashboardReportingQuery = reporting_service
+        self._task_lookup = task_lookup
+        self._task_assignments = task_assignments
         self._projects: ProjectService = project_service
         self._resources: ResourceService = resource_service
-        self._registers: RegisterService | None = register_service
+        self._registers: RegisterQueryHandler | None = register_query
         self._sched: SchedulingEngine = scheduling_engine
         self._calendar: CalendarProtocol = work_calendar_engine
         self._user_session = user_session
@@ -92,9 +100,9 @@ class DashboardService(
         schedule = self._sched.recalculate_project_schedule(project_id, persist=False)
         kpi = self._reporting.get_project_kpis(project_id, schedule=schedule)
         resource_load = self._reporting.get_resource_load_summary(project_id)
-        tasks = select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
-        assignments = self._tasks.list_assignments_for_tasks([task.id for task in tasks])
-        assignments_by_task: dict[str, list[object]] = {}
+        tasks = select_leaf_tasks(self._task_lookup.list_tasks_for_project(project_id))
+        assignments = self._task_lookup.list_assignments_for_tasks([task.id for task in tasks])
+        assignments_by_task: dict[str, list[TaskAssignment]] = {}
         for assignment in assignments:
             assignments_by_task.setdefault(assignment.task_id, []).append(assignment)
         resources_by_id = {

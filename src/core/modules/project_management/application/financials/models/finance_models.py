@@ -19,7 +19,7 @@ from src.core.modules.project_management.contracts.repositories.finance.rate_car
 
 
 @dataclass(frozen=True)
-class FinanceLedgerRow:
+class ProjectFinanceLedgerRow:
     project_id: str
     source_key: str
     source_label: str
@@ -125,22 +125,15 @@ class FinanceSnapshot:
     period_granularity: str
     sensitive_detail_included: bool
     reconciliation: FinanceReconciliation
-    ledger: list[FinanceLedgerRow]
+    ledger: list[ProjectFinanceLedgerRow]
     cost_phasing: list[FinancePeriodRow]
     cost_phasing_availability: tuple[CostPhasingSeriesAvailabilityFact, ...]
     by_source: list[FinanceAnalyticsRow]
-    by_cost_type: list[FinanceAnalyticsRow]
-    by_resource: list[FinanceAnalyticsRow]
-    by_task: list[FinanceAnalyticsRow]
+    ledger_total: int
+    ledger_offset: int
+    ledger_limit: int
     notes: list[str]
     unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = ()
-
-    @property
-    def commitment_rate_percent(self) -> Decimal:
-        if self.budget <= 0:
-            return Decimal(0)
-        return (self.committed / self.budget) * Decimal(100)
-
 
 # ── Cost DTOs ─────────────────────────────────────────────────────────────────
 
@@ -213,20 +206,20 @@ class LaborAssignmentRow:
     assignment_id: str
     task_id: str
     task_name: str
-    hours: float
-    hourly_rate: float
+    hours: Decimal
+    hourly_rate: Decimal
     currency_code: str | None
-    cost: float
+    cost: Decimal
 
 
 @dataclass
 class LaborResourceRow:
     resource_id: str
     resource_name: str
-    total_hours: float
-    hourly_rate: float
+    total_hours: Decimal
+    hourly_rate: Decimal
     currency_code: str | None
-    total_cost: float
+    total_cost: Decimal
     assignments: list[LaborAssignmentRow]
 
 
@@ -235,10 +228,10 @@ class PlannedLaborResourceRow:
     project_resource_id: str
     resource_id: str
     resource_name: str
-    planned_hours: float
-    hourly_rate: float
+    planned_hours: Decimal
+    hourly_rate: Decimal
     currency_code: str | None
-    total_cost: float
+    total_cost: Decimal
 
 
 @dataclass(frozen=True)
@@ -300,24 +293,19 @@ class EarnedValueMetrics:
 
 
 __all__ = [
-    # Finance snapshot
-    "FinanceLedgerRow",
-    "FinancePeriodRow",
-    "FinanceAnalyticsRow",
-    "FinanceReconciliation",
-    "FinanceSnapshot",
-    # Cost
-    "CostSourceRow",
-    "CostSourceBreakdown",
     "CostBreakdownRow",
-    # Commercial / profitability
-    "ProjectCommercialProjection",
-    # Labor
-    "LaborAssignmentRow",
-    "LaborResourceRow",
-    "PlannedLaborResourceRow",
-    "LaborDetailsResult",
-    # EVM
+    "CostSourceBreakdown",
+    "CostSourceRow",
     "EarnedValueMetrics",
     "EvmSeriesPoint",
+    "FinanceAnalyticsRow",
+    "FinancePeriodRow",
+    "FinanceReconciliation",
+    "FinanceSnapshot",
+    "LaborAssignmentRow",
+    "LaborDetailsResult",
+    "LaborResourceRow",
+    "PlannedLaborResourceRow",
+    "ProjectCommercialProjection",
+    "ProjectFinanceLedgerRow",
 ]

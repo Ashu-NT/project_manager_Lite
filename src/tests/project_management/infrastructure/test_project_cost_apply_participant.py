@@ -3,7 +3,6 @@ caller-supplied Session without opening or completing its own transaction."""
 
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -17,11 +16,11 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
 from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
     ProjectCostApprovalParticipant,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.domain.approval import ApprovalRequest
-from src.infra.composition.approval_apply_dependencies.project_cost import (
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals.finance.project_cost import (
     build_project_cost_approval_deps,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.approval import ApprovalRequest
 from src.infra.persistence.orm.base import Base
 
 
@@ -37,14 +36,9 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _become_independent_decider(services) -> None:
-    user_session = services["user_session"]
-    user_session.set_principal(
-        replace(
-            user_session.principal,
-            user_id="independent-cost-decider",
-            username="independent-cost-decider",
-        )
-    )
+    auth = services["auth_service"]
+    user = auth.register_user("independent-cost-decider", "StrongPass123", role_names=["finance_controller"])
+    services["user_session"].set_principal(auth.build_principal(user))
 
 
 def _submitted_entry(services, session):
@@ -103,7 +97,7 @@ def test_participant_apply_approves_entry_on_the_supplied_session(services, sess
     deps = _deps(services, session)
     request = _approval_request(entry, expected_version=entry.row_version)
 
-    result = ProjectCostApprovalParticipant().apply(request, deps)
+    ProjectCostApprovalParticipant().apply(request, deps)
 
     approved = deps.cost_entry_service._entry_repo.get(entry.id)
     assert approved.status == ProjectCostEntryStatus.APPROVED

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from uuid import uuid4
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -111,6 +112,8 @@ class TaskAssignmentChanged:
     HOURS_LOGGED_CHANGED (the TimeEntry-driven sync) are deliberately
     distinct change_types, not merged -- mutually exclusive alternate
     paths to the same field with different provenance."""
+
+    event_id: str = field(default_factory=lambda: str(uuid4()))
 
     tenant_id: str
     organization_id: str

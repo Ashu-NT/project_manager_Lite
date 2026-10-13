@@ -20,6 +20,9 @@ class MaxDispatchRoundsExceededError(RuntimeError):
 class UnitOfWork(Protocol):
     context: DomainEventContext
 
+    @property
+    def committed(self) -> bool: ...
+
     def __enter__(self) -> Self: ...
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...

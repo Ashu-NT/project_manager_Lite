@@ -10,7 +10,7 @@ second principal; a snapshot is a computed fact, recalculated on demand.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -44,15 +44,15 @@ PLANNED_COST_CURRENCY_MISMATCH = "PLANNED_COST_CURRENCY_MISMATCH"
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _normalize_timestamp(value: object, *, code: str) -> datetime:
     if not isinstance(value, datetime):
         raise ValidationError("A valid timestamp is required.", code=code)
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _required_identifier(value: object, *, label: str, code: str) -> str:
@@ -99,7 +99,7 @@ class ProjectPlannedCostVersion:
     revision: int = 1
     status: PlannedCostVersionStatus = PlannedCostVersionStatus.CURRENT
     currency_code: str = ""
-    as_of: date = field(default_factory=lambda: datetime.now(timezone.utc).date())
+    as_of: date = field(default_factory=lambda: datetime.now(UTC).date())
     calculated_by: str = ""
     calculated_at: datetime = field(default_factory=_utc_now)
     rates_complete: bool = True

@@ -1,0 +1,5 @@
+module workspaces.departments.sections
+DepartmentOverviewSection 1.0 DepartmentOverviewSection.qml
+DepartmentEmployeesSection 1.0 DepartmentEmployeesSection.qml
+DepartmentCalendarSection 1.0 DepartmentCalendarSection.qml
+DepartmentActivitySection 1.0 DepartmentActivitySection.qml

@@ -313,6 +313,42 @@ class TenantContextService:
             if self._can_access(organization)
         ]
 
+    def require_history_organization_access(
+        self,
+        organization_id: str,
+        *,
+        operation_label: str,
+        permission_codes: tuple[str, ...],
+    ) -> Organization:
+        """Authorize an explicit history scope without changing the active organization.
+
+        Retired organizations retain history, so status is not a membership test.
+        """
+        normalized_id = str(organization_id or "").strip()
+        if not normalized_id:
+            raise BusinessRuleError(
+                f"Organization is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        self.require_active_tenant_id(operation_label=operation_label)
+        organization = self._organization_repo.get(normalized_id)
+        if organization is None or not self._can_access(organization):
+            raise BusinessRuleError(
+                f"Permission denied for {operation_label}.",
+                code="PERMISSION_DENIED",
+            )
+        if self._user_session is None or not any(
+            self._user_session.has_scope_permission(
+                "organization", normalized_id, permission_code
+            )
+            for permission_code in permission_codes
+        ):
+            raise BusinessRuleError(
+                f"Permission denied for {operation_label}.",
+                code="PERMISSION_DENIED",
+            )
+        return organization
+
     def set_active_organization(self, organization_id: str) -> Organization:
         try:
             return self._set_active_organization(organization_id)

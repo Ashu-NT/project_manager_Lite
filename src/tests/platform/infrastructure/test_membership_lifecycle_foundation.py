@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -52,7 +52,7 @@ def _seed_user_and_tenant(
     tenant_id: str,
     username: str,
 ) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add(
         UserORM(
             id=user_id,
@@ -81,7 +81,7 @@ def _seed_user_and_tenant(
 
 
 def test_membership_domain_enforces_explicit_lifecycle_transitions() -> None:
-    invited_at = datetime(2026, 7, 30, 8, 0, tzinfo=timezone.utc)
+    invited_at = datetime(2026, 7, 30, 8, 0, tzinfo=UTC)
     membership = UserTenantMembership.invite(
         "user-1",
         "tenant-1",
@@ -119,7 +119,7 @@ def test_membership_domain_enforces_explicit_lifecycle_transitions() -> None:
 
 
 def test_expired_invitation_denies_acceptance_and_can_be_reinvited() -> None:
-    invited_at = datetime(2026, 7, 30, 8, 0, tzinfo=timezone.utc)
+    invited_at = datetime(2026, 7, 30, 8, 0, tzinfo=UTC)
     membership = UserTenantMembership.invite(
         "user-1",
         "tenant-1",
@@ -170,8 +170,8 @@ def test_membership_repository_persists_lifecycle_and_rejects_stale_update(
             username="membership_admin",
             password_hash="x",
             is_active=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
             version=1,
             session_revision=1,
             mfa_enabled=False,
@@ -182,7 +182,7 @@ def test_membership_repository_persists_lifecycle_and_rejects_stale_update(
     session.flush()
     repository = SqlAlchemyUserTenantMembershipRepository(session)
     user_repository = SqlAlchemyUserRepository(session)
-    invited_at = datetime(2026, 7, 30, 8, 0, tzinfo=timezone.utc)
+    invited_at = datetime(2026, 7, 30, 8, 0, tzinfo=UTC)
     membership = UserTenantMembership.invite(
         "membership-user",
         "membership-tenant",

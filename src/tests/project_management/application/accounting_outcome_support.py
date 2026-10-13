@@ -1,7 +1,7 @@
 """Test provider for exercising real delivery and authenticated outcome composition."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock
 from uuid import uuid4
 
@@ -31,7 +31,7 @@ def outcome_sender(services, session):
     )
     actor = str(uuid4())
     name = "inbound-" + actor
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.execute(
         text(
             "INSERT INTO users (id, username, password_hash, account_type, is_active, created_at, updated_at, version) VALUES (:id,:id,'no-login','service',true,:now,:now,1)"

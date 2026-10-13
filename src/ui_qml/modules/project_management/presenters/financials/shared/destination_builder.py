@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import calendar
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
@@ -512,7 +512,7 @@ def build_destination_state(
         )
 
     if destination == "performance":
-        as_of_date = performance_as_of_date or datetime.now(timezone.utc).astimezone().date()
+        as_of_date = performance_as_of_date or datetime.now(UTC).astimezone().date()
         if subsection == "evm":
             views = build_evm_views(
                 desktop_api.get_performance_evm(
@@ -573,7 +573,7 @@ def build_destination_state(
         )
 
     if destination == "commercial":
-        as_of_date = performance_as_of_date or datetime.now(timezone.utc).astimezone().date()
+        as_of_date = performance_as_of_date or datetime.now(UTC).astimezone().date()
         if subsection == "profitability":
             projection = desktop_api.get_commercial_projection(project_id, as_of_date=as_of_date)
             fields = (

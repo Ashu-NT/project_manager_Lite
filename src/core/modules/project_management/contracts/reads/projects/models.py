@@ -1,16 +1,41 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import date, datetime
 from decimal import Decimal
 
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
-from src.core.modules.project_management.domain.projects.project import Project
+from src.core.modules.project_management.domain.enums import ProjectStatus
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectManagerCandidateFact:
+    user_id: str
+    display_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectCatalogProjectFact:
+    id: str
+    name: str
+    code: str
+    description: str
+    start_date: date | None
+    end_date: date | None
+    status: ProjectStatus
+    client_name: str | None
+    client_contact: str | None
+    organization_id: str
+    site_id: str | None
+    department_id: str | None
+    client_party_id: str | None
+    manager_user_id: str | None
+    version: int
 
 
 @dataclass(frozen=True, slots=True)
 class ProjectCatalogReadItem:
-    project: Project
+    project: ProjectCatalogProjectFact
     site_label: str = ""
     financial_currency_code: str = ""
     approved_budget: Decimal | None = None
@@ -34,8 +59,8 @@ class ProjectCatalogReadPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    summary: ProjectCatalogSummary = ProjectCatalogSummary()
-    sort: ReadSort = ReadSort("title")
+    summary: ProjectCatalogSummary = field(default_factory=ProjectCatalogSummary)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("title"))
     approved_budget_visible: bool = False
 
 
@@ -83,7 +108,7 @@ class ProjectResourceDetailPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("resourceName")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("resourceName"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +120,8 @@ class ProjectActivityFact:
     entity_type: str
     summary: str
     details: dict[str, object]
+    actor_kind: str = "missing"
+    actor_display: str = "Deleted user"
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,7 +130,8 @@ class ProjectActivityPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("occurredAt")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("occurredAt"))
+    reference_labels: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 __all__ = [
@@ -112,6 +140,7 @@ __all__ = [
     "ProjectCatalogReadItem",
     "ProjectCatalogReadPage",
     "ProjectCatalogSummary",
+    "ProjectManagerCandidateFact",
     "ProjectResourceDetailFact",
     "ProjectResourceDetailPage",
     "ProjectResourceUsageFact",

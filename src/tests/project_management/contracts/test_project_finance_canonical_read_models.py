@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from uuid import uuid4
@@ -25,20 +24,15 @@ from src.core.modules.project_management.infrastructure.persistence.orm.forecast
     ForecastLineORM,
 )
 from src.core.modules.project_management.infrastructure.reporting import (
-    api as reporting_api,
+    export_runtime as reporting_api,
 )
 from src.core.platform.common.exceptions import NotFoundError
 
 
 def _become_independent_decider(services) -> None:
-    user_session = services["user_session"]
-    user_session.set_principal(
-        replace(
-            user_session.principal,
-            user_id="independent-cost-decider",
-            username="independent-cost-decider",
-        )
-    )
+    auth = services["auth_service"]
+    user = auth.register_user("independent-cost-decider", "StrongPass123", role_names=["finance_controller"])
+    services["user_session"].set_principal(auth.build_principal(user))
 
 
 def _login(services, username: str, password: str) -> None:
@@ -182,8 +176,8 @@ def test_finance_excel_export_has_bounded_lineage_and_control_parity(
         output,
         finance_service=services["finance_service"],
         as_of=date(2026, 8, 31),
-        finance_ledger_offset=1,
-        finance_ledger_limit=1,
+        project_finance_ledger_offset=1,
+        project_finance_ledger_limit=1,
     )
 
     workbook = load_workbook(output, data_only=True)
@@ -261,7 +255,7 @@ def test_finance_pdf_export_uses_the_same_canonical_read_basis(
         temp_dir=tmp_path / "report-temp",
         finance_service=services["finance_service"],
         as_of=date(2026, 8, 31),
-        finance_ledger_limit=1,
+        project_finance_ledger_limit=1,
     )
 
     assert output.read_bytes().startswith(b"%PDF")
@@ -487,6 +481,45 @@ def test_cost_phasing_historical_actual_does_not_query_current_rates(services, m
         date_to=date(2026, 8, 31),
     )
     assert after.periods == before.periods
+
+
+def test_r6h_reporting_kpi_uses_the_requested_financial_as_of_date(services) -> None:
+    project, *_ = _approved_controls(services)
+    reporting = services["reporting_service"]
+    before = reporting.get_project_kpis(project.id, as_of=date(2026, 7, 31))
+    after = reporting.get_project_kpis(project.id, as_of=date(2026, 8, 31))
+    assert before.total_actual_cost == Decimal(0)
+    assert after.total_actual_cost == Decimal(25)
+    snapshot = services["finance_service"].get_finance_snapshot(
+        project.id, as_of=date(2026, 8, 31),
+    )
+    assert after.total_actual_cost == snapshot.actual
+
+
+def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> None:
+    project, *_ = _approved_controls(services)
+    foreign = services["project_service"].create_project("Foreign baseline owner")
+    services["task_service"].create_task(
+        foreign.id, "Foreign task", start_date=date(2026, 8, 3), duration_days=2,
+    )
+    baseline = services["baseline_service"].create_baseline(
+        foreign.id, "Foreign baseline", rate_as_of=date(2026, 8, 1),
+    )
+    reporting = services["reporting_service"]
+    for query in (
+        reporting.get_earned_value, reporting.get_evm_series,
+        reporting.get_cost_breakdown, reporting.get_baseline_schedule_variance,
+    ):
+        with pytest.raises(NotFoundError):
+            query(project.id, baseline_id=baseline.id)
+    with pytest.raises(NotFoundError):
+        services["finance_performance_query"].get_variance(
+            project.id, selected_baseline_id=baseline.id,
+        )
+    with pytest.raises(NotFoundError):
+        services["baseline_service"].list_variance_records(
+            baseline.id, expected_project_id=project.id,
+        )
 
 
 def test_r6e_integrated_performance_uses_one_approved_financial_basis(services) -> None:

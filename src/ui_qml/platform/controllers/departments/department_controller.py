@@ -3,27 +3,44 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.platform.controllers.common import (
+    run_history_preview,
     run_mutation,
     safe_exception_message,
     serialize_action_list,
+)
+from src.ui_qml.platform.presenters.departments.department_activity_presenter import (
+    PlatformDepartmentActivityPresenter,
 )
 from src.ui_qml.platform.presenters.departments.department_catalog_presenter import (
     PlatformDepartmentCatalogPresenter,
 )
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
+_DEPARTMENT_PAGE_SIZE_OPTIONS = (25, 50, 100)
+_DEFAULT_DEPARTMENT_PAGE_SIZE = 25
+
 
 class PlatformDepartmentController(QObject):
     departmentsChanged = Signal()
     departmentEditorOptionsChanged = Signal()
+    departmentSearchTextChanged = Signal()
+    departmentStatusFilterChanged = Signal()
+    departmentSiteFilterChanged = Signal()
     isBusyChanged = Signal()
     errorMessageChanged = Signal()
     operationResultChanged = Signal()
     feedbackMessageChanged = Signal()
 
-    def __init__(self, presenter: PlatformDepartmentCatalogPresenter, parent: QObject | None = None) -> None:
+    def __init__(
+        self,
+        presenter: PlatformDepartmentCatalogPresenter,
+        parent: QObject | None = None,
+        *,
+        activity_presenter: PlatformDepartmentActivityPresenter | None = None,
+    ) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._activity_presenter = activity_presenter or PlatformDepartmentActivityPresenter()
         self._table_model = DynamicTableModel(self)
         self._departments: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._department_editor_options: dict[str, object] = {
@@ -40,10 +57,31 @@ class PlatformDepartmentController(QObject):
             "message": "",
         }
         self._feedback_message = ""
+        self._page = 1
+        self._page_size = _DEFAULT_DEPARTMENT_PAGE_SIZE
+        self._search_text = ""
+        self._status_filter = ""
+        self._site_filter = ""
 
     @Property("QVariantMap", notify=departmentsChanged)
     def departments(self) -> dict[str, object]:
         return self._departments
+
+    @Property(str, notify=departmentSearchTextChanged)
+    def departmentSearchText(self) -> str:
+        return self._search_text
+
+    @Property(str, notify=departmentStatusFilterChanged)
+    def departmentStatusFilter(self) -> str:
+        return self._status_filter
+
+    @Property(str, notify=departmentSiteFilterChanged)
+    def departmentSiteFilter(self) -> str:
+        return self._site_filter
+
+    @Property("QVariantList", constant=True)
+    def departmentPageSizeOptions(self) -> list[int]:
+        return list(_DEPARTMENT_PAGE_SIZE_OPTIONS)
 
     @Property(QObject, constant=True)
     def tableModel(self) -> DynamicTableModel:
@@ -102,6 +140,58 @@ class PlatformDepartmentController(QObject):
 
     @Slot()
     def refresh(self) -> None:
+        self._refresh_departments()
+
+    @Slot(int)
+    def setDepartmentPage(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized == self._page:
+            return
+        self._page = normalized
+        self._refresh_departments()
+
+    @Slot(int)
+    def setDepartmentPageSize(self, page_size: int) -> None:
+        normalized = (
+            int(page_size) if int(page_size) in _DEPARTMENT_PAGE_SIZE_OPTIONS else _DEFAULT_DEPARTMENT_PAGE_SIZE
+        )
+        if normalized == self._page_size:
+            return
+        self._page_size = normalized
+        # Changing the page size while positioned deep in the result set
+        # could land past the new last page -- resetting to page 1 keeps
+        # the result always valid without a second round-trip to clamp it.
+        self._page = 1
+        self._refresh_departments()
+
+    @Slot(str)
+    def setDepartmentSearchText(self, text: str) -> None:
+        normalized = str(text or "")
+        if normalized == self._search_text:
+            return
+        self._search_text = normalized
+        self._page = 1
+        self.departmentSearchTextChanged.emit()
+        self._refresh_departments()
+
+    @Slot(str)
+    def setDepartmentStatusFilter(self, status: str) -> None:
+        normalized = str(status or "").strip().lower()
+        if normalized == self._status_filter:
+            return
+        self._status_filter = normalized
+        self._page = 1
+        self.departmentStatusFilterChanged.emit()
+        self._refresh_departments()
+
+    @Slot(str)
+    def setDepartmentSiteFilter(self, site_id: str) -> None:
+        normalized = str(site_id or "").strip()
+        if normalized == self._site_filter:
+            return
+        self._site_filter = normalized
+        self._page = 1
+        self.departmentSiteFilterChanged.emit()
         self._refresh_departments()
 
     @Slot(str, int, int, str, str, result="QVariantMap")
@@ -224,8 +314,59 @@ class PlatformDepartmentController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot(str, str, result="QVariantList")
+    def departmentActivity(self, department_id: str, organization_id: str) -> list[dict[str, object]]:
+        normalized_department_id = department_id.strip()
+        normalized_org_id = organization_id.strip()
+        if not normalized_department_id or not normalized_org_id:
+            return []
+        return run_history_preview(
+            operation=lambda: self._activity_presenter.build_recent_activity(
+                normalized_department_id, normalized_org_id
+            ),
+            set_error_message=self._set_error_message,
+            label="department activity",
+        )
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def departmentActivityPage(
+        self,
+        department_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        normalized_department_id = department_id.strip()
+        normalized_org_id = organization_id.strip()
+        if not normalized_department_id or not normalized_org_id:
+            return {
+                "items": [], "page": page, "pageSize": page_size,
+                "totalCount": 0, "filteredTotal": 0, "emptyState": "", "noResultsState": "",
+            }
+        return self._activity_presenter.build_activity_page_for_department(
+            normalized_department_id, normalized_org_id,
+            page=page, page_size=page_size, search=search, date_range=date_range,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def headOfDepartmentOptionsFor(self, department_id: str) -> dict[str, object]:
+        """Edit-only, computed fresh per call (never cached on this
+        controller) -- HOD candidates are scoped to this exact department,
+        unlike the org-wide site/parent options in departmentEditorOptions."""
+        return {"headOfDepartmentOptions": list(self._presenter.build_head_of_department_options(department_id))}
+
     def _refresh_departments(self) -> None:
-        catalog = serialize_action_list(self._presenter.build_catalog())
+        catalog = serialize_action_list(
+            self._presenter.build_catalog_page(
+                page=self._page,
+                page_size=self._page_size,
+                search=self._search_text,
+                status=self._status_filter,
+                site_id=self._site_filter,
+            )
+        )
         self._set_departments(catalog)
         self._set_department_editor_options(
             {

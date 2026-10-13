@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
-from datetime import datetime, time, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -25,7 +24,11 @@ from src.core.platform.contract.read.overview.platform_overview_rollup_reader im
 from src.core.platform.contract.repositories.master_data.org.contracts import (
     OrganizationRepository,
 )
-from src.core.platform.contract.uow.organization_unit_of_work import (
+from src.core.platform.contract.repositories.master_data.org.default_calendar_writer import (
+    OrganizationDefaultCalendarWriter,
+)
+from src.core.platform.contract.uow.master_data.organization_unit_of_work import (
+    OrganizationUnitOfWork,
     OrganizationUnitOfWorkFactory,
 )
 from src.core.platform.domain.master_data.org import (
@@ -46,13 +49,6 @@ from src.core.platform.domain.master_data.org.support import (
     DEFAULT_ORGANIZATION_CURRENCY,
     DEFAULT_ORGANIZATION_NAME,
     DEFAULT_ORGANIZATION_TIMEZONE,
-)
-from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
-    CalendarType,
-)
-from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
-    CalendarWorkingRuleORM,
-    PlatformCalendarORM,
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
@@ -92,73 +88,6 @@ _ORGANIZATION_STATUS_EVENT_CLASS: dict[str, type] = {
     "organization.deactivate": OrganizationDeactivated,
     "organization.archive": OrganizationArchived,
 }
-
-# Mon-Fri 08:00-17:00 with a 60-minute break -- the same fresh-install
-# default EnterpriseCalendarService.ensure_global_calendar() seeds when no
-# legacy working_calendar data exists to migrate.
-_DEFAULT_WORKING_WEEKDAYS = frozenset({0, 1, 2, 3, 4})
-
-
-def _add_default_calendar_rows(session: Session, organization: Organization) -> None:
-    """Every organization gets exactly one default (Global-tier) calendar,
-    created in the SAME transaction as the organization itself -- the
-    invariant is "an organization cannot exist without its required
-    calendar", not "an organization gets one shortly after, best-effort".
-
-    Written directly as ORM rows (not through PlatformCalendarRepository/
-    CalendarWorkingRuleRepository) because those repositories are
-    TenantScopedRepositorySupport-scoped to the CALLER's ACTIVE organization
-    -- they silently redirect organization_id/tenant_id to the active
-    scope regardless of what's passed in, which would write the calendar
-    under the wrong organization for every organization created while a
-    DIFFERENT one happens to be active (the normal case). This service
-    already knows the exact, just-validated organization/tenant scope from
-    `organization` itself, so that ambient scoping doesn't apply here.
-
-    The client can edit this calendar afterward from the Calendars
-    workspace -- this only guarantees it exists to begin with.
-    """
-    now = datetime.now(timezone.utc)
-    calendar_id = f"global-{organization.id[:8]}"
-    session.add(
-        PlatformCalendarORM(
-            id=calendar_id,
-            tenant_id=organization.tenant_id,
-            organization_id=organization.id,
-            code="GLOBAL",
-            name="Global Calendar",
-            description="Organization-wide default working calendar.",
-            calendar_type=CalendarType.GLOBAL.value,
-            timezone="UTC",
-            is_default=True,
-            is_active=True,
-            priority=0,
-            version=1,
-            created_at=now,
-            updated_at=now,
-        )
-    )
-    # Flush so the calendar row (and the organization row it -- and every
-    # working rule row below -- has a foreign key to) physically exists
-    # before the dependent inserts below are sent, regardless of how this
-    # session's autoflush/dependency-sort settings are configured.
-    session.flush()
-    for weekday in range(7):
-        is_working = weekday in _DEFAULT_WORKING_WEEKDAYS
-        session.add(
-            CalendarWorkingRuleORM(
-                id=generate_id(),
-                calendar_id=calendar_id,
-                weekday=weekday,
-                is_working_day=is_working,
-                start_time=time(8, 0) if is_working else None,
-                end_time=time(17, 0) if is_working else None,
-                break_minutes=60 if is_working else 0,
-                hours_override=8.0 if is_working else None,
-                priority=0,
-            )
-        )
-
 
 @dataclass(frozen=True)
 class OrganizationPage:
@@ -200,6 +129,7 @@ class OrganizationService:
         *,
         uow_factory: OrganizationUnitOfWorkFactory,
         clock: Clock,
+        default_calendar_writer: OrganizationDefaultCalendarWriter,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
@@ -210,6 +140,7 @@ class OrganizationService:
         self._organization_repo = organization_repo
         self._uow_factory = uow_factory
         self._clock = clock
+        self._default_calendar_writer = default_calendar_writer
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
@@ -457,7 +388,7 @@ class OrganizationService:
                 phone=phone,
                 website=website,
             )
-            _add_default_calendar_rows(uow.session, organization)
+            self._default_calendar_writer.add_default_calendar(uow.session, organization)
             try:
                 uow.commit()
             except IntegrityError as exc:
@@ -806,7 +737,12 @@ class OrganizationService:
                 if getattr(organization, field_name) == value:
                     results.append(organization)
                     continue
-                candidate = replace(organization, tenant_id=tenant_id, **{field_name: value})
+                if field_name == "base_currency":
+                    candidate = replace(organization, tenant_id=tenant_id, base_currency=value)
+                elif field_name == "timezone_name":
+                    candidate = replace(organization, tenant_id=tenant_id, timezone_name=value)
+                else:
+                    raise ValueError(f"Unsupported organization bulk field: {field_name}")
                 uow.organizations.update(candidate)
                 record_audit_entry(
                     uow,
@@ -849,7 +785,7 @@ class OrganizationService:
     def _create_organization_using(
         self,
         organization_repo: OrganizationRepository,
-        uow: object,
+        uow: OrganizationUnitOfWork,
         *,
         organization_code: str,
         display_name: str,

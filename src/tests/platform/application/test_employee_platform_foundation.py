@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.core.modules.project_management.domain.enums import WorkerType
 
 
-def test_employee_updates_keep_linked_resources_in_sync(services):
+def test_employee_profile_remains_platform_owned_and_pm_reads_live_identity(services):
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
     site_service = services["site_service"]
@@ -61,13 +61,21 @@ def test_employee_updates_keep_linked_resources_in_sync(services):
     )
 
     refreshed = resource_service.get_resource(resource.id)
+    summary = resource_service.get_resource_summary(resource.id)
+    catalog = resource_service.query_catalog_page(search_text="Alice Smith")
 
     assert employee.site_name == "Berlin Hub"
     assert employee.site_id == next_site.id
     assert employee.department == "Planning"
     assert employee.department_id == next_department.id
-    assert refreshed.name == "Alice Smith"
-    assert refreshed.role == "Senior Planner"
-    assert refreshed.contact == "+49-555-0101"
+    assert refreshed.version == resource.version
+    assert refreshed.name == "Alice Admin"  # PM-owned registration is not rewritten by Platform.
+    assert refreshed.role == "Planner"
+    assert summary.name == "Alice Smith"
+    assert summary.employee_title == "Senior Planner"
+    assert summary.contact == "+49-555-0101"
+    assert summary.department_id == next_department.id
+    assert summary.site_id == next_site.id
+    assert [item.resource_id for item in catalog.items] == [resource.id]
 
 

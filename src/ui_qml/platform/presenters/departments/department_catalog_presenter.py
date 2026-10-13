@@ -125,6 +125,98 @@ class PlatformDepartmentCatalogPresenter:
             ),
         )
 
+    def build_catalog_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        status: str = "",
+        site_id: str = "",
+    ) -> PlatformWorkspaceActionListViewModel:
+        """Server-side paginated Departments page for the primary Platform >
+        Departments destination, scoped to the caller's currently active
+        organization -- the ambient-context counterpart to
+        build_catalog_page_for_organization below (Organization Detail's
+        explicit-organization_id variant). Optional site_id narrows to a
+        single Site, the same real backend filter build_catalog_page_for_site
+        uses for Site Detail's own Departments tab -- never a client-side
+        filter of an already-fetched page."""
+        if self._department_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle="Departments appear here once the platform department API is connected.",
+                empty_state="Platform department API is not connected in this QML preview.",
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+        context_result = self._department_api.get_context()
+        if not context_result.ok or context_result.data is None:
+            message = context_result.error.message if context_result.error is not None else "Unable to load departments."
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        organization_id = context_result.data.id
+        active_only: bool | None
+        if status == "active":
+            active_only = True
+        elif status == "inactive":
+            active_only = False
+        else:
+            active_only = None
+
+        result = self._department_api.list_departments_page_for_organization(
+            organization_id,
+            page=page,
+            page_size=page_size,
+            search=search.strip(),
+            active_only=active_only,
+            site_id=site_id or None,
+        )
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load departments."
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        department_page = result.data
+        site_lookup = self._site_lookup_for_organization(organization_id)
+        department_lookup = self._department_lookup_for_organization(organization_id)
+        employee_lookup = self._employee_lookup_for_organization(organization_id)
+        return PlatformWorkspaceActionListViewModel(
+            title="Departments",
+            subtitle=f"Operational departments for {context_result.data.display_name}.",
+            empty_state="No departments yet. Add the first department for this organization.",
+            no_results_state="No departments match your current filters.",
+            items=tuple(
+                self._serialize_department(
+                    row,
+                    site_lookup=site_lookup,
+                    department_lookup=department_lookup,
+                    employee_lookup=employee_lookup,
+                    organization_name=context_result.data.display_name,
+                )
+                for row in department_page.items
+            ),
+            paginated=True,
+            page=department_page.page,
+            page_size=department_page.page_size,
+            total_count=department_page.total,
+            filtered_total=department_page.filtered_total,
+        )
+
     def build_catalog_page_for_organization(
         self,
         organization_id: str,
@@ -309,15 +401,16 @@ class PlatformDepartmentCatalogPresenter:
             for row in result.data
         )
 
-    def build_head_of_department_options(self) -> tuple[dict[str, str], ...]:
-        """Real Employee options for the Head of Department (HOD) picker --
-        active-organization-scoped, matching build_site_options() above. An
-        HOD may be any active employee in the organization (not restricted
-        to this department), matching the existing service-layer validation
-        (validate_head_of_department_employee_id checks organization membership only)."""
-        if self._employee_api is None:
+    def build_head_of_department_options(self, department_id: str | None = None) -> tuple[dict[str, str], ...]:
+        """HOD candidates are this exact department's own employees, not the
+        organization at large -- head_of_department_employee_id is only
+        valid when employee.department_id == department_id (the relationship
+        itself is the HOD designation; there is no separate eligibility
+        flag). A department with no id yet (Create, before any employee can
+        reference it) has no possible candidates."""
+        if self._employee_api is None or not department_id:
             return ()
-        result = self._employee_api.list_employees(active_only=True)
+        result = self._employee_api.list_employees(active_only=True, department_id=department_id)
         if not result.ok or result.data is None:
             return ()
         return tuple(
@@ -361,14 +454,7 @@ class PlatformDepartmentCatalogPresenter:
                 parent_department_id=optional_string_value(payload, "parentDepartmentId"),
                 department_type=string_value(payload, "departmentType"),
                 cost_center_code=string_value(payload, "costCenterCode"),
-                # Deliberately string_value(), not optional_string_value():
-                # an empty string must still reach create_department() as ""
-                # (normalizes to no Head of Department), which is the same
-                # thing as never having selected one. Using
-                # optional_string_value() here would make no observable
-                # difference on create, but keeping create/update symmetric
-                # matters for update below, where the distinction is
-                # load-bearing (see its comment).
+
                 head_of_department_employee_id=string_value(payload, "headOfDepartmentEmployeeId"),
                 notes=string_value(payload, "notes"),
             )
@@ -389,15 +475,7 @@ class PlatformDepartmentCatalogPresenter:
                 parent_department_id=optional_string_value(payload, "parentDepartmentId"),
                 department_type=string_value(payload, "departmentType"),
                 cost_center_code=string_value(payload, "costCenterCode"),
-                # Deliberately string_value(), not optional_string_value().
-                # update_department() treats head_of_department_employee_id=
-                # None as "leave unchanged" but treats "" as "clear the Head
-                # of Department" (it gates on `is not None`, then
-                # validate_head_of_department_employee_id normalizes "" down
-                # to None) -- optional_string_value() would collapse a real
-                # "clear the Head of Department" request from the dialog
-                # into a no-op None, making it permanently un-clearable once
-                # set.
+
                 head_of_department_employee_id=string_value(payload, "headOfDepartmentEmployeeId"),
                 notes=string_value(payload, "notes"),
                 expected_version=int_value(payload, "expectedVersion"),
@@ -508,6 +586,7 @@ class PlatformDepartmentCatalogPresenter:
         site_lookup: dict[str, str],
         department_lookup: dict[str, str] | None = None,
         employee_lookup: dict[str, str] | None = None,
+        organization_name: str = "",
     ) -> PlatformWorkspaceActionItemViewModel:
         site_label = site_lookup.get(row.site_id or "", "No site")
         parent_label = (department_lookup or {}).get(row.parent_department_id or "", "")
@@ -518,13 +597,17 @@ class PlatformDepartmentCatalogPresenter:
             status_label=_department_status_label(row.is_active),
             subtitle=f"{row.department_code} | {row.department_type or 'Department'}",
             supporting_text=f"Site: {site_label}",
-            meta_text=f"Cost center: {row.cost_center_code or '-'}",
+            # Raw value only -- the "Cost Center Code" column/field label
+            # already provides context; do not re-embed the label inside
+            # the string itself.
+            meta_text=row.cost_center_code or "-",
             can_primary_action=True,
             can_secondary_action=True,
             state={
                 "id": row.id,
                 "departmentId": row.id,
                 "organizationId": row.organization_id,
+                "organizationName": organization_name,
                 "departmentCode": row.department_code,
                 "name": row.name,
                 "description": row.description,

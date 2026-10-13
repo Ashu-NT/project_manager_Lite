@@ -38,7 +38,7 @@ def test_finance_controller_can_query_shared_parties_without_settings_manage(ser
     party = services["party_service"].create_party(
         party_code="SUP-001",
         party_name="North Supply",
-        party_type="SUPPLIER",
+        roles=["SUPPLIER"],
         city="Hamburg",
     )
     auth.register_user("finance-party-reader", "StrongPass123", role_names=["finance_controller"])

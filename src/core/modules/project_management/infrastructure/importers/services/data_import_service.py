@@ -9,7 +9,6 @@ from src.core.modules.project_management.application.common.module_guard import 
 )
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ResourceService
-from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.infrastructure.importers.models import (
     ImportFieldSpec,
     ImportPreview,
@@ -31,6 +30,9 @@ from src.core.modules.project_management.infrastructure.importers.resources.mode
 )
 from src.core.modules.project_management.infrastructure.importers.services.import_definitions import (
     register_project_management_import_definitions,
+)
+from src.core.modules.project_management.infrastructure.importers.tasks.capabilities import (
+    TaskImportCapabilities,
 )
 from src.core.modules.project_management.infrastructure.importers.tasks.csv.task_csv_importer import (
     import_tasks,
@@ -63,7 +65,7 @@ class DataImportService(ProjectManagementModuleGuardMixin):
         self,
         *,
         project_service: ProjectService,
-        task_service: TaskService,
+        task_capabilities: TaskImportCapabilities,
         resource_service: ResourceService,
         user_session=None,
         module_catalog_service=None,
@@ -71,7 +73,7 @@ class DataImportService(ProjectManagementModuleGuardMixin):
         import_runtime: CsvImportRuntime | None = None,
     ) -> None:
         self._project_service = project_service
-        self._task_service = task_service
+        self._task_capabilities = task_capabilities
         self._resource_service = resource_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
@@ -83,12 +85,12 @@ class DataImportService(ProjectManagementModuleGuardMixin):
             preview_handlers={
                 "projects": lambda rows: preview_projects(rows, project_service=project_service),
                 "resources": lambda rows: preview_resources(rows, resource_service=resource_service),
-                "tasks": lambda rows: preview_tasks(rows, project_service=project_service, task_service=task_service),
+                "tasks": lambda rows: preview_tasks(rows, project_service=project_service, task_capabilities=task_capabilities),
             },
             execution_handlers={
                 "projects": lambda rows: import_projects(rows, project_service=project_service),
                 "resources": lambda rows: import_resources(rows, resource_service=resource_service),
-                "tasks": lambda rows: import_tasks(rows, project_service=project_service, task_service=task_service),
+                "tasks": lambda rows: import_tasks(rows, project_service=project_service, task_capabilities=task_capabilities),
             },
         )
         self._import_registry = registry

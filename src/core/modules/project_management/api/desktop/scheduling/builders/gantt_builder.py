@@ -406,7 +406,7 @@ def _build_row(
         status_label = status.replace("_", " ").title()
         progress = _rollup_progress(rollup)
         duration = _summary_duration(rollup, work_calendar)
-        remaining = max(0, int(round(duration * (1.0 - progress / 100.0))))
+        remaining = max(0, round(duration * (1.0 - progress / 100.0)))
         start = rollup.start
         finish = rollup.finish
         latest_start = rollup.latest_start

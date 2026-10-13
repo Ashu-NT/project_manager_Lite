@@ -5,16 +5,17 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Generic, TypeVar
 
-from src.core.application.global_overview.api.desktop.global_overview import (
+from src.core.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
+    ActionCenterCursor,
     ActionCenterItemDto,
 )
-from src.core.application.global_overview.contracts.module_summary import (
+from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
 )
-from src.core.application.global_overview.contracts.overview import (
+from src.core.global_overview.contract.overview import (
     GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
 )
@@ -89,7 +90,7 @@ class _QuickActionCandidate:
 # registered shell route -- never invented. "Create project" is the only
 # candidate with all three verified as a distinct destination:
 #   permission: ProjectService.create_project -> require_permission(...,
-#       "project.manage") (projects/commands/lifecycle.py)
+#       "project.manage") (projects/commands/create.py)
 #   module: gated on "project_management" via accessible_module_codes
 #   route: "project_management.projects", a real registered QmlRoute
 # "Add user" (auth.manage), "Add department" (settings.manage), and
@@ -124,6 +125,7 @@ class SectionResult(Generic[_ResultT]):
     data: _ResultT | None
     error_message: str | None = None
     empty: bool = False
+    next_cursor: ActionCenterCursor | None = None
 
 
 class GlobalOverviewPresenter:
@@ -190,14 +192,14 @@ class GlobalOverviewPresenter:
         rows = tuple(_build_activity_row(entry) for entry in result.data)
         return SectionResult(ok=True, data=rows, empty=not rows)
 
-    def load_action_center(self, *, limit: int = 10) -> SectionResult:
-        result = self._api.list_action_center(limit=limit)
+    def load_action_center(self, *, limit: int = 10, after: ActionCenterCursor | None = None) -> SectionResult:
+        result = self._api.list_action_center(limit=limit, after=after)
         if not result.ok or result.data is None:
             self._log_failure("action_center", result)
             return SectionResult(ok=False, data=None, error_message=_ACTION_CENTER_LOAD_ERROR)
         today = date.today()
         rows = tuple(_build_action_center_row(item, today=today) for item in result.data.items)
-        return SectionResult(ok=True, data=rows, empty=not rows)
+        return SectionResult(ok=True, data=rows, empty=not rows, next_cursor=result.data.next_cursor)
 
     def load_quick_actions(self) -> SectionResult:
         """Derives Quick Actions only from GlobalOverviewDesktopApi
@@ -280,9 +282,7 @@ def _build_activity_row(entry: ActivityEntryDto) -> ActivityItemViewModel:
     return ActivityItemViewModel(
         id=entry.id,
         title=entry.human_message or humanize_action(entry.action),
-        # ActivityEntryDto only carries a raw actor_id, never a resolved
-        # display name; this layer has no user-lookup input to resolve one,
-        # so actor_display keeps its "System" default.
+        actor_display=entry.actor_display,
         subject_display=_MODULE_LABELS.get(entry.module, entry.module.replace("_", " ").title()),
         occurred_at=entry.timestamp,
         occurred_at_label=entry.timestamp.strftime("%d %b %Y · %H:%M"),
@@ -310,6 +310,7 @@ def _build_action_center_row(item: ActionCenterItemDto, *, today: date) -> Actio
         # deep link is invented here (see routing limitation, item 13).
         route_id=item.route_id,
         kind=item.kind,
+        destination_id=item.destination_id,
     )
 
 

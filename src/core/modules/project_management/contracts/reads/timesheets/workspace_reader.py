@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
@@ -35,7 +35,7 @@ class TimesheetResourceFact:
 class TimesheetResourceSelectorCriteria:
     search_text: str = ""
     include_inactive: bool = False
-    sort: ReadSort = ReadSort("resource", ReadSortDirection.ASCENDING)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("resource", ReadSortDirection.ASCENDING))
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,7 +44,7 @@ class TimesheetResourceReadPage:
     total: int = 0
     page: int = 1
     page_size: int = 20
-    sort: ReadSort = ReadSort("resource", ReadSortDirection.ASCENDING)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("resource", ReadSortDirection.ASCENDING))
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,7 +92,7 @@ class TimesheetEntryCriteria:
     task_id: str | None = None
     work_date_from: date | None = None
     work_date_to: date | None = None
-    sort: ReadSort = ReadSort("date", ReadSortDirection.DESCENDING)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("date", ReadSortDirection.DESCENDING))
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,13 +121,13 @@ class TimesheetEntryReadPage:
     total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("date", ReadSortDirection.DESCENDING)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("date", ReadSortDirection.DESCENDING))
 
 
 @dataclass(frozen=True, slots=True)
 class TimesheetHistoryCriteria:
     status: TimesheetPeriodStatus | None = None
-    sort: ReadSort = ReadSort("period", ReadSortDirection.DESCENDING)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("period", ReadSortDirection.DESCENDING))
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,7 +136,7 @@ class TimesheetHistoryReadPage:
     total: int = 0
     page: int = 1
     page_size: int = 12
-    sort: ReadSort = ReadSort("period", ReadSortDirection.DESCENDING)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("period", ReadSortDirection.DESCENDING))
 
 
 class TimesheetWorkspaceReader(Protocol):

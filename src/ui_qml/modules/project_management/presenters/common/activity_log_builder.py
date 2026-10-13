@@ -11,46 +11,6 @@ from src.ui_qml.shared.models.activity_item import (
 )
 
 
-def build_id_lookup(list_result) -> dict[str, str]:
-    if not list_result.ok or list_result.data is None:
-        return {}
-    return {str(row.id): str(getattr(row, "name", "") or "") for row in list_result.data}
-
-
-def build_user_lookup(list_result) -> dict[str, str]:
-    if not list_result.ok or list_result.data is None:
-        return {}
-    return {
-        str(row.id): str(row.display_name or row.username)
-        for row in list_result.data
-    }
-
-
-def build_actor_lookup(user_result, employee_result) -> dict[str, str]:
-    """user_id -> display name, preferring the linked Employee's full name.
-
-    Most users in this app are employees (`Employee.user_id` links back to
-    the account), and an employee record's `full_name` is a real recorded
-    name rather than a login-oriented username/display_name -- so an
-    Employee match, when one exists, wins over the User account's own
-    fields.
-
-    Builds the lookup from the full user and employee lists once per page
-    load (bounded, no per-row query). At current data volumes this is
-    cheaper than a page-scoped fetch; if user/employee counts grow large
-    enough for that to change, this should resolve only the actor ids
-    present on the current page rather than listing every user/employee.
-    """
-    lookup = build_user_lookup(user_result)
-    if employee_result is not None and employee_result.ok and employee_result.data is not None:
-        for employee in employee_result.data:
-            user_id = getattr(employee, "user_id", None)
-            full_name = str(getattr(employee, "full_name", "") or "")
-            if user_id and full_name:
-                lookup[str(user_id)] = full_name
-    return lookup
-
-
 def resolve_change_value(
     field_name: str,
     raw_value: str | None,
@@ -103,7 +63,7 @@ def format_changes_summary(
 def build_activity_records(
     entries: Sequence[Any],
     *,
-    actor_lookup: dict[str, str],
+    actor_lookup: dict[str, str] | None = None,
     lookups: dict[str, dict[str, str]] | None = None,
     field_labels: dict[str, str],
     field_lookup: dict[str, str] | None = None,
@@ -120,7 +80,7 @@ def build_activity_records(
     already uses.
     """
     resolved_lookups = dict(lookups or {})
-    resolved_lookups["user"] = actor_lookup
+    resolved_lookups["user"] = actor_lookup or resolved_lookups.get("user", {})
     records = []
     for entry in entries:
         title = (
@@ -132,7 +92,11 @@ def build_activity_records(
             ActivityItemViewModel(
                 id=entry.id,
                 title=title,
-                actor_display=actor_lookup.get(entry.actor_id or "", "") or "System",
+                actor_display=(
+                    getattr(entry, "actor_display", "")
+                    or (actor_lookup or {}).get(entry.actor_id or "", "")
+                    or ("Deleted user" if entry.actor_id else "System")
+                ),
                 supporting_text=format_changes_summary(
                     entry.details.get("changes"),
                     resolved_lookups,
@@ -152,6 +116,4 @@ def build_activity_records(
 
 __all__ = [
     "build_activity_records",
-    "build_actor_lookup",
-    "build_id_lookup",
 ]

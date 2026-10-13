@@ -14,7 +14,7 @@ from src.core.platform.domain.master_data.department.events import (
     DepartmentCreated,
     DepartmentProfileUpdated,
 )
-from src.core.platform.infrastructure.persistence.uow.department_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.department_unit_of_work import (
     SqlAlchemyDepartmentUnitOfWork,
 )
 
@@ -241,19 +241,27 @@ def test_create_department_invalid_head_of_department_employee_denied_and_record
     assert calls == []
 
 
-def test_create_department_same_org_head_of_department_accepted(services):
-    employee = services["employee_service"].create_employee(
-        employee_code=_unique_code("HOD-SAMEORG"), full_name="Same Org Head of Department"
-    )
-
+def test_create_department_same_org_but_different_department_head_of_department_rejected(services):
+    """A brand-new department has no id any employee could already
+    reference -- Create never accepts an HOD, even one from the same
+    organization. Assignment is an Edit-only step once an employee is
+    actually scoped to this exact department (see the Update tests below)."""
     department_service = services["department_service"]
-    department = department_service.create_department(
-        department_code=_unique_code("SAMEORG-HOD-DEPT"),
-        name="Same Org HOD Dept",
-        head_of_department_employee_id=employee.id,
+    home_department = department_service.create_department(
+        department_code=_unique_code("SAMEORG-HOD-HOME"), name="Same Org HOD Home Dept"
+    )
+    employee = services["employee_service"].create_employee(
+        employee_code=_unique_code("HOD-SAMEORG"),
+        full_name="Same Org Head of Department",
+        department_id=home_department.id,
     )
 
-    assert department.head_of_department_employee_id == employee.id
+    with pytest.raises(ValidationError, match="must be an employee assigned to this department"):
+        department_service.create_department(
+            department_code=_unique_code("SAMEORG-HOD-DEPT"),
+            name="Same Org HOD Dept",
+            head_of_department_employee_id=employee.id,
+        )
 
 
 def test_create_department_cross_organization_head_of_department_denied_and_records_nothing(services):
@@ -268,8 +276,13 @@ def test_create_department_cross_organization_head_of_department_denied_and_reco
         base_currency="USD",
     )
     tenant_context_service.set_active_organization(other_organization.id)
+    foreign_home_department = services["department_service"].create_department(
+        department_code=_unique_code("FOREIGN-HOD-HOME"), name="Foreign HOD Home Dept"
+    )
     foreign_head_of_department = services["employee_service"].create_employee(
-        employee_code=_unique_code("FOREIGN-HOD"), full_name="Foreign Head of Department"
+        employee_code=_unique_code("FOREIGN-HOD"),
+        full_name="Foreign Head of Department",
+        department_id=foreign_home_department.id,
     )
     tenant_context_service.set_active_organization(default_organization.id)
 
@@ -303,8 +316,13 @@ def test_update_department_cross_organization_head_of_department_denied_and_reco
         base_currency="USD",
     )
     tenant_context_service.set_active_organization(other_organization.id)
+    foreign_home_department = services["department_service"].create_department(
+        department_code=_unique_code("FOREIGN-HOD-UPDATE-HOME"), name="Foreign HOD Update Home Dept"
+    )
     foreign_head_of_department = services["employee_service"].create_employee(
-        employee_code=_unique_code("FOREIGN-HOD-UPDATE"), full_name="Foreign Head of Department Update"
+        employee_code=_unique_code("FOREIGN-HOD-UPDATE"),
+        full_name="Foreign Head of Department Update",
+        department_id=foreign_home_department.id,
     )
     tenant_context_service.set_active_organization(default_organization.id)
 
@@ -322,15 +340,19 @@ def test_update_department_cross_organization_head_of_department_denied_and_reco
 
 
 def test_update_department_unchanged_head_of_department_remains_valid(services):
-    employee = services["employee_service"].create_employee(
-        employee_code=_unique_code("HOD-UNCHANGED"), full_name="Unchanged Head of Department"
-    )
     department_service = services["department_service"]
     department = department_service.create_department(
-        department_code=_unique_code("HOD-UNCHANGED-DEPT"),
-        name="Before",
-        head_of_department_employee_id=employee.id,
+        department_code=_unique_code("HOD-UNCHANGED-DEPT"), name="Before"
     )
+    employee = services["employee_service"].create_employee(
+        employee_code=_unique_code("HOD-UNCHANGED"),
+        full_name="Unchanged Head of Department",
+        department_id=department.id,
+    )
+    department = department_service.update_department(
+        department.id, head_of_department_employee_id=employee.id, expected_version=department.version
+    )
+    assert department.head_of_department_employee_id == employee.id
 
     updated = department_service.update_department(
         department.id, name="After", expected_version=department.version
@@ -341,15 +363,19 @@ def test_update_department_unchanged_head_of_department_remains_valid(services):
 
 
 def test_update_department_head_of_department_can_be_cleared(services):
-    employee = services["employee_service"].create_employee(
-        employee_code=_unique_code("HOD-CLEAR"), full_name="Clearable Head of Department"
-    )
     department_service = services["department_service"]
     department = department_service.create_department(
-        department_code=_unique_code("HOD-CLEAR-DEPT"),
-        name="Clear HOD Dept",
-        head_of_department_employee_id=employee.id,
+        department_code=_unique_code("HOD-CLEAR-DEPT"), name="Clear HOD Dept"
     )
+    employee = services["employee_service"].create_employee(
+        employee_code=_unique_code("HOD-CLEAR"),
+        full_name="Clearable Head of Department",
+        department_id=department.id,
+    )
+    department = department_service.update_department(
+        department.id, head_of_department_employee_id=employee.id, expected_version=department.version
+    )
+    assert department.head_of_department_employee_id == employee.id
 
     updated = department_service.update_department(
         department.id, head_of_department_employee_id="", expected_version=department.version

@@ -19,12 +19,27 @@ from src.core.modules.project_management.domain.enums import ProjectStatus, Task
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class ResourceContextQueryMixin:
-    _resource_projects_reader: ResourceProjectsReader | None
-    _resource_assignments_reader: ResourceAssignmentsReader | None
-    _resource_activity_reader: ResourceActivityReader | None
+class ResourceContextQueryHandler:
+    def __init__(
+        self,
+        *,
+        resource_projects_reader: ResourceProjectsReader | None,
+        resource_assignments_reader: ResourceAssignmentsReader | None,
+        resource_activity_reader: ResourceActivityReader | None,
+        tenant_context_service: TenantContextService | None,
+        user_session: UserSessionContext | None,
+    ) -> None:
+        self._resource_projects_reader = resource_projects_reader
+        self._resource_assignments_reader = resource_assignments_reader
+        self._resource_activity_reader = resource_activity_reader
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
 
     def _project_scope_for(self, permission_code: str) -> tuple[str, ...] | None:
         session = self._user_session
@@ -80,18 +95,18 @@ class ResourceContextQueryMixin:
             default_key="projectName",
         )
         scope = self._active_scope("view resource projects")
-        kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            resource_id=str(resource_id or "").strip(),
-            allowed_project_ids=self._project_scope_for("project.read"),
-            search_text=str(search_text or "").strip(),
-            active=active,
-            status=status,
-            page=request.page,
-            page_size=request.page_size,
-            sort=sort,
-        )
+        kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "resource_id": str(resource_id or "").strip(),
+            "allowed_project_ids": self._project_scope_for("project.read"),
+            "search_text": str(search_text or "").strip(),
+            "active": active,
+            "status": status,
+            "page": request.page,
+            "page_size": request.page_size,
+            "sort": sort,
+        }
         result = self._resource_projects_reader.read_projects_page(**kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total
@@ -146,22 +161,22 @@ class ResourceContextQueryMixin:
             normalized_lifecycle = "current"
         normalized_assignment_status = str(assignment_status or "").strip().lower() or None
         scope = self._active_scope("view resource assignments")
-        kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            resource_id=str(resource_id or "").strip(),
-            allowed_project_ids=self._project_scope_for("task.read"),
-            search_text=str(search_text or "").strip(),
-            project_id=str(project_id or "").strip() or None,
-            task_status=task_status,
-            assignment_status=normalized_assignment_status,
-            lifecycle=normalized_lifecycle,
-            start_date=start_date,
-            end_date=end_date,
-            page=request.page,
-            page_size=request.page_size,
-            sort=sort,
-        )
+        kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "resource_id": str(resource_id or "").strip(),
+            "allowed_project_ids": self._project_scope_for("task.read"),
+            "search_text": str(search_text or "").strip(),
+            "project_id": str(project_id or "").strip() or None,
+            "task_status": task_status,
+            "assignment_status": normalized_assignment_status,
+            "lifecycle": normalized_lifecycle,
+            "start_date": start_date,
+            "end_date": end_date,
+            "page": request.page,
+            "page_size": request.page_size,
+            "sort": sort,
+        }
         result = self._resource_assignments_reader.read_assignments_page(**kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total
@@ -198,18 +213,18 @@ class ResourceContextQueryMixin:
         }:
             normalized_category = "all"
         scope = self._active_scope("view resource activity")
-        kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            resource_id=str(resource_id or "").strip(),
-            allowed_project_ids=self._project_scope_for("project.read"),
-            allowed_task_project_ids=self._project_scope_for("task.read"),
-            category=normalized_category,
-            start_date=start_date,
-            end_date=end_date,
-            page=request.page,
-            page_size=request.page_size,
-        )
+        kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "resource_id": str(resource_id or "").strip(),
+            "allowed_project_ids": self._project_scope_for("project.read"),
+            "allowed_task_project_ids": self._project_scope_for("task.read"),
+            "category": normalized_category,
+            "start_date": start_date,
+            "end_date": end_date,
+            "page": request.page,
+            "page_size": request.page_size,
+        }
         result = self._resource_activity_reader.read_activity_page(**kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total
@@ -220,4 +235,4 @@ class ResourceContextQueryMixin:
         return result
 
 
-__all__ = ["ResourceContextQueryMixin"]
+__all__ = ["ResourceContextQueryHandler"]

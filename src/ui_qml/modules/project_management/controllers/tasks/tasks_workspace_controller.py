@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from uuid import uuid4
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
@@ -801,6 +802,10 @@ class ProjectManagementTasksWorkspaceController(
     def postTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.post_task_comment(self, payload)
 
+    @Slot(result=str)
+    def newTaskCommentSubmissionId(self) -> str:
+        return str(uuid4())
+
     @Slot("QVariantMap", result="QVariantMap")
     def editTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.edit_task_comment(self, payload)
@@ -823,6 +828,22 @@ class ProjectManagementTasksWorkspaceController(
     @Slot(str, result="QVariantMap")
     def markTaskCollaborationRead(self, task_id: str) -> dict[str, object]:
         return _mut.mark_task_collaboration_read(self, task_id)
+
+    @Slot(str, int, result="QVariantMap")
+    def requestCommentPage(self, task_id: str, page: int) -> dict[str, object]:
+        return self._collab_ctrl.requestCommentPage(task_id, page)
+
+    @Slot(str, int, result="QVariantMap")
+    def requestCommentPageSize(self, task_id: str, page_size: int) -> dict[str, object]:
+        return self._collab_ctrl.requestCommentPageSize(task_id, page_size)
+
+    @Slot(str, str, result="QVariantMap")
+    def searchTaskMentionOptions(self, task_id: str, query: str) -> dict[str, object]:
+        return self._collab_ctrl.searchTaskMentionOptions(task_id, query)
+
+    @Slot(str, str, result="QVariantMap")
+    def searchTaskDocumentOptions(self, task_id: str, query: str) -> dict[str, object]:
+        return self._collab_ctrl.searchTaskDocumentOptions(task_id, query)
 
     @Slot(str, str, result="QVariantMap")
     def beginTaskPresence(self, task_id: str, activity: str) -> dict[str, object]:

@@ -25,6 +25,7 @@ def post_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> Non
             coerce_string_list(payload.get("linkedDocumentIds"))
         ),
         parent_comment_id=(str(payload.get("parentCommentId") or "").strip() or None),
+        submission_id=(str(payload.get("submissionId") or "").strip() or None),
     )
     collaboration_desktop_api.post_task_comment(command)
 

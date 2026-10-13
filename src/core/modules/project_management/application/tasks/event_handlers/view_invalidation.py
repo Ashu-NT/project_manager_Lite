@@ -46,13 +46,13 @@ _Target = tuple[str, str, str, str, str]
 
 def build_task_view_invalidation_handler(channel: ViewInvalidationChannel):
     """One handler for all 9 Task DomainEvent classes. Dedupes by
-    (correlation_id, exact target/scope identity) so N per-task facts
+    (committed-operation context, exact target/scope identity) so N per-task facts
     sharing one project (bulk leveling, bulk status, Project cascade
     delete, Financial Change sibling reschedule) still produce exactly one
     hint per distinct target -- DomainEvent volume is never conflated with
     UI rebuild volume."""
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_targets: set[_Target] = set()
 
     def _target(scope_code: str, scope: ResourceScope) -> _Target:
@@ -81,8 +81,8 @@ def build_task_view_invalidation_handler(channel: ViewInvalidationChannel):
         )
 
     def handle_task_event(event: _TaskEvent, context: DomainEventContext) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_targets.clear()
 
         project_id = getattr(event, "project_id", None) or ""

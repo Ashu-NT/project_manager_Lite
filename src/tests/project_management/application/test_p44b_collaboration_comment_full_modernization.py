@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 import glob
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -19,7 +19,11 @@ from src.core.modules.project_management.application.collaboration.event_handler
     TASK_COMMENT_SCOPE_CODE,
     build_task_comment_view_invalidation_handler,
 )
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 # ---------------------------------------------------------------------------
@@ -45,7 +49,7 @@ def test_task_comment_changed_maps_to_task_and_workspace_targets(change_type):
     handler(
         TaskCommentChanged(
             tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-            comment_id="c1", change_type=change_type, occurred_at=datetime.now(timezone.utc),
+            comment_id="c1", change_type=change_type, occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -61,7 +65,7 @@ def test_reaction_changed_maps_to_task_target_only(change_type):
     handler(
         TaskCommentReactionChanged(
             tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-            comment_id="c1", change_type=change_type, occurred_at=datetime.now(timezone.utc),
+            comment_id="c1", change_type=change_type, occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -74,7 +78,7 @@ def test_read_state_changed_maps_to_task_target_only():
     handler(
         TaskCommentReadStateChanged(
             tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-            comment_id="c1", occurred_at=datetime.now(timezone.utc),
+            comment_id="c1", occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -86,14 +90,15 @@ def test_dedupe_by_target_within_one_transaction():
     handler = build_task_comment_view_invalidation_handler(channel)
     event = TaskCommentChanged(
         tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-        comment_id="c1", change_type=TaskCommentChangeType.CREATED, occurred_at=datetime.now(timezone.utc),
+        comment_id="c1", change_type=TaskCommentChangeType.CREATED, occurred_at=datetime.now(UTC),
     )
-    handler(event, DomainEventContext(correlation_id="same-tx"))
-    handler(event, DomainEventContext(correlation_id="same-tx"))
+    context = DomainEventContext(correlation_id="same-trace")
+    handler(event, context)
+    handler(event, context)
     assert len(channel.notified) == 2, "two distinct targets, each coalesced within one tx"
 
-    handler(event, DomainEventContext(correlation_id="next-tx"))
-    assert len(channel.notified) == 4, "a new transaction is never coalesced with the previous one"
+    handler(event, DomainEventContext(correlation_id="same-trace"))
+    assert len(channel.notified) == 4, "a separate commit with the same trace must notify again"
 
 
 # ---------------------------------------------------------------------------
@@ -169,13 +174,45 @@ def test_delete_comment_produces_hints_and_audit(services):
     comment = services["collaboration_service"].post_comment(task_id=task.id, body="Delete me")
     hints = _spy_hints(services)
 
-    deleted = services["collaboration_service"].delete_comment(comment.id)
+    deleted = services["collaboration_service"].delete_comment(
+        comment.id, expected_revision=comment.version,
+    )
 
     comment_hints = _comment_hints(hints)
     assert {h.scope_code for h in comment_hints} == {TASK_COMMENT_SCOPE_CODE, COLLABORATION_WORKSPACE_SCOPE_CODE}
     assert deleted.is_deleted is True
     rows = _audit_rows_for(services, comment.id)
     assert sorted(row.operation for row in rows) == ["create", "delete"]
+
+
+def test_mutable_comment_requires_revision_before_edit_or_first_delete(services):
+    _, task = _setup(services)
+    comment = services["collaboration_service"].post_comment(
+        task_id=task.id, body="Keep this revision",
+    )
+    service = services["collaboration_service"]
+    with pytest.raises(ValidationError) as edit_error:
+        service.edit_comment(comment.id, "Unsafe overwrite")
+    assert edit_error.value.code == "COLLABORATION_COMMENT_REVISION_REQUIRED"
+    with pytest.raises(ValidationError) as delete_error:
+        service.delete_comment(comment.id)
+    assert delete_error.value.code == "COLLABORATION_COMMENT_REVISION_REQUIRED"
+    assert service.query_task_comments_page(task.id).items[0].body == "Keep this revision"
+
+
+def test_plain_comment_post_and_edit_do_not_scan_mention_candidates(monkeypatch, services):
+    _, task = _setup(services)
+    service = services["collaboration_service"]
+
+    def unexpected_lookup(_project_id):
+        raise AssertionError("Plain comments must not load project mention candidates")
+
+    monkeypatch.setattr(service, "_list_mention_candidates_for_project", unexpected_lookup)
+    comment = service.post_comment(task_id=task.id, body="No mentions here")
+    edited = service.edit_comment(
+        comment.id, "Still no mentions", expected_revision=comment.version,
+    )
+    assert edited.mentioned_user_ids == []
 
 
 def test_react_and_remove_reaction_produce_task_scoped_hints_only(services):
@@ -227,7 +264,9 @@ def test_mark_task_mentions_read_is_a_true_no_op_when_already_read(services):
 def test_delete_comment_is_a_true_no_op_when_already_deleted(services):
     _, task = _setup(services)
     comment = services["collaboration_service"].post_comment(task_id=task.id, body="Delete me once")
-    services["collaboration_service"].delete_comment(comment.id)
+    services["collaboration_service"].delete_comment(
+        comment.id, expected_revision=comment.version,
+    )
 
     hints = _spy_hints(services)
     redeleted = services["collaboration_service"].delete_comment(comment.id)
@@ -236,9 +275,7 @@ def test_delete_comment_is_a_true_no_op_when_already_deleted(services):
     assert redeleted.is_deleted is True
 
 
-def test_reaction_repeat_is_not_a_no_op_matching_current_domain_behavior(services):
-    """No already-reacted guard exists: a repeat reaction still writes/audits/emits like the
-    first call, even though the reactor set itself stays data-level idempotent."""
+def test_reaction_repeat_is_a_true_no_op(services):
     _, task = _setup(services)
     comment = services["collaboration_service"].post_comment(task_id=task.id, body="React twice")
 
@@ -246,7 +283,7 @@ def test_reaction_repeat_is_not_a_no_op_matching_current_domain_behavior(service
     hints = _spy_hints(services)
     reacted_again = services["collaboration_service"].react_to_comment(comment.id, "👍")
 
-    assert len(_comment_hints(hints)) == 1, "the source has no idempotency guard -- it writes/emits again"
+    assert _comment_hints(hints) == [], "repeated reaction must not write or emit again"
     assert len(reacted_again.reactions["👍"]) == 1, "the reactor set itself IS data-level idempotent"
 
 
@@ -273,7 +310,7 @@ def test_audit_failure_rolls_back_post_comment_permanently(services, monkeypatch
 
     assert _comment_hints(hints) == []
     monkeypatch.undo()
-    assert services["collaboration_service"].list_comments(task.id) == []
+    assert services["collaboration_service"].query_task_comments_page(task.id).items == ()
 
 
 def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
@@ -291,7 +328,7 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
         services["collaboration_service"].post_comment(task_id=task.id, body="Should never persist either")
 
     assert _comment_hints(hints) == []
-    assert services["collaboration_service"].list_comments(task.id) == []
+    assert services["collaboration_service"].query_task_comments_page(task.id).items == ()
 
 
 # ---------------------------------------------------------------------------

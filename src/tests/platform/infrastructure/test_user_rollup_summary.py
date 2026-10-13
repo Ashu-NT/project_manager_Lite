@@ -9,7 +9,7 @@ SQL predicate reproduces `_canonical_platform_authority`'s full platform-authori
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine, event
@@ -48,7 +48,7 @@ def reader_session():
         db.close()
 
 
-_NOW = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+_NOW = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def _seed_tenant(db, *, id, code=None):
@@ -606,6 +606,9 @@ def _make_tenant_caller_session(services, *, tenant_id: str):
         overview_rollup_reader=auth._overview_rollup_reader,
         transactional_dispatcher=auth._transactional_dispatcher,
         post_commit_bus=auth._post_commit_bus,
+        clock=auth._clock,
+        uow_factory=auth._uow_factory,
+        session_write_lock=auth._session_write_lock,
     ), viewer.id
 
 
@@ -685,6 +688,9 @@ def test_service_tenant_caller_requires_permission(services):
         overview_rollup_reader=auth._overview_rollup_reader,
         transactional_dispatcher=auth._transactional_dispatcher,
         post_commit_bus=auth._post_commit_bus,
+        clock=auth._clock,
+        uow_factory=auth._uow_factory,
+        session_write_lock=auth._session_write_lock,
     )
 
     with pytest.raises(BusinessRuleError):
@@ -847,9 +853,11 @@ def test_admin_overview_user_metrics_match_rollup_not_full_list(services):
     metrics_by_label = {m["label"]: m["value"] for m in admin["metrics"]}
     assert metrics_by_label["Users"] == str(expected.active)
     rows_by_label = {
-        row["label"]: row["supportingText"]
+        row["label"]: row
         for section in admin["sections"]
         for row in section["rows"]
-        if section["title"] == "Identity And Workforce"
+        if section["title"] == "Access & Security"
     }
-    assert f"{expected.locked} locked, {expected.active} active" == rows_by_label["Users"]
+    assert rows_by_label["User accounts"]["value"] == str(expected.total)
+    assert rows_by_label["User accounts"]["supportingText"] == f"{expected.active} active"
+    assert rows_by_label["Locked accounts"]["value"] == str(expected.locked)

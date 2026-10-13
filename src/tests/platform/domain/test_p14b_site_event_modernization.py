@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import re
+from datetime import UTC
 
 import pytest
 
@@ -40,7 +41,6 @@ def _platform_catalog(services) -> PlatformWorkspaceCatalog:
 
 
 def _bypass_known_site_datetime_defect(monkeypatch) -> None:
-    from datetime import timezone
 
     from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
         SqlAlchemySiteRepository,
@@ -54,9 +54,9 @@ def _bypass_known_site_datetime_defect(monkeypatch) -> None:
             return site
         changes = {}
         if site.opened_at is not None and site.opened_at.tzinfo is None:
-            changes["opened_at"] = site.opened_at.replace(tzinfo=timezone.utc)
+            changes["opened_at"] = site.opened_at.replace(tzinfo=UTC)
         if site.closed_at is not None and site.closed_at.tzinfo is None:
-            changes["closed_at"] = site.closed_at.replace(tzinfo=timezone.utc)
+            changes["closed_at"] = site.closed_at.replace(tzinfo=UTC)
         if not changes:
             return site
         from dataclasses import replace
@@ -210,9 +210,9 @@ def test_retroactive_opened_at_correction_without_availability_flip_is_a_profile
             event_type, lambda event, context: lifecycle_calls.append(event)
         )
 
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
-    corrected_opened_at = datetime.now(timezone.utc) - timedelta(days=30)
+    corrected_opened_at = datetime.now(UTC) - timedelta(days=30)
     site_service.update_site(
         site.id, opened_at=corrected_opened_at, expected_version=site.version
     )
@@ -342,7 +342,7 @@ def test_audit_failure_rolls_back_and_produces_zero_postcommit_event(services, m
 
 
 def test_commit_failure_produces_zero_postcommit_event(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.uow.site_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.master_data.site_unit_of_work import (
         SqlAlchemySiteUnitOfWork,
     )
 
@@ -471,7 +471,7 @@ def test_canonical_site_uow_retained_no_raw_session_commit():
 
 
 def test_no_platform_to_business_module_concrete_infrastructure_import():
-    import src.core.platform.infrastructure.persistence.uow.site_unit_of_work as infra_module
+    import src.core.platform.infrastructure.persistence.uow.master_data.site_unit_of_work as infra_module
 
     source = inspect.getsource(infra_module)
     assert "core.modules" not in source

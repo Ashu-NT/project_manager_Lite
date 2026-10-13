@@ -72,4 +72,4 @@ class PortfolioHeatmapFacts:
     resources: tuple[HeatmapResourceFact, ...]
 
 
-__all__ = [name for name in globals() if name.endswith("Fact") or name.endswith("Facts")]
+__all__ = [name for name in globals() if name.endswith(("Fact", "Facts"))]

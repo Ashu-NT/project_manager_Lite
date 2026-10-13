@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import ClassVar
 
 from src.core.modules.project_management.api.desktop.scheduling.models.calendars import (
     _DAY_LABELS,
@@ -16,7 +17,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models.calendars
 class _DefaultCalendar:
     id = "default"
     name = "Global Calendar"
-    working_days = {0, 1, 2, 3, 4}
+    working_days : ClassVar[set[int]] = {0, 1, 2, 3, 4}
     hours_per_day = 8.0
 
 

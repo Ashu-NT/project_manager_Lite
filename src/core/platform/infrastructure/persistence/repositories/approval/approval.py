@@ -10,6 +10,9 @@ from src.core.platform.contract.repositories.approval.contracts import (
     ApprovalRepository,
 )
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
+from src.core.platform.infrastructure.persistence.common.approval_eligibility import (
+    approval_reviewer_eligibility,
+)
 from src.core.platform.infrastructure.persistence.mappers.approval.approval import (
     approval_from_orm,
     approval_to_orm,
@@ -19,6 +22,9 @@ from src.core.platform.infrastructure.persistence.orm.approval.approval import (
 )
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
+)
+from src.core.platform.infrastructure.persistence.repositories.approval.recipients import (
+    recipient_page,
 )
 
 
@@ -36,6 +42,57 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         self._stamp_scope(ctx, orm)
         self.session.add(orm)
 
+    def is_reviewer_eligible(self, request_id: str, user_id: str) -> bool:
+        ctx = self._context(operation_label="decide approval request")
+        return bool(self.session.scalar(select(select(ApprovalRequestORM.id).where(
+            ApprovalRequestORM.id == request_id,
+            ApprovalRequestORM.tenant_id == ctx.tenant_id,
+            ApprovalRequestORM.organization_id == ctx.organization_id,
+            approval_reviewer_eligibility(user_id),
+        ).exists())))
+
+    def eligible_request_ids(self, request_ids: tuple[str, ...], user_id: str) -> frozenset[str]:
+        if not request_ids:
+            return frozenset()
+        ctx = self._context(operation_label="view approval decision eligibility")
+        if len(request_ids) > 500:
+            raise ValueError("Approval eligibility query exceeds the bounded page size")
+        return frozenset(self.session.scalars(select(ApprovalRequestORM.id).where(
+            ApprovalRequestORM.id.in_(request_ids),
+            ApprovalRequestORM.tenant_id == ctx.tenant_id,
+            ApprovalRequestORM.organization_id == ctx.organization_id,
+            approval_reviewer_eligibility(user_id),
+        )))
+
+    def list_notification_recipient_ids(
+        self,
+        request_id: str,
+        *,
+        audience: str,
+        after_user_id: str = "",
+        limit: int = 100,
+    ) -> tuple[str, ...]:
+        ctx = self._context(operation_label="resolve approval notification recipients")
+        return recipient_page(
+            self.session,
+            request_id=request_id,
+            tenant_id=ctx.tenant_id,
+            organization_id=ctx.organization_id,
+            audience=audience,
+            after_user_id=after_user_id,
+            limit=limit,
+            target_scope_predicate=or_(
+                ApprovalRequestORM.project_id.is_(None),
+                select(ProjectORM.id)
+                .where(
+                    ProjectORM.id == ApprovalRequestORM.project_id,
+                    ProjectORM.tenant_id == ApprovalRequestORM.tenant_id,
+                    ProjectORM.organization_id == ApprovalRequestORM.organization_id,
+                )
+                .exists(),
+            ),
+        )
+
     def update(self, request: ApprovalRequest) -> None:
         ctx = self._context(operation_label="access approvals")
         obj = self.session.execute(
@@ -51,6 +108,7 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
             self.session.add(orm)
             return
         obj.request_type = request.request_type
+        obj.decision_permission = request.decision_permission
         obj.entity_type = request.entity_type
         obj.entity_id = request.entity_id
         obj.project_id = request.project_id
@@ -149,13 +207,17 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
     ) -> list[ApprovalRequest]:
         ctx = self._context(operation_label="access approvals")
         stmt = self._apply_status_filters(
-            self._base_scope_stmt(tenant_id=ctx.tenant_id, organization_id=ctx.organization_id),
+            self._base_scope_stmt(
+                tenant_id=ctx.tenant_id, organization_id=ctx.organization_id
+            ),
             status=status,
             project_id=project_id,
             entity_type=entity_type,
             entity_id=entity_id,
         )
-        stmt = stmt.order_by(desc(ApprovalRequestORM.requested_at)).limit(max(1, int(limit)))
+        stmt = stmt.order_by(desc(ApprovalRequestORM.requested_at)).limit(
+            max(1, int(limit))
+        )
         rows = self.session.execute(stmt).scalars().all()
         return [approval_from_orm(row) for row in rows]
 
@@ -169,7 +231,9 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
     ) -> int:
         ctx = self._context(operation_label="access approvals")
         stmt = self._apply_status_filters(
-            self._base_scope_stmt(tenant_id=ctx.tenant_id, organization_id=ctx.organization_id),
+            self._base_scope_stmt(
+                tenant_id=ctx.tenant_id, organization_id=ctx.organization_id
+            ),
             status=status,
             project_id=project_id,
             entity_type=entity_type,
@@ -182,7 +246,9 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
             or 0
         )
 
-    def project_belongs_to_organization(self, project_id: str, organization_id: str) -> bool:
+    def project_belongs_to_organization(
+        self, project_id: str, organization_id: str
+    ) -> bool:
         ctx = self._context(operation_label="access approvals")
         if organization_id != ctx.organization_id:
             return False
@@ -193,7 +259,9 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         )
         return self.session.execute(stmt).first() is not None
 
-    def project_in_different_organization(self, project_id: str, organization_id: str) -> bool:
+    def project_in_different_organization(
+        self, project_id: str, organization_id: str
+    ) -> bool:
         """True only when the project exists in the active tenant AND belongs to a different organization."""
         ctx = self._context(operation_label="access approvals")
         stmt = select(ProjectORM.organization_id).where(
@@ -219,13 +287,17 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         if organization_id != ctx.organization_id:
             return []
         stmt = self._apply_status_filters(
-            self._base_scope_stmt(tenant_id=ctx.tenant_id, organization_id=ctx.organization_id),
+            self._base_scope_stmt(
+                tenant_id=ctx.tenant_id, organization_id=ctx.organization_id
+            ),
             status=status,
             project_id=project_id,
             entity_type=entity_type,
             entity_id=entity_id,
         )
-        stmt = stmt.order_by(desc(ApprovalRequestORM.requested_at)).limit(max(1, int(limit)))
+        stmt = stmt.order_by(desc(ApprovalRequestORM.requested_at)).limit(
+            max(1, int(limit))
+        )
         rows = self.session.execute(stmt).scalars().all()
         return [approval_from_orm(row) for row in rows]
 
@@ -242,7 +314,9 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         if organization_id != ctx.organization_id:
             return 0
         stmt = self._apply_status_filters(
-            self._base_scope_stmt(tenant_id=ctx.tenant_id, organization_id=ctx.organization_id),
+            self._base_scope_stmt(
+                tenant_id=ctx.tenant_id, organization_id=ctx.organization_id
+            ),
             status=status,
             project_id=project_id,
             entity_type=entity_type,

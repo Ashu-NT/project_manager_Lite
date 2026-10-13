@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -34,15 +34,14 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 
 def test_priority_pm_repositories_hide_other_organization_rows(services):
     seeded = _seed_priority_pm_rows(services)
-    organization_service = services["organization_service"]
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
-    task_repo = services["task_service"]._task_repo
-    assignment_repo = services["task_service"]._assignment_repo
-    dependency_repo = services["task_service"]._dependency_repo
+    task_repo = services["task_lookup_query"]._task_repo
+    assignment_repo = services["task_lookup_query"]._assignment_repo
+    dependency_repo = services["task_dependency_diagnostics"]._dependency_repo
     comment_repo = services["collaboration_service"]._comment_repo
     presence_repo = services["collaboration_service"]._presence_repo
-    register_repo = services["register_service"]._register_repo
+    register_repo = services["register_query"]._register_repo
     baseline_repo = services["baseline_service"]._baselines
 
     assert task_repo.get(seeded["task_b1"]) is None
@@ -60,7 +59,7 @@ def test_priority_pm_repositories_hide_other_organization_rows(services):
     assert dependency_repo.list_by_task(seeded["task_b1"]) == []
 
     assert comment_repo.get(seeded["comment_b"]) is None
-    assert comment_repo.list_by_task(seeded["task_b1"]) == []
+    assert comment_repo.list_recent_for_tasks([seeded["task_b1"]]) == []
     assert [row.id for row in comment_repo.list_recent_for_tasks([seeded["task_a1"], seeded["task_b1"]])] == [
         seeded["comment_a"]
     ]
@@ -84,13 +83,12 @@ def test_priority_pm_repositories_hide_other_organization_rows(services):
 
 def test_priority_pm_repositories_scope_mutations_to_active_organization(services):
     seeded = _seed_priority_pm_rows(services)
-    organization_service = services["organization_service"]
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
-    task_repo = services["task_service"]._task_repo
-    assignment_repo = services["task_service"]._assignment_repo
-    dependency_repo = services["task_service"]._dependency_repo
-    register_repo = services["register_service"]._register_repo
+    task_repo = services["task_lookup_query"]._task_repo
+    assignment_repo = services["task_lookup_query"]._assignment_repo
+    dependency_repo = services["task_dependency_diagnostics"]._dependency_repo
+    register_repo = services["register_query"]._register_repo
     baseline_repo = services["baseline_service"]._baselines
 
     assignment_repo.delete(seeded["assignment_b"])
@@ -121,14 +119,13 @@ def test_priority_pm_repositories_scope_mutations_to_active_organization(service
 
 def test_priority_pm_repositories_reject_cross_organization_updates(services):
     seeded = _seed_priority_pm_rows(services)
-    organization_service = services["organization_service"]
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
-    task_repo = services["task_service"]._task_repo
-    assignment_repo = services["task_service"]._assignment_repo
-    dependency_repo = services["task_service"]._dependency_repo
+    task_repo = services["task_lookup_query"]._task_repo
+    assignment_repo = services["task_lookup_query"]._assignment_repo
+    dependency_repo = services["task_dependency_diagnostics"]._dependency_repo
     comment_repo = services["collaboration_service"]._comment_repo
-    register_repo = services["register_service"]._register_repo
+    register_repo = services["register_query"]._register_repo
     baseline_repo = services["baseline_service"]._baselines
 
     with pytest.raises(NotFoundError):
@@ -160,7 +157,7 @@ def test_priority_pm_repositories_reject_cross_organization_updates(services):
                 author_user_id="user-b",
                 author_username="bob",
                 body="Blocked",
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
         )
     with pytest.raises(BusinessRuleError):

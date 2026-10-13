@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import create_engine, event
@@ -41,7 +41,7 @@ def _seed_row(db, *, tenant_id, organization_id, module_code, licensed, enabled,
             licensed=licensed,
             enabled=enabled,
             lifecycle_status=lifecycle_status,
-            updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            updated_at=datetime.now(UTC).replace(tzinfo=None),
         )
     )
 

@@ -11,6 +11,12 @@ class ProjectStatusDescriptor:
 
 
 @dataclass(frozen=True)
+class ProjectManagerOptionDesktopDto:
+    user_id: str
+    label: str
+
+
+@dataclass(frozen=True)
 class ProjectDesktopDto:
     id: str
     name: str
@@ -54,4 +60,9 @@ class ProjectCatalogPageDesktopDto:
     approved_budget_visible: bool = False
 
 
-__all__ = ["ProjectCatalogPageDesktopDto", "ProjectDesktopDto", "ProjectStatusDescriptor"]
+__all__ = [
+    "ProjectCatalogPageDesktopDto",
+    "ProjectDesktopDto",
+    "ProjectManagerOptionDesktopDto",
+    "ProjectStatusDescriptor",
+]

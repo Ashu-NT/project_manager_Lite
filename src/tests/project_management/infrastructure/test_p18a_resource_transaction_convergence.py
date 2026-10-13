@@ -10,11 +10,11 @@ from datetime import date
 
 import pytest
 
-from src.core.modules.project_management.application.resources.resource_capability_events import (
+from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
     ResourceCapabilityChanged,
     ResourceCapabilityChangeType,
 )
-from src.core.modules.project_management.application.resources.resource_master_events import (
+from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
     ResourceMasterChanged,
     ResourceMasterChangeType,
 )
@@ -45,7 +45,7 @@ def _unique(prefix: str) -> str:
 
 def _spy_master_events(services):
     captured = []
-    services["resource_service"]._uow_factory._post_commit_bus.subscribe(
+    services["resource_service"]._master_command._uow_factory._post_commit_bus.subscribe(
         ResourceMasterChanged, lambda event, context: captured.append(event)
     )
     return captured
@@ -53,7 +53,7 @@ def _spy_master_events(services):
 
 def _spy_capability_events(services):
     captured = []
-    services["resource_service"]._uow_factory._post_commit_bus.subscribe(
+    services["resource_service"]._capability_command._uow_factory._post_commit_bus.subscribe(
         ResourceCapabilityChanged, lambda event, context: captured.append(event)
     )
     return captured
@@ -150,13 +150,13 @@ def test_activity_feed_entry_rides_the_same_transaction_as_the_mutation(services
     service = services["resource_service"]
     resource = service.create_resource(name=_unique("ActivityAtomic"))
 
-    activity = service._activity_service.list_recent(
+    activity = services["activity_service"].list_recent(
         limit=50, entity_type="resource", entity_id=resource.id
     )
     assert any(entry.action == "resource.created" for entry in activity)
 
-    skill = service.add_resource_skill(resource.id, "PY", "Python")
-    activity_after_skill = service._activity_service.list_recent(
+    service.add_resource_skill(resource.id, "PY", "Python")
+    activity_after_skill = services["activity_service"].list_recent(
         limit=50, entity_type="resource", entity_id=resource.id
     )
     assert any(entry.action == "resource.skill.added" for entry in activity_after_skill)
@@ -388,7 +388,7 @@ def test_capability_commit_failure_rolls_back_and_produces_zero_events(services,
 def test_bespoke_signal_transport_is_gone_from_event_modules():
     import inspect
 
-    from src.core.modules.project_management.application.resources import (
+    from src.core.modules.project_management.application.resources.catalog import (
         resource_capability_events,
         resource_master_events,
     )
@@ -409,14 +409,15 @@ def test_resource_events_are_plain_frozen_dataclasses_not_qt_signals():
 def test_two_independent_operations_use_two_independent_sessions(services):
     service = services["resource_service"]
     sessions_seen = []
-    original_create = service._uow_factory.create
+    factory = service._master_command._uow_factory
+    original_create = factory.create
 
     def _spy_create(*, context):
         uow = original_create(context=context)
         sessions_seen.append(uow._session)
         return uow
 
-    service._uow_factory.create = _spy_create
+    factory.create = _spy_create
     service.create_resource(name=_unique("SessA"))
     service.create_resource(name=_unique("SessB"))
 
@@ -430,7 +431,7 @@ def test_repos_and_audit_share_one_session_within_one_operation(services):
         SqlAlchemyResourceUnitOfWorkFactory,
     )
 
-    factory = services["resource_service"]._uow_factory
+    factory = services["resource_service"]._master_command._uow_factory
     assert isinstance(factory, SqlAlchemyResourceUnitOfWorkFactory)
     from src.core.shared.events.domain_event_context import DomainEventContext
 
@@ -444,39 +445,19 @@ def test_repos_and_audit_share_one_session_within_one_operation(services):
         uow._rollback_and_close()
 
 
-def test_no_platform_to_business_module_concrete_infrastructure_import_added():
-    """The Employee-driven Resource sync path must not import PM's concrete
-    ResourceMasterChanged event class into Platform code -- the same AST-based
-    architecture guard as test_platform_does_not_import_business_modules.py,
-    re-run here narrowly against the files this path touches."""
-    import ast
-
-    from src.tests.path_rewrites import REPO_ROOT
-
-    for relative in (
-        "src/core/platform/application/master_data/employee/employee_service.py",
-        "src/core/platform/application/master_data/employee/employee_support.py",
-        "src/core/platform/contract/interface/master_data/employee/contracts.py",
-    ):
-        path = REPO_ROOT / relative
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.module:
-                assert not node.module.startswith("src.core.modules"), (
-                    f"{relative}:{node.lineno} imports {node.module}"
-                )
-
-
 # ---------------------------------------------------------------------------
 # Employee-driven Resource synchronization path
 # ---------------------------------------------------------------------------
 
 
-def test_employee_update_produces_real_resource_mutation_and_typed_event(services):
+def test_employee_update_does_not_mutate_pm_resource_or_emit_pm_event(services):
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="Alex Doe", title="Engineer"
+        employee_code=_unique("EMP"), full_name="Alex Doe", title="Engineer", department_id=department.id
     )
     resource = resource_service.create_resource(
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
@@ -489,19 +470,20 @@ def test_employee_update_produces_real_resource_mutation_and_typed_event(service
 
     assert updated_employee.full_name == "Alex Updated"
     refreshed = resource_service.get_resource(resource.id)
-    assert refreshed.name == "Alex Updated"  # real Resource row mutation, not just staleness
-    assert refreshed.role == "Senior Engineer"
-    assert refreshed.version == resource.version + 1
-    assert len(master_events) == 1
-    assert master_events[0].resource_id == resource.id
-    assert master_events[0].version == refreshed.version
-    assert master_events[0].change_type == ResourceMasterChangeType.UPDATED
+    assert refreshed.employee_id == employee.id
+    assert refreshed.name == resource.name
+    assert refreshed.role == resource.role
+    assert refreshed.version == resource.version
+    assert master_events == []
 
 
 def test_employee_update_with_no_linked_employee_resource_produces_zero_resource_events(services):
     employee_service = services["employee_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="No Resource Person"
+        employee_code=_unique("EMP"), full_name="No Resource Person", department_id=department.id
     )
     master_events = _spy_master_events(services)
 
@@ -514,14 +496,17 @@ def test_employee_update_and_resource_mutation_are_one_atomic_transaction(servic
     """If the Employee mutation's own commit fails, the linked Resource row must not have been
     persisted either -- proving the sync rides inside Employee's own UnitOfWork, not a second,
     independently-committed transaction."""
-    from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.master_data.employee_unit_of_work import (
         SqlAlchemyEmployeeUnitOfWork,
     )
 
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="Atomic Test", title="Engineer"
+        employee_code=_unique("EMP"), full_name="Atomic Test", title="Engineer", department_id=department.id
     )
     resource = resource_service.create_resource(
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id

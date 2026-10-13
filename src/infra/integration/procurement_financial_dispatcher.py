@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.financials.procurement_consumer import (
+from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     ProcurementFinancialConsumer,
 )
 from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import (
@@ -234,7 +234,7 @@ class ProcurementFinancialDispatcher:
 class _UnitOfWorkClock:
     @staticmethod
     def now() -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 
 __all__ = ["ProcurementFinancialDispatcher"]

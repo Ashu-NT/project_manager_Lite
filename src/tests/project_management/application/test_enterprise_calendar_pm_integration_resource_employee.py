@@ -6,14 +6,14 @@ that employee exceptions/recurring events propagate correctly to PM resources.
 
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import UTC, date, time
 from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
+from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
 )
 from src.core.modules.project_management.domain.enums import (
@@ -30,8 +30,8 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
 )
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
@@ -45,8 +45,8 @@ from src.core.platform.application.time_management.calendar.definitions.recurrin
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
@@ -152,7 +152,7 @@ def tenant_context(org_id):
 
 @pytest.fixture
 def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return EnterpriseCalendarService(
+    return PlatformCalendarService(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -211,7 +211,7 @@ def calculator():
 
 @pytest.fixture
 def resolver(repos, org_id, calculator):
-    return EnterpriseCalendarResolver(
+    return PlatformCalendarResolver(
         organization_id=org_id,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -236,6 +236,35 @@ def global_cal(cal_service, org_id, rule_service):
     return cal
 
 
+def _seed_department(db_session, tenant_context) -> str:
+    from datetime import datetime
+
+    from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+        DepartmentORM,
+    )
+
+    ctx = tenant_context.require_organization_context()
+    department_id = "dept-pm-calendar-integration"
+    if db_session.get(DepartmentORM, department_id) is not None:
+        return department_id
+    now = datetime.now(UTC)
+    db_session.add(
+        DepartmentORM(
+            id=department_id,
+            tenant_id=ctx.tenant_id,
+            organization_id=ctx.organization_id,
+            department_code=department_id,
+            name="PM Calendar Integration Department",
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+    )
+    db_session.commit()
+    return department_id
+
+
 def _seed_employee(db_session, tenant_context, employee_id: str) -> None:
     from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
         EmployeeORM,
@@ -244,11 +273,13 @@ def _seed_employee(db_session, tenant_context, employee_id: str) -> None:
     ctx = tenant_context.require_organization_context()
     if db_session.get(EmployeeORM, employee_id) is not None:
         return
+    department_id = _seed_department(db_session, tenant_context)
     db_session.add(
         EmployeeORM(
             id=employee_id,
             tenant_id=ctx.tenant_id,
             organization_id=ctx.organization_id,
+            department_id=department_id,
             employee_code=employee_id,
             full_name=employee_id,
         )

@@ -5,7 +5,7 @@ Covers: build_project_tasks_state, build_project_resources_state,
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -15,6 +15,9 @@ from src.core.modules.project_management.api.desktop.common.detail_pages import 
 )
 from src.core.modules.project_management.api.desktop.projects import (
     ProjectResourceDesktopDto,
+)
+from src.core.modules.project_management.api.desktop.projects.models.project import (
+    ProjectManagerOptionDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.register import (
     RegisterEntryDesktopDto,
@@ -94,12 +97,14 @@ def _risk(**kw) -> RegisterEntryDesktopDto:
 def _activity_entry(**kw) -> DetailActivityDesktopDto:
     return DetailActivityDesktopDto(
         id=kw.get("id", "act-1"),
-        occurred_at=kw.get("occurred_at", datetime(2026, 3, 1, 9, 30, tzinfo=timezone.utc)),
+        occurred_at=kw.get("occurred_at", datetime(2026, 3, 1, 9, 30, tzinfo=UTC)),
         actor_id=kw.get("actor_id", "user-1"),
         action=kw.get("action", "project.update"),
         entity_type=kw.get("entity_type", "project"),
         summary=kw.get("summary", "Project updated"),
         details=kw.get("details", {}),
+        actor_kind=kw.get("actor_kind", "missing"),
+        actor_display=kw.get("actor_display", "Deleted user"),
     )
 
 
@@ -109,8 +114,6 @@ def _presenter(
     resources=(),
     risks=(),
     activity_entries=None,
-    users=(),
-    employees=(),
     sites=(),
     departments=(),
 ):
@@ -123,16 +126,15 @@ def _presenter(
     projects_api.list_project_activity_page.return_value = DetailActivityPageDesktopDto(
         items=tuple(activity_entries) if activity_entries is not None else (),
         filtered_total=len(activity_entries) if activity_entries is not None else 0,
+        reference_labels={
+            "site": {row.id: row.name for row in sites},
+            "department": {row.id: row.name for row in departments},
+        },
     )
+    projects_api.list_manager_candidates.return_value = ()
 
     register_api = MagicMock()
     register_api.list_entries.return_value = list(risks)
-
-    user_api = MagicMock()
-    user_api.list_users.return_value = DesktopApiResult(ok=True, data=tuple(users))
-
-    employee_api = MagicMock()
-    employee_api.list_employees.return_value = DesktopApiResult(ok=True, data=tuple(employees))
 
     site_api = MagicMock()
     site_api.list_sites.return_value = DesktopApiResult(ok=True, data=tuple(sites))
@@ -144,8 +146,6 @@ def _presenter(
         desktop_api=projects_api,
         tasks_desktop_api=tasks_api,
         register_desktop_api=register_api,
-        user_api=user_api,
-        employee_api=employee_api,
         site_api=site_api,
         department_api=department_api,
     )
@@ -330,7 +330,7 @@ class TestBuildProjectActivityPage:
     def test_single_entry_maps_to_the_canonical_activity_shape(self):
         entry = _activity_entry(
             id="act-42", action="project.update", summary="Renamed project",
-            occurred_at=datetime(2026, 3, 5, 14, 45, tzinfo=timezone.utc),
+            occurred_at=datetime(2026, 3, 5, 14, 45, tzinfo=UTC),
         )
         p, _, projects_api, __ = _presenter(activity_entries=[entry])
 
@@ -341,8 +341,7 @@ class TestBuildProjectActivityPage:
         item = items[0]
         assert item["id"] == "act-42"
         assert item["title"] == "Renamed project"
-        # No user_api/employee_api match for "user-1" -> falls back to "System".
-        assert item["actorDisplay"] == "System"
+        assert item["actorDisplay"] == "Deleted user"
         assert item["tone"] == "warning"
         assert item["badgeLabel"] == ""
         assert item["occurredAtLabel"] == "05 Mar 2026 14:45"
@@ -350,39 +349,26 @@ class TestBuildProjectActivityPage:
             "proj-1", search_text="", category="all", page=1, page_size=25,
         )
 
-    def test_actor_resolved_from_employee_full_name(self):
-        """The user's own guidance: most users are employees, so the linked
-        Employee's full_name should win over the bare User account fields."""
-        entry = _activity_entry(actor_id="user-1")
-        p, _, __, ___ = _presenter(
-            activity_entries=[entry],
-            users=[SimpleNamespace(id="user-1", display_name="jdoe", username="jdoe")],
-            employees=[SimpleNamespace(id="emp-1", user_id="user-1", full_name="Jane Doe")],
-        )
+    def test_actor_uses_server_authored_employee_label_without_directory_lookup(self):
+        entry = _activity_entry(actor_id="user-1", actor_kind="human", actor_display="Jane Doe")
+        p, _, __, ___ = _presenter(activity_entries=[entry])
         result = p.build_project_activity_page(project_id="p-1")
         assert result["items"][0]["actorDisplay"] == "Jane Doe"
 
     def test_actor_falls_back_to_user_display_name_when_no_employee_match(self):
-        entry = _activity_entry(actor_id="user-1")
-        p, _, __, ___ = _presenter(
-            activity_entries=[entry],
-            users=[SimpleNamespace(id="user-1", display_name="Jamie Admin", username="jadmin")],
-            employees=[SimpleNamespace(id="emp-1", user_id="user-2", full_name="Someone Else")],
-        )
+        entry = _activity_entry(actor_id="user-1", actor_kind="human", actor_display="Jamie Admin")
+        p, _, __, ___ = _presenter(activity_entries=[entry])
         result = p.build_project_activity_page(project_id="p-1")
         assert result["items"][0]["actorDisplay"] == "Jamie Admin"
 
     def test_actor_falls_back_to_username_when_no_display_name(self):
-        entry = _activity_entry(actor_id="user-1")
-        p, _, __, ___ = _presenter(
-            activity_entries=[entry],
-            users=[SimpleNamespace(id="user-1", display_name=None, username="jadmin")],
-        )
+        entry = _activity_entry(actor_id="user-1", actor_kind="human", actor_display="jadmin")
+        p, _, __, ___ = _presenter(activity_entries=[entry])
         result = p.build_project_activity_page(project_id="p-1")
         assert result["items"][0]["actorDisplay"] == "jadmin"
 
     def test_missing_actor_id_is_a_system_actor_not_unknown_user(self):
-        entry = _activity_entry(actor_id=None)
+        entry = _activity_entry(actor_id=None, actor_kind="system", actor_display="System")
         p, _, __, ___ = _presenter(activity_entries=[entry])
         result = p.build_project_activity_page(project_id="p-1")
         assert result["items"][0]["actorDisplay"] == "System"
@@ -416,6 +402,32 @@ class TestBuildProjectActivityPage:
         )
         result = p.build_project_activity_page(project_id="p-1")
         assert result["items"][0]["supportingText"] == "Site: Hamburg Yard → Rotterdam Yard"
+
+    def test_manager_and_party_changes_use_page_scoped_labels(self):
+        entry = _activity_entry(details={"changes": {
+            "manager_user_id": {"from": None, "to": "user-1"},
+            "client_party_id": {"from": None, "to": "party-1"},
+        }})
+        p, _, projects_api, _ = _presenter(activity_entries=[entry])
+        projects_api.list_project_activity_page.return_value = DetailActivityPageDesktopDto(
+            items=(entry,), filtered_total=1,
+            reference_labels={"user": {"user-1": "History Actor"},
+                              "party": {"party-1": "Customer Group"}},
+        )
+
+        result = p.build_project_activity_page(project_id="p-1")
+        summary = result["items"][0]["supportingText"]
+
+        assert "Manager: -" in summary and "History Actor" in summary
+        assert "Client (Party): -" in summary and "Customer Group" in summary
+
+    def test_manager_options_return_user_ids_not_resource_ids(self):
+        p, _, projects_api, _ = _presenter()
+        projects_api.list_manager_candidates.return_value = (
+            ProjectManagerOptionDesktopDto(user_id="user-1", label="Jane Doe"),
+        )
+
+        assert p.build_manager_options() == [{"value": "user-1", "label": "Jane Doe"}]
 
     def test_field_changes_summary_falls_back_to_raw_id_when_unresolved(self):
         entry = _activity_entry(

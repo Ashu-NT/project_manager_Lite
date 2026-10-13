@@ -40,8 +40,8 @@ _GROUP_A_CONSUMERS = [
 # caller-supplied tone and must never regress to inferring one from text.
 _SHARED_CONSUMERS = [
     "shared/qml/App/Widgets/ActivityFeed.qml",
-    "shared/qml/App/Widgets/ActionCenterRow.qml",
-    "shared/qml/App/Widgets/InspectorPanel.qml",
+    "shared/qml/App/Widgets/overview/ActionCenterRow.qml",
+    "shared/qml/App/Widgets/overlay/InspectorPanel.qml",
     "modules/project_management/qml/ProjectManagement/Widgets/RecordListCard.qml",
 ]
 

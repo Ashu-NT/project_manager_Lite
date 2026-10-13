@@ -28,10 +28,9 @@ def test_removal_preview_reports_no_shift_when_successor_has_no_other_anchor(ser
     that dependency, the "without" simulation falls back to B's own already-persisted
     start_date -- reproducing the same date and correctly reporting no shift. Removing a task's
     only incoming dependency does not retroactively un-schedule it."""
-    ts = services["task_service"]
     _project, a, b, c, dep_ab = _make_chain(services)
 
-    preview = ts.preview_dependency_removal(dep_ab.id)
+    preview = services["task_dependency_diagnostics"].preview_dependency_removal(dep_ab.id)
 
     assert preview.is_valid is True
     assert preview.code == "DEPENDENCY_VALID"
@@ -55,7 +54,7 @@ def test_removal_preview_reports_shift_when_successor_has_its_own_conflicting_st
     b = ts.create_task(project.id, "Task B", "", start_date=date(2024, 1, 1), duration_days=1)
     dep = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-    preview = ts.preview_dependency_removal(dep.id)
+    preview = services["task_dependency_diagnostics"].preview_dependency_removal(dep.id)
 
     affected_ids = {row.task_id for row in preview.impact_rows}
     assert b.id in affected_ids
@@ -63,8 +62,7 @@ def test_removal_preview_reports_shift_when_successor_has_its_own_conflicting_st
 
 
 def test_removal_preview_reports_not_found_for_unknown_id(services):
-    ts = services["task_service"]
-    preview = ts.preview_dependency_removal("does-not-exist")
+    preview = services["task_dependency_diagnostics"].preview_dependency_removal("does-not-exist")
     assert preview.is_valid is False
     assert preview.code == "DEPENDENCY_NOT_FOUND"
 
@@ -75,7 +73,7 @@ def test_removal_preview_never_mutates_anything(services):
     ts = services["task_service"]
     _project, a, b, c, dep_ab = _make_chain(services)
 
-    ts.preview_dependency_removal(dep_ab.id)
+    services["task_dependency_diagnostics"].preview_dependency_removal(dep_ab.id)
 
     assert ts.get_dependency(dep_ab.id) is not None
     deps = ts.list_dependencies_for_task(b.id)

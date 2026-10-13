@@ -26,6 +26,7 @@ class ApprovalRequestDto:
     module_label: str = ""
     context_label: str = ""
     display_label: str = ""
+    can_decide: bool = False
 
 
 @dataclass(frozen=True)

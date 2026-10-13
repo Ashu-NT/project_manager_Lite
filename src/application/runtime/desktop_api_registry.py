@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from src.core.application.global_overview.api.desktop.global_overview import (
+from src.core.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
 )
 from src.core.modules.project_management.api.desktop import (
@@ -25,9 +25,6 @@ from src.core.modules.project_management.api.desktop_runtime import (
 from src.core.platform.access import AccessControlService
 from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.events.notifications.notification import (
-    PlatformNotificationDesktopApi,
-)
 from src.core.platform.api.desktop.finance import FinancialPeriodDesktopApi
 from src.core.platform.api.desktop.history.activity.activity import (
     PlatformActivityDesktopApi,
@@ -52,6 +49,9 @@ from src.core.platform.api.desktop.master_data.party.party import (
     PlatformPartyDesktopApi,
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.notifications.notification import (
+    PlatformNotificationDesktopApi,
+)
 from src.core.platform.api.desktop.platform_runtime.runtime import (
     PlatformRuntimeDesktopApi,
 )
@@ -61,8 +61,8 @@ from src.core.platform.api.desktop.security.identity.identity import (
 )
 from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
-from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import (
-    EnterpriseCalendarDesktopApi,
+from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
+    PlatformCalendarDesktopApi,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.finance import FinancialPeriodService
@@ -87,11 +87,12 @@ from src.core.platform.application.platform_runtime import (
 )
 from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.security.identity import ServicePrincipalService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
 )
 from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
     CalendarExceptionService,
@@ -105,8 +106,8 @@ from src.core.platform.application.time_management.calendar.definitions.shift_pa
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.core.platform.integration.module_registry import ModuleRegistry
@@ -121,8 +122,7 @@ class DesktopApiRegistry:
     platform_notification: PlatformNotificationDesktopApi | None
 
     platform_view_invalidation_channel: ViewInvalidationChannel | None
-    platform_calendar: None  # removed â€” use platform_enterprise_calendar instead
-    platform_enterprise_calendar: EnterpriseCalendarDesktopApi | None
+    platform_calendar: PlatformCalendarDesktopApi | None
     platform_site: PlatformSiteDesktopApi
     platform_department: PlatformDepartmentDesktopApi
     platform_employee: PlatformEmployeeDesktopApi
@@ -200,15 +200,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         raise RuntimeError("Platform service-principal service is not configured.")
 
     project_service = services.get("project_service")
-    task_service = services.get("task_service")
-    resource_service = services.get("resource_service")
-    baseline_service = services.get("baseline_service")
     inventory_reservation_service = services.get("inventory_reservation_service")
 
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
-    platform_calendar_api = (
-        None
-    )  # PlatformCalendarDesktopApi removed; use EnterpriseCalendarDesktopApi
 
     access_scope_type_choices: list[tuple[str, str]] = []
     access_scope_option_loaders: dict[str, object] = {}
@@ -268,35 +262,36 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         fallback_registry = _FallbackModuleRegistry(fallback_catalog)
         integration_capability = build_integration_capability_api(fallback_registry)
 
-    enterprise_calendar_api: EnterpriseCalendarDesktopApi | None = None
-    enterprise_calendar_service = services.get("enterprise_calendar_service")
+    platform_calendar_api: PlatformCalendarDesktopApi | None = None
+    platform_calendar_service = services.get("platform_calendar_service")
     working_rule_service = services.get("working_rule_service")
     calendar_exception_service = services.get("calendar_exception_service")
     recurring_event_service = services.get("recurring_event_service")
     shift_pattern_service = services.get("shift_pattern_service")
     calendar_assignment_service = services.get("calendar_assignment_service")
-    enterprise_calendar_resolver = services.get("enterprise_calendar_resolver")
+    platform_calendar_resolver = services.get("platform_calendar_resolver")
     resource_capacity_calculator = services.get("resource_capacity_calculator")
     if (
-        isinstance(enterprise_calendar_service, EnterpriseCalendarService)
+        isinstance(platform_calendar_service, PlatformCalendarService)
         and isinstance(working_rule_service, WorkingRuleService)
         and isinstance(calendar_exception_service, CalendarExceptionService)
         and isinstance(recurring_event_service, RecurringEventService)
         and isinstance(shift_pattern_service, ShiftPatternService)
         and isinstance(calendar_assignment_service, CalendarAssignmentService)
-        and isinstance(enterprise_calendar_resolver, EnterpriseCalendarResolver)
+        and isinstance(platform_calendar_resolver, PlatformCalendarResolver)
     ):
-        enterprise_calendar_api = EnterpriseCalendarDesktopApi(
-            calendar_service=enterprise_calendar_service,
+        platform_calendar_api = PlatformCalendarDesktopApi(
+            calendar_service=platform_calendar_service,
             rule_service=working_rule_service,
             exception_service=calendar_exception_service,
             recurring_event_service=recurring_event_service,
             shift_pattern_service=shift_pattern_service,
             assignment_service=calendar_assignment_service,
-            resolver=enterprise_calendar_resolver,
+            resolver=platform_calendar_resolver,
             capacity_calculator=resource_capacity_calculator,
         )
 
+    pm_module_catalog = services.get("module_catalog_service")
     project_management_apis = build_project_management_desktop_runtime_apis(
         services=services,
         platform_dependencies=ProjectManagementDesktopRuntimePlatformDependencies(
@@ -304,8 +299,13 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             site_service=site_service,
             department_service=department_service,
             approval_service=approval_service,
+            module_catalog_service=(
+                pm_module_catalog
+                if isinstance(pm_module_catalog, ModuleCatalogService)
+                else None
+            ),
             reservation_service=inventory_reservation_service,
-            enterprise_calendar_api=enterprise_calendar_api,
+            platform_calendar_api=platform_calendar_api,
         ),
     )
     global_overview_api = services.get("global_overview_desktop_api")
@@ -326,7 +326,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             else None
         ),
         platform_calendar=platform_calendar_api,
-        platform_enterprise_calendar=enterprise_calendar_api,
         platform_site=platform_site_api,
         platform_department=PlatformDepartmentDesktopApi(
             department_service=department_service,

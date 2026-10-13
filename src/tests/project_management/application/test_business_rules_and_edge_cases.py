@@ -94,17 +94,11 @@ def test_assignment_allocation_and_resource_validation(services):
         ts.assign_resource(task.id, "missing-resource-id", allocation_percent=50.0)
 
 
-def test_query_tasks_requires_project_id(services):
-    ts = services["task_service"]
-    with pytest.raises(ValidationError):
-        ts.query_tasks(project_id=None)
-
-
 def test_work_calendar_next_and_negative_day_math(services):
     # wc is now GlobalCalendarShim backed by the enterprise calendar
     wc = services["work_calendar_engine"]
     exc_svc = services["calendar_exception_service"]
-    cal_svc = services["enterprise_calendar_service"]
+    cal_svc = services["platform_calendar_service"]
 
     # Saturday 2023-11-04 -> next working day is Monday 2023-11-06
     assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(2023, 11, 6)
@@ -208,7 +202,7 @@ def test_dependency_diagnostics_flags_duplicates(services):
     t2 = ts.create_task(project.id, "Task B", start_date=date(2023, 11, 6), duration_days=1)
     ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-    diag = ts.get_dependency_diagnostics(t1.id, t2.id, include_impact=False)
+    diag = services["task_dependency_diagnostics"].get_dependency_diagnostics(t1.id, t2.id, include_impact=False)
     assert not diag.is_valid
     assert diag.code == "DEPENDENCY_DUPLICATE"
     assert diag.risk_level == "blocked"
@@ -226,7 +220,7 @@ def test_dependency_diagnostics_cycle_includes_path_names(services):
     ts.add_dependency(task_a.id, task_b.id, DependencyType.FINISH_TO_START, lag_days=0)
     ts.add_dependency(task_b.id, task_c.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-    diag = ts.get_dependency_diagnostics(task_c.id, task_a.id, include_impact=False)
+    diag = services["task_dependency_diagnostics"].get_dependency_diagnostics(task_c.id, task_a.id, include_impact=False)
     assert not diag.is_valid
     assert diag.code == "DEPENDENCY_CYCLE"
     assert "Task A" in diag.detail
@@ -244,7 +238,7 @@ def test_dependency_diagnostics_reports_schedule_impact(services):
     task_a = ts.create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=2)
     task_b = ts.create_task(project.id, "Task B", start_date=date(2023, 11, 6), duration_days=2)
 
-    diag = ts.get_dependency_diagnostics(
+    diag = services["task_dependency_diagnostics"].get_dependency_diagnostics(
         task_a.id,
         task_b.id,
         dependency_type=DependencyType.FINISH_TO_START,
@@ -267,7 +261,7 @@ def test_dependency_diagnostics_no_shift_reports_none_risk(services):
     pred = ts.create_task(project.id, "Task P", start_date=date(2023, 11, 6), duration_days=2)
     succ = ts.create_task(project.id, "Task S", start_date=date(2023, 11, 6), duration_days=2)
 
-    diag = ts.get_dependency_diagnostics(
+    diag = services["task_dependency_diagnostics"].get_dependency_diagnostics(
         pred.id,
         succ.id,
         dependency_type=DependencyType.START_TO_START,

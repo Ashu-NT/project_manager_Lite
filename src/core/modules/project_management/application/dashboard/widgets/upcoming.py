@@ -1,26 +1,35 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date, timedelta
 
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
     UpcomingTask,
 )
 from src.core.modules.project_management.application.resources import ResourceService
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
+)
+from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 
 
 class DashboardUpcomingMixin:
-    _tasks: TaskService
+    _task_lookup: TaskLookupQueryHandler
+    _task_assignments: TaskAssignmentCommandHandler
     _resources: ResourceService
 
     def _build_upcoming_tasks(
         self,
         project_id: str,
         *,
-        tasks: list[object] | None = None,
-        assignments_by_task: dict[str, list[object]] | None = None,
-        resources_by_id: dict[str, object] | None = None,
+        tasks: list[Task] | None = None,
+        assignments_by_task: dict[str, list[TaskAssignment]] | None = None,
+        resources_by_id: Mapping[str, Resource] | None = None,
     ) -> list[UpcomingTask]:
         today = date.today()
         horizon = today + timedelta(days=14)
@@ -28,7 +37,7 @@ class DashboardUpcomingMixin:
         tasks = (
             tasks
             if tasks is not None
-            else select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+            else select_leaf_tasks(self._task_lookup.list_tasks_for_project(project_id))
         )
         if resources_by_id is None:
             resources_by_id = {
@@ -51,7 +60,7 @@ class DashboardUpcomingMixin:
             assignments = (
                 assignments_by_task.get(task.id, [])
                 if assignments_by_task is not None
-                else self._tasks.list_assignments_for_task(task.id)
+                else self._task_assignments.list_assignments_for_task(task.id)
             )
             main_resource = None
             if assignments:

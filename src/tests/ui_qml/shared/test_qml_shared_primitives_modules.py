@@ -22,7 +22,7 @@ def test_qml_platform_widgets_module_exists() -> None:
         QML_PLATFORM_DIALOGS / "qmldir",
         Path("src/ui_qml/platform/qml/workspaces/documents/dialogs/DocumentLinkEditorDialog.qml"),
         Path("src/ui_qml/platform/qml/workspaces/documents/dialogs/DocumentStructureEditorDialog.qml"),
-        QML_SHARED_ROOT / "Widgets" / "OverviewSectionCard.qml",
+        QML_SHARED_ROOT / "Widgets" / "detail" / "OverviewSectionCard.qml",
         Path("src/ui_qml/platform/qml/workspaces/documents/DocumentDetailPanel.qml"),
     ]
 
@@ -124,7 +124,7 @@ def test_qml_workspace_frame_exposes_default_content_slot() -> None:
 
 
 def test_data_table_declares_explicit_backward_compatible_sorting_modes() -> None:
-    table_qml = (QML_SHARED_ROOT / "Widgets" / "DataTable.qml").read_text(
+    table_qml = (QML_SHARED_ROOT / "Widgets" / "table" / "DataTable.qml").read_text(
         encoding="utf-8"
     )
 
@@ -138,7 +138,7 @@ def test_data_table_declares_explicit_backward_compatible_sorting_modes() -> Non
 
 
 def test_data_table_server_sort_is_emit_only() -> None:
-    table_qml = (QML_SHARED_ROOT / "Widgets" / "DataTable.qml").read_text(
+    table_qml = (QML_SHARED_ROOT / "Widgets" / "table" / "DataTable.qml").read_text(
         encoding="utf-8"
     )
 
@@ -155,7 +155,7 @@ def test_data_table_server_sort_is_emit_only() -> None:
 
 
 def test_data_table_nested_vertical_scroll_is_edge_aware() -> None:
-    table_qml = (QML_SHARED_ROOT / "Widgets" / "DataTable.qml").read_text(
+    table_qml = (QML_SHARED_ROOT / "Widgets" / "table" / "DataTable.qml").read_text(
         encoding="utf-8"
     )
 

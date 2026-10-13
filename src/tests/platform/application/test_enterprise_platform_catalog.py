@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop_runtime.service_resolver import (
-    build_module_runtime_snapshot,
-)
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
+)
+from src.core.platform.application.platform_runtime.module_snapshot import (
+    build_module_runtime_snapshot,
 )
 from src.core.platform.application.tenant.modules import build_default_module_catalog
 
@@ -18,7 +18,9 @@ def test_service_graph_exposes_project_management_as_enabled_module(services):
     assert catalog.is_enabled("inventory_procurement") is False
     assert catalog.is_enabled("qhse") is False
     assert catalog.is_enabled("hr_management") is False
-    assert [module.code for module in catalog.list_available_modules()] == []
+    assert [module.code for module in catalog.list_available_modules()] == [
+        "accounting_integration"
+    ]
     assert [module.code for module in catalog.list_enabled_modules()] == ["project_management"]
     assert [module.code for module in catalog.list_licensed_modules()] == ["project_management"]
     assert {module.code for module in catalog.list_planned_modules()} == {

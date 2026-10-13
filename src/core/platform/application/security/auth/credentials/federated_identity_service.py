@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from src.core.platform.application.security.auth.audit.security_audit import (
@@ -81,7 +81,7 @@ def link_federated_identity(
         user,
         identity_provider=identity_provider,
         federated_subject=federated_subject,
-        updated_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(UTC),
     )
     with service._uow() as uow:
         service._user_repo.update(updated_user)

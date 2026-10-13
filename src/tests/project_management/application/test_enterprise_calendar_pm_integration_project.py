@@ -34,8 +34,8 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
 )
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
@@ -49,8 +49,8 @@ from src.core.platform.application.time_management.calendar.definitions.recurrin
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
@@ -153,7 +153,7 @@ def tenant_context(org_id):
 
 @pytest.fixture
 def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return EnterpriseCalendarService(
+    return PlatformCalendarService(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -212,7 +212,7 @@ def calculator():
 
 @pytest.fixture
 def resolver(repos, org_id, calculator):
-    return EnterpriseCalendarResolver(
+    return PlatformCalendarResolver(
         organization_id=org_id,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],

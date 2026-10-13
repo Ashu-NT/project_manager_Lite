@@ -134,13 +134,14 @@ def test_build_assignment_snapshot_logged_is_task_scoped_not_resource_wide(servi
     assignment_b = ts.assign_resource(task_b.id, resource.id, allocation_percent=50.0)
 
     entry_date = date(2026, 4, 6)
-    ts.add_time_entry(assignment_a.id, entry_date=entry_date, hours=2.0, note="Task A work")
-    ts.add_time_entry(assignment_b.id, entry_date=entry_date, hours=5.0, note="Task B work")
+    services["timesheet_service"].add_time_entry(assignment_a.id, entry_date=entry_date, hours=2.0, note="Task A work")
+    services["timesheet_service"].add_time_entry(assignment_b.id, entry_date=entry_date, hours=5.0, note="Task B work")
 
     snapshot_a = build_assignment_snapshot(
         assignment_a.id,
         period_start=None,
-        task_service=ts,
+        task_lookup_query=ts._lookup_query,
+        task_assignment_commands=ts._assignment_handler,
         timesheet_service=services["timesheet_service"],
     )
 
@@ -173,12 +174,13 @@ def test_build_assignment_snapshot_planned_and_remaining_are_page_independent(se
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,
     )
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 5, 1), hours=4.0, note="Logged work")
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 5, 1), hours=4.0, note="Logged work")
 
     snapshot = build_assignment_snapshot(
         assignment.id,
         period_start=date(2026, 6, 1),  # a different, later period with no entries
-        task_service=ts,
+        task_lookup_query=ts._lookup_query,
+        task_assignment_commands=ts._assignment_handler,
         timesheet_service=services["timesheet_service"],
     )
 
@@ -208,15 +210,12 @@ def test_task_assignment_hours_dialog_qml_file_was_removed():
 
 
 def test_backend_set_assignment_hours_command_is_intentionally_retained(services):
-    """The backend command is kept (not deleted) for non-UI/import paths,
-    but is no longer reachable from any Task Detail QML dialog -- this test
-    documents that decision so a future cleanup pass doesn't delete it by
-    mistake believing it to be dead, nor re-add the UI affordance without
-    revisiting the ownership boundary."""
-    ts = services["task_service"]
+    """The assignment command remains available without a Task Detail dialog."""
     _, _, _, assignment = _setup_assignment(services)
 
-    updated = ts.set_assignment_hours(assignment.id, Decimal("3.5"))
+    updated = services["task_assignment_commands"].set_assignment_hours(
+        assignment.id, Decimal("3.5")
+    )
     assert updated.hours_logged == Decimal("3.5")
 
 

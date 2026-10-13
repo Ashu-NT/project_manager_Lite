@@ -20,6 +20,8 @@ class ActivityEntryDto:
     icon: str | None = None
     color: str | None = None
     visibility: str = "workspace"
+    actor_kind: str = "missing"
+    actor_display: str = "Deleted user"
     occurred_at: datetime | None = None  # alias for timestamp, for UI backward compat
 
     def __post_init__(self) -> None:

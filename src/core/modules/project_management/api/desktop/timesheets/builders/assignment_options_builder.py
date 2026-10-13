@@ -9,9 +9,9 @@ def build_assignment_options(
     *,
     project_id: str | None = None,
     resource_id: str | None = None,
-    task_service=None,
+    task_lookup_query=None,
 ) -> tuple[TimesheetAssignmentOptionDescriptor, ...]:
-    if task_service is None:
+    if task_lookup_query is None:
         return ()
     query_kwargs = {"project_id": project_id}
     if resource_id is not None:
@@ -27,7 +27,7 @@ def build_assignment_options(
             resource_id=row.resource_id,
             resource_name=row.resource_name,
         )
-        for row in task_service.list_timesheet_assignment_contexts(**query_kwargs)
+        for row in task_lookup_query.list_timesheet_assignment_contexts(**query_kwargs)
     ]
     options.sort(key=lambda option: option.label.casefold())
     return tuple(options)

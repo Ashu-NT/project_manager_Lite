@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from uuid import uuid4
 
 
 class TaskCommentChangeType(str, Enum):
@@ -13,6 +14,7 @@ class TaskCommentChangeType(str, Enum):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TaskCommentChanged:
+    event_id: str = field(default_factory=lambda: str(uuid4()))
 
     tenant_id: str
     organization_id: str

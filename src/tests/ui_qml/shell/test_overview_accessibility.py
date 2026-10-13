@@ -45,7 +45,7 @@ def _teardown(previous_handler, root, qapp) -> None:
     ],
 )
 def test_module_icon_map_resolves_to_a_registered_icon(qapp, module_code, expected_icon) -> None:
-    widgets_dir = Path(__file__).resolve().parents[3] / "ui_qml/shared/qml/App/Widgets"
+    widgets_dir = Path(__file__).resolve().parents[3] / "ui_qml/shared/qml/App/Widgets/overview"
     engine = create_qml_engine()
     component = QQmlComponent(engine)
     source = (

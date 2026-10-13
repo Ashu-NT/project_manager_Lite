@@ -55,9 +55,7 @@ Item {
                     // here with notesColumn.implicitHeight + spacingMd*2
                     // omitted SectionCard's own title-bar height, silently
                     // clipping the last note whenever there was more than
-                    // one (confirmed via visual QA on Site's Documents/
-                    // Projects bridge cards, both consumers of this shared
-                    // component).
+                    // one.
                     Layout.fillWidth: true
                     title: root.cardTitle
                     outlined: true

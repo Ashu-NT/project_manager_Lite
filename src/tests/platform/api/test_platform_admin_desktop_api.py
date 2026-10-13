@@ -45,7 +45,7 @@ def test_platform_party_desktop_api_manages_party_dtos(services):
         PartyCreateCommand(
             party_code="SUP-001",
             party_name="North Supply",
-            party_type="SUPPLIER",
+            roles=["SUPPLIER"],
             country="Germany",
             city="Berlin",
         )
@@ -56,13 +56,13 @@ def test_platform_party_desktop_api_manages_party_dtos(services):
     assert context_result.data.display_name == "Default Organization"
     assert create_result.ok is True
     assert create_result.data is not None
-    assert create_result.data.party_type.value == "SUPPLIER"
+    assert create_result.data.party_type.value == "ORGANIZATION"
+    assert [role.value for role in create_result.data.roles] == ["SUPPLIER"]
 
     update_result = api.update_party(
         PartyUpdateCommand(
             party_id=create_result.data.id,
             party_name="North Supply GmbH",
-            is_active=False,
             expected_version=create_result.data.version,
         )
     )
@@ -70,7 +70,11 @@ def test_platform_party_desktop_api_manages_party_dtos(services):
     assert update_result.ok is True
     assert update_result.data is not None
     assert update_result.data.party_name == "North Supply GmbH"
-    assert update_result.data.is_active is False
+
+    deactivate_result = api.deactivate_party(create_result.data.id)
+    assert deactivate_result.ok is True
+    assert deactivate_result.data is not None
+    assert deactivate_result.data.is_active is False
 
 
 def test_platform_document_desktop_api_manages_document_dtos_and_links(services):

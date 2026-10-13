@@ -20,6 +20,8 @@ class CollaborationInboxDesktopDto:
     created_at: datetime
     created_at_label: str
     unread: bool
+    is_deleted: bool = False
+    deleted_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -36,6 +38,7 @@ class CollaborationPresenceDesktopDto:
     last_seen_at: datetime
     last_seen_at_label: str
     is_self: bool
+    user_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -98,6 +101,9 @@ class TaskCollaborationSnapshotDto:
     active_presence: tuple[CollaborationPresenceDesktopDto, ...]
     mention_options: tuple[TaskCollaborationMentionOptionDescriptor, ...]
     document_options: tuple[TaskCollaborationDocumentOptionDescriptor, ...]
+    comment_total: int = 0
+    comment_page: int = 1
+    comment_page_size: int = 25
 
 
 @dataclass(frozen=True)

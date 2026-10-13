@@ -7,6 +7,10 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
     build_project_management_projects_desktop_api,
 )
+from src.core.modules.project_management.api.desktop.projects.import_preview import (
+    execute_import,
+    preview_import,
+)
 from src.core.modules.project_management.api.desktop.register import (
     ProjectManagementRegisterDesktopApi,
     build_project_management_register_desktop_api,
@@ -18,21 +22,19 @@ from src.core.modules.project_management.api.desktop.tasks import (
 from src.core.platform.api.desktop.master_data.department.department import (
     PlatformDepartmentDesktopApi,
 )
-from src.core.platform.api.desktop.master_data.employee.employee import (
-    PlatformEmployeeDesktopApi,
-)
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
-from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
     project_resources_page,
     project_tasks_page,
+)
+from src.ui_qml.modules.project_management.utils.file_paths import (
+    local_path_from_qml_file_url,
 )
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogWorkspaceViewModel,
 )
 
 from .activity_builder import build_project_activity_page
-from .import_handler import execute_import, preview_import
 from .project_command_handler import (
     bulk_set_project_status,
     create_project,
@@ -65,16 +67,12 @@ class ProjectProjectsWorkspacePresenter:
         register_desktop_api: ProjectManagementRegisterDesktopApi | None = None,
         site_api: PlatformSiteDesktopApi | None = None,
         department_api: PlatformDepartmentDesktopApi | None = None,
-        user_api: PlatformUserDesktopApi | None = None,
-        employee_api: PlatformEmployeeDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_projects_desktop_api()
         self._tasks_desktop_api = tasks_desktop_api or build_project_management_tasks_desktop_api()
         self._register_desktop_api = register_desktop_api or build_project_management_register_desktop_api()
         self._site_api = site_api
         self._department_api = department_api
-        self._user_api = user_api
-        self._employee_api = employee_api
         self._import_sessions: dict[str, object] = {}
 
     def build_workspace_state(
@@ -243,10 +241,6 @@ class ProjectProjectsWorkspacePresenter:
             self._desktop_api.list_project_activity_page(
                 project_id, search_text=search_text, category=category,
                 page=page, page_size=page_size),
-            site_api=self._site_api,
-            department_api=self._department_api,
-            user_api=self._user_api,
-            employee_api=self._employee_api,
         )
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
@@ -278,15 +272,9 @@ class ProjectProjectsWorkspacePresenter:
         return [{"value": row.id, "label": row.name} for row in result.data]
 
     def build_manager_options(self) -> list[dict[str, str]]:
-        if self._user_api is None:
-            return []
-        result = self._user_api.list_users()
-        if not result.ok or result.data is None:
-            return []
         return [
-            {"value": row.id, "label": row.display_name or row.username}
-            for row in result.data
-            if row.is_active
+            {"value": row.user_id, "label": row.label}
+            for row in self._desktop_api.list_manager_candidates()
         ]
 
     def create_project(self, payload: dict[str, Any]) -> None:
@@ -306,7 +294,9 @@ class ProjectProjectsWorkspacePresenter:
 
     def preview_import(self, *, file_path: str, source_format: str) -> dict[str, object]:
         return preview_import(
-            self._import_sessions, file_path=file_path, source_format=source_format
+            self._import_sessions,
+            file_path=local_path_from_qml_file_url(file_path),
+            source_format=source_format,
         )
 
     def execute_import(self, *, session_id: str) -> dict[str, object]:

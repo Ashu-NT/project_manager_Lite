@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import fields, is_dataclass, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -27,7 +27,7 @@ from src.core.platform.infrastructure.persistence.repositories.history.audit.aud
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyRoleBindingRepository,
 )
-from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.security.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWork,
 )
 from src.core.shared.events.domain_event import DomainEvent
@@ -152,7 +152,7 @@ def test_role_binding_event_conforms_to_domain_event_and_has_only_approved_field
         principal_id="p1",
         role_id="r1",
         scope=RoleBindingTenantScope(tenant_id="t1"),
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     assert isinstance(event, DomainEvent)
     assert is_dataclass(event)
@@ -259,7 +259,7 @@ def test_role_governance_service_introduces_no_new_arbitrary_session_usage():
 def test_assign_role_uses_the_injected_clock_deterministically(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="clock")
     role_governance_service = services["role_governance_service"]
-    fixed_when = datetime(2031, 3, 4, 9, 30, 0, tzinfo=timezone.utc)
+    fixed_when = datetime(2031, 3, 4, 9, 30, 0, tzinfo=UTC)
     original_clock = role_governance_service._clock
     role_governance_service._clock = _FixedClock(fixed_when)
     try:
@@ -522,7 +522,7 @@ def test_cross_tenant_site_assignment_attempt_emits_zero_events(services, monkey
     )
 
     session = services["session"]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     foreign_tenant_id = _unique_code("p5c2-foreign-tenant")
     session.add(TenantORM(
         id=foreign_tenant_id, tenant_code=_unique_code("P5C2FT"), display_name="Foreign Tenant",

@@ -87,7 +87,7 @@ def build_task_comment_view_invalidation_handler(channel: ViewInvalidationChanne
     unread counts at the workspace level, so broadcasting them org-wide would be unproven,
     wasteful fan-out (brief's own "do not map every event to every target without proof")."""
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_task_targets: set[_TaskTarget] = set()
     notified_org_targets: set[_OrgTarget] = set()
 
@@ -95,8 +95,8 @@ def build_task_comment_view_invalidation_handler(channel: ViewInvalidationChanne
         event: _TaskCommentEvent,
         context: DomainEventContext,
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_task_targets.clear()
             notified_org_targets.clear()
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from src.core.platform.common.ids import generate_id
@@ -142,7 +142,7 @@ class AuditEntry:
             normalized_result = "SUCCESS"
         return AuditEntry(
             id=generate_id(),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             actor_id=actor_id,
             actor_type=actor_type,
             actor_username=actor_username,

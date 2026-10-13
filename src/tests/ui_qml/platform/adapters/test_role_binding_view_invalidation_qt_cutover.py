@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -22,7 +22,7 @@ from src.core.platform.domain.security.authorization.roles.role_binding_scope im
     RoleBindingResourceScope,
     RoleBindingTenantScope,
 )
-from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.security.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWork,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -111,7 +111,7 @@ def test_mapper_maps_tenant_scope_to_tenant_scope(event_cls):
     handler = build_role_binding_view_invalidation_handler(_FakeChannel())
     event = event_cls(
         binding_id="b-1", principal_id="p-1", role_id="r-1",
-        scope=RoleBindingTenantScope(tenant_id="t-1"), occurred_at=datetime.now(timezone.utc),
+        scope=RoleBindingTenantScope(tenant_id="t-1"), occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="corr-1"))
 
@@ -136,7 +136,7 @@ def test_mapper_maps_resource_scope_to_organization_scope_using_the_events_own_o
     event = event_cls(
         binding_id="b-2", principal_id="p-2", role_id="r-2",
         scope=RoleBindingResourceScope(tenant_id="t-1", organization_id="o-1", scope_type="storeroom", scope_id="s-1"),
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="corr-2"))
 
@@ -157,7 +157,7 @@ def test_mapper_maps_ownerless_resource_scope_to_tenant_scope_not_a_fabricated_o
     event = RoleBindingAssigned(
         binding_id="b-3", principal_id="p-3", role_id="r-3",
         scope=RoleBindingResourceScope(tenant_id="t-1", organization_id=None, scope_type="project", scope_id="proj-1"),
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="corr-3"))
 
@@ -174,7 +174,7 @@ def test_mapper_maps_platform_scope_to_platform_scope():
     handler = build_role_binding_view_invalidation_handler(_FakeChannel())
     event = RoleBindingAssigned(
         binding_id="b-4", principal_id="p-4", role_id="r-4",
-        scope=RoleBindingPlatformScope(), occurred_at=datetime.now(timezone.utc),
+        scope=RoleBindingPlatformScope(), occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="corr-4"))
 
@@ -437,7 +437,7 @@ def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
     tenant_a = _active_tenant(services)
     session = services["session"]
 
-    now = _dt.now(timezone.utc)
+    now = _dt.now(UTC)
     foreign_tenant_id = _unique_code("p5c3-foreign-tenant")
     session.add(TenantORM(id=foreign_tenant_id, tenant_code=_unique_code("P5C3FT"), display_name="Foreign Tenant", is_active=True, version=1))
     session.commit()

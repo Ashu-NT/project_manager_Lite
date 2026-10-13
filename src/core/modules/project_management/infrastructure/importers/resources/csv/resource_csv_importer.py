@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 
 from src.core.modules.project_management.domain.enums import CostType
@@ -17,6 +18,8 @@ from src.core.platform.domain.data_operations.importing import (
     ImportPreviewRow,
     ImportSummary,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def preview_resources(
@@ -50,6 +53,7 @@ def preview_resources(
             else:
                 preview.updated_count += 1
         except Exception as exc:
+            logger.exception("Failed to preview resource row at line %s: %s", line_no, exc)
             preview.rows.append(
                 ImportPreviewRow(line_no=line_no, status="ERROR", action="ERROR", message=str(exc), row=row)
             )
@@ -111,5 +115,6 @@ def import_resources(
             existing = {r.id: r for r in resource_service.list_resources()}
             existing_by_name = {r.name.strip().lower(): r for r in resource_service.list_resources()}
         except Exception as exc:
+            logger.exception("Failed to import resource row at line %s: %s", line_no, exc)
             summary.add_row_error(line_no=line_no, message=str(exc))
     return summary

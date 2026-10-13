@@ -8,11 +8,14 @@ from src.core.modules.project_management.application.dashboard import DashboardS
 from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.reporting import (
+    ReportingService,
+)
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
-from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.application.risk import RegisterQueryHandler
 from src.core.modules.project_management.application.scheduling import (
     CalendarProtocol,
     SchedulingEngine,
@@ -24,9 +27,6 @@ from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
-)
-from src.core.modules.project_management.infrastructure.reporting import (
-    ReportingService,
 )
 from src.core.platform.access import AccessControlService
 from src.core.platform.application.approval.approval_service import ApprovalService
@@ -91,7 +91,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.baseline_service, BaselineService)
     assert isinstance(graph.dashboard_service, DashboardService)
     assert isinstance(graph.portfolio_service, PortfolioService)
-    assert isinstance(graph.register_service, RegisterService)
+    assert isinstance(graph.register_query, RegisterQueryHandler)
     assert isinstance(graph.project_resource_service, ProjectResourceService)
     assert isinstance(graph.data_import_service, DataImportService)
 
@@ -114,7 +114,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["dashboard_service"] is graph.dashboard_service
     assert as_dict["finance_service"] is graph.finance_service
     assert as_dict["portfolio_service"] is graph.portfolio_service
-    assert as_dict["register_service"] is graph.register_service
+    assert as_dict["register_query"] is graph.register_query
     assert as_dict["project_resource_service"] is graph.project_resource_service
     assert as_dict["timesheet_service"] is graph.timesheet_service
     assert as_dict["session"] is session
@@ -171,13 +171,15 @@ def test_services_module_delegates_to_modular_registration_builders():
 
     assert any(
         isinstance(node, ast.ImportFrom)
-        and node.module == "src.infra.composition.modules.platform_registry"
+        and node.module == "src.core.platform.infrastructure.composition.bootstrap"
         and any(alias.name == "build_platform_service_bundle" for alias in node.names)
         for node in ast.walk(ast.parse(text))
     )
-    assert "from src.infra.composition.persistence.repositories import build_repository_bundle" in text
-    assert "build_repository_bundle(session)" in text
-    assert "build_platform_service_bundle(session, repositories)" in text
+    assert "build_platform_repositories" in text
+    assert "build_project_management_repository_context" in text
+    assert "notification_recipient_policy=pm_notification_recipient_policy" in text
+    assert "platform_services = build_platform_service_bundle(" in text
+    assert "from src.core.modules.project_management.infrastructure.composition.bootstrap import (" in text
     assert "build_project_management_service_bundle(" in text
 
 
@@ -185,7 +187,97 @@ def test_service_registration_package_is_split_by_platform_and_module():
     root = REPO_ROOT / "src" / "infra" / "composition"
 
     assert (root / "__init__.py").exists()
-    assert (root / "persistence" / "repositories.py").exists()
-    assert (root / "modules" / "platform_registry.py").exists()
-    assert (root / "modules" / "project_registry.py").exists()
+    assert not (root / "persistence" / "repositories.py").exists()
+    assert (
+        REPO_ROOT / "src/core/platform/infrastructure/composition/dependencies/repositories.py"
+    ).exists()
+    assert (
+        REPO_ROOT
+        / "src/core/modules/project_management/infrastructure/composition/dependencies/repositories.py"
+    ).exists()
+    assert (
+        REPO_ROOT / "src/core/platform/infrastructure/composition/bootstrap.py"
+    ).exists()
+    assert not (root / "modules" / "platform_registry.py").exists()
+    assert (
+        REPO_ROOT
+        / "src/core/modules/project_management/infrastructure/composition/bootstrap.py"
+    ).exists()
+    assert not (root / "modules" / "project_registry.py").exists()
+
+
+def test_platform_composition_has_no_module_imports():
+    root = REPO_ROOT / "src/core/platform/infrastructure/composition"
+    for path in root.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                assert not node.module.startswith("src.core.modules."), path
+            elif isinstance(node, ast.Import):
+                assert all(
+                    not alias.name.startswith("src.core.modules.")
+                    for alias in node.names
+                ), path
+
+
+def test_application_root_uses_only_pm_composition_bootstrap():
+    source = (REPO_ROOT / "src/infra/composition/app_container.py").read_text(encoding="utf-8")
+    pm_composition_imports = {
+        node.module
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ImportFrom)
+        and node.module
+        and node.module.startswith(
+            "src.core.modules.project_management.infrastructure.composition"
+        )
+    }
+    assert pm_composition_imports == {
+        "src.core.modules.project_management.infrastructure.composition.bootstrap"
+    }
+
+
+def test_application_root_uses_only_platform_composition_bootstrap():
+    source = (REPO_ROOT / "src/infra/composition/app_container.py").read_text(encoding="utf-8")
+    platform_composition_imports = {
+        node.module
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ImportFrom)
+        and node.module
+        and node.module.startswith("src.core.platform.infrastructure.composition")
+    }
+    assert platform_composition_imports == {
+        "src.core.platform.infrastructure.composition.bootstrap"
+    }
+
+
+def test_platform_composition_groups_extracted_wiring_by_capability():
+    composition = REPO_ROOT / "src/core/platform/infrastructure/composition"
+    for path in (
+        "dependencies/master_data/employee.py",
+        "dependencies/master_data/catalog.py",
+        "dependencies/security/auth.py",
+        "dependencies/tenancy/context.py",
+        "dependencies/tenancy/modules.py",
+        "dependencies/tenancy/membership.py",
+        "dependencies/master_data/organization.py",
+        "dependencies/security/governance.py",
+        "dependencies/security/administration.py",
+        "dependencies/history/services.py",
+        "dependencies/finance/period.py",
+        "dependencies/tenancy/admin.py",
+        "dependencies/master_data/exchange.py",
+        "dependencies/notifications/delivery.py",
+        "dependencies/approvals/approval.py",
+        "dependencies/time/calendar.py",
+        "registrations/security/scope_resolvers.py",
+        "registrations/tenancy/local_defaults.py",
+        "events/master_data/view_invalidation.py",
+        "events/security/view_invalidation.py",
+        "events/tenancy/view_invalidation.py",
+        "events/notifications/approval_notifications.py",
+        "events/approvals/view_invalidation.py",
+    ):
+        assert (composition / path).is_file(), path
+    for stale in ("master_data", "security", "tenancy", "notifications", "approvals"):
+        assert not (composition / "events" / f"{stale}.py").exists()
 

@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock
 
 import pytest
@@ -31,7 +31,7 @@ def wire_outcome():
         "handoff_payload_hash": "a" * 64,
         "outcome": "acknowledged",
         "sequence": 1,
-        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "occurred_at": datetime.now(UTC).isoformat(),
     }
 
 

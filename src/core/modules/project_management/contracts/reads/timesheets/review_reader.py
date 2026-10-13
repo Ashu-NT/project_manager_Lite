@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
 from typing import Protocol
@@ -25,7 +25,7 @@ class TimesheetReviewCriteria:
     resource_id: str | None = None
     period_start_from: date | None = None
     period_start_to: date | None = None
-    sort: ReadSort = ReadSort("submittedAt", ReadSortDirection.DESCENDING)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("submittedAt", ReadSortDirection.DESCENDING))
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,7 +72,7 @@ class TimesheetReviewReadPage:
     total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("submittedAt", ReadSortDirection.DESCENDING)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("submittedAt", ReadSortDirection.DESCENDING))
 
 
 class TimesheetReviewReader(Protocol):

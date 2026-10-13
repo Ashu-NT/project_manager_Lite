@@ -1,0 +1,1 @@
+"""Platform history read contracts."""

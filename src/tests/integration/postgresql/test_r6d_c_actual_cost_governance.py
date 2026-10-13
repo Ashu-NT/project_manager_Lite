@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from threading import Event, Thread
 from types import SimpleNamespace
@@ -83,7 +83,7 @@ class _TenantContext:
 
 @pytest.fixture(scope="module", autouse=True)
 def seeded_actual_scopes(postgres_test_environment):
-    now = datetime(2026, 9, 9, 10, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 9, 10, 0, tzinfo=UTC)
     with postgres_test_environment.admin_engine.begin() as connection:
         for tenant_id, code in ((TENANT_A, "R6DC-A"), (TENANT_B, "R6DC-B")):
             connection.execute(
@@ -331,7 +331,7 @@ def _insert_draft(
     task_id=None,
     resource_id=None,
 ):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.execute(
         text(
             "INSERT INTO project_cost_entries "
@@ -362,7 +362,7 @@ def _insert_draft(
 
 
 def _insert_reversal(session, *, row_id: str, project_id: str, original_id: str):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.execute(
         text(
             "INSERT INTO project_cost_entries "

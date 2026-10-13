@@ -33,7 +33,11 @@ def test_wbs_code_round_trips_from_db_to_serialized_table_row(services) -> None:
         wbs_code="1",
     )
 
-    tasks_api = build_project_management_tasks_desktop_api(task_service=task_service)
+    tasks_api = build_project_management_tasks_desktop_api(
+        task_service=task_service,
+        task_workspace_query=services["task_workspace_query"],
+        module_catalog_service=services["module_catalog_service"],
+    )
     page = tasks_api.list_task_page(project_id=project.id, page=1, page_size=25)
     view_models = tuple(to_task_record_view_model(task) for task in page.items)
     rows = serialize_task_record_view_models(view_models)
@@ -65,7 +69,11 @@ def test_milestone_task_shows_marker_in_title_and_milestones_only_filter_selects
         is_milestone=True,
     )
 
-    tasks_api = build_project_management_tasks_desktop_api(task_service=task_service)
+    tasks_api = build_project_management_tasks_desktop_api(
+        task_service=task_service,
+        task_workspace_query=services["task_workspace_query"],
+        module_catalog_service=services["module_catalog_service"],
+    )
     page = tasks_api.list_task_page(project_id=project.id, page=1, page_size=25, sort_key="title")
     view_models = tuple(to_task_record_view_model(task) for task in page.items)
     rows = serialize_task_record_view_models(view_models)
@@ -105,7 +113,11 @@ def test_priority_label_shows_the_same_bucket_the_priority_filter_selects(servic
         project.id, "No Explicit Priority Task", start_date=date(2026, 5, 1), duration_days=1,
     )
 
-    tasks_api = build_project_management_tasks_desktop_api(task_service=task_service)
+    tasks_api = build_project_management_tasks_desktop_api(
+        task_service=task_service,
+        task_workspace_query=services["task_workspace_query"],
+        module_catalog_service=services["module_catalog_service"],
+    )
     page = tasks_api.list_task_page(project_id=project.id, page=1, page_size=25, sort_key="title")
     view_models = tuple(to_task_record_view_model(task) for task in page.items)
     rows = serialize_task_record_view_models(view_models)

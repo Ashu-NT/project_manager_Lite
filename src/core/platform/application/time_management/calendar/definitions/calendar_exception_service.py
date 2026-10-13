@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
     _resolve_username,
 )
 from src.core.platform.common.exceptions import NotFoundError
@@ -44,7 +44,7 @@ class CalendarExceptionService:
         start: date | None = None,
         end: date | None = None,
     ) -> list[CalendarException]:
-        require_permission(self._user_session, "task.read", operation_label="list exceptions")
+        require_permission(self._user_session, "calendar.read", operation_label="list exceptions")
         self._require_calendar(calendar_id)
         return self._exception_repo.list_for_calendar(calendar_id, start=start, end=end)
 
@@ -66,7 +66,7 @@ class CalendarExceptionService:
         approval_status: str = "APPROVED",
     ) -> CalendarException:
         require_permission(
-            self._user_session, "task.manage", operation_label="add calendar exception"
+            self._user_session, "calendar.manage", operation_label="add calendar exception"
         )
         self._require_calendar(calendar_id)
 
@@ -107,7 +107,7 @@ class CalendarExceptionService:
         approved_by: str | None = None,
     ) -> CalendarException:
         require_permission(
-            self._user_session, "task.manage", operation_label="update calendar exception"
+            self._user_session, "calendar.manage", operation_label="update calendar exception"
         )
         exc = self._exception_repo.get(exception_id)
         if exc is None:
@@ -127,7 +127,7 @@ class CalendarExceptionService:
             approval_status=exc.approval_status if approval_status is None else approval_status,
             approved_by=exc.approved_by if approved_by is None else approved_by,
             updated_by=username,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
         self._exception_repo.update(updated)
         self._session.commit()
@@ -135,7 +135,7 @@ class CalendarExceptionService:
 
     def delete_exception(self, exception_id: str) -> None:
         require_permission(
-            self._user_session, "task.manage", operation_label="delete calendar exception"
+            self._user_session, "calendar.manage", operation_label="delete calendar exception"
         )
         exc = self._exception_repo.get(exception_id)
         if exc is None:

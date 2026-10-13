@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
@@ -26,9 +26,7 @@ def _time_entry_unit_of_work(service):
             "TimeService is missing its transactional dispatcher / post-commit bus -- "
             "TimeEntry mutations require both to be wired; there is no degraded fallback."
         )
-    from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
-
-    return SqlAlchemyUnitOfWorkBase(
+    return service._uow_factory.create(
         session=service._session,
         transactional_dispatcher=service._transactional_dispatcher,
         post_commit_bus=service._post_commit_bus,
@@ -281,7 +279,7 @@ class TimesheetEntriesMixin:
             entry.hours = hours
         if note is not None:
             entry.note = note
-        entry.updated_at = datetime.now(timezone.utc)
+        entry.updated_at = datetime.now(UTC)
         project_id = self._resolve_entry_project_id(
             entry=entry,
             work_allocation=work_allocation,

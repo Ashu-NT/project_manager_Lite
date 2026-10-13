@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.platform.controllers.common import (
+    run_history_preview,
     run_mutation,
     safe_exception_message,
     serialize_action_list,
@@ -17,6 +20,7 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 _ORGANIZATION_PAGE_SIZE_OPTIONS = (25, 50, 100)
 _DEFAULT_ORGANIZATION_PAGE_SIZE = 25
+_LOG = logging.getLogger(__name__)
 
 
 class PlatformOrganizationController(QObject):
@@ -227,7 +231,14 @@ class PlatformOrganizationController(QObject):
         normalized_id = organization_id.strip()
         if not normalized_id:
             return {"statistics": {}, "recentActivity": []}
-        return self._presenter.build_detail_context(normalized_id)
+        try:
+            result = self._presenter.build_detail_context(normalized_id)
+        except Exception as exc:
+            _LOG.exception("Organization detail history/context read failed")
+            self._set_error_message(safe_exception_message(exc))
+            return {"statistics": {}, "recentActivity": []}
+        self._set_error_message("")
+        return result
 
     @Slot(str, result="QVariantMap")
     def organizationCalendarSummary(self, organization_id: str) -> dict[str, object]:
@@ -248,7 +259,11 @@ class PlatformOrganizationController(QObject):
         normalized_id = organization_id.strip()
         if not normalized_id:
             return []
-        return self._presenter.build_recent_activity(normalized_id)
+        return run_history_preview(
+            operation=lambda: self._presenter.build_recent_activity(normalized_id),
+            set_error_message=self._set_error_message,
+            label="organization activity",
+        )
 
     @Slot(str, int, int, str, str, str, result="QVariantMap")
     def organizationActivityPage(

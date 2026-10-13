@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator, model_validator
 
@@ -25,8 +25,8 @@ class PortfolioProjectDependency:
     successor_project_id: str
     dependency_type: DependencyType = DependencyType.FINISH_TO_START
     summary: str = ""
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @field_validator("id", mode="before")
     @classmethod
@@ -100,7 +100,7 @@ class PortfolioProjectDependency:
         dependency_type: DependencyType | str = DependencyType.FINISH_TO_START,
         summary: str = "",
     ) -> PortfolioProjectDependency:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return PortfolioProjectDependency(
             id=generate_id(),
             predecessor_project_id=predecessor_project_id,

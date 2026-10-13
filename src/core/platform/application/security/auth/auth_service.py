@@ -59,6 +59,10 @@ from src.core.platform.contract.repositories.security.auth import (
     RoleRepository,
     UserRepository,
 )
+from src.core.platform.contract.uow.security.auth_unit_of_work import (
+    AuthUnitOfWorkFactory,
+)
+from src.core.platform.contract.uow.security.session_write_lock import SessionWriteLock
 from src.core.platform.domain.security.auth import AuthSession, Role, UserAccount
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
@@ -67,6 +71,7 @@ from src.core.platform.domain.security.auth.session import (
 from src.core.platform.domain.security.authorization.enforcement.sod import (
     SeparationOfDutiesPolicy,
 )
+from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import (
@@ -116,13 +121,16 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         *,
         transactional_dispatcher: TransactionalEventDispatcher,
         post_commit_bus: PostCommitEventPublisher,
+        clock: Clock,
+        uow_factory: AuthUnitOfWorkFactory,
+        session_write_lock: SessionWriteLock,
     ):
-        from src.infra.time.system_clock import SystemClock
-
         self._session: Session = session
         self._transactional_dispatcher = transactional_dispatcher
         self._post_commit_bus = post_commit_bus
-        self._clock = SystemClock()
+        self._uow_factory = uow_factory
+        self._session_write_lock = session_write_lock
+        self._clock = clock
         self._user_repo: UserRepository = user_repo
         self._role_repo: RoleRepository = role_repo
         self._permission_repo: PermissionRepository = permission_repo
@@ -159,11 +167,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._role_governance_service: RoleGovernanceService | None = None
 
     def _uow(self):
-        from src.core.platform.application.security.auth.unit_of_work import (
-            auth_unit_of_work,
-        )
-
-        return auth_unit_of_work(
+        return self._uow_factory.create(
             session=self._session,
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,

@@ -6,8 +6,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.modules.project_management.application.risk.register_service import (
-    RegisterService,
+from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
+    RegisterLifecycleHandler,
+)
+from src.core.modules.project_management.application.risk.queries.register_query import (
+    RegisterQueryHandler,
 )
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
@@ -144,7 +147,9 @@ class _FakeRegisterUnitOfWorkFactory:
         )
 
 
-def _make_service(monkeypatch: pytest.MonkeyPatch, *, project_ids: list[str] | None = None) -> RegisterService:
+def _make_service(
+    monkeypatch: pytest.MonkeyPatch, *, project_ids: list[str] | None = None
+) -> tuple[RegisterQueryHandler, RegisterLifecycleHandler]:
     monkeypatch.setattr(
         "src.core.modules.project_management.application.risk.commands.register_lifecycle.require_permission",
         lambda *args, **kwargs: None,
@@ -167,14 +172,22 @@ def _make_service(monkeypatch: pytest.MonkeyPatch, *, project_ids: list[str] | N
     )
     session = _FakeSession()
     register_repo = _FakeRegisterRepo()
-    return RegisterService(
-        session=session,
-        project_repo=_FakeProjectRepo(project_ids or ["proj-1"]),
+    project_repo = _FakeProjectRepo(project_ids or ["proj-1"])
+    tenant_context_service = _FakeTenantContextService()
+    service = RegisterQueryHandler(
+        project_repo=project_repo,
         register_repo=register_repo,
         user_session=object(),
-        tenant_context_service=_FakeTenantContextService(),
+        tenant_context_service=tenant_context_service,
+    )
+    commands = RegisterLifecycleHandler(
+        project_repo=project_repo,
+        register_repo=register_repo,
+        user_session=object(),
+        tenant_context_service=tenant_context_service,
         uow_factory=_FakeRegisterUnitOfWorkFactory(session=session, entries=register_repo),
     )
+    return service, commands
 
 
 def test_register_entry_dto_normalizes_and_validates_fields():
@@ -327,22 +340,22 @@ def test_register_service_applies_one_triage_policy_to_lists_and_summary(
         "src.core.modules.project_management.application.risk.queries.register_query.date",
         _FixedDate,
     )
-    service = _make_service(monkeypatch)
-    critical_future = service.create_entry(
+    service, commands = _make_service(monkeypatch)
+    critical_future = commands.create_entry(
         "proj-1",
         entry_type=RegisterEntryType.RISK,
         title="Future critical",
         severity=RegisterEntrySeverity.CRITICAL,
         due_date=date(2026, 6, 15),
     )
-    high_overdue = service.create_entry(
+    high_overdue = commands.create_entry(
         "proj-1",
         entry_type=RegisterEntryType.ISSUE,
         title="High overdue",
         severity=RegisterEntrySeverity.HIGH,
         due_date=date(2026, 6, 5),
     )
-    medium_overdue = service.create_entry(
+    medium_overdue = commands.create_entry(
         "proj-1",
         entry_type=RegisterEntryType.CHANGE,
         title="Medium overdue",
@@ -350,7 +363,7 @@ def test_register_service_applies_one_triage_policy_to_lists_and_summary(
         status=RegisterEntryStatus.IN_PROGRESS,
         due_date=date(2026, 6, 6),
     )
-    service.create_entry(
+    commands.create_entry(
         "proj-1",
         entry_type=RegisterEntryType.RISK,
         title="Closed historical item",
@@ -388,9 +401,9 @@ def test_register_service_applies_one_triage_policy_to_lists_and_summary(
 
 
 def test_register_service_update_validates_final_state(monkeypatch: pytest.MonkeyPatch):
-    service = _make_service(monkeypatch)
+    service, commands = _make_service(monkeypatch)
 
-    created = service.create_entry(
+    created = commands.create_entry(
         "proj-1",
         entry_type="risk",
         title="  Supplier Delay  ",
@@ -398,7 +411,7 @@ def test_register_service_update_validates_final_state(monkeypatch: pytest.Monke
         code="REG-SUPP-1",
     )
 
-    updated = service.update_entry(
+    updated = commands.update_entry(
         created.id,
         expected_version=created.version,
         title="  Supplier Delay Mitigated  ",
@@ -428,7 +441,7 @@ def test_register_service_update_validates_final_state(monkeypatch: pytest.Monke
     assert reloaded.code == "REG-MIT-1"
 
     with pytest.raises(ValidationError) as exc:
-        service.update_entry(
+        commands.update_entry(
             created.id,
             expected_version=updated.version,
             title=" ",

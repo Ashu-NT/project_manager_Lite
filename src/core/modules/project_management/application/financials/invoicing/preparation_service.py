@@ -24,6 +24,9 @@ from src.core.modules.project_management.application.financials.invoicing.billin
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
     RateCardResolver,
 )
+from src.core.modules.project_management.contracts.approval import (
+    pm_reviewer_permission,
+)
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectFinancialProfileRepository,
 )
@@ -65,7 +68,6 @@ from src.core.modules.project_management.gateway.billing.accounting_billing impo
 from src.core.platform.application.approval.approval_mutation_participant import (
     request_approval_using,
 )
-from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.finance.financial_period_service import (
     FinancialPeriodService,
 )
@@ -76,6 +78,9 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.contract.repositories.approval.contracts import (
+    ApprovalRepository,
+)
 from src.core.platform.domain.finance import DecimalQuantity, Money
 from src.core.platform.integration.canonical_json import canonical_json_sha256
 from src.core.shared.activity import record_activity
@@ -95,7 +100,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         labor_posting_repo: ApprovedTimeLaborPostingRepository,
         rate_resolver: RateCardResolver,
         financial_period_service: FinancialPeriodService,
-        approval_service: ApprovalService,
         tenant_context_service: TenantContextService,
         clock: Clock,
         user_session=None,
@@ -111,7 +115,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self._labor_posting_repo = labor_posting_repo
         self._rate_resolver = rate_resolver
         self._financial_period_service = financial_period_service
-        self._approval_service = approval_service
         self._tenant_context_service = tenant_context_service
         self._clock = clock
         self._user_session = user_session
@@ -122,8 +125,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         # Wired post-construction by composition, only for the governed direct-command
         # instance. None means "not governed-composition-wired" (e.g. the approval
         # participant's own fresh instance, which never calls submit_preparation).
-        self._approval_repo = None
-        self._approval_requested_staged: Callable[[object], None] | None = None
+        self._approval_repo: ApprovalRepository | None = None
 
     def get_preparation(self, preparation_id: str) -> ProjectBillingPreparation:
         preparation = self._require_preparation(preparation_id)
@@ -446,6 +448,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             clock=self._clock,
             record_event=self._record_event,
             request_type="project_billing_preparation.approve",
+            decision_permission=pm_reviewer_permission("project_billing_preparation.approve"),
             entity_type="project_billing_preparation",
             entity_id=preparation.id,
             tenant_id=preparation.tenant_id,
@@ -470,8 +473,6 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         )
         self._record_event(event)
         self._session.flush()
-        if self._approval_requested_staged is not None:
-            self._approval_requested_staged(request)
         return preparation
 
     def _apply_approval_decision(

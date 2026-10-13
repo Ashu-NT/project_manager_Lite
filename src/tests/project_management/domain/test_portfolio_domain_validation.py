@@ -443,6 +443,7 @@ def test_portfolio_intake_service_update_validates_final_state(monkeypatch: pyte
         title="  ERP Modernization  ",
         sponsor_name="  PMO  ",
         requested_budget=1200.0,
+        target_start_date=date(2026, 11, 1),
         strategic_score=4,
         value_score=3,
         urgency_score=2,
@@ -482,10 +483,17 @@ def test_portfolio_intake_service_update_validates_final_state(monkeypatch: pyte
     assert updated.risk_weight == 4
     assert updated.status == PortfolioIntakeStatus.APPROVED
     assert updated.version == 2
+    assert updated.target_start_date == date(2026, 11, 1)
+
+    cleared = service.update_intake_item(created.id, target_start_date=None)
+    assert cleared.target_start_date is None
 
     with pytest.raises(ValidationError) as exc:
         service.update_intake_item(created.id, title=" ")
     assert exc.value.code == "PORTFOLIO_INTAKE_TITLE_REQUIRED"
+
+    with pytest.raises(TypeError):
+        service.update_intake_item(created.id, unknown_field="ignored")
 
 
 def test_portfolio_scenario_service_normalizes_ids_and_enforces_scope(
@@ -527,6 +535,9 @@ def test_portfolio_scenario_service_normalizes_ids_and_enforces_scope(
     with pytest.raises(ValidationError) as exc:
         service.update_scenario(scenario.id, project_ids=["proj-unknown"])
     assert exc.value.code == "PORTFOLIO_PROJECT_SCOPE_INVALID"
+
+    with pytest.raises(TypeError):
+        service.update_scenario(scenario.id, unknown_field="ignored")
 
 
 def test_portfolio_dependency_service_keeps_scope_and_duplicate_rules_in_service(

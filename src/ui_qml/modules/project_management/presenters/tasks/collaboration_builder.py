@@ -41,6 +41,9 @@ def build_collaboration_comments_collection(
             empty_state=(
                 "No collaboration updates are linked to the selected task yet."
             ),
+            total_count=snapshot.comment_total if snapshot is not None else 0,
+            page=snapshot.comment_page if snapshot is not None else 1,
+            page_size=snapshot.comment_page_size if snapshot is not None else 25,
         )
     return CollaborationCollectionViewModel(
         title="Task Collaboration",
@@ -53,6 +56,9 @@ def build_collaboration_comments_collection(
             for comment in snapshot.comments
         ),
         empty_state="",
+        total_count=snapshot.comment_total,
+        page=snapshot.comment_page,
+        page_size=snapshot.comment_page_size,
     )
 
 
@@ -91,13 +97,17 @@ def build_task_collaboration_state(
     collaboration_desktop_api,
     *,
     task_id: str,
+    page: int = 1,
+    page_size: int = 25,
 ) -> TaskCatalogWorkspaceViewModel:
     normalized_task_id = (task_id or "").strip()
     selected_task = (
         desktop_api.get_task(normalized_task_id) if normalized_task_id else None
     )
     collaboration_snapshot = (
-        collaboration_desktop_api.build_task_snapshot(normalized_task_id)
+        collaboration_desktop_api.build_task_snapshot(
+            normalized_task_id, page=page, page_size=page_size
+        )
         if normalized_task_id
         else None
     )

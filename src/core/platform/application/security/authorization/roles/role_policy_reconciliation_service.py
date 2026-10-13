@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.security.auth.session.session_utils import (
     rotate_session_revision,
 )
-from src.core.platform.application.security.auth.unit_of_work import auth_unit_of_work
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -25,6 +24,9 @@ from src.core.platform.contract.repositories.security.auth import (
     RolePermissionRepository,
     RoleRepository,
     UserRepository,
+)
+from src.core.platform.contract.uow.security.auth_unit_of_work import (
+    AuthUnitOfWorkFactory,
 )
 from src.core.platform.domain.security.auth import (
     RolePermissionBinding,
@@ -89,6 +91,7 @@ class RolePolicyReconciliationService:
         role_binding_repo: RoleBindingRepository,
         transactional_dispatcher,
         post_commit_bus,
+        uow_factory: AuthUnitOfWorkFactory,
     ) -> None:
         self._session = session
         self._role_repo = role_repo
@@ -101,9 +104,10 @@ class RolePolicyReconciliationService:
         self._role_binding_repo = role_binding_repo
         self._transactional_dispatcher = transactional_dispatcher
         self._post_commit_bus = post_commit_bus
+        self._uow_factory = uow_factory
 
     def _uow(self):
-        return auth_unit_of_work(
+        return self._uow_factory.create(
             session=self._session,
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,
@@ -196,7 +200,7 @@ class RolePolicyReconciliationService:
                                 )
                             )
 
-                        applied_at = datetime.now(timezone.utc)
+                        applied_at = datetime.now(UTC)
                         for role in role_map.values():
                             if not self._role_repo.set_policy_version(
                                 role.id,
@@ -375,7 +379,7 @@ class RolePolicyReconciliationService:
         )
 
     def _active_session_ids(self, user_ids: tuple[str, ...]) -> set[str]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         active_ids: set[str] = set()
         for user_id in user_ids:
             for auth_session in self._auth_session_repo.list_by_user(user_id):

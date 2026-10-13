@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
@@ -15,6 +16,8 @@ from src.core.modules.project_management.infrastructure.persistence.orm.portfoli
     PortfolioScenarioORM,
     PortfolioScoringTemplateORM,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def portfolio_intake_to_orm(item: PortfolioIntakeItem) -> PortfolioIntakeItemORM:
@@ -123,6 +126,7 @@ def portfolio_scenario_from_orm(obj: PortfolioScenarioORM) -> PortfolioScenario:
         try:
             data = json.loads(value or "[]")
         except Exception:
+            logger.exception("Failed to decode JSON value: %s", value)
             return []
         if not isinstance(data, list):
             return []

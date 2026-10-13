@@ -111,6 +111,7 @@ Item {
                             AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(_row.modelData.title || "")
+                                textFormat: Text.PlainText
                                 color: Theme.AppTheme.textPrimary
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.bodySize
@@ -120,6 +121,7 @@ Item {
                             AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(_row.modelData.subtitle || "")
+                                textFormat: Text.PlainText
                                 color: Theme.AppTheme.textSecondary
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.smallSize
@@ -128,10 +130,11 @@ Item {
                             AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(_row.modelData.supportingText || "")
+                                textFormat: Text.PlainText
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
-                                wrapMode: Text.WordWrap
+                                wrapMode: Text.Wrap
                             }
                         }
 
@@ -143,6 +146,7 @@ Item {
                             AppControls.Label {
                                 Layout.alignment: Qt.AlignRight
                                 text: String(_row.modelData.statusLabel || "")
+                                textFormat: Text.PlainText
                                 color: Theme.AppTheme.accent
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -151,6 +155,7 @@ Item {
                             AppControls.Label {
                                 Layout.maximumWidth: 250
                                 text: String(_row.modelData.metaText || "")
+                                textFormat: Text.PlainText
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize

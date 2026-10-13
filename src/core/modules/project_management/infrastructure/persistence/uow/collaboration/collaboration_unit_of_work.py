@@ -9,6 +9,7 @@ from src.core.modules.project_management.contracts.uow.collaboration.collaborati
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
     SqlAlchemyTaskCommentRepository,
+    SqlAlchemyTaskPresenceRepository,
 )
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
@@ -53,6 +54,9 @@ class SqlAlchemyCollaborationUnitOfWork(SqlAlchemyUnitOfWorkBase, CollaborationU
         self.comments = SqlAlchemyTaskCommentRepository(session)
         if hasattr(self.comments, "_tenant_context_service"):
             self.comments._tenant_context_service = tenant_context_service
+
+        self.presence = SqlAlchemyTaskPresenceRepository(session)
+        self.presence._tenant_context_service = tenant_context_service
 
         self.documents = SqlAlchemyDocumentRepository(session)
         if hasattr(self.documents, "_tenant_context_service"):

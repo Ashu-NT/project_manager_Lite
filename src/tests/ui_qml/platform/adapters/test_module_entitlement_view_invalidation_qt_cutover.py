@@ -27,7 +27,7 @@ from src.core.platform.domain.tenant.modules.events import (
     ModuleLicenseRevoked,
     ModuleLifecycleTransitioned,
 )
-from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.tenancy.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWork,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext

@@ -8,7 +8,7 @@ from uuid import uuid4
 from src.core.modules.project_management.api.desktop import (
     build_project_management_projects_desktop_api,
 )
-from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
+from src.core.modules.project_management.contracts.use_cases.projects import (
     ProjectCreateCommand,
     ProjectUpdateCommand,
 )
@@ -16,6 +16,9 @@ from src.core.modules.project_management.domain.financials.budget import BudgetS
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.projects import (
+    SqlAlchemyProjectCatalogReader,
 )
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.ui_qml.modules.project_management.controllers.common.workspace_controller_base import (
@@ -87,6 +90,7 @@ def _set_principal(
 def _desktop_api(services):
     return build_project_management_projects_desktop_api(
         project_service=services["project_service"],
+        project_query=services["project_query"],
         site_service=services["site_service"],
         department_service=services["department_service"],
     )
@@ -99,8 +103,8 @@ def test_approved_budget_projection_sums_lines_and_uses_budget_currency(services
     )
     _approve_budget(services, project.id, "90", "10", currency="GBP")
 
-    catalog_item = services["project_service"].query_catalog_page().items[0]
-    detail_item = services["project_service"].query_project_detail(project.id)
+    catalog_item = services["project_query"].query_catalog_page().items[0]
+    detail_item = services["project_query"].query_project_detail(project.id)
     catalog_dto = _desktop_api(services).list_project_page().items[0]
     detail_dto = _desktop_api(services).get_project(project.id)
 
@@ -136,8 +140,8 @@ def test_project_read_without_finance_read_redacts_catalog_and_detail(services) 
     _approve_budget(services, project.id, "777", currency="GBP")
     _set_principal(services, permissions={"project.read"})
 
-    page = services["project_service"].query_catalog_page()
-    detail = services["project_service"].query_project_detail(project.id)
+    page = services["project_query"].query_catalog_page()
+    detail = services["project_query"].query_project_detail(project.id)
     page_dto = _desktop_api(services).list_project_page()
     detail_dto = _desktop_api(services).get_project(project.id)
 
@@ -186,7 +190,7 @@ def test_project_scoped_finance_access_redacts_only_unauthorized_project(service
         },
     )
 
-    page = services["project_service"].query_catalog_page(page_size=25)
+    page = services["project_query"].query_catalog_page(page_size=25)
     by_id = {item.project.id: item for item in page.items}
 
     assert page.approved_budget_visible is True
@@ -196,7 +200,7 @@ def test_project_scoped_finance_access_redacts_only_unauthorized_project(service
     assert by_id[project_b.id].approved_budget is None
     assert by_id[project_b.id].approved_budget_currency == ""
     assert by_id[project_b.id].approved_budget_visible is False
-    assert services["project_service"].query_project_detail(project_b.id).approved_budget is None
+    assert services["project_query"].query_project_detail(project_b.id).approved_budget is None
 
 
 def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None:
@@ -211,7 +215,7 @@ def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None
     ascending = [
         item
         for page in (1, 2, 3)
-        for item in services["project_service"].query_catalog_page(
+        for item in services["project_query"].query_catalog_page(
             sort_key="approvedBudgetLabel",
             sort_direction="asc",
             page=page,
@@ -221,7 +225,7 @@ def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None
     descending = [
         item
         for page in (1, 2, 3)
-        for item in services["project_service"].query_catalog_page(
+        for item in services["project_query"].query_catalog_page(
             sort_key="approvedBudgetLabel",
             sort_direction="desc",
             page=page,
@@ -251,14 +255,14 @@ def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None
 
 def test_only_currently_approved_budget_is_projected(services) -> None:
     project = services["project_service"].create_project("Budget Lifecycle")
-    assert services["project_service"].query_project_detail(project.id).approved_budget is None
+    assert services["project_query"].query_project_detail(project.id).approved_budget is None
 
     first = _approve_budget(services, project.id, "10", currency="USD")
-    assert services["project_service"].query_project_detail(project.id).approved_budget == Decimal(10)
+    assert services["project_query"].query_project_detail(project.id).approved_budget == Decimal(10)
 
     successor = _approve_budget(services, project.id, "25", currency="CAD")
     assert services["budget_service"].get_budget(first.id).status is BudgetStatus.SUPERSEDED
-    current = services["project_service"].query_project_detail(project.id)
+    current = services["project_query"].query_project_detail(project.id)
     assert current.approved_budget == Decimal(25)
     assert current.approved_budget_currency == "CAD"
 
@@ -274,26 +278,26 @@ def test_only_currently_approved_budget_is_projected(services) -> None:
     assert closed.approved_budget_currency == ""
 
 
-def test_single_project_reader_enforces_tenant_and_organization_scope(services) -> None:
+def test_single_project_reader_enforces_tenant_and_organization_scope(services, session) -> None:
     project = services["project_service"].create_project("Scoped Detail")
     _approve_budget(services, project.id, "333", currency="USD")
-    session = services["user_session"]
-    reader = services["project_service"]._project_catalog_reader
+    user_session = services["user_session"]
+    reader = SqlAlchemyProjectCatalogReader(session=session)
 
     assert reader.read_one(
-        tenant_id=session.stored_active_tenant_id(),
-        organization_id=session.stored_active_organization_id(),
+        tenant_id=user_session.stored_active_tenant_id(),
+        organization_id=user_session.stored_active_organization_id(),
         project_id=project.id,
         include_approved_budget=True,
     ) is not None
     assert reader.read_one(
         tenant_id="another-tenant",
-        organization_id=session.stored_active_organization_id(),
+        organization_id=user_session.stored_active_organization_id(),
         project_id=project.id,
         include_approved_budget=True,
     ) is None
     assert reader.read_one(
-        tenant_id=session.stored_active_tenant_id(),
+        tenant_id=user_session.stored_active_tenant_id(),
         organization_id="another-organization",
         project_id=project.id,
         include_approved_budget=True,

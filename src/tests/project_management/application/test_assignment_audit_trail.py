@@ -63,10 +63,13 @@ def test_record_assignment_action_without_task_id_leaves_parent_entity_id_none()
 def test_activity_repository_filters_by_parent_entity_id_and_action_prefix(services):
     session = services["session"]
     repo = services["activity_service"]._activity_repo
+    scope = services["tenant_context_service"].require_active_scope_ids(operation_label="seed scoped activity")
 
     repo.add(
         ActivityEntry.create(
             action="assignment.add",
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
             entity_type="task_assignment",
             entity_id="assign-1",
             module="project_management",
@@ -79,6 +82,8 @@ def test_activity_repository_filters_by_parent_entity_id_and_action_prefix(servi
     repo.add(
         ActivityEntry.create(
             action="assignment.accept",
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
             entity_type="task_assignment",
             entity_id="assign-1",
             module="project_management",
@@ -91,6 +96,8 @@ def test_activity_repository_filters_by_parent_entity_id_and_action_prefix(servi
     repo.add(
         ActivityEntry.create(
             action="task.set_status",
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
             entity_type="task",
             entity_id="task-1",
             module="project_management",
@@ -103,6 +110,8 @@ def test_activity_repository_filters_by_parent_entity_id_and_action_prefix(servi
     repo.add(
         ActivityEntry.create(
             action="assignment.add",
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
             entity_type="task_assignment",
             entity_id="assign-2",
             module="project_management",

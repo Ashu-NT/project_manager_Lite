@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.platform.controllers.common import (
+    run_history_preview,
     run_mutation,
     safe_exception_message,
     serialize_action_list,
@@ -272,7 +273,13 @@ class PlatformSiteController(QObject):
         normalized_org_id = organization_id.strip()
         if not normalized_site_id or not normalized_org_id:
             return []
-        return self._activity_presenter.build_recent_activity(normalized_site_id, normalized_org_id)
+        return run_history_preview(
+            operation=lambda: self._activity_presenter.build_recent_activity(
+                normalized_site_id, normalized_org_id
+            ),
+            set_error_message=self._set_error_message,
+            label="site activity",
+        )
 
     @Slot(str, str, int, int, str, str, result="QVariantMap")
     def siteActivityPage(

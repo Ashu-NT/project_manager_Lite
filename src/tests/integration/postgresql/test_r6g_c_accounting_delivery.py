@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from threading import Barrier
 from unittest.mock import Mock
 from uuid import uuid4
@@ -47,7 +47,7 @@ def external_worker(postgres_test_environment, request):
             text(
                 "INSERT INTO users (id, username, password_hash, account_type, is_active, created_at, updated_at, version) VALUES (:id, :id, 'no-login', 'service', true, :now, :now, 1)"
             ),
-            {"id": actor, "now": datetime.now(timezone.utc)},
+            {"id": actor, "now": datetime.now(UTC)},
         )
         db.execute(
             text(
@@ -58,7 +58,7 @@ def external_worker(postgres_test_environment, request):
                 "tenant": scope.tenant,
                 "org": scope.org,
                 "name": name,
-                "now": datetime.now(timezone.utc),
+                "now": datetime.now(UTC),
             },
         )
     adapter = Mock(supports_durable_idempotency=True)
@@ -72,7 +72,7 @@ def external_worker(postgres_test_environment, request):
             adapter_id=target.adapter_id,
             connection_id=target.connection_id,
             remote_reference="durable-acceptance",
-            accepted_at=datetime.now(timezone.utc),
+            accepted_at=datetime.now(UTC),
         )
 
     adapter.deliver.side_effect = deliver

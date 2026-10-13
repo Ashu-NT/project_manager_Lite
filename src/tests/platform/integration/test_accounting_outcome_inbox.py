@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -47,7 +47,7 @@ def _outcome(**overrides):
             "handoff_payload_hash": "a" * 64,
             "outcome": "acknowledged",
             "sequence": 1,
-            "occurred_at": datetime(2026, 9, 26, tzinfo=timezone.utc),
+            "occurred_at": datetime(2026, 9, 26, tzinfo=UTC),
             **overrides,
         }
     )

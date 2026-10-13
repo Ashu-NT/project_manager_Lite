@@ -6,15 +6,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-// Site Detail's Activity tab: this site's own paginated, searchable
-// business-activity history (create/update/activate/deactivate/archive) --
-// distinct from the tenant-wide Platform audit trail (Platform > Control >
-// Audit), which the previous "Audit" stub tab pointed to. Renders with the
-// canonical App.Widgets.ActivityFeed; this file owns no activity-domain
-// knowledge of its own -- every title/actor/subject/tone/icon is
-// presenter-supplied (see PlatformSiteActivityPresenter). No entity-type
-// filter here (unlike Organization's Activity tab) -- every row is always
-// this one site's own history.
+// This site's own paginated, searchable business-activity history.
 Item {
     id: root
 
@@ -87,7 +79,7 @@ Item {
             AppWidgets.ActivityFeed {
                 id: _feed
                 width: Math.min(parent.width, root._readableWidth)
-                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.left: parent.left
                 items: root._items
                 emptyText: root._emptyText
             }

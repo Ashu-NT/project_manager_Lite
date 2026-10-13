@@ -28,6 +28,7 @@ def test_fresh_baseline_contains_time_entry_version(tmp_path) -> None:
 
 def test_resource_skills_are_server_paged_filtered_sorted_and_scoped(services) -> None:
     resource_service = services["resource_service"]
+    capability_query = services["resource_capability_query"]
     resource = resource_service.create_resource("Capability Reader")
     resource_service.add_resource_skill(
         resource.id, "z-plan", "Zulu Planning", proficiency="beginner"
@@ -36,16 +37,16 @@ def test_resource_skills_are_server_paged_filtered_sorted_and_scoped(services) -
         resource.id, "a-build", "Alpha Building", proficiency="expert"
     )
 
-    first = resource_service.query_resource_skills_page(
+    first = capability_query.query_resource_skills_page(
         resource.id, page=1, page_size=1, sort_key="skillName", sort_direction="asc"
     )
-    second = resource_service.query_resource_skills_page(
+    second = capability_query.query_resource_skills_page(
         resource.id, page=2, page_size=1, sort_key="skillName", sort_direction="asc"
     )
-    descending = resource_service.query_resource_skills_page(
+    descending = capability_query.query_resource_skills_page(
         resource.id, page=1, page_size=1, sort_key="skillName", sort_direction="desc"
     )
-    filtered = resource_service.query_resource_skills_page(
+    filtered = capability_query.query_resource_skills_page(
         resource.id, search_text="build", proficiency="expert"
     )
 
@@ -57,7 +58,7 @@ def test_resource_skills_are_server_paged_filtered_sorted_and_scoped(services) -
     assert descending.items[0].skill_name == "Zulu Planning"
     assert [item.skill_code for item in filtered.items] == ["a-build"]
 
-    reader = resource_service._resource_capability_reader
+    reader = capability_query._resource_capability_reader
     organization_id = services["user_session"].stored_active_organization_id()
     wrong_scope = reader.read_skills_page(
         tenant_id="other-tenant",
@@ -97,17 +98,17 @@ def test_resource_certifications_use_authoritative_status_filter_and_sort(servic
         issuer="Authority M",
     )
 
-    expiring = resource_service.query_resource_certifications_page(
+    expiring = services["resource_capability_query"].query_resource_certifications_page(
         resource.id, status="expiring-soon"
     )
-    first = resource_service.query_resource_certifications_page(
+    first = services["resource_capability_query"].query_resource_certifications_page(
         resource.id,
         page=1,
         page_size=1,
         sort_key="issuer",
         sort_direction="asc",
     )
-    last = resource_service.query_resource_certifications_page(
+    last = services["resource_capability_query"].query_resource_certifications_page(
         resource.id,
         page=1,
         page_size=1,

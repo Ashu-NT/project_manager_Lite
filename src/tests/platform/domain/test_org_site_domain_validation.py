@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -21,9 +21,6 @@ class _FakeSession:
         self.commit_calls += 1
 
     def add(self, _obj) -> None:
-        return None
-
-    def flush(self) -> None:
         return None
 
     def flush(self) -> None:
@@ -148,7 +145,7 @@ class _FakeOrganizationUnitOfWorkFactory:
 
 class _FakeClock:
     def now(self) -> datetime:
-        return datetime(2026, 1, 1, tzinfo=timezone.utc)
+        return datetime(2026, 1, 1, tzinfo=UTC)
 
 
 class _FakeTenantContext:
@@ -232,6 +229,11 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
     )
     organization_repo = _FakeOrganizationRepo()
     enterprise_audit_service = _FakeEnterpriseAuditService()
+
+    class _FakeDefaultCalendarWriter:
+        def add_default_calendar(self, session, organization) -> None:
+            pass
+
     return OrganizationService(
         session=_FakeSession(),
         organization_repo=organization_repo,
@@ -239,6 +241,7 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
         clock=_FakeClock(),
         user_session=_FakeUserSession(),
         enterprise_audit_service=enterprise_audit_service,
+        default_calendar_writer=_FakeDefaultCalendarWriter(),
     )
 
 
@@ -375,7 +378,7 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
 
 
 def test_site_dto_normalizes_and_validates_fields():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     site = Site.create(
         "  org-1  ",
         "  hub  ",
@@ -420,8 +423,8 @@ def test_site_dto_normalizes_and_validates_fields():
             "org-1",
             "HQ",
             "Headquarters",
-            opened_at=datetime(2026, 7, 25, 10, 0, tzinfo=timezone.utc),
-            closed_at=datetime(2026, 7, 24, 10, 0, tzinfo=timezone.utc),
+            opened_at=datetime(2026, 7, 25, 10, 0, tzinfo=UTC),
+            closed_at=datetime(2026, 7, 24, 10, 0, tzinfo=UTC),
         )
     assert exc_range.value.code == "SITE_DATE_RANGE_INVALID"
 

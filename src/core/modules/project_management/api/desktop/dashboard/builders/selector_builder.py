@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 from src.core.modules.project_management.api.desktop.dashboard.models.snapshot import (
     ProjectDashboardSelectorOptionDescriptor,
 )
 from src.core.modules.project_management.application.dashboard import PORTFOLIO_SCOPE_ID
+
+logger = logging.getLogger(__name__)
 
 
 def build_project_options(project_service=None) -> tuple[ProjectDashboardSelectorOptionDescriptor, ...]:
@@ -15,6 +19,7 @@ def build_project_options(project_service=None) -> tuple[ProjectDashboardSelecto
     try:
         projects = project_service.list_projects()
     except Exception:
+        logger.exception("Failed to load project options.")
         return tuple(options)
     options.extend(
         ProjectDashboardSelectorOptionDescriptor(value=p.id, label=p.name) for p in projects
@@ -48,6 +53,7 @@ def build_baseline_options(
     try:
         baselines = baseline_service.list_baselines(selected_project_id)
     except Exception:
+        logger.exception("Failed to load baseline options for project_id=%s", selected_project_id)
         return (_latest,)
     return (
         _latest,

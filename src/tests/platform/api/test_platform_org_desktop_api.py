@@ -167,7 +167,6 @@ def test_platform_employee_desktop_api_manages_employee_dtos(services):
             full_name="Alice Smith",
             phone="+49-555-0101",
             email="",
-            is_active=False,
             expected_version=create_result.data.version,
         )
     )
@@ -177,7 +176,10 @@ def test_platform_employee_desktop_api_manages_employee_dtos(services):
     assert update_result.data.full_name == "Alice Smith"
     assert update_result.data.phone == "+49-555-0101"
     assert update_result.data.email is None
-    assert update_result.data.is_active is False
+    deactivate_result = employee_api.deactivate_employee(create_result.data.id)
+    assert deactivate_result.ok is True
+    assert deactivate_result.data is not None
+    assert deactivate_result.data.is_active is False
 
 
 def test_build_desktop_api_registry_exposes_platform_master_data_adapters(services):

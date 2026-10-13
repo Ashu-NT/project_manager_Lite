@@ -32,6 +32,12 @@ class DocumentDto:
     notes: str
     is_active: bool
     version: int
+    # Only populated when this Document was resolved through an
+    # entity-scoped read (e.g. Employee Documents) -- the id of the
+    # DocumentLink relationship itself, needed to unlink. Empty ("") for
+    # every other read path (the standalone Documents workspace, Document
+    # Detail, etc.), which have no single relevant link.
+    link_id: str = ""
 
 
 @dataclass(frozen=True)

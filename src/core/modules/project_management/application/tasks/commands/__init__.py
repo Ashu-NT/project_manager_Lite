@@ -1,37 +1,29 @@
 """Task commands."""
 
 from src.core.modules.project_management.application.tasks.commands.assignment import (
-    TaskAssignmentMixin,
+    TaskAssignmentCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.assignment_activity import (
     record_assignment_action,
 )
-from src.core.modules.project_management.application.tasks.commands.assignment_bridge import (
-    TaskAssignmentBridgeMixin,
-)
 from src.core.modules.project_management.application.tasks.commands.dependency import (
-    TaskDependencyMixin,
+    TaskDependencyCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.lifecycle import (
-    TaskLifecycleMixin,
+    TaskLifecycleCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
-    TaskScheduleSyncMixin,
-)
-from src.core.modules.project_management.application.tasks.commands.time_entries import (
-    TaskTimeEntryMixin,
+    TaskScheduleSynchronizer,
 )
 from src.core.modules.project_management.application.tasks.commands.validation import (
-    TaskValidationMixin,
+    TaskValidationPolicy,
 )
 
 __all__ = [
-    "TaskAssignmentBridgeMixin",
-    "TaskAssignmentMixin",
-    "TaskDependencyMixin",
-    "TaskLifecycleMixin",
-    "TaskScheduleSyncMixin",
-    "TaskTimeEntryMixin",
-    "TaskValidationMixin",
+    "TaskAssignmentCommandHandler",
+    "TaskDependencyCommandHandler",
+    "TaskLifecycleCommandHandler",
+    "TaskScheduleSynchronizer",
+    "TaskValidationPolicy",
     "record_assignment_action",
 ]

@@ -4,11 +4,11 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.finance import (
-    finance_ledger_headers,
-    finance_ledger_values,
     finance_metadata_rows,
     finance_reconciliation_rows,
     finance_summary_rows,
+    project_finance_ledger_headers,
+    project_finance_ledger_values,
 )
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
     ExcelReportContext,
@@ -413,7 +413,7 @@ class ExcelReportRenderer:
             ws_f.column_dimensions["F"].width = 14
 
             ws_ledger = wb.create_sheet("Finance Ledger")
-            ledger_headers = finance_ledger_headers()
+            ledger_headers = project_finance_ledger_headers()
             for idx, h in enumerate(ledger_headers, start=1):
                 cell = ws_ledger.cell(row=1, column=idx, value=h)
                 cell.font = header_font
@@ -421,11 +421,11 @@ class ExcelReportRenderer:
                 cell.alignment = center
                 cell.border = thin_border
 
-            ledger_page = ctx.finance_ledger_page
+            ledger_page = ctx.project_finance_ledger_page
             if ledger_page is None:
                 raise ValueError("Finance ledger export page is required.")
             for row_idx, row_data in enumerate(ledger_page.rows, start=2):
-                values = list(finance_ledger_values(row_data))
+                values = list(project_finance_ledger_values(row_data))
                 values[-2] = float(values[-2])
                 for idx, val in enumerate(values, start=1):
                     cell = ws_ledger.cell(row=row_idx, column=idx, value=val)

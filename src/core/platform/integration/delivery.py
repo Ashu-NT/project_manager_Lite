@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 from pydantic import field_validator, model_validator
@@ -32,7 +32,7 @@ class InboxProcessingStatus(str, Enum):
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _aware_utc(value: object, *, field_name: str) -> datetime:
@@ -46,7 +46,7 @@ def _aware_utc(value: object, *, field_name: str) -> datetime:
             f"{field_name.replace('_', ' ').title()} must include a timezone.",
             code="INTEGRATION_DELIVERY_TIMESTAMP_TIMEZONE_REQUIRED",
         )
-    return value.astimezone(timezone.utc)
+    return value.astimezone(UTC)
 
 
 def _required(value: object, *, field_name: str) -> str:

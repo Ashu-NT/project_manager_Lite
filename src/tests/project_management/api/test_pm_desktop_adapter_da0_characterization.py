@@ -332,7 +332,7 @@ def test_da1_task_service_lists_authorized_resource_assignments(services) -> Non
         allocation_percent=60.0,
     )
 
-    rows = services["task_service"].list_assignments_for_resource(resource.id)
+    rows = services["task_lookup_query"].list_assignments_for_resource(resource.id)
 
     assert [row.id for row in rows] == [assignment.id]
 
@@ -543,7 +543,7 @@ def test_da0_characterizes_dashboard_and_register_high_risk_parity() -> None:
     )
     service = SimpleNamespace(list_entries=lambda **_kwargs: entries)
 
-    register_rows = build_entry_list(register_service=service, project_id="project-1")
+    register_rows = build_entry_list(register_query=service, project_id="project-1")
     active_high_risk_ids = [
         row.id
         for row in register_rows

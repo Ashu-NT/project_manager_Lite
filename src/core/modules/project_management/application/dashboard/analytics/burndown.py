@@ -5,24 +5,29 @@ from datetime import timedelta
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
     BurndownPoint,
 )
-from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
-from src.core.modules.project_management.infrastructure.reporting import (
+from src.core.modules.project_management.application.dashboard.models.report_models import (
     ProjectKPI,
-    ReportingService,
 )
+from src.core.modules.project_management.application.dashboard.reporting.query import (
+    DashboardReportingQuery,
+)
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
+)
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.modules.project_management.domain.tasks.task import Task
 
 
 class DashboardBurndownMixin:
-    _reporting: ReportingService
-    _tasks: TaskService
+    _reporting: DashboardReportingQuery
+    _task_lookup: TaskLookupQueryHandler
 
     def _build_burndown(
         self,
         project_id: str,
         *,
         kpi: ProjectKPI | None = None,
-        tasks: list[object] | None = None,
+        tasks: list[Task] | None = None,
     ) -> list[BurndownPoint]:
         """
         Simple logical burndown: count of remaining (not completed) tasks per day between
@@ -32,7 +37,7 @@ class DashboardBurndownMixin:
         tasks = (
             tasks
             if tasks is not None
-            else select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+            else select_leaf_tasks(self._task_lookup.list_tasks_for_project(project_id))
         )
 
         if not tasks or not (kpi.start_date and kpi.end_date):

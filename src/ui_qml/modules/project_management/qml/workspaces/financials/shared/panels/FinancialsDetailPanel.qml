@@ -742,7 +742,7 @@ Item {
             AppWidgets.InlineMessage {
                 width: parent.width
                 tone: "info"
-                message: "Accounting owns invoice, receivable, payment, and statutory truth. PM displays only externally acknowledged outcomes."
+                message: "Accounting owns invoice, receivable, payment, and statutory truth. PM displays local delivery progress separately from authenticated Accounting outcomes."
             }
             FinancialsCollectionBlock {
                 width: parent.width

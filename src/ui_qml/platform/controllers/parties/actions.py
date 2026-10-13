@@ -29,4 +29,26 @@ def toggle_party_active(controller, party_id: str) -> dict[str, object]:
     )
 
 
-__all__ = ["create_party", "toggle_party_active", "update_party"]
+def activate_party(controller, party_id: str) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._party_controller.activateParty(party_id),
+        on_success=lambda: refresh_after_party_change(controller),
+    )
+
+
+def deactivate_party(controller, party_id: str) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._party_controller.deactivateParty(party_id),
+        on_success=lambda: refresh_after_party_change(controller),
+    )
+
+
+__all__ = [
+    "activate_party",
+    "create_party",
+    "deactivate_party",
+    "toggle_party_active",
+    "update_party",
+]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -16,7 +16,7 @@ from src.core.modules.project_management.application.projects.project_events imp
     ProjectRemoved,
     ProjectStatusChanged,
 )
-from src.core.modules.project_management.application.resources.project_resource_events import (
+from src.core.modules.project_management.application.resources.project_resources.project_resource_events import (
     ProjectResourceAssignmentChanged,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus
@@ -49,7 +49,7 @@ def test_project_created_maps_to_list_target_only():
     handler(
         ProjectCreated(
             tenant_id="t1", organization_id="o1", project_id="p1",
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -62,15 +62,15 @@ def test_project_created_maps_to_list_target_only():
     [
         ProjectProfileUpdated(
             tenant_id="t1", organization_id="o1", project_id="p1",
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
         ),
         ProjectStatusChanged(
             tenant_id="t1", organization_id="o1", project_id="p1",
-            status=ProjectStatus.ACTIVE, occurred_at=datetime.now(timezone.utc),
+            status=ProjectStatus.ACTIVE, occurred_at=datetime.now(UTC),
         ),
         ProjectRemoved(
             tenant_id="t1", organization_id="o1", project_id="p1",
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
         ),
     ],
 )
@@ -89,7 +89,7 @@ def test_project_resource_assignment_changed_maps_to_detail_only():
     handler(
         ProjectResourceAssignmentChanged(
             tenant_id="t1", organization_id="o1", project_id="p1",
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -101,14 +101,15 @@ def test_dedupe_by_target_within_one_transaction():
     handler = build_project_view_invalidation_handler(channel)
     event = ProjectProfileUpdated(
         tenant_id="t1", organization_id="o1", project_id="p1",
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
     )
-    handler(event, DomainEventContext(correlation_id="same-tx"))
-    handler(event, DomainEventContext(correlation_id="same-tx"))
+    context = DomainEventContext(correlation_id="same-trace")
+    handler(event, context)
+    handler(event, context)
     assert len(channel.notified) == 2, "two distinct targets, each coalesced within one tx"
 
-    handler(event, DomainEventContext(correlation_id="next-tx"))
-    assert len(channel.notified) == 4, "a new transaction is never coalesced with the previous one"
+    handler(event, DomainEventContext(correlation_id="same-trace"))
+    assert len(channel.notified) == 4, "a separate commit with the same trace must notify again"
 
 
 # ---------------------------------------------------------------------------
@@ -280,7 +281,7 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
     produce zero postcommit ViewInvalidation."""
     hints = _spy_hints(services)
 
-    dispatcher = services["project_service"]._uow_factory._transactional_dispatcher
+    dispatcher = services["project_service"]._create_handler._uow_factory._transactional_dispatcher
 
     def _raising_handler(event, uow) -> None:
         raise RuntimeError("simulated transactional handler failure")

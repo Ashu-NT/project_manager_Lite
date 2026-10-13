@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from decimal import Decimal
 
-from src.core.modules.project_management.application.resources.resource_load_engine import (
+from src.core.modules.project_management.application.resources.capacity.resource_load_engine import (
     ResourceLoadEngine,
 )
 from src.core.modules.project_management.contracts.reads.portfolio.models.scenario_facts import (

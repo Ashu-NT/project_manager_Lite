@@ -64,6 +64,8 @@ def serialize_resource_activity(fact: ResourceActivityFact) -> ResourceActivityD
         event_type=fact.event_type,
         category=fact.category,
         actor_id=fact.actor_id,
+        actor_kind=fact.actor_kind,
+        actor_display=fact.actor_display,
         summary=fact.summary,
         source_type=fact.source_type,
         source_id=fact.source_id,

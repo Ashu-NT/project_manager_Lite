@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import fields, is_dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -23,7 +23,7 @@ from src.core.platform.domain.tenant.tenancy import (
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.tenancy.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWork,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -91,7 +91,7 @@ def _issue_and_accept(services, *, username: str):
     admin_principal = services["user_session"].principal
     target = _register_user(services, username)
     issued = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     _set_user_principal(services, target.username)
     accepted = membership_service.accept_invitation(issued.token)
@@ -125,7 +125,7 @@ def test_accept_invitation_for_tenant_also_records_activated_exactly_once(servic
     tenant_id = _tenant_id(services)
     target = _register_user(services, _unique_code("p5d2-activate-for-tenant"))
     membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     _set_user_principal(services, target.username)
     recorder = _Recorder(services)
@@ -145,7 +145,7 @@ def test_issue_invitation_records_no_membership_event(services):
     recorder = _Recorder(services)
 
     membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
 
     assert recorder.events == []
@@ -162,7 +162,7 @@ def test_reinvite_then_accept_records_removed_then_activated_never_reactivated(s
 
     recorder = _Recorder(services)
     reinvited = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     assert recorder.events == []  # reinvite itself: eventless
 
@@ -243,7 +243,7 @@ def test_revoke_invitation_emits_no_membership_event(services):
     membership_service = services["tenant_membership_service"]
     target = _register_user(services, _unique_code("p5d2-revoke-invite"))
     membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     recorder = _Recorder(services)
 
@@ -265,7 +265,7 @@ def test_invalid_transition_records_no_membership_event(services):
     membership_service = services["tenant_membership_service"]
     target = _register_user(services, _unique_code("p5d2-invalid-transition"))
     membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     recorder = _Recorder(services)
 
@@ -327,7 +327,7 @@ def test_transactional_handler_failure_rolls_back_the_whole_membership_transacti
     tenant_id = _tenant_id(services)
     target = _register_user(services, _unique_code("p5d2-transactional-fail"))
     issued = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     _set_user_principal(services, target.username)
 
@@ -364,7 +364,7 @@ def test_post_commit_handler_failure_does_not_block_a_sibling_handler_or_the_com
     membership_service = services["tenant_membership_service"]
     target = _register_user(services, _unique_code("p5d2-postcommit-isolate"))
     issued = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     _set_user_principal(services, target.username)
 
@@ -516,7 +516,7 @@ def test_membership_events_are_frozen_slotted_kw_only_with_exactly_the_approved_
         field_names = {f.name for f in fields(event_type)}
         assert field_names == approved
         instance = event_type(
-            membership_id="m", tenant_id="t", user_id="u", occurred_at=datetime.now(timezone.utc)
+            membership_id="m", tenant_id="t", user_id="u", occurred_at=datetime.now(UTC)
         )
         with pytest.raises(Exception):
             instance.membership_id = "changed"  # frozen
@@ -562,7 +562,7 @@ def test_issue_invitation_source_never_records_activated():
     )
 
     source = inspect.getsource(TenantMembershipService.issue_invitation)
-    assert "record_event" not in source
+    assert "uow.record_event(TenantInvitationChanged(" in source
     assert "TenantMembershipActivated" not in source
 
 
@@ -572,4 +572,5 @@ def test_revoke_invitation_source_never_records_a_membership_event():
     )
 
     source = inspect.getsource(TenantMembershipService.revoke_invitation)
-    assert "uow.record_event(" not in source
+    assert "uow.record_event(TenantInvitationChanged(" in source
+    assert "TenantMembershipActivated" not in source

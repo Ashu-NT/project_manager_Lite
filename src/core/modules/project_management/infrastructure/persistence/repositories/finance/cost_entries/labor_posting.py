@@ -1,4 +1,4 @@
-from datetime import timezone
+from datetime import UTC
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,7 +19,7 @@ from src.core.platform.infrastructure.persistence.repositories._tenant_scope imp
 
 
 def _aware(value):
-    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
 
 
 class SqlAlchemyApprovedTimeLaborPostingRepository(TenantScopedRepositorySupport, ApprovedTimeLaborPostingRepository):

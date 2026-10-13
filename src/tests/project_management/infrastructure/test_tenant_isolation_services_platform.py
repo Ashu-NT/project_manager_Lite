@@ -14,8 +14,8 @@ from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
     ShiftPatternService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.master_data.department import Department
@@ -164,9 +164,12 @@ class _PlatformScopedRepo:
         *,
         active_only: bool | None = None,
         calendar_type: str | None = None,
+        site_id: str | None = None,
     ):
         self.list_for_organization_calls.append(organization_id)
         rows = [row for row in self.rows if getattr(row, "organization_id", None) == organization_id]
+        if site_id is not None:
+            rows = [row for row in rows if getattr(row, "site_id", None) == site_id]
         if calendar_type is not None:
             rows = [row for row in rows if getattr(row, "calendar_type", None) == calendar_type]
         if active_only is None:
@@ -213,6 +216,7 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
                 "department.read",
                 "party.read",
                 "settings.manage",
+                "calendar.read",
                 "task.read",
             }
         ),
@@ -317,7 +321,7 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
         uow_factory=object(),
         clock=object(),
     )
-    calendar_service = EnterpriseCalendarService(
+    calendar_service = PlatformCalendarService(
         session=object(),
         calendar_repo=calendar_repo,
         assignment_repo=object(),

@@ -61,17 +61,17 @@ def test_financials_uses_flat_scrollable_navigation_and_project_scope_selector()
     financials_root = Path("src/ui_qml/modules/project_management/qml/workspaces/financials")
     page = (financials_root / "FinancialsWorkspacePage.qml").read_text(encoding="utf-8")
     section_page = Path(
-        "src/ui_qml/shared/qml/App/Widgets/SectionDetailPage.qml"
+        "src/ui_qml/shared/qml/App/Widgets/detail/SectionDetailPage.qml"
     ).read_text(encoding="utf-8")
     navigation_rail = Path(
-        "src/ui_qml/shared/qml/App/Widgets/SectionNavigationRail.qml"
+        "src/ui_qml/shared/qml/App/Widgets/detail/SectionNavigationRail.qml"
     ).read_text(encoding="utf-8")
     # R1.4 re-implemented SectionNavigationRail on top of the shared
     # GroupedNavigationRail primitive (R0.1 D7); the scrollable-content
     # implementation now lives there, not in SectionNavigationRail.qml
     # itself, which is now a thin wrapper.
     grouped_rail = Path(
-        "src/ui_qml/shared/qml/App/Widgets/GroupedNavigationRail.qml"
+        "src/ui_qml/shared/qml/App/Widgets/navigation/GroupedNavigationRail.qml"
     ).read_text(encoding="utf-8")
 
     assert '"group": "Finance"' not in page

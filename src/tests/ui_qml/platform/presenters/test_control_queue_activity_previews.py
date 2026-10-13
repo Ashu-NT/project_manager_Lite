@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
 from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
@@ -23,7 +23,7 @@ def _approval(**overrides) -> ApprovalRequestDto:
         project_id="p1",
         status=ApprovalStatus.PENDING,
         requested_by_username="ada",
-        requested_at=datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc),
+        requested_at=datetime(2026, 3, 5, 14, 30, tzinfo=UTC),
         module_label="Project Management",
         context_label="Project Apollo",
         display_label="Change Budget",
@@ -35,7 +35,7 @@ def _approval(**overrides) -> ApprovalRequestDto:
 def _audit_entry(**overrides) -> AuditEntryDto:
     fields = dict(
         id="a1",
-        timestamp=datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 3, 5, 14, 30, tzinfo=UTC),
         operation="role.update",
         entity_type="role",
         entity_id="r1",
@@ -64,7 +64,7 @@ def test_build_approval_activity_preview_produces_the_canonical_shape() -> None:
     assert item.subject_display == "Project Apollo"
     assert item.tone == "warning"
     assert item.badge_label == ""  # pending is the ordinary state -- no badge
-    assert item.occurred_at == datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc)
+    assert item.occurred_at == datetime(2026, 3, 5, 14, 30, tzinfo=UTC)
 
 
 def test_build_approval_activity_preview_tone_reflects_real_status_not_text() -> None:

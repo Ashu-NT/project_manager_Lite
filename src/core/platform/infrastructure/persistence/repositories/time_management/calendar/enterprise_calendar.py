@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import date
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarAssignmentRepository,
     CalendarExceptionRepository,
@@ -173,6 +174,56 @@ def _ensure_employee_in_scope(session: Session, ctx, employee_id: str) -> None:
     ).scalar_one_or_none()
     if exists is None:
         raise NotFoundError("Employee not found.")
+
+
+def _date_ranges_overlap(
+    a_from: date | None, a_to: date | None, b_from: date | None, b_to: date | None
+) -> bool:
+    """True if [a_from, a_to] and [b_from, b_to] overlap, treating None as
+    an open (unbounded) end on that side -- the same semantics
+    `_is_effective`/`at_date` resolution already uses elsewhere in this
+    file. A target with no explicit effective window at all is
+    (None, None), i.e. unbounded on both ends, and overlaps everything."""
+    if a_from is not None and b_to is not None and a_from > b_to:
+        return False
+    if b_from is not None and a_to is not None and b_from > a_to:
+        return False
+    return True
+
+
+def _assert_no_overlapping_assignment(
+    session: Session,
+    *,
+    assignment_orm,
+    target_id_col,
+    target_id: str,
+    exclude_id: str,
+    effective_from: date | None,
+    effective_to: date | None,
+    target_label: str,
+) -> None:
+    """Multiple assignment rows per target are intentional (scheduled
+    future/historical calendar changes, resolved by at_date + priority --
+    see get_site_assignment/get_department_assignment/get_employee_assignment).
+    What must never happen is two rows for the SAME target whose effective
+    windows overlap, which makes `_is_effective` resolution ambiguous for
+    any date both windows cover. This is a plain target_id filter (not
+    tenant/org-scoped) because it runs inside save_*_assignment, which has
+    already resolved and validated the target via _ensure_*_in_scope just
+    before calling this -- the target_id itself is the correct scope here."""
+    rows = session.execute(
+        select(assignment_orm.id, assignment_orm.effective_from, assignment_orm.effective_to).where(
+            target_id_col == target_id,
+            assignment_orm.id != exclude_id,
+        )
+    ).all()
+    for _row_id, row_from, row_to in rows:
+        if _date_ranges_overlap(effective_from, effective_to, row_from, row_to):
+            raise ValidationError(
+                f"An overlapping calendar assignment already exists for this {target_label}. "
+                "Adjust the effective dates, or remove/replace the existing assignment first.",
+                code="CALENDAR_ASSIGNMENT_OVERLAP",
+            )
 
 
 class SqlAlchemyPlatformCalendarRepository(
@@ -429,6 +480,54 @@ class SqlAlchemyCalendarExceptionRepository(
         rows = self._session.execute(stmt).scalars().all()
         return [calendar_exception_from_orm(r) for r in rows]
 
+    def list_page_for_calendar(
+        self,
+        calendar_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        exception_type: str | None = None,
+        impact_type: str | None = None,
+        approval_status: str | None = None,
+    ) -> tuple[list[CalendarException], int, int]:
+        ctx = self._context(operation_label="access calendar exceptions")
+
+        total_stmt = _scoped_calendar_stmt(
+            select(func.count()), CalendarExceptionORM, ctx
+        ).where(CalendarExceptionORM.calendar_id == calendar_id)
+        total = self._session.execute(total_stmt).scalar_one()
+
+        def _apply_filters(stmt):
+            if search:
+                stmt = stmt.where(CalendarExceptionORM.name.ilike(f"%{search}%"))
+            if exception_type:
+                stmt = stmt.where(CalendarExceptionORM.exception_type == exception_type)
+            if impact_type:
+                stmt = stmt.where(CalendarExceptionORM.impact_type == impact_type)
+            if approval_status:
+                stmt = stmt.where(CalendarExceptionORM.approval_status == approval_status)
+            return stmt
+
+        count_stmt = _apply_filters(
+            _scoped_calendar_stmt(select(func.count()), CalendarExceptionORM, ctx).where(
+                CalendarExceptionORM.calendar_id == calendar_id
+            )
+        )
+        filtered_total = self._session.execute(count_stmt).scalar_one()
+
+        offset = max(0, (page - 1) * page_size)
+        page_stmt = _apply_filters(
+            _scoped_calendar_stmt(select(CalendarExceptionORM), CalendarExceptionORM, ctx).where(
+                CalendarExceptionORM.calendar_id == calendar_id
+            )
+        ).order_by(
+            CalendarExceptionORM.exception_date.desc(),
+            CalendarExceptionORM.priority.desc(),
+        ).offset(offset).limit(page_size)
+        rows = self._session.execute(page_stmt).scalars().all()
+        return [calendar_exception_from_orm(r) for r in rows], total, filtered_total
+
     def list_for_date(
         self, calendar_id: str, target_date: date
     ) -> list[CalendarException]:
@@ -523,6 +622,54 @@ class SqlAlchemyCalendarRecurringEventRepository(
         )
         rows = self._session.execute(stmt).scalars().all()
         return [recurring_event_from_orm(r) for r in rows]
+
+    def list_page_for_calendar(
+        self,
+        calendar_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        event_type: str | None = None,
+        impact_type: str | None = None,
+        is_active: bool | None = None,
+    ) -> tuple[list[CalendarRecurringEvent], int, int]:
+        ctx = self._context(operation_label="access recurring events")
+        base = _scoped_calendar_stmt(
+            select(CalendarRecurringEventORM), CalendarRecurringEventORM, ctx
+        ).where(CalendarRecurringEventORM.calendar_id == calendar_id)
+        total = self._session.execute(
+            select(func.count()).select_from(base.subquery())
+        ).scalar_one()
+
+        filtered = base
+        normalized_search = str(search or "").strip()
+        if normalized_search:
+            filtered = filtered.where(
+                CalendarRecurringEventORM.title.ilike(f"%{normalized_search}%")
+            )
+        if event_type:
+            filtered = filtered.where(CalendarRecurringEventORM.event_type == event_type)
+        if impact_type:
+            filtered = filtered.where(CalendarRecurringEventORM.impact_type == impact_type)
+        if is_active is not None:
+            filtered = filtered.where(CalendarRecurringEventORM.is_active.is_(is_active))
+        filtered_total = self._session.execute(
+            select(func.count()).select_from(filtered.subquery())
+        ).scalar_one()
+
+        normalized_page = max(1, page)
+        normalized_size = min(100, max(1, page_size))
+        rows = self._session.execute(
+            filtered.order_by(
+                CalendarRecurringEventORM.priority.desc(),
+                CalendarRecurringEventORM.title,
+                CalendarRecurringEventORM.id,
+            )
+            .offset((normalized_page - 1) * normalized_size)
+            .limit(normalized_size)
+        ).scalars().all()
+        return [recurring_event_from_orm(row) for row in rows], total, filtered_total
 
     def get(self, event_id: str) -> CalendarRecurringEvent | None:
         ctx = self._context(operation_label="access recurring events")
@@ -764,6 +911,16 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(SiteCalendarAssignmentORM.id == assignment.id)
         ).scalar_one_or_none()
+        _assert_no_overlapping_assignment(
+            self._session,
+            assignment_orm=SiteCalendarAssignmentORM,
+            target_id_col=SiteCalendarAssignmentORM.site_id,
+            target_id=assignment.site_id,
+            exclude_id=assignment.id,
+            effective_from=assignment.effective_from,
+            effective_to=assignment.effective_to,
+            target_label="site",
+        )
         if existing is not None:
             existing.calendar_id = assignment.calendar_id
             existing.effective_from = assignment.effective_from
@@ -775,7 +932,7 @@ class SqlAlchemyCalendarAssignmentRepository(
         _ensure_site_in_scope(self._session, ctx, assignment.site_id)
         self._session.add(site_assignment_to_orm(assignment))
 
-    def delete_site_assignment(self, assignment_id: str) -> None:
+    def delete_site_assignment(self, assignment_id: str) -> SiteCalendarAssignment | None:
         ctx = self._context(operation_label="access calendar assignments")
         obj = self._session.execute(
             _scoped_assignment_stmt(
@@ -786,8 +943,11 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(SiteCalendarAssignmentORM.id == assignment_id)
         ).scalar_one_or_none()
-        if obj is not None:
-            self._session.delete(obj)
+        if obj is None:
+            return None
+        deleted = site_assignment_from_orm(obj)
+        self._session.delete(obj)
+        return deleted
 
     def get_department_assignment(
         self, department_id: str, *, at_date: date | None = None
@@ -838,6 +998,16 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(DepartmentCalendarAssignmentORM.id == assignment.id)
         ).scalar_one_or_none()
+        _assert_no_overlapping_assignment(
+            self._session,
+            assignment_orm=DepartmentCalendarAssignmentORM,
+            target_id_col=DepartmentCalendarAssignmentORM.department_id,
+            target_id=assignment.department_id,
+            exclude_id=assignment.id,
+            effective_from=assignment.effective_from,
+            effective_to=assignment.effective_to,
+            target_label="department",
+        )
         if existing is not None:
             existing.calendar_id = assignment.calendar_id
             existing.effective_from = assignment.effective_from
@@ -849,7 +1019,7 @@ class SqlAlchemyCalendarAssignmentRepository(
         _ensure_department_in_scope(self._session, ctx, assignment.department_id)
         self._session.add(dept_assignment_to_orm(assignment))
 
-    def delete_department_assignment(self, assignment_id: str) -> None:
+    def delete_department_assignment(self, assignment_id: str) -> DepartmentCalendarAssignment | None:
         ctx = self._context(operation_label="access calendar assignments")
         obj = self._session.execute(
             _scoped_assignment_stmt(
@@ -860,8 +1030,11 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(DepartmentCalendarAssignmentORM.id == assignment_id)
         ).scalar_one_or_none()
-        if obj is not None:
-            self._session.delete(obj)
+        if obj is None:
+            return None
+        deleted = dept_assignment_from_orm(obj)
+        self._session.delete(obj)
+        return deleted
 
     def get_employee_assignment(
         self, employee_id: str, *, at_date: date | None = None
@@ -912,6 +1085,16 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(EmployeeCalendarAssignmentORM.id == assignment.id)
         ).scalar_one_or_none()
+        _assert_no_overlapping_assignment(
+            self._session,
+            assignment_orm=EmployeeCalendarAssignmentORM,
+            target_id_col=EmployeeCalendarAssignmentORM.employee_id,
+            target_id=assignment.employee_id,
+            exclude_id=assignment.id,
+            effective_from=assignment.effective_from,
+            effective_to=assignment.effective_to,
+            target_label="employee",
+        )
         if existing is not None:
             existing.calendar_id = assignment.calendar_id
             existing.effective_from = assignment.effective_from
@@ -923,7 +1106,7 @@ class SqlAlchemyCalendarAssignmentRepository(
         _ensure_employee_in_scope(self._session, ctx, assignment.employee_id)
         self._session.add(employee_assignment_to_orm(assignment))
 
-    def delete_employee_assignment(self, assignment_id: str) -> None:
+    def delete_employee_assignment(self, assignment_id: str) -> EmployeeCalendarAssignment | None:
         ctx = self._context(operation_label="access calendar assignments")
         obj = self._session.execute(
             _scoped_assignment_stmt(
@@ -934,90 +1117,61 @@ class SqlAlchemyCalendarAssignmentRepository(
                 ctx,
             ).where(EmployeeCalendarAssignmentORM.id == assignment_id)
         ).scalar_one_or_none()
-        if obj is not None:
-            self._session.delete(obj)
+        if obj is None:
+            return None
+        deleted = employee_assignment_from_orm(obj)
+        self._session.delete(obj)
+        return deleted
 
     def count_active_assignments_for_calendar(self, calendar_id: str) -> int:
         ctx = self._context(operation_label="access calendar assignments")
-        site_count = (
+        return sum(
             self._session.execute(
                 _scoped_assignment_stmt(
-                    select(func.count()),
-                    SiteCalendarAssignmentORM,
-                    SiteORM,
-                    SiteCalendarAssignmentORM.site_id,
-                    ctx,
-                ).where(SiteCalendarAssignmentORM.calendar_id == calendar_id)
-            ).scalar()
-            or 0
+                    select(func.count()), assignment_orm, owner_orm, owner_id, ctx,
+                ).where(assignment_orm.calendar_id == calendar_id)
+            ).scalar() or 0
+            for assignment_orm, owner_orm, owner_id in (
+                (SiteCalendarAssignmentORM, SiteORM, SiteCalendarAssignmentORM.site_id),
+                (DepartmentCalendarAssignmentORM, DepartmentORM, DepartmentCalendarAssignmentORM.department_id),
+                (EmployeeCalendarAssignmentORM, EmployeeORM, EmployeeCalendarAssignmentORM.employee_id),
+            )
         )
-        dept_count = (
-            self._session.execute(
-                _scoped_assignment_stmt(
-                    select(func.count()),
-                    DepartmentCalendarAssignmentORM,
-                    DepartmentORM,
-                    DepartmentCalendarAssignmentORM.department_id,
-                    ctx,
-                ).where(DepartmentCalendarAssignmentORM.calendar_id == calendar_id)
-            ).scalar()
-            or 0
-        )
-        emp_count = (
-            self._session.execute(
-                _scoped_assignment_stmt(
-                    select(func.count()),
-                    EmployeeCalendarAssignmentORM,
-                    EmployeeORM,
-                    EmployeeCalendarAssignmentORM.employee_id,
-                    ctx,
-                ).where(EmployeeCalendarAssignmentORM.calendar_id == calendar_id)
-            ).scalar()
-            or 0
-        )
-        return site_count + dept_count + emp_count
 
     def list_sites_using_calendar(
         self, calendar_id: str
     ) -> list[SiteCalendarAssignment]:
-        ctx = self._context(operation_label="access calendar assignments")
-        stmt = _scoped_assignment_stmt(
-            select(SiteCalendarAssignmentORM),
-            SiteCalendarAssignmentORM,
-            SiteORM,
-            SiteCalendarAssignmentORM.site_id,
-            ctx,
-        ).where(SiteCalendarAssignmentORM.calendar_id == calendar_id)
-        rows = self._session.execute(stmt).scalars().all()
-        return [site_assignment_from_orm(r) for r in rows]
+        return self._list_assignments_using_calendar(
+            calendar_id, SiteCalendarAssignmentORM, SiteORM,
+            SiteCalendarAssignmentORM.site_id, site_assignment_from_orm,
+        )
 
     def list_departments_using_calendar(
         self, calendar_id: str
     ) -> list[DepartmentCalendarAssignment]:
-        ctx = self._context(operation_label="access calendar assignments")
-        stmt = _scoped_assignment_stmt(
-            select(DepartmentCalendarAssignmentORM),
-            DepartmentCalendarAssignmentORM,
-            DepartmentORM,
-            DepartmentCalendarAssignmentORM.department_id,
-            ctx,
-        ).where(DepartmentCalendarAssignmentORM.calendar_id == calendar_id)
-        rows = self._session.execute(stmt).scalars().all()
-        return [dept_assignment_from_orm(r) for r in rows]
+        return self._list_assignments_using_calendar(
+            calendar_id, DepartmentCalendarAssignmentORM, DepartmentORM,
+            DepartmentCalendarAssignmentORM.department_id, dept_assignment_from_orm,
+        )
 
     def list_employees_using_calendar(
         self, calendar_id: str
     ) -> list[EmployeeCalendarAssignment]:
+        return self._list_assignments_using_calendar(
+            calendar_id, EmployeeCalendarAssignmentORM, EmployeeORM,
+            EmployeeCalendarAssignmentORM.employee_id, employee_assignment_from_orm,
+        )
+
+    def _list_assignments_using_calendar(
+        self, calendar_id: str, assignment_orm: Any, owner_orm: Any,
+        owner_id: Any, mapper: Callable[[Any], Any],
+    ) -> list[Any]:
         ctx = self._context(operation_label="access calendar assignments")
         stmt = _scoped_assignment_stmt(
-            select(EmployeeCalendarAssignmentORM),
-            EmployeeCalendarAssignmentORM,
-            EmployeeORM,
-            EmployeeCalendarAssignmentORM.employee_id,
-            ctx,
-        ).where(EmployeeCalendarAssignmentORM.calendar_id == calendar_id)
+            select(assignment_orm), assignment_orm, owner_orm, owner_id, ctx,
+        ).where(assignment_orm.calendar_id == calendar_id)
         rows = self._session.execute(stmt).scalars().all()
-        return [employee_assignment_from_orm(r) for r in rows]
+        return [mapper(row) for row in rows]
 
 
 __all__ = [

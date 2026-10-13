@@ -7,6 +7,9 @@ from PySide6.QtCore import QMetaObject, QObject, QUrl, qInstallMessageHandler
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtQuick import QQuickItem, QQuickWindow
 
+from src.ui_qml.modules.project_management.context_navigation import (
+    build_pm_context_navigation,
+)
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -18,20 +21,11 @@ def _read(relative_path: str) -> str:
 
 
 def test_r5g_keeps_frozen_workload_navigation_and_task_time_owner() -> None:
-    navigation = (
-        ROOT
-        / "ui_qml/modules/project_management/controllers/common/pm_workspace_navigation_controller.py"
-    ).read_text(encoding="utf-8")
+    navigation = build_pm_context_navigation()
     task_detail = _read("workspaces/tasks/panels/TasksDetailPanel.qml")
 
-    workload_entries = [
-        line
-        for line in navigation.splitlines()
-        if '"group": "Workload Management"' in line
-    ]
-    assert len(workload_entries) == 2
-    assert any('"id": "resources"' in line for line in workload_entries)
-    assert any('"id": "review_queue"' in line for line in workload_entries)
+    workload = next(group for group in navigation.groups if group.label == "Workload Management")
+    assert [item.id for item in workload.items] == ["resources", "review_queue"]
     assert "TasksTimeEntriesSection" in task_detail
 
 

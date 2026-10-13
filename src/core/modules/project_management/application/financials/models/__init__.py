@@ -7,12 +7,12 @@ from src.core.modules.project_management.application.financials.models.finance_m
     EarnedValueMetrics,
     EvmSeriesPoint,
     FinanceAnalyticsRow,
-    FinanceLedgerRow,
     FinancePeriodRow,
     FinanceReconciliation,
     FinanceSnapshot,
     LaborAssignmentRow,
     LaborResourceRow,
+    ProjectFinanceLedgerRow,
 )
 
 __all__ = [
@@ -22,10 +22,10 @@ __all__ = [
     "EarnedValueMetrics",
     "EvmSeriesPoint",
     "FinanceAnalyticsRow",
-    "FinanceLedgerRow",
     "FinancePeriodRow",
     "FinanceReconciliation",
     "FinanceSnapshot",
     "LaborAssignmentRow",
     "LaborResourceRow",
+    "ProjectFinanceLedgerRow",
 ]

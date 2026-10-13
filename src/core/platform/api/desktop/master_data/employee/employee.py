@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from src.core.platform.api.desktop.master_data.documents.models.document import (
+    DocumentDto,
+    DocumentLinkDto,
+    DocumentPageDto,
+)
 from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeCreateCommand,
     EmployeeDepartmentBreakdownRowDto,
@@ -9,8 +14,14 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeSiteBreakdownRowDto,
     EmployeeUpdateCommand,
 )
+from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationDto,
+)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.api.desktop.support._support import execute_desktop_operation
+from src.core.platform.api.desktop.support._support import (
+    execute_desktop_operation,
+    serialize_organization,
+)
 from src.core.platform.application.master_data.employee.employee_service import (
     EmployeeService,
 )
@@ -21,6 +32,11 @@ class PlatformEmployeeDesktopApi:
 
     def __init__(self, *, employee_service: EmployeeService) -> None:
         self._employee_service = employee_service
+
+    def get_context(self) -> DesktopApiResult[OrganizationDto]:
+        return execute_desktop_operation(
+            lambda: serialize_organization(self._employee_service.get_context_organization())
+        )
 
     def list_employees(
         self,
@@ -102,8 +118,6 @@ class PlatformEmployeeDesktopApi:
                     employment_type=command.employment_type,
                     email=command.email,
                     phone=command.phone,
-                    is_active=command.is_active,
-                    user_id=command.user_id,
                 )
             )
         )
@@ -123,11 +137,114 @@ class PlatformEmployeeDesktopApi:
                     employment_type=command.employment_type,
                     email=command.email,
                     phone=command.phone,
-                    is_active=command.is_active,
-                    user_id=command.user_id,
                     expected_version=command.expected_version,
                 )
             )
+        )
+
+    def activate_employee(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_employee(self._employee_service.activate_employee(employee_id))
+        )
+
+    def deactivate_employee(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_employee(self._employee_service.deactivate_employee(employee_id))
+        )
+
+    def link_employee_user_account(self, employee_id: str, user_id: str) -> DesktopApiResult[EmployeeDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_employee(
+                self._employee_service.link_employee_user_account(employee_id, user_id)
+            )
+        )
+
+    def unlink_employee_user_account(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_employee(
+                self._employee_service.unlink_employee_user_account(employee_id)
+            )
+        )
+
+    def list_employee_documents_page(
+        self,
+        employee_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+        document_type: str | None = None,
+    ) -> DesktopApiResult[DocumentPageDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_document_page(
+                self._employee_service.list_employee_documents_page(
+                    employee_id, page=page, page_size=page_size, search=search,
+                    active_only=active_only, document_type=document_type,
+                )
+            )
+        )
+
+    def link_employee_document(self, employee_id: str, document_id: str) -> DesktopApiResult[DocumentLinkDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_document_link(
+                self._employee_service.link_employee_document(employee_id, document_id)
+            )
+        )
+
+    def unlink_employee_document(self, employee_id: str, link_id: str) -> DesktopApiResult[None]:
+        return execute_desktop_operation(
+            lambda: self._employee_service.unlink_employee_document(employee_id, link_id)
+        )
+
+    def _serialize_document_page(self, page) -> DocumentPageDto:
+        return DocumentPageDto(
+            items=tuple(
+                self._serialize_document(row.document, link_id=row.link.id) for row in page.items
+            ),
+            total=page.total,
+            filtered_total=page.filtered_total,
+            page=page.page,
+            page_size=page.page_size,
+        )
+
+    @staticmethod
+    def _serialize_document(document, *, link_id: str = "") -> DocumentDto:
+        return DocumentDto(
+            id=document.id,
+            organization_id=document.organization_id,
+            document_code=document.document_code,
+            title=document.title,
+            document_type=document.document_type,
+            document_structure_id=document.document_structure_id,
+            storage_kind=document.storage_kind,
+            storage_uri=document.storage_uri,
+            file_name=document.file_name,
+            mime_type=document.mime_type,
+            source_system=document.source_system,
+            uploaded_at=document.uploaded_at,
+            uploaded_by_user_id=document.uploaded_by_user_id,
+            effective_date=document.effective_date,
+            review_date=document.review_date,
+            confidentiality_level=document.confidentiality_level,
+            business_version_label=document.business_version_label,
+            is_current=document.is_current,
+            notes=document.notes,
+            is_active=document.is_active,
+            version=document.version,
+            link_id=link_id,
+        )
+
+    @staticmethod
+    def _serialize_document_link(link) -> DocumentLinkDto:
+        return DocumentLinkDto(
+            id=link.id,
+            organization_id=link.organization_id,
+            document_id=link.document_id,
+            module_code=link.module_code,
+            entity_type=link.entity_type,
+            entity_id=link.entity_id,
+            link_role=link.link_role,
         )
 
     def _serialize_employee_page(self, page) -> EmployeePageDto:
@@ -175,6 +292,7 @@ class PlatformEmployeeDesktopApi:
             employment_type=employee.employment_type.value,
             email=employee.email,
             phone=employee.phone,
+            status=employee.status.value,
             is_active=employee.is_active,
             user_id=employee.user_id,
             version=employee.version,

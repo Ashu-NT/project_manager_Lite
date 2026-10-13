@@ -176,8 +176,13 @@ def test_cross_org_head_of_department_rejection_produces_zero_event(services):
         base_currency="USD",
     )
     tenant_context_service.set_active_organization(other_organization.id)
+    foreign_department = services["department_service"].create_department(
+        department_code=_unique_code("P13B-FOREIGN-DEPT"), name="Foreign Department"
+    )
     foreign_head_of_department = services["employee_service"].create_employee(
-        employee_code=_unique_code("P13B-FOREIGN-HOD"), full_name="Foreign Head of Department"
+        employee_code=_unique_code("P13B-FOREIGN-HOD"),
+        full_name="Foreign Head of Department",
+        department_id=foreign_department.id,
     )
     tenant_context_service.set_active_organization(default_organization.id)
 
@@ -249,7 +254,7 @@ def test_audit_failure_rolls_back_and_produces_zero_postcommit_event(services, m
 
 
 def test_commit_failure_produces_zero_postcommit_event(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.uow.department_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.master_data.department_unit_of_work import (
         SqlAlchemyDepartmentUnitOfWork,
     )
 
@@ -418,7 +423,7 @@ def test_canonical_department_uow_retained_no_raw_session_commit():
 
 
 def test_no_platform_to_business_module_concrete_infrastructure_import():
-    import src.core.platform.infrastructure.persistence.uow.department_unit_of_work as infra_module
+    import src.core.platform.infrastructure.persistence.uow.master_data.department_unit_of_work as infra_module
 
     source = inspect.getsource(infra_module)
     assert "core.modules" not in source

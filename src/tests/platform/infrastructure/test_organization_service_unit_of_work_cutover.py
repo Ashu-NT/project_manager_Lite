@@ -28,7 +28,7 @@ from src.core.platform.domain.security.auth.session import (
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
     TenantORM,
 )
-from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWork,
 )
 from src.core.shared.events.view_invalidation import AllTenants, TenantScope
@@ -380,6 +380,7 @@ def test_migrated_create_and_update_remain_tenant_isolated(services):
         organization_repo=organization_service._organization_repo,
         uow_factory=organization_service._uow_factory,
         clock=organization_service._clock,
+        default_calendar_writer=organization_service._default_calendar_writer,
         user_session=ctx_b,
         enterprise_audit_service=organization_service._enterprise_audit_service,
         tenant_context_service=None,

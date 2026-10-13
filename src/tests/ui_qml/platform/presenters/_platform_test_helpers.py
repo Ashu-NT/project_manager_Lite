@@ -13,6 +13,7 @@ from src.core.platform.api.desktop.approval.models.approval import ApprovalReque
 from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentDto,
+    DepartmentPageDto,
     DepartmentRollupSummaryDto,
 )
 from src.core.platform.api.desktop.master_data.documents.models.document import (
@@ -25,6 +26,7 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeDepartmentBreakdownRowDto,
     EmployeeDto,
     EmployeeHeadcountSummaryDto,
+    EmployeePageDto,
     EmployeeSiteBreakdownRowDto,
 )
 from src.core.platform.api.desktop.master_data.org.models.organization import (
@@ -32,6 +34,7 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
 )
 from src.core.platform.api.desktop.master_data.party.models.party import (
     PartyDto,
+    PartyPageDto,
     PartyRollupSummaryDto,
 )
 from src.core.platform.api.desktop.master_data.site.models.site import (
@@ -68,6 +71,11 @@ from src.core.platform.domain.approval import ApprovalStatus
 from src.core.platform.domain.master_data.org import (
     ORGANIZATION_STATUS_ACTIVE,
     ORGANIZATION_STATUS_INACTIVE,
+)
+from src.core.platform.domain.master_data.party import (
+    PartyLifecycleStatus,
+    coerce_party_roles,
+    coerce_party_type,
 )
 
 
@@ -620,6 +628,38 @@ class FakePlatformDepartmentApi:
             ),
         )
 
+    def list_departments_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+        site_id: str | None = None,
+    ) -> DesktopApiResult[DepartmentPageDto]:
+        rows = [row for row in self._rows if row.organization_id == organization_id]
+        total = len(rows)
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        if site_id:
+            rows = [row for row in rows if row.site_id == site_id]
+        normalized_search = (search or "").strip().lower()
+        if normalized_search:
+            rows = [
+                row for row in rows
+                if normalized_search in row.name.lower() or normalized_search in row.department_code.lower()
+            ]
+        filtered_total = len(rows)
+        start = max(0, (page - 1) * page_size)
+        page_rows = rows[start:start + page_size]
+        return DesktopApiResult(
+            ok=True,
+            data=DepartmentPageDto(
+                items=tuple(page_rows), total=total, filtered_total=filtered_total, page=page, page_size=page_size,
+            ),
+        )
+
     def create_department(self, command) -> DesktopApiResult[DepartmentDto]:
         active_organization = self._runtime_api.get_runtime_context().data.active_organization
         department = DepartmentDto(
@@ -684,8 +724,12 @@ class FakePlatformDepartmentApi:
 
 
 class FakePlatformEmployeeApi:
-    def __init__(self, rows: tuple[EmployeeDto, ...]) -> None:
+    def __init__(self, rows: tuple[EmployeeDto, ...], runtime_api: FakePlatformRuntimeApi) -> None:
         self._rows = list(rows)
+        self._runtime_api = runtime_api
+
+    def get_context(self) -> DesktopApiResult[OrganizationDto]:
+        return DesktopApiResult(ok=True, data=self._runtime_api.get_runtime_context().data.active_organization)
 
     def list_employees(
         self,
@@ -709,6 +753,38 @@ class FakePlatformEmployeeApi:
             data=EmployeeHeadcountSummaryDto(
                 total=len(self._rows),
                 active=sum(1 for row in self._rows if row.is_active),
+            ),
+        )
+
+    def list_employees_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+        site_id: str | None = None,
+        department_id: str | None = None,
+    ) -> DesktopApiResult[EmployeePageDto]:
+        rows = [row for row in self._rows if row.organization_id == organization_id]
+        total = len(rows)
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        if site_id is not None:
+            rows = [row for row in rows if row.site_id == site_id]
+        if department_id is not None:
+            rows = [row for row in rows if row.department_id == department_id]
+        normalized_search = (search or "").strip().lower()
+        if normalized_search:
+            rows = [row for row in rows if normalized_search in row.full_name.lower()]
+        filtered_total = len(rows)
+        start = max(0, (page - 1) * page_size)
+        page_rows = rows[start:start + page_size]
+        return DesktopApiResult(
+            ok=True,
+            data=EmployeePageDto(
+                items=tuple(page_rows), total=total, filtered_total=filtered_total, page=page, page_size=page_size,
             ),
         )
 
@@ -747,8 +823,10 @@ class FakePlatformEmployeeApi:
         return DesktopApiResult(ok=True, data=rows)
 
     def create_employee(self, command) -> DesktopApiResult[EmployeeDto]:
+        active_organization = self._runtime_api.get_runtime_context().data.active_organization
         employee = EmployeeDto(
             id=f"emp-{len(self._rows) + 1}",
+            organization_id=active_organization.id,
             employee_code=command.employee_code,
             full_name=command.full_name,
             department_id=command.department_id,
@@ -759,7 +837,8 @@ class FakePlatformEmployeeApi:
             employment_type=command.employment_type,
             email=command.email,
             phone=command.phone,
-            is_active=command.is_active,
+            status="active",
+            is_active=True,
             version=1,
         )
         self._rows.append(employee)
@@ -967,6 +1046,28 @@ class FakePlatformPartyApi:
             rows = [row for row in rows if row.is_active == active_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
 
+    def list_parties_page_for_organization(
+        self, organization_id: str, *, page: int = 1, page_size: int = 25,
+        search: str = "", active_only: bool | None = None,
+        party_type: str | None = None, role: str | None = None,
+    ) -> DesktopApiResult[PartyPageDto]:
+        scoped = [row for row in self._rows if row.organization_id == organization_id]
+        rows = scoped
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        if search:
+            needle = search.casefold()
+            rows = [row for row in rows if needle in row.party_name.casefold() or needle in row.party_code.casefold()]
+        if party_type:
+            rows = [row for row in rows if str(row.party_type).casefold() == party_type.casefold()]
+        if role:
+            rows = [row for row in rows if role in row.roles]
+        start = (page - 1) * page_size
+        return DesktopApiResult(ok=True, data=PartyPageDto(
+            items=tuple(rows[start:start + page_size]), total=len(scoped),
+            filtered_total=len(rows), page=page, page_size=page_size,
+        ))
+
     def get_party_rollup_summary(self) -> DesktopApiResult[PartyRollupSummaryDto]:
         return DesktopApiResult(
             ok=True,
@@ -983,7 +1084,8 @@ class FakePlatformPartyApi:
             organization_id=active_organization.id if active_organization is not None else "org-1",
             party_code=command.party_code,
             party_name=command.party_name,
-            party_type=command.party_type,
+            party_type=coerce_party_type(command.party_type),
+            roles=coerce_party_roles(command.roles),
             legal_name=command.legal_name,
             contact_name=command.contact_name,
             email=command.email or "",
@@ -994,9 +1096,11 @@ class FakePlatformPartyApi:
             address_line_2=command.address_line_2,
             postal_code=command.postal_code,
             website=command.website,
-            tax_registration_number=command.tax_registration_number,
+            registration_number=command.registration_number,
+            tax_identifier=command.tax_identifier,
             external_reference=command.external_reference,
-            is_active=command.is_active,
+            status=PartyLifecycleStatus.ACTIVE.value,
+            is_active=True,
             created_at=None,
             updated_at=None,
             notes=command.notes,
@@ -1013,7 +1117,8 @@ class FakePlatformPartyApi:
                 row,
                 party_code=row.party_code if command.party_code is None else command.party_code,
                 party_name=row.party_name if command.party_name is None else command.party_name,
-                party_type=row.party_type if command.party_type is None else command.party_type,
+                party_type=row.party_type if command.party_type is None else coerce_party_type(command.party_type),
+                roles=row.roles if command.roles is None else coerce_party_roles(command.roles),
                 legal_name=row.legal_name if command.legal_name is None else command.legal_name,
                 contact_name=row.contact_name if command.contact_name is None else command.contact_name,
                 email=row.email if command.email is None else command.email,
@@ -1024,9 +1129,9 @@ class FakePlatformPartyApi:
                 address_line_2=row.address_line_2 if command.address_line_2 is None else command.address_line_2,
                 postal_code=row.postal_code if command.postal_code is None else command.postal_code,
                 website=row.website if command.website is None else command.website,
-                tax_registration_number=row.tax_registration_number if command.tax_registration_number is None else command.tax_registration_number,
+                registration_number=row.registration_number if command.registration_number is None else command.registration_number,
+                tax_identifier=row.tax_identifier if command.tax_identifier is None else command.tax_identifier,
                 external_reference=row.external_reference if command.external_reference is None else command.external_reference,
-                is_active=row.is_active if command.is_active is None else command.is_active,
                 notes=row.notes if command.notes is None else command.notes,
                 version=row.version + 1,
             )
@@ -1035,6 +1140,24 @@ class FakePlatformPartyApi:
         return DesktopApiResult(
             ok=False,
             error=DesktopApiError(code="party_not_found", message=f"Party '{command.party_id}' was not found.", category="not_found"),
+        )
+
+    def activate_party(self, party_id: str) -> DesktopApiResult[PartyDto]:
+        return self._transition_party_status(party_id, status=PartyLifecycleStatus.ACTIVE)
+
+    def deactivate_party(self, party_id: str) -> DesktopApiResult[PartyDto]:
+        return self._transition_party_status(party_id, status=PartyLifecycleStatus.INACTIVE)
+
+    def _transition_party_status(self, party_id: str, *, status: PartyLifecycleStatus) -> DesktopApiResult[PartyDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != party_id:
+                continue
+            updated = replace(row, status=status.value, is_active=status is PartyLifecycleStatus.ACTIVE, version=row.version + 1)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(code="party_not_found", message=f"Party '{party_id}' was not found.", category="not_found"),
         )
 
 
@@ -1426,12 +1549,12 @@ def build_connected_platform_registry() -> SimpleNamespace:
         DepartmentDto(id="dep-2", organization_id="org-1", department_code="OPS", name="Operations", description="Operations", site_id="site-2", parent_department_id=None, department_type="functional", cost_center_code="CC-2", head_of_department_employee_id=None, is_active=False, notes="", version=1),
     )
     employee_rows = (
-        EmployeeDto(id="emp-1", employee_code="E-001", full_name="Ada Lovelace", department_id="dep-1", department="Engineering", site_id="site-1", site_name="Berlin Campus", title="Engineer", employment_type="FULL_TIME", email="ada@example.com", phone=None, is_active=True, version=1),
-        EmployeeDto(id="emp-2", employee_code="E-002", full_name="Grace Hopper", department_id="dep-2", department="Operations", site_id="site-2", site_name="Dubai Yard", title="Manager", employment_type="CONTRACTOR", email="grace@example.com", phone=None, is_active=False, version=1),
+        EmployeeDto(id="emp-1", employee_code="E-001", full_name="Ada Lovelace", department_id="dep-1", department="Engineering", site_id="site-1", site_name="Berlin Campus", title="Engineer", employment_type="FULL_TIME", email="ada@example.com", phone=None, status="active", is_active=True, version=1, organization_id="org-1"),
+        EmployeeDto(id="emp-2", employee_code="E-002", full_name="Grace Hopper", department_id="dep-2", department="Operations", site_id="site-2", site_name="Dubai Yard", title="Manager", employment_type="CONTRACTOR", email="grace@example.com", phone=None, status="inactive", is_active=False, version=1, organization_id="org-1"),
     )
     site_api = FakePlatformSiteApi(runtime_api=runtime_api, rows=site_rows)
     department_api = FakePlatformDepartmentApi(runtime_api=runtime_api, site_api=site_api, rows=department_rows)
-    employee_api = FakePlatformEmployeeApi(employee_rows)
+    employee_api = FakePlatformEmployeeApi(employee_rows, runtime_api)
     role_rows = (
         RoleDto(id="role-1", name="admin", description="Platform administrators", is_system=True),
         RoleDto(id="role-2", name="viewer", description="Read-only observers", is_system=False),
@@ -1471,8 +1594,8 @@ def build_connected_platform_registry() -> SimpleNamespace:
     )
     document_api = FakePlatformDocumentApi(runtime_api=runtime_api, rows=document_rows, structure_rows=document_structure_rows, link_rows=document_link_rows)
     party_rows = (
-        PartyDto(id="party-1", organization_id="org-1", party_code="SUP-001", party_name="Acme Supply", party_type="SUPPLIER", legal_name="Acme Supply Ltd", contact_name="John Doe", email="contact@acme.example", phone="123", country="DE", city="Berlin", address_line_1="Street 3", address_line_2="", postal_code="10115", website="https://acme.example", tax_registration_number="TAX-1", external_reference="EXT-1", is_active=True, created_at=None, updated_at=None, notes="", version=1),
-        PartyDto(id="party-2", organization_id="org-1", party_code="CUS-001", party_name="Northwind", party_type="CUSTOMER", legal_name="Northwind GmbH", contact_name="Jane Doe", email="contact@northwind.example", phone="456", country="DE", city="Hamburg", address_line_1="Street 4", address_line_2="", postal_code="20095", website="https://northwind.example", tax_registration_number="TAX-2", external_reference="EXT-2", is_active=False, created_at=None, updated_at=None, notes="", version=1),
+        PartyDto(id="party-1", organization_id="org-1", party_code="SUP-001", party_name="Acme Supply", party_type=coerce_party_type("ORGANIZATION"), roles=coerce_party_roles("SUPPLIER"), legal_name="Acme Supply Ltd", contact_name="John Doe", email="contact@acme.example", phone="123", country="DE", city="Berlin", address_line_1="Street 3", address_line_2="", postal_code="10115", website="https://acme.example", registration_number="REG-1", tax_identifier="TAX-1", external_reference="EXT-1", status=PartyLifecycleStatus.ACTIVE.value, is_active=True, created_at=None, updated_at=None, notes="", version=1),
+        PartyDto(id="party-2", organization_id="org-1", party_code="CUS-001", party_name="Northwind", party_type=coerce_party_type("ORGANIZATION"), roles=coerce_party_roles("CUSTOMER"), legal_name="Northwind GmbH", contact_name="Jane Doe", email="contact@northwind.example", phone="456", country="DE", city="Hamburg", address_line_1="Street 4", address_line_2="", postal_code="20095", website="https://northwind.example", registration_number="REG-2", tax_identifier="TAX-2", external_reference="EXT-2", status=PartyLifecycleStatus.INACTIVE.value, is_active=False, created_at=None, updated_at=None, notes="", version=1),
     )
     party_api = FakePlatformPartyApi(runtime_api=runtime_api, rows=party_rows)
     approval_rows = (

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 
 def fmt_period_axis_label(
@@ -31,7 +31,7 @@ def period_cutoff_datetime(selected_period_key: str) -> datetime | None:
     cutoff = period_cutoff_date(selected_period_key)
     if cutoff is None:
         return None
-    return datetime.combine(cutoff, datetime.min.time(), tzinfo=timezone.utc)
+    return datetime.combine(cutoff, datetime.min.time(), tzinfo=UTC)
 
 
 __all__ = ["fmt_period_axis_label", "period_cutoff_date", "period_cutoff_datetime"]

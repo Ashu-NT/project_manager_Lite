@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from datetime import UTC
 
 import pytest
 
@@ -65,6 +66,14 @@ def _login_as_fresh_requester(services) -> None:
     username = _unique("viewinv-requester")
     services["auth_service"].register_user(username, "StrongPass123", role_names=["planner"])
     _login(services, username, "StrongPass123")
+
+
+def _login_as_scoped_approver(services) -> None:
+    organization_id = services["tenant_context_service"].get_active_organization_id()
+    username = _unique("viewinv-approver")
+    services["auth_service"].register_user(username, "StrongPass123", role_names=["approver"])
+    _login(services, username, "StrongPass123")
+    services["user_session"].set_active_organization_id(organization_id)
 
 
 def _submitted_budget(services, session):
@@ -302,6 +311,7 @@ def test_approve_and_apply_refreshes_control_workspace_exactly_once_no_legacy_si
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     refresh_calls.clear()
+    _login_as_scoped_approver(services)
 
     decided = services["approval_service"].approve_and_apply(request.id, note="Approved")
 
@@ -318,6 +328,7 @@ def test_reject_refreshes_control_workspace_exactly_once(services, session):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     refresh_calls.clear()
+    _login_as_scoped_approver(services)
 
     decided = services["approval_service"].reject(request.id, note="Rejected")
 
@@ -694,7 +705,7 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
     from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
         SqlAlchemyApprovalRepository,
     )
-    from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.approval.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWorkFactory,
     )
     from src.infra.events.in_process_post_commit_event_bus import (
@@ -707,9 +718,9 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
 
     class _FixedClock:
         def now(self):
-            from datetime import datetime, timezone
+            from datetime import datetime
 
-            return datetime(2031, 1, 1, tzinfo=timezone.utc)
+            return datetime(2031, 1, 1, tzinfo=UTC)
 
     class _FakeTenantContextService:
         def __init__(self, tenant_id, organization_id):
@@ -795,6 +806,7 @@ def test_apply_handler_failure_produces_zero_ui_refresh(services, session):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     refresh_calls.clear()
+    _login_as_scoped_approver(services)
     approvals = services["approval_service"]
 
     def _failing_handler(request, deps):
@@ -822,6 +834,7 @@ def test_reject_handler_failure_produces_zero_ui_refresh(services, session):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     refresh_calls.clear()
+    _login_as_scoped_approver(services)
     approvals = services["approval_service"]
 
     def _failing_reject_handler(request, deps):
@@ -870,7 +883,7 @@ def test_audit_failure_produces_zero_ui_refresh(services):
 
 
 def test_commit_failure_produces_zero_ui_refresh(services):
-    from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.approval.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWork,
     )
 

@@ -9,6 +9,9 @@ from src.core.modules.project_management.api.desktop.register.models.options imp
     RegisterEntryTypeDescriptor,
     RegisterProjectOptionDescriptor,
 )
+from src.core.modules.project_management.application.projects.service import (
+    ProjectService,
+)
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
@@ -17,7 +20,7 @@ from src.core.modules.project_management.domain.risk.register import (
 
 
 def build_project_options(
-    project_service: object | None = None,
+    project_service: ProjectService | None = None,
 ) -> tuple[RegisterProjectOptionDescriptor, ...]:
     if project_service is None:
         return ()

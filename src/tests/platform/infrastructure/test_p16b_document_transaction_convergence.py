@@ -10,7 +10,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.document_unit_of_work import (
     SqlAlchemyDocumentUnitOfWork,
 )
 
@@ -571,7 +571,7 @@ def test_no_raw_session_commit_in_document_mutation_paths():
 def test_document_uow_uses_named_repositories_only():
     import inspect
 
-    import src.core.platform.infrastructure.persistence.uow.document_unit_of_work as infra_module
+    import src.core.platform.infrastructure.persistence.uow.master_data.document_unit_of_work as infra_module
 
     source = inspect.getsource(infra_module)
     assert "repository_for(" not in source
@@ -585,7 +585,7 @@ def test_document_uow_uses_named_repositories_only():
 def test_no_platform_to_business_module_concrete_infrastructure_import():
     import inspect
 
-    import src.core.platform.infrastructure.persistence.uow.document_unit_of_work as infra_module
+    import src.core.platform.infrastructure.persistence.uow.master_data.document_unit_of_work as infra_module
 
     source = inspect.getsource(infra_module)
     assert "core.modules" not in source

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import inspect
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -22,7 +22,7 @@ from src.core.platform.infrastructure.persistence.repositories.history.audit.aud
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyRoleBindingRepository,
 )
-from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.tenancy.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWork,
 )
 
@@ -60,7 +60,7 @@ def _issue_and_accept(services, *, username: str):
     admin_principal = services["user_session"].principal
     target = _register_user(services, username)
     issued = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     _set_user_principal(services, target.username)
     accepted = membership_service.accept_invitation(issued.token)
@@ -87,7 +87,7 @@ def test_fresh_session_per_membership_command(services, monkeypatch):
     monkeypatch.setattr(type(membership_service._uow_factory), "create", _spy_create)
 
     membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     membership_service.revoke_invitation(target.id)
 
@@ -113,7 +113,7 @@ def test_repositories_and_audit_share_the_uow_session(services, monkeypatch):
     monkeypatch.setattr(type(membership_service._uow_factory), "create", _spy_create)
 
     membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
 
     assert seen["uow_session"] is seen["role_bindings_session"]
@@ -128,7 +128,7 @@ def test_no_global_mutation_session_touch(services):
     legacy_session.commit()
 
     membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
 
     assert len(legacy_session.new) == 0
@@ -164,7 +164,7 @@ def test_acceptance_audit_failure_rolls_back_membership_and_binding_with_zero_ob
     target = _register_user(services, _unique_code("p5d1-accept-audit-fail"))
     tenant_id = _tenant_id(services)
     issued = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     _set_user_principal(services, target.username)
 
@@ -197,7 +197,7 @@ def test_acceptance_commit_failure_leaves_zero_observable_event(services, monkey
 
     target = _register_user(services, _unique_code("p5d1-accept-commit-fail"))
     issued = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     _set_user_principal(services, target.username)
 

@@ -16,6 +16,8 @@ class CollaborationInboxItem:
     mentions: list[str]
     created_at: datetime
     unread: bool = True
+    is_deleted: bool = False
+    deleted_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)

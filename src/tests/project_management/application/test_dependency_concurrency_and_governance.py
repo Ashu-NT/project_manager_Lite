@@ -21,6 +21,14 @@ def _login(services, username: str, password: str):
     user_session.set_principal(auth.build_principal(user))
 
 
+def _login_eligible_reviewer(services):
+    _login(services, "admin", "ChangeMe123!")
+    services["auth_service"].register_user(
+        "dependency-reviewer", "StrongPass123", role_names=["approver"]
+    )
+    _login(services, "dependency-reviewer", "StrongPass123")
+
+
 def _make_two_tasks(services):
     ps = services["project_service"]
     ts = services["task_service"]
@@ -136,6 +144,7 @@ class TestUpdateOptimisticConcurrency:
         ts.update_dependency(dep.id, lag_days=7)
         assert ts.get_dependency(dep.id).version == 2
 
+        _login_eligible_reviewer(services)
         with pytest.raises(ConcurrencyError):
             approvals.approve_and_apply(req.id)
 
@@ -168,7 +177,7 @@ class TestUpdateGovernanceParity:
         req = approvals.list_pending(project_id=project.id)[0]
         assert req.request_type == "dependency.update"
 
-        _login(services, "admin", "ChangeMe123!")
+        _login_eligible_reviewer(services)
         approvals.approve_and_apply(req.id)
 
         assert ts.get_dependency(dep.id).lag_days == 3
@@ -210,7 +219,7 @@ class TestUpdateValidation:
         existing = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
         unrelated = ts.add_dependency(a.id, c.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-        diagnostic = ts.get_dependency_diagnostics(
+        diagnostic = services["task_dependency_diagnostics"].get_dependency_diagnostics(
             predecessor_id=a.id,
             successor_id=b.id,
             dependency_type=DependencyType.START_TO_START,
@@ -222,7 +231,7 @@ class TestUpdateValidation:
         assert diagnostic.code == "DEPENDENCY_DUPLICATE"
 
         # Excluding the edge's OWN id is what makes updating it possible.
-        diagnostic_self_excluded = ts.get_dependency_diagnostics(
+        diagnostic_self_excluded = services["task_dependency_diagnostics"].get_dependency_diagnostics(
             predecessor_id=a.id,
             successor_id=b.id,
             dependency_type=DependencyType.START_TO_START,

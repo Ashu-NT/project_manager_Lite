@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
+from typing import ClassVar
 
 import matplotlib.dates as mdates
 import matplotlib.patches as mpatches
@@ -17,7 +18,7 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
 
 
 class GanttPngRenderer:
-    _STATUS_COLORS = {
+    _STATUS_COLORS: ClassVar[dict[str, str]] = {
         "DONE": "#16A34A",
         "IN_PROGRESS": "#2563EB",
         "BLOCKED": "#B91C1C",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -13,7 +13,7 @@ from src.ui_qml.modules.project_management.presenters.financials.governance.audi
 def _entry(**overrides) -> SimpleNamespace:
     fields = dict(
         id="audit-1",
-        timestamp=datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 3, 5, 14, 30, tzinfo=UTC),
         operation="project_budget.approve",
         entity_type="project_budget",
         actor_username="Finance Manager",

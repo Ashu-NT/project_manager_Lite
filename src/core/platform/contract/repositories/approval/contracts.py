@@ -6,6 +6,22 @@ from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 
 
 class ApprovalRepository(ABC):
+    def eligible_request_ids(self, request_ids: tuple[str, ...], user_id: str) -> frozenset[str]:
+        """Bounded eligibility projection for a page of approval requests."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_reviewer_eligible(self, request_id: str, user_id: str) -> bool:
+        """Recheck persisted pending state, membership and target-covered grant."""
+        ...
+
+    @abstractmethod
+    def list_notification_recipient_ids(
+        self, request_id: str, *, audience: str, after_user_id: str = "", limit: int = 100,
+    ) -> tuple[str, ...]:
+        """Resolve recipients from persisted scope and active target-covered grants."""
+        ...
+
     @abstractmethod
     def add(self, request: ApprovalRequest) -> None: ...
 

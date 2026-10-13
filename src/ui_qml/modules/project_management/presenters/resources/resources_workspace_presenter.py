@@ -152,8 +152,6 @@ class ProjectResourcesWorkspacePresenter:
         return build_resource_activity_page(
             self._desktop_api,
             resource_id,
-            user_api=self._user_api,
-            employee_api=self._employee_api,
             **query,
         )
 

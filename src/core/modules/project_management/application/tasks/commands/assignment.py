@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-
-from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -12,12 +11,27 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common import (
     project_resource_envelope_policy as envelope_policy,
 )
+from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
+    EnterpriseResourceAvailabilityService,
+)
+from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
+    AssignmentSkillValidator,
+)
 from src.core.modules.project_management.application.tasks.commands.assignment_activity import (
     record_assignment_action,
+)
+from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
+    TaskHierarchyPolicy,
+)
+from src.core.modules.project_management.application.tasks.commands.validation import (
+    TaskValidationPolicy,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskAssignmentChanged,
     TaskAssignmentChangeType,
+)
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
 )
 from src.core.modules.project_management.contracts.reads.tasks.models import (
     TaskResourceTimeBreakdownRow,
@@ -33,6 +47,8 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     AssignmentRepository,
     TaskRepository,
 )
+from src.core.modules.project_management.domain.projects.project import ProjectResource
+from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from src.core.platform.application.security.authorization import (
     get_authorization_engine,
@@ -40,13 +56,22 @@ from src.core.platform.application.security.authorization import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
     OperationNotPermittedError,
     ValidationError,
 )
-from src.core.shared.notifications import safe_dispatch_notification
+from src.core.platform.contract.repositories.master_data.employee.contracts import (
+    EmployeeRepository,
+)
+from src.core.platform.contract.repositories.time_management.time.contracts import (
+    TimeEntryRepository,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 @dataclass(frozen=True)
@@ -56,12 +81,41 @@ class TaskAssignmentActionContext:
     can_decline: bool
 
 
-class TaskAssignmentMixin:
-    _session: Session
-    _task_repo: TaskRepository
-    _assignment_repo: AssignmentRepository
-    _resource_repo: ResourceRepository
-    _project_resource_repo: ProjectResourceRepository | None
+class TaskAssignmentCommandHandler:
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        assignment_repo: AssignmentRepository,
+        resource_repo: ResourceRepository,
+        project_resource_repo: ProjectResourceRepository | None,
+        time_entry_repo: TimeEntryRepository | None,
+        employee_repo: EmployeeRepository | None,
+        user_session: UserSessionContext | None,
+        tenant_context_service: TenantContextService,
+        hierarchy_policy: TaskHierarchyPolicy,
+        validation_policy: TaskValidationPolicy,
+        assignment_skill_validator: AssignmentSkillValidator | None,
+        enterprise_resource_availability_service: EnterpriseResourceAvailabilityService | None,
+        uow_scope: TaskUowScope,
+        overallocation_policy: str,
+    ) -> None:
+        self._task_repo = task_repo
+        self._assignment_repo = assignment_repo
+        self._resource_repo = resource_repo
+        self._project_resource_repo = project_resource_repo
+        self._time_entry_repo = time_entry_repo
+        self._employee_repo = employee_repo
+        self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
+        self._hierarchy_policy = hierarchy_policy
+        self._validation_policy = validation_policy
+        self._assignment_skill_validator = assignment_skill_validator
+        self._enterprise_resource_availability_service = enterprise_resource_availability_service
+        self._uow_scope = uow_scope
+        self._overallocation_policy = overallocation_policy
+        self._last_overallocation_warning: str | None = None
+        self._last_skill_violation_warning: str | None = None
 
     def _require_manage(self, operation_label: str, *, project_id: str | None = None) -> None:
         require_permission(self._user_session, "task.manage", operation_label=operation_label)
@@ -72,6 +126,36 @@ class TaskAssignmentMixin:
                 "task.manage",
                 operation_label=operation_label,
             )
+
+    def _check_resource_overallocation(
+        self,
+        project_id: str,
+        resource_id: str,
+        new_task_id: str,
+        new_alloc_percent: float,
+        exclude_assignment_id: str | None = None,
+    ) -> str | None:
+        self._last_overallocation_warning = None
+        warning = self._validation_policy.check_resource_overallocation(
+            project_id,
+            resource_id,
+            new_task_id,
+            new_alloc_percent,
+            exclude_assignment_id,
+            overallocation_policy=self._overallocation_policy,
+        )
+        self._last_overallocation_warning = warning
+        return warning
+
+    def consume_last_overallocation_warning(self) -> str | None:
+        warning = self._last_overallocation_warning
+        self._last_overallocation_warning = None
+        return warning
+
+    def consume_last_skill_violation_warning(self) -> str | None:
+        warning = self._last_skill_violation_warning
+        self._last_skill_violation_warning = None
+        return warning
 
     def unassign_resource(self, assignment_id: str) -> None:
         assignment = self._assignment_repo.get(assignment_id)
@@ -92,11 +176,12 @@ class TaskAssignmentMixin:
                 code="ASSIGNMENT_HAS_HISTORICAL_ACTUALS",
             )
         resource = self._resource_repo.get(assignment.resource_id)
-        scope = self._active_task_scope(operation_label="remove assignment")
-        with self._task_uow() as uow:
-            time_entry_repo = getattr(self, "_time_entry_repo", None)
-            if time_entry_repo is not None:
-                time_entry_repo.delete_by_assignment(assignment.id)
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="remove assignment"
+        )
+        with self._uow_scope.create() as uow:
+            if uow.time_entries is not None:
+                uow.time_entries.delete_by_assignment(assignment.id)
             uow.assignments.delete_with_version_check(
                 assignment_id, expected_version=assignment.version
             )
@@ -120,7 +205,7 @@ class TaskAssignmentMixin:
                     assignment_id=assignment.id,
                     resource_id=assignment.resource_id,
                     change_type=TaskAssignmentChangeType.UNASSIGNED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -142,12 +227,12 @@ class TaskAssignmentMixin:
         """Task-scoped (never resource-wide) planned/actual/remaining/overrun totals,
         plus the per-resource breakdown that explains them."""
         assignments = self.list_assignments_for_task(task_id)
-        resources_by_id = {
-            r.id: r
-            for r in self._resource_repo.list_by_ids(
-                list({a.resource_id for a in assignments})
-            )
-        } if assignments else {}
+        resources: list[Resource] = (
+            self._resource_repo.list_by_ids(list({a.resource_id for a in assignments}))
+            if assignments
+            else []
+        )
+        resources_by_id = {resource.id: resource for resource in resources}
 
         rows: list[TaskResourceTimeBreakdownRow] = []
         planned_total = Decimal(0)
@@ -190,7 +275,7 @@ class TaskAssignmentMixin:
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
-        time_entry_repo = getattr(self, "_time_entry_repo", None)
+        time_entry_repo = self._time_entry_repo
         if time_entry_repo is not None and time_entry_repo.list_by_assignment(assignment_id):
             raise ValidationError(
                 "This assignment already uses timesheet entries. Edit the timesheet instead of the aggregate hours."
@@ -201,8 +286,10 @@ class TaskAssignmentMixin:
         self._require_manage("log assignment hours", project_id=task.project_id)
         candidate = replace(assignment, hours_logged=hours_logged)
         resource = self._resource_repo.get(assignment.resource_id)
-        scope = self._active_task_scope(operation_label="log assignment hours")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="log assignment hours"
+        )
+        with self._uow_scope.create() as uow:
             updated = uow.assignments.update_hours_logged_with_version_check(
                 candidate, expected_version=assignment.version
             )
@@ -227,7 +314,7 @@ class TaskAssignmentMixin:
                     assignment_id=updated.id,
                     resource_id=updated.resource_id,
                     change_type=TaskAssignmentChangeType.HOURS_CHANGED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -259,8 +346,10 @@ class TaskAssignmentMixin:
         )
 
         resource = self._resource_repo.get(assignment.resource_id)
-        scope = self._active_task_scope(operation_label="set assignment allocation")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="set assignment allocation"
+        )
+        with self._uow_scope.create() as uow:
             updated = uow.assignments.update_allocation_with_version_check(
                 candidate, expected_version=expected_version
             )
@@ -285,7 +374,7 @@ class TaskAssignmentMixin:
                     assignment_id=updated.id,
                     resource_id=updated.resource_id,
                     change_type=TaskAssignmentChangeType.ALLOCATION_CHANGED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -342,8 +431,10 @@ class TaskAssignmentMixin:
 
         candidate = replace(assignment, allocated_planned_hours=proposed_hours)
         resource = self._resource_repo.get(assignment.resource_id)
-        scope = self._active_task_scope(operation_label="update assignment planned hours")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="update assignment planned hours"
+        )
+        with self._uow_scope.create() as uow:
             updated = uow.assignments.update_planned_hours_with_version_check(
                 candidate, expected_version=expected_assignment_version
             )
@@ -376,7 +467,7 @@ class TaskAssignmentMixin:
                     assignment_id=updated.id,
                     resource_id=updated.resource_id,
                     change_type=TaskAssignmentChangeType.PLANNED_HOURS_CHANGED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -427,6 +518,50 @@ class TaskAssignmentMixin:
         )
         return assignment
 
+    def assign_resource(
+        self, task_id: str, resource_id: str, allocation_percent: float = 100.0
+    ) -> TaskAssignment:
+        """Auto-provision the ProjectResource envelope, then use the canonical assignment path."""
+        self._require_manage("add assignment")
+        task = self._task_repo.get(task_id)
+        if task is None:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        self._require_manage("add assignment", project_id=task.project_id)
+        self._hierarchy_policy._require_leaf_task(
+            task, operation_label="receive resource assignments"
+        )
+        if self._project_resource_repo is None:
+            raise BusinessRuleError(
+                "Project resource repository is not configured.",
+                code="PROJECT_RESOURCE_REPO_MISSING",
+            )
+        resource = self._resource_repo.get(resource_id)
+        if resource is None:
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        assignment = TaskAssignment.create(task_id, resource_id, allocation_percent)
+
+        with self._uow_scope.create() as uow:
+            project_resource = uow.project_resources.get_for_project(task.project_id, resource_id)
+            if project_resource is None:
+                project_resource = ProjectResource.create(
+                    project_id=task.project_id,
+                    resource_id=resource_id,
+                    hourly_rate=getattr(resource, "hourly_rate", None),
+                    currency_code=getattr(resource, "currency_code", None),
+                    planned_hours=Decimal(0),
+                    is_active=bool(getattr(resource, "is_active", True)),
+                )
+                uow.project_resources.add(project_resource)
+
+            return self._assign_project_resource_in_uow(
+                task_id=task_id,
+                project_resource_id=project_resource.id,
+                allocation_percent=assignment.allocation_percent,
+                allocated_planned_hours=Decimal(0),
+                uow=uow,
+                project_resource=project_resource,
+            )
+
     def assign_project_resource(
         self,
         task_id: str,
@@ -434,6 +569,31 @@ class TaskAssignmentMixin:
         allocation_percent: float,
         *,
         allocated_planned_hours: Decimal = Decimal(0),
+    ) -> TaskAssignment:
+        with self._uow_scope.create() as uow:
+            project_resource = uow.project_resources.get(project_resource_id)
+            if not project_resource:
+                raise NotFoundError(
+                    "Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND"
+                )
+            return self._assign_project_resource_in_uow(
+                task_id=task_id,
+                project_resource_id=project_resource_id,
+                allocation_percent=allocation_percent,
+                allocated_planned_hours=allocated_planned_hours,
+                project_resource=project_resource,
+                uow=uow,
+            )
+
+    def _assign_project_resource_in_uow(
+        self,
+        task_id: str,
+        project_resource_id: str,
+        allocation_percent: float,
+        *,
+        allocated_planned_hours: Decimal,
+        project_resource: ProjectResource,
+        uow,
     ) -> TaskAssignment:
         if not self._project_resource_repo:
             raise BusinessRuleError(
@@ -445,11 +605,9 @@ class TaskAssignmentMixin:
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         self._require_manage("add assignment", project_id=task.project_id)
-        self._require_leaf_task(task, operation_label="receive resource assignments")
-
-        project_resource = self._project_resource_repo.get(project_resource_id)
-        if not project_resource:
-            raise NotFoundError("Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND")
+        self._hierarchy_policy._require_leaf_task(
+            task, operation_label="receive resource assignments"
+        )
 
         if project_resource.project_id != task.project_id:
             raise BusinessRuleError(
@@ -498,9 +656,11 @@ class TaskAssignmentMixin:
         )
         self._check_resource_skill_requirements(task=task, resource_id=project_resource.resource_id)
         resource = resource_for_check
-        scope = self._active_task_scope(operation_label="add assignment")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="add assignment"
+        )
 
-        with self._task_uow() as uow:
+        with nullcontext(uow):
             uow.assignments.add(assignment)
             record_assignment_action(
                 uow,
@@ -526,17 +686,16 @@ class TaskAssignmentMixin:
                     assignment_id=assignment.id,
                     resource_id=assignment.resource_id,
                     change_type=TaskAssignmentChangeType.ASSIGNED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
 
-        self._notify_task_assigned(task=task, resource=resource)
         return assignment
 
     def _check_resource_skill_requirements(self, *, task, resource_id: str) -> None:
         self._last_skill_violation_warning = None
-        validator = getattr(self, "_assignment_skill_validator", None)
+        validator = self._assignment_skill_validator
         if validator is None:
             return
         result = validator.validate(task, resource_id)
@@ -562,10 +721,11 @@ class TaskAssignmentMixin:
             operation_label="respond to task assignment",
         )
         resource = self._resource_repo.get(assignment.resource_id)
-        employee_repo = getattr(self, "_employee_repo", None)
+        employee_repo = self._employee_repo
         employee = None
-        if resource is not None and employee_repo is not None and getattr(resource, "employee_id", None):
-            employee = employee_repo.get(resource.employee_id)
+        employee_id = getattr(resource, "employee_id", None) if resource is not None else None
+        if employee_repo is not None and employee_id:
+            employee = employee_repo.get(employee_id)
         assignee_user_id = getattr(employee, "user_id", None) if employee is not None else None
         if not assignee_user_id:
             raise BusinessRuleError(
@@ -603,14 +763,14 @@ class TaskAssignmentMixin:
             "task.read",
             operation_label="preview assignment capacity",
         )
-        availability_service = getattr(self, "_enterprise_resource_availability_service", None)
+        availability_service = self._enterprise_resource_availability_service
         if availability_service is None:
             return None
         task_start = getattr(task, "start_date", None)
         task_end = getattr(task, "end_date", None)
         if not task_start or not task_end:
             return None
-        from src.core.modules.project_management.application.resources.task_assignment_capacity_service import (
+        from src.core.modules.project_management.application.resources.capacity.task_assignment_capacity_service import (
             evaluate_task_assignment_capacity,
         )
 
@@ -666,14 +826,11 @@ class TaskAssignmentMixin:
         )
         principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
         resource = self._resource_repo.get(assignment.resource_id)
-        employee_repo = getattr(self, "_employee_repo", None)
+        employee_repo = self._employee_repo
         employee = None
-        if (
-            resource is not None
-            and employee_repo is not None
-            and getattr(resource, "employee_id", None)
-        ):
-            employee = employee_repo.get(resource.employee_id)
+        employee_id = getattr(resource, "employee_id", None) if resource is not None else None
+        if employee_repo is not None and employee_id:
+            employee = employee_repo.get(employee_id)
         assignee_user_id = str(getattr(employee, "user_id", "") or "").strip()
         can_respond = bool(
             can_read
@@ -699,10 +856,12 @@ class TaskAssignmentMixin:
         candidate = replace(
             assignment,
             response_status="accepted",
-            responded_at=datetime.now(timezone.utc),
+            responded_at=datetime.now(UTC),
         )
-        scope = self._active_task_scope(operation_label="accept assignment")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="accept assignment"
+        )
+        with self._uow_scope.create() as uow:
             updated = uow.assignments.update_response_status_with_version_check(
                 candidate, expected_version=assignment.version
             )
@@ -726,7 +885,7 @@ class TaskAssignmentMixin:
                     assignment_id=updated.id,
                     resource_id=updated.resource_id,
                     change_type=TaskAssignmentChangeType.ACCEPTED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -748,10 +907,12 @@ class TaskAssignmentMixin:
         candidate = replace(
             assignment,
             response_status="declined",
-            responded_at=datetime.now(timezone.utc),
+            responded_at=datetime.now(UTC),
         )
-        scope = self._active_task_scope(operation_label="decline assignment")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="decline assignment"
+        )
+        with self._uow_scope.create() as uow:
             updated = uow.assignments.update_response_status_with_version_check(
                 candidate, expected_version=assignment.version
             )
@@ -776,30 +937,11 @@ class TaskAssignmentMixin:
                     assignment_id=updated.id,
                     resource_id=updated.resource_id,
                     change_type=TaskAssignmentChangeType.DECLINED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
         return updated
 
-    def _notify_task_assigned(self, *, task, resource) -> None:
-        if resource is None or not getattr(resource, "employee_id", None):
-            return
-        employee_repo = getattr(self, "_employee_repo", None)
-        if employee_repo is None:
-            return
-        employee = employee_repo.get(resource.employee_id)
-        if employee is None or not getattr(employee, "user_id", None):
-            return
-        task_name = getattr(task, "name", "") or task.id
-        safe_dispatch_notification(
-            self,
-            recipient_user_id=employee.user_id,
-            category="pm.task.assigned.v1",
-            title="You were assigned a task",
-            body=f'You were assigned to "{task_name}".',
-            metadata={"task_id": task.id, "project_id": task.project_id},
-        )
 
-
-__all__ = ["TaskAssignmentActionContext", "TaskAssignmentMixin"]
+__all__ = ["TaskAssignmentActionContext", "TaskAssignmentCommandHandler"]

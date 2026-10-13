@@ -23,10 +23,8 @@ from src.core.platform.api.desktop.history.activity.activity import (
 from src.core.platform.api.desktop.history.activity.models.activity import (
     ActivityEntryDto,
 )
-from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.platform.presenters.common.activity_presenter_support import (
     ACTIVITY_DATE_FILTER_OPTIONS,
-    build_actor_lookup,
     since_for_date_range,
     split_human_message,
 )
@@ -53,10 +51,8 @@ class PlatformSiteActivityPresenter:
         self,
         *,
         activity_api: PlatformActivityDesktopApi | None = None,
-        user_api: PlatformUserDesktopApi | None = None,
     ) -> None:
         self._activity_api = activity_api
-        self._user_api = user_api
 
     def build_recent_activity(
         self, site_id: str, organization_id: str, *, limit: int = 5
@@ -66,9 +62,8 @@ class PlatformSiteActivityPresenter:
         entries = self._activity_api.list_for_entity_overview(
             "site", site_id, organization_id, limit=limit
         )
-        actor_lookup = build_actor_lookup(self._user_api)
         return serialize_activity_items(
-            self._to_item(entry, actor_lookup=actor_lookup) for entry in entries
+            self._to_item(entry) for entry in entries
         )
 
     def build_activity_page_for_site(
@@ -102,8 +97,7 @@ class PlatformSiteActivityPresenter:
             return self._empty_result(page=page, page_size=page_size, message=message)
 
         entry_page = result.data
-        actor_lookup = build_actor_lookup(self._user_api)
-        items = [self._to_item(entry, actor_lookup=actor_lookup) for entry in entry_page.items]
+        items = [self._to_item(entry) for entry in entry_page.items]
         return {
             "items": serialize_activity_items(items),
             "page": entry_page.page,
@@ -127,16 +121,13 @@ class PlatformSiteActivityPresenter:
         }
 
     def _to_item(
-        self, entry: ActivityEntryDto, *, actor_lookup: dict[str, str]
+        self, entry: ActivityEntryDto
     ) -> ActivityItemViewModel:
         title, remainder = split_human_message(entry.human_message or "")
         if not title or title == entry.action or "." in title:
             title = humanize_action(entry.action)
 
-        if not entry.actor_id:
-            actor_display = "System"
-        else:
-            actor_display = actor_lookup.get(entry.actor_id) or "Deleted user"
+        actor_display = entry.actor_display
 
         tone = _ACTIVITY_TONE_OVERRIDE.get(entry.action) or tone_for_action(entry.action)
 

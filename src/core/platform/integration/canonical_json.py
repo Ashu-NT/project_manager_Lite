@@ -4,7 +4,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import asdict, is_dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -18,7 +18,7 @@ def _json_default(value: object) -> object:
         return asdict(value)
     if isinstance(value, datetime):
         if value.tzinfo is not None:
-            value = value.astimezone(timezone.utc)
+            value = value.astimezone(UTC)
         return value.isoformat()
     if isinstance(value, date):
         return value.isoformat()

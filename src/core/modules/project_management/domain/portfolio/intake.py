@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -86,8 +86,8 @@ class PortfolioIntakeItem:
     urgency_weight: int = 2
     risk_weight: int = 1
     status: PortfolioIntakeStatus = PortfolioIntakeStatus.PROPOSED
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: int = 1
 
     @field_validator("organization_id", mode="before")
@@ -272,7 +272,7 @@ class PortfolioIntakeItem:
         risk_weight: int = 1,
         status: PortfolioIntakeStatus = PortfolioIntakeStatus.PROPOSED,
     ) -> PortfolioIntakeItem:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return PortfolioIntakeItem(
             id=generate_id(),
             organization_id=organization_id,

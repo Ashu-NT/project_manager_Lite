@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+import logging
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.domain.collaboration import (
     TaskComment,
@@ -12,11 +13,13 @@ from src.core.modules.project_management.infrastructure.persistence.orm.collabor
     TaskPresenceORM,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def _coerce_utc_datetime(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def task_comment_to_orm(comment: TaskComment) -> TaskCommentORM:
@@ -38,6 +41,7 @@ def task_comment_to_orm(comment: TaskComment) -> TaskCommentORM:
         deleted_by_user_id=comment.deleted_by_user_id,
         deletion_reason=comment.deletion_reason,
         reactions_json=json.dumps(dict(comment.reactions or {})),
+        submission_hash=comment.submission_hash,
         version=comment.version,
     )
 
@@ -47,6 +51,7 @@ def task_comment_from_orm(obj: TaskCommentORM) -> TaskComment:
         try:
             data = json.loads(value or "[]")
         except Exception:
+            logger.exception("Failed to decode JSON value: %s", value)
             return []
         if not isinstance(data, list):
             return []
@@ -70,6 +75,7 @@ def task_comment_from_orm(obj: TaskCommentORM) -> TaskComment:
         deleted_by_user_id=obj.deleted_by_user_id,
         deletion_reason=obj.deletion_reason,
         reactions=_decode_reactions(obj.reactions_json),
+        submission_hash=obj.submission_hash,
         version=obj.version,
     )
 
@@ -78,6 +84,7 @@ def _decode_reactions(value: str | None) -> dict[str, list[str]]:
     try:
         data = json.loads(value or "{}")
     except Exception:
+        logger.exception("Failed to decode JSON value: %s", value)
         return {}
     if not isinstance(data, dict):
         return {}

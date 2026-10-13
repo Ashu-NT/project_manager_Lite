@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
-from datetime import timezone as dt_timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator, model_validator
 
@@ -204,7 +203,7 @@ class Site:
         updated_at: datetime | None = None,
         notes: str = "",
     ) -> Site:
-        now = datetime.now(dt_timezone.utc)
+        now = datetime.now(UTC)
         return Site(
             id=generate_id(),
             organization_id=organization_id,

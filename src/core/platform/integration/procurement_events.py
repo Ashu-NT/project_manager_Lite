@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from pydantic import (
     AwareDatetime,
@@ -161,7 +161,7 @@ class ProcurementReceiptAccrualEventPayload(_ProcurementProjectSourcePayload):
     @field_validator("posted_at", mode="after")
     @classmethod
     def _posted_at(cls, value: datetime) -> datetime:
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
 
 __all__ = [

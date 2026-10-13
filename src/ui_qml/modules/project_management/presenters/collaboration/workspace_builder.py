@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementCollaborationDesktopApi,
@@ -41,7 +41,7 @@ def build_workspace_state(
         "30d": timedelta(days=30),
     }
     delta = period_deltas.get(selected_period_key)
-    created_since = datetime.now(timezone.utc) - delta if delta is not None else None
+    created_since = datetime.now(UTC) - delta if delta is not None else None
     project_id = None if selected_project_id == "all" else selected_project_id
     author_username = None if selected_team_id == "all" else selected_team_id
     unread_only = selected_unread_key in {"unread", "attention"}

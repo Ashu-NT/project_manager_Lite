@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -26,7 +26,7 @@ PROJECT_B = "r6b-change-project-b"
 
 
 def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str) -> None:
-    now = datetime(2026, 8, 28, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 28, 12, 0, tzinfo=UTC)
     project_id = f"r6b-change-project-{suffix}"
     code_id = f"r6b-change-code-{suffix}"
     connection.execute(
@@ -82,9 +82,10 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
             text(
                 "INSERT INTO approval_requests "
                 "(id, tenant_id, request_type, entity_type, entity_id, organization_id, "
-                "project_id, payload_json, status, requested_by_username, requested_at) "
+                "project_id, payload_json, status, requested_by_username, requested_at, decision_permission) "
                 "VALUES (:id, :tenant, 'financial_change.apply', 'financial_change', "
-                ":entity, :organization, :project, '{}', 'PENDING', :requester, :now)"
+                ":entity, :organization, :project, '{}', 'PENDING', :requester, :now, "
+                "'financial_change.approve')"
             ),
             {
                 "id": approval_id,

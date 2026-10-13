@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from src.ui_qml.modules.project_management.presenters.common.activity_log_builder import (
@@ -21,7 +21,7 @@ def _entry(**overrides):
         actor_id="u1",
         summary="",
         details={},
-        occurred_at=datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 3, 5, 14, 30, tzinfo=UTC),
     )
     fields.update(overrides)
     return SimpleNamespace(**fields)

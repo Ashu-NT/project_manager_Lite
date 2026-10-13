@@ -42,8 +42,14 @@ from src.core.modules.project_management.infrastructure.persistence.orm.resource
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.resources.identity_expressions import (
+    resource_display_name,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
+)
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
+    EmployeeORM,
 )
 
 _ELIGIBLE_RISK_STATUSES = (
@@ -129,19 +135,23 @@ class SqlAlchemyFinanceLookupReader:
             pattern = f"%{request.search.strip()}%"
             conditions.append(
                 or_(
-                    ResourceORM.name.ilike(pattern),
+                    resource_display_name().ilike(pattern),
                     ResourceORM.resource_code.ilike(pattern),
                 )
             )
-        base = select(ResourceORM.id, ResourceORM.resource_code, ResourceORM.name).where(
-            *conditions
-        )
+        base = select(
+            ResourceORM.id, ResourceORM.resource_code, resource_display_name().label("name")
+        ).outerjoin(EmployeeORM, and_(
+            EmployeeORM.id == ResourceORM.employee_id,
+            EmployeeORM.tenant_id == tenant_id,
+            EmployeeORM.organization_id == organization_id,
+        )).where(*conditions)
         total = int(self._session.scalar(select(func.count()).select_from(base.subquery())) or 0)
         page, page_size, offset = _window(
             request.normalized_page, request.normalized_page_size, total
         )
         rows = self._session.execute(
-            base.order_by(ResourceORM.name.asc(), ResourceORM.id.asc())
+            base.order_by(resource_display_name().asc(), ResourceORM.id.asc())
             .offset(offset)
             .limit(page_size)
         ).all()
@@ -170,7 +180,13 @@ class SqlAlchemyFinanceLookupReader:
         resource_id: str,
     ) -> FinanceLookupOptionFact | None:
         row = self._session.execute(
-            select(ResourceORM.id, ResourceORM.resource_code, ResourceORM.name).where(
+            select(
+                ResourceORM.id, ResourceORM.resource_code, resource_display_name().label("name")
+            ).outerjoin(EmployeeORM, and_(
+                EmployeeORM.id == ResourceORM.employee_id,
+                EmployeeORM.tenant_id == tenant_id,
+                EmployeeORM.organization_id == organization_id,
+            )).where(
                 ResourceORM.tenant_id == tenant_id,
                 ResourceORM.organization_id == organization_id,
                 ResourceORM.id == str(resource_id or "").strip(),

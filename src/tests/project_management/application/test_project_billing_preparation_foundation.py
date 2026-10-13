@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -31,7 +31,7 @@ from src.core.modules.project_management.gateway.billing.accounting_billing impo
 )
 from src.infra.persistence.orm import Base
 
-NOW = datetime(2026, 8, 11, 10, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 11, 10, tzinfo=UTC)
 HASH = "a" * 64
 
 

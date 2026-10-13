@@ -8,7 +8,7 @@ any of them (ADR-005 §6).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.shared.events.aggregate_events import RecordsDomainEvents
 
@@ -30,7 +30,7 @@ def test_domain_events_starts_empty() -> None:
 
 def test_record_event_appends_and_domain_events_returns_in_recorded_order() -> None:
     aggregate = _FakeAggregate()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     first = _FakeEvent(occurred_at=now, label="first")
     second = _FakeEvent(occurred_at=now, label="second")
 
@@ -42,7 +42,7 @@ def test_record_event_appends_and_domain_events_returns_in_recorded_order() -> N
 
 def test_domain_events_is_a_read_only_snapshot_and_does_not_clear() -> None:
     aggregate = _FakeAggregate()
-    event = _FakeEvent(occurred_at=datetime.now(timezone.utc))
+    event = _FakeEvent(occurred_at=datetime.now(UTC))
     aggregate._record_event(event)
 
     snapshot_1 = aggregate.domain_events()
@@ -54,7 +54,7 @@ def test_domain_events_is_a_read_only_snapshot_and_does_not_clear() -> None:
 
 def test_clear_domain_events_empties_pending_events() -> None:
     aggregate = _FakeAggregate()
-    aggregate._record_event(_FakeEvent(occurred_at=datetime.now(timezone.utc)))
+    aggregate._record_event(_FakeEvent(occurred_at=datetime.now(UTC)))
 
     aggregate.clear_domain_events()
 
@@ -73,7 +73,7 @@ def test_two_aggregate_instances_do_not_share_a_mutable_event_list() -> None:
     first_aggregate = _FakeAggregate()
     second_aggregate = _FakeAggregate()
 
-    first_aggregate._record_event(_FakeEvent(occurred_at=datetime.now(timezone.utc), label="only-first"))
+    first_aggregate._record_event(_FakeEvent(occurred_at=datetime.now(UTC), label="only-first"))
 
     assert first_aggregate.domain_events() != ()
     assert second_aggregate.domain_events() == (), (
@@ -84,7 +84,7 @@ def test_two_aggregate_instances_do_not_share_a_mutable_event_list() -> None:
 def test_clearing_one_aggregate_does_not_affect_a_sibling_aggregate() -> None:
     first_aggregate = _FakeAggregate()
     second_aggregate = _FakeAggregate()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     first_aggregate._record_event(_FakeEvent(occurred_at=now, label="a"))
     second_aggregate._record_event(_FakeEvent(occurred_at=now, label="b"))

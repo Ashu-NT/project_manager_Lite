@@ -8,7 +8,7 @@ be a real type, since it never inspects `uow` at all.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -19,12 +19,12 @@ from src.infra.events.in_process_transactional_event_dispatcher import (
 
 @dataclass(frozen=True, slots=True)
 class _FakeTaskCompleted:
-    occurred_at: datetime = datetime.now(timezone.utc)
+    occurred_at: datetime = datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)
 class _FakeOtherEvent:
-    occurred_at: datetime = datetime.now(timezone.utc)
+    occurred_at: datetime = datetime.now(UTC)
 
 
 @pytest.fixture()

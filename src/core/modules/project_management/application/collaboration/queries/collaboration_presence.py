@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -39,7 +39,7 @@ class CollaborationPresenceQueryMixin:
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             accessible_project_ids=tuple(project_names),
-            active_since=datetime.now(timezone.utc)
+            active_since=datetime.now(UTC)
             - timedelta(seconds=self._presence_ttl_seconds),
         )
         return self._presence_items_from_facts(rows)
@@ -58,6 +58,7 @@ class CollaborationPresenceQueryMixin:
                 activity=row.activity,
                 last_seen_at=row.last_seen_at,
                 is_self=bool(principal_user_id and row.user_id == principal_user_id),
+                user_id=str(row.user_id),
             )
             for row in rows
         ]
@@ -72,7 +73,7 @@ class CollaborationPresenceQueryMixin:
         task_by_id = {task.id: task for task in tasks}
         rows = self._presence_repo.list_recent_for_tasks(
             list(task_by_id.keys()),
-            since=datetime.now(timezone.utc) - timedelta(seconds=self._presence_ttl_seconds),
+            since=datetime.now(UTC) - timedelta(seconds=self._presence_ttl_seconds),
             limit=limit,
         )
         principal = self._user_session.principal if self._user_session is not None else None
@@ -93,6 +94,7 @@ class CollaborationPresenceQueryMixin:
                     activity=row.activity,
                     last_seen_at=row.last_seen_at,
                     is_self=bool(principal_user_id and row.user_id == principal_user_id),
+                    user_id=row.user_id,
                 )
             )
         return items

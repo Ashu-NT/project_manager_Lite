@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
 
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+
+
+def children_by_parent(tasks: list[Task]) -> dict[str | None, list[Task]]:
+    children: dict[str | None, list[Task]] = defaultdict(list)
+    for task in tasks:
+        children[task.parent_task_id].append(task)
+    for siblings in children.values():
+        siblings.sort(key=lambda item: (item.sort_order, item.wbs_code, item.id))
+    return children
 
 
 def select_leaf_tasks(tasks: list[Task]) -> list[Task]:
@@ -78,6 +88,7 @@ class TaskHierarchyRollup:
 __all__ = [
     "TaskHierarchyNode",
     "TaskHierarchyRollup",
+    "children_by_parent",
     "order_tasks_children_first",
     "select_leaf_dependencies",
     "select_leaf_tasks",

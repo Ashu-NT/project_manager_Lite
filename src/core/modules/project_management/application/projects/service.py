@@ -1,83 +1,75 @@
 from __future__ import annotations
 
-from sqlalchemy.orm import Session
-
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.projects.commands.lifecycle import (
-    ProjectLifecycleMixin,
+from src.core.modules.project_management.application.projects.commands.create import (
+    ProjectCreateHandler,
+)
+from src.core.modules.project_management.application.projects.commands.deletion import (
+    ProjectDeletionHandler,
+)
+from src.core.modules.project_management.application.projects.commands.status import (
+    ProjectStatusHandler,
+)
+from src.core.modules.project_management.application.projects.commands.update import (
+    ProjectUpdateHandler,
 )
 from src.core.modules.project_management.application.projects.queries.project_query import (
-    ProjectQueryMixin,
-)
-from src.core.modules.project_management.contracts.reads.projects import (
-    ProjectCatalogReader,
-)
-from src.core.modules.project_management.contracts.repositories.projects.project import (
-    ProjectRepository,
-)
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    AssignmentRepository,
-    DependencyRepository,
-    TaskRepository,
-)
-from src.core.modules.project_management.contracts.uow.projects.project_unit_of_work import (
-    ProjectUnitOfWorkFactory,
-)
-from src.core.platform.application.history.activity.activity_service import (
-    ActivityService,
-)
-from src.core.platform.application.tenant.tenancy.tenant_context import (
-    TenantContextService,
-)
-from src.core.platform.common.ids import generate_id
-from src.core.platform.contract.repositories.time_management.time.contracts import (
-    TimeEntryRepository,
+    ProjectQueryHandler,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.shared.events.domain_event_context import DomainEventContext
 
 
-class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, ProjectQueryMixin):
+class ProjectService(ProjectManagementModuleGuardMixin):
     """Project application service orchestrator."""
 
     def __init__(
         self,
-        session: Session,
-        project_repo: ProjectRepository,
-        task_repo: TaskRepository,
-        dependency_repo: DependencyRepository,
-        assignment_repo: AssignmentRepository,
-        time_entry_repo: TimeEntryRepository | None,
-        user_session: UserSessionContext | None = None,
-        activity_service: ActivityService | None = None,
-        enterprise_audit_service=None,
+        *,
+        query_handler: ProjectQueryHandler,
+        status_handler: ProjectStatusHandler,
+        deletion_handler: ProjectDeletionHandler,
+        create_handler: ProjectCreateHandler,
+        update_handler: ProjectUpdateHandler,
         module_catalog_service=None,
-        tenant_context_service: TenantContextService | None =None,
-        project_catalog_reader: ProjectCatalogReader | None = None,
-        uow_factory: ProjectUnitOfWorkFactory | None = None,
-        transactional_dispatcher=None,
-        post_commit_bus=None,
+        user_session: UserSessionContext | None = None,
     ):
-        self._session: Session = session
-        self._project_repo: ProjectRepository = project_repo
-        self._task_repo: TaskRepository = task_repo
-        self._dependency_repo: DependencyRepository = dependency_repo
-        self._assignment_repo: AssignmentRepository = assignment_repo
-        self._time_entry_repo = time_entry_repo
-        self._user_session: UserSessionContext | None = user_session
-        self._activity_service: ActivityService | None = activity_service
-        self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
-        self._tenant_context_service = tenant_context_service
-        self._project_catalog_reader = project_catalog_reader
-        self._uow_factory: ProjectUnitOfWorkFactory | None = uow_factory
-        self._transactional_dispatcher = transactional_dispatcher
-        self._post_commit_bus = post_commit_bus
+        self._user_session = user_session
+        self._query_handler = query_handler
+        self._status_handler = status_handler
+        self._deletion_handler = deletion_handler
+        self._create_handler = create_handler
+        self._update_handler = update_handler
 
-    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
-        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
+    def update_project(self, *args, **kwargs):
+        return self._update_handler.update_project(*args, **kwargs)
 
+    def update_dates_from_tasks(self, project_id: str) -> None:
+        self._update_handler.update_dates_from_tasks(project_id)
+
+    def create_project(self, *args, **kwargs):
+        return self._create_handler.create_project(*args, **kwargs)
+
+    def delete_project(self, project_id: str) -> None:
+        self._deletion_handler.delete_project(project_id)
+
+    def set_status(self, project_id, status, *, expected_version=None):
+        return self._status_handler.set_status(
+            project_id, status, expected_version=expected_version
+        )
+
+    def bulk_set_status(self, project_ids, status):
+        return self._status_handler.bulk_set_status(project_ids, status)
+
+    def list_projects(self):
+        return self._query_handler.list_projects()
+
+    def list_for_task_workspace(self):
+        return self._query_handler.list_for_task_workspace()
+
+    def get_project(self, project_id: str):
+        return self._query_handler.get_project(project_id)
 
 __all__ = ["ProjectService"]

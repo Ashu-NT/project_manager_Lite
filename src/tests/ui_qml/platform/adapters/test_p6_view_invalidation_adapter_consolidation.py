@@ -317,8 +317,9 @@ def test_view_invalidation_hint_contract_unchanged_by_p6():
     assert hint_fields == {"scope", "category", "scope_code", "entity_type", "entity_id"}
     assert set(contract_module.__all__) == {
         "EventScope", "PlatformScope", "TenantScope", "OrganizationScope", "ResourceScope",
+        "RecipientScope",
         "ViewInvalidationHint", "ViewInvalidationHandler", "ScopeFilter",
-        "ExactOrganization", "ExactResource", "TenantWide", "AnyOrganizationInTenant", "AllTenants",
+        "ExactOrganization", "ExactResource", "ExactRecipient", "TenantWide", "AnyOrganizationInTenant", "AllTenants",
         "PlatformWide", "ViewInvalidationChannel",
     }
 

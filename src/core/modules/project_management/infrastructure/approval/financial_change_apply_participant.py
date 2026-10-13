@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
     FinancialChangeChanged,
@@ -56,7 +56,7 @@ class FinancialChangeApprovalParticipant:
                 project_id=change.project_id,
                 change_id=change.id,
                 change_type=FinancialChangeEventType.APPLIED,
-                occurred_at=change.applied_at or datetime.now(timezone.utc),
+                occurred_at=change.applied_at or datetime.now(UTC),
                 applied_effects=tuple(effects),
             ),
         )
@@ -68,7 +68,7 @@ class FinancialChangeApprovalParticipant:
                     project_id=change.project_id,
                     forecast_id=change.applied_forecast_id,
                     change_type=ForecastVersionChangeType.APPROVED,
-                    occurred_at=change.applied_at or datetime.now(timezone.utc),
+                    occurred_at=change.applied_at or datetime.now(UTC),
                 ),
             )
         domain_events += budget_events
@@ -94,7 +94,7 @@ class FinancialChangeApprovalParticipant:
                     project_id=change.project_id,
                     change_id=change.id,
                     change_type=FinancialChangeEventType.REJECTED,
-                    occurred_at=change.rejected_at or datetime.now(timezone.utc),
+                    occurred_at=change.rejected_at or datetime.now(UTC),
                 ),
             )
         )

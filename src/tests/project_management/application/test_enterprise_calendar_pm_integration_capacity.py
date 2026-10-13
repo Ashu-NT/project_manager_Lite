@@ -6,17 +6,17 @@ enterprise calendar engine and that the resolver source chain is correct.
 
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import UTC, date, time
 from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
+from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
 )
-from src.core.modules.project_management.application.resources.resource_capacity_calculator import (
+from src.core.modules.project_management.application.resources.capacity.resource_capacity_calculator import (
     ResourceCapacityCalculator,
 )
 from src.core.modules.project_management.domain.enums import (
@@ -29,8 +29,8 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
-    EnterpriseCalendarResolver,
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    PlatformCalendarResolver,
 )
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
@@ -44,8 +44,8 @@ from src.core.platform.application.time_management.calendar.definitions.recurrin
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
-from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
-    EnterpriseCalendarService,
+from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    PlatformCalendarService,
 )
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarType,
@@ -147,7 +147,7 @@ def tenant_context(org_id):
 
 @pytest.fixture
 def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return EnterpriseCalendarService(
+    return PlatformCalendarService(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -206,7 +206,7 @@ def calculator():
 
 @pytest.fixture
 def resolver(repos, org_id, calculator):
-    return EnterpriseCalendarResolver(
+    return PlatformCalendarResolver(
         organization_id=org_id,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -332,7 +332,7 @@ def test_allocation_over_capacity_flagged(
 def test_resolver_source_chain_correct(
     global_cal, cal_service, assignment_service, resolver, db_session, tenant_context, org_id
 ):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
         DepartmentORM,
@@ -342,7 +342,7 @@ def test_resolver_source_chain_correct(
     )
 
     ctx = tenant_context.require_organization_context()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db_session.add_all(
         [
             SiteORM(

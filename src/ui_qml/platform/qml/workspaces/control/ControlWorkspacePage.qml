@@ -280,7 +280,7 @@ AppLayouts.WorkspaceFrame {
                     sourceComponent: Component {
                         Detail.ControlApprovalDetailPage {
                             approval:        state.queueItem || ({})
-                            canDecide:       root._canDecide
+                            canDecide:       root._canDecide && Boolean(state.queueItem && state.queueItem.state && state.queueItem.state.canDecide)
                             busy:            root._busy
                             errorMessage:    root._err
                             feedbackMessage: root._ok

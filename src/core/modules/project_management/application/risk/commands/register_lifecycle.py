@@ -2,13 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
+)
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
 )
 from src.core.modules.project_management.application.risk.register_events import (
     RegisterEntryChanged,
@@ -19,6 +22,9 @@ from src.core.modules.project_management.contracts.repositories.projects.project
 )
 from src.core.modules.project_management.contracts.repositories.register.register import (
     RegisterEntryRepository,
+)
+from src.core.modules.project_management.contracts.uow.register.register_unit_of_work import (
+    RegisterUnitOfWorkFactory,
 )
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
@@ -32,19 +38,48 @@ from src.core.modules.project_management.domain.risk.register import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.common.ids import generate_id
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
-class RegisterLifecycleMixin:
-    _project_repo: ProjectRepository
-    _register_repo: RegisterEntryRepository
+class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
     _UNSET = object()
+
+    def __init__(
+        self,
+        *,
+        project_repo: ProjectRepository,
+        register_repo: RegisterEntryRepository,
+        user_session: UserSessionContext | None,
+        tenant_context_service: TenantContextService,
+        uow_factory: RegisterUnitOfWorkFactory | None,
+        module_catalog_service=None,
+    ) -> None:
+        self._project_repo = project_repo
+        self._register_repo = register_repo
+        self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
+        self._uow_factory = uow_factory
+        self._module_catalog_service = module_catalog_service
+
+    def _require_uow_factory(self) -> RegisterUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Register unit of work is not configured.")
+        return self._uow_factory
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
     @staticmethod
     def _is_register_code_integrity_error(exc: IntegrityError) -> bool:
@@ -185,7 +220,7 @@ class RegisterLifecycleMixin:
                         register_entry_id=entry.id,
                         entry_type=as_register_entry_type(entry.entry_type),
                         change_type=RegisterEntryChangeType.CREATED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 uow.commit()
@@ -237,7 +272,7 @@ class RegisterLifecycleMixin:
             due_date=entry.due_date if due_date is self._UNSET else due_date,
             impact_summary=entry.impact_summary if impact_summary is None else impact_summary,
             response_plan=entry.response_plan if response_plan is None else response_plan,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="update register entry"
@@ -288,7 +323,7 @@ class RegisterLifecycleMixin:
                         register_entry_id=candidate.id,
                         entry_type=as_register_entry_type(candidate.entry_type),
                         change_type=RegisterEntryChangeType.UPDATED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 uow.commit()
@@ -326,7 +361,7 @@ class RegisterLifecycleMixin:
                 if entry.status == status:
                     results.append(entry)
                     continue
-                candidate = replace(entry, status=status, updated_at=datetime.now(timezone.utc))
+                candidate = replace(entry, status=status, updated_at=datetime.now(UTC))
                 uow.entries.update(candidate)
                 record_audit_entry(
                     uow,
@@ -360,7 +395,7 @@ class RegisterLifecycleMixin:
                         register_entry_id=candidate.id,
                         entry_type=as_register_entry_type(candidate.entry_type),
                         change_type=RegisterEntryChangeType.UPDATED,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
                 results.append(candidate)
@@ -416,7 +451,7 @@ class RegisterLifecycleMixin:
                     register_entry_id=entry.id,
                     entry_type=as_register_entry_type(entry.entry_type),
                     change_type=RegisterEntryChangeType.REMOVED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             uow.commit()
@@ -436,4 +471,4 @@ class RegisterLifecycleMixin:
         }
 
 
-__all__ = ["RegisterLifecycleMixin"]
+__all__ = ["RegisterLifecycleHandler"]

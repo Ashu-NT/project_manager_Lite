@@ -8,8 +8,8 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.application.financials.workspace_query import (
-    ProjectFinanceWorkspaceQuery,
+from src.core.modules.project_management.application.financials.configuration.queries import (
+    ConfigurationWorkspaceQueries,
 )
 
 
@@ -96,7 +96,7 @@ def test_setup_reader_denies_explicit_wrong_scope_and_desktop_serializes(service
 
 
 def test_setup_workspace_query_has_no_aggregate_repository_read_path() -> None:
-    source = inspect.getsource(ProjectFinanceWorkspaceQuery)
+    source = inspect.getsource(ConfigurationWorkspaceQueries)
 
     assert "profile_repo" not in source
     assert "cost_code_repo" not in source

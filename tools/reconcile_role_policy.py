@@ -8,7 +8,7 @@ import hashlib
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from src.infra.platform.env_loader import load_env_file
@@ -135,7 +135,7 @@ def _build_apply_receipt(
 ) -> dict[str, object]:
     return {
         **payload,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "result": {
             "applied": result.applied,
             "change_set_hash": result.plan.change_set_hash,
@@ -174,12 +174,13 @@ def main(argv: list[str] | None = None) -> int:
         ):
             parser.error(f"artifact already exists: {artifact_path}")
 
+    from src.infra.composition.persistence.repositories import build_repository_bundle
+
     from src.core.platform.application.security.auth import AuthService
     from src.core.platform.application.security.authorization.roles import (
         RolePolicyReconciliationService,
     )
     from src.core.platform.domain.security.auth import UserSessionContext
-    from src.infra.composition.persistence.repositories import build_repository_bundle
     from src.infra.persistence.db.session_factory import SessionLocal
     from src.infra.platform.logging_config import setup_logging
     from src.infra.platform.security_config import (
@@ -227,7 +228,7 @@ def main(argv: list[str] | None = None) -> int:
         plan = service.preview()
         payload = {
             "schema_version": 1,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "mode": "apply" if args.apply else "dry-run",
             "application_version": get_app_version(),
             "runtime_security": _runtime_security_payload(
@@ -242,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         rollback_payload = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "reviewed_plan": _plan_payload(plan),
         }
         rollback_path = _write_json(args.rollback_output, rollback_payload)

@@ -38,6 +38,18 @@ from src.core.platform.infrastructure.persistence.repositories.master_data.docum
 )
 
 
+@pytest.fixture(autouse=True)
+def _isolate_physical_storage_for_sql_atomicity(services):
+    collaboration = services["collaboration_service"]
+    original_store = collaboration._attachment_store
+    original_cleanup = collaboration._attachment_cleanup
+    collaboration._attachment_store = lambda **kwargs: list(kwargs["attachments"])
+    collaboration._attachment_cleanup = lambda _paths: None
+    yield
+    collaboration._attachment_store = original_store
+    collaboration._attachment_cleanup = original_cleanup
+
+
 def _fake_channel():
     class _FakeChannel:
         def __init__(self) -> None:

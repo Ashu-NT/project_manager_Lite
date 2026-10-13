@@ -6,7 +6,7 @@ guard, `record_event()`, and event loss/duplication.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -22,12 +22,12 @@ def _context(correlation_id: str = "corr-1") -> DomainEventContext:
 
 @dataclass(frozen=True, slots=True)
 class _EventA:
-    occurred_at: datetime = datetime.now(timezone.utc)
+    occurred_at: datetime = datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)
 class _EventB:
-    occurred_at: datetime = datetime.now(timezone.utc)
+    occurred_at: datetime = datetime.now(UTC)
 
 
 class _AggregateA(RecordsDomainEvents):
@@ -75,6 +75,25 @@ def test_post_commit_handler_receives_the_same_context_the_uow_was_created_with(
         uow.commit()
 
     assert received_contexts == [context]
+
+
+def test_separate_commits_get_distinct_contexts_even_when_caller_reuses_trace(
+    uow_factory, post_commit_bus
+) -> None:
+    received_contexts: list[DomainEventContext] = []
+    post_commit_bus.subscribe(_EventA, lambda e, c: received_contexts.append(c))
+    trace = _context("shared-trace")
+
+    for _ in range(2):
+        with uow_factory.create(context=trace) as uow:
+            aggregate = _AggregateA()
+            aggregate._record_event(_EventA())
+            uow.register_touched(aggregate)
+            uow.commit()
+
+    assert received_contexts == [trace, trace]
+    assert received_contexts[0] is not received_contexts[1]
+    assert all(context is not trace for context in received_contexts)
 
 
 def test_transactional_handler_receives_the_exact_same_uow_instance(
@@ -244,7 +263,7 @@ def test_multiple_rounds_of_re_collection_all_complete_before_commit(
 
     @dataclass(frozen=True, slots=True)
     class _EventC:
-        occurred_at: datetime = datetime.now(timezone.utc)
+        occurred_at: datetime = datetime.now(UTC)
 
     class _AggregateC(RecordsDomainEvents):
         pass

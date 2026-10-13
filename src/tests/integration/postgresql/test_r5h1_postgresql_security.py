@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy import select, text
@@ -28,7 +28,7 @@ SCOPES = {
 
 
 def _seed_scope(connection, suffix: str, tenant_id: str, organization_id: str) -> None:
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     connection.execute(
         text(
             "INSERT INTO resources "

@@ -89,6 +89,33 @@ def test_financial_desktop_maps_commitment_controls() -> None:
     assert finance_service.overview_calls == 1
 
 
+@pytest.mark.parametrize("budget,commitment,expected", [
+    (Decimal(0), Decimal(0), None),
+    (Decimal(0), Decimal(20), None),
+    (Decimal(100), Decimal(0), 0.0),
+])
+def test_commitment_percentage_preserves_undefined_versus_available_zero(
+    budget, commitment, expected,
+):
+    from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+        FinanceControlFact,
+    )
+
+    facts = _FinanceService().get_finance_overview("project-1")
+    facts.approved_budget = budget
+    facts.open_commitment = commitment
+    facts.control = FinanceControlFact(budget, Decimal(0), commitment, None)
+    result = commitment_builder.build_commitment_summary_dto("project-1", facts=facts)
+    assert result.commitment_rate_pct == expected
+
+
+def test_commitment_percentage_without_approved_budget_is_unavailable():
+    facts = _FinanceService().get_finance_overview("project-1")
+    facts.approved_budget_id = None
+    result = commitment_builder.build_commitment_summary_dto("project-1", facts=facts)
+    assert result.commitment_rate_pct is None
+
+
 def test_financial_desktop_requires_canonical_finance_service() -> None:
     api = ProjectManagementFinancialsDesktopApi()
 

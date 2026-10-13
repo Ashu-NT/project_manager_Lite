@@ -18,7 +18,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.infra.persistence.db.financial_numeric import (
+from src.core.platform.infrastructure.persistence.common.financial_numeric import (
     FinancialNumericKind,
     financial_numeric,
     financial_numeric_info,

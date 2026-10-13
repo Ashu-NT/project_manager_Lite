@@ -5,7 +5,11 @@ from src.core.modules.project_management.api.desktop.register.utils.register_enu
     coerce_entry_status,
     coerce_entry_type,
 )
+from src.core.modules.project_management.application.risk.queries.register_query import (
+    RegisterQueryHandler,
+)
 from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntry,
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
@@ -16,15 +20,15 @@ _ALL_FILTER_VALUES = (None, "", "all", "ALL")
 
 def build_entry_list(
     *,
-    register_service: object | None,
+    register_query: RegisterQueryHandler | None,
     project_id: str | None = None,
     entry_type: str | RegisterEntryType | None = None,
     status: str | RegisterEntryStatus | None = None,
     severity: str | RegisterEntrySeverity | None = None,
-) -> tuple[object, ...]:
-    if register_service is None:
+) -> tuple[RegisterEntry, ...]:
+    if register_query is None:
         return ()
-    entries = register_service.list_entries(
+    entries = register_query.list_entries(
         project_id=(project_id or None),
         entry_type=(
             coerce_entry_type(entry_type)

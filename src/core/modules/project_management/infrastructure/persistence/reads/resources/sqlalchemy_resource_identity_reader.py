@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
     ResourceORM,
 )
+from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import (
     EmployeeORM,
 )
@@ -24,6 +25,17 @@ class SqlAlchemyResourceIdentityReader:
     def __init__(self, *, session: Session) -> None:
         self._session = session
 
+    def find_linked_resource_id(
+        self, *, employee_id: str, tenant_id: str, organization_id: str
+    ) -> str | None:
+        return self._session.scalar(
+            select(ResourceORM.id).where(
+                ResourceORM.employee_id == employee_id,
+                ResourceORM.tenant_id == tenant_id,
+                ResourceORM.organization_id == organization_id,
+            ).limit(1)
+        )
+
     def resolve_resource_for_user(
         self,
         *,
@@ -32,7 +44,7 @@ class SqlAlchemyResourceIdentityReader:
         organization_id: str,
     ) -> ResourceIdentityFact | None:
         rows = self._session.execute(
-            select(ResourceORM.id, ResourceORM.name, ResourceORM.is_active)
+            select(ResourceORM.id, EmployeeORM.full_name, ResourceORM.is_active)
             .select_from(ResourceORM)
             .join(EmployeeORM, EmployeeORM.id == ResourceORM.employee_id)
             .where(
@@ -42,7 +54,7 @@ class SqlAlchemyResourceIdentityReader:
                 EmployeeORM.tenant_id == tenant_id,
                 EmployeeORM.organization_id == organization_id,
                 EmployeeORM.user_id == user_id,
-                EmployeeORM.is_active.is_(True),
+                EmployeeORM.status == EmployeeLifecycleStatus.ACTIVE,
             )
             .order_by(ResourceORM.id.asc())
             .limit(2)

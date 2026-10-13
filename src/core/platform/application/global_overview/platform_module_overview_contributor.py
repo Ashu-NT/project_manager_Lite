@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
 )
-from src.core.application.global_overview.contracts.module_summary import (
+from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService

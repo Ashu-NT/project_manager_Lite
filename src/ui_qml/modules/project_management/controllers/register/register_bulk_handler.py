@@ -51,7 +51,7 @@ def apply_bulk_entry_status(controller, payload: dict[str, object]) -> dict[str,
     status = str(payload.get("value") or payload.get("status") or "")
     if not ids or not status:
         return {"ok": False, "message": "No entries or status selected."}
-    # One backend transaction for the whole selection (RegisterService.
+    # One backend transaction for the whole selection (RegisterLifecycleHandler.
     # bulk_set_entry_status()) instead of one per entry. This also replaces
     # a call that was silently broken: update_entry() requires entryId/
     # projectId/title and would raise on the {"id", "status"} payload this

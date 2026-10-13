@@ -15,9 +15,6 @@ from src.core.modules.project_management.contracts.reads.projects.models import 
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectResourceRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resources.resource import (
-    ResourceRepository,
-)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
@@ -27,13 +24,22 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_permission,
 )
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class ProjectResourceQueryMixin:
-    _project_resource_repo: ProjectResourceRepository
-    _resource_repo: ResourceRepository
-    _task_repo: TaskRepository | None
-    _assignment_repo: AssignmentRepository | None
+class ProjectResourceQueryHandler:
+    def __init__(
+        self,
+        *,
+        project_resource_repo: ProjectResourceRepository,
+        task_repo: TaskRepository | None,
+        assignment_repo: AssignmentRepository | None,
+        user_session: UserSessionContext | None,
+    ) -> None:
+        self._project_resource_repo = project_resource_repo
+        self._task_repo = task_repo
+        self._assignment_repo = assignment_repo
+        self._user_session = user_session
 
     def list_by_project(self, project_id: str) -> list[ProjectResource]:
         require_permission(
@@ -164,4 +170,4 @@ class ProjectResourceQueryMixin:
         return self._project_resource_repo.get_for_project(project_id, resource_id)
 
 
-__all__ = ["ProjectResourceQueryMixin"]
+__all__ = ["ProjectResourceQueryHandler"]

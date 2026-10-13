@@ -1,23 +1,35 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    TaskScheduleSynchronizer,
     emit_cascade_schedule_changed,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskScheduleChanged,
     TaskScheduleChangeType,
 )
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.modules.project_management.domain.tasks.task import Task
+from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     is_admin_session,
     require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -25,14 +37,18 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 from src.core.platform.domain.approval.policy import is_governance_required
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
-class TaskSchedulingConstraintMixin:
+class TaskSchedulingConstraintHandler:
     """Governed Task scheduling-constraint mutation (MSO/MFO/SNET/SNLT/
-    FNET/FNLT + clear-back-to-ASAP). Mirrors TaskDependencyMixin's
+    FNET/FNLT + clear-back-to-ASAP). Mirrors the dependency command's
     request-time/apply-time governance shape -- kept separate from generic
     update_task rather than overloading it with raw dict semantics.
 
@@ -40,6 +56,27 @@ class TaskSchedulingConstraintMixin:
     drives CPM (validation-only, same as FINISH_NO_LATER_THAN) and stays
     on the plain update_task path.
     """
+
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        user_session: UserSessionContext | None,
+        approval_service: ApprovalService | None,
+        tenant_context_service: TenantContextService,
+        scheduling_engine: SchedulingEngine | None,
+        work_calendar_engine: CalendarProtocol,
+        schedule_synchronizer: TaskScheduleSynchronizer,
+        uow_scope: TaskUowScope,
+    ) -> None:
+        self._task_repo = task_repo
+        self._user_session = user_session
+        self._approval_service = approval_service
+        self._tenant_context_service = tenant_context_service
+        self._scheduling_engine = scheduling_engine
+        self._work_calendar_engine = work_calendar_engine
+        self._schedule_synchronizer = schedule_synchronizer
+        self._uow_scope = uow_scope
 
     def update_task_scheduling_constraint(
         self,
@@ -83,7 +120,7 @@ class TaskSchedulingConstraintMixin:
                 operation_label="update scheduling constraint",
             )
 
-        if governed:
+        if governed and self._approval_service is not None:
             request = self._approval_service.request_change(
                 request_type="task.constraint.update",
                 entity_type="task",
@@ -135,15 +172,17 @@ class TaskSchedulingConstraintMixin:
             raise ConcurrencyError("Task was updated by another user.", code="STALE_WRITE")
         candidate = replace(task, constraint_type=constraint_type, constraint_date=constraint_date)
         self._validate_constraint_date_is_working_day(candidate)
-        scope = self._active_task_scope(operation_label="update scheduling constraint")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="update scheduling constraint"
+        )
+        with self._uow_scope.create() as uow:
             uow.tasks.update(candidate)
             # Same one-transaction mutate+recalculate flow every other
-            # schedule-affecting task command uses (TaskScheduleSyncMixin)
+            # schedule-affecting task command uses (TaskScheduleSynchronizer)
             # -- if recalculation raises, the UoW context manager rolls
             # back the constraint write too; there is no separate
             # constraint scheduler.
-            cascade_ids = self._sync_project_schedule(
+            cascade_ids = self._schedule_synchronizer.sync_project_schedule(
                 candidate.project_id, commit=False, exclude_task_ids=frozenset({candidate.id})
             )
             record_audit_entry(
@@ -182,14 +221,17 @@ class TaskSchedulingConstraintMixin:
                     project_id=candidate.project_id,
                     task_id=candidate.id,
                     change_type=TaskScheduleChangeType.CONSTRAINT_UPDATED,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             emit_cascade_schedule_changed(
                 uow, scope=scope, project_id=candidate.project_id, changed_task_ids=cascade_ids
             )
             uow.commit()
-        return self._task_repo.get(task_id)
+        updated = self._task_repo.get(task_id)
+        if updated is None:
+            raise NotFoundError("Task not found after scheduling update.", code="TASK_NOT_FOUND")
+        return updated
 
     def _validate_constraint_date_is_working_day(self, candidate: Task) -> None:
         """Enterprise policy (not Mon-Fri): an explicit constraint date
@@ -199,7 +241,7 @@ class TaskSchedulingConstraintMixin:
         explicit instruction without telling them."""
         if candidate.constraint_type is None or candidate.constraint_date is None:
             return
-        scheduler = getattr(self, "_scheduling_engine", None)
+        scheduler = self._scheduling_engine
         calendar = (
             scheduler.calendar_for_project(candidate.project_id)
             if scheduler is not None
@@ -215,4 +257,4 @@ class TaskSchedulingConstraintMixin:
         )
 
 
-__all__ = ["TaskSchedulingConstraintMixin"]
+__all__ = ["TaskSchedulingConstraintHandler"]

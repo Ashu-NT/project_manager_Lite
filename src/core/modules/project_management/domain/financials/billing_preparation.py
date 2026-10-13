@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -60,15 +60,15 @@ class BillingExternalEventType(str, Enum):
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _timestamp(value: object, *, code: str) -> datetime:
     if not isinstance(value, datetime):
         raise ValidationError("A valid timestamp is required.", code=code)
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _required(value: object, *, field_name: str, prefix: str) -> str:
@@ -506,8 +506,10 @@ class ProjectBillingPreparationLine:
                 "Approved-time billing requires a resource snapshot.",
                 code="BILLING_LINE_RESOURCE_REQUIRED",
             )
-        if self.source_type is BillableSourceType.POSTED_COST:
-            if self.source_amount is None or self.markup_percent is None:
+        if (
+            self.source_type is BillableSourceType.POSTED_COST
+            and (self.source_amount is None or self.markup_percent is None)
+        ):
                 raise ValidationError(
                     "Posted-cost billing requires source amount and markup snapshots.",
                     code="BILLING_LINE_COST_PLUS_SNAPSHOT_REQUIRED",

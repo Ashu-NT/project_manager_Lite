@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator, model_validator
 
@@ -29,8 +29,8 @@ class PortfolioScoringTemplate:
     urgency_weight: int = 2
     risk_weight: int = 1
     is_active: bool = False
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @field_validator("organization_id", mode="before")
     @classmethod
@@ -121,7 +121,7 @@ class PortfolioScoringTemplate:
         risk_weight: int = 1,
         is_active: bool = False,
     ) -> PortfolioScoringTemplate:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return PortfolioScoringTemplate(
             id=generate_id(),
             organization_id=organization_id,

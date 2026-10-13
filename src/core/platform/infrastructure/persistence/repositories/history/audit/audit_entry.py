@@ -86,7 +86,9 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
             workspace_id=workspace_id,
             operation_prefixes=operation_prefixes,
         )
-        stmt = stmt.order_by(AuditEntryORM.timestamp.desc()).limit(max(1, int(limit)))
+        stmt = stmt.order_by(
+            AuditEntryORM.timestamp.desc(), AuditEntryORM.id.desc()
+        ).limit(min(100, max(1, int(limit))))
         rows = self.session.execute(stmt).scalars().all()
         return [audit_entry_from_orm(row) for row in rows]
 
@@ -139,7 +141,9 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
             workspace_id=workspace_id,
             operation_prefixes=operation_prefixes,
         )
-        stmt = stmt.order_by(AuditEntryORM.timestamp.desc()).limit(max(1, int(limit)))
+        stmt = stmt.order_by(
+            AuditEntryORM.timestamp.desc(), AuditEntryORM.id.desc()
+        ).limit(min(100, max(1, int(limit))))
         rows = self.session.execute(stmt).scalars().all()
         return [audit_entry_from_orm(row) for row in rows]
 

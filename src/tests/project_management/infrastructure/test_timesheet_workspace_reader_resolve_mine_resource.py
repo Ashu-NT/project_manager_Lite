@@ -31,11 +31,15 @@ def test_resolve_mine_resource_still_resolves_a_time_reporting_eligible_resource
     user = services["auth_service"].register_user(
         "timesheet-owner", "StrongPass123", role_names=["viewer"]
     )
+    department = services["department_service"].create_department(
+        department_code="TS-DEPT-1", name="Timesheet Owner Department"
+    )
     employee = services["employee_service"].create_employee(
         employee_code="EMP-TS-1",
         full_name="Timesheet Owner",
-        user_id=user.id,
+        department_id=department.id,
     )
+    services["employee_service"].link_employee_user_account(employee.id, user.id)
     resource = services["resource_service"].create_resource(
         "Timesheet Owner Resource",
         worker_type=WorkerType.EMPLOYEE,
@@ -61,11 +65,15 @@ def test_resolve_mine_resource_still_excludes_a_time_reporting_ineligible_resour
     user = services["auth_service"].register_user(
         "equipment-owner-2", "StrongPass123", role_names=["viewer"]
     )
+    department = services["department_service"].create_department(
+        department_code="TS-DEPT-2", name="Equipment Owner Department"
+    )
     employee = services["employee_service"].create_employee(
         employee_code="EMP-TS-2",
         full_name="Equipment Owner Two",
-        user_id=user.id,
+        department_id=department.id,
     )
+    services["employee_service"].link_employee_user_account(employee.id, user.id)
     services["resource_service"].create_resource(
         "Owned Equipment Two",
         worker_type=WorkerType.EMPLOYEE,

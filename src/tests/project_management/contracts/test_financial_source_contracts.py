@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -138,7 +138,7 @@ def test_approved_time_source_requires_approved_hour_snapshot() -> None:
 
     assert source.hours.value == "7.5"
     assert source.hours.unit == "HOUR"
-    assert source.approved_at == datetime(2026, 8, 2, 9, 0, tzinfo=timezone.utc)
+    assert source.approved_at == datetime(2026, 8, 2, 9, 0, tzinfo=UTC)
 
     with pytest.raises(ValidationError, match="positive HOUR"):
         source.model_copy(
@@ -189,7 +189,7 @@ def test_procurement_sources_preserve_line_identity_quantity_rate_and_state() ->
         purchase_order_line_id="po-line-1",
         supplier_party_id="supplier-1",
         site_id="site-1",
-        posted_at=datetime(2026, 8, 2, 10, 0, tzinfo=timezone.utc),
+        posted_at=datetime(2026, 8, 2, 10, 0, tzinfo=UTC),
         accepted_quantity=DecimalQuantityPayload(value="5", unit="ea"),
         unit_cost=MonetaryRatePayload(amount="9.50", currency="eur", per_unit="ea"),
     )

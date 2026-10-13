@@ -31,11 +31,12 @@ def build_assignment_snapshot(
     assignment_id: str,
     *,
     period_start: date | None = None,
-    task_service,
+    task_lookup_query,
+    task_assignment_commands,
     timesheet_service,
 ) -> TimesheetAssignmentSnapshotDesktopDto:
     normalized_assignment_id = str(assignment_id or "").strip()
-    context = task_service.get_timesheet_assignment_context(normalized_assignment_id)
+    context = task_lookup_query.get_timesheet_assignment_context(normalized_assignment_id)
     if context is None:
         raise RuntimeError("The selected task assignment could not be found.")
     assignment_option = TimesheetAssignmentOptionDescriptor(
@@ -91,7 +92,7 @@ def build_assignment_snapshot(
     task_period_hours = sum((float(entry.hours or 0.0) for entry in task_entries), 0.0)
     task_period_hours_label = format_hours(task_period_hours)
 
-    assignment = task_service.get_assignment(context.assignment_id)
+    assignment = task_assignment_commands.get_assignment(context.assignment_id)
     planned_hours = float(getattr(assignment, "allocated_planned_hours", 0) or 0) if assignment else 0.0
     logged_hours = float(getattr(assignment, "hours_logged", 0) or 0) if assignment else 0.0
     remaining_hours = planned_hours - logged_hours

@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import os
 import struct
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 _TOTP_INTERVAL_SECONDS = 30
 _TOTP_DIGITS = 6
@@ -17,7 +17,7 @@ def generate_mfa_secret(*, num_bytes: int = 20) -> str:
 
 
 def generate_totp_code(secret: str, *, at_time: datetime | None = None) -> str:
-    current_time = at_time or datetime.now(timezone.utc)
+    current_time = at_time or datetime.now(UTC)
     counter = int(current_time.timestamp()) // _TOTP_INTERVAL_SECONDS
     normalized_secret = _decode_secret(secret)
     payload = struct.pack(">Q", counter)
@@ -39,11 +39,11 @@ def verify_totp_code(
     normalized_code = "".join(ch for ch in str(code or "").strip() if ch.isdigit())
     if not normalized_secret or len(normalized_code) != _TOTP_DIGITS:
         return False
-    current_time = at_time or datetime.now(timezone.utc)
+    current_time = at_time or datetime.now(UTC)
     for step in range(-max(0, int(allowed_drift_steps or 0)), max(0, int(allowed_drift_steps or 0)) + 1):
         window_time = datetime.fromtimestamp(
             current_time.timestamp() + (step * _TOTP_INTERVAL_SECONDS),
-            tz=timezone.utc,
+            tz=UTC,
         )
         if hmac.compare_digest(generate_totp_code(normalized_secret, at_time=window_time), normalized_code):
             return True

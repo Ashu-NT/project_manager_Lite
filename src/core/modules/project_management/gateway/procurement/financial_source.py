@@ -4,7 +4,7 @@ financial-source facts from Inventory/Procurement.
 Mirrors `gateway.task.reservation.TaskReservationGateway`, but currently has zero
 implementations: Inventory/Procurement delivers these facts exclusively through the
 push-based outbox/inbox event path (see `ProcurementFinancialDispatcher` and
-`application.financials.procurement_consumer`), not through this pull contract.
+`application.financials.integration.procurement_consumer`), not through this pull contract.
 Retained as a declared, forward-looking alternative -- not wired into any runtime
 composition today.
 """

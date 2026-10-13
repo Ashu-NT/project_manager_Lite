@@ -5,7 +5,7 @@ bounded Top-N analytical projection for Heatmap's global pressure ranking.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
@@ -23,7 +23,7 @@ def _active_scope(services):
 
 def _seed_intake_rows(services, count: int, *, title_prefix: str = "Intake") -> None:
     scope = _active_scope(services)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = [
         PortfolioIntakeItemORM(
             id=f"{title_prefix.lower()}-{index:05d}",
@@ -61,7 +61,7 @@ def _seed_intake_rows(services, count: int, *, title_prefix: str = "Intake") -> 
 
 def test_intake_page_reaches_page_two_and_total_is_authoritative(services) -> None:
     _seed_intake_rows(services, 25)
-    portfolio = services["portfolio_service"]
+    portfolio = services["portfolio_intake_query"]
 
     page1 = portfolio.list_intake_items_page(page=1, page_size=10, sort_key="title", sort_direction="asc")
     page2 = portfolio.list_intake_items_page(page=2, page_size=10, sort_key="title", sort_direction="asc")
@@ -79,7 +79,7 @@ def test_intake_page_reaches_page_two_and_total_is_authoritative(services) -> No
 
 def test_intake_filter_applies_before_pagination(services) -> None:
     scope = _active_scope(services)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     approved = PortfolioIntakeItemORM(
         id="intake-approved-1",
         tenant_id=scope.tenant_id,
@@ -94,7 +94,7 @@ def test_intake_filter_applies_before_pagination(services) -> None:
     services["session"].flush()
     _seed_intake_rows(services, 5, title_prefix="Proposed")
 
-    portfolio = services["portfolio_service"]
+    portfolio = services["portfolio_intake_query"]
     result = portfolio.list_intake_items_page(status=PortfolioIntakeStatus.APPROVED, page=1, page_size=10)
 
     assert result.total == 1
@@ -103,7 +103,7 @@ def test_intake_filter_applies_before_pagination(services) -> None:
 
 def test_intake_sort_is_stable_with_id_tiebreaker(services) -> None:
     scope = _active_scope(services)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Same title on every row -> only the id tiebreaker can produce a
     # deterministic order.
     rows = [
@@ -122,7 +122,7 @@ def test_intake_sort_is_stable_with_id_tiebreaker(services) -> None:
     services["session"].add_all(rows)
     services["session"].flush()
 
-    portfolio = services["portfolio_service"]
+    portfolio = services["portfolio_intake_query"]
     first = portfolio.list_intake_items_page(sort_key="title", sort_direction="asc", page=1, page_size=10)
     second = portfolio.list_intake_items_page(sort_key="title", sort_direction="asc", page=1, page_size=10)
 
@@ -144,7 +144,7 @@ def test_intake_tenant_scope_is_enforced(services, session) -> None:
     )
     session.add(other_org)
     session.flush()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add(
         PortfolioIntakeItemORM(
             id="intake-other-org",
@@ -160,7 +160,7 @@ def test_intake_tenant_scope_is_enforced(services, session) -> None:
     session.flush()
     _seed_intake_rows(services, 3, title_prefix="Own")
 
-    portfolio = services["portfolio_service"]
+    portfolio = services["portfolio_intake_query"]
     result = portfolio.list_intake_items_page(page=1, page_size=50)
 
     assert result.total == 3
@@ -175,7 +175,7 @@ def test_intake_page_scales_to_ten_thousand_rows_without_full_materialization(se
     SCALABLE Portfolio collections: only the requested page is materialized
     and the query count stays fixed regardless of total row count."""
     _seed_intake_rows(services, 10_000)
-    portfolio = services["portfolio_service"]
+    portfolio = services["portfolio_intake_query"]
 
     with measure_sql(services["session"]) as stats:
         page = portfolio.list_intake_items_page(page=1, page_size=25, sort_key="title", sort_direction="asc")
@@ -366,7 +366,10 @@ def test_desktop_api_intake_page_passes_through_and_serializes(services) -> None
     )
 
     _seed_intake_rows(services, 15)
-    api = build_project_management_portfolio_desktop_api(portfolio_service=services["portfolio_service"])
+    api = build_project_management_portfolio_desktop_api(
+        portfolio_service=services["portfolio_service"],
+        portfolio_intake_query=services["portfolio_intake_query"],
+    )
 
     page1 = api.list_intake_items_page(page=1, page_size=10, sort_key="title", sort_direction="asc")
     page2 = api.list_intake_items_page(page=2, page_size=10, sort_key="title", sort_direction="asc")

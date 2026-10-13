@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Icons 1.0 as AppIcons
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 
 // Shared entity-header "Actions" overflow menu: a single trigger button
 // that opens a small anchored list of commands. Distinct from NavOverflowMenu
@@ -78,7 +79,7 @@ Item {
         onClicked: _popup.open()
     }
 
-    AnchoredPopup {
+    AppWidgets.AnchoredPopup {
         id: _popup
         anchorItem: root
         placement: "below-right"

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from src.core.modules.project_management.application.tasks.commands.assignment import (
-    TaskAssignmentMixin,
+    TaskAssignmentCommandHandler,
 )
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from src.core.platform.common.exceptions import (
@@ -70,22 +70,21 @@ class _FakeSession:
         self.rollback_calls += 1
 
 
-class _FakeAssignmentResponseService(TaskAssignmentMixin):
+class _FakeAssignmentResponseHandler(TaskAssignmentCommandHandler):
     def __init__(self, **attrs) -> None:
         self._uow_commit_calls = 0
         for key, value in attrs.items():
             setattr(self, key, value)
-
-    def _active_task_scope(self, *, operation_label: str):
-        del operation_label
-        return SimpleNamespace(tenant_id="tenant-1", organization_id="org-1")
-
-    def _task_uow(self):
-        return _FakeTaskUnitOfWork(self)
+        self._tenant_context_service = SimpleNamespace(
+            require_active_scope_ids=lambda **kwargs: SimpleNamespace(
+                tenant_id="tenant-1", organization_id="org-1"
+            )
+        )
+        self._uow_scope = SimpleNamespace(create=lambda: _FakeTaskUnitOfWork(self))
 
 
 def _make_fake_self(*, principal_user_id: str, assignment, task, resource, employee):
-    return _FakeAssignmentResponseService(
+    return _FakeAssignmentResponseHandler(
         _assignment_repo=_FakeRepo({assignment.id: assignment}),
         _task_repo=_FakeRepo({task.id: task}),
         _resource_repo=_FakeRepo({resource.id: resource} if resource is not None else {}),
@@ -205,7 +204,7 @@ def test_accept_assignment_raises_when_resource_has_no_linked_user():
 
 
 def test_accept_assignment_raises_when_assignment_missing():
-    fake_self = _FakeAssignmentResponseService(
+    fake_self = _FakeAssignmentResponseHandler(
         _assignment_repo=_FakeRepo({}),
         _task_repo=_FakeRepo({}),
         _resource_repo=_FakeRepo({}),

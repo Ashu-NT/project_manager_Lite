@@ -23,10 +23,10 @@ from src.core.modules.project_management.domain.financials.configuration import 
 from src.core.modules.project_management.infrastructure.approval.billing_preparation_apply_participant import (
     BillingPreparationApprovalParticipant,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.infra.composition.approval_apply_dependencies.billing_preparation import (
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals.finance.billing_preparation import (
     build_billing_preparation_approval_deps,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.infra.persistence.orm.base import Base
 
 
@@ -369,10 +369,10 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
             service_a._enterprise_audit_service
         ), "the fresh FinancialPeriodService should share this factory's fresh audit service"
 
-        assert service_a._approval_service is None, (
+        assert not hasattr(service_a, "_approval_service"), (
             "the apply path must never reach back into ApprovalService"
         )
-        assert service_b._approval_service is None
+        assert not hasattr(service_b, "_approval_service")
     finally:
         session_a.close()
         session_b.close()

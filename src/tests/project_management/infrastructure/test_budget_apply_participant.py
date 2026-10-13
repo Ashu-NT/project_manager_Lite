@@ -17,11 +17,11 @@ from src.core.modules.project_management.domain.financials.budget import BudgetS
 from src.core.modules.project_management.infrastructure.approval.budget_apply_participant import (
     BudgetApprovalParticipant,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.domain.approval import ApprovalRequest
-from src.infra.composition.approval_apply_dependencies.budget import (
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals.finance.budget import (
     build_budget_approval_deps,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.approval import ApprovalRequest
 from src.infra.persistence.orm.base import Base
 
 

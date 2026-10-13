@@ -15,6 +15,11 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.read.history.activity_actor_reader import (
+    ActivityActorKind,
+    ActivityActorPresentation,
+    ActivityActorReader,
+)
 from src.core.platform.contract.repositories.history.activity.contracts import (
     ActivityRepository,
 )
@@ -40,11 +45,47 @@ class ActivityService:
         activity_repo: ActivityRepository,
         user_session: Any = None,
         tenant_context_service: TenantContextService | None = None,
+        actor_reader: ActivityActorReader | None = None,
     ) -> None:
         self._session = session
         self._activity_repo = activity_repo
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
+        self._actor_reader = actor_reader
+
+    def present_actors(
+        self, entries: Sequence[ActivityEntry]
+    ) -> dict[str, ActivityActorPresentation]:
+        if not entries:
+            return {}
+        if len(entries) > 200:
+            raise ValueError("Activity actor presentation exceeds the bounded page size")
+        require_any_permission(
+            self._user_session,
+            ("settings.manage", "activity.read"),
+            operation_label="view activity actors",
+        )
+        scope = self._require_scope(operation_label="view activity actors")
+        organization_id = entries[0].organization_id
+        if not organization_id or any(
+            entry.tenant_id != scope.tenant_id or entry.organization_id != organization_id
+            for entry in entries
+        ):
+            raise BusinessRuleError("Activity scope mismatch.", code="ACTIVITY_SCOPE_MISMATCH")
+        self._require_explicit_organization(organization_id, operation_label="view activity actors")
+        actor_ids = tuple(sorted({entry.actor_id for entry in entries if entry.actor_id}))
+        resolved = (
+            self._actor_reader.resolve_batch(
+                tenant_id=scope.tenant_id, actor_ids=actor_ids
+            )
+            if self._actor_reader is not None else {}
+        )
+        return {
+            actor_id: resolved.get(actor_id, ActivityActorPresentation(
+                ActivityActorKind.MISSING, "Deleted user"
+            ))
+            for actor_id in actor_ids
+        }
 
     def record(
         self,
@@ -131,6 +172,14 @@ class ActivityService:
             operation_label="view activity entries",
         )
         scope = self._require_scope(operation_label="list activity")
+        if not scope.organization_id:
+            raise BusinessRuleError(
+                "Active organization context is required for list activity.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        self._require_explicit_organization(
+            scope.organization_id, operation_label="list activity"
+        )
         return self._activity_repo.list_recent(
             limit=limit,
             tenant_id=scope.tenant_id,
@@ -165,6 +214,7 @@ class ActivityService:
             operation_label="view activity entries",
         )
         scope = self._require_scope(operation_label="list activity for organization")
+        self._require_explicit_organization(organization_id, operation_label="list activity")
         return self._activity_repo.list_recent(
             limit=limit,
             tenant_id=scope.tenant_id,
@@ -199,6 +249,7 @@ class ActivityService:
             operation_label="view activity entries",
         )
         scope = self._require_scope(operation_label="list activity for organization")
+        self._require_explicit_organization(organization_id, operation_label="list activity")
         normalized_page = max(1, page)
         normalized_page_size = (
             page_size if page_size in ACTIVITY_PAGE_SIZE_OPTIONS else _DEFAULT_ACTIVITY_PAGE_SIZE
@@ -240,6 +291,7 @@ class ActivityService:
             operation_label="view activity entries",
         )
         scope = self._require_scope(operation_label="list activity for entity")
+        self._require_explicit_organization(organization_id, operation_label="list activity")
         return self._activity_repo.list_recent(
             limit=limit,
             tenant_id=scope.tenant_id,
@@ -269,6 +321,7 @@ class ActivityService:
             operation_label="view activity entries",
         )
         scope = self._require_scope(operation_label="list activity for entity")
+        self._require_explicit_organization(organization_id, operation_label="list activity")
         normalized_page = max(1, page)
         normalized_page_size = (
             page_size if page_size in ACTIVITY_PAGE_SIZE_OPTIONS else _DEFAULT_ACTIVITY_PAGE_SIZE
@@ -299,6 +352,20 @@ class ActivityService:
             )
         return self._tenant_context_service.require_organization_context(
             operation_label=operation_label
+        )
+
+    def _require_explicit_organization(
+        self, organization_id: str, *, operation_label: str
+    ) -> None:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "ActivityService requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        self._tenant_context_service.require_history_organization_access(
+            organization_id,
+            operation_label=operation_label,
+            permission_codes=("settings.manage", "activity.read"),
         )
 
 

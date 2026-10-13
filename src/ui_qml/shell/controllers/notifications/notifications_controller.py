@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.core.shared.events.view_invalidation import ExactRecipient
+from src.ui_qml.shared.adapters.scoped_view_invalidation_subscription import (
+    ScopedViewInvalidationSubscription,
+)
 from src.ui_qml.shell.presenters.notifications.notifications_presenter import (
     NotificationsPresenter,
 )
@@ -42,23 +46,34 @@ class NotificationsController(QObject):
     notificationsChanged = Signal()
     isLoadingChanged = Signal()
     errorMessageChanged = Signal()
+    _invalidationArrived = Signal()
 
     def __init__(
         self,
         *,
         presenter: NotificationsPresenter,
         shell_context=None,
+        channel=None,
+        user_session=None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._presenter = presenter
         self._shell_context = shell_context
+        self._user_session = user_session
+        self._invalidation = ScopedViewInvalidationSubscription(
+            channel=channel, on_hint=lambda _hint: self._invalidationArrived.emit()
+        )
+        self._invalidationArrived.connect(self.refresh, Qt.ConnectionType.QueuedConnection)
         self._unread_count = 0
         self._notifications: list[dict[str, object]] = []
         self._is_loading = False
         self._error_message = ""
+        self._scope_generation = 0
+        self._refresh_generation = 0
         if shell_context is not None:
             shell_context.scopeChanged.connect(self._on_scope_changed)
+        self._bind_recipient()
 
     # -- properties ----------------------------------------------------------
 
@@ -82,10 +97,23 @@ class NotificationsController(QObject):
 
     @Slot()
     def refresh(self) -> None:
+        self._refresh_generation += 1
+        generation = (self._scope_generation, self._refresh_generation)
         self._set_is_loading(True)
         self._set_error_message("")
-        count_result = self._presenter.load_unread_count()
-        list_result = self._presenter.load_notifications()
+        try:
+            count_result = self._presenter.load_unread_count()
+            if generation != (self._scope_generation, self._refresh_generation):
+                return
+            list_result = self._presenter.load_notifications()
+        except Exception:
+            logger.exception("Notification refresh failed")
+            if generation == (self._scope_generation, self._refresh_generation):
+                self._set_is_loading(False)
+                self._set_error_message("Notifications could not be loaded.")
+            return
+        if generation != (self._scope_generation, self._refresh_generation):
+            return
         self._set_is_loading(False)
 
         # Independent-ish, but both are read from the same underlying store
@@ -109,7 +137,10 @@ class NotificationsController(QObject):
         normalized = str(notification_id or "").strip()
         if not normalized:
             return False
+        generation = self._scope_generation
         result = self._presenter.mark_read(normalized)
+        if generation != self._scope_generation:
+            return False
         if not result.ok:
             self._set_error_message(result.error_message or "")
             return False
@@ -121,7 +152,10 @@ class NotificationsController(QObject):
 
     @Slot(result=bool)
     def markAllRead(self) -> bool:
+        generation = self._scope_generation
         result = self._presenter.mark_all_read()
+        if generation != self._scope_generation:
+            return False
         if not result.ok:
             self._set_error_message(result.error_message or "")
             return False
@@ -132,9 +166,20 @@ class NotificationsController(QObject):
     # -- scope change ----------------------------------------------------------
 
     def _on_scope_changed(self) -> None:
+        self._scope_generation += 1
+        self._bind_recipient()
         self._set_unread_count(0)
         self._set_notifications([])
         self.refresh()
+
+    def _bind_recipient(self) -> None:
+        principal = self._user_session.principal if self._user_session is not None else None
+        self._invalidation.replace_filter(
+            ExactRecipient(principal.user_id) if principal is not None else None
+        )
+
+    def dispose(self) -> None:
+        self._invalidation.dispose()
 
     # -- internal ----------------------------------------------------------
 

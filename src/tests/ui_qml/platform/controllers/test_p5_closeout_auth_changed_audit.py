@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -158,7 +158,7 @@ def test_role_binding_assignment_no_longer_reaches_the_admin_console_coarse_bind
 def test_role_binding_events_stay_silent_on_rollback(services, monkeypatch):
     """A failed commit must not leave a typed `RoleBindingAssigned` event dispatched -- the UoW's
     own commit failure aborts the whole transaction, event included."""
-    from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.security.role_governance_unit_of_work import (
         SqlAlchemyRoleGovernanceUnitOfWork,
     )
 
@@ -249,7 +249,7 @@ def test_membership_removal_refreshes_membership_and_role_binding_narrowly_with_
 
     target = services["auth_service"].register_user(_unique_code("p5closeout-removal-target"), _PASSWORD)
     issued = membership_service.issue_invitation(
-        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     services["user_session"].set_principal(
         services["auth_service"].build_principal(

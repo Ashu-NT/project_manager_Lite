@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -251,7 +251,7 @@ def test_expired_and_revoked_bindings_do_not_grant_authority(services) -> None:
     planner = repositories.role_repo.get_by_name("planner")
     assert viewer is not None
     assert planner is not None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     repositories.role_binding_repo.add(
         RoleBinding(
             id="expired-canonical-binding",

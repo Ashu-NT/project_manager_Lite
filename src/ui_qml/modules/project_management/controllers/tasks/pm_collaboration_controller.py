@@ -54,6 +54,11 @@ class PMCollaborationController(QObject):
         self._presence_override_task_id = ""
         self._last_selected_task_id = ""
         self._runtime_heartbeat_connected = False
+        self._comments_task_id = ""
+        self._comments_page = 1
+        self._comments_page_size = 25
+        self._mention_query = ""
+        self._document_query = ""
         self._collaboration_mention_options: list[dict[str, str]] = []
         self._collaboration_document_options: list[dict[str, str]] = []
         self._collaboration_comments: dict[str, object] = {
@@ -70,17 +75,25 @@ class PMCollaborationController(QObject):
         }
 
     def _update(self, workspace_state: object) -> None:
-        self._set_collaboration_mention_options(
-            serialize_selector_options(workspace_state.collaboration_mention_options)
-        )
-        self._set_collaboration_document_options(
-            serialize_selector_options(workspace_state.collaboration_document_options)
-        )
+        selected_task_id = str(getattr(workspace_state, "selected_task_id", "") or "")
+        if selected_task_id != self._comments_task_id:
+            self._mention_query = ""
+            self._document_query = ""
+        self._comments_task_id = selected_task_id
+        if not self._mention_query:
+            self._set_collaboration_mention_options(
+                serialize_selector_options(workspace_state.collaboration_mention_options)
+            )
+        if not self._document_query:
+            self._set_collaboration_document_options(
+                serialize_selector_options(workspace_state.collaboration_document_options)
+            )
         self._set_collaboration_comments(
             serialize_collaboration_collection_view_model(
                 workspace_state.collaboration_comments
             )
         )
+        self._comments_page = int(self._collaboration_comments.get("page", 1))
         self._set_collaboration_presence(
             serialize_collaboration_collection_view_model(
                 workspace_state.collaboration_presence
@@ -116,6 +129,86 @@ class PMCollaborationController(QObject):
     @Property("QVariantMap", notify=collaborationCommentsChanged)
     def collaborationComments(self) -> dict[str, object]:
         return self._collaboration_comments
+
+    def reset_comment_page(self) -> None:
+        self._comments_task_id = ""
+        self._comments_page = 1
+        self._mention_query = ""
+        self._document_query = ""
+        self._set_collaboration_mention_options([])
+        self._set_collaboration_document_options([])
+        self._set_collaboration_comments({
+            "title": "Task Collaboration", "subtitle": "",
+            "emptyState": "Open a task to view its discussion.",
+            "items": [], "totalCount": 0, "page": 1,
+            "pageSize": self._comments_page_size,
+        })
+        self._set_collaboration_presence({
+            "title": "", "subtitle": "", "emptyState": "", "items": [],
+        })
+
+    @Slot(str, int, result="QVariantMap")
+    def requestCommentPage(self, task_id: str, page: int) -> dict[str, object]:
+        normalized = str(task_id or "").strip()
+        if not normalized or normalized != self._comments_task_id:
+            return {"ok": False, "message": "The selected task changed."}
+        try:
+            state = self._presenter.build_task_collaboration_state(
+                task_id=normalized, page=page, page_size=self._comments_page_size
+            )
+            if normalized != self._comments_task_id:
+                return {"ok": False, "message": "The selected task changed."}
+            self._update(state)
+            return {"ok": True, "message": ""}
+        except Exception as exc:
+            message = safe_error_message(exc, safe_message="Discussion page could not be loaded.")
+            self._set_error_message(message)
+            return {"ok": False, "message": message}
+
+    @Slot(str, int, result="QVariantMap")
+    def requestCommentPageSize(self, task_id: str, page_size: int) -> dict[str, object]:
+        if page_size not in (25, 50, 100):
+            return {"ok": False, "message": "Unsupported discussion page size."}
+        previous = self._comments_page_size
+        self._comments_page_size = page_size
+        result = self.requestCommentPage(task_id, 1)
+        if not result["ok"]:
+            self._comments_page_size = previous
+        return result
+
+    @Slot(str, str, result="QVariantMap")
+    def searchTaskMentionOptions(self, task_id: str, query: str) -> dict[str, object]:
+        normalized = str(task_id or "").strip()
+        if not normalized or normalized != self._comments_task_id:
+            return {"ok": False, "message": "The selected task changed."}
+        try:
+            options = self._presenter.search_task_mention_options(normalized, query)
+            if normalized != self._comments_task_id:
+                return {"ok": False, "message": "The selected task changed."}
+            self._mention_query = str(query or "").strip()
+            self._set_collaboration_mention_options(serialize_selector_options(options))
+            return {"ok": True, "message": ""}
+        except Exception as exc:
+            message = safe_error_message(exc, safe_message="Mention search could not be loaded.")
+            self._set_error_message(message)
+            return {"ok": False, "message": message}
+
+    @Slot(str, str, result="QVariantMap")
+    def searchTaskDocumentOptions(self, task_id: str, query: str) -> dict[str, object]:
+        normalized = str(task_id or "").strip()
+        if not normalized or normalized != self._comments_task_id:
+            return {"ok": False, "message": "The selected task changed."}
+        try:
+            options = self._presenter.search_task_document_options(normalized, query)
+            if normalized != self._comments_task_id:
+                return {"ok": False, "message": "The selected task changed."}
+            self._document_query = str(query or "").strip()
+            self._set_collaboration_document_options(serialize_selector_options(options))
+            return {"ok": True, "message": ""}
+        except Exception as exc:
+            message = safe_error_message(exc, safe_message="Document search could not be loaded.")
+            self._set_error_message(message)
+            return {"ok": False, "message": message}
 
     @Property("QVariantMap", notify=collaborationPresenceChanged)
     def collaborationPresence(self) -> dict[str, object]:

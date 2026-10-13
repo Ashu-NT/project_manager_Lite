@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from src.core.modules.project_management.contracts.reads.collaboration import (
     CollaborationCommentCriteria,
@@ -11,6 +11,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.collabor
 from src.core.modules.project_management.infrastructure.persistence.reads.collaboration import (
     SqlAlchemyCollaborationWorkspaceReader,
 )
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
 from src.tests.project_management._test_repository_tenant_hardening_helpers import (
     _seed_priority_pm_rows,
 )
@@ -55,30 +56,7 @@ def test_purpose_queries_preserve_mentions_recent_activity_and_presence(services
 def test_concrete_collaboration_reader_rejects_cross_organization_ids(services) -> None:
     seeded = _seed_priority_pm_rows(services)
     collaboration = services["collaboration_service"]
-    now = datetime.now(timezone.utc)
-    services["session"].add_all(
-        [
-            TaskPresenceORM(
-                id="phase3d-presence-a",
-                task_id=seeded["task_a1"],
-                user_id="user-a",
-                username="user-a",
-                activity="reviewing",
-                started_at=now,
-                last_seen_at=now,
-            ),
-            TaskPresenceORM(
-                id="phase3d-presence-b",
-                task_id=seeded["task_b1"],
-                user_id="user-b",
-                username="user-b",
-                activity="editing",
-                started_at=now,
-                last_seen_at=now,
-            ),
-        ]
-    )
-    services["session"].commit()
+    now = datetime.now(UTC)
     scope = collaboration._tenant_context_service.require_active_scope_ids(
         operation_label="test collaboration reader isolation"
     )
@@ -108,7 +86,20 @@ def test_concrete_collaboration_reader_rejects_cross_organization_ids(services) 
 def test_active_presence_returns_complete_current_scoped_set_beyond_legacy_cap(services) -> None:
     project = services["project_service"].create_project("Large active team")
     task = services["task_service"].create_task(project.id, "Presence hub")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
+    services["session"].add_all(
+        [
+            UserORM(
+                id=f"presence-user-{index:03d}",
+                username=f"presence-user-{index:03d}",
+                password_hash="!",
+                created_at=now,
+                updated_at=now,
+            )
+            for index in range(205)
+        ]
+    )
+    services["session"].flush()
     services["session"].add_all(
         [
             TaskPresenceORM(

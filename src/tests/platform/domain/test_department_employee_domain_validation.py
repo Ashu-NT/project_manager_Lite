@@ -66,6 +66,12 @@ class _FakeDepartmentRepo:
                 return row
         return None
 
+    def find_by_head_of_department_employee_id(self, employee_id: str) -> Department | None:
+        for row in self._rows.values():
+            if row.head_of_department_employee_id == employee_id:
+                return row
+        return None
+
     def list_for_organization(
         self,
         organization_id: str,
@@ -140,19 +146,10 @@ class _FakeSiteRepo:
         return sorted(rows, key=lambda row: row.name)
 
 
-class _FakeLinkedEmployeeResourceRepo:
-    def list_by_employee(self, employee_id: str) -> list[object]:
-        return []
-
-    def update(self, resource: object) -> None:
-        return None
-
-
 class _FakeEmployeeUnitOfWork:
-    def __init__(self, *, session, employees, resources, sites, departments, enterprise_audit_service, context):
+    def __init__(self, *, session, employees, sites, departments, enterprise_audit_service, context):
         self._session = session
         self.employees = employees
-        self.resources = resources
         self.sites = sites
         self.departments = departments
         self._enterprise_audit_service = enterprise_audit_service
@@ -175,10 +172,9 @@ class _FakeEmployeeUnitOfWork:
 
 
 class _FakeEmployeeUnitOfWorkFactory:
-    def __init__(self, *, session, employees, resources, sites, departments, enterprise_audit_service):
+    def __init__(self, *, session, employees, sites, departments, enterprise_audit_service):
         self._session = session
         self._employees = employees
-        self._resources = resources
         self._sites = sites
         self._departments = departments
         self._enterprise_audit_service = enterprise_audit_service
@@ -187,7 +183,6 @@ class _FakeEmployeeUnitOfWorkFactory:
         return _FakeEmployeeUnitOfWork(
             session=self._session,
             employees=self._employees,
-            resources=self._resources,
             sites=self._sites,
             departments=self._departments,
             enterprise_audit_service=self._enterprise_audit_service,
@@ -286,6 +281,20 @@ def test_department_dto_normalizes_and_validates_fields():
         assert exc.code == "DEPARTMENT_ORGANIZATION_REQUIRED"
     else:
         raise AssertionError("Expected department organization validation error.")
+
+
+def test_department_cost_center_code_rejects_over_length_input():
+    try:
+        Department.create(
+            organization_id="org-1",
+            department_code="OPS",
+            name="Operations",
+            cost_center_code="C" * 65,
+        )
+    except ValidationError as exc:
+        assert exc.code == "DEPARTMENT_COST_CENTER_CODE_TOO_LONG"
+    else:
+        raise AssertionError("Expected cost center code length validation error.")
 
 
 def test_department_service_uses_entity_validation(monkeypatch):
@@ -405,6 +414,8 @@ def test_employee_dto_normalizes_and_validates_fields():
         Employee.create(
             employee_code="EMP-1",
             full_name="Valid",
+            organization_id="org-1",
+            department_id="dept-1",
             employment_type="invalid",
         )
     except ValidationError as exc:
@@ -453,12 +464,10 @@ def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
     department_repo.add(next_department)
 
     session = _FakeSession()
-    resource_repo = _FakeLinkedEmployeeResourceRepo()
     enterprise_audit_service = _FakeEnterpriseAuditService()
     service = EmployeeService(
         session=session,
         employee_repo=employee_repo,
-        resource_repo=resource_repo,
         site_repo=site_repo,
         department_repo=department_repo,
         organization_repo=object(),
@@ -468,7 +477,6 @@ def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
         uow_factory=_FakeEmployeeUnitOfWorkFactory(
             session=session,
             employees=employee_repo,
-            resources=resource_repo,
             sites=site_repo,
             departments=department_repo,
             enterprise_audit_service=enterprise_audit_service,

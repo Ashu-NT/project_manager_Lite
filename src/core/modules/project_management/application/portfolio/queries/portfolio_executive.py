@@ -7,7 +7,7 @@ from decimal import Decimal
 from src.core.modules.project_management.application.common.pagination import (
     PaginatedResult,
 )
-from src.core.modules.project_management.application.resources.resource_load_engine import (
+from src.core.modules.project_management.application.resources.capacity.resource_load_engine import (
     ResourceLoadEngine,
 )
 from src.core.modules.project_management.application.scheduling.calendars.working_day_snapshot import (
@@ -353,7 +353,6 @@ class PortfolioExecutiveQueryMixin:
                 getattr(row, "action", None)
                 or (getattr(row, "metadata", None) or {}).get("action")
                 or f"{entity_type}.{getattr(row, 'operation', 'update')}"
-                or ""
             )
             rows.append(
                 PortfolioRecentAction(

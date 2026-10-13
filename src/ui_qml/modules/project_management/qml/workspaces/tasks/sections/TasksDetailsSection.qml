@@ -93,7 +93,7 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            height: 1
+            Layout.preferredHeight: 1
             color: Theme.AppTheme.divider
             visible: root._hasTask && (root.taskDetail.fields || []).length > 0
         }

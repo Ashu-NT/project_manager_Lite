@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import Numeric
 
-from src.infra.persistence.db.financial_numeric import (
+from src.core.platform.infrastructure.persistence.common.financial_numeric import (
     FinancialNumericKind,
     financial_numeric,
     financial_numeric_info,
@@ -30,12 +30,10 @@ FINANCE_PRIMITIVES_ROOT = Path("src/core/platform/domain/finance")
 PROJECT_FINANCE_TRANSITION_FILES = (
     Path(
         "src/core/modules/project_management/application/financials/"
-        "configuration_service.py"
+        "configuration/service.py"
     ),
-    Path(
-        "src/core/modules/project_management/application/projects/commands/"
-        "lifecycle.py"
-    ),
+    Path("src/core/modules/project_management/application/projects/commands/create.py"),
+    Path("src/core/modules/project_management/application/projects/commands/update.py"),
 )
 CANONICAL_PM_NUMERIC_COLUMNS = {
     ("resources", "hourly_rate"): FinancialNumericKind.RATE,

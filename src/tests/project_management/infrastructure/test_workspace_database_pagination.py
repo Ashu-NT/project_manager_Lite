@@ -4,6 +4,12 @@ from datetime import date
 
 from sqlalchemy import event
 
+from src.core.modules.project_management.api.desktop.projects.factories.projects_api_factory import (
+    build_project_management_projects_desktop_api,
+)
+from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
+    build_project_management_tasks_desktop_api,
+)
 from src.core.modules.project_management.domain.enums import (
     CostType,
     ProjectStatus,
@@ -23,9 +29,9 @@ def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
     beta = project_service.create_project("Beta Upgrade", client_name="Contoso")
     project_service.set_status(beta.id, ProjectStatus.ACTIVE)
 
-    first_page = project_service.query_catalog_page(page=1, page_size=1)
-    second_page = project_service.query_catalog_page(page=2, page_size=1)
-    search_page = project_service.query_catalog_page(
+    first_page = services["project_query"].query_catalog_page(page=1, page_size=1)
+    second_page = services["project_query"].query_catalog_page(page=2, page_size=1)
+    search_page = services["project_query"].query_catalog_page(
         search_text="northwind",
         page=1,
         page_size=25,
@@ -47,12 +53,12 @@ def test_project_and_task_detail_activity_decode_canonical_payloads(services) ->
     project = project_service.create_project("Activity Contract Project")
     task = task_service.create_task(project.id, "Activity Contract Task")
 
-    project_activity = project_service.query_project_activity_page(
+    project_activity = services["project_query"].query_project_activity_page(
         project.id,
         page=1,
         page_size=25,
     )
-    task_activity = task_service.query_task_activity_page(
+    task_activity = services["task_detail_query"].query_task_activity_page(
         task.id,
         page=1,
         page_size=25,
@@ -76,6 +82,14 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
     site_b = site_service.create_site(site_code="SITE-B", name="Rotterdam Yard")
     dept_a = department_service.create_department(department_code="DEPT-A", name="Engineering")
     dept_b = department_service.create_department(department_code="DEPT-B", name="Operations")
+    manager_employee = services["employee_service"].create_employee(
+        employee_code="MANAGER-EMP", full_name="Project Manager", department_id=dept_a.id
+    )
+    services["employee_service"].link_employee_user_account(manager_employee.id, manager_id)
+    services["resource_service"].create_resource(
+        name="Project Manager", worker_type=WorkerType.EMPLOYEE,
+        employee_id=manager_employee.id,
+    )
 
     match = project_service.create_project(
         "Hamburg Refit",
@@ -110,12 +124,12 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
     )
 
     # Site alone narrows to the three Hamburg-site projects (excludes Rotterdam).
-    site_only = project_service.query_catalog_page(site_id=site_a.id, page=1, page_size=25)
+    site_only = services["project_query"].query_catalog_page(site_id=site_a.id, page=1, page_size=25)
     assert site_only.filtered_total == 3
     assert {row.project.site_id for row in site_only.items} == {site_a.id}
 
     # Manager alone excludes the unassigned "Other Dept" project.
-    manager_only = project_service.query_catalog_page(
+    manager_only = services["project_query"].query_catalog_page(
         manager_user_id=manager_id, page=1, page_size=25
     )
     assert manager_only.filtered_total == 3
@@ -123,7 +137,7 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
 
     # Site + department + manager + start-date range together return exactly
     # the single project matching the full intersection.
-    composed = project_service.query_catalog_page(
+    composed = services["project_query"].query_catalog_page(
         site_id=site_a.id,
         department_id=dept_a.id,
         manager_user_id=manager_id,
@@ -136,14 +150,14 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
     assert composed.items[0].project.id == match.id
 
     # Department alone still returns both dept_a projects across sites.
-    department_only = project_service.query_catalog_page(
+    department_only = services["project_query"].query_catalog_page(
         department_id=dept_a.id, page=1, page_size=25
     )
     assert department_only.filtered_total == 3
 
     # A start-date range excluding the out-of-range project proves the range
     # predicate is applied, not merely accepted and ignored.
-    date_ranged = project_service.query_catalog_page(
+    date_ranged = services["project_query"].query_catalog_page(
         department_id=dept_a.id,
         start_date_from=date(2026, 1, 1),
         start_date_to=date(2026, 12, 31),
@@ -217,24 +231,24 @@ def test_project_catalog_project_name_and_client_name_filters_compose(services) 
     project_service.create_project("Rotterdam Refit", client_name="Northwind Shipping")
 
     # Project name alone narrows to both "Hamburg" projects regardless of client.
-    by_name = project_service.query_catalog_page(project_name="hamburg", page=1, page_size=25)
+    by_name = services["project_query"].query_catalog_page(project_name="hamburg", page=1, page_size=25)
     assert by_name.filtered_total == 2
     assert all("hamburg" in row.project.name.lower() for row in by_name.items)
 
     # Client name alone narrows to both Northwind projects regardless of site/name.
-    by_client = project_service.query_catalog_page(client_name="northwind", page=1, page_size=25)
+    by_client = services["project_query"].query_catalog_page(client_name="northwind", page=1, page_size=25)
     assert by_client.filtered_total == 2
     assert all((row.project.client_name or "").lower() == "northwind shipping" for row in by_client.items)
 
     # Composed AND: only the single project matching both narrows to it.
-    composed = project_service.query_catalog_page(
+    composed = services["project_query"].query_catalog_page(
         project_name="hamburg", client_name="northwind", page=1, page_size=25
     )
     assert composed.filtered_total == 1
     assert composed.items[0].project.id == hamburg.id
 
     # No match anywhere -> zero results, not an error.
-    no_match = project_service.query_catalog_page(project_name="nonexistent-xyz", page=1, page_size=25)
+    no_match = services["project_query"].query_catalog_page(project_name="nonexistent-xyz", page=1, page_size=25)
     assert no_match.filtered_total == 0
 
 
@@ -261,7 +275,7 @@ def test_project_department_id_round_trips_through_create_and_update(services) -
 
 
 def test_project_update_records_actor_and_field_level_activity_diff(services) -> None:
-    """Real DB proof for the ProjectLifecycleMixin diff-tracking fix: the
+    """Real DB proof for the ProjectUpdateMixin diff-tracking fix: the
     recorded activity entry must carry both who made the change (actor_id,
     resolved from the authenticated principal) and a before/after diff for
     every field that actually changed -- not just the final snapshot."""
@@ -316,22 +330,22 @@ def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
     beta = project_service.create_project("Beta Sort")
     gamma = project_service.create_project("Gamma Sort")
 
-    ascending_first = project_service.query_catalog_page(
+    ascending_first = services["project_query"].query_catalog_page(
         sort_key="title", sort_direction="asc", page=1, page_size=2
     )
-    ascending_second = project_service.query_catalog_page(
+    ascending_second = services["project_query"].query_catalog_page(
         sort_key="title", sort_direction="asc", page=2, page_size=2
     )
-    descending_first = project_service.query_catalog_page(
+    descending_first = services["project_query"].query_catalog_page(
         sort_key="title", sort_direction="desc", page=1, page_size=2
     )
-    descending_second = project_service.query_catalog_page(
+    descending_second = services["project_query"].query_catalog_page(
         sort_key="title", sort_direction="desc", page=2, page_size=2
     )
-    unsupported = project_service.query_catalog_page(
+    unsupported = services["project_query"].query_catalog_page(
         sort_key="arbitrary_sql", sort_direction="desc", page=1, page_size=3
     )
-    beyond_last = project_service.query_catalog_page(
+    beyond_last = services["project_query"].query_catalog_page(
         sort_key="title", sort_direction="asc", page=99, page_size=2
     )
 
@@ -371,21 +385,21 @@ def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -
         wbs_code="1.1",
     )
 
-    first_page = task_service.query_workspace_page(
+    first_page = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         status="BLOCKED",
         page=1,
         page_size=1,
         as_of=date(2026, 5, 1),
     )
-    second_page = task_service.query_workspace_page(
+    second_page = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         status="BLOCKED",
         page=2,
         page_size=1,
         as_of=date(2026, 5, 1),
     )
-    priority_page = task_service.query_workspace_page(
+    priority_page = services["task_workspace_query"].query_workspace_page(
         search_text="priority>=90",
         page=1,
         page_size=25,
@@ -414,8 +428,8 @@ def test_task_workspace_milestones_only_filter(services) -> None:
         project.id, "Handover", start_date=date(2026, 5, 5), duration_days=5, is_milestone=True
     )
 
-    all_page = task_service.query_workspace_page(project_id=project.id, page=1, page_size=25)
-    milestones_page = task_service.query_workspace_page(
+    all_page = services["task_workspace_query"].query_workspace_page(project_id=project.id, page=1, page_size=25)
+    milestones_page = services["task_workspace_query"].query_workspace_page(
         project_id=project.id, milestones_only=True, page=1, page_size=25
     )
 
@@ -433,42 +447,42 @@ def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
     beta = task_service.create_task(project.id, "Beta Task", wbs_code="2")
     gamma = task_service.create_task(project.id, "Gamma Task", wbs_code="3")
 
-    ascending_first = task_service.query_workspace_page(
+    ascending_first = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
         page=1,
         page_size=2,
     )
-    ascending_second = task_service.query_workspace_page(
+    ascending_second = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
         page=2,
         page_size=2,
     )
-    first = task_service.query_workspace_page(
+    first = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="desc",
         page=1,
         page_size=2,
     )
-    second = task_service.query_workspace_page(
+    second = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="desc",
         page=2,
         page_size=2,
     )
-    unsupported = task_service.query_workspace_page(
+    unsupported = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="unsafe_sql",
         sort_direction="desc",
         page=1,
         page_size=3,
     )
-    beyond_last = task_service.query_workspace_page(
+    beyond_last = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
@@ -490,10 +504,14 @@ def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
 
 def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> None:
     resource_service = services["resource_service"]
+    delivery_department = services["department_service"].create_department(
+        department_code="DEPT-DELIVERY", name="Delivery"
+    )
     employee = services["employee_service"].create_employee(
         employee_code="EMP-RPAGE",
         full_name="Alex Database",
         title="Planner",
+        department_id=delivery_department.id,
         department="Delivery",
         site_name="Berlin",
         email="alex.database@example.com",
@@ -580,8 +598,8 @@ def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
 
 def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -> None:
     project = services["project_service"].create_project("Register Database Paging")
-    register_service = services["register_service"]
-    critical_risk = register_service.create_entry(
+    register_query = services["register_query"]
+    critical_risk = services["register_lifecycle_commands"].create_entry(
         project.id,
         entry_type=RegisterEntryType.RISK,
         title="Critical supplier delay",
@@ -589,7 +607,7 @@ def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -
         status=RegisterEntryStatus.OPEN,
         due_date=date(2026, 5, 1),
     )
-    issue = register_service.create_entry(
+    issue = services["register_lifecycle_commands"].create_entry(
         project.id,
         entry_type=RegisterEntryType.ISSUE,
         title="Permit issue",
@@ -597,7 +615,7 @@ def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -
         status=RegisterEntryStatus.IN_PROGRESS,
         due_date=date(2026, 5, 3),
     )
-    change = register_service.create_entry(
+    change = services["register_lifecycle_commands"].create_entry(
         project.id,
         entry_type=RegisterEntryType.CHANGE,
         title="Approved scope change",
@@ -605,19 +623,19 @@ def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -
         status=RegisterEntryStatus.CLOSED,
     )
 
-    first_page = register_service.query_catalog_page(
+    first_page = register_query.query_catalog_page(
         project_id=project.id,
         as_of=date(2026, 5, 10),
         page=1,
         page_size=1,
     )
-    second_page = register_service.query_catalog_page(
+    second_page = register_query.query_catalog_page(
         project_id=project.id,
         as_of=date(2026, 5, 10),
         page=2,
         page_size=1,
     )
-    risks = register_service.query_catalog_page(
+    risks = register_query.query_catalog_page(
         project_id=project.id,
         entry_type=RegisterEntryType.RISK,
         search_text="supplier",
@@ -645,62 +663,62 @@ def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -
 
 def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
     project = services["project_service"].create_project("Register Sort Project")
-    register_service = services["register_service"]
-    alpha = register_service.create_entry(
+    register_query = services["register_query"]
+    alpha = services["register_lifecycle_commands"].create_entry(
         project.id,
         entry_type=RegisterEntryType.RISK,
         title="Alpha Register Entry",
         severity=RegisterEntrySeverity.LOW,
     )
-    beta = register_service.create_entry(
+    beta = services["register_lifecycle_commands"].create_entry(
         project.id,
         entry_type=RegisterEntryType.ISSUE,
         title="Beta Register Entry",
         severity=RegisterEntrySeverity.MEDIUM,
     )
-    gamma = register_service.create_entry(
+    gamma = services["register_lifecycle_commands"].create_entry(
         project.id,
         entry_type=RegisterEntryType.CHANGE,
         title="Gamma Register Entry",
         severity=RegisterEntrySeverity.HIGH,
     )
 
-    ascending_first = register_service.query_catalog_page(
+    ascending_first = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
         page=1,
         page_size=2,
     )
-    ascending_second = register_service.query_catalog_page(
+    ascending_second = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
         page=2,
         page_size=2,
     )
-    first = register_service.query_catalog_page(
+    first = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="desc",
         page=1,
         page_size=2,
     )
-    second = register_service.query_catalog_page(
+    second = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="desc",
         page=2,
         page_size=2,
     )
-    unsupported = register_service.query_catalog_page(
+    unsupported = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="unsafe_sql",
         sort_direction="desc",
         page=1,
         page_size=3,
     )
-    beyond_last = register_service.query_catalog_page(
+    beyond_last = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
@@ -836,8 +854,16 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
     assert [row.resource_name for row in beyond_last.items] == ["Zoe Reviewer"]
 
 
-def test_workspace_page_query_budgets_are_constant(services) -> None:
-    session = services["project_service"]._session
+def test_workspace_page_query_budgets_are_constant(services, session) -> None:
+    projects_api = build_project_management_projects_desktop_api(
+        project_query=services["project_query"],
+        module_catalog_service=services["module_catalog_service"],
+    )
+    tasks_api = build_project_management_tasks_desktop_api(
+        task_service=services["task_service"],
+        task_workspace_query=services["task_workspace_query"],
+        module_catalog_service=services["module_catalog_service"],
+    )
     engine = session.get_bind()
     statement_count = 0
 
@@ -849,10 +875,10 @@ def test_workspace_page_query_budgets_are_constant(services) -> None:
     try:
         budgets = []
         for query in (
-            lambda: services["project_service"].query_catalog_page(),
-            lambda: services["task_service"].query_workspace_page(),
+            lambda: projects_api.list_project_page(),
+            lambda: tasks_api.list_task_page(),
             lambda: services["resource_service"].query_catalog_page(),
-            lambda: services["register_service"].query_catalog_page(),
+            lambda: services["register_query"].query_catalog_page(),
             lambda: services["timesheet_service"].query_review_queue_page(),
         ):
             statement_count = 0

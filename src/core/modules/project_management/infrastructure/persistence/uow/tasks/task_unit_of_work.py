@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.contracts.uow.tasks.task_unit_of_work import (
     TaskUnitOfWork,
 )
+from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
+    SqlAlchemyProjectResourceRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
@@ -23,6 +26,9 @@ from src.core.platform.infrastructure.persistence.repositories.history.activity.
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import (
+    SqlAlchemyTimeEntryRepository,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_event_publisher import (
@@ -56,7 +62,9 @@ class SqlAlchemyTaskUnitOfWork(SqlAlchemyUnitOfWorkBase, TaskUnitOfWork):
         self.tasks = SqlAlchemyTaskRepository(session)
         self.assignments = SqlAlchemyAssignmentRepository(session)
         self.dependencies = SqlAlchemyDependencyRepository(session)
-        for repo in (self.tasks, self.assignments, self.dependencies):
+        self.project_resources = SqlAlchemyProjectResourceRepository(session)
+        self.time_entries = SqlAlchemyTimeEntryRepository(session)
+        for repo in (self.tasks, self.assignments, self.dependencies, self.project_resources, self.time_entries):
             if hasattr(repo, "_tenant_context_service"):
                 repo._tenant_context_service = tenant_context_service
 

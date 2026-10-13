@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -33,7 +33,7 @@ def _create_period(service, *, code: str = "FY26-P01", period_number: int = 1):
 
 
 def test_financial_period_domain_enforces_range_metadata_and_one_way_lifecycle() -> None:
-    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 1, tzinfo=UTC)
     period = FinancialPeriod.create(
         tenant_id="tenant-a",
         organization_id="org-a",

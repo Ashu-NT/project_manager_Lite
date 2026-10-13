@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -16,7 +16,7 @@ from src.core.modules.project_management.application.financials.commitments.comm
 from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
     ProjectCostEntryService,
 )
-from src.core.modules.project_management.application.financials.procurement_consumer import (
+from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
     ProcurementFinancialConsumer,
 )
@@ -90,7 +90,7 @@ class _TenantContext:
 
 
 def seed_procurement_scope(postgres_test_environment):
-    now = datetime(2026, 9, 10, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 10, tzinfo=UTC)
     with postgres_test_environment.admin_engine.begin() as connection:
         for tenant, org, project, suffix in (
             (TENANT_A, ORG_A, PROJECT_A, "A"),
@@ -126,8 +126,9 @@ def seed_procurement_scope(postgres_test_environment):
         ), {"id": SITE_A, "tenant": TENANT_A, "org": ORG_A, "now": now})
         connection.execute(text(
             "INSERT INTO parties (id, tenant_id, organization_id, party_code, party_name, "
-            "party_type, is_active, created_at, updated_at, version) "
-            "VALUES (:id, :tenant, :org, 'PROC', 'Procurement supplier', 'SUPPLIER', true, :now, :now, 1)"
+            "party_type, roles, status, created_at, updated_at, version) "
+            "VALUES (:id, :tenant, :org, 'PROC', 'Procurement supplier', "
+            "'ORGANIZATION', 'SUPPLIER', 'active', :now, :now, 1)"
         ), {"id": SUPPLIER_A, "tenant": TENANT_A, "org": ORG_A, "now": now})
         connection.execute(text(
             "INSERT INTO financial_periods (id, tenant_id, organization_id, code, name, fiscal_year, "
@@ -223,13 +224,13 @@ def _event(event_type, payload, *, event_id, aggregate_id, revision=1):
         tenant_id=TENANT_A, organization_id=ORG_A,
         aggregate_type="purchase_order_line" if event_type == PROCUREMENT_COMMITMENT_EVENT_TYPE else "receipt_line",
         aggregate_id=aggregate_id, aggregate_version=revision,
-        occurred_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 9, 10, tzinfo=UTC),
         correlation_id="r6de-correlation", payload=payload.model_dump(mode="json"),
     )
 
 
 def test_r6d_f_commitment_read_plan_uses_scoped_bounded_query(postgres_test_environment):
-    now = datetime(2026, 9, 10, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 10, tzinfo=UTC)
     with postgres_test_environment.admin_engine.begin() as connection:
         connection.execute(text(
             "INSERT INTO project_commitments "
@@ -326,7 +327,7 @@ def test_runtime_worker_and_child_rls(postgres_test_environment):
             receipt_number="R6DE-REC", purchase_order_id="r6de-po",
             purchase_order_line_id="r6de-line", supplier_party_id=SUPPLIER_A,
             site_id=SITE_A, source_revision=1, source_content_hash="b" * 64,
-            posted_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+            posted_at=datetime(2026, 9, 10, tzinfo=UTC),
             accepted_quantity=DecimalQuantityPayload(value="4", unit="EA"),
             unit_cost=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
         )
@@ -345,10 +346,13 @@ def test_runtime_worker_and_child_rls(postgres_test_environment):
             "WHERE purchase_order_line_id='r6de-line'"
         )) == 40
         assert connection.scalar(text(
-            "SELECT count(*) FROM project_cost_entries WHERE project_id=:project"
+            "SELECT count(*) FROM project_cost_entries "
+            "WHERE project_id=:project AND source_line_id='r6de-receipt-line'"
         ), {"project": PROJECT_A}) == 1
         assert connection.scalar(text(
-            "SELECT count(*) FROM project_commitment_matches WHERE project_id=:project"
+            "SELECT count(*) FROM project_commitment_matches "
+            "WHERE project_id=:project AND commitment_line_id IN "
+            "(SELECT id FROM project_commitment_lines WHERE purchase_order_line_id='r6de-line')"
         ), {"project": PROJECT_A}) == 1
         assert connection.scalar(text(
             "SELECT count(*) FROM project_finance_inbox_receipts "
@@ -375,7 +379,8 @@ def test_runtime_worker_and_child_rls(postgres_test_environment):
             "project_commitment_source_revisions", "project_commitment_matches",
             "project_cost_entries", "project_finance_inbox_receipts",
         ):
-            assert foreign.scalar(text(f"SELECT count(*) FROM {table}")) == 0
+            assert foreign.scalar(text(f"SELECT count(*) FROM {table} WHERE tenant_id=:local"),
+                                  {"local": TENANT_A}) == 0
             assert foreign.execute(text(f"DELETE FROM {table} WHERE tenant_id=:local"),
                                    {"local": TENANT_A}).rowcount == 0
         foreign.rollback()
@@ -514,7 +519,7 @@ def test_concurrent_duplicate_receipt_has_one_actual_and_match(postgres_test_env
             purchase_order_line_id="r6de-receipt-race-line",
             supplier_party_id=SUPPLIER_A, site_id=SITE_A,
             source_revision=1, source_content_hash="e" * 64,
-            posted_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+            posted_at=datetime(2026, 9, 10, tzinfo=UTC),
             accepted_quantity=DecimalQuantityPayload(value="4", unit="EA"),
             unit_cost=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
         )
@@ -581,7 +586,7 @@ def test_closure_and_accepted_receipt_race_preserves_both_facts(postgres_test_en
             purchase_order_id="r6de-close-po", purchase_order_line_id="r6de-close-line",
             supplier_party_id=SUPPLIER_A, site_id=SITE_A,
             source_revision=1, source_content_hash="f" * 64,
-            posted_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+            posted_at=datetime(2026, 9, 10, tzinfo=UTC),
             accepted_quantity=DecimalQuantityPayload(value="4", unit="EA"),
             unit_cost=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
         )

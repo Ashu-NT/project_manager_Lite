@@ -22,10 +22,13 @@ from src.core.platform.domain.security.authorization.roles.role_permission_catal
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import (
     TenantORM,
 )
+from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
+    SqlAlchemyOrganizationDefaultCalendarWriter,
+)
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
 )
-from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.master_data.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import (
@@ -95,6 +98,7 @@ def test_list_organizations_is_scoped_to_active_tenant(services):
         organization_repo=repo,
         uow_factory=_make_organization_uow_factory(session, tenant_context_service, ctx_a),
         clock=SystemClock(),
+        default_calendar_writer=SqlAlchemyOrganizationDefaultCalendarWriter(),
         user_session=ctx_a,
     )
 
@@ -115,7 +119,6 @@ def test_platform_admin_permission_in_default_permissions():
 
 def test_admin_user_has_platform_admin_permission(services):
     auth = services["auth_service"]
-    user_session = services["user_session"]
 
     admin_perms = auth.get_user_permissions(
         services["auth_service"].authenticate("admin", "ChangeMe123!").id

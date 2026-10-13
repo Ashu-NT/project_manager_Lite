@@ -4,8 +4,33 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.core.modules.project_management.api.desktop.register.api import (
+    ProjectManagementRegisterDesktopApi,
+)
+from src.core.modules.project_management.api.desktop.resources.api import (
+    ProjectManagementResourcesDesktopApi,
+)
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.dashboard.services.dashboard_service import (
+    DashboardService,
+)
+from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
+    PortfolioIntakeQueryHandler,
+)
+from src.core.modules.project_management.application.resources.catalog.resource_service import (
+    ResourceService,
+)
+from src.core.modules.project_management.application.resources.project_resources.project_resource_service import (
+    ProjectResourceService,
+)
+from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
+    RegisterLifecycleHandler,
+)
+from src.core.modules.project_management.application.tasks.service import TaskService
+from src.core.modules.project_management.infrastructure.importers.services.data_import_service import (
+    DataImportService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
@@ -40,6 +65,99 @@ def test_business_methods_are_blocked_when_the_module_is_disabled() -> None:
 def test_business_methods_are_allowed_when_the_module_is_enabled() -> None:
     service = _GuardedService(_module_catalog(runtime_enabled=True))
     assert service.create_task() == "created"
+
+
+def test_register_desktop_commands_check_module_before_handler() -> None:
+    api = ProjectManagementRegisterDesktopApi(
+        register_lifecycle_commands=object(),  # type: ignore[arg-type]
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        api.create_entry(
+            SimpleNamespace(project_id="project-1", entry_type="RISK", title="Risk")
+        )
+
+
+def test_register_handler_checks_module_before_opening_uow() -> None:
+    commands = RegisterLifecycleHandler(
+        project_repo=object(),  # type: ignore[arg-type]
+        register_repo=object(),  # type: ignore[arg-type]
+        user_session=None,
+        tenant_context_service=object(),  # type: ignore[arg-type]
+        uow_factory=None,
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        commands.create_entry("project-1", entry_type="risk", title="Risk")
+
+
+def test_portfolio_intake_query_checks_module_before_repository_access() -> None:
+    query = PortfolioIntakeQueryHandler(
+        intake_repo=object(),  # type: ignore[arg-type]
+        tenant_context_service=object(),  # type: ignore[arg-type]
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        query.list_intake_items_page()
+
+
+def test_project_resource_read_facade_still_checks_module_before_handler() -> None:
+    service = ProjectResourceService(
+        command_handler=object(),
+        query_handler=object(),
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.list_by_project("project-1")
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.add_to_project("project-1", "resource-1")
+
+
+def test_task_detail_query_facade_checks_module_before_handler() -> None:
+    service = TaskService.__new__(TaskService)
+    service._module_catalog_service = _module_catalog(runtime_enabled=False)
+    service._detail_query = SimpleNamespace(get_task=lambda _task_id: pytest.fail("handler called"))
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.get_task("task-1")
+
+
+def test_dashboard_capability_consumer_keeps_module_gate() -> None:
+    dashboard = DashboardService.__new__(DashboardService)
+    dashboard._module_catalog_service = _module_catalog(runtime_enabled=False)
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        dashboard.get_dashboard_data("project-1")
+
+
+def test_csv_import_capability_consumer_keeps_module_gate() -> None:
+    imports = DataImportService.__new__(DataImportService)
+    imports._module_catalog_service = _module_catalog(runtime_enabled=False)
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        imports.get_import_schema("tasks")
+
+
+def test_resource_commands_facade_checks_module_before_handler() -> None:
+    service = ResourceService(
+        resource_repo=object(),
+        master_command_handler=object(),
+        capability_command_handler=object(),
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.add_resource_skill("resource-1", "planning", "Planning")
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        service.create_resource("Resource")
+
+
+def test_resource_query_desktop_boundary_checks_module_before_handler() -> None:
+    api = ProjectManagementResourcesDesktopApi(
+        resource_capability_query=object(),  # type: ignore[arg-type]
+        resource_context_query=object(),  # type: ignore[arg-type]
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        api.list_resource_skills_page("resource-1")
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        api.list_resource_projects_page("resource-1")
 
 
 def test_composition_root_wiring_setters_are_exempt_from_the_module_gate() -> None:

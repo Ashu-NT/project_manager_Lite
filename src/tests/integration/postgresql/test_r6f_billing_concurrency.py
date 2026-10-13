@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from threading import Barrier
 from types import SimpleNamespace
@@ -78,7 +78,7 @@ def billing_scope(postgres_test_environment):
             "INSERT INTO tenants (id, tenant_code, display_name, tenant_status, is_active, version) "
             "VALUES (:id, :code, 'Billing race', 'active', true, 1)"
         ), {"id": tenant, "code": suffix})
-        _seed_scope(connection, suffix=suffix, tenant_id=tenant, organization_id=org)
+        _seed_scope(connection, suffix=suffix, tenant_id=tenant, organization_id=org, include_outcome=False)
     return SimpleNamespace(
         tenant=tenant, org=org, project=f"r6b-billing-project-{suffix}",
         preparation=f"r6b-billing-preparation-{suffix}", schedule=f"r6b-billing-schedule-{suffix}",
@@ -228,7 +228,7 @@ def test_governed_billing_reservation_atomicity(postgres_test_environment, billi
         service = ProjectBillingPreparationService(
             session=uow._session, billing_repo=uow.billing, financial_profile_repo=uow.profiles,
             cost_entry_repo=uow.cost_entries, labor_posting_repo=uow.labor_postings,
-            rate_resolver=None, financial_period_service=None, approval_service=None,
+            rate_resolver=None, financial_period_service=None,
             tenant_context_service=scope, clock=SystemClock(), user_session=user_session,
             enterprise_audit_service=audit, record_event=uow.record_event,
         )
@@ -273,7 +273,7 @@ def test_live_billing_correction_branch_race(postgres_test_environment, billing_
             correction.idempotency_key = correction.id
             correction.correction_of_preparation_id = scope.preparation
             correction.status = BillingPreparationStatus.DRAFT
-            correction.created_at = datetime.now(timezone.utc)
+            correction.created_at = datetime.now(UTC)
             barrier.wait(timeout=10)
             try:
                 repo.add_preparation(correction)
@@ -292,7 +292,7 @@ def test_live_billing_correction_branch_race(postgres_test_environment, billing_
 def test_governed_billing_application_race(postgres_test_environment, billing_scope, action):
     scope = billing_scope
     actor = str(uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with postgres_test_environment.admin_engine.begin() as connection:
         connection.execute(text(
             "INSERT INTO users (id, username, password_hash, account_type, is_active, created_at, updated_at, version) "
@@ -326,7 +326,7 @@ def test_governed_billing_application_race(postgres_test_environment, billing_sc
         service = ProjectBillingPreparationService(
             session=uow._session, billing_repo=uow.billing, financial_profile_repo=uow.profiles,
             cost_entry_repo=uow.cost_entries, labor_posting_repo=uow.labor_postings,
-            rate_resolver=None, financial_period_service=None, approval_service=None,
+            rate_resolver=None, financial_period_service=None,
             tenant_context_service=scope, clock=SystemClock(), user_session=user,
             enterprise_audit_service=uow._enterprise_audit_service, record_event=uow.record_event,
         )

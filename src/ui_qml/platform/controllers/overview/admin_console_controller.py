@@ -10,21 +10,37 @@ from src.ui_qml.platform.controllers.calendars.actions import (
     add_calendar_recurring_event,
     assign_calendar,
     calculate_calendar_working_days,
-    create_enterprise_calendar,
+    create_platform_calendar,
     delete_calendar_exception,
     delete_calendar_recurring_event,
+    delete_platform_calendar,
     remove_calendar_assignment,
-    update_enterprise_calendar,
+    update_calendar_exception,
+    update_calendar_recurring_event,
+    update_platform_calendar,
 )
 from src.ui_qml.platform.controllers.calendars.calendar_controller import (
     PlatformCalendarController,
 )
 from src.ui_qml.platform.controllers.calendars.context import (
     calendar_assignment_context,
+    calendar_business_today,
     calendar_detail_context,
+    calendar_month_context,
+    calendar_overview_context,
+    department_calendar_summary,
+    employee_calendar_summary,
     site_calendar_summary,
 )
-from src.ui_qml.platform.controllers.common import PlatformWorkspaceControllerBase
+from src.ui_qml.platform.controllers.calendars.recurrence import (
+    build_recurrence_rule,
+    default_recurrence_editor_state,
+    parse_recurrence_rule,
+    recurrence_summary,
+)
+from src.ui_qml.platform.controllers.common import (
+    run_history_preview,
+)
 from src.ui_qml.platform.controllers.departments.actions import (
     activate_department,
     create_department,
@@ -34,17 +50,6 @@ from src.ui_qml.platform.controllers.departments.actions import (
 from src.ui_qml.platform.controllers.departments.department_controller import (
     PlatformDepartmentController,
 )
-from src.ui_qml.platform.controllers.documents.actions import (
-    add_document_link,
-    create_document,
-    create_document_structure,
-    remove_document_link,
-    select_document,
-    toggle_document_active,
-    toggle_document_structure_active,
-    update_document,
-    update_document_structure,
-)
 from src.ui_qml.platform.controllers.documents.document_controller import (
     PlatformDocumentController,
 )
@@ -52,8 +57,12 @@ from src.ui_qml.platform.controllers.documents.document_structure_controller imp
     PlatformDocumentStructureController,
 )
 from src.ui_qml.platform.controllers.employees.actions import (
+    activate_employee,
     create_employee,
+    deactivate_employee,
+    link_employee_user_account,
     toggle_employee_active,
+    unlink_employee_user_account,
     update_employee,
 )
 from src.ui_qml.platform.controllers.employees.employee_controller import (
@@ -75,11 +84,6 @@ from src.ui_qml.platform.controllers.organizations.actions import (
 from src.ui_qml.platform.controllers.organizations.organization_controller import (
     PlatformOrganizationController,
 )
-from src.ui_qml.platform.controllers.parties.actions import (
-    create_party,
-    toggle_party_active,
-    update_party,
-)
 from src.ui_qml.platform.controllers.parties.party_controller import (
     PlatformPartyController,
 )
@@ -99,8 +103,14 @@ from src.ui_qml.platform.controllers.users.actions import (
 from src.ui_qml.platform.controllers.users.user_controller import (
     PlatformUserController,
 )
+from src.ui_qml.platform.presenters.calendars.calendar_activity_presenter import (
+    PlatformCalendarActivityPresenter,
+)
 from src.ui_qml.platform.presenters.calendars.calendar_catalog_presenter import (
     PlatformCalendarCatalogPresenter,
+)
+from src.ui_qml.platform.presenters.departments.department_activity_presenter import (
+    PlatformDepartmentActivityPresenter,
 )
 from src.ui_qml.platform.presenters.departments.department_catalog_presenter import (
     PlatformDepartmentCatalogPresenter,
@@ -111,8 +121,14 @@ from src.ui_qml.platform.presenters.documents.document_catalog_presenter import 
 from src.ui_qml.platform.presenters.documents.document_management_presenter import (
     PlatformDocumentManagementPresenter,
 )
+from src.ui_qml.platform.presenters.employees.employee_activity_presenter import (
+    PlatformEmployeeActivityPresenter,
+)
 from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
     PlatformEmployeeCatalogPresenter,
+)
+from src.ui_qml.platform.presenters.employees.employee_documents_presenter import (
+    PlatformEmployeeDocumentsPresenter,
 )
 from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
     PlatformOrganizationActivityPresenter,
@@ -122,6 +138,9 @@ from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter
 )
 from src.ui_qml.platform.presenters.overview.admin_overview_presenter import (
     PlatformAdminWorkspacePresenter,
+)
+from src.ui_qml.platform.presenters.parties.party_activity_presenter import (
+    PlatformPartyActivityPresenter,
 )
 from src.ui_qml.platform.presenters.parties.party_catalog_presenter import (
     PlatformPartyCatalogPresenter,
@@ -137,6 +156,7 @@ from src.ui_qml.platform.presenters.users.user_catalog_presenter import (
 )
 
 from .entity_code_dispatch import generate_entity_code
+from .party_document_slots import PlatformAdminPartyDocumentSlots
 from .refresh_coordinator import do_refresh, refresh_overview
 from .signal_binder import bind_child_signals
 
@@ -146,7 +166,7 @@ QML_IMPORT_MAJOR_VERSION = 1
 
 @QmlElement
 @QmlUncreatable("Platform workspace controllers are provided by the shell runtime.")
-class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
+class PlatformAdminWorkspaceController(PlatformAdminPartyDocumentSlots):
     organizationsChanged = Signal()
     calendarsChanged = Signal()
     sitesChanged = Signal()
@@ -163,9 +183,23 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     organizationSearchTextChanged = Signal()
     organizationStatusFilterChanged = Signal()
     selectedOrganizationIdsChanged = Signal()
+    calendarSearchTextChanged = Signal()
+    calendarStatusFilterChanged = Signal()
+    calendarTypeFilterChanged = Signal()
     siteSearchTextChanged = Signal()
     siteStatusFilterChanged = Signal()
+    departmentSearchTextChanged = Signal()
+    departmentStatusFilterChanged = Signal()
+    departmentSiteFilterChanged = Signal()
     departmentEditorOptionsChanged = Signal()
+    partySearchTextChanged = Signal()
+    partyStatusFilterChanged = Signal()
+    partyTypeFilterChanged = Signal()
+    partyRoleFilterChanged = Signal()
+    employeeSearchTextChanged = Signal()
+    employeeStatusFilterChanged = Signal()
+    employeeDepartmentFilterChanged = Signal()
+    employeeSiteFilterChanged = Signal()
     employeeEditorOptionsChanged = Signal()
     userEditorOptionsChanged = Signal()
     partyEditorOptionsChanged = Signal()
@@ -179,33 +213,61 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         organization_presenter: PlatformOrganizationCatalogPresenter,
         organization_activity_presenter: PlatformOrganizationActivityPresenter | None = None,
         calendar_presenter: PlatformCalendarCatalogPresenter,
+        calendar_activity_presenter: PlatformCalendarActivityPresenter | None = None,
         site_presenter: PlatformSiteCatalogPresenter,
         site_activity_presenter: PlatformSiteActivityPresenter | None = None,
         department_presenter: PlatformDepartmentCatalogPresenter,
+        department_activity_presenter: PlatformDepartmentActivityPresenter | None = None,
         employee_presenter: PlatformEmployeeCatalogPresenter,
+        employee_activity_presenter: PlatformEmployeeActivityPresenter | None = None,
+        employee_documents_presenter: PlatformEmployeeDocumentsPresenter | None = None,
         user_presenter: PlatformUserCatalogPresenter,
         party_presenter: PlatformPartyCatalogPresenter,
+        party_activity_presenter: PlatformPartyActivityPresenter | None = None,
         document_presenter: PlatformDocumentCatalogPresenter,
         document_management_presenter: PlatformDocumentManagementPresenter,
-        enterprise_calendar_api=None,
+        platform_calendar_api=None,
+        site_api=None,
+        department_api=None,
+        employee_api=None,
         runtime_api=None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._overview_presenter = overview_presenter
-        self._enterprise_calendar_api = enterprise_calendar_api
+        self._platform_calendar_api = platform_calendar_api
+        # Used only to resolve Site/Department/Employee display names for
+        # Calendar's own Assignments tab (calendar_overview_context) -- a
+        # same-module (Platform-owned) lookup, fetched once per Assignments
+        # view rather than per assignment row. Never used to resolve PM
+        # Project/Resource names -- Platform has no approved cross-module
+        # contract for that (see serialize_assignment_groups).
+        self._site_api = site_api
+        self._department_api = department_api
+        self._employee_api = employee_api
         self._runtime_api = runtime_api
         self._organization_controller = PlatformOrganizationController(
             organization_presenter, self, activity_presenter=organization_activity_presenter
         )
-        self._calendar_controller = PlatformCalendarController(calendar_presenter, self)
+        self._calendar_controller = PlatformCalendarController(
+            calendar_presenter, self, activity_presenter=calendar_activity_presenter
+        )
         self._site_controller = PlatformSiteController(
             site_presenter, self, activity_presenter=site_activity_presenter
         )
-        self._department_controller = PlatformDepartmentController(department_presenter, self)
-        self._employee_controller = PlatformEmployeeController(employee_presenter, self)
+        self._department_controller = PlatformDepartmentController(
+            department_presenter, self, activity_presenter=department_activity_presenter
+        )
+        self._employee_controller = PlatformEmployeeController(
+            employee_presenter,
+            self,
+            activity_presenter=employee_activity_presenter,
+            documents_presenter=employee_documents_presenter,
+        )
         self._user_controller = PlatformUserController(user_presenter, self)
-        self._party_controller = PlatformPartyController(party_presenter, self)
+        self._party_controller = PlatformPartyController(
+            party_presenter, self, activity_presenter=party_activity_presenter
+        )
         self._document_controller = PlatformDocumentController(
             presenter=document_presenter,
             management_presenter=document_management_presenter,
@@ -244,6 +306,18 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def calendars(self) -> dict[str, object]:
         return self._calendar_controller.calendars
 
+    @Property(str, notify=calendarSearchTextChanged)
+    def calendarSearchText(self) -> str:
+        return self._calendar_controller.calendarSearchText
+
+    @Property(str, notify=calendarStatusFilterChanged)
+    def calendarStatusFilter(self) -> str:
+        return self._calendar_controller.calendarStatusFilter
+
+    @Property(str, notify=calendarTypeFilterChanged)
+    def calendarTypeFilter(self) -> str:
+        return self._calendar_controller.calendarTypeFilter
+
     @Property("QVariantMap", notify=sitesChanged)
     def sites(self) -> dict[str, object]:
         return self._site_controller.sites
@@ -264,9 +338,45 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def departments(self) -> dict[str, object]:
         return self._department_controller.departments
 
+    @Property(str, notify=departmentSearchTextChanged)
+    def departmentSearchText(self) -> str:
+        return self._department_controller.departmentSearchText
+
+    @Property(str, notify=departmentStatusFilterChanged)
+    def departmentStatusFilter(self) -> str:
+        return self._department_controller.departmentStatusFilter
+
+    @Property(str, notify=departmentSiteFilterChanged)
+    def departmentSiteFilter(self) -> str:
+        return self._department_controller.departmentSiteFilter
+
+    @Property("QVariantList", constant=True)
+    def departmentPageSizeOptions(self) -> list[int]:
+        return self._department_controller.departmentPageSizeOptions
+
     @Property("QVariantMap", notify=employeesChanged)
     def employees(self) -> dict[str, object]:
         return self._employee_controller.employees
+
+    @Property(str, notify=employeeSearchTextChanged)
+    def employeeSearchText(self) -> str:
+        return self._employee_controller.employeeSearchText
+
+    @Property(str, notify=employeeStatusFilterChanged)
+    def employeeStatusFilter(self) -> str:
+        return self._employee_controller.employeeStatusFilter
+
+    @Property(str, notify=employeeDepartmentFilterChanged)
+    def employeeDepartmentFilter(self) -> str:
+        return self._employee_controller.employeeDepartmentFilter
+
+    @Property(str, notify=employeeSiteFilterChanged)
+    def employeeSiteFilter(self) -> str:
+        return self._employee_controller.employeeSiteFilter
+
+    @Property("QVariantList", constant=True)
+    def employeePageSizeOptions(self) -> list[int]:
+        return self._employee_controller.employeePageSizeOptions
 
     @Property("QVariantMap", notify=usersChanged)
     def users(self) -> dict[str, object]:
@@ -275,6 +385,26 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantMap", notify=partiesChanged)
     def parties(self) -> dict[str, object]:
         return self._party_controller.parties
+
+    @Property(str, notify=partySearchTextChanged)
+    def partySearchText(self) -> str:
+        return self._party_controller.partySearchText
+
+    @Property(str, notify=partyStatusFilterChanged)
+    def partyStatusFilter(self) -> str:
+        return self._party_controller.partyStatusFilter
+
+    @Property(str, notify=partyTypeFilterChanged)
+    def partyTypeFilter(self) -> str:
+        return self._party_controller.partyTypeFilter
+
+    @Property(str, notify=partyRoleFilterChanged)
+    def partyRoleFilter(self) -> str:
+        return self._party_controller.partyRoleFilter
+
+    @Property("QVariantList", constant=True)
+    def partyPageSizeOptions(self) -> list[int]:
+        return self._party_controller.partyPageSizeOptions
 
     @Property("QVariantMap", notify=documentsChanged)
     def documents(self) -> dict[str, object]:
@@ -485,11 +615,15 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot(str, result="QVariantMap")
     def organizationDetailContext(self, organization_id: str) -> dict[str, object]:
-        return self._organization_controller.organizationDetailContext(organization_id)
+        result = self._organization_controller.organizationDetailContext(organization_id)
+        self._set_error_message(self._organization_controller.errorMessage)
+        return result
 
     @Slot(str, result="QVariantList")
     def organizationActivity(self, organization_id: str) -> list[dict[str, object]]:
-        return self._organization_controller.organizationActivity(organization_id)
+        result = self._organization_controller.organizationActivity(organization_id)
+        self._set_error_message(self._organization_controller.errorMessage)
+        return result
 
     @Slot(str, result="QVariantMap")
     def organizationCalendarSummary(self, organization_id: str) -> dict[str, object]:
@@ -511,17 +645,33 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     # ── Calendar slots ────────────────────────────────────────────────────
 
+    @Slot(str)
+    def setCalendarSearchText(self, text: str) -> None:
+        self._calendar_controller.setCalendarSearchText(text)
+
+    @Slot(str)
+    def setCalendarStatusFilter(self, status: str) -> None:
+        self._calendar_controller.setCalendarStatusFilter(status)
+
+    @Slot(str)
+    def setCalendarTypeFilter(self, calendar_type: str) -> None:
+        self._calendar_controller.setCalendarTypeFilter(calendar_type)
+
     @Slot("QVariantMap", result="QVariantMap")
     def calculateCalendarWorkingDays(self, payload: dict[str, object]) -> dict[str, object]:
         return calculate_calendar_working_days(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
-    def createEnterpriseCalendar(self, payload: dict[str, object]) -> dict[str, object]:
-        return create_enterprise_calendar(self, payload)
+    def createPlatformCalendar(self, payload: dict[str, object]) -> dict[str, object]:
+        return create_platform_calendar(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
-    def updateEnterpriseCalendar(self, payload: dict[str, object]) -> dict[str, object]:
-        return update_enterprise_calendar(self, payload)
+    def updatePlatformCalendar(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_platform_calendar(self, payload)
+
+    @Slot(str, result="QVariantMap")
+    def deletePlatformCalendar(self, calendar_id: str) -> dict[str, object]:
+        return delete_platform_calendar(self, calendar_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def addCalendarException(self, payload: dict[str, object]) -> dict[str, object]:
@@ -538,6 +688,30 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, result="QVariantMap")
     def deleteCalendarRecurringEvent(self, event_id: str) -> dict[str, object]:
         return delete_calendar_recurring_event(self, event_id)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateCalendarException(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_calendar_exception(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateCalendarRecurringEvent(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_calendar_recurring_event(self, payload)
+
+    @Slot(str, str, result=str)
+    def calendarRecurrenceSummary(self, rrule: str, effective_from_iso: str = "") -> str:
+        return recurrence_summary(rrule, effective_from_iso)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def buildCalendarRecurrenceRule(self, state: dict[str, object]) -> dict[str, object]:
+        return build_recurrence_rule(state)
+
+    @Slot(str, result="QVariantMap")
+    def parseCalendarRecurrenceRule(self, rrule: str) -> dict[str, object]:
+        return parse_recurrence_rule(rrule)
+
+    @Slot(result="QVariantMap")
+    def defaultCalendarRecurrenceEditorState(self) -> dict[str, object]:
+        return default_recurrence_editor_state()
 
     @Slot("QVariantMap", result="QVariantMap")
     def assignCalendar(self, payload: dict[str, object]) -> dict[str, object]:
@@ -566,6 +740,56 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, str, result="QVariantMap")
     def siteCalendarSummary(self, site_id: str, organization_id: str) -> dict[str, object]:
         return site_calendar_summary(self, site_id, organization_id)
+
+    @Slot(str, str, str, result="QVariantMap")
+    def departmentCalendarSummary(
+        self, department_id: str, organization_id: str, site_id: str = ""
+    ) -> dict[str, object]:
+        return department_calendar_summary(self, department_id, organization_id, site_id)
+
+    @Slot(str, str, str, str, result="QVariantMap")
+    def employeeCalendarSummary(
+        self, employee_id: str, organization_id: str, department_id: str = "", site_id: str = ""
+    ) -> dict[str, object]:
+        return employee_calendar_summary(self, employee_id, organization_id, department_id, site_id)
+
+    @Slot(str, result="QVariantMap")
+    def calendarOverviewContext(self, calendar_id: str) -> dict[str, object]:
+        return calendar_overview_context(self, calendar_id)
+
+    @Slot(str, result=str)
+    def calendarBusinessToday(self, calendar_id: str) -> str:
+        return calendar_business_today(self, calendar_id)
+
+    @Slot(str, str, str, result="QVariantMap")
+    def calendarMonthRange(
+        self, calendar_id: str, start_date: str, end_date: str
+    ) -> dict[str, object]:
+        return calendar_month_context(self, calendar_id, start_date, end_date)
+
+    @Slot(str, str, result="QVariantList")
+    def calendarActivity(self, calendar_id: str, organization_id: str) -> list[dict[str, object]]:
+        return run_history_preview(
+            operation=lambda: self._calendar_controller.calendarActivity(
+                calendar_id, organization_id
+            ),
+            set_error_message=self._set_error_message,
+            label="calendar activity",
+        )
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def calendarActivityPage(
+        self,
+        calendar_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        return self._calendar_controller.calendarActivityPage(
+            calendar_id, organization_id, page, page_size, search, date_range
+        )
 
     # ── Site slots ────────────────────────────────────────────────────────
 
@@ -618,7 +842,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot(str, str, result="QVariantList")
     def siteActivity(self, site_id: str, organization_id: str) -> list[dict[str, object]]:
-        return self._site_controller.siteActivity(site_id, organization_id)
+        result = self._site_controller.siteActivity(site_id, organization_id)
+        self._set_error_message(self._site_controller.errorMessage)
+        return result
 
     @Slot(str, str, int, int, str, str, result="QVariantMap")
     def siteActivityPage(
@@ -649,6 +875,50 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, result="QVariantMap")
     def deactivateDepartment(self, department_id: str) -> dict[str, object]:
         return deactivate_department(self, department_id)
+
+    @Slot(int)
+    def setDepartmentPage(self, page: int) -> None:
+        self._department_controller.setDepartmentPage(page)
+
+    @Slot(int)
+    def setDepartmentPageSize(self, page_size: int) -> None:
+        self._department_controller.setDepartmentPageSize(page_size)
+
+    @Slot(str)
+    def setDepartmentSearchText(self, text: str) -> None:
+        self._department_controller.setDepartmentSearchText(text)
+
+    @Slot(str)
+    def setDepartmentStatusFilter(self, status: str) -> None:
+        self._department_controller.setDepartmentStatusFilter(status)
+
+    @Slot(str)
+    def setDepartmentSiteFilter(self, site_id: str) -> None:
+        self._department_controller.setDepartmentSiteFilter(site_id)
+
+    @Slot(str, result="QVariantMap")
+    def headOfDepartmentOptionsFor(self, department_id: str) -> dict[str, object]:
+        return self._department_controller.headOfDepartmentOptionsFor(department_id)
+
+    @Slot(str, str, result="QVariantList")
+    def departmentActivity(self, department_id: str, organization_id: str) -> list[dict[str, object]]:
+        result = self._department_controller.departmentActivity(department_id, organization_id)
+        self._set_error_message(self._department_controller.errorMessage)
+        return result
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def departmentActivityPage(
+        self,
+        department_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        return self._department_controller.departmentActivityPage(
+            department_id, organization_id, page, page_size, search, date_range
+        )
 
     @Slot(str, int, int, str, str, result="QVariantMap")
     def organizationDepartmentsPage(
@@ -695,6 +965,54 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def toggleEmployeeActive(self, employee_id: str) -> dict[str, object]:
         return toggle_employee_active(self, employee_id)
 
+    @Slot(str, result="QVariantMap")
+    def activateEmployee(self, employee_id: str) -> dict[str, object]:
+        return activate_employee(self, employee_id)
+
+    @Slot(str, result="QVariantMap")
+    def deactivateEmployee(self, employee_id: str) -> dict[str, object]:
+        return deactivate_employee(self, employee_id)
+
+    @Slot(str, str, result="QVariantMap")
+    def linkEmployeeUserAccount(self, employee_id: str, user_id: str) -> dict[str, object]:
+        return link_employee_user_account(self, employee_id, user_id)
+
+    @Slot(str, result="QVariantMap")
+    def unlinkEmployeeUserAccount(self, employee_id: str) -> dict[str, object]:
+        return unlink_employee_user_account(self, employee_id)
+
+    @Slot(str, result="QVariantMap")
+    def resolveLinkedUser(self, user_id: str) -> dict[str, object]:
+        return self._employee_controller.resolveLinkedUser(user_id)
+
+    @Slot(str, result="QVariantList")
+    def linkableUserOptions(self, employee_id: str) -> list[dict[str, str]]:
+        return self._employee_controller.linkableUserOptions(employee_id)
+
+    @Slot(int)
+    def setEmployeePage(self, page: int) -> None:
+        self._employee_controller.setEmployeePage(page)
+
+    @Slot(int)
+    def setEmployeePageSize(self, page_size: int) -> None:
+        self._employee_controller.setEmployeePageSize(page_size)
+
+    @Slot(str)
+    def setEmployeeSearchText(self, text: str) -> None:
+        self._employee_controller.setEmployeeSearchText(text)
+
+    @Slot(str)
+    def setEmployeeStatusFilter(self, status: str) -> None:
+        self._employee_controller.setEmployeeStatusFilter(status)
+
+    @Slot(str)
+    def setEmployeeDepartmentFilter(self, department_id: str) -> None:
+        self._employee_controller.setEmployeeDepartmentFilter(department_id)
+
+    @Slot(str)
+    def setEmployeeSiteFilter(self, site_id: str) -> None:
+        self._employee_controller.setEmployeeSiteFilter(site_id)
+
     @Slot(str, int, int, str, str, result="QVariantMap")
     def organizationEmployeesPage(
         self,
@@ -731,6 +1049,74 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             site_id, organization_id, page, page_size, search, status, department_id
         )
 
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def employeesForDepartmentPage(
+        self,
+        department_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+    ) -> dict[str, object]:
+        return self._employee_controller.employeesForDepartmentPage(
+            department_id, organization_id, page, page_size, search, status
+        )
+
+    @Slot(str, str, result="QVariantList")
+    def employeeActivity(self, employee_id: str, organization_id: str) -> list[dict[str, object]]:
+        result = self._employee_controller.employeeActivity(employee_id, organization_id)
+        self._set_error_message(self._employee_controller.errorMessage)
+        return result
+
+    @Slot(str, str, int, int, str, str, result="QVariantMap")
+    def employeeActivityPage(
+        self,
+        employee_id: str,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        date_range: str,
+    ) -> dict[str, object]:
+        return self._employee_controller.employeeActivityPage(
+            employee_id, organization_id, page, page_size, search, date_range
+        )
+
+    @Slot(str, int, int, str, str, str, result="QVariantMap")
+    def employeeDocumentsPage(
+        self,
+        employee_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+        document_type: str,
+    ) -> dict[str, object]:
+        return self._employee_controller.employeeDocumentsPage(
+            employee_id, page, page_size, search, status, document_type
+        )
+
+    @Slot(result="QVariantList")
+    def employeeDocumentTypeOptions(self) -> list[dict[str, str]]:
+        return self._employee_controller.employeeDocumentTypeOptions()
+
+    @Slot(str, str, result="QVariantMap")
+    def linkEmployeeDocument(self, employee_id: str, document_id: str) -> dict[str, object]:
+        return self._employee_controller.linkEmployeeDocument(employee_id, document_id)
+
+    @Slot(str, str, result="QVariantMap")
+    def unlinkEmployeeDocument(self, employee_id: str, link_id: str) -> dict[str, object]:
+        return self._employee_controller.unlinkEmployeeDocument(employee_id, link_id)
+
+    @Slot(result="QVariantList")
+    def employeeDocumentOptions(self) -> list[dict[str, str]]:
+        return self._employee_controller.employeeDocumentOptions()
+
+    @Slot(str, "QVariantMap", result="QVariantMap")
+    def createAndLinkEmployeeDocument(self, employee_id: str, payload: dict[str, object]) -> dict[str, object]:
+        return self._employee_controller.createAndLinkEmployeeDocument(employee_id, payload)
+
     # ── User slots ────────────────────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -747,68 +1133,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     # ── Party slots ───────────────────────────────────────────────────────
 
-    @Slot("QVariantMap", result="QVariantMap")
-    def createParty(self, payload: dict[str, object]) -> dict[str, object]:
-        return create_party(self, payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateParty(self, payload: dict[str, object]) -> dict[str, object]:
-        return update_party(self, payload)
-
-    @Slot(str, result="QVariantMap")
-    def togglePartyActive(self, party_id: str) -> dict[str, object]:
-        return toggle_party_active(self, party_id)
-
     # ── Document slots ────────────────────────────────────────────────────
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def createDocument(self, payload: dict[str, object]) -> dict[str, object]:
-        return create_document(self, payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateDocument(self, payload: dict[str, object]) -> dict[str, object]:
-        return update_document(self, payload)
-
-    @Slot(str, result="QVariantMap")
-    def toggleDocumentActive(self, document_id: str) -> dict[str, object]:
-        return toggle_document_active(self, document_id)
-
-    @Slot(str)
-    def selectDocument(self, document_id: str) -> None:
-        select_document(self, document_id)
-
-    @Slot(str, int, int, str, str, result="QVariantMap")
-    def organizationDocumentsPage(
-        self,
-        organization_id: str,
-        page: int,
-        page_size: int,
-        search: str,
-        status: str,
-    ) -> dict[str, object]:
-        return self._document_controller.organizationDocumentsPage(
-            organization_id, page, page_size, search, status
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def createDocumentStructure(self, payload: dict[str, object]) -> dict[str, object]:
-        return create_document_structure(self, payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateDocumentStructure(self, payload: dict[str, object]) -> dict[str, object]:
-        return update_document_structure(self, payload)
-
-    @Slot(str, result="QVariantMap")
-    def toggleDocumentStructureActive(self, structure_id: str) -> dict[str, object]:
-        return toggle_document_structure_active(self, structure_id)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def addDocumentLink(self, payload: dict[str, object]) -> dict[str, object]:
-        return add_document_link(self, payload)
-
-    @Slot(str, result="QVariantMap")
-    def removeDocumentLink(self, link_id: str) -> dict[str, object]:
-        return remove_document_link(self, link_id)
 
     # ── Internal wiring ───────────────────────────────────────────────────
 

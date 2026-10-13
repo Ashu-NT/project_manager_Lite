@@ -25,6 +25,9 @@ from src.core.platform.application.master_data.employee.employee_service import 
     EmployeeService,
 )
 from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
+    SupportsModuleEntitlements,
+)
 
 
 @dataclass(frozen=True)
@@ -48,8 +51,9 @@ class ProjectManagementDesktopRuntimePlatformDependencies:
     site_service: SiteService
     department_service: DepartmentService | None
     approval_service: ApprovalService
+    module_catalog_service: SupportsModuleEntitlements | None = None
     reservation_service: TaskReservationGateway | None = None
-    enterprise_calendar_api: object | None = None
+    platform_calendar_api: object | None = None
 
 
 __all__ = [

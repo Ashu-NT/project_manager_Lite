@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy import event, text
@@ -25,7 +25,7 @@ PROJECT_B = "r6b-lookup-project-b"
 
 
 def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str) -> None:
-    now = datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 29, 12, 0, tzinfo=UTC)
     project_id = f"r6b-lookup-project-{suffix}"
     code_id = f"r6b-lookup-code-{suffix}"
     connection.execute(

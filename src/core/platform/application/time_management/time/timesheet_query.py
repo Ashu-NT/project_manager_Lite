@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.contract.repositories.time_management.time.contracts import (
@@ -137,7 +137,7 @@ class TimesheetQueryMixin:
             for entry in self._time_entry_repo.list_by_work_allocation(work_allocation.id):
                 if normalized_start <= entry.entry_date <= normalized_end:
                     rows.append(entry)
-        rows.sort(key=lambda item: (item.entry_date, item.created_at or datetime.min.replace(tzinfo=timezone.utc)))
+        rows.sort(key=lambda item: (item.entry_date, item.created_at or datetime.min.replace(tzinfo=UTC)))
         return rows
 
     def summarize_timesheet_period(

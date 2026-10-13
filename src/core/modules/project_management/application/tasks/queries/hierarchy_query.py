@@ -12,6 +12,7 @@ from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.hierarchy import (
     TaskHierarchyNode,
     TaskHierarchyRollup,
+    children_by_parent,
 )
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -21,11 +22,20 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class TaskHierarchyQueryMixin:
-    _task_repo: TaskRepository
-    _work_calendar_engine: CalendarProtocol
+class TaskHierarchyQueryHandler:
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        work_calendar_engine: CalendarProtocol,
+        user_session: UserSessionContext | None,
+    ) -> None:
+        self._task_repo = task_repo
+        self._work_calendar_engine = work_calendar_engine
+        self._user_session = user_session
 
     def list_task_hierarchy(self, project_id: str) -> list[TaskHierarchyNode]:
         require_permission(self._user_session, "task.read", operation_label="view task hierarchy")
@@ -36,7 +46,7 @@ class TaskHierarchyQueryMixin:
             operation_label="view task hierarchy",
         )
         tasks = self._task_repo.list_by_project(project_id)
-        children = self._children_by_parent(tasks)
+        children = children_by_parent(tasks)
         nodes: list[TaskHierarchyNode] = []
         visited: set[str] = set()
 
@@ -73,7 +83,8 @@ class TaskHierarchyQueryMixin:
         return [node.task for node in self.list_task_hierarchy(project_id) if not node.is_summary]
 
     def get_task_hierarchy_rollup(self, task_id: str) -> TaskHierarchyRollup:
-        task = self.get_task(task_id)
+        require_permission(self._user_session, "task.read", operation_label="view task")
+        task = self._task_repo.get(task_id)
         if task is None:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         nodes = self.list_task_hierarchy(task.project_id)
@@ -144,4 +155,4 @@ class TaskHierarchyQueryMixin:
         )
 
 
-__all__ = ["TaskHierarchyQueryMixin"]
+__all__ = ["TaskHierarchyQueryHandler"]

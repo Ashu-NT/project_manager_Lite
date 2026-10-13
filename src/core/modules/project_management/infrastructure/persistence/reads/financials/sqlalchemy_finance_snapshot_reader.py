@@ -3,42 +3,46 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
     FinanceOverviewFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+    ActualMonthFact,
     ApprovedForecastFact,
     CostAggregateFact,
     FinanceControlFact,
-    FinanceLedgerFact,
     FinanceProjectFact,
     FinanceSnapshotFacts,
     LaborAssignmentFact,
+    ProjectFinanceLedgerFact,
     ProjectResourceFact,
     ResourceFact,
     TaskFact,
 )
-from src.core.modules.project_management.domain.financials.commitment import (
-    open_commitment_amount,
+from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
+    ProjectFinanceLedgerQuery,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
 from .statements.finance_snapshot_statements import (
-    actual_cost_facts_statement,
     actual_cost_total_statement,
     approved_forecast_facts_statement,
-    approved_forecast_line_facts_statement,
     approved_forecast_total_statement,
     assignment_facts_statement,
-    commitment_facts_statement,
     commitment_total_statement,
-    planned_cost_facts_statement,
     project_fact_statement,
     project_resource_facts_statement,
     resource_facts_statement,
     task_facts_statement,
+)
+from .statements.project_finance_ledger_statements import (
+    ledger_aggregates_statement,
+    ledger_page_statement,
+    project_finance_ledger_relation,
+    visible_ledger_relation,
 )
 
 
@@ -155,6 +159,8 @@ class SqlAlchemyFinanceSnapshotReader:
         organization_id: str,
         project_id: str,
         as_of: date,
+        ledger_query: ProjectFinanceLedgerQuery | None = None,
+        include_sensitive: bool = True,
     ) -> FinanceSnapshotFacts | None:
         project_row = self._session.execute(
             project_fact_statement(
@@ -193,16 +199,44 @@ class SqlAlchemyFinanceSnapshotReader:
                 )
             )
         )
-        ledger_entries = self._read_ledger_entries(
-            tenant_id=tenant_id,
-            organization_id=organization_id,
-            project_id=project_id,
-            as_of=as_of,
-            project_currency=project_currency,
-            forecast_id=(None if forecast_row is None else str(forecast_row.id)),
+        ledger_query = ledger_query or ProjectFinanceLedgerQuery()
+        ledger = project_finance_ledger_relation(
+            tenant_id=tenant_id, organization_id=organization_id,
+            project_id=project_id, as_of=as_of, project_currency=project_currency,
+            forecast_id=None if forecast_row is None else str(forecast_row.id),
         )
-        aggregates = self._aggregate(ledger_entries)
-        forecast_etc = self._stage_total(ledger_entries, "forecast")
+        aggregate_rows = self._session.execute(ledger_aggregates_statement(ledger)).all()
+        for row in aggregate_rows:
+            self._require_aggregate_currency(row, source_label="Ledger")
+        aggregates = tuple(
+            CostAggregateFact(
+                stage=row.stage, cost_type=row.cost_type, currency_code=row.currency_code,
+                total_amount=Decimal(row.total_amount), row_count=row.row_count,
+                source_key=row.source_key, source_label=row.source_label,
+            ) for row in aggregate_rows
+        )
+        visible = visible_ledger_relation(ledger, include_sensitive=include_sensitive, as_of=as_of)
+        ledger_total = self._session.scalar(select(func.count()).select_from(visible))
+        ledger_entries = tuple(
+            ProjectFinanceLedgerFact(**{
+                key: value for key, value in row._mapping.items()
+                if key != "currency_mismatch_count"
+            })
+            for row in self._session.execute(ledger_page_statement(visible, ledger_query))
+        )
+        year = func.extract("year", ledger.c.occurred_on)
+        month = func.extract("month", ledger.c.occurred_on)
+        actual_months = tuple(
+            ActualMonthFact(year=int(row.year), month=int(row.month), amount=Decimal(row.amount))
+            for row in self._session.execute(
+                select(year.label("year"), month.label("month"), func.sum(ledger.c.amount).label("amount"))
+                .where(ledger.c.stage == "actual")
+                .group_by(year, month).order_by(year, month)
+            )
+        )
+        def stage_total(stage):
+            return sum((row.total_amount for row in aggregates if row.stage == stage), Decimal(0))
+        forecast_etc = stage_total("forecast")
         approved_forecast = None
         if forecast_row is not None:
             approved_forecast = ApprovedForecastFact(
@@ -212,7 +246,7 @@ class SqlAlchemyFinanceSnapshotReader:
                 currency_code=str(forecast_row.currency_code),
                 as_of_date=forecast_row.as_of_date,
                 etc_total=forecast_etc,
-                line_count=sum(1 for row in ledger_entries if row.stage == "forecast"),
+                line_count=sum(row.row_count for row in aggregates if row.stage == "forecast"),
             )
 
         project_resources = tuple(
@@ -301,158 +335,21 @@ class SqlAlchemyFinanceSnapshotReader:
             approved_forecast=approved_forecast,
             control=FinanceControlFact(
                 approved_budget=project.approved_budget,
-                posted_actual=self._stage_total(ledger_entries, "actual"),
-                open_commitment=self._stage_total(ledger_entries, "committed"),
+                posted_actual=stage_total("actual"),
+                open_commitment=stage_total("committed"),
                 forecast_etc=(None if approved_forecast is None else forecast_etc),
             ),
             tasks=tasks,
             ledger_entries=ledger_entries,
+            ledger_total=int(ledger_total),
+            ledger_offset=ledger_query.offset,
+            ledger_limit=ledger_query.limit,
+            actual_months=actual_months,
             cost_aggregates=aggregates,
             project_resources=project_resources,
             assignments=assignments,
             resources=resources,
         )
-
-    def _read_ledger_entries(
-        self,
-        *,
-        tenant_id: str,
-        organization_id: str,
-        project_id: str,
-        as_of: date,
-        project_currency: str,
-        forecast_id: str | None,
-    ) -> tuple[FinanceLedgerFact, ...]:
-        planned = tuple(
-            FinanceLedgerFact(
-                fact_id=str(row.id),
-                task_id=str(row.task_id),
-                resource_id=str(row.resource_id),
-                description=f"Assignment {row.source_assignment_id}",
-                source_key="PLANNED_COST",
-                source_label="Planned Cost",
-                reference_type="planned_cost_line",
-                cost_type="LABOR",
-                stage="planned",
-                currency_code=project_currency,
-                amount=self._require_project_currency_amount(
-                    amount=row.amount,
-                    currency_code=row.currency_code,
-                    project_currency=project_currency,
-                    source_label="Planned cost",
-                ),
-                occurred_on=row.as_of,
-                cost_code_id=str(row.cost_code_id),
-                source_type="planned_cost",
-            )
-            for row in self._session.execute(
-                planned_cost_facts_statement(
-                    tenant_id=tenant_id,
-                    organization_id=organization_id,
-                    project_id=project_id,
-                    as_of=as_of,
-                )
-            )
-        )
-        forecasts = tuple(
-            FinanceLedgerFact(
-                fact_id=str(row.id),
-                task_id=None if row.task_id is None else str(row.task_id),
-                resource_id=None,
-                description=str(row.description),
-                source_key="APPROVED_FORECAST",
-                source_label="Approved Forecast ETC",
-                reference_type="forecast_line",
-                cost_type="OTHER",
-                stage="forecast",
-                currency_code=project_currency,
-                amount=self._require_project_currency_amount(
-                    amount=row.amount,
-                    currency_code=row.currency_code,
-                    project_currency=project_currency,
-                    source_label="Approved forecast",
-                ),
-                occurred_on=row.period_start or row.as_of_date,
-                cost_code_id=str(row.cost_code_id),
-                source_type=str(row.source_type),
-                period_start=row.period_start,
-                period_end=row.period_end,
-            )
-            for row in (
-                self._session.execute(
-                    approved_forecast_line_facts_statement(
-                        tenant_id=tenant_id,
-                        organization_id=organization_id,
-                        project_id=project_id,
-                        forecast_id=forecast_id,
-                    )
-                )
-                if forecast_id is not None
-                else ()
-            )
-        )
-        commitments = tuple(
-            FinanceLedgerFact(
-                fact_id=str(row.id),
-                task_id=None if row.task_id is None else str(row.task_id),
-                resource_id=None,
-                description=f"Purchase order line {row.purchase_order_line_id}",
-                source_key="PROCUREMENT_COMMITMENT",
-                source_label="Procurement Commitment",
-                reference_type="commitment_line",
-                cost_type="MATERIAL",
-                stage="committed",
-                currency_code=project_currency,
-                amount=self._commitment_amount(row, project_currency),
-                occurred_on=row.order_date,
-                cost_code_id=str(row.cost_code_id),
-                source_type="open_commitment",
-            )
-            for row in self._session.execute(
-                commitment_facts_statement(
-                    tenant_id=tenant_id,
-                    organization_id=organization_id,
-                    project_id=project_id,
-                    as_of=as_of,
-                )
-            )
-        )
-        actuals = tuple(
-            FinanceLedgerFact(
-                fact_id=str(row.id),
-                task_id=None if row.task_id is None else str(row.task_id),
-                resource_id=None if row.resource_id is None else str(row.resource_id),
-                description=str(row.description),
-                source_key=str(row.source_key),
-                source_label={
-                    "APPROVED_TIME": "Approved Time",
-                    "PROCUREMENT_ACTUAL": "Procurement Actual",
-                    "MANUAL_ACTUAL": "Manual Actual",
-                }[str(row.source_key)],
-                reference_type="cost_entry",
-                cost_type=str(row.cost_type),
-                stage="actual",
-                currency_code=project_currency,
-                amount=self._actual_amount(row, project_currency),
-                occurred_on=row.posting_date,
-                cost_code_id=str(row.cost_code_id),
-                source_type=str(row.source_key).lower(),
-                financial_period_id=(
-                    None
-                    if row.financial_period_id is None
-                    else str(row.financial_period_id)
-                ),
-            )
-            for row in self._session.execute(
-                actual_cost_facts_statement(
-                    tenant_id=tenant_id,
-                    organization_id=organization_id,
-                    project_id=project_id,
-                    as_of=as_of,
-                )
-            )
-        )
-        return planned + forecasts + commitments + actuals
 
     @staticmethod
     def _require_aggregate_currency(row, *, source_label: str) -> None:
@@ -461,71 +358,6 @@ class SqlAlchemyFinanceSnapshotReader:
                 f"{source_label} currency cannot be reconciled to project currency.",
                 code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
             )
-
-    @staticmethod
-    def _aggregate(
-        entries: tuple[FinanceLedgerFact, ...],
-    ) -> tuple[CostAggregateFact, ...]:
-        buckets: dict[tuple[str, str, str | None], tuple[Decimal, int]] = {}
-        for entry in entries:
-            key = (entry.stage, entry.cost_type, entry.currency_code)
-            amount, count = buckets.get(key, (Decimal(0), 0))
-            buckets[key] = (amount + entry.amount, count + 1)
-        return tuple(
-            CostAggregateFact(
-                stage=stage,
-                cost_type=cost_type,
-                currency_code=currency,
-                total_amount=amount,
-                row_count=count,
-            )
-            for (stage, cost_type, currency), (amount, count) in sorted(
-                buckets.items(), key=lambda item: tuple(value or "" for value in item[0])
-            )
-        )
-
-    @staticmethod
-    def _stage_total(entries: tuple[FinanceLedgerFact, ...], stage: str) -> Decimal:
-        return sum(
-            (entry.amount for entry in entries if entry.stage == stage),
-            start=Decimal(0),
-        )
-
-    @staticmethod
-    def _require_project_currency_amount(
-        *, amount, currency_code: str | None, project_currency: str, source_label: str
-    ) -> Decimal:
-        if str(currency_code or "").strip().upper() != project_currency:
-            raise BusinessRuleError(
-                f"{source_label} currency cannot be reconciled to project currency.",
-                code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
-            )
-        return Decimal(amount or 0)
-
-    @staticmethod
-    def _actual_amount(row, project_currency: str) -> Decimal:
-        if str(row.currency_code).upper() == project_currency:
-            return Decimal(row.amount or 0)
-        if str(row.base_currency_code or "").upper() == project_currency and row.base_amount is not None:
-            return Decimal(row.base_amount)
-        raise BusinessRuleError(
-            "Posted actual currency cannot be reconciled to project currency.",
-            code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
-        )
-
-    @staticmethod
-    def _commitment_amount(row, project_currency: str) -> Decimal:
-        return open_commitment_amount(
-            state=row.state,
-            amount=row.amount,
-            matched_amount=row.matched_amount,
-            currency_code=row.currency_code,
-            base_amount=row.base_amount,
-            base_currency_code=row.base_currency_code,
-            exchange_rate=row.exchange_rate,
-            target_currency=project_currency,
-            currency_mismatch_code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
-        )
 
 
 __all__ = ["SqlAlchemyFinanceSnapshotReader"]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import field_validator
 
@@ -95,13 +95,14 @@ class TaskComment:
     attachments: list[str] = field(default_factory=list)
     read_by: list[str] = field(default_factory=list)
     read_by_user_ids: list[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     parent_comment_id: str | None = None
     updated_at: datetime | None = None
     deleted_at: datetime | None = None
     deleted_by_user_id: str | None = None
     deletion_reason: str | None = None
     reactions: dict[str, list[str]] = field(default_factory=dict)
+    submission_hash: str = ""
     version: int = 1
 
     @field_validator("task_id", mode="before")
@@ -238,9 +239,11 @@ class TaskComment:
         read_by: Iterable[str] | None = None,
         read_by_user_ids: Iterable[str] | None = None,
         parent_comment_id: str | None = None,
+        submission_id: str | None = None,
+        submission_hash: str = "",
     ) -> TaskComment:
         return TaskComment(
-            id=generate_id(),
+            id=submission_id or generate_id(),
             task_id=task_id,
             author_user_id=author_user_id,
             author_username=author_username,
@@ -251,6 +254,7 @@ class TaskComment:
             read_by=list(read_by or []),
             read_by_user_ids=list(read_by_user_ids or []),
             parent_comment_id=parent_comment_id,
+            submission_hash=submission_hash,
         )
 
 

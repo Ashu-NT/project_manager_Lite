@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock
 
 import pytest
@@ -84,7 +84,7 @@ def worker(accounting_services, session):
             adapter_id=target.adapter_id,
             connection_id=target.connection_id,
             remote_reference="durable-test-reference",
-            accepted_at=datetime.now(timezone.utc),
+            accepted_at=datetime.now(UTC),
         )
 
     adapter.deliver.side_effect = deliver
@@ -115,7 +115,7 @@ def test_transport_invalidation_is_post_commit_and_not_correlation_deduped(worke
     assert len(hints) == 1
     assert hints[0].scope_code == "billing_transport"
     assert hints[0].entity_id == approved.project_id
-    session.execute(update(ProjectAccountingOutboxORM).values(available_at=datetime.now(timezone.utc) - timedelta(seconds=1)))
+    session.execute(update(ProjectAccountingOutboxORM).values(available_at=datetime.now(UTC) - timedelta(seconds=1)))
     session.commit()
     processor.process_one()
     assert len(hints) == 2

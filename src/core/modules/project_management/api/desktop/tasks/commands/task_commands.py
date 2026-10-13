@@ -65,7 +65,7 @@ class TaskConstraintUpdateCommand:
     None) means ASAP -- clears both fields back to no explicit
     constraint. Deliberately separate from TaskUpdateCommand: this is a
     schedule-affecting, governed mutation (see
-    TaskSchedulingConstraintMixin), not a generic field edit."""
+    TaskSchedulingConstraintHandler), not a generic field edit."""
 
     task_id: str
     constraint_type: str | None = None

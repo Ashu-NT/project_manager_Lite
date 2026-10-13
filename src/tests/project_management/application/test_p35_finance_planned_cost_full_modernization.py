@@ -7,7 +7,7 @@ per-project-revision uniqueness constraint mapped to `ConcurrencyError`) is unwe
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -120,7 +120,7 @@ def test_snapshot_calculated_maps_to_single_project_scoped_target():
     handler = build_planned_cost_view_invalidation_handler(channel)
     event = PlannedCostSnapshotCalculated(
         tenant_id="t1", organization_id="o1", project_id="p1",
-        planned_cost_version_id="v1", occurred_at=datetime.now(timezone.utc),
+        planned_cost_version_id="v1", occurred_at=datetime.now(UTC),
     )
     handler(event, DomainEventContext(correlation_id="c1"))
     assert len(channel.notified) == 1
@@ -136,7 +136,7 @@ def test_snapshot_calculated_maps_to_single_project_scoped_target():
 def test_dedupe_by_target_within_one_transaction():
     channel = _fake_channel()
     handler = build_planned_cost_view_invalidation_handler(channel)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     context = DomainEventContext(correlation_id="same-tx")
     handler(
         PlannedCostSnapshotCalculated(

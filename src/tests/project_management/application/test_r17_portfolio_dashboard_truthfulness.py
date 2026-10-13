@@ -151,7 +151,7 @@ def test_portfolio_financial_aggregate_is_complete_and_decimal_exact(
             self._calendar = SimpleNamespace(working_days_between=lambda _start, _end: 0)
             self._user_session = object()
             self._resources = SimpleNamespace(list_resources=list)
-            self._tasks = SimpleNamespace(
+            self._task_lookup = SimpleNamespace(
                 list_tasks_for_project=lambda _project_id: [],
                 list_assignments_for_tasks=lambda _task_ids: [],
             )

@@ -1,0 +1,348 @@
+pragma ComponentBehavior: Bound
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import App.Theme 1.0 as Theme
+import App.Icons 1.0 as AppIcons
+import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
+
+Item {
+    id: root
+
+    property bool open: false
+    property string title: ""
+    property string statusLabel: ""
+    property string statusTone: ""
+    property string subtitleLine: ""
+    // Opt-in "Actions" overflow menu, rendered after showEdit/showDelete's
+    // buttons. Empty (the default) renders nothing -- see ActionsMenuButton
+    // for the {id,label,icon,danger,enabled,separator} item shape.
+    property var menuActions: []
+    property string menuTriggerLabel: "Actions"
+    property bool isBusy: false
+    property bool showHeader: true
+    property bool showEdit: true
+    property bool showDelete: true
+    // [workspace, group?, destination, objectTitle] -- rendered as a small
+    // line directly above the back/title row. Empty on callers that don't
+    // set one.
+    property var breadcrumb: []
+    readonly property string _breadcrumbText: (root.breadcrumb || []).join("  >  ")
+    property var sections: []
+    property bool sectionGroupsCollapsedByDefault: true
+    property real contentBottomPadding: Theme.AppTheme.pagePadding
+
+    readonly property int activeSectionIndex: _activeIdx
+    readonly property real contentViewportHeight: contentFlickable.height
+
+    signal backRequested()
+    signal editRequested()
+    signal deleteRequested()
+    signal menuActionTriggered(string id)
+    signal sectionChanged(int index)
+
+    default property alias content: contentColumn.data
+
+    visible: root.open
+
+    function registerSection(index, yOffset) {
+        // no-op: section switching is now index-based, not scroll-position-based
+    }
+
+    function scrollToSection(index) {
+        if (index < 0 || index >= root.sections.length) {
+            return
+        }
+
+        if (_activeIdx === index) {
+            return
+        }
+
+        sectionNavigation.expandGroupForSection(index)
+        _activeIdx = index
+        contentFlickable.contentY = 0
+        root.sectionChanged(index)
+    }
+
+    property int _activeIdx: 0
+    property var _sectionOffsets: []  // kept for API compat
+    onSectionsChanged: {
+        if (root._activeIdx >= root.sections.length) {
+            root._activeIdx = Math.max(0, root.sections.length - 1)
+        }
+    }
+
+    function _updateActiveFromScroll() {}
+
+    function _isPinnedContent(item) {
+        return item && item.detailPagePinned === true
+    }
+
+    property real _stickyContentHeight: 0
+
+    function _relayoutStickyColumn() {
+        let y = 0
+        const children = stickyColumn.children || []
+        for (let index = 0; index < children.length; index += 1) {
+            const child = children[index]
+            child.width = stickyColumn.width
+            if (child.visible) {
+                child.y = y
+                y += child.height
+            }
+        }
+        root._stickyContentHeight = y
+    }
+
+    function _watchPinnedGeometry(child) {
+        child.visibleChanged.connect(function() { Qt.callLater(root._relayoutStickyColumn) })
+        child.heightChanged.connect(function() { Qt.callLater(root._relayoutStickyColumn) })
+    }
+
+    function _syncPinnedContent() {
+        const scrollingChildren = contentColumn.children || []
+        for (let index = 0; index < scrollingChildren.length; index += 1) {
+            const child = scrollingChildren[index]
+            if (root._isPinnedContent(child) && child.parent !== stickyColumn) {
+                child.parent = stickyColumn
+                root._watchPinnedGeometry(child)
+            }
+        }
+
+        const pinnedChildren = stickyColumn.children || []
+        for (let index = 0; index < pinnedChildren.length; index += 1) {
+            const child = pinnedChildren[index]
+            if (!root._isPinnedContent(child) && child.parent !== contentColumn) {
+                child.parent = contentColumn
+            }
+        }
+        Qt.callLater(root._relayoutStickyColumn)
+    }
+
+    Component.onCompleted: {
+        Qt.callLater(root._syncPinnedContent)
+        DetailViewTracker.open()
+    }
+    Component.onDestruction: DetailViewTracker.close()
+
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.AppTheme.workspaceBackground
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 0
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: root.showHeader
+                    ? Math.max(Theme.AppTheme.panelHeaderHeight, _headerColumn.implicitHeight + Theme.AppTheme.spacingXs * 2)
+                    : 0
+                visible: root.showHeader
+                color: Theme.AppTheme.surfaceRaised
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: 1
+                    color: Theme.AppTheme.divider
+                }
+
+                ColumnLayout {
+                    id: _headerColumn
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: Theme.AppTheme.pagePadding
+                    anchors.rightMargin: Theme.AppTheme.pagePadding
+                    spacing: 1
+
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        visible: root._breadcrumbText.length > 0
+                        text: root._breadcrumbText
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        elide: Text.ElideRight
+                    }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.AppTheme.spacingSm
+
+                    Item {
+                        id: backButton
+                        implicitWidth: backRow.implicitWidth + 14
+                        implicitHeight: Theme.AppTheme.inputHeight
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: Theme.AppTheme.radiusSm
+                            color: backHover.containsMouse
+                                ? Theme.AppTheme.hoverSurface
+                                : Theme.AppTheme.surfaceOverlay
+                        }
+
+                        Row {
+                            id: backRow
+                            anchors.centerIn: parent
+                            spacing: Theme.AppTheme.spacingXs
+
+                            AppIcons.AppIcon {
+                                name: "chevron_left"
+                                size: Theme.AppTheme.headerIconSize
+                                iconColor: Theme.AppTheme.textSecondary
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            Text {
+                                text: "Back"
+                                color: Theme.AppTheme.textSecondary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        MouseArea {
+                            id: backHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.backRequested()
+                        }
+                    }
+
+                    Rectangle {
+                        implicitWidth: 1
+                        implicitHeight: 18
+                        color: Theme.AppTheme.divider
+                    }
+
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        text: root.title
+                        font.pixelSize: Theme.AppTheme.sectionSize
+                        font.bold: true
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textPrimary
+                        elide: Text.ElideRight
+                    }
+
+                    AppWidgets.StatusChip {
+                        visible: root.statusLabel.length > 0
+                        status: root.statusLabel
+                        tone: root.statusTone
+                    }
+
+                    BusyIndicator {
+                        visible: root.isBusy
+                        running: root.isBusy
+                        implicitWidth: 20
+                        implicitHeight: 20
+                    }
+
+                    AppControls.SecondaryButton {
+                        visible: root.showEdit
+                        text: "Edit"
+                        iconName: "edit"
+                        enabled: !root.isBusy
+                        implicitWidth: 72
+                        onClicked: root.editRequested()
+                    }
+
+                    AppControls.SecondaryButton {
+                        visible: root.showDelete
+                        text: "Delete"
+                        iconName: "delete"
+                        danger: true
+                        enabled: !root.isBusy
+                        implicitWidth: 80
+                        onClicked: root.deleteRequested()
+                    }
+
+                    AppWidgets.ActionsMenuButton {
+                        visible: root.menuActions.length > 0
+                        enabled: !root.isBusy
+                        items: root.menuActions
+                        triggerLabel: root.menuTriggerLabel
+                        onActionSelected: function(id) { root.menuActionTriggered(id) }
+                    }
+                }
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    visible: root.subtitleLine.length > 0
+                    text: root.subtitleLine
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    elide: Text.ElideRight
+                }
+                }
+            }
+
+            Item {
+                id: stickyHost
+                Layout.fillWidth: true
+                implicitHeight: root._stickyContentHeight
+                clip: true
+
+                Item {
+                    id: stickyColumn
+                    objectName: "stickyColumn"
+                    width: parent.width
+                    height: parent.height
+
+                    onChildrenChanged: Qt.callLater(root._syncPinnedContent)
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 0
+
+                SectionNavigationRail {
+                    id: sectionNavigation
+
+                    Layout.preferredWidth: Theme.AppTheme.detailRailWidth
+                    Layout.fillHeight: true
+                    sections: root.sections
+                    activeSectionIndex: root._activeIdx
+                    groupsCollapsedByDefault: root.sectionGroupsCollapsedByDefault
+                    onSectionRequested: function(index) {
+                        root.scrollToSection(index)
+                    }
+                }
+
+                Flickable {
+                    id: contentFlickable
+                    objectName: "sectionDetailContentFlickable"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    contentWidth: width
+                    contentHeight: contentColumn.implicitHeight > height
+                        ? contentColumn.implicitHeight + root.contentBottomPadding
+                        : height
+                    clip: true
+
+                    Column {
+                        id: contentColumn
+                        width: contentFlickable.width
+
+                        onChildrenChanged: Qt.callLater(root._syncPinnedContent)
+                    }
+
+                    ScrollBar.vertical: ScrollBar {
+                        policy: ScrollBar.AsNeeded
+                    }
+                }
+            }
+        }
+    }
+}

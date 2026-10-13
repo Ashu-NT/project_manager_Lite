@@ -15,7 +15,7 @@ from PySide6.QtCore import qInstallMessageHandler
 from PySide6.QtQuick import QQuickItem
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
+from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
     SiteCalendarAssignCommand,
 )
 from src.ui_qml.modules.project_management.context import (
@@ -114,18 +114,18 @@ def _seed_full_site(services, *, code: str, name: str) -> tuple[str, str]:
         currency_code="XAF",
         site_type="Plant",
     )
-    services["department_service"].create_department(
+    department = services["department_service"].create_department(
         department_code=f"{code}-DEPT-1", name="VQA Department One", site_id=site.id
     )
     services["employee_service"].create_employee(
-        employee_code=f"{code}-EMP-1", full_name="VQA Employee One", site_id=site.id
+        employee_code=f"{code}-EMP-1", full_name="VQA Employee One", site_id=site.id, department_id=department.id
     )
 
     registry = build_desktop_api_registry(services)
-    calendars_result = registry.platform_enterprise_calendar.list_calendars()
+    calendars_result = registry.platform_calendar.list_calendars()
     assert calendars_result.ok and calendars_result.data, "expected the seeded default calendar"
     calendar_id = calendars_result.data[0].id
-    assign_result = registry.platform_enterprise_calendar.assign_site_calendar(
+    assign_result = registry.platform_calendar.assign_site_calendar(
         SiteCalendarAssignCommand(site_id=site.id, calendar_id=calendar_id)
     )
     assert assign_result.ok, assign_result.error
@@ -257,10 +257,14 @@ def _open_site_detail(services, api_registry, *, site_id: str):
 
 def _tabs_for(detail_page) -> dict[int, str]:
     """Section index -> name, read from the real _sections array rather
-    than hardcoded -- Projects is only inserted (at index 3, shifting
-    Calendar/Documents/Activity by one) when project_management is
-    enabled, so a fixed index map silently mislabels captures depending on
-    which modules are on."""
+    than hardcoded -- Site Detail's own section set (Overview, Departments,
+    Employees, Calendar, Activity) is otherwise fixed, but reading it live
+    keeps this test honest against `AdminSiteDetailPage.qml`'s actual
+    `_sections` property rather than a copy that can drift. Projects and
+    Documents are deliberately not tabs here (no approved cross-module
+    Site-scoped project read facade, and no real Site<->Document
+    relationship) -- see "Open Project Management"/"Open Documents" in
+    Overview's Related Actions instead."""
     raw = detail_page.property("_sections")
     sections = raw.toVariant() if hasattr(raw, "toVariant") else (raw or [])
     return {i: str(s.get("label", "")).lower() for i, s in enumerate(sections)}

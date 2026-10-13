@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -40,15 +39,10 @@ def _login(services, username: str, password: str) -> None:
     services["user_session"].set_principal(auth.build_principal(user))
 
 
-def _become_independent_decider(services) -> None:
-    user_session = services["user_session"]
-    user_session.set_principal(
-        replace(
-            user_session.principal,
-            user_id="independent-cost-decider",
-            username="independent-cost-decider",
-        )
-    )
+def _become_independent_decider(services, *, role="finance_controller") -> None:
+    auth = services["auth_service"]
+    user = auth.register_user("independent-cost-decider", "StrongPass123", role_names=[role])
+    services["user_session"].set_principal(auth.build_principal(user))
 
 
 def _source(*, command_id: str = "command-1", content_hash: str = "a" * 64):
@@ -101,7 +95,7 @@ def _create_draft(services, *, command_id: str = "manual-1", amount: str = "125.
 
 
 def test_cost_entry_domain_enforces_signed_lifecycle_and_complete_posting_snapshot() -> None:
-    now = datetime(2026, 1, 10, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 10, tzinfo=UTC)
     with pytest.raises(ValidationError):
         ProjectCostEntry.create_draft(
             tenant_id="tenant-a",
@@ -341,7 +335,7 @@ def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> No
         )
     assert missing_fx.value.code == "PROJECT_COST_ENTRY_FX_SNAPSHOT_REQUIRED"
 
-    captured_at = datetime(2026, 1, 8, 9, 0, tzinfo=timezone.utc)
+    captured_at = datetime(2026, 1, 8, 9, 0, tzinfo=UTC)
     posted = service.post(
         approved.id,
         expected_version=approved.row_version,
@@ -397,7 +391,7 @@ def test_governed_cost_approval_applies_as_deciding_principal(
     requester_id = request.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
-    _become_independent_decider(services)
+    _become_independent_decider(services, role="approver")
     approver_id = services["user_session"].principal.user_id
     services["approval_service"].approve_and_apply(request.id, note="Approved actual")
     approved = service.get_entry(submitted.id)

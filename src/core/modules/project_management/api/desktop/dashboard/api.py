@@ -23,6 +23,9 @@ from src.core.modules.project_management.api.desktop.dashboard.models.tables imp
 from src.core.modules.project_management.api.desktop.dashboard.services.dashboard_snapshot_service import (
     DashboardSnapshotService,
 )
+from src.core.platform.application.tenant.modules.authorization import (
+    require_module_enabled,
+)
 
 _COL = ProjectDashboardTableColumnDescriptor
 
@@ -47,7 +50,8 @@ class ProjectManagementDashboardDesktopApi:
         reporting_service=None,
         collaboration_service=None,
         approval_service=None,
-        task_service=None,
+        task_workspace_query=None,
+        module_catalog_service=None,
     ) -> None:
         self._snapshot_service = DashboardSnapshotService(
             project_service=project_service,
@@ -57,7 +61,8 @@ class ProjectManagementDashboardDesktopApi:
             collaboration_service=collaboration_service,
             approval_service=approval_service,
         )
-        self._task_service = task_service
+        self._task_workspace_query = task_workspace_query
+        self._module_catalog_service = module_catalog_service
 
     def build_empty_overview(self) -> ProjectDashboardOverviewDescriptor:
         return build_empty_overview()
@@ -96,19 +101,24 @@ class ProjectManagementDashboardDesktopApi:
     ) -> ProjectDashboardOperationalTableDescriptor:
         """Overview's "Delays" tab: SCALABLE (overdue tasks scale with task
         volume, not inherently bounded) -- authoritatively server-paginated
-        by reusing Tasks' own query_workspace_page(schedule="overdue", ...)
+        by reusing Tasks' own workspace query handler (schedule="overdue")
         rather than a duplicate PM-Dashboard-owned reader. project_id=None
         means "all accessible projects" (portfolio scope), matching
         TaskWorkspaceReader's own falsy-check semantics.
         """
-        if self._task_service is None:
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="query workspace page",
+        )
+        if self._task_workspace_query is None:
             return ProjectDashboardOperationalTableDescriptor(
                 id="delayed_tasks", title="Delays",
                 collection_semantics="complete", supports_search=True, supports_pagination=True,
                 columns=_DELAYED_TASKS_COLUMNS,
                 page=page, page_size=page_size, sort_key=sort_key, sort_direction=sort_direction, search_text=search_text,
             )
-        result = self._task_service.query_workspace_page(
+        result = self._task_workspace_query.query_workspace_page(
             project_id=project_id,
             search_text=search_text,
             status="all",

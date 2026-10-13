@@ -10,7 +10,7 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials.serializers.performance_serializer import (
     serialize_performance_variance,
 )
-from src.core.modules.project_management.application.financials.performance_query import (
+from src.core.modules.project_management.application.financials.analytics.performance.query import (
     ProjectFinancePerformanceQuery,
 )
 
@@ -54,11 +54,11 @@ def _evm(**overrides):
 
 def _query(monkeypatch, *, basis=None, evm=None):
     monkeypatch.setattr(
-        "src.core.modules.project_management.application.financials.performance_query.require_permission",
+        "src.core.modules.project_management.application.financials.analytics.performance.query.require_permission",
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.modules.project_management.application.financials.performance_query.require_project_permission",
+        "src.core.modules.project_management.application.financials.analytics.performance.query.require_project_permission",
         lambda *_args, **_kwargs: None,
     )
     overview = MagicMock()

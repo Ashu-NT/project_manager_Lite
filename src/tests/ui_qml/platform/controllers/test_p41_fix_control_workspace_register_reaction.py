@@ -88,7 +88,7 @@ def test_register_create_causes_control_refresh_via_view_invalidation_only(servi
         RegisterEntryType,
     )
 
-    services["register_service"].create_entry(
+    services["register_lifecycle_commands"].create_entry(
         project.id, entry_type=RegisterEntryType.RISK, title="P41-FIX risk"
     )
 
@@ -103,7 +103,7 @@ def test_register_update_and_delete_also_cause_control_refresh(services):
         RegisterEntryType,
     )
 
-    entry = services["register_service"].create_entry(
+    entry = services["register_lifecycle_commands"].create_entry(
         project.id, entry_type=RegisterEntryType.ISSUE, title="P41-FIX issue"
     )
     controller = platform_catalog.controlWorkspace
@@ -111,10 +111,10 @@ def test_register_update_and_delete_also_cause_control_refresh(services):
     refresh_calls: list[str] = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    services["register_service"].update_entry(
+    services["register_lifecycle_commands"].update_entry(
         entry.id, expected_version=entry.version, title="P41-FIX issue updated"
     )
-    services["register_service"].delete_entry(entry.id)
+    services["register_lifecycle_commands"].delete_entry(entry.id)
 
     assert refresh_calls == ["refresh", "refresh"]
 
@@ -139,7 +139,7 @@ def test_control_does_not_refresh_from_an_unrelated_view_invalidation_category(s
         RegisterEntryType,
     )
 
-    services["register_service"].create_entry(
+    services["register_lifecycle_commands"].create_entry(
         project.id, entry_type=RegisterEntryType.RISK, title="P41-FIX category-proof risk"
     )
 

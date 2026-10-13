@@ -114,17 +114,10 @@ Item {
             root._departmentsSearch, root._departmentsStatusFilter
         )
     }
-    // NOTE: `totalCount` on a paginated catalog is deliberately the whole-
-    // ORGANIZATION total (unaffected by any filter, including this site_id
-    // scope) -- the same convention `active_only` already follows for
-    // `filteredTotal` vs `totalCount`. `filteredTotal` is the one actually
-    // scoped to this site; using `totalCount` here previously leaked
-    // another site's/the organization's whole department count into this
-    // site's own tab badge and Key Statistics tile.
+    // `totalCount` is the whole-organization total; `filteredTotal` is
+    // scoped to this site.
     readonly property int _departmentCount: root._departmentsCatalog.filteredTotal || 0
 
-    // -- Employees tab: same site_id-scoped, paginated pattern as
-    // Departments above.
     property int _employeesPage: 1
     property int _employeesPageSize: 25
     property string _employeesSearch: ""
@@ -204,20 +197,14 @@ Item {
         )
     }
 
-    readonly property var _sections: {
-        const sections = [
-            { "label": "Overview" },
-            { "label": "Departments", "count": root._departmentCount },
-            { "label": "Employees", "count": root._employeeCount }
-        ]
-        if (root._pmEnabled) {
-            sections.push({ "label": "Projects" })
-        }
-        sections.push({ "label": "Calendar" })
-        sections.push({ "label": "Documents" })
-        sections.push({ "label": "Activity" })
-        return sections
-    }
+    // Projects and Documents are not tabs -- see Related Actions for those.
+    readonly property var _sections: [
+        { "label": "Overview" },
+        { "label": "Departments", "count": root._departmentCount },
+        { "label": "Employees", "count": root._employeeCount },
+        { "label": "Calendar" },
+        { "label": "Activity" }
+    ]
     readonly property string _activeSectionLabel: {
         const section = root._sections[root.activeSectionIndex]
         return section ? String(section.label || "") : "Overview"
@@ -233,18 +220,11 @@ Item {
         case "Overview":
             return root._subtitle
         case "Calendar":
-            return "Site-level calendar assignment and working schedule."
+            return "Working calendar and availability for this site."
         default:
             return ""
         }
     }
-    // Identity, lifecycle badge, and Edit/Actions live in the persistent
-    // header below (visible across every section) -- the per-section
-    // toolbar is only shown for Overview (Refresh) and Calendar (its own
-    // assignment actions); Departments/Employees/Activity own their own
-    // embedded toolbar+refresh, and Projects/Documents have nothing to
-    // refresh, so the outer toolbar is hidden there entirely (avoids the
-    // duplicate-Refresh problem the previous Activity implementation had).
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
             return [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
@@ -261,9 +241,6 @@ Item {
     }
     readonly property bool _showSectionToolbar: root._activeSectionLabel === "Overview" || root._activeSectionLabel === "Calendar"
 
-    // -- Overview: Basic Information / Physical Address / Operational
-    // Context field groups, plus Key Statistics / Related Actions sourced
-    // from real, already-fetched (no extra N+1) site-scoped data.
     readonly property var _basicInfoFields: [
         { "label": "Site Name", "value": root._displayValue(root._state.name || root.site.title) },
         { "label": "Site Code", "value": root._displayValue(root._state.siteCode) },
@@ -287,10 +264,24 @@ Item {
         "departmentCount": root._departmentCount,
         "employeeCount": root._employeeCount
     })
-    readonly property var _relatedActions: [
-        { "id": "departments", "label": "Manage Departments", "icon": "department" },
-        { "id": "employees", "label": "Manage Employees", "icon": "employee" }
-    ]
+    // Manage Departments/Employees are context-preserving local actions
+    // (open this site's own tab). Open Project Management/Open Documents
+    // are optional EXTERNAL actions -- real cross-module navigation, not a
+    // substitute for a scoped tab (see the note on `_sections` above for
+    // why Projects/Documents are not tabs here). Documents' navigation
+    // always works (a real Platform-internal destination); Project
+    // Management is only offered when the module is actually enabled.
+    readonly property var _relatedActions: {
+        const actions = [
+            { "id": "departments", "label": "Manage Departments", "icon": "department" },
+            { "id": "employees", "label": "Manage Employees", "icon": "employee" }
+        ]
+        if (root._pmEnabled) {
+            actions.push({ "id": "open_project_management", "label": "Open Project Management", "icon": "project" })
+        }
+        actions.push({ "id": "open_documents", "label": "Open Documents", "icon": "documents" })
+        return actions
+    }
 
     function _navigateFromOverview(destinationId) {
         const label = destinationId === "departments" ? "Departments" : destinationId === "employees" ? "Employees" : ""
@@ -559,26 +550,6 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Projects" ? projectsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: projectsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Projects"
-                keepLoaded: true
-                loadingMessage: "Loading site project guidance..."
-                sourceComponent: Component {
-                    SiteSections.SiteProjectsSection {}
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
             implicitHeight: root._activeSectionLabel === "Calendar" ? calendarLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
@@ -602,26 +573,6 @@ Item {
                         onAssignCalendarRequested: root.actionRequested("assign_calendar")
                         onOpenCalendarManagementRequested: root.actionRequested("open_calendar_mgmt")
                     }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Documents" ? documentsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: documentsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Documents"
-                keepLoaded: true
-                loadingMessage: "Loading site document guidance..."
-                sourceComponent: Component {
-                    SiteSections.SiteDocumentsSection {}
                 }
             }
         }

@@ -16,6 +16,9 @@ from src.core.platform.domain.time_management.time import (
     TimesheetPeriod,
     TimesheetPeriodStatus,
 )
+from src.core.platform.infrastructure.persistence.uow.time_management.time_unit_of_work import (
+    SqlAlchemyTimeUnitOfWorkFactory,
+)
 from src.core.shared.events.domain_event import DomainEvent
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.persistence.unit_of_work import UnitOfWork
@@ -280,6 +283,7 @@ def _make_time_service(monkeypatch: pytest.MonkeyPatch) -> tuple[TimeService, _F
         tenant_context_service=_FakeTenantContextService(),
         transactional_dispatcher=_FakeTransactionalDispatcher(),
         post_commit_bus=_FakePostCommitBus(),
+        uow_factory=SqlAlchemyTimeUnitOfWorkFactory(),
     )
     return service, allocation
 

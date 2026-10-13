@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from time import monotonic
 from typing import TYPE_CHECKING
 
@@ -135,7 +135,7 @@ class AuthSession:
         last_active_tenant_id: str | None = None,
         last_active_organization_id: str | None = None,
     ) -> AuthSession:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return AuthSession(
             id=generate_id(),
             user_id=user_id,
@@ -491,7 +491,7 @@ class UserSessionContext:
         if expires_at != principal.session_expires_at:
             principal = replace(principal, session_expires_at=expires_at)
             self._principal = principal
-        if expires_at is not None and datetime.now(timezone.utc) >= expires_at:
+        if expires_at is not None and datetime.now(UTC) >= expires_at:
             self.clear()
             return None
         validator = self._principal_validator

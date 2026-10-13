@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import uuid4
 
@@ -12,7 +12,7 @@ from src.core.modules.project_management.api.desktop.financials.api import (
 from src.core.modules.project_management.application.financials.commitments.event_handlers.view_invalidation import (
     COMMITMENT_CATEGORY,
 )
-from src.core.modules.project_management.application.financials.procurement_consumer import (
+from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
@@ -67,7 +67,7 @@ def _setup(services):
     )
     supplier = services["party_service"].create_party(
         party_code="PROC-DELIVERY", party_name="Procurement supplier",
-        party_type="SUPPLIER",
+        roles=["SUPPLIER"],
     )
     services["financial_period_service"].create_period(
         code="PROC-2026-08", name="August 2026", fiscal_year=2026,
@@ -87,7 +87,7 @@ def _envelope(organization, event_type, payload, *, aggregate_id, revision):
         aggregate_type="purchase_order_line" if event_type == PROCUREMENT_COMMITMENT_EVENT_TYPE else "receipt_line",
         aggregate_id=aggregate_id,
         aggregate_version=revision,
-        occurred_at=datetime(2026, 8, 10, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 8, 10, tzinfo=UTC),
         correlation_id=str(uuid4()),
         payload=payload.model_dump(mode="json"),
     )
@@ -135,7 +135,7 @@ def _receipt(
         site_id=site.id,
         source_revision=revision,
         source_content_hash=f"{revision + 100:064x}",
-        posted_at=datetime(2026, 8, 10, tzinfo=timezone.utc),
+        posted_at=datetime(2026, 8, 10, tzinfo=UTC),
         accepted_quantity=DecimalQuantityPayload(value=quantity, unit="EA"),
         unit_cost=MonetaryRatePayload(
             amount="10", currency=organization.base_currency, per_unit="EA"

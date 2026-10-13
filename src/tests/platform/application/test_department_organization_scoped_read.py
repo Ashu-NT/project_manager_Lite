@@ -9,7 +9,7 @@ organization unchanged (see test_department_platform_foundation.py)."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -88,7 +88,7 @@ def test_cross_tenant_organization_id_is_rejected_not_visible(services) -> None:
 
     foreign_tenant_id = "foreign-tenant-dept-xyz"
     foreign_org_id = "foreign-org-dept-xyz"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add(
         TenantORM(
             id=foreign_tenant_id,

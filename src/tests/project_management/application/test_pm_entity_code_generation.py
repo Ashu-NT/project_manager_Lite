@@ -51,7 +51,7 @@ def test_resource_autogenerates_code(services):
 # ── Register (REG, per-project) ──────────────────────────────────────────────
 def test_register_autogenerates_code(services):
     pid = _project(services).id
-    entry = services["register_service"].create_entry(
+    entry = services["register_lifecycle_commands"].create_entry(
         pid,
         entry_type=RegisterEntryType.RISK,
         title="Supplier delay",

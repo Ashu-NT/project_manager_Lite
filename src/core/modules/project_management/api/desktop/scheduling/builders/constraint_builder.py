@@ -1,5 +1,7 @@
 """Constraint violation view-model assembly."""
 
+import logging
+
 from src.core.modules.project_management.api.desktop.scheduling.models.constraints import (
     SchedulingConstraintViolationDto,
 )
@@ -8,6 +10,7 @@ from src.core.modules.project_management.api.desktop.scheduling.serializers.cons
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 
+logger = logging.getLogger(__name__)
 
 def build_constraint_violations(
     project_id: str,
@@ -26,6 +29,7 @@ def build_constraint_violations(
         hard_pairs = {(v.task_id, v.constraint_type) for v in result.hard_violations}
         return tuple(serialize_constraint_violation(v, hard_pairs=hard_pairs) for v in result.violations)
     except Exception:
+        logger.exception("Failed to build constraint violations for project_id=%s", project_id)
         return ()
 
 

@@ -12,6 +12,7 @@ class TaskCollaborationPostCommand:
     attachments: tuple[str, ...] = ()
     linked_document_ids: tuple[str, ...] = ()
     parent_comment_id: str | None = None
+    submission_id: str | None = None
 
 
 @dataclass(frozen=True)

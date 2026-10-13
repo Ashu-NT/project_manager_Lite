@@ -3,16 +3,23 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timezone
-
-from sqlalchemy.orm import Session
+from datetime import UTC, date, datetime
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
+    TaskHierarchyPolicy,
+)
+from src.core.modules.project_management.application.tasks.commands.validation import (
+    TaskValidationPolicy,
+)
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskProgressChanged,
     TaskStatusChanged,
+)
+from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+    TaskUowScope,
 )
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     TaskRepository,
@@ -22,13 +29,31 @@ from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 
 
-class TaskProgressMixin:
-    _session: Session
-    _task_repo: TaskRepository
+class TaskProgressCommandHandler:
+    def __init__(
+        self,
+        *,
+        task_repo: TaskRepository,
+        user_session: UserSessionContext | None,
+        tenant_context_service: TenantContextService,
+        hierarchy_policy: TaskHierarchyPolicy,
+        validation_policy: TaskValidationPolicy,
+        uow_scope: TaskUowScope,
+    ) -> None:
+        self._task_repo = task_repo
+        self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
+        self._hierarchy_policy = hierarchy_policy
+        self._validation_policy = validation_policy
+        self._uow_scope = uow_scope
 
     def set_status(self, task_id: str, status: TaskStatus) -> None:
         self.set_tasks_status((task_id,), status)
@@ -48,9 +73,12 @@ class TaskProgressMixin:
             )
             if task_id
         )
+        tasks_by_id = {
+            task.id: task for task in self._task_repo.list_by_ids(list(normalized_ids))
+        }
         tasks: list[Task] = []
         for task_id in normalized_ids:
-            task = self._task_repo.get(task_id)
+            task = tasks_by_id.get(task_id)
             if task is None:
                 continue
             require_project_permission(
@@ -59,7 +87,9 @@ class TaskProgressMixin:
                 "task.manage",
                 operation_label="set task status",
             )
-            self._require_leaf_task(task, operation_label="change execution status")
+            self._hierarchy_policy._require_leaf_task(
+                task, operation_label="change execution status"
+            )
             tasks.append(task)
 
         candidates: list[Task] = []
@@ -88,9 +118,11 @@ class TaskProgressMixin:
 
         if not candidates:
             return []
-        scope = self._active_task_scope(operation_label="set task status")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="set task status"
+        )
         old_status_by_id = {task.id: task.status.value for task in tasks}
-        with self._task_uow() as uow:
+        with self._uow_scope.create() as uow:
             for candidate in candidates:
                 uow.tasks.update(candidate)
                 record_activity(
@@ -111,7 +143,7 @@ class TaskProgressMixin:
                         task_id=candidate.id,
                         old_status=old_status_by_id[candidate.id],
                         new_status=candidate.status.value,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
             uow.commit()
@@ -141,7 +173,7 @@ class TaskProgressMixin:
                 "Task changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        self._require_leaf_task(task, operation_label="record progress")
+        self._hierarchy_policy._require_leaf_task(task, operation_label="record progress")
 
         next_percent_complete = task.percent_complete
         next_status = task.status
@@ -163,13 +195,15 @@ class TaskProgressMixin:
             actual_end=task.actual_end if actual_end is None else actual_end,
             status=next_status if status is None else status,
         )
-        self._validate_task_within_project_dates(
+        self._validation_policy.validate_task_within_project_dates(
             candidate.project_id,
             candidate.actual_start,
             candidate.actual_end,
         )
-        scope = self._active_task_scope(operation_label="update task progress")
-        with self._task_uow() as uow:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="update task progress"
+        )
+        with self._uow_scope.create() as uow:
             uow.tasks.update(candidate)
             record_activity(
                 uow,
@@ -191,7 +225,7 @@ class TaskProgressMixin:
                     project_id=candidate.project_id,
                     task_id=candidate.id,
                     percent_complete=candidate.percent_complete,
-                    occurred_at=datetime.now(timezone.utc),
+                    occurred_at=datetime.now(UTC),
                 )
             )
             if candidate.status != task.status:
@@ -203,11 +237,11 @@ class TaskProgressMixin:
                         task_id=candidate.id,
                         old_status=task.status.value,
                         new_status=candidate.status.value,
-                        occurred_at=datetime.now(timezone.utc),
+                        occurred_at=datetime.now(UTC),
                     )
                 )
             uow.commit()
         return candidate
 
 
-__all__ = ["TaskProgressMixin"]
+__all__ = ["TaskProgressCommandHandler"]

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from unittest.mock import MagicMock, call
@@ -472,7 +472,7 @@ def _seed_forecast_reader(services):
         source_type=ForecastLineSourceType.RISK,
         source_reference_type="risk",
         source_reference_id="risk-1",
-        source_snapshot_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        source_snapshot_at=datetime(2026, 8, 1, tzinfo=UTC),
         created_by="admin",
         expected_forecast_version=first.row_version,
     )
@@ -1090,7 +1090,7 @@ def test_controls_activity_uses_project_scoped_enterprise_audit_only() -> None:
         data=(
             AuditEntryDto(
                 id="audit-1",
-                timestamp=datetime(2026, 8, 27, 12, 0, tzinfo=timezone.utc),
+                timestamp=datetime(2026, 8, 27, 12, 0, tzinfo=UTC),
                 operation="project_budget.approve",
                 entity_type="project_budget",
                 entity_id="budget-1",

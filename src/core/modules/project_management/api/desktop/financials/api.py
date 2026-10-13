@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 
 from src.core.modules.project_management.api.desktop.financials.builders.commitment_builder import (
@@ -181,6 +181,9 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernanceCommandBoundary,
     FinanceGovernedServicePort,
 )
+from src.core.modules.project_management.application.reporting import (
+    ReportingService,
+)
 from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
     CommercialMetricAvailability,
     CommercialMetricUnavailableReason,
@@ -229,10 +232,7 @@ from src.core.modules.project_management.contracts.reads.pagination import (
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpactType,
 )
-from src.core.modules.project_management.infrastructure.reporting import (
-    ReportingService,
-)
-from src.core.modules.project_management.infrastructure.reporting.api import (
+from src.core.modules.project_management.infrastructure.reporting.export_runtime import (
     generate_excel_report,
     generate_pdf_report,
 )
@@ -429,7 +429,7 @@ class ProjectManagementFinancialsDesktopApi:
         facts = self._require_finance_workspace_query().search_budget_cost_codes(
             project_id,
             request=ManualActualCostCodeQuery(
-                search=search, page=page, page_size=page_size, effective_on=datetime.now(timezone.utc).astimezone().date()
+                search=search, page=page, page_size=page_size, effective_on=datetime.now(UTC).astimezone().date()
             ),
         )
         return _serialize_lookup_page(facts)
@@ -439,7 +439,7 @@ class ProjectManagementFinancialsDesktopApi:
     ) -> FinancialLookupOptionDto | None:
         return _serialize_lookup_option(
             self._require_finance_workspace_query().resolve_budget_cost_code(
-                project_id, cost_code_id, effective_on=datetime.now(timezone.utc).astimezone().date()
+                project_id, cost_code_id, effective_on=datetime.now(UTC).astimezone().date()
             )
         )
 
@@ -2124,7 +2124,7 @@ class ProjectManagementFinancialsDesktopApi:
                 percent_availability=CommercialMetricAvailability.UNAVAILABLE,
                 revenue_reason=reason, margin_reason=reason, percent_reason=reason,
             )
-        resolved_as_of = as_of_date or datetime.now(timezone.utc).astimezone().date()
+        resolved_as_of = as_of_date or datetime.now(UTC).astimezone().date()
         return serialize_commercial_projection(
             self._reporting_service.get_project_commercial_projection(
                 project_id, as_of_date=resolved_as_of

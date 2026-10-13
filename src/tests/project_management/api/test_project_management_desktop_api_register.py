@@ -29,7 +29,8 @@ def test_project_management_register_desktop_api_mutates_register_entries() -> N
     register_service = _FakeRegisterService()
     api = build_project_management_register_desktop_api(
         project_service=project_service,
-        register_service=register_service,
+        register_query=register_service,
+        register_lifecycle_commands=register_service,
     )
 
     assert [option.label for option in api.list_projects()] == [

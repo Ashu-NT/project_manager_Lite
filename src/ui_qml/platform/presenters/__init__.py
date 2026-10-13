@@ -2,6 +2,9 @@
 from src.ui_qml.platform.presenters.access.access_workspace_presenter import (
     PlatformAccessWorkspacePresenter,
 )
+from src.ui_qml.platform.presenters.calendars.calendar_activity_presenter import (
+    PlatformCalendarActivityPresenter,
+)
 from src.ui_qml.platform.presenters.calendars.calendar_catalog_presenter import (
     PlatformCalendarCatalogPresenter,
 )
@@ -10,6 +13,9 @@ from src.ui_qml.platform.presenters.control.control_presenter import (
 )
 from src.ui_qml.platform.presenters.control.control_queue_presenter import (
     PlatformControlQueuePresenter,
+)
+from src.ui_qml.platform.presenters.departments.department_activity_presenter import (
+    PlatformDepartmentActivityPresenter,
 )
 from src.ui_qml.platform.presenters.departments.department_catalog_presenter import (
     PlatformDepartmentCatalogPresenter,
@@ -20,8 +26,14 @@ from src.ui_qml.platform.presenters.documents.document_catalog_presenter import 
 from src.ui_qml.platform.presenters.documents.document_management_presenter import (
     PlatformDocumentManagementPresenter,
 )
+from src.ui_qml.platform.presenters.employees.employee_activity_presenter import (
+    PlatformEmployeeActivityPresenter,
+)
 from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
     PlatformEmployeeCatalogPresenter,
+)
+from src.ui_qml.platform.presenters.employees.employee_documents_presenter import (
+    PlatformEmployeeDocumentsPresenter,
 )
 from src.ui_qml.platform.presenters.organizations.organization_activity_presenter import (
     PlatformOrganizationActivityPresenter,
@@ -34,6 +46,9 @@ from src.ui_qml.platform.presenters.overview.admin_overview_presenter import (
 )
 from src.ui_qml.platform.presenters.overview.runtime_overview_presenter import (
     PlatformRuntimePresenter,
+)
+from src.ui_qml.platform.presenters.parties.party_activity_presenter import (
+    PlatformPartyActivityPresenter,
 )
 from src.ui_qml.platform.presenters.parties.party_catalog_presenter import (
     PlatformPartyCatalogPresenter,
@@ -67,15 +82,20 @@ __all__ = [
     "OrganizationSwitcherPresenter",
     "PlatformAccessWorkspacePresenter",
     "PlatformAdminWorkspacePresenter",
+    "PlatformCalendarActivityPresenter",
     "PlatformCalendarCatalogPresenter",
     "PlatformControlQueuePresenter",
     "PlatformControlWorkspacePresenter",
+    "PlatformDepartmentActivityPresenter",
     "PlatformDepartmentCatalogPresenter",
     "PlatformDocumentCatalogPresenter",
     "PlatformDocumentManagementPresenter",
+    "PlatformEmployeeActivityPresenter",
     "PlatformEmployeeCatalogPresenter",
+    "PlatformEmployeeDocumentsPresenter",
     "PlatformOrganizationActivityPresenter",
     "PlatformOrganizationCatalogPresenter",
+    "PlatformPartyActivityPresenter",
     "PlatformPartyCatalogPresenter",
     "PlatformRuntimePresenter",
     "PlatformSettingsCatalogPresenter",

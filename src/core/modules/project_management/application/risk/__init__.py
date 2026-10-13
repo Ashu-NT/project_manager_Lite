@@ -5,13 +5,13 @@ from src.core.modules.project_management.application.risk.dto.register_summary i
     RegisterProjectSummary,
     RegisterUrgentItem,
 )
-from src.core.modules.project_management.application.risk.register_service import (
-    RegisterService,
+from src.core.modules.project_management.application.risk.queries.register_query import (
+    RegisterQueryHandler,
 )
 
 __all__ = [
     "RegisterDashboardSnapshot",
     "RegisterProjectSummary",
-    "RegisterService",
+    "RegisterQueryHandler",
     "RegisterUrgentItem",
 ]

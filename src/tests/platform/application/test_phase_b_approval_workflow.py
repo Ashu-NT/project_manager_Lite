@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -17,14 +16,9 @@ def _login(services, username: str, password: str):
 
 
 def _become_independent_admin_decider(services) -> None:
-    user_session = services["user_session"]
-    user_session.set_principal(
-        replace(
-            user_session.principal,
-            user_id="independent-admin-decider",
-            username="independent-admin-decider",
-        )
-    )
+    auth = services["auth_service"]
+    user = auth.register_user("independent-decider", "StrongPass123", role_names=["approver"])
+    services["user_session"].set_principal(auth.build_principal(user))
 
 
 def _submitted_cost_entry(services, name: str):
@@ -102,6 +96,7 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
     assert req.request_type == "dependency.add"
     assert req.requested_by_username == "planner-dep"
     _login(services, "admin", "ChangeMe123!")
+    _become_independent_admin_decider(services)
     approvals.approve_and_apply(req.id)
 
     deps = ts.list_dependencies_for_task(b.id)
@@ -247,7 +242,7 @@ def test_duplicate_approval_requests_are_prevented(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
     _login(services, "admin", "ChangeMe123!")
     approvals = services["approval_service"]
-    req1 = approvals.request_change(
+    approvals.request_change(
         request_type="baseline.create",
         entity_type="project_baseline",
         entity_id="p-1",

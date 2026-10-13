@@ -1,4 +1,4 @@
-"""Skill and certification query methods for ResourceService."""
+"""Scoped skill and certification page queries."""
 
 from __future__ import annotations
 
@@ -17,10 +17,23 @@ from src.core.modules.project_management.contracts.reads.resources import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class SkillQueryMixin:
-    _resource_capability_reader: ResourceCapabilityReader | None
+class ResourceCapabilityQueryHandler:
+    def __init__(
+        self,
+        *,
+        resource_capability_reader: ResourceCapabilityReader | None,
+        tenant_context_service: TenantContextService | None,
+        user_session: UserSessionContext | None,
+    ) -> None:
+        self._resource_capability_reader = resource_capability_reader
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
 
     def _capability_scope(self, operation_label: str):
         if self._tenant_context_service is None:
@@ -58,16 +71,16 @@ class SkillQueryMixin:
         }:
             normalized_proficiency = None
         scope = self._capability_scope("view resource skills")
-        kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            resource_id=str(resource_id or "").strip(),
-            search_text=str(search_text or "").strip(),
-            proficiency=normalized_proficiency,
-            page=request.page,
-            page_size=request.page_size,
-            sort=sort,
-        )
+        kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "resource_id": str(resource_id or "").strip(),
+            "search_text": str(search_text or "").strip(),
+            "proficiency": normalized_proficiency,
+            "page": request.page,
+            "page_size": request.page_size,
+            "sort": sort,
+        }
         result = self._resource_capability_reader.read_skills_page(**kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total
@@ -111,17 +124,17 @@ class SkillQueryMixin:
         }:
             normalized_status = None
         scope = self._capability_scope("view resource certifications")
-        kwargs = dict(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            resource_id=str(resource_id or "").strip(),
-            search_text=str(search_text or "").strip(),
-            status=normalized_status,
-            as_of=date.today(),
-            page=request.page,
-            page_size=request.page_size,
-            sort=sort,
-        )
+        kwargs = {
+            "tenant_id": scope.tenant_id,
+            "organization_id": scope.organization_id,
+            "resource_id": str(resource_id or "").strip(),
+            "search_text": str(search_text or "").strip(),
+            "status": normalized_status,
+            "as_of": date.today(),
+            "page": request.page,
+            "page_size": request.page_size,
+            "sort": sort,
+        }
         result = self._resource_capability_reader.read_certifications_page(**kwargs)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total
@@ -131,4 +144,4 @@ class SkillQueryMixin:
             result = self._resource_capability_reader.read_certifications_page(**kwargs)
         return result
 
-__all__ = ["SkillQueryMixin"]
+__all__ = ["ResourceCapabilityQueryHandler"]

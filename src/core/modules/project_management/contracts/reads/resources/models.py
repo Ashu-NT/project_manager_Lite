@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -101,8 +101,8 @@ class ResourceCatalogReadPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    summary: ResourceCatalogSummary = ResourceCatalogSummary()
-    sort: ReadSort = ReadSort("catalog")
+    summary: ResourceCatalogSummary = field(default_factory=ResourceCatalogSummary)
+    sort: ReadSort = field(default_factory=lambda: ReadSort("catalog"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,7 +127,7 @@ class ResourceProjectReadPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("projectName")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("projectName"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,7 +160,7 @@ class ResourceAssignmentReadPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("scheduledStart")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("scheduledStart"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +177,8 @@ class ResourceActivityFact:
     project_id: str | None
     task_id: str | None
     can_open_source: bool = False
+    actor_kind: str = "missing"
+    actor_display: str = "Deleted user"
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,7 +187,7 @@ class ResourceActivityReadPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("occurredAt")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("occurredAt"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,7 +207,7 @@ class ResourceSkillReadPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("skillName")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("skillName"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,7 +231,7 @@ class ResourceCertificationReadPage:
     filtered_total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("certificationName")
+    sort: ReadSort = field(default_factory=lambda: ReadSort("certificationName"))
 
 
 __all__ = [

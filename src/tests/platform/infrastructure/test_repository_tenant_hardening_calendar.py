@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 
-from src.core.platform.domain.master_data.employee import EmploymentType
+from src.core.platform.domain.master_data.employee import (
+    EmployeeLifecycleStatus,
+    EmploymentType,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
@@ -35,7 +38,7 @@ def _seed_calendar_scope_rows(services) -> dict[str, str]:
     assert cur_org is not None and oth_org is not None
     ct = getattr(cur_org, "tenant_id", None)
     ot = getattr(oth_org, "tenant_id", None) or ct
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     today = date.today()
 
     cur_site = SiteORM(id="site-current", tenant_id=ct, organization_id=cur_org.id,
@@ -51,11 +54,11 @@ def _seed_calendar_scope_rows(services) -> dict[str, str]:
         department_code="DEPT-OTH", name="Other Department", is_active=True,
         created_at=now, updated_at=now, version=1)
     cur_emp = EmployeeORM(id="employee-current", tenant_id=ct, organization_id=cur_org.id,
-        employee_code="EMP-CUR", full_name="Current Employee",
-        employment_type=EmploymentType.FULL_TIME, is_active=True, version=1)
+        department_id=cur_dept.id, employee_code="EMP-CUR", full_name="Current Employee",
+        employment_type=EmploymentType.FULL_TIME, status=EmployeeLifecycleStatus.ACTIVE, version=1)
     oth_emp = EmployeeORM(id="employee-other", tenant_id=ot, organization_id=oth_org.id,
-        employee_code="EMP-OTH", full_name="Other Employee",
-        employment_type=EmploymentType.FULL_TIME, is_active=True, version=1)
+        department_id=oth_dept.id, employee_code="EMP-OTH", full_name="Other Employee",
+        employment_type=EmploymentType.FULL_TIME, status=EmployeeLifecycleStatus.ACTIVE, version=1)
     cur_cal = PlatformCalendarORM(id="calendar-current", tenant_id=ct,
         organization_id=cur_org.id, code="CAL-CUR", name="Current Calendar",
         calendar_type="SITE", timezone="UTC", is_default=False, is_active=True,
@@ -148,7 +151,7 @@ def test_calendar_repositories_scope_cross_organization_access(services) -> None
     seeded = _seed_calendar_scope_rows(services)
     session = services["session"]
 
-    calendar_repo = services["enterprise_calendar_service"]._calendar_repo
+    calendar_repo = services["platform_calendar_service"]._calendar_repo
     rule_repo = services["working_rule_service"]._rule_repo
     exception_repo = services["calendar_exception_service"]._exception_repo
     recurring_repo = services["recurring_event_service"]._event_repo

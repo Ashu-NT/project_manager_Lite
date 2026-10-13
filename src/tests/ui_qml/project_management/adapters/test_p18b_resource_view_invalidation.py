@@ -186,7 +186,7 @@ def _fake_channel():
 
 
 def _master_event(*, tenant_id="t1", organization_id="o1", resource_id, version=1, change_type):
-    from src.core.modules.project_management.application.resources.resource_master_events import (
+    from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
         ResourceMasterChanged,
     )
 
@@ -197,7 +197,7 @@ def _master_event(*, tenant_id="t1", organization_id="o1", resource_id, version=
 
 
 def _capability_event(*, tenant_id="t1", organization_id="o1", resource_id, child_id, child_version=1, change_type):
-    from src.core.modules.project_management.application.resources.resource_capability_events import (
+    from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
         ResourceCapabilityChanged,
     )
 
@@ -209,11 +209,11 @@ def _capability_event(*, tenant_id="t1", organization_id="o1", resource_id, chil
 
 
 def test_two_resources_same_org_same_transaction_produce_one_resource_list_hint():
+    from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
+        ResourceMasterChangeType,
+    )
     from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
         build_resource_list_view_invalidation_handler,
-    )
-    from src.core.modules.project_management.application.resources.resource_master_events import (
-        ResourceMasterChangeType,
     )
     from src.core.shared.events.domain_event_context import DomainEventContext
 
@@ -235,11 +235,11 @@ def test_two_resources_different_organizations_same_correlation_id_produce_two_r
     """Structurally constructible even though a real single UoW transaction never spans two
     organizations -- the dedupe rule is by target/scope identity, and two different
     organizations are two different OrganizationScope targets regardless of correlation_id."""
+    from src.core.modules.project_management.application.resources.catalog.resource_master_events import (
+        ResourceMasterChangeType,
+    )
     from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
         build_resource_list_view_invalidation_handler,
-    )
-    from src.core.modules.project_management.application.resources.resource_master_events import (
-        ResourceMasterChangeType,
     )
     from src.core.shared.events.domain_event_context import DomainEventContext
 
@@ -261,11 +261,11 @@ def test_two_resources_different_organizations_same_correlation_id_produce_two_r
 
 
 def test_same_resource_repeated_same_transaction_produces_one_capability_hint():
+    from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
+        ResourceCapabilityChangeType,
+    )
     from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
         build_resource_capabilities_view_invalidation_handler,
-    )
-    from src.core.modules.project_management.application.resources.resource_capability_events import (
-        ResourceCapabilityChangeType,
     )
     from src.core.shared.events.domain_event_context import DomainEventContext
 
@@ -286,11 +286,11 @@ def test_same_resource_repeated_same_transaction_produces_one_capability_hint():
 
 
 def test_two_resources_same_transaction_produce_two_capability_hints():
+    from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
+        ResourceCapabilityChangeType,
+    )
     from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
         build_resource_capabilities_view_invalidation_handler,
-    )
-    from src.core.modules.project_management.application.resources.resource_capability_events import (
-        ResourceCapabilityChangeType,
     )
     from src.core.shared.events.domain_event_context import DomainEventContext
 
@@ -508,8 +508,11 @@ def test_control_workspace_no_longer_reacts_to_resource_events(services):
 def test_employee_update_produces_exactly_one_resource_list_hint_when_resource_linked(services):
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="Original Name", title="Engineer"
+        employee_code=_unique("EMP"), full_name="Original Name", title="Engineer", department_id=department.id
     )
     resource = resource_service.create_resource(
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
@@ -526,8 +529,11 @@ def test_employee_update_produces_exactly_one_resource_list_hint_when_resource_l
 
 def test_employee_update_with_no_linked_resource_produces_zero_resource_hints(services):
     employee_service = services["employee_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="No Resource"
+        employee_code=_unique("EMP"), full_name="No Resource", department_id=department.id
     )
     hints = _spy_hints(services)
 
@@ -541,8 +547,11 @@ def test_resources_workspace_refreshes_once_from_employee_driven_resource_sync(s
     controller = pm_catalog.resourcesWorkspace
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
+    department = services["department_service"].create_department(
+        department_code=_unique("DEPT"), name="Engineering"
+    )
     employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="Sync Name", title="Engineer"
+        employee_code=_unique("EMP"), full_name="Sync Name", title="Engineer", department_id=department.id
     )
     resource_service.create_resource(
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id

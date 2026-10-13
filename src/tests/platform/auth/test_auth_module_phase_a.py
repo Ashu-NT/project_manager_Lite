@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -345,7 +345,7 @@ def test_validate_session_principal_updates_last_validated_at(services):
     assert principal is not None
     assert principal.session_id is not None
 
-    stale_validation_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+    stale_validation_time = datetime.now(UTC) - timedelta(minutes=5)
     auth_session = services["session"].get(AuthSessionORM, principal.session_id)
     assert auth_session is not None
     auth_session.last_validated_at = stale_validation_time

@@ -9,6 +9,7 @@ def select_project(controller, project_id: str) -> None:
         return
     controller._set_selected_project_id(normalized)
     controller._set_selected_task_id("")
+    controller._collab_ctrl.reset_comment_page()
     controller._set_selected_assignment_id("")
     controller._set_time_resource_filter("")
     controller._set_time_page(1)
@@ -62,6 +63,7 @@ def reset_task_lazy_sections(controller) -> None:
     controller._set_selected_time_entry_id("")
     controller._set_time_section_loaded_for_task_id("")
     controller._set_collaboration_section_loaded_for_task_id("")
+    controller._collab_ctrl.reset_comment_page()
     controller._assignments_section_loaded_for_task_id = ""
     controller._dependencies_section_loaded_for_task_id = ""
     controller._skill_requirements_section_loaded_for_task_id = ""

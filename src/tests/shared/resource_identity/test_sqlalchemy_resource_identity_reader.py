@@ -17,11 +17,15 @@ def test_resolves_the_resource_linked_to_a_users_employee_record(services, sessi
     user = services["auth_service"].register_user(
         "identity-owner", "StrongPass123", role_names=["viewer"]
     )
+    department = services["department_service"].create_department(
+        department_code="DEP-IDN-1", name="Identity"
+    )
     employee = services["employee_service"].create_employee(
         employee_code="EMP-IDN-1",
         full_name="Identity Owner",
-        user_id=user.id,
+        department_id=department.id,
     )
+    services["employee_service"].link_employee_user_account(employee.id, user.id)
     resource = services["resource_service"].create_resource(
         "Identity Owner Resource",
         worker_type=WorkerType.EMPLOYEE,
@@ -59,11 +63,15 @@ def test_resolves_a_resource_that_is_not_time_reporting_eligible(services, sessi
     user = services["auth_service"].register_user(
         "equipment-owner", "StrongPass123", role_names=["viewer"]
     )
+    department = services["department_service"].create_department(
+        department_code="DEP-IDN-2", name="Equipment"
+    )
     employee = services["employee_service"].create_employee(
         employee_code="EMP-IDN-2",
         full_name="Equipment Owner",
-        user_id=user.id,
+        department_id=department.id,
     )
+    services["employee_service"].link_employee_user_account(employee.id, user.id)
     resource = services["resource_service"].create_resource(
         "Owned Equipment",
         worker_type=WorkerType.EMPLOYEE,

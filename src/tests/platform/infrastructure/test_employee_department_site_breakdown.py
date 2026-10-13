@@ -10,10 +10,13 @@ tests through the real `services` fixture, then an end-to-end guardrail through 
 overview presenter."""
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
+from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
@@ -47,7 +50,7 @@ def reader_session():
 
 
 def _seed_department(db, *, id, tenant_id, organization_id, code, name):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     db.add(
         DepartmentORM(
@@ -57,15 +60,15 @@ def _seed_department(db, *, id, tenant_id, organization_id, code, name):
             department_code=code,
             name=name,
             is_active=True,
-            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
             version=1,
         )
     )
 
 
 def _seed_site(db, *, id, tenant_id, organization_id, code, name):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     db.add(
         SiteORM(
@@ -75,8 +78,8 @@ def _seed_site(db, *, id, tenant_id, organization_id, code, name):
             site_code=code,
             name=name,
             status="active",
-            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
             version=1,
         )
     )
@@ -90,7 +93,7 @@ def _seed_employee(db, *, id, tenant_id, organization_id, code, is_active, depar
             organization_id=organization_id,
             employee_code=code,
             full_name=f"Employee {code}",
-            is_active=is_active,
+            status=EmployeeLifecycleStatus.ACTIVE if is_active else EmployeeLifecycleStatus.INACTIVE,
             department_id=department_id,
             site_id=site_id,
             version=1,
@@ -123,24 +126,26 @@ def test_department_breakdown_empty_when_no_rows(reader_session):
 
 
 def test_department_breakdown_groups_and_labels_unassigned(reader_session):
+    """Employee.department_id is now a required, NOT NULL column -- every
+    employee always belongs to a real Department, so an "Unassigned"
+    department bucket can no longer occur. The reader still tolerates a
+    NULL group (its LEFT JOIN + COALESCE label handles legacy/pre-migration
+    data defensively) but that branch is unreachable through normal writes."""
     db, engine = reader_session
     _seed_department(db, id="d1", tenant_id="tenant-a", organization_id="org-a", code="D1", name="Engineering")
     _seed_department(db, id="d2", tenant_id="tenant-a", organization_id="org-a", code="D2", name="Sales")
     _seed_employee(db, id="e1", tenant_id="tenant-a", organization_id="org-a", code="E1", is_active=True, department_id="d1")
     _seed_employee(db, id="e2", tenant_id="tenant-a", organization_id="org-a", code="E2", is_active=False, department_id="d1")
     _seed_employee(db, id="e3", tenant_id="tenant-a", organization_id="org-a", code="E3", is_active=True, department_id="d2")
-    _seed_employee(db, id="e4", tenant_id="tenant-a", organization_id="org-a", code="E4", is_active=True, department_id=None)
     db.flush()
 
     reader = SqlAlchemyEmployeeHeadcountReader(db)
     rows = reader.get_department_breakdown(tenant_id="tenant-a", organization_id="org-a")
 
     by_name = {row.department_name: row for row in rows}
-    assert set(by_name) == {"Engineering", "Sales", "Unassigned"}
+    assert set(by_name) == {"Engineering", "Sales"}
     assert (by_name["Engineering"].total, by_name["Engineering"].active) == (2, 1)
     assert (by_name["Sales"].total, by_name["Sales"].active) == (1, 1)
-    assert (by_name["Unassigned"].total, by_name["Unassigned"].active) == (1, 1)
-    assert by_name["Unassigned"].department_id is None
     assert by_name["Engineering"].department_id == "d1"
 
 
@@ -150,13 +155,12 @@ def test_department_breakdown_orders_alphabetically_with_unassigned_last(reader_
     _seed_department(db, id="d2", tenant_id="tenant-a", organization_id="org-a", code="D2", name="Alpha")
     _seed_employee(db, id="e1", tenant_id="tenant-a", organization_id="org-a", code="E1", is_active=True, department_id="d1")
     _seed_employee(db, id="e2", tenant_id="tenant-a", organization_id="org-a", code="E2", is_active=True, department_id="d2")
-    _seed_employee(db, id="e3", tenant_id="tenant-a", organization_id="org-a", code="E3", is_active=True, department_id=None)
     db.flush()
 
     reader = SqlAlchemyEmployeeHeadcountReader(db)
     rows = reader.get_department_breakdown(tenant_id="tenant-a", organization_id="org-a")
 
-    assert [row.department_name for row in rows] == ["Alpha", "Zulu", "Unassigned"]
+    assert [row.department_name for row in rows] == ["Alpha", "Zulu"]
 
 
 def test_department_breakdown_isolated_by_organization_and_tenant(reader_session):
@@ -206,9 +210,10 @@ def test_site_breakdown_empty_when_no_rows(reader_session):
 
 def test_site_breakdown_groups_and_labels_unassigned(reader_session):
     db, engine = reader_session
+    _seed_department(db, id="d1", tenant_id="tenant-a", organization_id="org-a", code="D1", name="Dept One")
     _seed_site(db, id="s1", tenant_id="tenant-a", organization_id="org-a", code="S1", name="Berlin")
-    _seed_employee(db, id="e1", tenant_id="tenant-a", organization_id="org-a", code="E1", is_active=True, site_id="s1")
-    _seed_employee(db, id="e2", tenant_id="tenant-a", organization_id="org-a", code="E2", is_active=False, site_id=None)
+    _seed_employee(db, id="e1", tenant_id="tenant-a", organization_id="org-a", code="E1", is_active=True, department_id="d1", site_id="s1")
+    _seed_employee(db, id="e2", tenant_id="tenant-a", organization_id="org-a", code="E2", is_active=False, department_id="d1", site_id=None)
     db.flush()
 
     reader = SqlAlchemyEmployeeHeadcountReader(db)
@@ -222,9 +227,10 @@ def test_site_breakdown_groups_and_labels_unassigned(reader_session):
 
 def test_site_breakdown_issues_exactly_one_sql_statement(reader_session):
     db, engine = reader_session
+    _seed_department(db, id="d1", tenant_id="tenant-a", organization_id="org-a", code="D1", name="Dept One")
     _seed_site(db, id="s1", tenant_id="tenant-a", organization_id="org-a", code="S1", name="Berlin")
     for i in range(10):
-        _seed_employee(db, id=f"e{i}", tenant_id="tenant-a", organization_id="org-a", code=f"E{i}", is_active=True, site_id="s1")
+        _seed_employee(db, id=f"e{i}", tenant_id="tenant-a", organization_id="org-a", code=f"E{i}", is_active=True, department_id="d1", site_id="s1")
     db.flush()
 
     reader = SqlAlchemyEmployeeHeadcountReader(db)
@@ -246,7 +252,8 @@ def test_employee_service_get_department_breakdown_reflects_writes(services):
 
     dept = department_service.create_department(department_code="BRK-D1", name="Breakdown Dept")
     employee_service.create_employee(employee_code="BRK-E1", full_name="Breakdown One", department_id=dept.id)
-    employee_service.create_employee(employee_code="BRK-E2", full_name="Breakdown Two", department_id=dept.id, is_active=False)
+    inactive = employee_service.create_employee(employee_code="BRK-E2", full_name="Breakdown Two", department_id=dept.id)
+    employee_service.deactivate_employee(inactive.id)
 
     rows = employee_service.get_department_breakdown()
     by_name = {row.department_name: row for row in rows}
@@ -256,9 +263,11 @@ def test_employee_service_get_department_breakdown_reflects_writes(services):
 def test_employee_service_get_site_breakdown_reflects_writes(services):
     employee_service = services["employee_service"]
     site_service = services["site_service"]
+    department_service = services["department_service"]
 
     site = site_service.create_site(site_code="BRK-S1", name="Breakdown Site")
-    employee_service.create_employee(employee_code="BRK-E3", full_name="Breakdown Three", site_id=site.id)
+    dept = department_service.create_department(department_code="BRK-S1-D", name="Breakdown Site Dept")
+    employee_service.create_employee(employee_code="BRK-E3", full_name="Breakdown Three", department_id=dept.id, site_id=site.id)
 
     rows = employee_service.get_site_breakdown()
     by_name = {row.site_name: row for row in rows}
@@ -309,11 +318,10 @@ def test_admin_overview_shows_real_breakdown_cards_not_placeholder(services):
 
     admin = catalog.adminOverview()
 
-    cards_by_title = {card["title"]: card for card in admin["breakdownCards"]}
-    assert "Employees by Department" in cards_by_title
-    assert "Employees by Site" in cards_by_title
-    department_rows = {row["label"]: row for row in cards_by_title["Employees by Department"]["rows"]}
-    assert department_rows["Overview Dept"]["value"] == "1"
+    sections = {section["title"]: section for section in admin["sections"]}
+    snapshot = {row["label"]: row for row in sections["Organization Snapshot"]["rows"]}
+    assert snapshot["Employees"]["value"] == "1"
+    assert snapshot["Departments"]["value"] == "1"
     # The old hardcoded backlog placeholder text must be gone entirely.
     assert "Not yet available" not in str(admin)
     assert "tracked as backlog" not in str(admin)

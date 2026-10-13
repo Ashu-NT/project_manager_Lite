@@ -40,6 +40,7 @@ class ActivityRepository(ABC):
         organization_id: str | None = None,
         entity_type: str | None = None,
         entity_types: Sequence[str] | None = None,
+        entity_id: str | None = None,
         module: str | None = None,
         search: str | None = None,
         since=None,

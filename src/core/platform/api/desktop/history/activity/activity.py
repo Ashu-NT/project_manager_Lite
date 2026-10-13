@@ -9,6 +9,10 @@ from src.core.platform.api.desktop.history.activity.models.activity import (
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.application.history.activity import ActivityService
+from src.core.platform.contract.read.history.activity_actor_reader import (
+    ActivityActorKind,
+    ActivityActorPresentation,
+)
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 
 
@@ -53,12 +57,9 @@ class PlatformActivityDesktopApi:
         restricts to exactly those (e.g. Organization Detail's own five
         entity types, excluding other modules' deeply-nested activity that
         happens to share this organization_id)."""
-        try:
-            entries = self._activity_service.list_recent_for_organization_id(
-                organization_id, limit=limit, entity_types=entity_types
-            )
-        except Exception:
-            return ()
+        entries = self._activity_service.list_recent_for_organization_id(
+            organization_id, limit=limit, entity_types=entity_types
+        )
         return self._serialize_entries(entries)
 
     def list_for_entity_overview(
@@ -68,12 +69,9 @@ class PlatformActivityDesktopApi:
         explicit organization (which may not be the caller's active one),
         used by that entity's Overview "Recent Activity" preview -- the
         entity-scoped analog of list_for_organization_overview above."""
-        try:
-            entries = self._activity_service.list_recent_for_entity(
-                entity_type, entity_id, organization_id, limit=limit
-            )
-        except Exception:
-            return ()
+        entries = self._activity_service.list_recent_for_entity(
+            entity_type, entity_id, organization_id, limit=limit
+        )
         return self._serialize_entries(entries)
 
     def list_page_for_entity(
@@ -136,16 +134,25 @@ class PlatformActivityDesktopApi:
         )
 
     def _serialize_entries(self, entries: list[ActivityEntry]) -> tuple[ActivityEntryDto, ...]:
-        return tuple(self._serialize_entry(e) for e in entries)
+        actors = self._activity_service.present_actors(entries)
+        return tuple(self._serialize_entry(e, actors=actors) for e in entries)
 
     @staticmethod
-    def _serialize_entry(entry: ActivityEntry) -> ActivityEntryDto:
+    def _serialize_entry(
+        entry: ActivityEntry, *, actors: dict[str, ActivityActorPresentation]
+    ) -> ActivityEntryDto:
+        actor = (
+            actors.get(entry.actor_id, ActivityActorPresentation(ActivityActorKind.MISSING, "Deleted user"))
+            if entry.actor_id else ActivityActorPresentation(ActivityActorKind.SYSTEM, "System")
+        )
         return ActivityEntryDto(
             id=entry.id,
             action=entry.action,
             entity_type=entry.entity_type,
             entity_id=entry.entity_id,
             actor_id=entry.actor_id,
+            actor_kind=actor.kind.value,
+            actor_display=actor.label,
             module=entry.module,
             timestamp=entry.timestamp,
             type=entry.type,

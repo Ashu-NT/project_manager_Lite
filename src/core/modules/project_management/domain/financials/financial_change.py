@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -32,15 +32,15 @@ class FinancialChangeImpactType(str, Enum):
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _timestamp(value: object, *, code: str) -> datetime:
     if not isinstance(value, datetime):
         raise ValidationError("A valid timestamp is required.", code=code)
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 @validated_dataclass
@@ -393,8 +393,10 @@ class FinancialChangeImpact:
             FinancialChangeImpactType.BUDGET,
             FinancialChangeImpactType.FORECAST,
         }
-        if self.impact_type in monetary:
-            if self.amount == 0 or not self.currency_code or not self.cost_code_id:
+        if (
+            self.impact_type in monetary
+            and( self.amount == 0 or not self.currency_code or not self.cost_code_id)
+        ):
                 raise ValidationError(
                     "Monetary change impacts require a non-zero amount, currency, and cost code.",
                     code="FINANCIAL_CHANGE_IMPACT_MONETARY_FIELDS_REQUIRED",

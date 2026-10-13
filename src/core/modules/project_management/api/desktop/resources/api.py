@@ -84,9 +84,21 @@ from src.core.modules.project_management.api.desktop.resources.utils.resource_en
     coerce_worker_type,
 )
 from src.core.modules.project_management.application.resources import ResourceService
+from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
+    ResourceContextQueryHandler,
+)
+from src.core.modules.project_management.application.resources.queries.skill_queries import (
+    ResourceCapabilityQueryHandler,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from src.core.platform.application.master_data.employee.employee_service import (
     EmployeeService,
+)
+from src.core.platform.application.tenant.modules.authorization import (
+    require_module_enabled,
+)
+from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
+    SupportsModuleEntitlements,
 )
 
 
@@ -115,12 +127,18 @@ class ProjectManagementResourcesDesktopApi:
         self,
         *,
         resource_service: ResourceService | None = None,
+        resource_capability_query: ResourceCapabilityQueryHandler | None = None,
+        resource_context_query: ResourceContextQueryHandler | None = None,
+        module_catalog_service: SupportsModuleEntitlements | None = None,
         employee_service: EmployeeService | None = None,
         workload_service: object | None = None,
         department_service: object | None = None,
         site_service: object | None = None,
     ) -> None:
         self._resource_service = resource_service
+        self._resource_capability_query = resource_capability_query
+        self._resource_context_query = resource_context_query
+        self._module_catalog_service = module_catalog_service
         self._employee_service = employee_service
         self._workload_service = workload_service
         self._department_service = department_service
@@ -152,7 +170,10 @@ class ProjectManagementResourcesDesktopApi:
             self._resource_service.list_resources(),
             key=lambda resource: (
                 not bool(getattr(resource, "is_active", True)),
-                str(getattr(resource, "name", "") or "").casefold(),
+                str(
+                    getattr(employee_lookup.get(str(getattr(resource, "employee_id", "") or "")), "name", "")
+                    or getattr(resource, "name", "") or ""
+                ).casefold(),
             ),
         )
         return tuple(
@@ -301,7 +322,7 @@ class ProjectManagementResourcesDesktopApi:
         sort_key: str = "skillName",
         sort_direction: str = "asc",
     ) -> ResourceSkillsPageDesktopDto:
-        result = self._require_resource_service().query_resource_skills_page(
+        result = self._require_resource_capability_query().query_resource_skills_page(
             resource_id,
             search_text=search_text,
             proficiency=None if proficiency == "all" else proficiency,
@@ -356,7 +377,7 @@ class ProjectManagementResourcesDesktopApi:
         sort_key: str = "certificationName",
         sort_direction: str = "asc",
     ) -> ResourceCertificationsPageDesktopDto:
-        result = self._require_resource_service().query_resource_certifications_page(
+        result = self._require_resource_capability_query().query_resource_certifications_page(
             resource_id,
             search_text=search_text,
             status=None if status == "all" else status,
@@ -469,7 +490,7 @@ class ProjectManagementResourcesDesktopApi:
             else False if str(active).lower() == "inactive"
             else None
         )
-        result = self._require_resource_service().query_resource_projects_page(
+        result = self._require_resource_context_query().query_resource_projects_page(
             resource_id,
             search_text=search_text,
             active=active_value,
@@ -504,7 +525,7 @@ class ProjectManagementResourcesDesktopApi:
         sort_key: str = "scheduledStart",
         sort_direction: str = "asc",
     ) -> ResourceAssignmentsPageDesktopDto:
-        result = self._require_resource_service().query_resource_assignments_page(
+        result = self._require_resource_context_query().query_resource_assignments_page(
             resource_id,
             search_text=search_text,
             project_id=project_id or None,
@@ -540,7 +561,7 @@ class ProjectManagementResourcesDesktopApi:
         page: int = 1,
         page_size: int = 25,
     ) -> ResourceActivityPageDesktopDto:
-        result = self._require_resource_service().query_resource_activity_page(
+        result = self._require_resource_context_query().query_resource_activity_page(
             resource_id,
             category=category,
             start_date=parse_date(start_date),
@@ -577,6 +598,26 @@ class ProjectManagementResourcesDesktopApi:
                 "Project management resources desktop API is not connected."
             )
         return self._resource_service
+
+    def _require_resource_capability_query(self) -> ResourceCapabilityQueryHandler:
+        if self._resource_capability_query is None:
+            raise RuntimeError("Project management resource capability query is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="view resource capabilities",
+        )
+        return self._resource_capability_query
+
+    def _require_resource_context_query(self) -> ResourceContextQueryHandler:
+        if self._resource_context_query is None:
+            raise RuntimeError("Project management resource context query is not connected.")
+        require_module_enabled(
+            self._module_catalog_service,
+            "project_management",
+            operation_label="view resource context",
+        )
+        return self._resource_context_query
 
 
 __all__ = ["ProjectManagementResourcesDesktopApi"]

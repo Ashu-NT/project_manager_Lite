@@ -35,6 +35,7 @@ _WORKSPACE_PAGES_WITH_LAZY_DETAIL_LOADER = [
     "platform/qml/workspaces/sites/SitesWorkspacePage.qml",
     "platform/qml/workspaces/organizations/OrganizationsWorkspacePage.qml",
     "platform/qml/workspaces/departments/DepartmentsWorkspacePage.qml",
+    "platform/qml/workspaces/employees/EmployeesWorkspacePage.qml",
 ]
 
 

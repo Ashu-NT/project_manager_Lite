@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -71,7 +71,7 @@ def commit_context_switch(
         user_session.set_principal(target_principal)
         return
 
-    occurred_at = datetime.now(timezone.utc)
+    occurred_at = datetime.now(UTC)
     try:
         # This commits directly on `service`'s Session rather than through a
         # per-operation UnitOfWork -- it is the long-lived Session the
@@ -79,8 +79,6 @@ def commit_context_switch(
         # write must take the same SQLite write lock a UnitOfWork.commit()
         # would, or it can race one for SQLite's single writer slot and
         # surface as "database is locked" on an unrelated mutation.
-        from src.infra.persistence.db.unit_of_work import sqlite_write_lock
-
         _stage_persisted_session_context(
             service,
             target_principal,
@@ -98,7 +96,7 @@ def commit_context_switch(
             new_tenant_id=new_tenant_id,
             new_organization_id=new_organization_id,
         )
-        with sqlite_write_lock(service._session):
+        with service._session_write_lock.for_session(service._session):
             service._session.commit()
     except Exception as exc:
         service._session.rollback()

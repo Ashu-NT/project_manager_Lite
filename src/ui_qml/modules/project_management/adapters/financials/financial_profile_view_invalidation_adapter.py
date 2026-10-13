@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QObject, Signal
 
-from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
+from src.core.modules.project_management.application.financials.configuration.event_handlers.view_invalidation import (
     FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
     FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
     FINANCIAL_PROFILE_SCOPE_CODE,

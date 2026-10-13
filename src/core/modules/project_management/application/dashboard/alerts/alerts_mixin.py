@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
-from src.core.modules.project_management.infrastructure.reporting import (
+from src.core.modules.project_management.application.dashboard.models.report_models import (
     ProjectKPI,
     ResourceLoadRow,
 )
+from src.core.modules.project_management.application.tasks.queries.task_lookup import (
+    TaskLookupQueryHandler,
+)
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.modules.project_management.domain.tasks.task import Task
 
 
 class DashboardAlertsMixin:
-    _tasks: TaskService
+    _task_lookup: TaskLookupQueryHandler
 
     def _build_alerts(
         self,
@@ -19,7 +22,7 @@ class DashboardAlertsMixin:
         kpi: ProjectKPI,
         resource_load: list[ResourceLoadRow],
         *,
-        tasks: list[object] | None = None,
+        tasks: list[Task] | None = None,
     ) -> list[str]:
         alerts: list[str] = []
         today = date.today()
@@ -37,7 +40,7 @@ class DashboardAlertsMixin:
         tasks = (
             tasks
             if tasks is not None
-            else select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+            else select_leaf_tasks(self._task_lookup.list_tasks_for_project(project_id))
         )
         def _status_value(task) -> str:
             raw = getattr(task, "status", "")

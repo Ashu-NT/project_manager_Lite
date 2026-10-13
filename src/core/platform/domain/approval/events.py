@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from uuid import uuid4
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ApprovalRequested:
+    event_id: str = field(default_factory=lambda: str(uuid4()))
     approval_id: str
     tenant_id: str
     organization_id: str | None
@@ -18,6 +20,7 @@ class ApprovalRequested:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ApprovalApproved:
+    event_id: str = field(default_factory=lambda: str(uuid4()))
     approval_id: str
     tenant_id: str
     organization_id: str | None
@@ -30,6 +33,7 @@ class ApprovalApproved:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ApprovalRejected:
+    event_id: str = field(default_factory=lambda: str(uuid4()))
     approval_id: str
     tenant_id: str
     organization_id: str | None

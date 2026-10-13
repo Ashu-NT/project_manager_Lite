@@ -5,7 +5,7 @@ import hmac
 import re
 import secrets
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -160,7 +160,7 @@ class ServicePrincipalService:
         if principal.status == SERVICE_PRINCIPAL_STATUS_DISABLED:
             return principal
         actor = self._require_actor()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         principal.status = SERVICE_PRINCIPAL_STATUS_DISABLED
         principal.updated_at = now
         user = self._user_repo.get(principal.user_id)
@@ -251,7 +251,7 @@ class ServicePrincipalService:
             expires_in_days=expires_in_days,
             created_by_user_id=actor.user_id,
         )
-        current.revoked_at = datetime.now(timezone.utc)
+        current.revoked_at = datetime.now(UTC)
         try:
             self._api_key_repo.update(current)
             self._api_key_repo.add(issued.credential)
@@ -279,7 +279,7 @@ class ServicePrincipalService:
             return credential
         principal = self._require_principal(credential.service_principal_id)
         actor = self._require_actor()
-        credential.revoked_at = datetime.now(timezone.utc)
+        credential.revoked_at = datetime.now(UTC)
         try:
             self._api_key_repo.update(credential)
             self._add_audit(
@@ -303,7 +303,7 @@ class ServicePrincipalService:
             self._hash_token(token),
         ):
             raise ValidationError("Invalid API key.", code="API_KEY_AUTH_FAILED")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if credential.revoked_at is not None:
             raise ValidationError("API key is revoked.", code="API_KEY_REVOKED")
         if credential.expires_at <= now:
@@ -438,7 +438,7 @@ class ServicePrincipalService:
             key_prefix=prefix,
             secret_hash=self._hash_token(token),
             permission_scopes=requested,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=lifetime_days),
+            expires_at=datetime.now(UTC) + timedelta(days=lifetime_days),
             created_by_user_id=created_by_user_id,
         )
         return IssuedApiKey(credential=credential, token=token)

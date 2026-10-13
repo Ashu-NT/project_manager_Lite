@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.core.platform.domain.approval import ApprovalRequest
-from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.approval.approval_unit_of_work import (
     SqlAlchemyPlatformUnitOfWork,
     SqlAlchemyPlatformUnitOfWorkFactory,
 )
@@ -85,6 +85,7 @@ def test_approval_request_commits_via_the_platform_uow(tmp_path):
     factory = _factory(tmp_path)
     request = ApprovalRequest.create(
         request_type="budget.approve",
+        decision_permission="budget.approve",
         entity_type="project_budget",
         entity_id="budget-1",
         tenant_id="tenant-a",
@@ -157,6 +158,7 @@ def test_approval_request_mapper_round_trips_tenant_and_organization_id():
         id="req-1",
         tenant_id="T1",
         request_type="budget.approve",
+        decision_permission="budget.approve",
         entity_type="project_budget",
         entity_id="budget-1",
         organization_id="O1",
@@ -165,7 +167,7 @@ def test_approval_request_mapper_round_trips_tenant_and_organization_id():
         status="PENDING",
         requested_by_user_id="user-1",
         requested_by_username="requester",
-        requested_at=_dt.datetime(2026, 8, 1, tzinfo=_dt.timezone.utc),
+        requested_at=_dt.datetime(2026, 8, 1, tzinfo=_dt.UTC),
     )
     domain = approval_from_orm(orm)
     assert domain.tenant_id == "T1"
@@ -182,7 +184,7 @@ def test_cross_tenant_context_cannot_read_another_tenants_approval_request(tmp_p
     """Tenant A's `ApprovalRequest` must not be readable through a UoW whose active context
     resolves to Tenant B -- proven with two genuinely different tenants, not just a different
     active organization within the same tenant."""
-    from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.approval.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWorkFactory,
     )
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from src.core.platform.application.tenant.tenancy.tenant_context import (
@@ -90,7 +90,7 @@ class RuntimeExecutionService:
         execution.created_count = created_count
         execution.updated_count = updated_count
         execution.error_count = error_count
-        execution.completed_at = datetime.now(timezone.utc)
+        execution.completed_at = datetime.now(UTC)
         execution.updated_at = execution.completed_at
         self._runtime_execution_repo.update(execution)
         return execution
@@ -116,7 +116,7 @@ class RuntimeExecutionService:
             execution.output_media_type = output_media_type
         if output_metadata is not None:
             execution.output_metadata = output_metadata
-        execution.completed_at = datetime.now(timezone.utc)
+        execution.completed_at = datetime.now(UTC)
         execution.updated_at = execution.completed_at
         self._runtime_execution_repo.update(execution)
         return execution
@@ -129,7 +129,7 @@ class RuntimeExecutionService:
             return execution
         principal = self._user_session.principal if self._user_session is not None else None
         execution.status = "CANCELLATION_REQUESTED"
-        execution.cancellation_requested_at = datetime.now(timezone.utc)
+        execution.cancellation_requested_at = datetime.now(UTC)
         execution.cancellation_requested_by_user_id = getattr(principal, "user_id", None)
         execution.cancellation_requested_by_username = str(getattr(principal, "username", "") or "") or None
         execution.updated_at = execution.cancellation_requested_at
@@ -140,7 +140,7 @@ class RuntimeExecutionService:
         self._require_execution_scope(execution, operation_label="cancel runtime execution")
         execution.status = "CANCELLED"
         execution.error_message = str(error_message or "").strip() or "Runtime execution cancelled."
-        execution.completed_at = datetime.now(timezone.utc)
+        execution.completed_at = datetime.now(UTC)
         execution.updated_at = execution.completed_at
         self._runtime_execution_repo.update(execution)
         return execution

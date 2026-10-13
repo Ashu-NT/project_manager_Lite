@@ -28,7 +28,7 @@ from src.core.modules.project_management.application.financials.budgets.budget_e
     BudgetStatusChangeType,
     BudgetVersionCreated,
 )
-from src.core.modules.project_management.application.financials.successor_models import (
+from src.core.modules.project_management.application.financials.shared.successor_models import (
     ApprovedFinancialLineAdjustment,
     ApprovedFinancialSuccessorResult,
 )
@@ -991,7 +991,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
                 "A draft or submitted budget already exists for this project.",
                 code="PROJECT_BUDGET_OPEN_VERSION_EXISTS",
             ) from exc
-        raise
+        raise exc
 
     # -- Shared helpers -------------------------------------------------------
 

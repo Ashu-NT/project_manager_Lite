@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.repositories.integration.delivery import (
+    IntegrationInboxRepository,
+    IntegrationOutboxRepository,
+)
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
@@ -23,7 +27,7 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 def _aware(value: datetime | None) -> datetime | None:
     if value is None or value.tzinfo is not None:
         return value
-    return value.replace(tzinfo=timezone.utc)
+    return value.replace(tzinfo=UTC)
 
 
 def _envelope(row: Any) -> IntegrationEventEnvelope:
@@ -36,7 +40,9 @@ def _envelope(row: Any) -> IntegrationEventEnvelope:
     return envelope
 
 
-class SqlAlchemyIntegrationOutboxRepository(TenantScopedRepositorySupport):
+class SqlAlchemyIntegrationOutboxRepository(
+    TenantScopedRepositorySupport, IntegrationOutboxRepository
+):
     _repository_label = "Integration outbox repository"
 
     def __init__(self, session: Session, *, orm_type: type[Any], owner_module: str) -> None:
@@ -168,7 +174,9 @@ class SqlAlchemyIntegrationOutboxRepository(TenantScopedRepositorySupport):
         )
 
 
-class SqlAlchemyIntegrationInboxRepository(TenantScopedRepositorySupport):
+class SqlAlchemyIntegrationInboxRepository(
+    TenantScopedRepositorySupport, IntegrationInboxRepository
+):
     _repository_label = "Integration inbox repository"
 
     def __init__(self, session: Session, *, orm_type: type[Any]) -> None:

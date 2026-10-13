@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.application.global_overview.contracts.action_center import (
+from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
 )
 from src.core.modules.project_management.application.global_overview.pm_action_center_contributor import (
@@ -12,7 +12,9 @@ from src.core.modules.project_management.domain.enums import TaskStatus, WorkerT
 from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineStatus,
 )
-from src.core.platform.domain.security.auth.session import UserSessionPrincipal
+from src.core.modules.project_management.infrastructure.persistence.reads.global_overview.action_center_reader import (
+    SqlAlchemyProjectManagementActionCenterReader,
+)
 from src.core.shared.resource_identity.contracts import ResourceIdentityReader
 
 
@@ -30,14 +32,13 @@ def _contributor(services, resource_identity_reader: ResourceIdentityReader):
     )
 
     return ProjectManagementActionCenterContributor(
-        task_service=services["task_service"],
-        baseline_service=services["baseline_service"],
-        project_service=services["project_service"],
+        is_accessible=lambda: True,
+        reader=SqlAlchemyProjectManagementActionCenterReader(session=services["session"],
         resource_identity_reader=resource_identity_reader,
         timesheet_workspace_reader=SqlAlchemyTimesheetWorkspaceReader(
             session=services["session"], resource_identity_reader=resource_identity_reader
         ),
-        user_session=services["user_session"],
+        ),
     )
 
 
@@ -61,13 +62,17 @@ def _resource_identity_reader(services):
 def _setup_user_employee_resource(services, *, suffix: str):
     organization = services["tenant_context_service"].get_active_organization()
     user = services["auth_service"].register_user(
-        f"pm-action-center-{suffix}", "StrongPass123", role_names=["viewer"]
+        f"pm-action-center-{suffix}", "StrongPass123", role_names=["project_manager"]
+    )
+    department = services["department_service"].create_department(
+        department_code=f"AC-DEPT-{suffix}", name=f"Action Center Department {suffix}"
     )
     employee = services["employee_service"].create_employee(
         employee_code=f"EMP-AC-{suffix}",
         full_name=f"Action Center {suffix}",
-        user_id=user.id,
+        department_id=department.id,
     )
+    services["employee_service"].link_employee_user_account(employee.id, user.id)
     resource = services["resource_service"].create_resource(
         f"Action Center Resource {suffix}",
         worker_type=WorkerType.EMPLOYEE,
@@ -128,7 +133,8 @@ def test_tasks_resolve_through_resource_identity_and_include_only_open_states(se
 
     todo_item = next(item for item in contribution.items if item.subject_id == todo.id)
     assert todo_item.due_at == date(2026, 9, 20)
-    assert todo_item.route_id == "project_management.tasks"
+    assert todo_item.route_id == "project_management.workspace"
+    assert todo_item.destination_id == "tasks"
 
 
 # -- B. Baselines --------------------------------------------------------------
@@ -194,19 +200,10 @@ def _reviewer_context_and_contributor(services, *, project_id: str, permissions:
     reviewer = services["auth_service"].register_user(
         f"baseline-reviewer-{'-'.join(sorted(permissions)) or 'none'}",
         "StrongPass123",
-        role_names=["viewer"],
+        role_names=["approver"] if "baseline.approve" in permissions else ["viewer"],
     )
     services["user_session"].set_principal(
-        UserSessionPrincipal(
-            user_id=reviewer.id,
-            username=reviewer.username,
-            display_name="Baseline Reviewer",
-            role_names=frozenset(),
-            permissions=permissions,
-            scoped_access={"project": {project_id: permissions}},
-            active_tenant_id=active_tenant_id,
-            active_organization_id=organization.id,
-        )
+        services["auth_service"].build_principal(reviewer)
     )
     services["user_session"].set_active_organization_id(organization.id)
     reader = _resource_identity_reader(services)
@@ -310,10 +307,10 @@ def test_timesheets_include_open_and_rejected_but_not_approved_or_locked(service
     assignment = services["task_service"].assign_resource(task.id, resource.id, allocation_percent=100.0)
 
     # OPEN period: entries logged, never submitted.
-    services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=4)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=4)
 
     # REJECTED period: a different period, submitted then rejected.
-    services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 7, 4), hours=4)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 7, 4), hours=4)
     submitted = services["timesheet_service"].submit_timesheet_period(
         resource.id, period_start=date(2026, 7, 1)
     )
@@ -322,7 +319,7 @@ def test_timesheets_include_open_and_rejected_but_not_approved_or_locked(service
     )
 
     # APPROVED period: submitted then approved -- must be excluded.
-    services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 8, 4), hours=4)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 8, 4), hours=4)
     approved_submission = services["timesheet_service"].submit_timesheet_period(
         resource.id, period_start=date(2026, 8, 1)
     )
@@ -374,7 +371,7 @@ def test_all_action_items_equals_the_sum_of_the_three_pm_categories(services):
         resource.id,
         allocation_percent=50.0,
     )
-    services["task_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=2)
+    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=2)
 
     reader = _resource_identity_reader(services)
     contributor = _contributor(services, reader)

@@ -52,7 +52,8 @@ def _build_dashboard_api(services):
         baseline_service=services["baseline_service"],
         reporting_service=services["reporting_service"],
         collaboration_service=services["collaboration_service"],
-        task_service=services["task_service"],
+        task_workspace_query=services["task_workspace_query"],
+        module_catalog_service=services["module_catalog_service"],
     )
 
 

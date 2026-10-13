@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
 from alembic import command
@@ -19,7 +19,7 @@ def test_head_of_department_migration_preserves_existing_assignments(tmp_path) -
     command.upgrade(config, "c7f2a5d91b48")
 
     engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with engine.begin() as conn:
         departments = sa.Table("departments", sa.MetaData(), autoload_with=engine)
         conn.execute(

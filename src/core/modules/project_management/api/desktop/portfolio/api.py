@@ -87,6 +87,9 @@ from src.core.modules.project_management.application.portfolio import PortfolioS
 from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
     TOP_AT_RISK_PROJECTS_LIMIT,
 )
+from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
+    PortfolioIntakeQueryHandler,
+)
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     PortfolioResourcePoolService,
@@ -100,10 +103,12 @@ class ProjectManagementPortfolioDesktopApi:
         *,
         project_service: ProjectService | None = None,
         portfolio_service: PortfolioService | None = None,
+        portfolio_intake_query: PortfolioIntakeQueryHandler | None = None,
         pool_service: PortfolioResourcePoolService | None = None,
     ) -> None:
         self._project_service = project_service
         self._portfolio_service = portfolio_service
+        self._portfolio_intake_query = portfolio_intake_query
         self._pool_service = pool_service
 
     def list_projects(self) -> tuple[PortfolioProjectOptionDescriptor, ...]:
@@ -126,12 +131,12 @@ class ProjectManagementPortfolioDesktopApi:
         return tuple(serialize_template(t) for t in templates)
 
     def list_intake_items(self, *, status: str | None = None) -> tuple[PortfolioIntakeDesktopDto, ...]:
-        service = self._portfolio_service
-        if service is None:
+        query = self._portfolio_intake_query
+        if query is None:
             return ()
         normalized_status = coerce_intake_status(status) if status else None
         rows = sorted(
-            service.list_intake_items(status=normalized_status),
+            query.list_intake_items(status=normalized_status),
             key=lambda i: (-int(i.composite_score or 0), (i.title or "").casefold()),
         )
         return tuple(serialize_intake_item(i) for i in rows)
@@ -146,14 +151,14 @@ class ProjectManagementPortfolioDesktopApi:
         sort_key: str = "updatedAt",
         sort_direction: str = "desc",
     ) -> PortfolioIntakePageDto:
-        service = self._portfolio_service
-        if service is None:
+        query = self._portfolio_intake_query
+        if query is None:
             return PortfolioIntakePageDto(
                 page=page, page_size=page_size, sort_key=sort_key,
                 sort_direction=sort_direction, search_text=search_text,
             )
         normalized_status = coerce_intake_status(status) if status else None
-        result = service.list_intake_items_page(
+        result = query.list_intake_items_page(
             status=normalized_status,
             search_text=search_text,
             page=page,

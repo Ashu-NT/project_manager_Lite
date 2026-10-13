@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -111,7 +111,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
                 organization_id=rate_card.organization_id,
                 rate_card_id=rate_card.id,
                 project_id=rate_card.project_id,
-                occurred_at=datetime.now(timezone.utc),
+                occurred_at=datetime.now(UTC),
             )
         )
         return rate_card
@@ -135,7 +135,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         self._require_expected_version(current.version, expected_version, "Rate card")
         if not current.is_active:
             return current
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         candidate = replace(current, is_active=False, updated_at=now)
         self._rate_card_repo.update(candidate)
         self._record_card_audit("deactivate", candidate, old=current)
@@ -241,7 +241,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
                 rate_card_id=line.rate_card_id,
                 rate_line_id=line.id,
                 project_id=card.project_id,
-                occurred_at=datetime.now(timezone.utc),
+                occurred_at=datetime.now(UTC),
             )
         )
         return line
@@ -292,7 +292,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         if candidate == current:
             # True no-op: no write, audit, event, or version bump.
             return current
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         candidate = replace(candidate, updated_at=now)
         self._protect_consumed_economics(current, candidate)
         self._reject_overlap(candidate.rate_card_id, candidate, excluding_line_id=candidate.id)
@@ -327,7 +327,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         self._require_expected_version(current.version, expected_version, "Rate card line")
         if not current.is_active:
             return current
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         candidate = replace(current, is_active=False, updated_at=now)
         self._rate_card_repo.update_line(candidate)
         self._record_line_audit("deactivate", candidate, old=current)
@@ -493,8 +493,10 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
                 "immutable; end-date it for the future and add a new Rate Line.",
                 code="RATE_CARD_LINE_HISTORICAL_IMMUTABLE",
             )
-        if candidate.effective_to != current.effective_to:
-            if candidate.effective_to is None or candidate.effective_to < date.today():
+        if (
+            candidate.effective_to != current.effective_to
+            and (candidate.effective_to is None or candidate.effective_to < date.today())
+        ):
                 raise BusinessRuleError(
                     "A consumed Rate Line may only be end-dated today or in the future.",
                     code="RATE_CARD_LINE_HISTORICAL_END_DATE_INVALID",
