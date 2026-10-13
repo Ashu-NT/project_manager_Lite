@@ -39,6 +39,9 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernanceCommandBoundary,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
+    PortfolioIntakeQueryHandler,
+)
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
@@ -268,6 +271,7 @@ class ServiceGraph:
     baseline_service: BaselineService
     dashboard_service: DashboardService
     portfolio_service: PortfolioService
+    portfolio_intake_query: PortfolioIntakeQueryHandler
     register_query: RegisterQueryHandler
     register_lifecycle_commands: RegisterLifecycleHandler
     project_resource_service: ProjectResourceService
@@ -364,6 +368,7 @@ class ServiceGraph:
             "baseline_service": self.baseline_service,
             "dashboard_service": self.dashboard_service,
             "portfolio_service": self.portfolio_service,
+            "portfolio_intake_query": self.portfolio_intake_query,
             "register_query": self.register_query,
             "register_lifecycle_commands": self.register_lifecycle_commands,
             "project_resource_service": self.project_resource_service,

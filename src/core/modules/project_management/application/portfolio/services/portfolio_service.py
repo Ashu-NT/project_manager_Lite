@@ -23,9 +23,6 @@ from src.core.modules.project_management.application.portfolio.queries.portfolio
 from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
     PortfolioExecutiveQueryMixin,
 )
-from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
-    PortfolioIntakeQueryMixin,
-)
 from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import (
     PortfolioScenarioQueryMixin,
 )
@@ -79,7 +76,6 @@ class PortfolioService(
     PortfolioDependencyQueryMixin,
     PortfolioExecutiveQueryMixin,
     PortfolioIntakeCommandMixin,
-    PortfolioIntakeQueryMixin,
     PortfolioScenarioCommandMixin,
     PortfolioScenarioQueryMixin,
     PortfolioSupportMixin,

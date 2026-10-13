@@ -16,6 +16,9 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.dashboard.services.dashboard_service import (
     DashboardService,
 )
+from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
+    PortfolioIntakeQueryHandler,
+)
 from src.core.modules.project_management.application.resources.catalog.resource_service import (
     ResourceService,
 )
@@ -86,6 +89,16 @@ def test_register_handler_checks_module_before_opening_uow() -> None:
     )
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         commands.create_entry("project-1", entry_type="risk", title="Risk")
+
+
+def test_portfolio_intake_query_checks_module_before_repository_access() -> None:
+    query = PortfolioIntakeQueryHandler(
+        intake_repo=object(),  # type: ignore[arg-type]
+        tenant_context_service=object(),  # type: ignore[arg-type]
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        query.list_intake_items_page()
 
 
 def test_project_resource_read_facade_still_checks_module_before_handler() -> None:

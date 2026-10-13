@@ -22,6 +22,9 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernedServicePort,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
+    PortfolioIntakeQueryHandler,
+)
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
@@ -88,6 +91,7 @@ class ProjectManagementDesktopRuntimeServices:
     project_service: ProjectService | None
     project_query: ProjectQueryHandler | None
     portfolio_service: PortfolioService | None
+    portfolio_intake_query: PortfolioIntakeQueryHandler | None
     collaboration_service: CollaborationService | None
     register_query: RegisterQueryHandler | None
     register_lifecycle_commands: RegisterLifecycleHandler | None
@@ -129,6 +133,7 @@ def resolve_project_management_desktop_runtime_services(
     project_service = services.get("project_service")
     project_query = services.get("project_query")
     portfolio_service = services.get("portfolio_service")
+    portfolio_intake_query = services.get("portfolio_intake_query")
     collaboration_service = services.get("collaboration_service")
     register_query = services.get("register_query")
     register_lifecycle_commands = services.get("register_lifecycle_commands")
@@ -178,6 +183,11 @@ def resolve_project_management_desktop_runtime_services(
         portfolio_service=(
             portfolio_service
             if isinstance(portfolio_service, PortfolioService)
+            else None
+        ),
+        portfolio_intake_query=(
+            portfolio_intake_query
+            if isinstance(portfolio_intake_query, PortfolioIntakeQueryHandler)
             else None
         ),
         collaboration_service=(

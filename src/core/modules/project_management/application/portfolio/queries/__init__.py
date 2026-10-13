@@ -7,7 +7,7 @@ from src.core.modules.project_management.application.portfolio.queries.portfolio
     PortfolioExecutiveQueryMixin,
 )
 from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
-    PortfolioIntakeQueryMixin,
+    PortfolioIntakeQueryHandler,
 )
 from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import (
     PortfolioScenarioQueryMixin,
@@ -19,7 +19,7 @@ from src.core.modules.project_management.application.portfolio.queries.portfolio
 __all__ = [
     "PortfolioDependencyQueryMixin",
     "PortfolioExecutiveQueryMixin",
-    "PortfolioIntakeQueryMixin",
+    "PortfolioIntakeQueryHandler",
     "PortfolioScenarioQueryMixin",
     "PortfolioTemplateQueryMixin",
 ]

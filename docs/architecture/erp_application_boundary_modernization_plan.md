@@ -955,7 +955,7 @@ The open rows below are implementation work, not closure claims.
 | Resources | `ResourceService` still owns active command delegates and catalog reads; capability/context detail query handlers are direct | Move command consumers to the already composed master/capability handlers only with equivalent module, permission, event, and UoW checks. Retain read methods that are not forwarding to those handlers. |
 | Project resources | `ProjectResourceService` forwards command and query handlers | Candidate for direct capability injection; Projects and Tasks desktop plus assignment builders must migrate together before retiring the facade. |
 | Register | `RegisterQueryHandler` and `RegisterLifecycleHandler` are independently composed and injected | Complete: all production read/write consumers migrated; `RegisterService` deleted. Both handlers retain module, permission, tenant/project, and UoW boundaries. |
-| Portfolio | `PortfolioService` composes intake, template, scenario, dependency, executive, and support mixins over one UoW | Extract cohesive operations only after shared scope, scoring, and UoW policy is characterized; do not instantiate one service per mixin or duplicate sessions. |
+| Portfolio | `PortfolioIntakeQueryHandler` now owns scoped Intake browse; `PortfolioService` still owns Intake writes and template/scenario/dependency/executive mixins over one UoW | Continue cohesive command/query cuts only after shared scope, scoring, and UoW policy is characterized; do not instantiate one service per mixin or duplicate sessions. |
 | Collaboration | `CollaborationService` coordinates comment/mention/evidence operations and a shared collaboration UoW | Split only independently transactional capabilities after privacy, recipient, audit, and event proofs. |
 | Timesheets | `TimesheetService` owns owner/reviewer authorization, period/entry workflows, and approval interactions | Retain as workflow authority; split read capabilities only if they remove a measured dependency without bypassing period/UoW policy. |
 | Dashboard and Reporting | Dashboard assembles cross-feature read facts; Reporting owns guarded analytical/report queries | Retain current read orchestration. Narrow upstream dependencies where safe; do not duplicate EVM or Finance calculations in new handlers. |
@@ -1001,6 +1001,28 @@ calculation authority; neither is an empty forwarding facade. Finance's
 governed command port has one dynamic `*args, **kwargs` relay into a fresh
 operation UoW; removing it requires a separately proven transaction-preserving
 typed boundary, not a cosmetic mass replacement.
+Portfolio's `update_intake_item` and `update_scenario` now expose explicit
+keyword parameters instead of accepting untyped `**changes`. The update
+semantics distinguish omitted fields from explicit `None` for target dates and
+optional limits; unknown field names fail immediately. Portfolio domain,
+modernization, and rollback slice: 49 passed. This is command-contract cleanup,
+not a claim that Portfolio mixins have become handlers. The next structural
+Portfolio cut should compose cohesive command/query handlers with explicit
+dependencies and a shared scoring/scope policy, migrate consumers, then delete
+superseded mixins and the service only when no orchestration remains. Current
+independent Mypy checking reports pre-existing hidden-state mixin attribute
+errors; these require the handler migration rather than blanket suppression.
+
+**A4 Portfolio Intake read cut (2026-10-13).** PM composition constructs one
+`PortfolioIntakeQueryHandler` from the existing scoped Intake repository,
+tenant context, user session, and module catalog. It injects this handler into
+the desktop Portfolio adapter; the two Intake browse methods and their mixin
+were removed from `PortfolioService`. Authorization, module entitlement,
+organization scoping, SQL pagination, and sort behavior remain at the handler.
+The same repository instance is used; no second session or UoW was created.
+Portfolio/desktop/composition/architecture regression: 105 passed. Scoped
+Mypy on the new handler, desktop API, composition, and graph: clean. This is
+one completed read-capability cut, not Portfolio or A4 closure.
 
 ## Risk and Verification Matrix
 

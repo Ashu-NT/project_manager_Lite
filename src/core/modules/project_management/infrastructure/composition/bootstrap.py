@@ -63,6 +63,7 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_data_import_service,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.portfolio.services import (
+    build_portfolio_intake_query,
     build_portfolio_resource_pool_service,
     build_portfolio_service,
 )
@@ -433,6 +434,7 @@ def build_project_management_service_bundle(
         project_calendar_adapter=_pre_project_calendar_adapter,
         rate_resolver=rate_card_resolver,
     )
+    portfolio_intake_query = build_portfolio_intake_query(repositories, platform_services)
     register_baseline_view_invalidation(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
@@ -540,6 +542,7 @@ def build_project_management_service_bundle(
         baseline_service=baseline_service,
         dashboard_service=dashboard_service,
         portfolio_service=portfolio_service,
+        portfolio_intake_query=portfolio_intake_query,
         register_query=register_query,
         register_lifecycle_commands=register_capabilities.lifecycle,
         project_resource_service=project_resource_service,

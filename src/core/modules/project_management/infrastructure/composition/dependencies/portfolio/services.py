@@ -6,6 +6,9 @@ from src.core.modules.project_management.application.financials.rate_cards.rate_
     RateCardResolver,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
+    PortfolioIntakeQueryHandler,
+)
 from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
     PortfolioResourcePoolService,
 )
@@ -62,6 +65,18 @@ def build_portfolio_service(
         tenant_context_service=platform_services.tenant_context_service,
         project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
         uow_factory=uow_factory,
+    )
+
+
+def build_portfolio_intake_query(
+    repositories: ProjectManagementRepositoryContext,
+    platform_services: PlatformServiceBundle,
+) -> PortfolioIntakeQueryHandler:
+    return PortfolioIntakeQueryHandler(
+        intake_repo=repositories.pm.portfolio_intake_repo,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_catalog_service,
     )
 
 

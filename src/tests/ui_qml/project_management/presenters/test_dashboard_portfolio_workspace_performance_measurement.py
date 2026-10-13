@@ -86,6 +86,7 @@ def _seed_single_project_workspace(services):
     portfolio_api = build_project_management_portfolio_desktop_api(
         project_service=services["project_service"],
         portfolio_service=services["portfolio_service"],
+        portfolio_intake_query=services["portfolio_intake_query"],
         pool_service=services["portfolio_resource_pool_service"],
     )
     template = portfolio_api.create_scoring_template(

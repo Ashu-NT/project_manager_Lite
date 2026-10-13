@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import date
 from decimal import Decimal
+from typing import cast
 
 from sqlalchemy.exc import IntegrityError
 
@@ -20,8 +22,11 @@ from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
+_INTAKE_UNSET = object()
+
 
 class PortfolioIntakeCommandMixin:
+
     def create_intake_item(
         self,
         *,
@@ -111,7 +116,23 @@ class PortfolioIntakeCommandMixin:
             ) from exc
         return item
 
-    def update_intake_item(self, item_id: str, **changes) -> PortfolioIntakeItem:
+    def update_intake_item(
+        self,
+        item_id: str,
+        *,
+        title: str | None = None,
+        sponsor_name: str | None = None,
+        summary: str | None = None,
+        requested_budget: Decimal | int | str | None = None,
+        requested_capacity_percent: float | int | str | None = None,
+        target_start_date: date | None | object = _INTAKE_UNSET,
+        strategic_score: int | str | None = None,
+        value_score: int | str | None = None,
+        urgency_score: int | str | None = None,
+        risk_score: int | str | None = None,
+        status: PortfolioIntakeStatus | str | None = None,
+        scoring_template_id: str | None = None,
+    ) -> PortfolioIntakeItem:
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio intake")
         self._active_portfolio_organization_id(operation_label="update portfolio intake")
         scope = self._active_portfolio_scope(operation_label="update portfolio intake")
@@ -120,47 +141,51 @@ class PortfolioIntakeCommandMixin:
             raise NotFoundError("Portfolio intake item not found.", code="PORTFOLIO_INTAKE_NOT_FOUND")
         candidate = replace(
             item,
-            title=item.title if changes.get("title") is None else changes["title"],
-            sponsor_name=item.sponsor_name if changes.get("sponsor_name") is None else changes["sponsor_name"],
-            summary=item.summary if changes.get("summary") is None else changes["summary"],
+            title=item.title if title is None else title,
+            sponsor_name=item.sponsor_name if sponsor_name is None else sponsor_name,
+            summary=item.summary if summary is None else summary,
             requested_budget=(
                 item.requested_budget
-                if changes.get("requested_budget") is None
-                else changes["requested_budget"]
+                if requested_budget is None
+                else requested_budget
             ),
             requested_capacity_percent=(
                 item.requested_capacity_percent
-                if changes.get("requested_capacity_percent") is None
-                else changes["requested_capacity_percent"]
+                if requested_capacity_percent is None
+                else requested_capacity_percent
             ),
-            target_start_date=changes.get("target_start_date", item.target_start_date),
+            target_start_date=(
+                item.target_start_date
+                if target_start_date is _INTAKE_UNSET
+                else cast(date | None, target_start_date)
+            ),
             strategic_score=(
                 item.strategic_score
-                if changes.get("strategic_score") is None
-                else changes["strategic_score"]
+                if strategic_score is None
+                else strategic_score
             ),
             value_score=(
                 item.value_score
-                if changes.get("value_score") is None
-                else changes["value_score"]
+                if value_score is None
+                else value_score
             ),
             urgency_score=(
                 item.urgency_score
-                if changes.get("urgency_score") is None
-                else changes["urgency_score"]
+                if urgency_score is None
+                else urgency_score
             ),
             risk_score=(
                 item.risk_score
-                if changes.get("risk_score") is None
-                else changes["risk_score"]
+                if risk_score is None
+                else risk_score
             ),
-            status=item.status if changes.get("status") is None else changes["status"],
+            status=item.status if status is None else status,
             updated_at=self._utc_now(),
         )
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             events: list = []
-            if "scoring_template_id" in changes and changes["scoring_template_id"] is not None:
-                scoring_template = uow.scoring_templates.get(changes["scoring_template_id"])
+            if scoring_template_id is not None:
+                scoring_template = uow.scoring_templates.get(scoring_template_id)
                 if scoring_template is None:
                     raise NotFoundError(
                         "Portfolio scoring template not found.",

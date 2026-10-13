@@ -78,6 +78,7 @@ def build_project_management_desktop_runtime_apis(
         project_management_portfolio=build_project_management_portfolio_desktop_api(
             project_service=resolved.project_service,
             portfolio_service=resolved.portfolio_service,
+            portfolio_intake_query=resolved.portfolio_intake_query,
             pool_service=resolved.pool_service,
         ),
         project_management_projects=build_project_management_projects_desktop_api(
