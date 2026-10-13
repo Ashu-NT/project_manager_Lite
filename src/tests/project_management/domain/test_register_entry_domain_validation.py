@@ -9,8 +9,8 @@ import pytest
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleHandler,
 )
-from src.core.modules.project_management.application.risk.register_service import (
-    RegisterService,
+from src.core.modules.project_management.application.risk.queries.register_query import (
+    RegisterQueryHandler,
 )
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
@@ -149,7 +149,7 @@ class _FakeRegisterUnitOfWorkFactory:
 
 def _make_service(
     monkeypatch: pytest.MonkeyPatch, *, project_ids: list[str] | None = None
-) -> tuple[RegisterService, RegisterLifecycleHandler]:
+) -> tuple[RegisterQueryHandler, RegisterLifecycleHandler]:
     monkeypatch.setattr(
         "src.core.modules.project_management.application.risk.commands.register_lifecycle.require_permission",
         lambda *args, **kwargs: None,
@@ -174,7 +174,7 @@ def _make_service(
     register_repo = _FakeRegisterRepo()
     project_repo = _FakeProjectRepo(project_ids or ["proj-1"])
     tenant_context_service = _FakeTenantContextService()
-    service = RegisterService(
+    service = RegisterQueryHandler(
         project_repo=project_repo,
         register_repo=register_repo,
         user_session=object(),

@@ -36,7 +36,7 @@ from src.core.modules.project_management.application.dashboard.widgets.upcoming 
 )
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ResourceService
-from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.application.risk import RegisterQueryHandler
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
@@ -71,7 +71,7 @@ class DashboardService(
         task_assignments: TaskAssignmentCommandHandler,
         project_service: ProjectService,
         resource_service: ResourceService,
-        register_service: RegisterService | None,
+        register_query: RegisterQueryHandler | None,
         scheduling_engine: SchedulingEngine,
         work_calendar_engine: CalendarProtocol,
         user_session=None,
@@ -82,7 +82,7 @@ class DashboardService(
         self._task_assignments = task_assignments
         self._projects: ProjectService = project_service
         self._resources: ResourceService = resource_service
-        self._registers: RegisterService | None = register_service
+        self._registers: RegisterQueryHandler | None = register_query
         self._sched: SchedulingEngine = scheduling_engine
         self._calendar: CalendarProtocol = work_calendar_engine
         self._user_session = user_session

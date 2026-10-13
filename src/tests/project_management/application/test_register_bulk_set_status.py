@@ -1,4 +1,4 @@
-"""RegisterService.bulk_set_entry_status() must persist the same per-entry
+"""RegisterLifecycleHandler.bulk_set_entry_status() must persist the same per-entry
 audit/activity/event work as update_entry(status=...), but for every
 selected entry inside ONE UnitOfWork/commit instead of one per entry (same
 reasoning as OrganizationService.bulk_update_organization_currency()).
@@ -40,7 +40,7 @@ def test_bulk_set_entry_status_updates_every_entry_in_one_transaction(services) 
     project = services["project_service"].create_project(
         "Bulk register project", financial_currency_code=organization.base_currency
     )
-    register_service = services["register_service"]
+    register_query = services["register_query"]
     register_commands = services["register_lifecycle_commands"]
     entries = [
         register_commands.create_entry(
@@ -63,7 +63,7 @@ def test_bulk_set_entry_status_updates_every_entry_in_one_transaction(services) 
     )
     assert [e.status for e in results] == [RegisterEntryStatus.CLOSED] * 3
     for entry_id in entry_ids:
-        reloaded = register_service.get_entry(entry_id)
+        reloaded = register_query.get_entry(entry_id)
         assert reloaded.status == RegisterEntryStatus.CLOSED
         # Untouched fields survive a status-only bulk update.
         assert reloaded.title.startswith("Bulk risk")

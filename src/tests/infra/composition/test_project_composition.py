@@ -289,7 +289,7 @@ def test_reporting_and_dashboard_reuse_authoritative_services(services) -> None:
     assert dashboard._task_assignments is services["task_service"]._assignment_handler
     assert dashboard._projects is services["project_service"]
     assert dashboard._resources is services["resource_service"]
-    assert dashboard._registers is services["register_service"]
+    assert dashboard._registers is services["register_query"]
 
 
 def test_resource_planning_and_imports_keep_shared_dependencies(services) -> None:

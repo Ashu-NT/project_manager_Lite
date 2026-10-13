@@ -543,7 +543,7 @@ def test_da0_characterizes_dashboard_and_register_high_risk_parity() -> None:
     )
     service = SimpleNamespace(list_entries=lambda **_kwargs: entries)
 
-    register_rows = build_entry_list(register_service=service, project_id="project-1")
+    register_rows = build_entry_list(register_query=service, project_id="project-1")
     active_high_risk_ids = [
         row.id
         for row in register_rows

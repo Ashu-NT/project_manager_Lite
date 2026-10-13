@@ -36,12 +36,12 @@ def test_priority_pm_repositories_hide_other_organization_rows(services):
     seeded = _seed_priority_pm_rows(services)
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
-    task_repo = services["task_service"]._task_repo
-    assignment_repo = services["task_service"]._assignment_repo
-    dependency_repo = services["task_service"]._dependency_repo
+    task_repo = services["task_lookup_query"]._task_repo
+    assignment_repo = services["task_lookup_query"]._assignment_repo
+    dependency_repo = services["task_dependency_diagnostics"]._dependency_repo
     comment_repo = services["collaboration_service"]._comment_repo
     presence_repo = services["collaboration_service"]._presence_repo
-    register_repo = services["register_service"]._register_repo
+    register_repo = services["register_query"]._register_repo
     baseline_repo = services["baseline_service"]._baselines
 
     assert task_repo.get(seeded["task_b1"]) is None
@@ -85,10 +85,10 @@ def test_priority_pm_repositories_scope_mutations_to_active_organization(service
     seeded = _seed_priority_pm_rows(services)
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
-    task_repo = services["task_service"]._task_repo
-    assignment_repo = services["task_service"]._assignment_repo
-    dependency_repo = services["task_service"]._dependency_repo
-    register_repo = services["register_service"]._register_repo
+    task_repo = services["task_lookup_query"]._task_repo
+    assignment_repo = services["task_lookup_query"]._assignment_repo
+    dependency_repo = services["task_dependency_diagnostics"]._dependency_repo
+    register_repo = services["register_query"]._register_repo
     baseline_repo = services["baseline_service"]._baselines
 
     assignment_repo.delete(seeded["assignment_b"])
@@ -121,11 +121,11 @@ def test_priority_pm_repositories_reject_cross_organization_updates(services):
     seeded = _seed_priority_pm_rows(services)
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
-    task_repo = services["task_service"]._task_repo
-    assignment_repo = services["task_service"]._assignment_repo
-    dependency_repo = services["task_service"]._dependency_repo
+    task_repo = services["task_lookup_query"]._task_repo
+    assignment_repo = services["task_lookup_query"]._assignment_repo
+    dependency_repo = services["task_dependency_diagnostics"]._dependency_repo
     comment_repo = services["collaboration_service"]._comment_repo
-    register_repo = services["register_service"]._register_repo
+    register_repo = services["register_query"]._register_repo
     baseline_repo = services["baseline_service"]._baselines
 
     with pytest.raises(NotFoundError):

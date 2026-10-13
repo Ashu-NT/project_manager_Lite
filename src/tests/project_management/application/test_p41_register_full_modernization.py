@@ -170,7 +170,7 @@ def test_delete_produces_hints(services):
         REGISTER_PROJECT_SCOPE_CODE,
     }
     with pytest.raises(NotFoundError):
-        services["register_service"].get_entry(entry.id)
+        services["register_query"].get_entry(entry.id)
 
 
 def test_stale_version_raises_and_produces_zero_hints_and_zero_write(services):
@@ -186,7 +186,7 @@ def test_stale_version_raises_and_produces_zero_hints_and_zero_write(services):
         )
 
     assert _register_hints(hints) == []
-    reloaded = services["register_service"].get_entry(entry.id)
+    reloaded = services["register_query"].get_entry(entry.id)
     assert reloaded.title == "P41 stale"
 
 
@@ -230,7 +230,7 @@ def test_audit_failure_rolls_back_the_register_mutation_permanently(services, mo
         )
 
     assert _register_hints(hints) == []
-    all_entries = services["register_service"].list_entries(project_id=project.id)
+    all_entries = services["register_query"].list_entries(project_id=project.id)
     assert all_entries == []
 
 
@@ -253,7 +253,7 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
         )
 
     assert _register_hints(hints) == []
-    all_entries = services["register_service"].list_entries(project_id=project.id)
+    all_entries = services["register_query"].list_entries(project_id=project.id)
     assert all_entries == []
 
 

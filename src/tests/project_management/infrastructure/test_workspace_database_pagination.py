@@ -598,7 +598,7 @@ def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
 
 def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -> None:
     project = services["project_service"].create_project("Register Database Paging")
-    register_service = services["register_service"]
+    register_query = services["register_query"]
     critical_risk = services["register_lifecycle_commands"].create_entry(
         project.id,
         entry_type=RegisterEntryType.RISK,
@@ -623,19 +623,19 @@ def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -
         status=RegisterEntryStatus.CLOSED,
     )
 
-    first_page = register_service.query_catalog_page(
+    first_page = register_query.query_catalog_page(
         project_id=project.id,
         as_of=date(2026, 5, 10),
         page=1,
         page_size=1,
     )
-    second_page = register_service.query_catalog_page(
+    second_page = register_query.query_catalog_page(
         project_id=project.id,
         as_of=date(2026, 5, 10),
         page=2,
         page_size=1,
     )
-    risks = register_service.query_catalog_page(
+    risks = register_query.query_catalog_page(
         project_id=project.id,
         entry_type=RegisterEntryType.RISK,
         search_text="supplier",
@@ -663,7 +663,7 @@ def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -
 
 def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
     project = services["project_service"].create_project("Register Sort Project")
-    register_service = services["register_service"]
+    register_query = services["register_query"]
     alpha = services["register_lifecycle_commands"].create_entry(
         project.id,
         entry_type=RegisterEntryType.RISK,
@@ -683,42 +683,42 @@ def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
         severity=RegisterEntrySeverity.HIGH,
     )
 
-    ascending_first = register_service.query_catalog_page(
+    ascending_first = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
         page=1,
         page_size=2,
     )
-    ascending_second = register_service.query_catalog_page(
+    ascending_second = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
         page=2,
         page_size=2,
     )
-    first = register_service.query_catalog_page(
+    first = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="desc",
         page=1,
         page_size=2,
     )
-    second = register_service.query_catalog_page(
+    second = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="desc",
         page=2,
         page_size=2,
     )
-    unsupported = register_service.query_catalog_page(
+    unsupported = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="unsafe_sql",
         sort_direction="desc",
         page=1,
         page_size=3,
     )
-    beyond_last = register_service.query_catalog_page(
+    beyond_last = register_query.query_catalog_page(
         project_id=project.id,
         sort_key="title",
         sort_direction="asc",
@@ -878,7 +878,7 @@ def test_workspace_page_query_budgets_are_constant(services, session) -> None:
             lambda: projects_api.list_project_page(),
             lambda: tasks_api.list_task_page(),
             lambda: services["resource_service"].query_catalog_page(),
-            lambda: services["register_service"].query_catalog_page(),
+            lambda: services["register_query"].query_catalog_page(),
             lambda: services["timesheet_service"].query_review_queue_page(),
         ):
             statement_count = 0

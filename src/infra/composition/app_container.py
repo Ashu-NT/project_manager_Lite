@@ -201,7 +201,7 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
         baseline_service=project_management_services.baseline_service,
         dashboard_service=project_management_services.dashboard_service,
         portfolio_service=project_management_services.portfolio_service,
-        register_service=project_management_services.register_service,
+        register_query=project_management_services.register_query,
         register_lifecycle_commands=project_management_services.register_lifecycle_commands,
         project_resource_service=project_management_services.project_resource_service,
         data_import_service=project_management_services.data_import_service,

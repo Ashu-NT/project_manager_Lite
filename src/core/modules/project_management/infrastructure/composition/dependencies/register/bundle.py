@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleHandler,
 )
-from src.core.modules.project_management.application.risk.register_service import (
-    RegisterService,
+from src.core.modules.project_management.application.risk.queries.register_query import (
+    RegisterQueryHandler,
 )
 
 
 @dataclass(frozen=True)
 class RegisterComposition:
-    service: RegisterService
+    query: RegisterQueryHandler
     lifecycle: RegisterLifecycleHandler

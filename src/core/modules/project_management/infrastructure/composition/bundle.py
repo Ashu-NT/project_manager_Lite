@@ -64,7 +64,7 @@ from src.core.modules.project_management.application.resources.queries.resource_
 from src.core.modules.project_management.application.resources.queries.skill_queries import (
     ResourceCapabilityQueryHandler,
 )
-from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.application.risk import RegisterQueryHandler
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleHandler,
 )
@@ -163,7 +163,7 @@ class ProjectManagementServiceBundle:
     baseline_service: BaselineService
     dashboard_service: DashboardService
     portfolio_service: PortfolioService
-    register_service: RegisterService
+    register_query: RegisterQueryHandler
     register_lifecycle_commands: RegisterLifecycleHandler
     project_resource_service: ProjectResourceService
     data_import_service: DataImportService

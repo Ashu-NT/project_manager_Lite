@@ -36,7 +36,7 @@ def build_project_management_desktop_runtime_apis(
     resolved = resolve_project_management_desktop_runtime_services(services)
     register_desktop_api = build_project_management_register_desktop_api(
         project_service=resolved.project_service,
-        register_service=resolved.register_service,
+        register_query=resolved.register_query,
         register_lifecycle_commands=resolved.register_lifecycle_commands,
         module_catalog_service=platform_dependencies.module_catalog_service,
     )

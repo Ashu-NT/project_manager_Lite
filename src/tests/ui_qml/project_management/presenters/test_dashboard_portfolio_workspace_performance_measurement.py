@@ -136,7 +136,7 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
     dashboard = services["dashboard_service"]
     reporting = services["reporting_service"]
     resources = services["resource_service"]
-    registers = services["register_service"]
+    registers = services["register_query"]
     baselines = services["baseline_service"]
     collaboration = services["collaboration_service"]
     approvals = services["approval_service"]

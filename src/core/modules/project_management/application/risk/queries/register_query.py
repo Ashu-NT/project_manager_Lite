@@ -6,6 +6,9 @@ from src.core.modules.project_management.access.scope_permissions import (
     filter_project_rows,
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
@@ -35,17 +38,42 @@ from src.core.modules.project_management.domain.risk.register import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 _ACTIVE_STATUSES = {
     RegisterEntryStatus.OPEN,
     RegisterEntryStatus.IN_PROGRESS,
     RegisterEntryStatus.MITIGATED,
 }
-class RegisterQueryMixin:
+
+
+class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
     _project_repo: ProjectRepository
     _register_repo: RegisterEntryRepository
     _register_catalog_reader: RegisterCatalogReader | None
+    _user_session: UserSessionContext | None
+    _tenant_context_service: TenantContextService | None
+
+    def __init__(
+        self,
+        *,
+        project_repo: ProjectRepository,
+        register_repo: RegisterEntryRepository,
+        user_session: UserSessionContext | None = None,
+        module_catalog_service=None,
+        tenant_context_service: TenantContextService | None = None,
+        register_catalog_reader: RegisterCatalogReader | None = None,
+    ) -> None:
+        self._project_repo = project_repo
+        self._register_repo = register_repo
+        self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
+        self._tenant_context_service = tenant_context_service
+        self._register_catalog_reader = register_catalog_reader
 
     def query_catalog_page(
         self,
@@ -99,29 +127,33 @@ class RegisterQueryMixin:
             allowed_project_ids = tuple(
                 sorted(self._user_session.project_ids_for("register.read"))
             )
-        read_kwargs = {
-            "tenant_id": scope.tenant_id,
-            "organization_id": scope.organization_id,
-            "allowed_project_ids": allowed_project_ids,
-            "project_id": project_id,
-            "entry_type": entry_type,
-            "status": status,
-            "severity": severity,
-            "search_text": str(search_text or "").strip(),
-            "as_of": as_of or date.today(),
-            "page": page_request.page,
-            "page_size": page_request.page_size,
-            "sort": sort,
-        }
-        result = self._register_catalog_reader.read_page(**read_kwargs)
+        effective_as_of = as_of or date.today()
+
+        def read_page(page_number: int) -> RegisterCatalogReadPage:
+            assert self._register_catalog_reader is not None
+            return self._register_catalog_reader.read_page(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                allowed_project_ids=allowed_project_ids,
+                project_id=project_id,
+                entry_type=entry_type,
+                status=status,
+                severity=severity,
+                search_text=str(search_text or "").strip(),
+                as_of=effective_as_of,
+                page=page_number,
+                page_size=page_request.page_size,
+                sort=sort,
+            )
+
+        result = read_page(page_request.page)
         normalized_page = normalize_page_for_total(
             page=result.page,
             page_size=result.page_size,
             total=result.filtered_total,
         )
         if normalized_page != result.page:
-            read_kwargs["page"] = normalized_page
-            result = self._register_catalog_reader.read_page(**read_kwargs)
+            result = read_page(normalized_page)
         return result
 
     def get_entry(self, entry_id: str) -> RegisterEntry:
@@ -279,4 +311,4 @@ class RegisterQueryMixin:
         )
 
 
-__all__ = ["RegisterQueryMixin"]
+__all__ = ["RegisterQueryHandler"]

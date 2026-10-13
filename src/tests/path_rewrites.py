@@ -53,7 +53,7 @@ PATH_REWRITE_EXACT = {
     "core/services/portfolio/support.py": "src/core/modules/project_management/application/projects/portfolio_support.py",
     "core/services/portfolio/templates.py": "src/core/modules/project_management/application/projects/queries/portfolio_templates.py",
     "core/services/register/__init__.py": "src/core/modules/project_management/application/risk/__init__.py",
-    "core/services/register/service.py": "src/core/modules/project_management/application/risk/register_service.py",
+    "core/services/register/service.py": "src/core/modules/project_management/application/risk/queries/register_query.py",
     "core/services/register/lifecycle.py": "src/core/modules/project_management/application/risk/commands/register_lifecycle.py",
     "core/services/register/query.py": "src/core/modules/project_management/application/risk/queries/register_query.py",
     "core/services/register/models.py": "src/core/modules/project_management/application/risk/dto/register_summary.py",

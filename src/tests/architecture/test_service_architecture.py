@@ -15,7 +15,7 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
-from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.application.risk import RegisterQueryHandler
 from src.core.modules.project_management.application.scheduling import (
     CalendarProtocol,
     SchedulingEngine,
@@ -91,7 +91,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.baseline_service, BaselineService)
     assert isinstance(graph.dashboard_service, DashboardService)
     assert isinstance(graph.portfolio_service, PortfolioService)
-    assert isinstance(graph.register_service, RegisterService)
+    assert isinstance(graph.register_query, RegisterQueryHandler)
     assert isinstance(graph.project_resource_service, ProjectResourceService)
     assert isinstance(graph.data_import_service, DataImportService)
 
@@ -114,7 +114,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["dashboard_service"] is graph.dashboard_service
     assert as_dict["finance_service"] is graph.finance_service
     assert as_dict["portfolio_service"] is graph.portfolio_service
-    assert as_dict["register_service"] is graph.register_service
+    assert as_dict["register_query"] is graph.register_query
     assert as_dict["project_resource_service"] is graph.project_resource_service
     assert as_dict["timesheet_service"] is graph.timesheet_service
     assert as_dict["session"] is session

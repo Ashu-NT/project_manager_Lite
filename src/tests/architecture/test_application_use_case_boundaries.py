@@ -48,7 +48,7 @@ def test_runtime_use_case_facts_do_not_contain_domain_aggregates(services) -> No
 def test_pm_handler_facades_leave_handler_construction_to_composition() -> None:
     for relative_path in (
         "modules/project_management/application/projects/service.py",
-        "modules/project_management/application/risk/register_service.py",
+        "modules/project_management/application/risk/queries/register_query.py",
         "modules/project_management/application/resources/catalog/resource_service.py",
         "modules/project_management/application/resources/project_resources/project_resource_service.py",
         "modules/project_management/application/tasks/service.py",

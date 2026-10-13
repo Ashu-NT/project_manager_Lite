@@ -4,7 +4,7 @@ from src.core.modules.project_management.application.dashboard import DashboardS
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.reporting import ReportingService
 from src.core.modules.project_management.application.resources import ResourceService
-from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.application.risk import RegisterQueryHandler
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
@@ -23,7 +23,7 @@ def build_dashboard_service(
     task_assignments: TaskAssignmentCommandHandler,
     project_service: ProjectService,
     resource_service: ResourceService,
-    register_service: RegisterService,
+    register_query: RegisterQueryHandler,
     scheduling_engine: SchedulingEngine,
 ) -> DashboardService:
     return DashboardService(
@@ -32,7 +32,7 @@ def build_dashboard_service(
         task_assignments=task_assignments,
         project_service=project_service,
         resource_service=resource_service,
-        register_service=register_service,
+        register_query=register_query,
         scheduling_engine=scheduling_engine,
         work_calendar_engine=platform_services.global_calendar_shim,
         user_session=platform_services.user_session,

@@ -954,7 +954,7 @@ The open rows below are implementation work, not closure claims.
 | Tasks | `TaskService` remains 45 methods/16 constructor inputs; composed command/query capabilities are already separately exposed | Continue caller-by-caller removal of ordinary delegates. Keep approval-participant, scheduling-constraint, resource-leveling, and pending-event/UoW operations until shared-transaction equivalence is proven. |
 | Resources | `ResourceService` still owns active command delegates and catalog reads; capability/context detail query handlers are direct | Move command consumers to the already composed master/capability handlers only with equivalent module, permission, event, and UoW checks. Retain read methods that are not forwarding to those handlers. |
 | Project resources | `ProjectResourceService` forwards command and query handlers | Candidate for direct capability injection; Projects and Tasks desktop plus assignment builders must migrate together before retiring the facade. |
-| Register | `RegisterService` forwards `RegisterLifecycleHandler` and owns query mixin state | Candidate for direct command injection; first characterize read scope and command module guard. Do not split the lifecycle UoW. |
+| Register | `RegisterQueryHandler` and `RegisterLifecycleHandler` are independently composed and injected | Complete: all production read/write consumers migrated; `RegisterService` deleted. Both handlers retain module, permission, tenant/project, and UoW boundaries. |
 | Portfolio | `PortfolioService` composes intake, template, scenario, dependency, executive, and support mixins over one UoW | Extract cohesive operations only after shared scope, scoring, and UoW policy is characterized; do not instantiate one service per mixin or duplicate sessions. |
 | Collaboration | `CollaborationService` coordinates comment/mention/evidence operations and a shared collaboration UoW | Split only independently transactional capabilities after privacy, recipient, audit, and event proofs. |
 | Timesheets | `TimesheetService` owns owner/reviewer authorization, period/entry workflows, and approval interactions | Retain as workflow authority; split read capabilities only if they remove a measured dependency without bypassing period/UoW policy. |
@@ -965,10 +965,42 @@ The open rows below are implementation work, not closure claims.
 | Finance | Budget, Forecast, Changes, Configuration, Rates, Actuals, Commitments, Planned Cost, Billing, handoff, Finance read/performance/workspace services | Retain separate canonical business authorities and existing governed command/read boundaries. No blanket handler rewrite or second financial formula path. |
 
 The immediate A4 migration backlog is therefore Task ordinary delegates,
-Resource command delegates, Project Resource, Register, Portfolio, and
-Collaboration. Closure requires migrated production consumers and removal of
+Resource command delegates, Project Resource, Portfolio, and Collaboration.
+Register migration is complete. Closure requires migrated production consumers and removal of
 superseded paths, not just constructing handlers in composition. The other
 families above are explicitly reviewed and intentionally retained.
+
+**A4 Register command cut (2026-10-13).** PM composition constructs one
+`RegisterLifecycleHandler`, exposes it in a typed `RegisterComposition`, and
+injects it directly into Register desktop writes. The handler itself now
+enforces the PM module entitlement in addition to its existing command
+permission, project scope, and UoW checks; desktop also checks entitlement.
+`RegisterService` no longer accepts the handler or forwards create, update,
+delete, or bulk-status commands. Subsequently, its read methods were moved to
+`RegisterQueryHandler`, which is directly injected into Register desktop and
+Dashboard. The now-empty `RegisterService` file was deleted, and the composition
+graph exposes `register_query` plus `register_lifecycle_commands`, not a
+compatibility service key. The query handler retains read permission, project
+scope, tenant scope, and module entitlement checks.
+Register/domain/composition tests passed 30; the broader Register, pagination,
+presenter, and composition slice passed 47; Portfolio/Scheduling/Timesheets/
+Finance/architecture regressions passed 62. Scoped Mypy and Ruff F/I passed.
+This is a completed Register command cut, not A4 overall closure.
+
+**A4 Register read cut (2026-10-13).** Dashboard and Register desktop now
+receive the same composition-built `RegisterQueryHandler`. The old service
+class/file, its graph key, and stale service-facing assertions were removed.
+Register query/lifecycle, desktop, Dashboard, tenant-hardening, pagination,
+composition, and architecture matrix: 95 passed. An earlier wider slice found
+three stale tests accessing repositories on `TaskService`; those tests now
+address the owning Task lookup/dependency handlers, and the affected slice
+passed 46. Scoped Mypy (five entrypoints), Ruff F/I, and diff check passed.
+`PortfolioService` remains active shared scoring/UoW policy across command and
+query mixins, and `FinanceService` remains active snapshot/reconciliation
+calculation authority; neither is an empty forwarding facade. Finance's
+governed command port has one dynamic `*args, **kwargs` relay into a fresh
+operation UoW; removing it requires a separately proven transaction-preserving
+typed boundary, not a cosmetic mass replacement.
 
 ## Risk and Verification Matrix
 
