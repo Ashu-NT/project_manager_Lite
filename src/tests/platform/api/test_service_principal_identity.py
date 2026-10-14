@@ -12,21 +12,20 @@ from src.core.platform.common.exceptions import BusinessRuleError, ValidationErr
 
 def test_service_principal_api_key_lifecycle_uses_canonical_authority(services):
     identity = services["service_principal_service"]
-    auth = services["auth_service"]
 
     principal = identity.create_service_principal(
         name="Planning Integration",
         initial_role_name="viewer",
     )
-    service_user = auth._user_repo.get(principal.user_id)
+    service_user = services["auth_queries"]._user_repo.get(principal.user_id)
 
     assert service_user is not None
     assert service_user.account_type == "service"
     assert services["tenant_context_service"].get_active_tenant_id() == principal.tenant_id
     assert services["tenant_context_service"].get_active_organization_id() == principal.organization_id
-    assert services["auth_service"].get_user_role_names(service_user.id) == {"viewer"}
+    assert services["auth_queries"].get_user_role_names(service_user.id) == {"viewer"}
 
-    permission_code = sorted(auth.get_user_permissions(service_user.id))[0]
+    permission_code = sorted(services["auth_queries"].get_user_permissions(service_user.id))[0]
     issued = identity.issue_api_key(
         principal.id,
         name="Automation",
@@ -55,9 +54,8 @@ def test_service_principal_api_key_lifecycle_uses_canonical_authority(services):
 
 
 def test_service_account_cannot_use_human_password_login(services):
-    auth = services["auth_service"]
     tenant_id = services["tenant_context_service"].get_active_tenant_id()
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         username="service-password-denied",
         raw_password="KnownServicePassword123!",
         display_name="Service Password Denied",
@@ -67,7 +65,7 @@ def test_service_account_cannot_use_human_password_login(services):
     )
 
     with pytest.raises(ValidationError) as exc_info:
-        auth.authenticate(user.username, "KnownServicePassword123!")
+        services["authentication"].authenticate(user.username, "KnownServicePassword123!")
     assert exc_info.value.code == "AUTH_FAILED"
 
 
@@ -81,7 +79,7 @@ def test_worker_resolution_returns_only_active_scoped_service_identity(services)
     resolved = identity.resolve_execution_principal(name="Approved Time Worker")
 
     assert resolved.id == principal.id
-    assert services["auth_service"]._user_repo.get(resolved.user_id).account_type == "service"
+    assert services["auth_queries"]._user_repo.get(resolved.user_id).account_type == "service"
 
     identity.disable_service_principal(principal.id)
     with pytest.raises(BusinessRuleError) as exc_info:
@@ -114,7 +112,7 @@ def test_desktop_identity_adapter_exposes_management_without_secret_hash(service
     assert created.data is not None
 
     permission_code = sorted(
-        services["auth_service"].get_user_permissions(created.data.user_id)
+        services["auth_queries"].get_user_permissions(created.data.user_id)
     )[0]
     issued = api.issue_api_key(
         ApiKeyIssueCommand(

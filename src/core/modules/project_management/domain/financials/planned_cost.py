@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator
 
@@ -148,7 +149,7 @@ class ProjectPlannedCostVersion:
 
     @field_validator("revision", "row_version", mode="before")
     @classmethod
-    def _validate_positive_int(cls, value: object, info) -> int:
+    def _validate_positive_int(cls, value: Any, info) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -164,7 +165,7 @@ class ProjectPlannedCostVersion:
         mode="before",
     )
     @classmethod
-    def _validate_nonnegative_count(cls, value: object, info) -> int:
+    def _validate_nonnegative_count(cls, value: Any, info) -> int:
         resolved = int(value or 0)
         if resolved < 0:
             raise ValidationError(
@@ -299,7 +300,7 @@ class ProjectPlannedCostLine:
 
     @field_validator("rate_card_version", mode="before")
     @classmethod
-    def _validate_rate_card_version(cls, value: object) -> int:
+    def _validate_rate_card_version(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -310,7 +311,7 @@ class ProjectPlannedCostLine:
 
     @field_validator("rate_line_version", mode="before")
     @classmethod
-    def _validate_rate_line_version(cls, value: object) -> int | None:
+    def _validate_rate_line_version(cls, value: Any) -> int | None:
         if value is None:
             return None
         resolved = int(value)

@@ -357,9 +357,8 @@ def test_forecast_repository_is_isolated_by_active_organization(services) -> Non
         generation_mode=ForecastGenerationMode.MANUAL,
         created_by="admin",
     )
-    organization_service = services["organization_service"]
     original = services["tenant_context_service"].get_active_organization()
-    other = organization_service.create_organization(
+    other = services["organization_commands"].create_organization(
         organization_code="PF-FORECAST-ISOLATION",
         display_name="Forecast Isolation Organization",
         timezone_name="UTC",

@@ -4,6 +4,7 @@ from dataclasses import field, fields, replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -250,7 +251,7 @@ class ProjectCommitmentLine:
 
     @field_validator("ordered_quantity", mode="before")
     @classmethod
-    def _validate_quantity(cls, value: object) -> Decimal:
+    def _validate_quantity(cls, value: Any) -> Decimal:
         quantity = QUANTITY_STORAGE.validate(value)
         if quantity <= 0:
             raise ValidationError(
@@ -261,7 +262,7 @@ class ProjectCommitmentLine:
 
     @field_validator("unit_price", mode="before")
     @classmethod
-    def _validate_unit_price(cls, value: object) -> Decimal:
+    def _validate_unit_price(cls, value: Any) -> Decimal:
         rate = RATE_STORAGE.validate(value)
         if rate < 0:
             raise ValidationError(
@@ -272,7 +273,7 @@ class ProjectCommitmentLine:
 
     @field_validator("amount", "base_amount", "matched_amount", mode="before")
     @classmethod
-    def _validate_money_amounts(cls, value: object, info) -> Decimal:
+    def _validate_money_amounts(cls, value: Any, info) -> Decimal:
         amount = MONEY_STORAGE.validate(value)
         if amount < 0:
             raise ValidationError(
@@ -288,7 +289,7 @@ class ProjectCommitmentLine:
 
     @field_validator("exchange_rate", mode="before")
     @classmethod
-    def _validate_exchange_rate(cls, value: object) -> Decimal:
+    def _validate_exchange_rate(cls, value: Any) -> Decimal:
         rate = EXCHANGE_RATE_STORAGE.validate(value)
         if rate <= 0:
             raise ValidationError(
@@ -299,7 +300,7 @@ class ProjectCommitmentLine:
 
     @field_validator("source_revision", "row_version", mode="before")
     @classmethod
-    def _validate_positive_versions(cls, value: object, info) -> int:
+    def _validate_positive_versions(cls, value: Any, info) -> int:
         try:
             resolved = int(value)
         except (TypeError, ValueError) as exc:
@@ -480,7 +481,7 @@ class ProjectCommitmentSourceRevision:
 
     @field_validator("source_revision", mode="before")
     @classmethod
-    def _validate_revision(cls, value: object) -> int:
+    def _validate_revision(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -533,7 +534,7 @@ class ProjectCommitmentMatch:
 
     @field_validator("amount", mode="before")
     @classmethod
-    def _validate_amount(cls, value: object) -> Decimal:
+    def _validate_amount(cls, value: Any) -> Decimal:
         amount = MONEY_STORAGE.validate(value)
         if amount == 0:
             raise ValidationError(

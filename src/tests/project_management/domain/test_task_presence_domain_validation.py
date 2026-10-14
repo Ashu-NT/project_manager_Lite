@@ -4,6 +4,9 @@ from datetime import UTC, date, datetime
 
 import pytest
 
+from src.core.modules.project_management.application.collaboration.utils.visibility import (
+    new_collaboration_context,
+)
 from src.core.modules.project_management.domain.collaboration import TaskPresence
 from src.core.platform.common.exceptions import ValidationError
 
@@ -58,10 +61,9 @@ def test_task_presence_dto_rejects_missing_identity_and_invalid_timestamps():
     assert exc_range.value.code == "TASK_PRESENCE_SEEN_RANGE_INVALID"
 
 
-def test_collaboration_service_uses_presence_dto_normalization(services):
+def test_presence_handlers_use_presence_dto_normalization(services):
     project_service = services["project_service"]
     task_service = services["task_service"]
-    collaboration_service = services["collaboration_service"]
 
     project = project_service.create_project("Presence DTO Service Proof")
     task = task_service.create_task(
@@ -71,25 +73,24 @@ def test_collaboration_service_uses_presence_dto_normalization(services):
         duration_days=2,
     )
 
-    collaboration_service.touch_task_presence(task.id, activity=" Editing ")
-    active = collaboration_service.list_task_presence(task.id)
+    services["collaboration_presence_commands"].touch_task_presence(task.id, activity=" Editing ")
+    active = services["collaboration_presence_query"].list_task_presence(task.id)
 
     assert len(active) == 1
     assert active[0].task_id == task.id
     assert active[0].activity == "editing"
     assert active[0].username == "admin"
 
-    collaboration_service.clear_task_presence(task.id)
-    assert collaboration_service.list_task_presence(task.id) == []
+    services["collaboration_presence_commands"].clear_task_presence(task.id)
+    assert services["collaboration_presence_query"].list_task_presence(task.id) == []
 
 
 def test_presence_username_change_keeps_one_user_identity(services):
-    collaboration = services["collaboration_service"]
     principal = services["user_session"].principal
     project = services["project_service"].create_project("Stable presence identity")
     task = services["task_service"].create_task(project.id, "Presence rename")
 
-    with collaboration._uow_factory.create(context=collaboration._new_context()) as uow:
+    with services["collaboration_presence_commands"]._uow_factory.create(context=new_collaboration_context()) as uow:
         first = uow.presence.touch(
             task_id=task.id,
             user_id=principal.user_id,
@@ -98,7 +99,7 @@ def test_presence_username_change_keeps_one_user_identity(services):
             activity="reviewing",
         )
         uow.commit()
-    with collaboration._uow_factory.create(context=collaboration._new_context()) as uow:
+    with services["collaboration_presence_commands"]._uow_factory.create(context=new_collaboration_context()) as uow:
         renamed = uow.presence.touch(
             task_id=task.id,
             user_id=principal.user_id,
@@ -108,7 +109,7 @@ def test_presence_username_change_keeps_one_user_identity(services):
         )
         uow.commit()
 
-    rows = collaboration._presence_repo.list_recent_for_tasks(
+    rows = services["collaboration_presence_query"]._presence_repo.list_recent_for_tasks(
         [task.id], since=datetime(2020, 1, 1, tzinfo=UTC)
     )
     assert len(rows) == 1

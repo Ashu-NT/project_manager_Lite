@@ -12,14 +12,12 @@ def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services)
     projects = services["project_service"]
     tasks = services["task_service"]
     detail = services["task_detail_query"]
-    resources = services["resource_service"]
-
     project = projects.create_project("Task detail query project")
     predecessor = tasks.create_task(project.id, "Predecessor")
     task = tasks.create_task(project.id, "Target")
     successor = tasks.create_task(project.id, "Successor")
-    zed = resources.create_resource("Zed Resource")
-    ada = resources.create_resource("Ada Resource")
+    zed = services["resource_master_commands"].create_resource("Zed Resource")
+    ada = services["resource_master_commands"].create_resource("Ada Resource")
     tasks.assign_resource(task.id, zed.id, allocation_percent=25)
     tasks.assign_resource(task.id, ada.id, allocation_percent=25)
     tasks.add_dependency(predecessor.id, task.id, DependencyType.FINISH_TO_START)

@@ -39,31 +39,30 @@ def _approve_project_budget(services, project_id: str, amount: str) -> None:
 
 
 def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch):
-    auth = services["auth_service"]
     user_session = services["user_session"]
     monkeypatch.setenv("PM_AUTH_LOCKOUT_ATTEMPTS", "2")
     monkeypatch.setenv("PM_AUTH_LOCKOUT_MINUTES", "30")
 
-    user = auth.register_user("locked-user", "StrongPass123", role_names=["viewer"])
+    user = services["user_registration"].register_user("locked-user", "StrongPass123", role_names=["viewer"])
 
     with pytest.raises(ValidationError, match="Invalid credentials"):
-        auth.authenticate("locked-user", "wrong-pass")
+        services["authentication"].authenticate("locked-user", "wrong-pass")
     with pytest.raises(ValidationError, match="Invalid credentials"):
-        auth.authenticate("locked-user", "wrong-pass")
+        services["authentication"].authenticate("locked-user", "wrong-pass")
     with pytest.raises(ValidationError, match="Account is locked until"):
-        auth.authenticate("locked-user", "StrongPass123")
+        services["authentication"].authenticate("locked-user", "StrongPass123")
 
-    locked = next(row for row in auth.list_users() if row.id == user.id)
+    locked = next(row for row in services["user_directory_query"].list_users() if row.id == user.id)
     assert locked.failed_login_attempts == 2
     assert locked.locked_until is not None
 
-    auth.unlock_user_account(user.id)
-    unlocked = next(row for row in auth.list_users() if row.id == user.id)
+    services["user_administration_commands"].unlock_user_account(user.id)
+    unlocked = next(row for row in services["user_directory_query"].list_users() if row.id == user.id)
     assert unlocked.failed_login_attempts == 0
     assert unlocked.locked_until is None
 
-    authenticated = auth.authenticate("locked-user", "StrongPass123")
-    auth_session_repo = getattr(auth, "_auth_session_repo", None)
+    authenticated = services["authentication"].authenticate("locked-user", "StrongPass123")
+    auth_session_repo = services["auth_session_commands"]._auth_session_repo
     assert auth_session_repo is not None
     assert authenticated.active_session_id is not None
     auth_session = auth_session_repo.get(authenticated.active_session_id)
@@ -72,21 +71,20 @@ def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch)
     auth_session.updated_at = datetime.now(UTC)
     auth_session_repo.update(auth_session)
     services["session"].commit()
-    user_session.set_principal(auth.build_principal(authenticated, session_id=auth_session.id))
+    user_session.set_principal(services["principal_builder"].build(authenticated, session_id=auth_session.id))
 
     assert user_session.is_authenticated() is False
     assert user_session.principal is None
 
 
 def test_security_admin_can_revoke_live_user_sessions(services):
-    auth = services["auth_service"]
-    auth.register_user("revoked-user", "StrongPass123", role_names=["viewer"])
+    services["user_registration"].register_user("revoked-user", "StrongPass123", role_names=["viewer"])
 
-    stale_session = UserSessionContext(principal_validator=auth.validate_session_principal)
-    stale_session.set_principal(auth.build_principal(auth.authenticate("revoked-user", "StrongPass123")))
+    stale_session = UserSessionContext(principal_validator=services["auth_session_commands"].validate_session_principal)
+    stale_session.set_principal(services["principal_builder"].build(services["authentication"].authenticate("revoked-user", "StrongPass123")))
 
-    auth.revoke_user_sessions(
-        next(row for row in auth.list_users() if row.username == "revoked-user").id,
+    services["auth_session_commands"].revoke_user_sessions(
+        next(row for row in services["user_directory_query"].list_users() if row.username == "revoked-user").id,
         note="Offboarding test",
     )
 
@@ -95,7 +93,6 @@ def test_security_admin_can_revoke_live_user_sessions(services):
 
 
 def test_project_memberships_restrict_project_and_task_queries(services):
-    auth = services["auth_service"]
     access = services["access_service"]
     project_service = services["project_service"]
     task_service = services["task_service"]
@@ -104,7 +101,7 @@ def test_project_memberships_restrict_project_and_task_queries(services):
     project_beta = project_service.create_project("Scoped Beta")
     task_service.create_task(project_alpha.id, "Alpha Task")
     task_service.create_task(project_beta.id, "Beta Task")
-    viewer = auth.register_user("scoped-viewer", "StrongPass123", role_names=["viewer"])
+    viewer = services["user_registration"].register_user("scoped-viewer", "StrongPass123", role_names=["viewer"])
 
     access.assign_scope_grant(
         scope_type="project",
@@ -127,18 +124,16 @@ def test_project_memberships_restrict_project_and_task_queries(services):
 
 
 def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(services):
-    auth = services["auth_service"]
     access = services["access_service"]
     project_service = services["project_service"]
     task_service = services["task_service"]
-    collaboration = services["collaboration_service"]
 
     project_alpha = project_service.create_project("Collab Alpha")
     project_beta = project_service.create_project("Collab Beta")
     task_alpha = task_service.create_task(project_alpha.id, "Alpha Task")
     task_beta = task_service.create_task(project_beta.id, "Beta Task")
-    viewer = auth.register_user("collab-viewer", "StrongPass123", role_names=["viewer"])
-    beta_viewer = auth.register_user("collab-beta-viewer", "StrongPass123", role_names=["viewer"])
+    viewer = services["user_registration"].register_user("collab-viewer", "StrongPass123", role_names=["viewer"])
+    beta_viewer = services["user_registration"].register_user("collab-beta-viewer", "StrongPass123", role_names=["viewer"])
 
     access.assign_scope_grant(
         scope_type="project",
@@ -152,22 +147,22 @@ def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(se
         user_id=beta_viewer.id,
         scope_role="viewer",
     )
-    collaboration.post_comment(task_id=task_alpha.id, body="Please review @collab-viewer")
-    collaboration.post_comment(task_id=task_alpha.id, body="Second note for @collab-viewer")
-    collaboration.post_comment(task_id=task_alpha.id, body="Final follow-up @collab-viewer")
-    collaboration.post_comment(task_id=task_beta.id, body="Do not show @collab-beta-viewer")
+    services["collaboration_comment_commands"].post_comment(task_id=task_alpha.id, body="Please review @collab-viewer")
+    services["collaboration_comment_commands"].post_comment(task_id=task_alpha.id, body="Second note for @collab-viewer")
+    services["collaboration_comment_commands"].post_comment(task_id=task_alpha.id, body="Final follow-up @collab-viewer")
+    services["collaboration_comment_commands"].post_comment(task_id=task_beta.id, body="Do not show @collab-beta-viewer")
 
     login_as(services, "collab-viewer", "StrongPass123")
 
-    inbox = collaboration.query_inbox_page(page_size=500).items
+    inbox = services["collaboration_inbox_query"].query_inbox_page(page_size=500).items
     assert len(inbox) == 3
     assert {item.project_id for item in inbox} == {project_alpha.id}
-    assert collaboration.unread_mentions_count() == 3
+    assert services["collaboration_inbox_query"].unread_mentions_count() == 3
 
-    first_page = collaboration.query_mentions_page(page=1, page_size=2)
-    second_page = collaboration.query_mentions_page(page=2, page_size=2)
-    beyond_last_page = collaboration.query_mentions_page(page=99, page_size=2)
-    search_page = collaboration.query_mentions_page(search_text="Second note")
+    first_page = services["collaboration_inbox_query"].query_mentions_page(page=1, page_size=2)
+    second_page = services["collaboration_inbox_query"].query_mentions_page(page=2, page_size=2)
+    beyond_last_page = services["collaboration_inbox_query"].query_mentions_page(page=99, page_size=2)
+    search_page = services["collaboration_inbox_query"].query_mentions_page(search_text="Second note")
 
     assert first_page.total == 3
     assert second_page.total == 3
@@ -186,21 +181,20 @@ def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(se
     assert len(search_page.items) == 1
     assert search_page.items[0].body_preview.startswith("Second note")
 
-    collaboration.mark_task_mentions_read(task_alpha.id)
+    services["collaboration_comment_engagement"].mark_task_mentions_read(task_alpha.id)
 
-    refreshed = collaboration.query_inbox_page(page_size=500).items
+    refreshed = services["collaboration_inbox_query"].query_inbox_page(page_size=500).items
     assert len(refreshed) == 3
     assert all(item.unread is False for item in refreshed)
-    assert collaboration.unread_mentions_count() == 0
-    assert collaboration.query_mentions_page(unread_only=True).total == 0
+    assert services["collaboration_inbox_query"].unread_mentions_count() == 0
+    assert services["collaboration_inbox_query"].query_mentions_page(unread_only=True).total == 0
 
 
 def test_collaboration_inbox_remains_authoritative_beyond_former_snapshot_cap(services):
-    auth = services["auth_service"]
     access = services["access_service"]
     project = services["project_service"].create_project("Large collaboration inbox")
     task = services["task_service"].create_task(project.id, "High-volume review")
-    viewer = auth.register_user(
+    viewer = services["user_registration"].register_user(
         "bulk-inbox-viewer",
         "StrongPass123",
         role_names=["viewer"],
@@ -237,11 +231,10 @@ def test_collaboration_inbox_remains_authoritative_beyond_former_snapshot_cap(se
     )
     services["session"].commit()
     login_as(services, "bulk-inbox-viewer", "StrongPass123")
-    collaboration = services["collaboration_service"]
 
-    first = collaboration.query_inbox_page(page=1, page_size=25)
-    ninth = collaboration.query_inbox_page(page=9, page_size=25)
-    searched = collaboration.query_inbox_page(
+    first = services["collaboration_inbox_query"].query_inbox_page(page=1, page_size=25)
+    ninth = services["collaboration_inbox_query"].query_inbox_page(page=9, page_size=25)
+    searched = services["collaboration_inbox_query"].query_inbox_page(
         project_id=project.id,
         author_username="admin",
         search_text="oldest searchable inbox needle",
@@ -259,17 +252,15 @@ def test_collaboration_inbox_remains_authoritative_beyond_former_snapshot_cap(se
 
 
 def test_collaboration_recent_activity_filters_project_scope(services):
-    auth = services["auth_service"]
     access = services["access_service"]
     project_service = services["project_service"]
     task_service = services["task_service"]
-    collaboration = services["collaboration_service"]
 
     project_alpha = project_service.create_project("Notifications Alpha")
     project_beta = project_service.create_project("Notifications Beta")
     task_alpha = task_service.create_task(project_alpha.id, "Alpha Delivery Task")
     task_beta = task_service.create_task(project_beta.id, "Beta Delivery Task")
-    viewer = auth.register_user("notify-viewer", "StrongPass123", role_names=["viewer"])
+    viewer = services["user_registration"].register_user("notify-viewer", "StrongPass123", role_names=["viewer"])
 
     access.assign_scope_grant(
         scope_type="project",
@@ -277,12 +268,12 @@ def test_collaboration_recent_activity_filters_project_scope(services):
         user_id=viewer.id,
         scope_role="viewer",
     )
-    collaboration.post_comment(task_id=task_alpha.id, body="Visible activity")
-    collaboration.post_comment(task_id=task_beta.id, body="Hidden activity")
+    services["collaboration_comment_commands"].post_comment(task_id=task_alpha.id, body="Visible activity")
+    services["collaboration_comment_commands"].post_comment(task_id=task_beta.id, body="Hidden activity")
 
     login_as(services, "notify-viewer", "StrongPass123")
 
-    activity = collaboration.list_recent_activity(limit=20)
+    activity = services["collaboration_inbox_query"].list_recent_activity(limit=20)
 
     assert [item.body_preview for item in activity] == ["Visible activity"]
     assert activity[0].project_id == project_alpha.id
@@ -292,13 +283,12 @@ def test_collaboration_recent_activity_filters_project_scope(services):
 def test_collaboration_service_tracks_active_task_presence(services):
     project = services["project_service"].create_project("Presence Project")
     task = services["task_service"].create_task(project.id, "Presence Task")
-    collaboration = services["collaboration_service"]
 
-    assert collaboration.list_task_presence(task.id) == []
+    assert services["collaboration_presence_query"].list_task_presence(task.id) == []
 
-    collaboration.touch_task_presence(task.id, activity="editing")
+    services["collaboration_presence_commands"].touch_task_presence(task.id, activity="editing")
 
-    active = collaboration.list_task_presence(task.id)
+    active = services["collaboration_presence_query"].list_task_presence(task.id)
     assert len(active) == 1
     assert active[0].task_id == task.id
     assert active[0].task_name == task.name
@@ -308,19 +298,16 @@ def test_collaboration_service_tracks_active_task_presence(services):
     assert active[0].activity == "editing"
     assert active[0].is_self is True
 
-    collaboration.clear_task_presence(task.id)
-    assert collaboration.list_task_presence(task.id) == []
+    services["collaboration_presence_commands"].clear_task_presence(task.id)
+    assert services["collaboration_presence_query"].list_task_presence(task.id) == []
 
 
 def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
     project_service = services["project_service"]
-    portfolio = services["portfolio_service"]
-    resource_service = services["resource_service"]
-
-    resource_service.create_resource("Portfolio Analyst", hourly_rate=100.0, capacity_percent=50.0)
+    services["resource_master_commands"].create_resource("Portfolio Analyst", hourly_rate=100.0, capacity_percent=50.0)
     project = project_service.create_project("Portfolio Project")
     _approve_project_budget(services, project.id, "500")
-    intake = portfolio.create_intake_item(
+    intake = services["portfolio_intake_commands"].create_intake_item(
         title="New Initiative",
         sponsor_name="PMO",
         requested_budget=600.0,
@@ -330,7 +317,7 @@ def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
         urgency_score=4,
         risk_score=2,
     )
-    scenario = portfolio.create_scenario(
+    scenario = services["portfolio_scenario_commands"].create_scenario(
         name="Tight Plan",
         budget_limit=1_000.0,
         capacity_limit_percent=60.0,
@@ -338,7 +325,7 @@ def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
         intake_item_ids=[intake.id],
     )
 
-    result = portfolio.evaluate_scenario(scenario.id)
+    result = services["portfolio_scenario_query"].evaluate_scenario(scenario.id)
 
     assert result.selected_projects == 1
     assert result.selected_intake_items == 1
@@ -352,12 +339,11 @@ def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
 
 
 def test_portfolio_scoring_templates_drive_new_intake_scores(services):
-    portfolio = services["portfolio_service"]
 
-    default_template = portfolio.get_active_scoring_template()
+    default_template = services["portfolio_template_query"].get_active_scoring_template()
     assert default_template.name == "Balanced PMO"
 
-    template = portfolio.create_scoring_template(
+    template = services["portfolio_template_commands"].create_scoring_template(
         name="Value First",
         summary="Pushes business value above urgency.",
         strategic_weight=1,
@@ -367,11 +353,11 @@ def test_portfolio_scoring_templates_drive_new_intake_scores(services):
         activate=True,
     )
 
-    active_template = portfolio.get_active_scoring_template()
+    active_template = services["portfolio_template_query"].get_active_scoring_template()
     assert active_template.id == template.id
     assert active_template.is_active is True
 
-    intake = portfolio.create_intake_item(
+    intake = services["portfolio_intake_commands"].create_intake_item(
         title="Template Driven Intake",
         sponsor_name="PMO",
         strategic_score=2,
@@ -387,15 +373,12 @@ def test_portfolio_scoring_templates_drive_new_intake_scores(services):
 
 def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(services):
     project_service = services["project_service"]
-    portfolio = services["portfolio_service"]
-    resource_service = services["resource_service"]
-
-    resource_service.create_resource("Portfolio Capacity", hourly_rate=95.0, capacity_percent=100.0)
+    services["resource_master_commands"].create_resource("Portfolio Capacity", hourly_rate=95.0, capacity_percent=100.0)
     project_alpha = project_service.create_project("Portfolio Alpha")
     project_beta = project_service.create_project("Portfolio Beta")
     _approve_project_budget(services, project_alpha.id, "400")
     _approve_project_budget(services, project_beta.id, "700")
-    intake_keep = portfolio.create_intake_item(
+    intake_keep = services["portfolio_intake_commands"].create_intake_item(
         title="Legacy Intake",
         sponsor_name="PMO",
         requested_budget=200.0,
@@ -405,7 +388,7 @@ def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(se
         urgency_score=3,
         risk_score=2,
     )
-    intake_expand = portfolio.create_intake_item(
+    intake_expand = services["portfolio_intake_commands"].create_intake_item(
         title="Expansion Intake",
         sponsor_name="PMO",
         requested_budget=150.0,
@@ -415,14 +398,14 @@ def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(se
         urgency_score=4,
         risk_score=1,
     )
-    baseline = portfolio.create_scenario(
+    baseline = services["portfolio_scenario_commands"].create_scenario(
         name="Baseline Scenario",
         budget_limit=900.0,
         capacity_limit_percent=60.0,
         project_ids=[project_alpha.id],
         intake_item_ids=[intake_keep.id],
     )
-    candidate = portfolio.create_scenario(
+    candidate = services["portfolio_scenario_commands"].create_scenario(
         name="Expansion Scenario",
         budget_limit=1_400.0,
         capacity_limit_percent=90.0,
@@ -430,7 +413,7 @@ def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(se
         intake_item_ids=[intake_expand.id],
     )
 
-    comparison = portfolio.compare_scenarios(baseline.id, candidate.id)
+    comparison = services["portfolio_scenario_query"].compare_scenarios(baseline.id, candidate.id)
 
     assert comparison.base_scenario_name == "Baseline Scenario"
     assert comparison.candidate_scenario_name == "Expansion Scenario"
@@ -446,14 +429,11 @@ def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(se
 
 def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(services):
     project_service = services["project_service"]
-    portfolio = services["portfolio_service"]
-    resource_service = services["resource_service"]
     task_service = services["task_service"]
-    timesheet_service = services["timesheet_service"]
 
     project = project_service.create_project("Executive Pressure Project")
     _approve_project_budget(services, project.id, "200")
-    resource = resource_service.create_resource("Executive Analyst", hourly_rate=100.0, capacity_percent=80.0)
+    resource = services["resource_master_commands"].create_resource("Executive Analyst", hourly_rate=100.0, capacity_percent=80.0)
     task = task_service.create_task(
         project.id,
         "Late Executive Task",
@@ -461,20 +441,20 @@ def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(service
         duration_days=2,
     )
     assignment = task_service.assign_resource(task.id, resource.id, 100.0)
-    timesheet_service.add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 6, 2),
         hours=6.0,
         note="Delivery work",
     )
-    timesheet_service.submit_timesheet_period(
+    services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id,
         period_start=date(2026, 6, 1),
         note="Executive review",
     )
 
-    heatmap = portfolio.list_portfolio_heatmap()
-    recent_actions = portfolio.list_recent_pm_actions(limit=10)
+    heatmap = services["portfolio_executive_query"].list_portfolio_heatmap()
+    recent_actions = services["portfolio_executive_query"].list_recent_pm_actions(limit=10)
 
     assert len(heatmap) == 1
     assert heatmap[0].project_name == "Executive Pressure Project"
@@ -487,19 +467,18 @@ def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(service
 
 def test_portfolio_project_dependencies_track_cross_project_links(services):
     project_service = services["project_service"]
-    portfolio = services["portfolio_service"]
 
     predecessor = project_service.create_project("Dependency Program Alpha")
     successor = project_service.create_project("Dependency Program Beta")
 
-    dependency = portfolio.create_project_dependency(
+    dependency = services["portfolio_dependency_commands"].create_project_dependency(
         predecessor_project_id=predecessor.id,
         successor_project_id=successor.id,
         dependency_type=DependencyType.FINISH_TO_START,
         summary="Beta depends on Alpha handover.",
     )
 
-    rows = portfolio.list_project_dependencies()
+    rows = services["portfolio_dependency_query"].list_project_dependencies()
 
     assert len(rows) == 1
     assert rows[0].dependency_id == dependency.id
@@ -509,6 +488,6 @@ def test_portfolio_project_dependencies_track_cross_project_links(services):
     assert rows[0].summary == "Beta depends on Alpha handover."
     assert rows[0].pressure_label in {"Stable", "Watch", "Hot", "Needs Schedule"}
 
-    portfolio.remove_project_dependency(dependency.id)
-    assert portfolio.list_project_dependencies() == []
+    services["portfolio_dependency_commands"].remove_project_dependency(dependency.id)
+    assert services["portfolio_dependency_query"].list_project_dependencies() == []
 

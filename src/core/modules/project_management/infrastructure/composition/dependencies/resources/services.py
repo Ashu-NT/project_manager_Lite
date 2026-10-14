@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
-    ResourceService,
 )
 from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
@@ -32,6 +31,9 @@ from src.core.modules.project_management.application.resources.queries.project_r
 )
 from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
     ResourceContextQueryHandler,
+)
+from src.core.modules.project_management.application.resources.queries.resource_queries import (
+    ResourceQueryHandler,
 )
 from src.core.modules.project_management.application.resources.queries.skill_queries import (
     ResourceCapabilityQueryHandler,
@@ -146,24 +148,8 @@ def build_resource_capabilities(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
-    service = ResourceService(
+    query = ResourceQueryHandler(
         resource_repo=repositories.pm.resource_repo,
-        master_command_handler=ResourceMasterCommandHandler(
-            resource_repo=repositories.pm.resource_repo,
-            employee_repo=repositories.platform.employee_repo,
-            department_service=platform_services.department_service,
-            site_service=platform_services.site_service,
-            user_session=platform_services.user_session,
-            tenant_context_service=platform_services.tenant_context_service,
-            uow_factory=uow_factory,
-        ),
-        capability_command_handler=ResourceCapabilityCommandHandler(
-            skill_repo=repositories.pm.resource_skill_repo,
-            cert_repo=repositories.pm.resource_cert_repo,
-            user_session=platform_services.user_session,
-            tenant_context_service=platform_services.tenant_context_service,
-            uow_factory=uow_factory,
-        ),
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
@@ -171,8 +157,26 @@ def build_resource_capabilities(
         resource_inspector_reader=catalog_reader,
         resource_summary_reader=catalog_reader,
     )
+    master_commands = ResourceMasterCommandHandler(
+        resource_repo=repositories.pm.resource_repo,
+        employee_repo=repositories.platform.employee_repo,
+        department_query=platform_services.department_query,
+        site_query=platform_services.site_query,
+        user_session=platform_services.user_session,
+        tenant_context_service=platform_services.tenant_context_service,
+        uow_factory=uow_factory,
+    )
+    capability_commands = ResourceCapabilityCommandHandler(
+        skill_repo=repositories.pm.resource_skill_repo,
+        cert_repo=repositories.pm.resource_cert_repo,
+        user_session=platform_services.user_session,
+        tenant_context_service=platform_services.tenant_context_service,
+        uow_factory=uow_factory,
+    )
     return ResourceComposition(
-        service=service,
+        query=query,
+        master_commands=master_commands,
+        capability_commands=capability_commands,
         capability_query=capability_query,
         context_query=context_query,
     )

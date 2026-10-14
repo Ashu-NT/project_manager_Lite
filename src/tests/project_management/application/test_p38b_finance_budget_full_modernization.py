@@ -53,10 +53,9 @@ def _budget_hints(hints):
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 _COUNTER = {"n": 0}
@@ -357,7 +356,7 @@ def test_governed_approval_participant_emits_the_same_typed_status_fact(services
     assert result.outcome.value == "pending_approval"
     request_id = approvals.list_pending(project_id=project.id)[0].id
 
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "p38b-budget-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "p38b-budget-reviewer", "StrongPass123")
@@ -413,7 +412,7 @@ def test_financial_change_application_produces_budget_and_financial_change_facts
     change = changes.submit_change(change.id, submitted_by=principal.user_id, expected_version=change.row_version)
     request_id = services["approval_service"].list_pending(project_id=project.id)[0].id
 
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "p38b-fc-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "p38b-fc-reviewer", "StrongPass123")
@@ -445,8 +444,7 @@ def test_add_line_reports_the_command_permission_without_a_boundary_pre_read(ser
     budgets = services["budget_service"]
     budget = budgets.create_budget(project.id, "Permission Order Budget")
 
-    auth = services["auth_service"]
-    auth.register_user("p38b-viewer", "StrongPass123", role_names=["viewer"])
+    services["user_registration"].register_user("p38b-viewer", "StrongPass123", role_names=["viewer"])
     _login(services, "p38b-viewer", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="budget.manage"):

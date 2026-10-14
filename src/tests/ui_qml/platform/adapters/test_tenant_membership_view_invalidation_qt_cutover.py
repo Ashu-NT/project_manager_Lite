@@ -57,23 +57,22 @@ def _switch_session_to_tenant_admin(services, *, suffix: str, tenant_id: str):
     `services` fixture principal ("admin") IS a platform operator, so `list_users()` takes the
     platform branch (`user_repo.list_all()`, no membership filter at all) -- useless for
     observing a real membership-status-driven list change."""
-    auth = services["auth_service"]
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code(f"p5d3-{suffix}"), _PASSWORD, role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    principal = auth.build_principal_for_context(actor, tenant_id=tenant_id, organization_id=None)
+    principal = services["principal_builder"].build_for_context(actor, tenant_id=tenant_id, organization_id=None)
     services["user_session"].set_principal(replace(principal, session_id=None))
     return actor
 
 
 def _issue_and_accept(services, membership_service, *, admin_principal, username: str):
-    target = services["auth_service"].register_user(username, _PASSWORD, display_name=username)
+    target = services["user_registration"].register_user(username, _PASSWORD, display_name=username)
     services["user_session"].set_principal(admin_principal)
     issued = membership_service.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
-    target_auth = services["auth_service"].authenticate(target.username, _PASSWORD)
-    services["user_session"].set_principal(services["auth_service"].build_principal(target_auth))
+    target_auth = services["authentication"].authenticate(target.username, _PASSWORD)
+    services["user_session"].set_principal(services["principal_builder"].build(target_auth))
     accepted = membership_service.accept_invitation(issued.token)
     services["user_session"].set_principal(admin_principal)
     return target, accepted
@@ -195,7 +194,7 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
     _target_b, _accepted_b = _issue_and_accept(
         services,
         membership_service,
-        admin_principal=services["auth_service"].build_principal_for_context(
+        admin_principal=services["principal_builder"].build_for_context(
             actor_b, tenant_id=tenant_b.id, organization_id=None
         ),
         username=_unique_code("p5d3-scope-b-target"),
@@ -228,7 +227,7 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
     services["session"].flush()
     services["user_session"].set_principal(admin_principal)
     actor_b = _switch_session_to_tenant_admin(services, suffix="switch-b-actor", tenant_id=tenant_b.id)
-    principal_b = services["auth_service"].build_principal_for_context(
+    principal_b = services["principal_builder"].build_for_context(
         actor_b, tenant_id=tenant_b.id, organization_id=None
     )
 
@@ -293,7 +292,7 @@ def test_organization_switch_does_not_re_scope_the_membership_subscription(servi
     # identity here -- the wrapper instance never changes, only what it wraps.
     subscription_before = adapter._subscription._subscription
 
-    org = services["organization_service"].create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5D3-ORG-SWITCH"), display_name="P5D-3 Org Switch"
     )
     services["tenant_context_service"].set_active_organization(org.id)
@@ -326,7 +325,7 @@ def test_activation_refreshes_both_real_ui_consumers_end_to_end(services):
     tenant_id = _active_tenant(services)
     admin_principal = services["user_session"].principal
     tenant_admin = _switch_session_to_tenant_admin(services, suffix="e2e-activate-admin", tenant_id=tenant_id)
-    tenant_admin_principal = services["auth_service"].build_principal_for_context(
+    tenant_admin_principal = services["principal_builder"].build_for_context(
         tenant_admin, tenant_id=tenant_id, organization_id=None
     )
     catalog.adminWorkspace.users  # establish baseline read
@@ -360,7 +359,7 @@ def test_removal_makes_the_target_disappear_from_both_real_ui_consumers(services
     tenant_id = _active_tenant(services)
     admin_principal = services["user_session"].principal
     tenant_admin = _switch_session_to_tenant_admin(services, suffix="e2e-remove-admin", tenant_id=tenant_id)
-    tenant_admin_principal = services["auth_service"].build_principal_for_context(
+    tenant_admin_principal = services["principal_builder"].build_for_context(
         tenant_admin, tenant_id=tenant_id, organization_id=None
     )
 
@@ -394,7 +393,7 @@ def test_invalid_transition_triggers_no_refresh(services):
     catalog.adminAccessWorkspace.refresh_security_users = lambda: refresh_calls.append("access") or None
 
     membership_service = services["tenant_membership_service"]
-    target = services["auth_service"].register_user(_unique_code("p5d3-invalid"), _PASSWORD)
+    target = services["user_registration"].register_user(_unique_code("p5d3-invalid"), _PASSWORD)
     membership_service.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
@@ -412,13 +411,13 @@ def test_audit_failure_triggers_no_refresh(services, monkeypatch):
     catalog.adminAccessWorkspace.refresh_security_users = lambda: refresh_calls.append("access") or None
 
     membership_service = services["tenant_membership_service"]
-    target = services["auth_service"].register_user(_unique_code("p5d3-audit-fail"), _PASSWORD)
+    target = services["user_registration"].register_user(_unique_code("p5d3-audit-fail"), _PASSWORD)
     issued = membership_service.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     services["user_session"].set_principal(
-        services["auth_service"].build_principal(
-            services["auth_service"].authenticate(target.username, _PASSWORD)
+        services["principal_builder"].build(
+            services["authentication"].authenticate(target.username, _PASSWORD)
         )
     )
 
@@ -439,13 +438,13 @@ def test_commit_failure_triggers_no_refresh(services, monkeypatch):
     catalog.adminAccessWorkspace.refresh_security_users = lambda: refresh_calls.append("access") or None
 
     membership_service = services["tenant_membership_service"]
-    target = services["auth_service"].register_user(_unique_code("p5d3-commit-fail"), _PASSWORD)
+    target = services["user_registration"].register_user(_unique_code("p5d3-commit-fail"), _PASSWORD)
     issued = membership_service.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     services["user_session"].set_principal(
-        services["auth_service"].build_principal(
-            services["auth_service"].authenticate(target.username, _PASSWORD)
+        services["principal_builder"].build(
+            services["authentication"].authenticate(target.username, _PASSWORD)
         )
     )
 

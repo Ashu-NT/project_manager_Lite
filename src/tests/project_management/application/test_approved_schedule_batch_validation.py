@@ -1,6 +1,6 @@
 from datetime import date
 
-from src.core.modules.project_management.contracts.ports.schedule_change import (
+from src.core.modules.project_management.contracts.ports.scheduling.schedule_change import (
     ApprovedTaskScheduleChange,
 )
 

@@ -21,13 +21,12 @@ TENANT = "notification-test-tenant"
 
 
 def register(services, username):
-    return services["auth_service"].register_user(username, PASSWORD, display_name=username)
+    return services["user_registration"].register_user(username, PASSWORD, display_name=username)
 
 
 def principal(services, username):
-    auth = services["auth_service"]
-    user = auth.authenticate(username, PASSWORD)
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, PASSWORD)
+    services["user_session"].set_principal(services["principal_builder"].build(user))
     services["user_session"].set_active_tenant_id(TENANT)
     return user
 

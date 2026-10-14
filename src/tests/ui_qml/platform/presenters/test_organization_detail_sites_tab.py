@@ -9,6 +9,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QCoreApplication, qInstallMessageHandler
@@ -29,7 +33,7 @@ def _build_admin_workspace(services):
 
 
 def _create_org(services, code: str, name: str) -> str:
-    organization = services["organization_service"].create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=code, display_name=name, timezone_name="UTC", base_currency="USD"
     )
     return organization.id
@@ -49,19 +53,17 @@ def _load_detail_page(engine, organization: dict, workspace_controller, platform
 
 
 def test_sites_tab_loads_real_paginated_data_for_a_non_active_organization(services, qapp) -> None:
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     catalog, admin = _build_admin_workspace(services)
 
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="QML-SITE-A", display_name="QML Site Org A", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_a.id)
-    site_service = services["site_service"]
-    site_service.create_site(site_code="QSITE-1", name="Alpha Site", city="Lagos", country="Nigeria")
-    site_service.create_site(site_code="QSITE-2", name="Beta Site", city="Abuja", country="Nigeria")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="QSITE-1", name="Alpha Site", city="Lagos", country="Nigeria"))
+    services["site_commands"].create_site(SiteCreateCommand(site_code="QSITE-2", name="Beta Site", city="Abuja", country="Nigeria"))
 
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="QML-SITE-B", display_name="QML Site Org B", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_b.id)  # active org is now B, not A
@@ -125,18 +127,16 @@ def test_sites_tab_controller_slot_applies_status_filter_server_side(services, q
     synthesizing a ComboBox interaction) to prove the filter argument
     actually reaches the tenant-scoped service call through the full
     Controller -> Presenter -> Desktop API -> Service chain."""
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     _catalog, admin = _build_admin_workspace(services)
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="QML-FILTER", display_name="QML Filter Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
-    site_service = services["site_service"]
-    site_service.create_site(site_code="FIL-ACT", name="Filter Active Site")
-    inactive = site_service.create_site(site_code="FIL-INA", name="Filter Inactive Site")
-    site_service.deactivate_site(inactive.id)
+    services["site_commands"].create_site(SiteCreateCommand(site_code="FIL-ACT", name="Filter Active Site"))
+    inactive = services["site_commands"].create_site(SiteCreateCommand(site_code="FIL-INA", name="Filter Inactive Site"))
+    services["site_commands"].deactivate_site(inactive.id)
 
     result = admin.organizationSitesPage(org.id, 1, 25, "", "active")
     names = [item["title"] for item in result["items"]]

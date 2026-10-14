@@ -70,24 +70,49 @@ from src.core.platform.application.history.activity.activity_service import (
     ActivityService,
 )
 from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.master_data.department.department_service import (
-    DepartmentService,
+from src.core.platform.application.master_data.department import (
+    DepartmentCommandHandler,
+    DepartmentQueryHandler,
 )
-from src.core.platform.application.master_data.documents.document_service import (
-    DocumentService,
+from src.core.platform.application.master_data.documents import (
+    DocumentCommandHandler,
+    DocumentQueryHandler,
+    DocumentStructureCommandHandler,
 )
-from src.core.platform.application.master_data.employee.employee_service import (
-    EmployeeService,
+from src.core.platform.application.master_data.employee import (
+    EmployeeCommandHandler,
+    EmployeeDocumentCommandHandler,
+    EmployeeQueryHandler,
 )
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.org import OrganizationQueryHandler
+from src.core.platform.application.master_data.party import (
+    PartyCommandHandler,
+    PartyQueryHandler,
+)
+from src.core.platform.application.master_data.site import (
+    SiteCommandHandler,
+    SiteQueryHandler,
+)
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
     resolve_platform_runtime_application_service,
 )
-from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.security.auth import (
+    AuthQueryHandler,
+    AuthSessionCommandHandler,
+    PasswordCommandHandler,
+    UserAdministrationCommandHandler,
+    UserDirectoryQueryHandler,
+    UserRegistrationHandler,
+)
+from src.core.platform.application.security.authorization.roles.commands import (
+    RoleAssignmentHandler,
+)
 from src.core.platform.application.security.identity import ServicePrincipalService
-from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.tenant.modules import (
+    ModuleCatalogQueryHandler,
+    ModuleEntitlementCommandHandler,
+)
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
@@ -150,13 +175,25 @@ class DesktopApiRegistry:
     project_management_timesheets: ProjectManagementTimesheetsDesktopApi
 
 
+def _require_service[T](services: Mapping[str, object], key: str, expected: type[T]) -> T:
+    value = services.get(key)
+    if not isinstance(value, expected):
+        raise RuntimeError(f"Platform capability {key!r} is not configured.")
+    return value
+
+
+def _optional_service[T](services: Mapping[str, object], key: str, expected: type[T]) -> T | None:
+    value = services.get(key)
+    return value if isinstance(value, expected) else None
+
+
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
     platform_runtime_application_service = resolve_platform_runtime_application_service(
         platform_runtime_application_service=services.get(
             "platform_runtime_application_service"
         ),
         module_catalog_service=services.get("module_catalog_service"),
-        organization_service=services.get("organization_service"),
+        organization_query=_optional_service(services, "organization_query", OrganizationQueryHandler),
         tenant_context_service=services.get("tenant_context_service"),
         user_session=services.get("user_session"),
     )
@@ -165,16 +202,13 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         PlatformRuntimeApplicationService,
     ):
         raise RuntimeError("Platform runtime application service is not configured.")
+    module_entitlement_commands = services.get("module_entitlement_commands")
+    if not isinstance(module_entitlement_commands, ModuleEntitlementCommandHandler):
+        raise RuntimeError("Module entitlement commands are not configured.")
 
-    site_service = services.get("site_service")
-    if not isinstance(site_service, SiteService):
-        raise RuntimeError("Platform site service is not configured.")
-    department_service = services.get("department_service")
-    if not isinstance(department_service, DepartmentService):
-        raise RuntimeError("Platform department service is not configured.")
-    employee_service = services.get("employee_service")
-    if not isinstance(employee_service, EmployeeService):
-        raise RuntimeError("Platform employee service is not configured.")
+    site_query = _require_service(services, "site_query", SiteQueryHandler)
+    department_query = _require_service(services, "department_query", DepartmentQueryHandler)
+    employee_query = _require_service(services, "employee_query", EmployeeQueryHandler)
     access_service = services.get("access_service")
     if not isinstance(access_service, AccessControlService):
         raise RuntimeError("Platform access service is not configured.")
@@ -186,15 +220,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     if not isinstance(financial_period_service, FinancialPeriodService):
         raise RuntimeError("Platform financial-period service is not configured.")
     activity_service = services.get("activity_service")
-    document_service = services.get("document_service")
-    if not isinstance(document_service, DocumentService):
-        raise RuntimeError("Platform document service is not configured.")
-    party_service = services.get("party_service")
-    if not isinstance(party_service, PartyService):
-        raise RuntimeError("Platform party service is not configured.")
-    auth_service = services.get("auth_service")
-    if not isinstance(auth_service, AuthService):
-        raise RuntimeError("Platform auth service is not configured.")
     service_principal_service = services.get("service_principal_service")
     if not isinstance(service_principal_service, ServicePrincipalService):
         raise RuntimeError("Platform service-principal service is not configured.")
@@ -202,13 +227,16 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     project_service = services.get("project_service")
     inventory_reservation_service = services.get("inventory_reservation_service")
 
-    platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
+    platform_site_api = PlatformSiteDesktopApi(
+        site_commands=_require_service(services, "site_commands", SiteCommandHandler),
+        site_query=site_query,
+    )
 
     access_scope_type_choices: list[tuple[str, str]] = []
     access_scope_option_loaders: dict[str, object] = {}
     access_scope_disabled_hints: dict[str, str] = {}
-    organization_service = services.get("organization_service")
-    if organization_service is not None and hasattr(organization_service, "list_organizations"):
+    organization_query = services.get("organization_query")
+    if isinstance(organization_query, OrganizationQueryHandler):
         access_scope_type_choices.append(("Organization", "organization"))
         access_scope_option_loaders["organization"] = lambda: [
             (
@@ -217,7 +245,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
                 else f"{organization.display_name} ({organization.status})",
                 organization.id,
             )
-            for organization in organization_service.list_organizations(status=None)
+            for organization in organization_query.list_organizations(status=None)
         ]
     if project_service is not None and hasattr(project_service, "list_projects"):
         access_scope_type_choices.append(("Project", "project"))
@@ -295,13 +323,13 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     project_management_apis = build_project_management_desktop_runtime_apis(
         services=services,
         platform_dependencies=ProjectManagementDesktopRuntimePlatformDependencies(
-            employee_service=employee_service,
-            site_service=site_service,
-            department_service=department_service,
+            employee_query=employee_query,
+            site_query=site_query,
+            department_query=department_query,
             approval_service=approval_service,
             module_catalog_service=(
                 pm_module_catalog
-                if isinstance(pm_module_catalog, ModuleCatalogService)
+                if isinstance(pm_module_catalog, ModuleCatalogQueryHandler)
                 else None
             ),
             reservation_service=inventory_reservation_service,
@@ -316,6 +344,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         platform_view_invalidation_channel=services.get("platform_view_invalidation_channel"),
         platform_runtime=PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service,
+            module_entitlement_commands=module_entitlement_commands,
         ),
         global_overview=(
             global_overview_api if isinstance(global_overview_api, GlobalOverviewDesktopApi) else None
@@ -328,10 +357,15 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         platform_calendar=platform_calendar_api,
         platform_site=platform_site_api,
         platform_department=PlatformDepartmentDesktopApi(
-            department_service=department_service,
+            department_commands=_require_service(services, "department_commands", DepartmentCommandHandler),
+            department_query=department_query,
         ),
         platform_employee=PlatformEmployeeDesktopApi(
-            employee_service=employee_service,
+            employee_commands=_require_service(services, "employee_commands", EmployeeCommandHandler),
+            employee_query=employee_query,
+            employee_documents=_require_service(
+                services, "employee_document_commands", EmployeeDocumentCommandHandler
+            ),
         ),
         platform_access=PlatformAccessDesktopApi(
             access_service=access_service,
@@ -348,15 +382,28 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             financial_period_service=financial_period_service,
         ),
         platform_document=PlatformDocumentDesktopApi(
-            document_service=document_service,
+            document_commands=_require_service(services, "document_commands", DocumentCommandHandler),
+            document_structure_commands=_require_service(
+                services, "document_structure_commands", DocumentStructureCommandHandler
+            ),
+            document_query=_require_service(services, "document_query", DocumentQueryHandler),
         ),
         platform_party=PlatformPartyDesktopApi(
-            party_service=party_service,
+            party_commands=_require_service(services, "party_commands", PartyCommandHandler),
+            party_query=_require_service(services, "party_query", PartyQueryHandler),
         ),
         platform_support=PlatformSupportDesktopApi(),
         platform_tenant=_build_platform_tenant_api(services),
         platform_user=PlatformUserDesktopApi(
-            auth_service=auth_service,
+            auth_queries=_require_service(services, "auth_queries", AuthQueryHandler),
+            user_directory=_require_service(services, "user_directory_query", UserDirectoryQueryHandler),
+            registration=_require_service(services, "user_registration", UserRegistrationHandler),
+            user_administration=_require_service(
+                services, "user_administration_commands", UserAdministrationCommandHandler
+            ),
+            passwords=_require_service(services, "password_commands", PasswordCommandHandler),
+            session_commands=_require_service(services, "auth_session_commands", AuthSessionCommandHandler),
+            role_assignment=_require_service(services, "role_assignment_commands", RoleAssignmentHandler),
         ),
         platform_identity=PlatformIdentityDesktopApi(
             service_principal_service=service_principal_service,

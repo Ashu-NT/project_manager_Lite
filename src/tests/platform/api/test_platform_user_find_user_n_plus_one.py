@@ -8,7 +8,7 @@ from src.core.platform.api.desktop.security.auth.models.user import (
     UserCreateCommand,
     UserPasswordResetCommand,
 )
-from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.tests.auth_test_support import platform_user_api
 
 
 def _make_users(api, n, prefix):
@@ -72,8 +72,8 @@ def _do_writes(api, user_id):
 
 
 def test_assign_revoke_reset_never_list_the_full_user_collection(services):
-    api = PlatformUserDesktopApi(auth_service=services["auth_service"])
-    user_repo = services["auth_service"]._user_repo
+    api = platform_user_api(services)
+    user_repo = services["auth_queries"]._user_repo
 
     [small_target] = _make_users(api, 1, "small")
     counts, hydrated, restore = _instrument(user_repo)
@@ -107,7 +107,7 @@ def test_assign_revoke_reset_never_list_the_full_user_collection(services):
 def test_assign_revoke_reset_return_the_exact_affected_user_unchanged(services):
     """Guards the desktop response shape itself, not just the query cost --
     a naive 'return None' regression would break every one of these."""
-    api = PlatformUserDesktopApi(auth_service=services["auth_service"])
+    api = platform_user_api(services)
 
     [user_id] = _make_users(api, 1, "shape")
     assign_result, revoke_result, reset_result = _do_writes(api, user_id)

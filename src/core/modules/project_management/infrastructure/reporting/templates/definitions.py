@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
 from src.core.platform.application.data_operations.report_runtime import (
@@ -11,10 +11,12 @@ from src.core.platform.domain.data_operations.report_runtime import ReportFormat
 RenderHandler = Callable[[object], object]
 
 
-@dataclass(frozen=True)
+# Not frozen: the ReportDefinition protocol declares plain (settable)
+# attributes, which read-only frozen fields do not satisfy.
+@dataclass
 class CallbackReportDefinition:
     report_key: str
-    supported_formats: tuple[ReportFormat, ...]
+    supported_formats: Sequence[ReportFormat]
     render_handler: RenderHandler
     module_code: str = "project_management"
     permission_code: str = "report.export"

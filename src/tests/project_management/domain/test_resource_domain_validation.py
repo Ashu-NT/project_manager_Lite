@@ -64,9 +64,7 @@ def test_resource_dto_rejects_invalid_local_fields():
 
 
 def test_resource_service_update_validates_final_state_and_persists_code(services):
-    resource_service = services["resource_service"]
-
-    resource = resource_service.create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "Electrical Crew",
         role="Lead",
         hourly_rate=95.0,
@@ -74,7 +72,7 @@ def test_resource_service_update_validates_final_state_and_persists_code(service
         capacity_percent=110.0,
     )
 
-    updated = resource_service.update_resource(
+    updated = services["resource_master_commands"].update_resource(
         resource_id=resource.id,
         expected_version=resource.version,
         name="  Electrical Crew A  ",
@@ -98,6 +96,6 @@ def test_resource_service_update_validates_final_state_and_persists_code(service
     assert updated.currency_code == "USD"
     assert updated.code == "RES-REN-1"
 
-    reloaded = resource_service.get_resource(resource.id)
+    reloaded = services["resource_query"].get_resource(resource.id)
     assert reloaded is not None
     assert reloaded.code == "RES-REN-1"

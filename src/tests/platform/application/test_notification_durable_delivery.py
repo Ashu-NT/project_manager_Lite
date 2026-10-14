@@ -39,7 +39,7 @@ from src.infra.integration.notification_dispatcher import NotificationDispatcher
 
 
 def _setup(session, services):
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         "durable-notification-user", "StrongPass123!", display_name="Recipient",
     )
     session.add(TenantORM(
@@ -306,7 +306,7 @@ def test_fresh_worker_replay_after_commit_keeps_one_effect(services, session):
 
 def test_one_event_fans_out_once_per_recipient_across_replay(services, session):
     first = _setup(session, services)
-    second = services["auth_service"].register_user(
+    second = services["user_registration"].register_user(
         "durable-notification-second", "StrongPass123!", display_name="Second",
     )
     now = datetime.now(UTC)
@@ -405,9 +405,8 @@ def test_desktop_read_drains_committed_work_after_simulated_restart(services, se
     user_id = _setup(session, services)
     _enqueue(session, user_id)
     session.commit()
-    auth = services["auth_service"]
-    user = auth.authenticate("durable-notification-user", "StrongPass123!")
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate("durable-notification-user", "StrongPass123!")
+    services["user_session"].set_principal(services["principal_builder"].build(user))
     services["user_session"].set_active_tenant_id("durable-notification-tenant")
     rows = services["notification_service"].list_my_notifications()
     assert len(rows) == 1 and rows[0].source_event_id == "event-1"
@@ -417,8 +416,7 @@ def test_desktop_read_drains_committed_work_after_simulated_restart(services, se
 def test_real_invitation_commit_does_not_create_in_app_notification(services, session):
     from datetime import timedelta
 
-    auth = services["auth_service"]
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         "durable-invitation-target", "StrongPass123!", display_name="Invitee",
     )
     issued = services["tenant_membership_service"].issue_invitation(
@@ -431,6 +429,6 @@ def test_real_invitation_commit_does_not_create_in_app_notification(services, se
     assert session.scalar(select(func.count()).select_from(NotificationORM).where(
         NotificationORM.recipient_user_id == target.id,
     )) == 0
-    target_account = auth.authenticate(target.username, "StrongPass123!")
-    services["user_session"].set_principal(auth.build_principal(target_account))
+    target_account = services["authentication"].authenticate(target.username, "StrongPass123!")
+    services["user_session"].set_principal(services["principal_builder"].build(target_account))
     assert services["notification_service"].list_my_notifications() == []

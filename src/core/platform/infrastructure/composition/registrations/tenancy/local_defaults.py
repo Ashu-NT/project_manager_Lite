@@ -6,9 +6,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.master_data.org.organization_service import (
-    OrganizationService,
-)
+from src.core.platform.application.master_data.org import OrganizationCommandHandler
 from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
@@ -24,7 +22,7 @@ def bootstrap_local_single_tenant_context(
     session: Session,
     repositories: PlatformRepositories,
     user_session: UserSessionContext,
-    organization_service: OrganizationService,
+    organization_commands: OrganizationCommandHandler,
 ) -> None:
     """Preserve explicit local-desktop defaults outside hosted SaaS mode."""
     default_tenant = repositories.tenant_repo.get_default()
@@ -57,7 +55,7 @@ def bootstrap_local_single_tenant_context(
         )
 
     user_session.set_active_tenant_id(default_tenant.id)
-    organization_service.bootstrap_defaults()
+    organization_commands.bootstrap_defaults()
 
     organizations = repositories.organization_repo.list_for_tenant(
         default_tenant.id,

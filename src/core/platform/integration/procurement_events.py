@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from typing import Any
 
 from pydantic import (
     AwareDatetime,
@@ -96,7 +97,7 @@ class ProcurementCommitmentEventPayload(_ProcurementProjectSourcePayload):
 
     @field_validator("source_revision", mode="before")
     @classmethod
-    def _revision(cls, value: object) -> int:
+    def _revision(cls, value: Any) -> int:
         revision = int(value)
         if revision < 1:
             raise ValueError("Procurement source revision must be positive")
@@ -144,7 +145,7 @@ class ProcurementReceiptAccrualEventPayload(_ProcurementProjectSourcePayload):
 
     @field_validator("source_revision", mode="before")
     @classmethod
-    def _revision(cls, value: object) -> int:
+    def _revision(cls, value: Any) -> int:
         revision = int(value)
         if revision < 1:
             raise ValueError("Procurement receipt source revision must be positive")

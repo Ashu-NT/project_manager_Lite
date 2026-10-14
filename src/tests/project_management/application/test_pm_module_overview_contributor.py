@@ -12,7 +12,7 @@ from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 def _contributor(services) -> ProjectManagementModuleOverviewContributor:
     return ProjectManagementModuleOverviewContributor(
         platform_runtime_application_service=services["platform_runtime_application_service"],
-        dashboard_service=services["dashboard_service"],
+        portfolio_dashboard=services["portfolio_dashboard_query"],
         project_service=services["project_service"],
     )
 
@@ -28,7 +28,7 @@ def _context(services) -> ActionCenterContext:
 
 def _plant_principal(services, *, permissions: frozenset[str]):
     default_organization = services["platform_runtime_application_service"].get_active_organization()
-    real_user = services["auth_service"].register_user(
+    real_user = services["user_registration"].register_user(
         f"pm-module-card-{'-'.join(sorted(permissions)) or 'none'}",
         "StrongPass123",
         role_names=["viewer"],
@@ -78,7 +78,7 @@ def test_summary_text_reuses_the_dashboards_own_active_projects_metric(services)
     summary = _contributor(services).get_summary(_context(services))
 
     assert summary is not None
-    portfolio_active = services["dashboard_service"].get_portfolio_data().portfolio.active_projects
+    portfolio_active = services["portfolio_dashboard_query"].get_portfolio_data().portfolio.active_projects
     assert summary.summary_text == f"{portfolio_active} active projects"
 
 

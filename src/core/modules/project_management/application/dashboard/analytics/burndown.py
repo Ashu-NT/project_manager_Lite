@@ -8,38 +8,20 @@ from src.core.modules.project_management.application.dashboard.models.dashboard_
 from src.core.modules.project_management.application.dashboard.models.report_models import (
     ProjectKPI,
 )
-from src.core.modules.project_management.application.dashboard.reporting.query import (
-    DashboardReportingQuery,
-)
-from src.core.modules.project_management.application.tasks.queries.task_lookup import (
-    TaskLookupQueryHandler,
-)
-from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.domain.tasks.task import Task
 
 
-class DashboardBurndownMixin:
-    _reporting: DashboardReportingQuery
-    _task_lookup: TaskLookupQueryHandler
-
-    def _build_burndown(
+class DashboardBurndownBuilder:
+    def build(
         self,
-        project_id: str,
         *,
-        kpi: ProjectKPI | None = None,
-        tasks: list[Task] | None = None,
+        kpi: ProjectKPI,
+        tasks: list[Task],
     ) -> list[BurndownPoint]:
         """
         Simple logical burndown: count of remaining (not completed) tasks per day between
         project start and end. For visualization in the dashboard.
         """
-        kpi = kpi or self._reporting.get_project_kpis(project_id)
-        tasks = (
-            tasks
-            if tasks is not None
-            else select_leaf_tasks(self._task_lookup.list_tasks_for_project(project_id))
-        )
-
         if not tasks or not (kpi.start_date and kpi.end_date):
             return []
 
@@ -65,3 +47,6 @@ class DashboardBurndownMixin:
             current = current + timedelta(days=1)
 
         return points
+
+
+__all__ = ["DashboardBurndownBuilder"]

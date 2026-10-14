@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -119,17 +120,14 @@ class ActivityService:
         tenant_id: str | None = None
         tc = self._tenant_context_service
         if tc is not None:
-            try:
+            # Context is best-effort: recording activity must never fail on it.
+            with contextlib.suppress(Exception):
                 tenant_id = tc.get_active_tenant_id()
-            except Exception:
-                pass
             if resolved_organization_id is None:
-                try:
+                with contextlib.suppress(Exception):
                     resolved_organization_id = tc.require_active_organization_id(
                         operation_label="record activity"
                     )
-                except Exception:
-                    resolved_organization_id = None
         entry = ActivityEntry.create(
             action=action,
             entity_type=entity_type,

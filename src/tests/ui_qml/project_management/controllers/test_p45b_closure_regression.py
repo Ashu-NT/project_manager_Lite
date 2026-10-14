@@ -163,7 +163,7 @@ def _setup_time_entry_case(services):
     project = services["project_service"].create_project(
         "P45B Closure TimeEntry Rollback Project", financial_currency_code=organization.base_currency
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "P45B Closure TimeEntry Rollback Engineer", hourly_rate=0, currency_code=organization.base_currency
     )
     task = services["task_service"].create_task(
@@ -178,7 +178,7 @@ def test_add_work_entry_transactional_handler_failure_rolls_back_time_entry_and_
 ):
     project, _resource, _task, assignment = _setup_time_entry_case(services)
     hints = _spy_hints(services)
-    dispatcher = services["time_service"]._transactional_dispatcher
+    dispatcher = services["time_entry_commands"]._ledger._transactional_dispatcher
 
     def _raising_handler(event, uow) -> None:
         raise RuntimeError("simulated transactional handler failure")
@@ -186,12 +186,12 @@ def test_add_work_entry_transactional_handler_failure_rolls_back_time_entry_and_
     dispatcher.subscribe(TaskAssignmentChanged, _raising_handler)
 
     with pytest.raises(RuntimeError):
-        services["timesheet_service"].add_time_entry(
+        services["time_entry_commands"].add_time_entry(
             assignment.id, entry_date=date(2026, 9, 5), hours=4
         )
 
-    time_service = services["time_service"]
-    assert time_service._time_entry_repo.list_by_work_allocation(assignment.id) == []
+    time_entry_repo = services["time_entry_queries"]._time_entry_repo
+    assert time_entry_repo.list_by_work_allocation(assignment.id) == []
     reloaded_assignment = services["task_assignment_commands"].get_assignment(assignment.id)
     assert float(reloaded_assignment.hours_logged) == 0.0
     assert _task_hints(hints) == []
@@ -199,17 +199,17 @@ def test_add_work_entry_transactional_handler_failure_rolls_back_time_entry_and_
 
 def test_service_remains_usable_after_add_work_entry_transactional_handler_failure(services, monkeypatch):
     project, _resource, _task, assignment = _setup_time_entry_case(services)
-    dispatcher = services["time_service"]._transactional_dispatcher
+    dispatcher = services["time_entry_commands"]._ledger._transactional_dispatcher
 
     def _raising_handler(event, uow) -> None:
         raise RuntimeError("simulated transactional handler failure")
 
     subscription = dispatcher.subscribe(TaskAssignmentChanged, _raising_handler)
     with pytest.raises(RuntimeError):
-        services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 5), hours=4)
+        services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 9, 5), hours=4)
 
     subscription.dispose()
-    entry = services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 6), hours=3)
+    entry = services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 9, 6), hours=3)
 
     assert entry.hours == 3
     reloaded_assignment = services["task_assignment_commands"].get_assignment(assignment.id)
@@ -218,9 +218,9 @@ def test_service_remains_usable_after_add_work_entry_transactional_handler_failu
 
 def test_update_time_entry_transactional_handler_failure_rolls_back_the_revision(services, monkeypatch):
     project, _resource, _task, assignment = _setup_time_entry_case(services)
-    entry = services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 5), hours=4)
+    entry = services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 9, 5), hours=4)
     hints = _spy_hints(services)
-    dispatcher = services["time_service"]._transactional_dispatcher
+    dispatcher = services["time_entry_commands"]._ledger._transactional_dispatcher
 
     def _raising_handler(event, uow) -> None:
         raise RuntimeError("simulated transactional handler failure")
@@ -228,9 +228,9 @@ def test_update_time_entry_transactional_handler_failure_rolls_back_the_revision
     dispatcher.subscribe(TaskAssignmentChanged, _raising_handler)
 
     with pytest.raises(RuntimeError):
-        services["time_service"].update_time_entry(entry.id, expected_version=entry.version, hours=7)
+        services["time_entry_commands"].update_time_entry(entry.id, expected_version=entry.version, hours=7)
 
-    reloaded_entry = services["time_service"]._time_entry_repo.get(entry.id)
+    reloaded_entry = services["time_entry_queries"]._time_entry_repo.get(entry.id)
     assert reloaded_entry.hours == 4
     reloaded_assignment = services["task_assignment_commands"].get_assignment(assignment.id)
     assert float(reloaded_assignment.hours_logged) == 4.0
@@ -250,17 +250,17 @@ def test_submit_timesheet_period_stales_only_the_referenced_project_task_list(se
     unrelated_project = services["project_service"].create_project(
         "P45B Closure Class-B Unrelated Project", financial_currency_code=organization.base_currency
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "P45B Closure Class-B Engineer", hourly_rate=0, currency_code=organization.base_currency
     )
     task = services["task_service"].create_task(
         referenced_project.id, "Class-B Task", start_date=date(2026, 9, 1), duration_days=10
     )
     assignment = services["task_service"].assign_resource(task.id, resource.id, allocation_percent=100)
-    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 4), hours=4)
+    services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 9, 4), hours=4)
 
     hints = _spy_hints(services)
-    services["timesheet_service"].submit_timesheet_period(resource.id, period_start=date(2026, 9, 1))
+    services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 9, 1))
 
     task_hints = _task_hints(hints)
     assert {h.scope_code for h in task_hints} == {"task_list"}
@@ -277,17 +277,17 @@ def test_submit_timesheet_period_records_zero_real_task_domain_event(services, m
     project = services["project_service"].create_project(
         "P45B Closure Class-B No Typed Event Project", financial_currency_code=organization.base_currency
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "P45B Closure Class-B No Typed Event Engineer", hourly_rate=0, currency_code=organization.base_currency
     )
     task = services["task_service"].create_task(
         project.id, "Class-B No Typed Event Task", start_date=date(2026, 9, 1), duration_days=10
     )
     assignment = services["task_service"].assign_resource(task.id, resource.id, allocation_percent=100)
-    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 9, 4), hours=4)
+    services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 9, 4), hours=4)
 
     seen: list[object] = []
-    dispatcher = services["time_service"]._transactional_dispatcher
+    dispatcher = services["time_entry_commands"]._ledger._transactional_dispatcher
     for event_cls in (
         task_events.TaskCreated,
         task_events.TaskProfileUpdated,
@@ -301,6 +301,6 @@ def test_submit_timesheet_period_records_zero_real_task_domain_event(services, m
     ):
         dispatcher.subscribe(event_cls, lambda event, uow, _bucket=seen: _bucket.append(event))
 
-    services["timesheet_service"].submit_timesheet_period(resource.id, period_start=date(2026, 9, 1))
+    services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 9, 1))
 
     assert seen == []

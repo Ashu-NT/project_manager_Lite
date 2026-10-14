@@ -45,15 +45,15 @@ def _setup(services):
 def test_touch_task_presence_produces_zero_durable_comment_hints(services):
     _, task = _setup(services)
     hints = _spy_hints(services)
-    services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+    services["collaboration_presence_commands"].touch_task_presence(task.id, activity="reviewing")
     assert _durable_comment_hints(hints) == []
 
 
 def test_clear_task_presence_produces_zero_durable_comment_hints(services):
     _, task = _setup(services)
-    services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+    services["collaboration_presence_commands"].touch_task_presence(task.id, activity="reviewing")
     hints = _spy_hints(services)
-    services["collaboration_service"].clear_task_presence(task.id)
+    services["collaboration_presence_commands"].clear_task_presence(task.id)
     assert _durable_comment_hints(hints) == []
 
 
@@ -66,7 +66,7 @@ def test_touch_task_presence_does_not_emit_a_task_view_invalidation_hint(service
 
     _, task = _setup(services)
     hints = _spy_hints(services)
-    services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+    services["collaboration_presence_commands"].touch_task_presence(task.id, activity="reviewing")
     assert [h for h in hints if h.category == TASK_CATEGORY] == []
 
 
@@ -96,7 +96,7 @@ def test_touch_task_presence_produces_a_scoped_presence_hint(services):
     _, task = _setup(services)
     hints = _spy_hints(services)
 
-    services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+    services["collaboration_presence_commands"].touch_task_presence(task.id, activity="reviewing")
 
     presence_hints = _presence_hints(hints)
     assert len(presence_hints) == 1
@@ -106,10 +106,10 @@ def test_touch_task_presence_produces_a_scoped_presence_hint(services):
 
 def test_clear_task_presence_produces_a_scoped_presence_hint(services):
     _, task = _setup(services)
-    services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+    services["collaboration_presence_commands"].touch_task_presence(task.id, activity="reviewing")
     hints = _spy_hints(services)
 
-    services["collaboration_service"].clear_task_presence(task.id)
+    services["collaboration_presence_commands"].clear_task_presence(task.id)
 
     presence_hints = _presence_hints(hints)
     assert len(presence_hints) == 1
@@ -128,7 +128,7 @@ def test_repeated_presence_touches_never_trigger_a_durable_collaboration_signal(
     _, task = _setup(services)
     hints = _spy_hints(services)
     for _ in range(10):
-        services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+        services["collaboration_presence_commands"].touch_task_presence(task.id, activity="reviewing")
 
     assert _durable_comment_hints(hints) == [], "presence storm must never trigger a durable refresh"
     assert len(_presence_hints(hints)) == 10, "each touch still produces its own presence hint"
@@ -136,9 +136,9 @@ def test_repeated_presence_touches_never_trigger_a_durable_collaboration_signal(
 
 def test_clear_presence_causes_zero_durable_collaboration_refresh(services):
     _, task = _setup(services)
-    services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+    services["collaboration_presence_commands"].touch_task_presence(task.id, activity="reviewing")
     hints = _spy_hints(services)
-    services["collaboration_service"].clear_task_presence(task.id)
+    services["collaboration_presence_commands"].clear_task_presence(task.id)
     assert _durable_comment_hints(hints) == []
 
 
@@ -153,7 +153,7 @@ def test_post_comment_does_not_produce_a_presence_hint(services):
     _, task = _setup(services)
     hints = _spy_hints(services)
 
-    services["collaboration_service"].post_comment(task_id=task.id, body="No presence hint here")
+    services["collaboration_comment_commands"].post_comment(task_id=task.id, body="No presence hint here")
 
     assert _presence_hints(hints) == []
 
@@ -173,8 +173,8 @@ def test_presence_is_not_enterprise_audited(services):
     _, task = _setup(services)
     before = services["session"].execute(select(AuditEntryORM.id)).scalars().all()
 
-    services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
-    services["collaboration_service"].clear_task_presence(task.id)
+    services["collaboration_presence_commands"].touch_task_presence(task.id, activity="reviewing")
+    services["collaboration_presence_commands"].clear_task_presence(task.id)
 
     after = services["session"].execute(select(AuditEntryORM.id)).scalars().all()
     assert after == before, "presence keepalive/clear must never flood enterprise audit"
@@ -189,22 +189,25 @@ def test_two_users_can_be_simultaneously_present_without_overwriting_each_other(
     from src.core.platform.domain.security.auth.session import UserSessionContext
 
     _, task = _setup(services)
-    services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+    services["collaboration_presence_commands"].touch_task_presence(task.id, activity="reviewing")
 
-    auth = services["auth_service"]
-    auth.register_user("p44a-second-user", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user("p44a-second-user", "StrongPass123", role_names=["planner"])
     second_session = UserSessionContext()
     second_session.set_principal(
-        auth.build_principal(auth.authenticate("p44a-second-user", "StrongPass123"))
+        services["principal_builder"].build(services["authentication"].authenticate("p44a-second-user", "StrongPass123"))
     )
-    original_session = services["collaboration_service"]._user_session
-    services["collaboration_service"]._user_session = second_session
+    presence_commands = services["collaboration_presence_commands"]
+    visibility_policy = presence_commands._policy
+    original_session = presence_commands._user_session
+    presence_commands._user_session = second_session
+    visibility_policy._user_session = second_session
     try:
-        services["collaboration_service"].touch_task_presence(task.id, activity="editing")
+        presence_commands.touch_task_presence(task.id, activity="editing")
     finally:
-        services["collaboration_service"]._user_session = original_session
+        presence_commands._user_session = original_session
+        visibility_policy._user_session = original_session
 
-    active = services["collaboration_service"].list_task_presence(task.id)
+    active = services["collaboration_presence_query"].list_task_presence(task.id)
     usernames = {row.username for row in active}
     assert usernames == {"admin", "p44a-second-user"}
 

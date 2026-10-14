@@ -31,15 +31,15 @@ from src.core.platform.common.exceptions import (
 
 
 def _login(services, username: str, password: str) -> None:
-    user = services["auth_service"].authenticate(username, password)
+    user = services["authentication"].authenticate(username, password)
     services["user_session"].set_principal(
-        services["auth_service"].build_principal(user)
+        services["principal_builder"].build(user)
     )
 
 
 def _login_eligible_reviewer(services) -> None:
     _login(services, "admin", "ChangeMe123!")
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "change-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "change-reviewer", "StrongPass123")
@@ -378,7 +378,7 @@ def test_change_read_capabilities_are_deny_safe_and_target_lookup_is_bounded(
 ) -> None:
     _login(services, "admin", "ChangeMe123!")
     project, code, _budget, budget_line, *_ = _seed_approved_finance(services)
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "change-owner", "StrongPass123", role_names=["planner"]
     )
     _login(services, "change-owner", "StrongPass123")
@@ -437,7 +437,7 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
     project, code, budget, budget_line, forecast, forecast_line = (
         _seed_approved_finance(services)
     )
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "change-requester", "StrongPass123", role_names=["planner"]
     )
     _login(services, "change-requester", "StrongPass123")
@@ -552,7 +552,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
     project, code, budget, budget_line, forecast, forecast_line = (
         _seed_approved_finance(services)
     )
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "stale-base-requester", "StrongPass123", role_names=["planner"]
     )
     _login(services, "stale-base-requester", "StrongPass123")
@@ -678,7 +678,7 @@ def test_approved_schedule_change_uses_task_owner_command(services) -> None:
         start_date=date(2026, 8, 10),
         duration_days=4,
     )
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "schedule-requester", "StrongPass123", role_names=["planner"]
     )
     _login(services, "schedule-requester", "StrongPass123")
@@ -835,7 +835,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
         start_date=date(2026, 8, 10),
         duration_days=4,
     )
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "rollback-requester", "StrongPass123", role_names=["planner"]
     )
     _login(services, "rollback-requester", "StrongPass123")

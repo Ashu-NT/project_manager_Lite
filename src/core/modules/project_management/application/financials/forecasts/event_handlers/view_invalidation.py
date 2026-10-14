@@ -75,7 +75,7 @@ def build_forecast_view_invalidation_handler(channel: ViewInvalidationChannel):
             current_context[0] = context
             notified_targets.clear()
 
-        scope_codes = (FORECAST_PLANNING_SCOPE_CODE,)
+        scope_codes: tuple[str, ...] = (FORECAST_PLANNING_SCOPE_CODE,)
         if (
             isinstance(event, ForecastVersionChanged)
             and event.change_type is ForecastVersionChangeType.APPROVED

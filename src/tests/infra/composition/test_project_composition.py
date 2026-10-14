@@ -144,9 +144,9 @@ def test_project_query_capability_reuses_the_composed_handler(services) -> None:
 
 
 def test_timesheet_instance_and_invalidation_subscription_are_shared(services) -> None:
-    timesheet = services["timesheet_service"]
-    assert services["time_service"] is timesheet
-    assert services["task_time_entries"]._timesheet_service is timesheet
+    assert services["time_entry_commands"] is services["time_entry_commands"]
+    assert services["time_entry_queries"] is services["time_entry_queries"]
+    assert services["task_time_entries"]._time_queries is services["time_entry_queries"]
     bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert sum(
         handler.__name__ == "handle_timesheet_period_event"
@@ -155,7 +155,7 @@ def test_timesheet_instance_and_invalidation_subscription_are_shared(services) -
 
 
 def test_resource_readers_clock_uow_and_events_preserve_identity(services, session) -> None:
-    resource = services["resource_service"]
+    resource = services["resource_query"]
     assert resource._resource_catalog_reader is resource._resource_inspector_reader
     assert resource._resource_catalog_reader is resource._resource_summary_reader
     context_query = services["resource_context_query"]
@@ -166,8 +166,10 @@ def test_resource_readers_clock_uow_and_events_preserve_identity(services, sessi
     assert context_reader is capability_query._resource_capability_reader
 
     bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
-    assert resource._master_command._uow_factory._post_commit_bus is bus
-    assert resource._capability_command._uow_factory is resource._master_command._uow_factory
+    master_commands = services["resource_master_commands"]
+    capability_commands = services["resource_capability_commands"]
+    assert master_commands._uow_factory._post_commit_bus is bus
+    assert capability_commands._uow_factory is master_commands._uow_factory
     for event_type, handler_name in (
         (ResourceMasterChanged, "handle_resource_master_event"),
         (ResourceCapabilityChanged, "handle_resource_capability_event"),
@@ -178,7 +180,7 @@ def test_resource_readers_clock_uow_and_events_preserve_identity(services, sessi
         in handler.__qualname__
         for handler in bus._handlers[EmployeeProfileUpdated]
     ) == 1
-    scoped_session = resource._master_command._uow_factory._session_factory()
+    scoped_session = master_commands._uow_factory._session_factory()
     try:
         assert scoped_session is not session
         assert scoped_session.bind is session.bind
@@ -190,7 +192,10 @@ def test_scheduling_and_baseline_keep_shared_engine_and_ambient_uow(services, se
     engine = services["scheduling_engine"]
     baseline = services["baseline_service"]
     assert baseline._sched is engine
-    assert engine._project_calendar_adapter is services["portfolio_service"]._project_calendar_adapter
+    assert (
+        engine._project_calendar_adapter
+        is services["portfolio_executive_query"]._heatmap_calculator._project_calendar_adapter
+    )
     assert baseline._session is session
     assert baseline._uow_factory()._session is session
 
@@ -218,9 +223,12 @@ def test_scheduling_and_baseline_keep_shared_engine_and_ambient_uow(services, se
 
 
 def test_collaboration_keeps_fresh_uow_and_one_comment_handler(services, session) -> None:
-    collaboration = services["collaboration_service"]
+    collaboration = services["collaboration_comment_commands"]
     bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert collaboration._uow_factory._post_commit_bus is bus
+    # Every collaboration write handler shares the one collaboration UoW factory.
+    for key in ("collaboration_comment_engagement", "collaboration_presence_commands"):
+        assert services[key]._uow_factory is collaboration._uow_factory
     event_types = (TaskCommentChanged, TaskCommentReactionChanged, TaskCommentReadStateChanged)
     handlers = [
         next(
@@ -246,12 +254,21 @@ def test_collaboration_keeps_fresh_uow_and_one_comment_handler(services, session
         scoped_session.close()
 
 
-def test_portfolio_reuses_calendar_and_rate_with_one_event_handler(services, session) -> None:
-    portfolio = services["portfolio_service"]
-    assert portfolio._project_calendar_adapter is services["scheduling_engine"]._project_calendar_adapter
-    assert portfolio._rate_resolver is services["rate_card_resolver"]
+def test_portfolio_reuses_calendar_with_one_event_handler(services, session) -> None:
+    portfolio = services["portfolio_intake_commands"]
+    calculator = services["portfolio_executive_query"]._heatmap_calculator
+    assert calculator._project_calendar_adapter is services["scheduling_engine"]._project_calendar_adapter
+    assert services["portfolio_dependency_query"]._heatmap_calculator is calculator
     bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     assert portfolio._uow_factory._post_commit_bus is bus
+    # One portfolio UoW factory and one shared scope/scoring policy across handlers.
+    for key in (
+        "portfolio_template_commands",
+        "portfolio_scenario_commands",
+        "portfolio_dependency_commands",
+    ):
+        assert services[key]._uow_factory is portfolio._uow_factory
+        assert services[key]._policy is portfolio._policy
     event_types = (
         PortfolioIntakeItemChanged,
         PortfolioScenarioChanged,
@@ -280,16 +297,40 @@ def test_portfolio_reuses_calendar_and_rate_with_one_event_handler(services, ses
 
 
 def test_reporting_and_dashboard_reuse_authoritative_services(services) -> None:
-    reporting = services["reporting_service"]
-    dashboard = services["dashboard_service"]
-    assert reporting._scheduling_engine is services["scheduling_engine"]
-    assert reporting._rate_resolver is services["rate_card_resolver"]
-    assert dashboard._reporting is reporting
+    kpi = services["project_kpi_report"]
+    earned_value = services["earned_value_report"]
+    cost_breakdown = services["cost_breakdown_report"]
+    assert kpi._scheduling_engine is services["scheduling_engine"]
+    # One shared cost policy (single reporting financial authority) and one
+    # shared access policy across every report builder.
+    cost_policy = kpi._cost_policy
+    assert cost_policy._rate_resolver is services["rate_card_resolver"]
+    for builder in (earned_value, cost_breakdown, services["profitability_report"]):
+        assert builder._cost_policy is cost_policy
+    for builder in (
+        earned_value,
+        cost_breakdown,
+        services["baseline_compare_report"],
+        services["schedule_variance_report"],
+        services["profitability_report"],
+        services["labor_report"],
+    ):
+        assert builder._access is kpi._access
+    assert services["schedule_variance_report"]._critical_path is kpi
+    assert services["finance_performance_query"]._earned_value_authority is earned_value
+
+    dashboard = services["project_dashboard_query"]
+    assert dashboard._kpi_report is kpi
+    assert dashboard._cost_sources is cost_breakdown
+    assert dashboard._evm._earned_value is earned_value
     assert dashboard._task_lookup is services["task_service"]._lookup_query
-    assert dashboard._task_assignments is services["task_service"]._assignment_handler
-    assert dashboard._projects is services["project_service"]
-    assert dashboard._resources is services["resource_service"]
-    assert dashboard._registers is services["register_query"]
+    assert dashboard._resources is services["resource_query"]
+    assert dashboard._registers._registers is services["register_query"]
+    portfolio = services["portfolio_dashboard_query"]
+    assert portfolio._reporting is kpi
+    assert portfolio._projects is services["project_query"]
+    assert portfolio._resources is services["resource_query"]
+    assert portfolio._task_lookup is services["task_service"]._lookup_query
 
 
 def test_resource_planning_and_imports_keep_shared_dependencies(services) -> None:
@@ -311,4 +352,5 @@ def test_resource_planning_and_imports_keep_shared_dependencies(services) -> Non
     )
     assert services["task_assignment_commands"] is services["task_service"]._assignment_handler
     assert imports._task_capabilities.lifecycle is services["task_service"]._lifecycle_handler
-    assert imports._resource_service is services["resource_service"]
+    assert imports._resource_query is services["resource_query"]
+    assert imports._resource_master_commands is services["resource_master_commands"]

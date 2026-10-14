@@ -67,7 +67,9 @@ class CostPolicyEngine:
         facts: FinanceSnapshotFacts,
         labor_details: LaborDetailsResult | None = None,
     ) -> CostPolicyComposition:
-        project_currency = self._normalize_currency(facts.project.currency_code, None)
+        project_currency: str | None = self._normalize_currency(
+            facts.project.currency_code, None
+        )
         if project_currency == "-":
             project_currency = None
         maps: dict[str, dict[CostBucketKey, Decimal]] = {
@@ -90,7 +92,7 @@ class CostPolicyEngine:
                 ),
                 amount=aggregate.total_amount,
             )
-        unresolved = ()
+        unresolved: tuple[UnresolvedLaborRate, ...] = ()
         if labor_details is not None:
             unresolved = (
                 tuple(labor_details.planned_unresolved_rates)

@@ -5,9 +5,18 @@ from dataclasses import dataclass
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.collaboration.utils.visibility import (
+    CollaborationVisibilityPolicy,
+)
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
+)
+from src.core.modules.project_management.contracts.reads.collaboration import (
+    CollaborationWorkspaceReader,
 )
 from src.core.modules.project_management.contracts.reads.collaboration.models.workspace_facts import (
     TaskDetailCommentReadPage,
@@ -30,11 +39,28 @@ class TaskCommentActionContext:
     can_manage: bool
 
 
-class CollaborationCommentQueryMixin:
+class CollaborationCommentQueryHandler(ProjectManagementModuleGuardMixin):
+    """Bounded task-discussion reads: comment pages, mention candidates, action context."""
+
+    def __init__(
+        self,
+        *,
+        workspace_reader: CollaborationWorkspaceReader,
+        policy: CollaborationVisibilityPolicy,
+        tenant_context_service,
+        user_session=None,
+        module_catalog_service=None,
+    ) -> None:
+        self._workspace_reader = workspace_reader
+        self._policy = policy
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
+
     def query_task_comments_page(
         self, task_id: str, *, page: int = 1, page_size: int = 25
     ) -> TaskDetailCommentReadPage:
-        task = self._require_task(task_id)
+        task = self._policy.require_task(task_id)
         require_permission(
             self._user_session, "collaboration.read", operation_label="view task collaboration"
         )
@@ -67,7 +93,7 @@ class CollaborationCommentQueryMixin:
     def list_mention_candidates(
         self, task_id: str, *, query: str = "", limit: int = 50
     ) -> list[CollaborationMentionCandidate]:
-        task = self._require_task(task_id)
+        task = self._policy.require_task(task_id)
         require_permission(self._user_session, "collaboration.read", operation_label="view mention candidates")
         require_project_permission(
             self._user_session,
@@ -75,25 +101,18 @@ class CollaborationCommentQueryMixin:
             "collaboration.read",
             operation_label="view mention candidates",
         )
-        return self._list_mention_candidates_for_project(
+        return self._policy.mention_candidates_for_project(
             task.project_id, query=query, limit=max(1, min(limit, 100))
         )
-
-    def unread_mentions_count(self) -> int:
-        return self.query_mentions_page(unread_only=True, page=1, page_size=1).total
 
     def get_task_comment_action_context(
         self,
         task_id: str,
     ) -> TaskCommentActionContext:
         """Return server-computed capabilities for task comment presentation."""
-        task = self._require_task(task_id)
+        task = self._policy.require_task(task_id)
         engine = get_authorization_engine()
-        principal = (
-            self._user_session.principal
-            if self._user_session is not None
-            else None
-        )
+        principal = self._policy.principal
         principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
 
         can_read = engine.has_permission(
@@ -121,4 +140,4 @@ class CollaborationCommentQueryMixin:
         )
 
 
-__all__ = ["CollaborationCommentQueryMixin", "TaskCommentActionContext"]
+__all__ = ["CollaborationCommentQueryHandler", "TaskCommentActionContext"]

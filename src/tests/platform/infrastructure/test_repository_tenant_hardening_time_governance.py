@@ -24,9 +24,8 @@ from src.core.platform.infrastructure.persistence.orm.time_management.time.time 
 
 def _seed_time_governance_scope_rows(services) -> dict[str, str]:
     session = services["session"]
-    organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
-    other_org = organization_service.create_organization(
+    other_org = services["organization_commands"].create_organization(
         organization_code="OPS",
         display_name="Operations Hub",
         timezone_name="UTC",
@@ -196,8 +195,8 @@ def test_time_and_governance_repositories_scope_cross_organization_data(
 
     approval_repo = services["approval_service"]._approval_repo
     audit_repo = services["enterprise_audit_service"]._audit_repo
-    time_entry_repo = services["time_service"]._time_entry_repo
-    timesheet_period_repo = services["time_service"]._timesheet_period_repo
+    time_entry_repo = services["time_entry_queries"]._time_entry_repo
+    timesheet_period_repo = services["timesheet_period_query"]._timesheet_period_repo
 
     assert approval_repo.get(seeded["approval_other"]) is None
     assert time_entry_repo.get(seeded["time_entry_other"]) is None

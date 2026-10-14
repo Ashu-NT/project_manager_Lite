@@ -21,10 +21,9 @@ from src.core.platform.infrastructure.persistence.repositories.security.auth.aut
 
 
 def _service(services) -> ScopeDelegationProvisioningService:
-    auth = services["auth_service"]
     role_governance_service = services["role_governance_service"]
     return ScopeDelegationProvisioningService(
-        role_repo=auth._role_repo,
+        role_repo=services["auth_queries"]._role_repo,
         delegation_repo=SqlAlchemyRoleDelegationPolicyRepository(services["session"]),
         role_governance_service=role_governance_service,
     )

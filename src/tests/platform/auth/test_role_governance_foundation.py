@@ -16,6 +16,9 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.security.auth import (
     Role,
@@ -91,22 +94,21 @@ def _prepare_canonical_assignment(
     target_role_name: str = "viewer",
     create_policy: bool = True,
 ):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         f"canonical-actor-{target_role_name}",
         "CanonicalActor123!",
         role_names=["tenant_admin"],
         tenant_id=tenant_id,
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         f"canonical-target-{target_role_name}",
         "CanonicalTarget123!",
         role_names=[],
         tenant_id=tenant_id,
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    target_role = auth._role_repo.get_by_name(target_role_name)
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    target_role = services["auth_queries"]._role_repo.get_by_name(target_role_name)
     assert actor_role is not None
     assert target_role is not None
     if create_policy:
@@ -117,7 +119,7 @@ def _prepare_canonical_assignment(
             tenant_id=tenant_id,
         )
 
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor,
         tenant_id=tenant_id,
         organization_id=(
@@ -143,22 +145,21 @@ def _prepare_organization_canonical_assignment(
     organization_id: str,
     create_policy: bool = True,
 ):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         f"org-canonical-actor-{target_role_name}",
         "CanonicalActor123!",
         role_names=["tenant_admin"],
         tenant_id=tenant_id,
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         f"org-canonical-target-{target_role_name}",
         "CanonicalTarget123!",
         role_names=[],
         tenant_id=tenant_id,
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    target_role = auth._role_repo.get_by_name(target_role_name)
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    target_role = services["auth_queries"]._role_repo.get_by_name(target_role_name)
     assert actor_role is not None
     assert target_role is not None
     if create_policy:
@@ -169,7 +170,7 @@ def _prepare_organization_canonical_assignment(
             tenant_id=tenant_id,
         )
 
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor,
         tenant_id=tenant_id,
         organization_id=organization_id,
@@ -228,7 +229,7 @@ def test_organization_role_assignment_rejects_cross_tenant_organization(
         display_name="Other Org Role Organization",
         tenant_id=other_tenant.id,
     )
-    services["organization_service"]._organization_repo.add(other_organization)
+    services["organization_query"]._organization_repo.add(other_organization)
     services["session"].flush()
 
     with pytest.raises(NotFoundError) as exc_info:
@@ -248,22 +249,21 @@ def _prepare_project_canonical_assignment(
     project_id: str,
     create_policy: bool = True,
 ):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         f"project-canonical-actor-{target_role_name}",
         "CanonicalActor123!",
         role_names=["tenant_admin"],
         tenant_id=tenant_id,
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         f"project-canonical-target-{target_role_name}",
         "CanonicalTarget123!",
         role_names=[],
         tenant_id=tenant_id,
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    target_role = auth._role_repo.get_by_name(target_role_name)
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    target_role = services["auth_queries"]._role_repo.get_by_name(target_role_name)
     assert actor_role is not None
     assert target_role is not None
     if create_policy:
@@ -274,7 +274,7 @@ def _prepare_project_canonical_assignment(
             tenant_id=tenant_id,
         )
 
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor,
         tenant_id=tenant_id,
         organization_id=services["tenant_context_service"].get_active_organization_id(),
@@ -336,22 +336,21 @@ def _prepare_site_canonical_assignment(
     site_id: str,
     create_policy: bool = True,
 ):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         f"site-canonical-actor-{target_role_name}",
         "CanonicalActor123!",
         role_names=["tenant_admin"],
         tenant_id=tenant_id,
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         f"site-canonical-target-{target_role_name}",
         "CanonicalTarget123!",
         role_names=[],
         tenant_id=tenant_id,
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    target_role = auth._role_repo.get_by_name(target_role_name)
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    target_role = services["auth_queries"]._role_repo.get_by_name(target_role_name)
     assert actor_role is not None
     assert target_role is not None
     if create_policy:
@@ -362,7 +361,7 @@ def _prepare_site_canonical_assignment(
             tenant_id=tenant_id,
         )
 
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor,
         tenant_id=tenant_id,
         organization_id=services["tenant_context_service"].get_active_organization_id(),
@@ -381,12 +380,7 @@ def _prepare_site_canonical_assignment(
 
 def test_site_role_assignment_is_scoped_and_audited(services) -> None:
     tenant_id = _tenant_id(services)
-    site = services["site_service"].create_site(
-        site_code="GOV-SITE-A",
-        name="Governance Site A",
-        city="Berlin",
-        currency_code="EUR",
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="GOV-SITE-A", name="Governance Site A", city="Berlin", currency_code="EUR"))
     _, target, target_role = _prepare_site_canonical_assignment(
         services,
         target_role_name="site_viewer",
@@ -405,12 +399,7 @@ def test_site_role_assignment_is_scoped_and_audited(services) -> None:
 
 
 def test_site_role_assignment_rejects_unresolvable_site(services) -> None:
-    site = services["site_service"].create_site(
-        site_code="GOV-SITE-B",
-        name="Governance Site B",
-        city="Berlin",
-        currency_code="EUR",
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="GOV-SITE-B", name="Governance Site B", city="Berlin", currency_code="EUR"))
     _, target, target_role = _prepare_site_canonical_assignment(
         services,
         target_role_name="site_viewer",
@@ -436,12 +425,7 @@ def _create_storeroom(services, storeroom_code: str):
 
     from src.core.platform.common.ids import generate_id
 
-    services["site_service"].create_site(
-        site_code=f"{storeroom_code}-SITE",
-        name=f"{storeroom_code} Site",
-        city="Berlin",
-        currency_code="EUR",
-    )
+    services["site_commands"].create_site(SiteCreateCommand(site_code=f"{storeroom_code}-SITE", name=f"{storeroom_code} Site", city="Berlin", currency_code="EUR"))
     return SimpleNamespace(id=generate_id())
 
 
@@ -452,22 +436,21 @@ def _prepare_storeroom_canonical_assignment(
     storeroom_id: str,
     create_policy: bool = True,
 ):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         f"storeroom-canonical-actor-{target_role_name}",
         "CanonicalActor123!",
         role_names=["tenant_admin"],
         tenant_id=tenant_id,
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         f"storeroom-canonical-target-{target_role_name}",
         "CanonicalTarget123!",
         role_names=[],
         tenant_id=tenant_id,
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    target_role = auth._role_repo.get_by_name(target_role_name)
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    target_role = services["auth_queries"]._role_repo.get_by_name(target_role_name)
     assert actor_role is not None
     assert target_role is not None
     if create_policy:
@@ -478,7 +461,7 @@ def _prepare_storeroom_canonical_assignment(
             tenant_id=tenant_id,
         )
 
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor,
         tenant_id=tenant_id,
         organization_id=services["tenant_context_service"].get_active_organization_id(),
@@ -690,11 +673,10 @@ def test_expired_binding_is_revoked_before_reassignment(services) -> None:
 
 
 def test_permission_drift_invalidates_delegation_snapshot(services) -> None:
-    auth = services["auth_service"]
     _, target, target_role = _prepare_canonical_assignment(services)
-    permission = auth._permission_repo.get_by_code("settings.manage")
+    permission = services["platform_owner_provisioning"]._permission_repo.get_by_code("settings.manage")
     assert permission is not None
-    auth._role_permission_repo.add(
+    services["platform_owner_provisioning"]._role_permission_repo.add(
         RolePermissionBinding.create(
             role_id=target_role.id,
             permission_id=permission.id,
@@ -763,12 +745,12 @@ def test_legacy_role_catalog_does_not_leak_or_offer_custom_roles(
     services["session"].commit()
 
     listed_ids = {
-        role.id for role in services["auth_service"].list_roles()
+        role.id for role in services["user_directory_query"].list_roles()
     }
     legacy_assignable_ids = {
         role.id
         for role in services[
-            "auth_service"
+            "user_directory_query"
         ].list_customer_assignable_roles()
     }
 
@@ -785,7 +767,7 @@ def test_canonical_assignment_enforces_separation_of_duties(
         services,
         target_role_name="approver",
     )
-    planner_role = services["auth_service"]._role_repo.get_by_name("planner")
+    planner_role = services["auth_queries"]._role_repo.get_by_name("planner")
     assert planner_role is not None
     _role_binding_repo(services).add(
         RoleBinding.create(
@@ -870,14 +852,13 @@ def test_canonical_assignment_rolls_back_when_audit_persistence_fails(
 def test_platform_operator_cannot_use_customer_assignment_path(
     services,
 ) -> None:
-    auth = services["auth_service"]
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         "canonical-platform-denied-target",
         "CanonicalTarget123!",
         role_names=["viewer"],
         tenant_id=_tenant_id(services),
     )
-    role = auth._role_repo.get_by_name("viewer")
+    role = services["auth_queries"]._role_repo.get_by_name("viewer")
     assert role is not None
     services[
         "role_governance_service"

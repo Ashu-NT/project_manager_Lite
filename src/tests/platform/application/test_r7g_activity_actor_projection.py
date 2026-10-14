@@ -10,6 +10,12 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.read.history.activity_actor_reader import (
     ActivityActorKind,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import (
@@ -23,28 +29,22 @@ def _scope(services):
 
 
 def test_activity_actor_projection_is_scoped_typed_and_batched(services, session):
-    auth = services["auth_service"]
-    employee_service = services["employee_service"]
-    department = services["department_service"].create_department(
-        department_code="R7G-ACTOR", name="History Actors"
-    )
-    human = auth.onboard_tenant_user(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="R7G-ACTOR", name="History Actors"))
+    human = services["user_registration"].onboard_tenant_user(
         username="r7g-human", raw_password="StrongPass123!", display_name="Visible Human"
     )
-    disabled = auth.onboard_tenant_user(
+    disabled = services["user_registration"].onboard_tenant_user(
         username="r7g-disabled", raw_password="StrongPass123!"
     )
-    service = auth.onboard_tenant_user(
+    service = services["user_registration"].onboard_tenant_user(
         username="r7g-service", raw_password="StrongPass123!"
     )
-    removed = auth.onboard_tenant_user(
+    removed = services["user_registration"].onboard_tenant_user(
         username="r7g-removed", raw_password="StrongPass123!"
     )
-    employee = employee_service.create_employee(
-        employee_code="R7G-EMP", full_name="Employee Identity", department_id=department.id
-    )
-    employee_service.link_employee_user_account(employee.id, human.id)
-    auth.set_user_active(disabled.id, False)
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="R7G-EMP", full_name="Employee Identity", department_id=department.id))
+    services["employee_commands"].link_employee_user_account(employee.id, human.id)
+    services["user_administration_commands"].set_user_active(disabled.id, False)
     session.execute(update(UserORM).where(UserORM.id == service.id).values(account_type="service"))
     session.execute(
         update(UserTenantORM)

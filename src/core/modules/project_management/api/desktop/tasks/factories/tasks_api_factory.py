@@ -6,7 +6,7 @@ from src.core.modules.project_management.api.desktop.tasks.api import (
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
-    ResourceService,
+    ResourceQueryHandler,
 )
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
@@ -49,7 +49,7 @@ def build_project_management_tasks_desktop_api(
     task_time_entries: TaskTimeEntryHandler | None = None,
     module_catalog_service: SupportsModuleEntitlements | None = None,
     project_resource_service: ProjectResourceService | None = None,
-    resource_service: ResourceService | None = None,
+    resource_query: ResourceQueryHandler | None = None,
     reservation_service: TaskReservationGateway | None = None,
     assignment_skill_validator: AssignmentSkillValidator | None = None,
     schedule_change_impact_service: ScheduleChangeImpactService | None = None,
@@ -64,7 +64,7 @@ def build_project_management_tasks_desktop_api(
         task_time_entries=task_time_entries,
         module_catalog_service=module_catalog_service,
         project_resource_service=project_resource_service,
-        resource_service=resource_service,
+        resource_query=resource_query,
         reservation_service=reservation_service,
         assignment_skill_validator=assignment_skill_validator,
         schedule_change_impact_service=schedule_change_impact_service,

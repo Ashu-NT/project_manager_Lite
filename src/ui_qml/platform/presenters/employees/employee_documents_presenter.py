@@ -6,13 +6,15 @@ from src.core.platform.api.desktop.master_data.documents.document import (
     PlatformDocumentDesktopApi,
 )
 from src.core.platform.api.desktop.master_data.documents.models.document import (
-    DocumentCreateCommand,
     DocumentDto,
 )
 from src.core.platform.api.desktop.master_data.employee.employee import (
     PlatformEmployeeDesktopApi,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+)
 from src.core.platform.domain.master_data.documents import DocumentType
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     option_item,
@@ -40,7 +42,7 @@ class PlatformEmployeeDocumentsPresenter:
     """Employee Documents -- the first real production consumer of the
     generic Platform DocumentLink capability. Every call here takes an
     explicit employee_id; the generic entity_type="employee" translation
-    happens beneath this boundary (EmployeeService/employee_documents.py),
+    happens beneath this boundary (EmployeeDocumentCommandHandler and EmployeeQueryHandler),
     never in QML or this presenter."""
 
     def __init__(
@@ -53,7 +55,7 @@ class PlatformEmployeeDocumentsPresenter:
         # Only used to build the "Link Existing Document" picker's option
         # list (every active Document in the organization) and to create a
         # brand-new Document before linking it -- never to read/write
-        # Employee state, and never bypasses DocumentService's own
+        # Employee state, and never bypasses the Documents handlers' own
         # central authorization (both calls go through the same desktop
         # API every other Document consumer uses).
         self._document_api = document_api
@@ -152,7 +154,7 @@ class PlatformEmployeeDocumentsPresenter:
         """"Add Document" / create-new flow -- creates a brand-new Document
         record then links it to this Employee. Not a single atomic
         transaction (create_document and add_link are each their own
-        DocumentService-owned unit of work), but failure after a successful
+        Documents-handler-owned unit of work), but failure after a successful
         create never silently loses the Document -- it simply remains
         unlinked and can be linked via "Link Existing Document" afterward."""
         if self._document_api is None or self._employee_api is None:

@@ -4,16 +4,6 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.api.desktop.master_data.documents.document import (
     PlatformDocumentDesktopApi,
 )
-from src.core.platform.api.desktop.master_data.documents.models.document import (
-    DocumentCreateCommand,
-    DocumentLinkCreateCommand,
-    DocumentStructureCreateCommand,
-    DocumentStructureUpdateCommand,
-)
-from src.core.platform.api.desktop.master_data.party.models.party import (
-    PartyCreateCommand,
-    PartyUpdateCommand,
-)
 from src.core.platform.api.desktop.master_data.party.party import (
     PlatformPartyDesktopApi,
 )
@@ -23,18 +13,36 @@ from src.core.platform.api.desktop.security.auth.models.user import (
     UserUpdateCommand,
 )
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+    DocumentLinkCreateCommand,
+    DocumentStructureCreateCommand,
+    DocumentStructureUpdateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.party.commands import (
+    PartyCreateCommand,
+    PartyUpdateCommand,
+)
+from src.tests.auth_test_support import platform_user_api
 
 
 def _document_api(services) -> PlatformDocumentDesktopApi:
-    return PlatformDocumentDesktopApi(document_service=services["document_service"])
+    return PlatformDocumentDesktopApi(
+        document_commands=services["document_commands"],
+        document_structure_commands=services["document_structure_commands"],
+        document_query=services["document_query"],
+    )
 
 
 def _party_api(services) -> PlatformPartyDesktopApi:
-    return PlatformPartyDesktopApi(party_service=services["party_service"])
+    return PlatformPartyDesktopApi(
+        party_commands=services["party_commands"],
+        party_query=services["party_query"],
+    )
 
 
 def _user_api(services) -> PlatformUserDesktopApi:
-    return PlatformUserDesktopApi(auth_service=services["auth_service"])
+    return platform_user_api(services)
 
 
 def test_platform_party_desktop_api_manages_party_dtos(services):
@@ -152,7 +160,7 @@ def test_platform_user_desktop_api_manages_user_dtos_and_roles(services):
     assert create_result.data is not None
     assert create_result.data.role_names == ("viewer",)
     assert create_result.data.must_change_password is True
-    assert services["auth_service"]._user_tenant_repo.is_active_member(
+    assert services["role_assignment_commands"]._user_tenant_repo.is_active_member(
         create_result.data.id,
         services["user_session"].active_tenant_id(),
     )

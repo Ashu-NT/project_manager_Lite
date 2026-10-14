@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from typing import Any, cast
 
 from sqlalchemy import select, text, update
+from sqlalchemy.engine import CursorResult, Result
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.tenant.tenancy.tenant_context import (
@@ -26,6 +28,12 @@ from src.core.platform.infrastructure.persistence.orm.security.identity.identity
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
+
+
+def _affected_rows(result: Result[Any]) -> int:
+    # DML statements return a CursorResult at runtime; the Session.execute
+    # stub types the return value as the generic Result.
+    return cast(CursorResult[Any], result).rowcount
 
 
 def _principal_from_orm(row: ServicePrincipalORM) -> ServicePrincipal:
@@ -207,7 +215,8 @@ class SqlAlchemyApiKeyCredentialRepository(
             return
         row.name = credential.name
         row.permission_scopes_json = json.dumps(list(credential.permission_scopes))
-        row.expires_at = credential.expires_at
+        # ApiKeyCredential's lifecycle validator rejects a missing expiry.
+        row.expires_at = cast(datetime, credential.expires_at)
         row.last_used_at = credential.last_used_at
         row.revoked_at = credential.revoked_at
         self.session.flush()
@@ -271,7 +280,7 @@ class SqlAlchemyApiKeyCredentialRepository(
             )
             .values(revoked_at=revoked_at)
         )
-        return int(result.rowcount or 0)
+        return int(_affected_rows(result) or 0)
 
     @staticmethod
     def _require_tenant(credential: ApiKeyCredential, tenant_id: str) -> None:

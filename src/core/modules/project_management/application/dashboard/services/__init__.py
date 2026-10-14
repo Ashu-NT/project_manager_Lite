@@ -1,6 +1,6 @@
-"""Dashboard orchestration services."""
-from src.core.modules.project_management.application.dashboard.services.dashboard_service import (
-    DashboardService,
+"""Dashboard orchestration query handlers."""
+from src.core.modules.project_management.application.dashboard.services.project_dashboard_query import (
+    ProjectDashboardQueryHandler,
 )
 
-__all__ = ["DashboardService"]
+__all__ = ["ProjectDashboardQueryHandler"]

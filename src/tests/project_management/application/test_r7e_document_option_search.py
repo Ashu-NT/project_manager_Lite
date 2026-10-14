@@ -30,7 +30,6 @@ def test_task_document_selector_is_bounded_and_scoped(services) -> None:
         for index in range(150)
     )
     session.commit()
-    service = services["collaboration_service"]
     statements: list[str] = []
 
     def record(_connection, _cursor, sql, _params, _context, _many):
@@ -39,8 +38,8 @@ def test_task_document_selector_is_bounded_and_scoped(services) -> None:
 
     event.listen(session.bind, "before_cursor_execute", record)
     try:
-        first = service.search_available_documents(task.id)
-        found = service.search_available_documents(task.id, query="0149")
+        first = services["collaboration_document_query"].search_available_documents(task.id)
+        found = services["collaboration_document_query"].search_available_documents(task.id, query="0149")
     finally:
         event.remove(session.bind, "before_cursor_execute", record)
 

@@ -45,20 +45,22 @@ class ProjectManagementDashboardDesktopApi:
         self,
         *,
         project_service=None,
-        dashboard_service=None,
+        project_dashboard=None,
+        portfolio_dashboard=None,
         baseline_service=None,
-        reporting_service=None,
-        collaboration_service=None,
+        earned_value_report=None,
+        collaboration_inbox_query=None,
         approval_service=None,
         task_workspace_query=None,
         module_catalog_service=None,
     ) -> None:
         self._snapshot_service = DashboardSnapshotService(
             project_service=project_service,
-            dashboard_service=dashboard_service,
+            project_dashboard=project_dashboard,
+            portfolio_dashboard=portfolio_dashboard,
             baseline_service=baseline_service,
-            reporting_service=reporting_service,
-            collaboration_service=collaboration_service,
+            earned_value_report=earned_value_report,
+            collaboration_inbox_query=collaboration_inbox_query,
             approval_service=approval_service,
         )
         self._task_workspace_query = task_workspace_query

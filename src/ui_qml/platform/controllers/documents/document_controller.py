@@ -39,6 +39,7 @@ class PlatformDocumentController(QObject):
             "typeOptions": [],
             "structureOptions": [],
             "storageKindOptions": [],
+            "confidentialityOptions": [],
         }
         self._selected_document: dict[str, object] = {
             "hasSelection": False,
@@ -248,6 +249,7 @@ class PlatformDocumentController(QObject):
                 "typeOptions": list(self._presenter.build_type_options()),
                 "structureOptions": list(self._presenter.build_structure_options()),
                 "storageKindOptions": list(self._presenter.build_storage_kind_options()),
+                "confidentialityOptions": list(self._presenter.build_confidentiality_options()),
             }
         )
 

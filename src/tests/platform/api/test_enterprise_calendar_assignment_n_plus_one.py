@@ -14,6 +14,15 @@ from sqlalchemy import event
 from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
     PlatformCalendarDesktopApi,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 
 
 def _build_api(services):
@@ -75,9 +84,7 @@ def _make_departments_against_one_shared_calendar(services, n, suffix):
         code=f"CAL-{suffix}", name=f"Calendar {suffix}", calendar_type="DEPARTMENT"
     )
     for i in range(n):
-        dept = services["department_service"].create_department(
-            department_code=f"DEPT-{suffix}-{i}", name=f"Dept {suffix} {i}"
-        )
+        dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"DEPT-{suffix}-{i}", name=f"Dept {suffix} {i}"))
         services["calendar_assignment_service"].assign_department_calendar(dept.id, calendar.id)
     return calendar
 
@@ -169,17 +176,13 @@ def test_list_calendar_assignments_serializes_all_five_entity_types_correctly(se
         code="CAL-ALL5", name="Shared Calendar", calendar_type="GLOBAL"
     )
 
-    site = services["site_service"].create_site(site_code="P5-SITE", name="P5 Site")
-    department = services["department_service"].create_department(
-        department_code="P5-DEPT", name="P5 Department"
-    )
-    employee = services["employee_service"].create_employee(
-        employee_code="P5-EMP", full_name="P5 Employee", department_id=department.id, employment_type="FULL_TIME"
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="P5-SITE", name="P5 Site"))
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="P5-DEPT", name="P5 Department"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="P5-EMP", full_name="P5 Employee", department_id=department.id, employment_type="FULL_TIME"))
     project = services["project_service"].create_project(
         "P5 Project", financial_currency_code=organization.base_currency
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "P5 Resource", hourly_rate=0, currency_code=organization.base_currency
     )
 
@@ -219,7 +222,7 @@ def test_single_assignment_write_paths_still_return_correct_calendar_fields(serv
     calendar = calendar_service.create_calendar(
         code="CAL-WRITE", name="Write Path Calendar", calendar_type="SITE"
     )
-    site = services["site_service"].create_site(site_code="P5-WRITE-SITE", name="Write Site")
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="P5-WRITE-SITE", name="Write Site"))
 
     from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         SiteCalendarAssignCommand,

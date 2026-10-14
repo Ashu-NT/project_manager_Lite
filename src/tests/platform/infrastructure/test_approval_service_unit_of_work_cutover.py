@@ -17,17 +17,16 @@ _REQUESTER_COUNTER = {"n": 0}
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _login_as_fresh_requester(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     _REQUESTER_COUNTER["n"] += 1
     username = f"uow-cutover-requester-{_REQUESTER_COUNTER['n']}"
-    services["auth_service"].register_user(username, "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user(username, "StrongPass123", role_names=["planner"])
     _login(services, username, "StrongPass123")
 
 
@@ -79,9 +78,8 @@ def _request_budget_approval_as_a_different_user(services, budget):
         payload={"budget_id": budget.id, "expected_version": budget.row_version, "notes": ""},
     )
     _login(services, "admin", "ChangeMe123!")
-    auth = services["auth_service"]
-    reviewer = auth.register_user(f"reviewer-{request.id}", "StrongPass123", role_names=["approver"])
-    services["user_session"].set_principal(auth.build_principal(reviewer))
+    reviewer = services["user_registration"].register_user(f"reviewer-{request.id}", "StrongPass123", role_names=["approver"])
+    services["user_session"].set_principal(services["principal_builder"].build(reviewer))
     return request
 
 

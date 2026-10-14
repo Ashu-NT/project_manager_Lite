@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
+from typing import Protocol, cast
 
 
 class ResourceUtilizationBand(str, Enum):
@@ -59,6 +60,18 @@ class ResourceLoadMetric:
     utilization_percent: float
 
 
+class _IdentifiedFact(Protocol):
+    @property
+    def id(self) -> object: ...
+
+
+class _AssignmentFact(Protocol):
+    @property
+    def task_id(self) -> object: ...
+    @property
+    def resource_id(self) -> object: ...
+
+
 class ResourceLoadEngine:
     """Calculate peak concurrent load from already-acquired task facts."""
 
@@ -70,7 +83,8 @@ class ResourceLoadEngine:
         resources: Iterable[object],
         working_dates: frozenset[date],
     ) -> tuple[ResourceLoadMetric, ...]:
-        task_rows = tuple(tasks)
+        # Callers pass duck-typed task/assignment/resource facts.
+        task_rows = tuple(cast(Iterable[_IdentifiedFact], tasks))
         parent_ids = {
             str(parent_id)
             for task in task_rows
@@ -81,12 +95,15 @@ class ResourceLoadEngine:
             for task in task_rows
             if str(task.id) not in parent_ids
         }
-        resources_by_id = {str(resource.id): resource for resource in resources}
+        resources_by_id = {
+            str(resource.id): resource
+            for resource in cast(Iterable[_IdentifiedFact], resources)
+        }
         counts: dict[str, int] = {}
         unscheduled: dict[str, float] = {}
         daily: dict[str, dict[date, float]] = {}
 
-        for assignment in assignments:
+        for assignment in cast(Iterable[_AssignmentFact], assignments):
             task = tasks_by_id.get(str(assignment.task_id))
             if task is None:
                 continue

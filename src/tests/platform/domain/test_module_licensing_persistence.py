@@ -50,11 +50,10 @@ def test_module_catalog_service_bootstraps_persistent_defaults(services):
 
 
 def test_module_catalog_service_rejects_licensing_planned_module(services):
-    catalog = services["module_catalog_service"]
     active_org = services["tenant_context_service"].get_active_organization()
 
     with pytest.raises(ValidationError, match="planned"):
-        catalog.license_module(active_org.id, "hr_management")
+        services["module_entitlement_commands"].license_module(active_org.id, "hr_management")
 
 
 def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr_management(services, session):
@@ -90,7 +89,7 @@ def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr
     )
     session.commit()
 
-    entitlement = services["module_catalog_service"].revoke_module_license(
+    entitlement = services["module_entitlement_commands"].revoke_module_license(
         active_org.id, "hr_management"
     )
 
@@ -106,16 +105,15 @@ def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr
 
 
 def test_project_management_services_block_direct_calls_when_module_disabled(services):
-    catalog = services["module_catalog_service"]
     active_org = services["tenant_context_service"].get_active_organization()
-    catalog.disable_module(active_org.id, "project_management")
+    services["module_entitlement_commands"].disable_module(active_org.id, "project_management")
 
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled") as project_exc:
         services["project_service"].list_projects()
     assert project_exc.value.code == "MODULE_DISABLED"
 
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled") as resource_exc:
-        services["resource_service"].list_resources()
+        services["resource_query"].list_resources()
     assert resource_exc.value.code == "MODULE_DISABLED"
 
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled") as import_exc:
@@ -127,12 +125,12 @@ def test_module_catalog_service_supports_trial_and_suspended_lifecycle_states(se
     catalog = services["module_catalog_service"]
     active_org = services["tenant_context_service"].get_active_organization()
 
-    trial = catalog.transition_module_lifecycle(active_org.id, "project_management", "trial")
+    trial = services["module_entitlement_commands"].transition_module_lifecycle(active_org.id, "project_management", "trial")
     assert trial.lifecycle_status == "trial"
     assert trial.runtime_enabled is True
     assert catalog.is_enabled("project_management") is True
 
-    suspended = catalog.transition_module_lifecycle(active_org.id, "project_management", "suspended")
+    suspended = services["module_entitlement_commands"].transition_module_lifecycle(active_org.id, "project_management", "suspended")
     assert suspended.lifecycle_status == "suspended"
     assert suspended.enabled is False
     assert suspended.runtime_enabled is False

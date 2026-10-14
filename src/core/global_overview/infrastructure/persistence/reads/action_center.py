@@ -11,13 +11,14 @@ def action_window(statement, *, due, recency, module, kind, identity, after, lim
     missing_due = case((due.is_(None), 1), else_=0)
     due_value = func.coalesce(due, date.max)
     missing_recency = case((due.is_(None) & recency.is_(None), 1), else_=0)
-    recent_value = case((due.is_not(None), datetime.min), else_=func.coalesce(recency, datetime.min))
+    # Naive sentinels sort against naive stored timestamps.
+    recent_value = case((due.is_not(None), datetime.min), else_=func.coalesce(recency, datetime.min))  # noqa: DTZ901
     columns = (missing_due, due_value, missing_recency, recent_value, literal(module), literal(kind), identity)
     directions = (1, 1, 1, -1, 1, 1, 1)
     if after is not None:
         values = (int(after.due_at is None), after.due_at or date.max,
                   int(after.due_at is None and after.sort_at is None),
-                  datetime.min if after.due_at else (after.sort_at or datetime.min),
+                  datetime.min if after.due_at else (after.sort_at or datetime.min),  # noqa: DTZ901
                   after.module, after.kind, after.id)
         predicates = []
         for index, (column, value, direction) in enumerate(zip(columns, values, directions)):

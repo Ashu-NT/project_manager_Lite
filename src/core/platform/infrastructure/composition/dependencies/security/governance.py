@@ -1,18 +1,26 @@
-"""Build role governance and attach it to the shared Auth service."""
+"""Build role governance and the role-assignment handler that uses it."""
 
 from __future__ import annotations
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.security.authorization.roles import (
     RoleGovernanceService,
+)
+from src.core.platform.application.security.authorization.roles.commands import (
+    RoleAssignmentHandler,
 )
 from src.core.platform.application.tenant.tenancy import (
     TenancyMode,
     TenantContextService,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    PlatformRepositories,
+)
+from src.core.platform.infrastructure.composition.dependencies.security.auth import (
+    AuthComposition,
+)
 from src.core.platform.infrastructure.composition.registrations.security.scope_resolvers import (
     ScopeResolvers,
 )
@@ -32,7 +40,6 @@ from src.infra.time.system_clock import SystemClock
 def build_role_governance_service(
     *,
     session: Session,
-    auth_service: AuthService,
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
     security_configuration: RuntimeSecurityConfiguration,
@@ -56,5 +63,24 @@ def build_role_governance_service(
             security_configuration.tenancy_mode is TenancyMode.LOCAL_SINGLE_TENANT
         ),
     )
-    auth_service.set_role_governance_service(service)
     return service
+
+
+def build_role_assignment_handler(
+    *,
+    repositories: PlatformRepositories,
+    auth: AuthComposition,
+    role_governance_service: RoleGovernanceService,
+    user_session: UserSessionContext,
+    tenant_context_service: TenantContextService,
+) -> RoleAssignmentHandler:
+    return RoleAssignmentHandler(
+        auth_queries=auth.queries,
+        role_binding_repo=repositories.role_binding_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        user_tenant_repo=repositories.user_tenant_repo,
+        target_users=auth.target_users,
+        lifecycle=auth.session_lifecycle,
+        role_governance_service=role_governance_service,
+    )

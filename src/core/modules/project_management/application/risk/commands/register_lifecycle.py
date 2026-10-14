@@ -341,7 +341,7 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
         path, which needs every other field's current value (a bulk action
         across N rows never has that). One UnitOfWork/commit for the whole
         selection instead of one per entry, same reasoning as
-        OrganizationService.bulk_update_organization_currency()."""
+        OrganizationCommandHandler.bulk_update_organization_currency()."""
         require_permission(self._user_session, "register.manage", operation_label="update register entry")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="update register entry"

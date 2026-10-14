@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from pydantic import field_validator, model_validator
 
@@ -78,7 +79,7 @@ def normalize_auth_device_label(value: object) -> str | None:
     return normalized or None
 
 
-def normalize_auth_session_timeout_override(value: object) -> int | None:
+def normalize_auth_session_timeout_override(value: Any) -> int | None:
     if value in (None, ""):
         return None
     try:
@@ -96,7 +97,7 @@ def normalize_auth_session_timeout_override(value: object) -> int | None:
     return normalized
 
 
-def normalize_auth_session_revision(value: object) -> int:
+def normalize_auth_session_revision(value: Any) -> int:
     try:
         normalized = int(value if value not in (None, "") else 1)
     except (TypeError, ValueError) as exc:
@@ -112,7 +113,7 @@ def normalize_auth_session_revision(value: object) -> int:
     return normalized
 
 
-def normalize_auth_failed_login_attempts(value: object) -> int:
+def normalize_auth_failed_login_attempts(value: Any) -> int:
     try:
         normalized = int(value if value not in (None, "") else 0)
     except (TypeError, ValueError) as exc:
@@ -128,7 +129,7 @@ def normalize_auth_failed_login_attempts(value: object) -> int:
     return normalized
 
 
-def normalize_auth_version(value: object) -> int:
+def normalize_auth_version(value: Any) -> int:
     try:
         normalized = int(value if value not in (None, "") else 1)
     except (TypeError, ValueError) as exc:
@@ -334,7 +335,8 @@ class UserAccount:
             federated_subject=federated_subject,
             mfa_secret=None,
             mfa_enabled=False,
-            session_timeout_minutes_override=session_timeout_minutes_override,
+            # Raw input is coerced by the field's "before" validator.
+            session_timeout_minutes_override=cast("int | None", session_timeout_minutes_override),
             session_revision=1,
             last_login_auth_method=None,
             last_login_device_label=None,
@@ -414,7 +416,7 @@ class Role:
 
     @field_validator("policy_version", mode="before")
     @classmethod
-    def _validate_policy_version(cls, value: object) -> int:
+    def _validate_policy_version(cls, value: Any) -> int:
         try:
             normalized = int(value if value not in (None, "") else 1)
         except (TypeError, ValueError) as exc:

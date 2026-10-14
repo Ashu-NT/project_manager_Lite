@@ -6,6 +6,7 @@ from calendar import monthrange
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, timedelta
+from typing import Protocol, cast
 
 from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
     GanttBaselineOverlayDto,
@@ -17,14 +18,88 @@ from src.core.modules.project_management.api.desktop.scheduling.models.gantt imp
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.hierarchy import TaskHierarchyNode
+from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.common.exceptions import BusinessRuleError
+
+
+class _GanttTaskLike(Protocol):
+    """Structural task facts read by the Gantt builder (domain task or DTO)."""
+
+    @property
+    def id(self) -> object: ...
+    @property
+    def parent_task_id(self) -> object: ...
+    @property
+    def sort_order(self) -> int: ...
+    @property
+    def wbs_code(self) -> object: ...
+    @property
+    def project_id(self) -> object: ...
+    @property
+    def name(self) -> object: ...
+
+
+class _GanttHierarchyNodeLike(Protocol):
+    @property
+    def task(self) -> _GanttTaskLike: ...
+    @property
+    def depth(self) -> int: ...
+    @property
+    def is_summary(self) -> bool: ...
+    @property
+    def child_count(self) -> int: ...
+    @property
+    def ancestor_ids(self) -> Iterable[object]: ...
+
+
+class _GanttScheduleItemLike(Protocol):
+    @property
+    def id(self) -> object: ...
+    @property
+    def project_id(self) -> object: ...
+
+
+class _GanttDependencyLike(Protocol):
+    @property
+    def id(self) -> object: ...
+    @property
+    def predecessor_task_id(self) -> object: ...
+    @property
+    def successor_task_id(self) -> object: ...
+    @property
+    def predecessor_task_name(self) -> object: ...
+    @property
+    def successor_task_name(self) -> object: ...
+    @property
+    def dependency_type(self) -> object: ...
+    @property
+    def dependency_type_label(self) -> object: ...
+    @property
+    def lag_days(self) -> int | None: ...
+
+
+class _GanttBaselineTaskLike(Protocol):
+    @property
+    def id(self) -> object: ...
+    @property
+    def baseline_id(self) -> object: ...
+    @property
+    def task_id(self) -> object: ...
+    @property
+    def baseline_start(self) -> date | None: ...
+    @property
+    def baseline_finish(self) -> date | None: ...
+    @property
+    def baseline_duration_days(self) -> int | None: ...
+    @property
+    def baseline_is_milestone(self) -> object: ...
 
 
 def day_ordinal(value: date | None) -> int | None:
     return value.toordinal() if value is not None else None
 
 
-def build_hierarchy_nodes(tasks: Iterable[object]) -> tuple[TaskHierarchyNode, ...]:
+def build_hierarchy_nodes(tasks: Iterable[_GanttTaskLike]) -> tuple[TaskHierarchyNode, ...]:
     """Build canonical sibling-order preorder when only task facts are available."""
     task_rows = tuple(tasks)
     task_by_id = {str(task.id): task for task in task_rows}
@@ -33,7 +108,7 @@ def build_hierarchy_nodes(tasks: Iterable[object]) -> tuple[TaskHierarchyNode, .
             "The Gantt hierarchy contains duplicate task IDs.",
             code="GANTT_DUPLICATE_TASK_ID",
         )
-    children: dict[str | None, list[object]] = {}
+    children: dict[str | None, list[_GanttTaskLike]] = {}
     for task in task_rows:
         parent_id = str(task.parent_task_id) if task.parent_task_id else None
         children.setdefault(parent_id, []).append(task)
@@ -43,7 +118,7 @@ def build_hierarchy_nodes(tasks: Iterable[object]) -> tuple[TaskHierarchyNode, .
     result: list[TaskHierarchyNode] = []
     visited: set[str] = set()
 
-    def visit(task: object, depth: int, ancestors: tuple[str, ...]) -> None:
+    def visit(task: _GanttTaskLike, depth: int, ancestors: tuple[str, ...]) -> None:
         task_id = str(task.id)
         if task_id in visited:
             raise BusinessRuleError(
@@ -54,7 +129,9 @@ def build_hierarchy_nodes(tasks: Iterable[object]) -> tuple[TaskHierarchyNode, .
         direct_children = children.get(task_id, [])
         result.append(
             TaskHierarchyNode(
-                task=task,
+                # The node is used as a structural carrier here: Gantt consumers
+                # only read the ``_GanttTaskLike`` facts from ``node.task``.
+                task=cast(Task, task),
                 depth=depth,
                 is_summary=bool(direct_children),
                 child_count=len(direct_children),
@@ -124,7 +201,7 @@ def build_gantt_baseline_overlay(
     organization_id: str,
     project_id: str,
     baseline_id: str,
-    baseline_tasks: Iterable[object],
+    baseline_tasks: Iterable[_GanttBaselineTaskLike],
 ) -> GanttBaselineOverlayDto:
     """Build one disposable, project-scoped baseline display projection."""
     snapshots = _build_baseline_snapshots(
@@ -159,10 +236,10 @@ def build_gantt_projection(
     tenant_id: str,
     organization_id: str,
     project_id: str,
-    hierarchy_nodes: Iterable[object],
-    schedule_items: Iterable[object],
-    dependency_rows: Iterable[object] = (),
-    baseline_tasks: Iterable[object] = (),
+    hierarchy_nodes: Iterable[_GanttHierarchyNodeLike],
+    schedule_items: Iterable[_GanttScheduleItemLike],
+    dependency_rows: Iterable[_GanttDependencyLike] = (),
+    baseline_tasks: Iterable[_GanttBaselineTaskLike] = (),
     selected_baseline_id: str | None = None,
     project_start: date | None = None,
     project_finish: date | None = None,
@@ -324,7 +401,7 @@ def _build_baseline_snapshots(
     organization_id: str,
     project_id: str,
     baseline_id: str,
-    baseline_tasks: Iterable[object],
+    baseline_tasks: Iterable[_GanttBaselineTaskLike],
 ) -> tuple[GanttBaselineTaskSnapshotDto, ...]:
     sorted_tasks = tuple(
         sorted(
@@ -394,13 +471,15 @@ def _build_row(
     tenant_id: str,
     organization_id: str,
     project_id: str,
-    node: object,
+    node: _GanttHierarchyNodeLike,
     schedule: object | None,
     rollup: _Rollup,
     work_calendar: object | None,
 ) -> GanttTaskRowDto:
     task = node.task
     is_summary = bool(node.is_summary)
+    duration: int | None
+    remaining: int | None
     if is_summary:
         status = _summary_status(rollup)
         status_label = status.replace("_", " ").title()

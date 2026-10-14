@@ -13,6 +13,19 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Q_ARG, QCoreApplication, QMetaObject, qInstallMessageHandler
@@ -42,11 +55,10 @@ def _pump(n: int = 10) -> None:
 
 
 def _load_detail_page(services, qapp, *, org_code: str, org_name: str):
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     catalog, admin = _build_admin_workspace(services)
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code=org_code, display_name=org_name, timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
@@ -73,7 +85,7 @@ def _load_detail_page(services, qapp, *, org_code: str, org_name: str):
 
 
 def test_site_row_activation_emits_related_record_request_not_local_nested_state(services, qapp) -> None:
-    site = services["site_service"].create_site(site_code="NAV-SITE-1", name="Nav Site One", city="Lagos", country="Nigeria")
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="NAV-SITE-1", name="Nav Site One", city="Lagos", country="Nigeria"))
 
     messages: list[str] = []
     previous_handler = qInstallMessageHandler(lambda t, c, m: messages.append(str(m)))
@@ -105,7 +117,7 @@ def test_site_row_activation_emits_related_record_request_not_local_nested_state
 
 
 def test_department_row_activation_emits_related_record_request(services, qapp) -> None:
-    department = services["department_service"].create_department(department_code="NAV-DEPT-1", name="Nav Department One")
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="NAV-DEPT-1", name="Nav Department One"))
 
     engine, root, admin, _catalog = _load_detail_page(services, qapp, org_code="NAV-ORG-2", org_name="Nav Org Two")
     try:
@@ -124,12 +136,8 @@ def test_department_row_activation_emits_related_record_request(services, qapp) 
 
 
 def test_employee_row_activation_emits_related_record_request(services, qapp) -> None:
-    department = services["department_service"].create_department(
-        department_code="NAV-EMP-DEPT-1", name="Nav Employee Department One"
-    )
-    employee = services["employee_service"].create_employee(
-        employee_code="NAV-EMP-1", full_name="Nav Employee One", department_id=department.id
-    )
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="NAV-EMP-DEPT-1", name="Nav Employee Department One"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="NAV-EMP-1", full_name="Nav Employee One", department_id=department.id))
 
     engine, root, admin, _catalog = _load_detail_page(services, qapp, org_code="NAV-ORG-3", org_name="Nav Org Three")
     try:
@@ -155,9 +163,7 @@ def test_document_row_activation_emits_related_record_request(services, qapp) ->
     messages: list[str] = []
     previous_handler = qInstallMessageHandler(lambda t, c, m: messages.append(str(m)))
     engine, root, admin, _catalog = _load_detail_page(services, qapp, org_code="NAV-ORG-4", org_name="Nav Org Four")
-    document = services["document_service"].create_document(
-        document_code="NAV-DOC-1", title="Nav Document One", storage_uri="C:/docs/nav.pdf"
-    )
+    document = services["document_commands"].create_document(DocumentCreateCommand(document_code="NAV-DOC-1", title="Nav Document One", storage_uri="C:/docs/nav.pdf"))
     try:
         _pump()
         requests: list[tuple[str, str]] = []
@@ -185,7 +191,7 @@ def test_activity_row_activation_routes_through_the_same_related_record_request(
     """An Activity entry referencing a site now navigates the same way a
     Sites-tab row activation does -- no more local tab-switching, since
     there is no longer a local nested detail to switch to."""
-    site = services["site_service"].create_site(site_code="NAV-SITE-2", name="Nav Site Two", city="Lagos", country="Nigeria")
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="NAV-SITE-2", name="Nav Site Two", city="Lagos", country="Nigeria"))
 
     engine, root, admin, _catalog = _load_detail_page(services, qapp, org_code="NAV-ORG-5", org_name="Nav Org Five")
     try:

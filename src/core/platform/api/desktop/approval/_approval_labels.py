@@ -10,7 +10,7 @@ def approval_module_label(request: object) -> str:
         return explicit
     request_type = str(getattr(request, "request_type", "") or "").strip().lower()
     entity_type = str(getattr(request, "entity_type", "") or "").strip().lower()
-    if request_type.startswith("purchase_requisition.") or request_type.startswith("purchase_order."):
+    if request_type.startswith(("purchase_requisition.", "purchase_order.")):
         return "Inventory & Procurement"
     if entity_type in {"purchase_requisition", "purchase_order"}:
         return "Inventory & Procurement"

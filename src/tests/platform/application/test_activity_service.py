@@ -2,10 +2,9 @@ from __future__ import annotations
 
 
 def _login_admin(services):
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    admin = auth.authenticate("admin", "ChangeMe123!")
-    user_session.set_principal(auth.build_principal(admin))
+    admin = services["authentication"].authenticate("admin", "ChangeMe123!")
+    user_session.set_principal(services["principal_builder"].build(admin))
 
 
 def test_activity_service_is_available(services):

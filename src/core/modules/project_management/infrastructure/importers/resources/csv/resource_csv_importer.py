@@ -25,11 +25,11 @@ logger = logging.getLogger(__name__)
 def preview_resources(
     rows: list[tuple[int, dict[str, str]]],
     *,
-    resource_service,
+    resource_query,
 ) -> ImportPreview:
     preview = ImportPreview(entity_type="resources", available_columns=[], mapped_columns={})
-    existing = {r.id: r for r in resource_service.list_resources()}
-    existing_by_name = {r.name.strip().lower(): r for r in resource_service.list_resources()}
+    existing = {r.id: r for r in resource_query.list_resources()}
+    existing_by_name = {r.name.strip().lower(): r for r in resource_query.list_resources()}
     for line_no, row in rows:
         try:
             name = required(row, "name")
@@ -53,7 +53,7 @@ def preview_resources(
             else:
                 preview.updated_count += 1
         except Exception as exc:
-            logger.exception("Failed to preview resource row at line %s: %s", line_no, exc)
+            logger.exception("Failed to preview resource row at line %s: %s", line_no, exc)  # noqa: TRY401
             preview.rows.append(
                 ImportPreviewRow(line_no=line_no, status="ERROR", action="ERROR", message=str(exc), row=row)
             )
@@ -63,11 +63,12 @@ def preview_resources(
 def import_resources(
     rows: list[tuple[int, dict[str, str]]],
     *,
-    resource_service,
+    resource_query,
+    resource_commands,
 ) -> ImportSummary:
     summary = ImportSummary(entity_type="resources")
-    existing = {r.id: r for r in resource_service.list_resources()}
-    existing_by_name = {r.name.strip().lower(): r for r in resource_service.list_resources()}
+    existing = {r.id: r for r in resource_query.list_resources()}
+    existing_by_name = {r.name.strip().lower(): r for r in resource_query.list_resources()}
     for line_no, row in rows:
         try:
             resource = existing.get(row.get("id") or "") or existing_by_name.get(
@@ -86,7 +87,7 @@ def import_resources(
             }
             requested_active = optional_bool(row.get("is_active"), default=True)
             if resource is None:
-                resource = resource_service.create_resource(**payload)
+                resource = resource_commands.create_resource(**payload)
                 summary.created_count += 1
             else:
                 payload.update(
@@ -96,7 +97,7 @@ def import_resources(
                     department_id=resource.department_id,
                     site_id=resource.site_id,
                 )
-                resource = resource_service.update_resource(
+                resource = resource_commands.update_resource(
                     resource_id=resource.id,
                     expected_version=resource.version,
                     **payload,
@@ -104,17 +105,17 @@ def import_resources(
                 summary.updated_count += 1
             if resource.is_active != requested_active:
                 operation = (
-                    resource_service.reactivate_resource
+                    resource_commands.reactivate_resource
                     if requested_active
-                    else resource_service.deactivate_resource
+                    else resource_commands.deactivate_resource
                 )
                 resource = operation(
                     resource_id=resource.id,
                     expected_version=resource.version,
                 )
-            existing = {r.id: r for r in resource_service.list_resources()}
-            existing_by_name = {r.name.strip().lower(): r for r in resource_service.list_resources()}
+            existing = {r.id: r for r in resource_query.list_resources()}
+            existing_by_name = {r.name.strip().lower(): r for r in resource_query.list_resources()}
         except Exception as exc:
-            logger.exception("Failed to import resource row at line %s: %s", line_no, exc)
+            logger.exception("Failed to import resource row at line %s: %s", line_no, exc)  # noqa: TRY401
             summary.add_row_error(line_no=line_no, message=str(exc))
     return summary

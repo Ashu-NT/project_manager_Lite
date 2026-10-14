@@ -3,19 +3,6 @@
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.scheduling.commands.baseline_commands import (
-    SchedulingBaselineApproveCommand,
-    SchedulingBaselineCreateCommand,
-    SchedulingBaselineRejectCommand,
-    SchedulingBaselineSubmitCommand,
-)
-from src.core.modules.project_management.api.desktop.scheduling.commands.dependency_commands import (
-    SchedulingDependencyCreateCommand,
-    SchedulingDependencyUpdateCommand,
-)
-from src.core.modules.project_management.api.desktop.scheduling.commands.working_day_commands import (
-    SchedulingWorkingDayCalculationCommand,
-)
 from src.core.modules.project_management.api.desktop.scheduling.factories.scheduling_api_factory import (
     build_project_management_scheduling_desktop_api,
 )
@@ -53,6 +40,15 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingUnresolvedConflictDto,
     SchedulingWorkingDayCalculationDto,
     TaskScheduleImpactOverviewDesktopDto,
+)
+from src.core.modules.project_management.contracts.use_cases.scheduling.commands import (
+    SchedulingBaselineApproveCommand,
+    SchedulingBaselineCreateCommand,
+    SchedulingBaselineRejectCommand,
+    SchedulingBaselineSubmitCommand,
+    SchedulingDependencyCreateCommand,
+    SchedulingDependencyUpdateCommand,
+    SchedulingWorkingDayCalculationCommand,
 )
 
 __all__ = [

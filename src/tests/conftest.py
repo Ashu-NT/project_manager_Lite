@@ -96,10 +96,9 @@ def tmp_path(repo_workspace):
 @pytest.fixture
 def services(session):
     graph = build_service_dict(session)
-    auth = graph["auth_service"]
     user_session = graph["user_session"]
-    admin = auth.authenticate("admin", "ChangeMe123!")
-    user_session.set_principal(auth.build_principal(admin))
+    admin = graph["authentication"].authenticate("admin", "ChangeMe123!")
+    user_session.set_principal(graph["principal_builder"].build(admin))
     return graph
 
 

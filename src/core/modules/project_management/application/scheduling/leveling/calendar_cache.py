@@ -194,7 +194,7 @@ def build_memoizing_window_for_tasks(
         # implementations) still work via the date.today() fallback; this
         # value only ever seeds window padding, never a working-day fact.
         business_today = getattr(real_calendar, "business_today", None)
-        known_dates = [business_today() if business_today else date.today()]
+        known_dates = [business_today() if business_today else date.today()]  # noqa: DTZ011
 
     # Generous calendar-day padding: search horizon (working days) can
     # roughly double in calendar days across weekends/holidays, plus a

@@ -5,7 +5,6 @@ from datetime import date
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.contracts.reads.tasks.models import (
     TaskTimeEntriesPage,
     TaskTimeEntryRow,
@@ -17,6 +16,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.time_management.time import TimeEntryQueryHandler
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
@@ -25,21 +25,21 @@ class TaskTimeEntryHandler:
     def __init__(
         self,
         *,
-        timesheet_service: TimesheetService | None,
+        time_queries: TimeEntryQueryHandler | None,
         task_repo: TaskRepository,
         assignment_repo: AssignmentRepository,
         user_session: UserSessionContext | None,
     ) -> None:
-        self._timesheet_service = timesheet_service
+        self._time_queries = time_queries
         self._task_repo = task_repo
         self._assignment_repo = assignment_repo
         self._user_session = user_session
 
-    def _require_timesheet_service(self) -> TimesheetService:
-        service = self._timesheet_service
-        if service is None:
-            raise RuntimeError("Timesheet service is not configured.")
-        return service
+    def _require_time_queries(self) -> TimeEntryQueryHandler:
+        queries = self._time_queries
+        if queries is None:
+            raise RuntimeError("Time query handler is not configured.")
+        return queries
 
     def list_time_entries_for_task_page(
         self,
@@ -83,7 +83,7 @@ class TaskTimeEntryHandler:
         resource_by_assignment_id = {a.id: a.resource_id for a in assignments}
         assignment_ids = list(resource_by_assignment_id)
         entries = (
-            self._require_timesheet_service().list_time_entries_for_work_allocations(
+            self._require_time_queries().list_time_entries_for_work_allocations(
                 assignment_ids
             )
             if assignment_ids

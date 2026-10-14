@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.pydantic import normalize_optional_text
@@ -9,7 +10,7 @@ from src.core.platform.common.pydantic import normalize_optional_text
 _DEFAULT_SCORING_TEMPLATE_NAME = "Balanced PMO"
 
 
-def _validate_portfolio_weight(value: object, *, label: str, code: str) -> int:
+def _validate_portfolio_weight(value: Any, *, label: str, code: str) -> int:
     resolved = int(value if value not in (None, "") else 0)
     if resolved < 0 or resolved > 9:
         raise ValidationError(
@@ -19,7 +20,7 @@ def _validate_portfolio_weight(value: object, *, label: str, code: str) -> int:
     return resolved
 
 
-def _validate_portfolio_score(value: object, *, label: str, code: str) -> int:
+def _validate_portfolio_score(value: Any, *, label: str, code: str) -> int:
     resolved = int(value if value not in (None, "") else 0)
     if resolved < 1 or resolved > 5:
         raise ValidationError(
@@ -29,7 +30,7 @@ def _validate_portfolio_score(value: object, *, label: str, code: str) -> int:
     return resolved
 
 
-def _validate_non_negative_float(value: object, *, label: str, code: str) -> float:
+def _validate_non_negative_float(value: Any, *, label: str, code: str) -> float:
     resolved = float(value if value not in (None, "") else 0.0)
     if resolved < 0:
         raise ValidationError(
@@ -68,7 +69,7 @@ def _validate_optional_non_negative_decimal(
     return _validate_non_negative_decimal(value, label=label, code=code)
 
 
-def _normalize_identifier_list(value: object) -> list[str]:
+def _normalize_identifier_list(value: Any) -> list[str]:
     if value in (None, ""):
         return []
     if isinstance(value, str):

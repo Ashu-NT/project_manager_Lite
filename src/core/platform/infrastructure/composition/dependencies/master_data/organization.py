@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.master_data.org.organization_service import (
-    OrganizationService,
+from src.core.platform.application.master_data.org import (
+    OrganizationCommandHandler,
+    OrganizationLifecycleCommandHandler,
+    OrganizationQueryHandler,
 )
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.domain.security.auth.session import UserSessionContext
@@ -34,7 +38,14 @@ from src.infra.events.in_process_transactional_event_dispatcher import (
 from src.infra.time.system_clock import SystemClock
 
 
-def build_organization_service(
+@dataclass(frozen=True)
+class OrganizationComposition:
+    commands: OrganizationCommandHandler
+    lifecycle: OrganizationLifecycleCommandHandler
+    query: OrganizationQueryHandler
+
+
+def build_organization_handlers(
     *,
     session: Session,
     repositories: PlatformRepositories,
@@ -44,7 +55,7 @@ def build_organization_service(
     overview_rollup_reader: SqlAlchemyPlatformOverviewRollupReader,
     transactional_dispatcher: InProcessTransactionalEventDispatcher,
     post_commit_bus: InProcessPostCommitEventBus,
-) -> OrganizationService:
+) -> OrganizationComposition:
     organization_uow_factory = SqlAlchemyOrganizationUnitOfWorkFactory(
         session_factory=sessionmaker(bind=session.bind, future=True),
         transactional_dispatcher=transactional_dispatcher,
@@ -52,15 +63,29 @@ def build_organization_service(
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
-    return OrganizationService(
-        session=session,
-        organization_repo=repositories.organization_repo,
-        uow_factory=organization_uow_factory,
-        clock=SystemClock(),
-        user_session=user_session,
-        enterprise_audit_service=enterprise_audit_service,
-        tenant_context_service=tenant_context_service,
-        overview_rollup_reader=overview_rollup_reader,
-        employee_headcount_reader=SqlAlchemyEmployeeHeadcountReader(session),
-        default_calendar_writer=SqlAlchemyOrganizationDefaultCalendarWriter(),
+    clock = SystemClock()
+    return OrganizationComposition(
+        commands=OrganizationCommandHandler(
+            organization_repo=repositories.organization_repo,
+            uow_factory=organization_uow_factory,
+            default_calendar_writer=SqlAlchemyOrganizationDefaultCalendarWriter(),
+            clock=clock,
+            user_session=user_session,
+        ),
+        lifecycle=OrganizationLifecycleCommandHandler(
+            uow_factory=organization_uow_factory,
+            clock=clock,
+            user_session=user_session,
+        ),
+        query=OrganizationQueryHandler(
+            session=session,
+            organization_repo=repositories.organization_repo,
+            user_session=user_session,
+            enterprise_audit_service=enterprise_audit_service,
+            overview_rollup_reader=overview_rollup_reader,
+            employee_headcount_reader=SqlAlchemyEmployeeHeadcountReader(session),
+        ),
     )
+
+
+__all__ = ["OrganizationComposition", "build_organization_handlers"]

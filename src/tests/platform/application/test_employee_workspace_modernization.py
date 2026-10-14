@@ -7,6 +7,15 @@ resolution + linkable-user options for the link selector)."""
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
     PlatformEmployeeCatalogPresenter,
@@ -31,13 +40,9 @@ def test_employee_context_resolves_active_organization(services) -> None:
 
 
 def test_build_catalog_page_scopes_to_active_organization_and_paginates(services) -> None:
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    department = department_service.create_department(department_code="EWM-D1", name="Workspace Dept")
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EWM-D1", name="Workspace Dept"))
     for i in range(3):
-        employee_service.create_employee(
-            employee_code=f"EWM-E{i}", full_name=f"Workspace Employee {i}", department_id=department.id
-        )
+        services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=f"EWM-E{i}", full_name=f"Workspace Employee {i}", department_id=department.id))
 
     registry = build_desktop_api_registry(services)
     presenter = _presenter(registry)
@@ -52,17 +57,12 @@ def test_build_catalog_page_scopes_to_active_organization_and_paginates(services
 
 
 def test_build_catalog_page_filters_by_department_and_site(services) -> None:
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    site_service = services["site_service"]
 
-    site = site_service.create_site(site_code="EWM-SITE-1", name="Workspace Site")
-    dept_a = department_service.create_department(department_code="EWM-DA", name="Dept A")
-    dept_b = department_service.create_department(department_code="EWM-DB", name="Dept B")
-    employee_service.create_employee(
-        employee_code="EWM-FA", full_name="In Dept A", department_id=dept_a.id, site_id=site.id
-    )
-    employee_service.create_employee(employee_code="EWM-FB", full_name="In Dept B", department_id=dept_b.id)
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="EWM-SITE-1", name="Workspace Site"))
+    dept_a = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EWM-DA", name="Dept A"))
+    dept_b = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EWM-DB", name="Dept B"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EWM-FA", full_name="In Dept A", department_id=dept_a.id, site_id=site.id))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EWM-FB", full_name="In Dept B", department_id=dept_b.id))
 
     registry = build_desktop_api_registry(services)
     presenter = _presenter(registry)
@@ -75,16 +75,10 @@ def test_build_catalog_page_filters_by_department_and_site(services) -> None:
 
 
 def test_build_catalog_page_status_filter(services) -> None:
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    department = department_service.create_department(department_code="EWM-D2", name="Status Dept")
-    employee_service.create_employee(
-        employee_code="EWM-ACTIVE", full_name="Active Filter Employee", department_id=department.id
-    )
-    inactive_employee = employee_service.create_employee(
-        employee_code="EWM-INACTIVE", full_name="Inactive Filter Employee", department_id=department.id
-    )
-    employee_service.deactivate_employee(inactive_employee.id)
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EWM-D2", name="Status Dept"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EWM-ACTIVE", full_name="Active Filter Employee", department_id=department.id))
+    inactive_employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EWM-INACTIVE", full_name="Inactive Filter Employee", department_id=department.id))
+    services["employee_commands"].deactivate_employee(inactive_employee.id)
 
     registry = build_desktop_api_registry(services)
     presenter = _presenter(registry)
@@ -101,19 +95,14 @@ def test_build_catalog_page_status_filter(services) -> None:
 
 
 def test_resolve_linked_user_returns_identity_and_status(services) -> None:
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    auth_service = services["auth_service"]
 
-    department = department_service.create_department(department_code="EWM-D3", name="Link Dept")
-    employee = employee_service.create_employee(
-        employee_code="EWM-LINK-1", full_name="Linked Employee", department_id=department.id
-    )
-    user = auth_service.onboard_tenant_user(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EWM-D3", name="Link Dept"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EWM-LINK-1", full_name="Linked Employee", department_id=department.id))
+    user = services["user_registration"].onboard_tenant_user(
         username="ewm-link-user", raw_password="StrongPass123!", display_name="Link User",
         email="ewm-link-user@example.com",
     )
-    employee_service.link_employee_user_account(employee.id, user.id)
+    services["employee_commands"].link_employee_user_account(employee.id, user.id)
 
     registry = build_desktop_api_registry(services)
     presenter = _presenter(registry)
@@ -133,24 +122,17 @@ def test_resolve_linked_user_returns_none_when_no_user_id(services) -> None:
 
 
 def test_linkable_user_options_excludes_already_linked_and_service_accounts(services) -> None:
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    auth_service = services["auth_service"]
 
-    department = department_service.create_department(department_code="EWM-D4", name="Linkable Dept")
-    employee_one = employee_service.create_employee(
-        employee_code="EWM-LO-1", full_name="Linkable Employee One", department_id=department.id
-    )
-    employee_two = employee_service.create_employee(
-        employee_code="EWM-LO-2", full_name="Linkable Employee Two", department_id=department.id
-    )
-    linked_user = auth_service.onboard_tenant_user(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EWM-D4", name="Linkable Dept"))
+    employee_one = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EWM-LO-1", full_name="Linkable Employee One", department_id=department.id))
+    employee_two = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EWM-LO-2", full_name="Linkable Employee Two", department_id=department.id))
+    linked_user = services["user_registration"].onboard_tenant_user(
         username="ewm-already-linked", raw_password="StrongPass123!", display_name="Already Linked",
     )
-    unlinked_user = auth_service.onboard_tenant_user(
+    unlinked_user = services["user_registration"].onboard_tenant_user(
         username="ewm-unlinked", raw_password="StrongPass123!", display_name="Unlinked User",
     )
-    employee_service.link_employee_user_account(employee_one.id, linked_user.id)
+    services["employee_commands"].link_employee_user_account(employee_one.id, linked_user.id)
 
     registry = build_desktop_api_registry(services)
     presenter = _presenter(registry)
@@ -168,12 +150,8 @@ def test_linkable_user_options_excludes_already_linked_and_service_accounts(serv
 
 
 def test_admin_workspace_employees_catalog_uses_paginated_active_organization_scope(services) -> None:
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    department = department_service.create_department(department_code="EWM-D5", name="Admin Workspace Dept")
-    employee_service.create_employee(
-        employee_code="EWM-ADMIN-1", full_name="Admin Workspace Employee", department_id=department.id
-    )
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EWM-D5", name="Admin Workspace Dept"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EWM-ADMIN-1", full_name="Admin Workspace Employee", department_id=department.id))
 
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)

@@ -8,39 +8,36 @@ def test_same_comment_submission_replays_without_duplicate_and_new_draft_is_dist
 ) -> None:
     project = services["project_service"].create_project("Replay comments")
     task = services["task_service"].create_task(project.id, "Discuss")
-    service = services["collaboration_service"]
-
-    first = service.post_comment(
+    first = services["collaboration_comment_commands"].post_comment(
         task_id=task.id, body="Same visible text", submission_id="r7e-command-one"
     )
-    replay = service.post_comment(
+    replay = services["collaboration_comment_commands"].post_comment(
         task_id=task.id, body="Same visible text", submission_id="r7e-command-one"
     )
-    second = service.post_comment(
+    second = services["collaboration_comment_commands"].post_comment(
         task_id=task.id, body="Same visible text", submission_id="r7e-command-two"
     )
 
     assert first.id == replay.id == "r7e-command-one"
     assert second.id == "r7e-command-two"
     assert first.submission_hash == replay.submission_hash
-    assert service.query_task_comments_page(task.id).total == 2
+    assert services["collaboration_comment_query"].query_task_comments_page(task.id).total == 2
 
     with pytest.raises(ValidationError) as conflict:
-        service.post_comment(
+        services["collaboration_comment_commands"].post_comment(
             task_id=task.id, body="Changed text", submission_id="r7e-command-one"
         )
     assert conflict.value.code == "COLLABORATION_SUBMISSION_CONFLICT"
-    assert service.query_task_comments_page(task.id).total == 2
+    assert services["collaboration_comment_query"].query_task_comments_page(task.id).total == 2
 
 
 def test_duplicate_primary_key_race_returns_committed_submission(services, monkeypatch) -> None:
     project = services["project_service"].create_project("Replay race")
     task = services["task_service"].create_task(project.id, "Discuss")
-    service = services["collaboration_service"]
-    first = service.post_comment(
+    first = services["collaboration_comment_commands"].post_comment(
         task_id=task.id, body="One logical post", submission_id="r7e-race-command"
     )
-    original_get = service._comment_repo.get
+    original_get = services["collaboration_comment_commands"]._comment_repo.get
     missed = False
 
     def miss_first_lookup(comment_id: str):
@@ -50,40 +47,38 @@ def test_duplicate_primary_key_race_returns_committed_submission(services, monke
             return None
         return original_get(comment_id)
 
-    monkeypatch.setattr(service._comment_repo, "get", miss_first_lookup)
-    replay = service.post_comment(
+    monkeypatch.setattr(services["collaboration_comment_commands"]._comment_repo, "get", miss_first_lookup)
+    replay = services["collaboration_comment_commands"].post_comment(
         task_id=task.id, body="One logical post", submission_id="r7e-race-command"
     )
 
     assert replay.id == first.id
-    assert service.query_task_comments_page(task.id).total == 1
+    assert services["collaboration_comment_query"].query_task_comments_page(task.id).total == 1
 
 
 def test_deleted_parent_rejects_reply_and_repeated_reactions_are_no_ops(services) -> None:
     project = services["project_service"].create_project("Comment lifecycle")
     task = services["task_service"].create_task(project.id, "Discuss")
-    service = services["collaboration_service"]
-    parent = service.post_comment(task_id=task.id, body="Parent")
-    first_reaction = service.react_to_comment(parent.id, "thumbs-up")
-    repeated = service.react_to_comment(parent.id, "thumbs-up")
+    parent = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Parent")
+    first_reaction = services["collaboration_comment_engagement"].react_to_comment(parent.id, "thumbs-up")
+    repeated = services["collaboration_comment_engagement"].react_to_comment(parent.id, "thumbs-up")
     assert repeated.version == first_reaction.version
-    removed = service.remove_reaction(parent.id, "thumbs-up")
-    repeated_remove = service.remove_reaction(parent.id, "thumbs-up")
+    removed = services["collaboration_comment_engagement"].remove_reaction(parent.id, "thumbs-up")
+    repeated_remove = services["collaboration_comment_engagement"].remove_reaction(parent.id, "thumbs-up")
     assert repeated_remove.version == removed.version
 
-    service.delete_comment(parent.id, expected_revision=removed.version)
+    services["collaboration_comment_commands"].delete_comment(parent.id, expected_revision=removed.version)
     with pytest.raises(BusinessRuleError) as exc:
-        service.post_comment(task_id=task.id, body="Late reply", parent_comment_id=parent.id)
+        services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Late reply", parent_comment_id=parent.id)
     assert exc.value.code == "COLLABORATION_PARENT_COMMENT_DELETED"
-    assert service.query_task_comments_page(task.id).total == 1
+    assert services["collaboration_comment_query"].query_task_comments_page(task.id).total == 1
 
 
 def test_parent_deleted_between_precheck_and_write_rejects_reply(services, monkeypatch) -> None:
     project = services["project_service"].create_project("Reply race")
     task = services["task_service"].create_task(project.id, "Discuss")
-    service = services["collaboration_service"]
-    parent = service.post_comment(task_id=task.id, body="Parent")
-    factory = service._require_collaboration_uow_factory()
+    parent = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Parent")
+    factory = services["collaboration_comment_commands"]._uow_factory
     original_create = factory.create
     interleaved = False
 
@@ -91,12 +86,12 @@ def test_parent_deleted_between_precheck_and_write_rejects_reply(services, monke
         nonlocal interleaved
         if not interleaved:
             interleaved = True
-            service.delete_comment(parent.id, expected_revision=parent.version)
+            services["collaboration_comment_commands"].delete_comment(parent.id, expected_revision=parent.version)
         return original_create(context=context)
 
     monkeypatch.setattr(factory, "create", create_after_delete)
     with pytest.raises(BusinessRuleError) as exc:
-        service.post_comment(task_id=task.id, body="Late reply", parent_comment_id=parent.id)
+        services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Late reply", parent_comment_id=parent.id)
 
     assert exc.value.code == "COLLABORATION_PARENT_COMMENT_DELETED"
-    assert service.query_task_comments_page(task.id).total == 1
+    assert services["collaboration_comment_query"].query_task_comments_page(task.id).total == 1

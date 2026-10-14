@@ -25,6 +25,10 @@ from src.core.modules.project_management.api.desktop.timesheets.serializers.entr
 from src.core.modules.project_management.api.desktop.timesheets.serializers.period_serializer import (
     serialize_period_summary,
 )
+from src.core.platform.application.time_management.time import (
+    TimeEntryQueryHandler,
+    TimesheetPeriodQueryHandler,
+)
 
 
 def build_assignment_snapshot(
@@ -33,7 +37,8 @@ def build_assignment_snapshot(
     period_start: date | None = None,
     task_lookup_query,
     task_assignment_commands,
-    timesheet_service,
+    time_entry_queries: TimeEntryQueryHandler,
+    period_queries: TimesheetPeriodQueryHandler,
 ) -> TimesheetAssignmentSnapshotDesktopDto:
     normalized_assignment_id = str(assignment_id or "").strip()
     context = task_lookup_query.get_timesheet_assignment_context(normalized_assignment_id)
@@ -51,12 +56,13 @@ def build_assignment_snapshot(
     )
     selected_period_start = period_start or default_period_start(
         context.assignment_id,
-        timesheet_service=timesheet_service,
+        time_entry_queries=time_entry_queries,
     )
     period_options = build_period_options(
         context.assignment_id,
         resource_id=context.resource_id,
-        timesheet_service=timesheet_service,
+        time_entry_queries=time_entry_queries,
+        period_queries=period_queries,
     )
     if not period_options:
         period_options = (
@@ -70,19 +76,19 @@ def build_assignment_snapshot(
         for option in period_options
     ):
         selected_period_start = date.fromisoformat(period_options[0].value)
-    task_entries = timesheet_service.list_time_entries_for_assignment_period(
+    task_entries = time_entry_queries.list_time_entries_for_assignment_period(
         context.assignment_id,
         period_start=selected_period_start,
     )
-    resource_entries = timesheet_service.list_time_entries_for_resource_period(
+    resource_entries = time_entry_queries.list_time_entries_for_resource_period(
         context.resource_id,
         period_start=selected_period_start,
     )
-    period = timesheet_service.get_timesheet_period_record(
+    period = period_queries.get_timesheet_period_record(
         context.resource_id,
         period_start=selected_period_start,
     )
-    period_aggregate = timesheet_service.summarize_timesheet_period(
+    period_aggregate = period_queries.summarize_timesheet_period(
         context.resource_id,
         period_start=selected_period_start,
         period=period,

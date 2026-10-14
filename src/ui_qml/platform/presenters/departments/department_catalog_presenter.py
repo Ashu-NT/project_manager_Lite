@@ -6,15 +6,17 @@ from src.core.platform.api.desktop.master_data.department.department import (
     PlatformDepartmentDesktopApi,
 )
 from src.core.platform.api.desktop.master_data.department.models.department import (
-    DepartmentCreateCommand,
     DepartmentDto,
-    DepartmentUpdateCommand,
 )
 from src.core.platform.api.desktop.master_data.employee.employee import (
     PlatformEmployeeDesktopApi,
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+    DepartmentUpdateCommand,
+)
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     int_value,
     option_item,
@@ -94,7 +96,7 @@ class PlatformDepartmentCatalogPresenter:
 
     def build_catalog_for_site(self, site_id: str) -> PlatformWorkspaceActionListViewModel:
         """Explicit site_id-scoped Departments read for Site Detail's own
-        Departments tab -- a real backend filter (DepartmentService.
+        Departments tab -- a real backend filter (DepartmentQueryHandler.
         list_departments(site_id=...)), not a client-side filter of the
         shared, session-active-organization-only catalog."""
         if self._department_api is None:

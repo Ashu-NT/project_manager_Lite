@@ -6,13 +6,11 @@ from src.core.platform.api.desktop.master_data.documents.models.document import 
     DocumentPageDto,
 )
 from src.core.platform.api.desktop.master_data.employee.models.employee import (
-    EmployeeCreateCommand,
     EmployeeDepartmentBreakdownRowDto,
     EmployeeDto,
     EmployeeHeadcountSummaryDto,
     EmployeePageDto,
     EmployeeSiteBreakdownRowDto,
-    EmployeeUpdateCommand,
 )
 from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationDto,
@@ -22,20 +20,34 @@ from src.core.platform.api.desktop.support._support import (
     execute_desktop_operation,
     serialize_organization,
 )
-from src.core.platform.application.master_data.employee.employee_service import (
-    EmployeeService,
+from src.core.platform.application.master_data.employee import (
+    EmployeeCommandHandler,
+    EmployeeDocumentCommandHandler,
+    EmployeeQueryHandler,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+    EmployeeUpdateCommand,
 )
 
 
 class PlatformEmployeeDesktopApi:
     """Desktop-facing adapter for platform employee master data."""
 
-    def __init__(self, *, employee_service: EmployeeService) -> None:
-        self._employee_service = employee_service
+    def __init__(
+        self,
+        *,
+        employee_commands: EmployeeCommandHandler,
+        employee_query: EmployeeQueryHandler,
+        employee_documents: EmployeeDocumentCommandHandler,
+    ) -> None:
+        self._employee_commands = employee_commands
+        self._employee_query = employee_query
+        self._employee_documents = employee_documents
 
     def get_context(self) -> DesktopApiResult[OrganizationDto]:
         return execute_desktop_operation(
-            lambda: serialize_organization(self._employee_service.get_context_organization())
+            lambda: serialize_organization(self._employee_query.get_context_organization())
         )
 
     def list_employees(
@@ -48,7 +60,7 @@ class PlatformEmployeeDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_employee(employee)
-                for employee in self._employee_service.list_employees(
+                for employee in self._employee_query.list_employees(
                     active_only=active_only,
                     department_id=department_id,
                     site_id=site_id,
@@ -69,7 +81,7 @@ class PlatformEmployeeDesktopApi:
     ) -> DesktopApiResult[EmployeePageDto]:
         return execute_desktop_operation(
             lambda: self._serialize_employee_page(
-                self._employee_service.list_employees_page_for_organization(
+                self._employee_query.list_employees_page_for_organization(
                     organization_id,
                     page=page,
                     page_size=page_size,
@@ -84,7 +96,7 @@ class PlatformEmployeeDesktopApi:
     def get_headcount_summary(self) -> DesktopApiResult[EmployeeHeadcountSummaryDto]:
         return execute_desktop_operation(
             lambda: self._serialize_headcount_summary(
-                self._employee_service.get_headcount_summary()
+                self._employee_query.get_headcount_summary()
             )
         )
 
@@ -92,7 +104,7 @@ class PlatformEmployeeDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_department_breakdown_row(row)
-                for row in self._employee_service.get_department_breakdown()
+                for row in self._employee_query.get_department_breakdown()
             )
         )
 
@@ -100,69 +112,45 @@ class PlatformEmployeeDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_site_breakdown_row(row)
-                for row in self._employee_service.get_site_breakdown()
+                for row in self._employee_query.get_site_breakdown()
             )
         )
 
     def create_employee(self, command: EmployeeCreateCommand) -> DesktopApiResult[EmployeeDto]:
         return execute_desktop_operation(
             lambda: self._serialize_employee(
-                self._employee_service.create_employee(
-                    employee_code=command.employee_code,
-                    full_name=command.full_name,
-                    department_id=command.department_id,
-                    department=command.department,
-                    site_id=command.site_id,
-                    site_name=command.site_name,
-                    title=command.title,
-                    employment_type=command.employment_type,
-                    email=command.email,
-                    phone=command.phone,
-                )
+                self._employee_commands.create_employee(command)
             )
         )
 
     def update_employee(self, command: EmployeeUpdateCommand) -> DesktopApiResult[EmployeeDto]:
         return execute_desktop_operation(
             lambda: self._serialize_employee(
-                self._employee_service.update_employee(
-                    command.employee_id,
-                    employee_code=command.employee_code,
-                    full_name=command.full_name,
-                    department_id=command.department_id,
-                    department=command.department,
-                    site_id=command.site_id,
-                    site_name=command.site_name,
-                    title=command.title,
-                    employment_type=command.employment_type,
-                    email=command.email,
-                    phone=command.phone,
-                    expected_version=command.expected_version,
-                )
+                self._employee_commands.update_employee(command)
             )
         )
 
     def activate_employee(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
         return execute_desktop_operation(
-            lambda: self._serialize_employee(self._employee_service.activate_employee(employee_id))
+            lambda: self._serialize_employee(self._employee_commands.activate_employee(employee_id))
         )
 
     def deactivate_employee(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
         return execute_desktop_operation(
-            lambda: self._serialize_employee(self._employee_service.deactivate_employee(employee_id))
+            lambda: self._serialize_employee(self._employee_commands.deactivate_employee(employee_id))
         )
 
     def link_employee_user_account(self, employee_id: str, user_id: str) -> DesktopApiResult[EmployeeDto]:
         return execute_desktop_operation(
             lambda: self._serialize_employee(
-                self._employee_service.link_employee_user_account(employee_id, user_id)
+                self._employee_commands.link_employee_user_account(employee_id, user_id)
             )
         )
 
     def unlink_employee_user_account(self, employee_id: str) -> DesktopApiResult[EmployeeDto]:
         return execute_desktop_operation(
             lambda: self._serialize_employee(
-                self._employee_service.unlink_employee_user_account(employee_id)
+                self._employee_commands.unlink_employee_user_account(employee_id)
             )
         )
 
@@ -178,7 +166,7 @@ class PlatformEmployeeDesktopApi:
     ) -> DesktopApiResult[DocumentPageDto]:
         return execute_desktop_operation(
             lambda: self._serialize_document_page(
-                self._employee_service.list_employee_documents_page(
+                self._employee_query.list_employee_documents_page(
                     employee_id, page=page, page_size=page_size, search=search,
                     active_only=active_only, document_type=document_type,
                 )
@@ -188,13 +176,13 @@ class PlatformEmployeeDesktopApi:
     def link_employee_document(self, employee_id: str, document_id: str) -> DesktopApiResult[DocumentLinkDto]:
         return execute_desktop_operation(
             lambda: self._serialize_document_link(
-                self._employee_service.link_employee_document(employee_id, document_id)
+                self._employee_documents.link_employee_document(employee_id, document_id)
             )
         )
 
     def unlink_employee_document(self, employee_id: str, link_id: str) -> DesktopApiResult[None]:
         return execute_desktop_operation(
-            lambda: self._employee_service.unlink_employee_document(employee_id, link_id)
+            lambda: self._employee_documents.unlink_employee_document(employee_id, link_id)
         )
 
     def _serialize_document_page(self, page) -> DocumentPageDto:

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from sqlalchemy import or_, select, update
+from sqlalchemy.engine import CursorResult, Result
 from sqlalchemy.orm import Session
 
 from src.core.platform.contract.repositories.security.auth import (
@@ -62,6 +64,19 @@ from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant
     UserTenantORM,
 )
 from src.infra.persistence.db.optimistic import update_with_version_check
+
+
+def _affected_rows(result: Result[Any]) -> int:
+    # DML statements return a CursorResult at runtime; the Session.execute
+    # stub types the return value as the generic Result.
+    return cast(CursorResult[Any], result).rowcount
+
+
+def _required_datetime(value: datetime | None) -> datetime:
+    # Persisted auth sessions always carry these timestamps (set by
+    # AuthSession.create or loaded from NOT NULL columns), and the normalizer
+    # only yields None for a None/empty input.
+    return cast(datetime, value)
 
 
 class SqlAlchemyUserRepository(UserRepository):
@@ -161,12 +176,12 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         obj.device_label = auth_session.device_label
         obj.last_active_tenant_id = getattr(auth_session, "last_active_tenant_id", None)
         obj.last_active_organization_id = getattr(auth_session, "last_active_organization_id", None)
-        obj.issued_at = auth_session.issued_at
-        obj.expires_at = auth_session.expires_at
+        obj.issued_at = _required_datetime(auth_session.issued_at)
+        obj.expires_at = _required_datetime(auth_session.expires_at)
         obj.last_validated_at = auth_session.last_validated_at
         obj.revoked_at = auth_session.revoked_at
-        obj.created_at = auth_session.created_at
-        obj.updated_at = auth_session.updated_at
+        obj.created_at = _required_datetime(auth_session.created_at)
+        obj.updated_at = _required_datetime(auth_session.updated_at)
 
     def get(self, session_id: str) -> AuthSession | None:
         obj = self.session.get(AuthSessionORM, session_id)
@@ -187,9 +202,11 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
     ) -> bool:
         normalized_tenant_id = normalize_auth_session_context_id(last_active_tenant_id)
         normalized_organization_id = normalize_auth_session_context_id(last_active_organization_id)
-        normalized_updated_at = normalize_auth_session_datetime(
-            updated_at,
-            code="AUTH_SESSION_TIMESTAMP_INVALID",
+        normalized_updated_at = _required_datetime(
+            normalize_auth_session_datetime(
+                updated_at,
+                code="AUTH_SESSION_TIMESTAMP_INVALID",
+            )
         )
         obj = self.session.get(AuthSessionORM, session_id)
         if obj is None:
@@ -216,9 +233,11 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         if obj is None:
             return False
         current_validated_at = ensure_utc_datetime(obj.last_validated_at)
-        normalized_validated_at = normalize_auth_session_datetime(
-            validated_at,
-            code="AUTH_SESSION_TIMESTAMP_INVALID",
+        normalized_validated_at = _required_datetime(
+            normalize_auth_session_datetime(
+                validated_at,
+                code="AUTH_SESSION_TIMESTAMP_INVALID",
+            )
         )
         if (
             current_validated_at is not None
@@ -277,7 +296,7 @@ class SqlAlchemyAuthPolicyReconciliationRepository(
             from_version=row.from_version,
             to_version=row.to_version,
             change_set_hash=row.change_set_hash,
-            applied_at=ensure_utc_datetime(row.applied_at),
+            applied_at=_required_datetime(ensure_utc_datetime(row.applied_at)),
             applied_by_user_id=row.applied_by_user_id,
             rollback_json=row.rollback_json,
         )
@@ -365,7 +384,7 @@ class SqlAlchemyRoleRepository(RoleRepository):
                 updated_at=role.updated_at,
             )
         )
-        return bool(result.rowcount)
+        return bool(_affected_rows(result))
 
     def set_policy_version(
         self,
@@ -382,7 +401,7 @@ class SqlAlchemyRoleRepository(RoleRepository):
                 updated_at=updated_at,
             )
         )
-        return bool(result.rowcount)
+        return bool(_affected_rows(result))
 
     def list_all(self) -> list[Role]:
         rows = self.session.execute(select(RoleORM)).scalars().all()
@@ -548,7 +567,7 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
                 version=RoleBindingORM.version + 1,
             )
         )
-        return int(result.rowcount or 0)
+        return int(_affected_rows(result) or 0)
 
     def revoke(self, binding_id: str, *, revoked_at: datetime) -> bool:
         result = self.session.execute(
@@ -560,7 +579,7 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
                 version=RoleBindingORM.version + 1,
             )
         )
-        return bool(result.rowcount)
+        return bool(_affected_rows(result))
 
     def revoke_active_for_principal_tenant(
         self,
@@ -580,7 +599,7 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
                 version=RoleBindingORM.version + 1,
             )
         )
-        return int(result.rowcount or 0)
+        return int(_affected_rows(result) or 0)
 
     def revoke_active_for_role(
         self,
@@ -600,7 +619,7 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
                 version=RoleBindingORM.version + 1,
             )
         )
-        return int(result.rowcount or 0)
+        return int(_affected_rows(result) or 0)
 
 
 class SqlAlchemyRoleDelegationPolicyRepository(
@@ -707,7 +726,7 @@ class SqlAlchemyRoleDelegationPolicyRepository(
             .where(RoleDelegationPolicyORM.revoked_at.is_(None))
             .values(revoked_at=revoked_at)
         )
-        return bool(result.rowcount)
+        return bool(_affected_rows(result))
 
 
 class SqlAlchemyPermissionRepository(PermissionRepository):

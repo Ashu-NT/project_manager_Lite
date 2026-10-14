@@ -18,6 +18,16 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
     DeptCalendarAssignCommand,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+    DepartmentUpdateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
 )
@@ -73,16 +83,14 @@ def _grab(app, item, path: Path) -> bool:
 
 
 def _seed_departments(services, *, count: int, prefix: str) -> None:
-    department_service = services["department_service"]
     for i in range(count):
-        department_service.create_department(department_code=f"{prefix}{i:03d}", name=f"{prefix} Department {i:03d}")
+        services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"{prefix}{i:03d}", name=f"{prefix} Department {i:03d}"))
 
 
 def _seed_mixed_lifecycle_departments(services, *, prefix: str) -> None:
-    department_service = services["department_service"]
-    active = department_service.create_department(department_code=f"{prefix}-ACT", name=f"{prefix} Active Department")
-    inactive = department_service.create_department(department_code=f"{prefix}-INA", name=f"{prefix} Inactive Department")
-    department_service.deactivate_department(inactive.id)
+    active = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"{prefix}-ACT", name=f"{prefix} Active Department"))
+    inactive = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"{prefix}-INA", name=f"{prefix} Inactive Department"))
+    services["department_commands"].deactivate_department(inactive.id)
     return active
 
 
@@ -90,7 +98,7 @@ def _seed_sparse_department(services, *, code: str, name: str) -> str:
     """A department with no site, no parent, no HOD, no employees, no
     calendar override -- exercises every blank-value convention and empty
     state."""
-    department = services["department_service"].create_department(department_code=code, name=name)
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=code, name=name))
     return department.id
 
 
@@ -99,28 +107,12 @@ def _seed_full_department(services, *, code: str, name: str) -> tuple[str, str]:
     cost center, notes, and its own calendar override -- exercises
     populated Overview cards, real Key Statistics counts, and the
     "Department override" calendar state."""
-    site_service = services["site_service"]
-    department_service = services["department_service"]
-    employee_service = services["employee_service"]
 
-    site = site_service.create_site(site_code=f"{code}-SITE", name="VQA Department Site")
-    parent = department_service.create_department(department_code=f"{code}-PARENT", name="VQA Parent Department")
-    department = department_service.create_department(
-        department_code=code,
-        name=name,
-        description="Full VQA department",
-        site_id=site.id,
-        parent_department_id=parent.id,
-        department_type="Operations",
-        cost_center_code="CC-VQA-01",
-        notes="Operational notes for visual QA.",
-    )
-    employee = employee_service.create_employee(
-        employee_code=f"{code}-EMP-1", full_name="VQA Head Employee", site_id=site.id, department_id=department.id
-    )
-    department_service.update_department(
-        department.id, head_of_department_employee_id=employee.id, expected_version=department.version
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code=f"{code}-SITE", name="VQA Department Site"))
+    parent = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"{code}-PARENT", name="VQA Parent Department"))
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=code, name=name, description="Full VQA department", site_id=site.id, parent_department_id=parent.id, department_type="Operations", cost_center_code="CC-VQA-01", notes="Operational notes for visual QA."))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=f"{code}-EMP-1", full_name="VQA Head Employee", site_id=site.id, department_id=department.id))
+    services["department_commands"].update_department(DepartmentUpdateCommand(department_id=department.id, head_of_department_employee_id=employee.id, expected_version=department.version))
 
     registry = build_desktop_api_registry(services)
     calendars_result = registry.platform_calendar.list_calendars()

@@ -2,14 +2,10 @@ from __future__ import annotations
 
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.platform.application.master_data.department.department_service import (
-    DepartmentService,
-)
-from src.core.platform.application.master_data.documents.document_service import (
-    DocumentService,
-)
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.department import DepartmentQueryHandler
+from src.core.platform.application.master_data.documents import DocumentQueryHandler
+from src.core.platform.application.master_data.party import PartyQueryHandler
+from src.core.platform.application.master_data.site import SiteQueryHandler
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
     ShiftPatternService,
@@ -18,8 +14,14 @@ from src.core.platform.application.time_management.calendar.platform_calendar_se
     PlatformCalendarService,
 )
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.contract.port.master_data.documents.document_access_policy import (
+    DocumentVisibility,
+)
 from src.core.platform.domain.master_data.department import Department
-from src.core.platform.domain.master_data.documents import Document
+from src.core.platform.domain.master_data.documents import (
+    Document,
+    DocumentClassification,
+)
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.party import Party
 from src.core.platform.domain.master_data.site import Site
@@ -177,6 +179,14 @@ class _PlatformScopedRepo:
         return [row for row in rows if bool(getattr(row, "is_active", True)) is bool(active_only)]
 
 
+class _SeeEveryDocumentPolicy:
+    def visibility(self) -> DocumentVisibility:
+        return DocumentVisibility(classifications=frozenset(DocumentClassification))
+
+    def register_rule(self, rule) -> None:
+        raise NotImplementedError
+
+
 def _tenant_context(
     active_organization_id: str,
     *,
@@ -215,6 +225,7 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
                 "site.read",
                 "department.read",
                 "party.read",
+                "document.read",
                 "settings.manage",
                 "calendar.read",
                 "task.read",
@@ -283,43 +294,36 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
         ]
     )
 
-    site_service = SiteService(
-        session=object(),
+    site_query = SiteQueryHandler(
         site_repo=site_repo,
         organization_repo=org_repo,
         user_session=user_session,
         tenant_context_service=tenant_context,
-        uow_factory=object(),
-        clock=object(),
+        overview_rollup_reader=None,
     )
-    department_service = DepartmentService(
-        session=object(),
+    department_query = DepartmentQueryHandler(
         department_repo=department_repo,
         organization_repo=org_repo,
         user_session=user_session,
         tenant_context_service=tenant_context,
-        uow_factory=object(),
-        clock=object(),
+        overview_rollup_reader=None,
     )
-    party_service = PartyService(
-        session=object(),
+    party_query = PartyQueryHandler(
         party_repo=party_repo,
         organization_repo=org_repo,
         user_session=user_session,
         tenant_context_service=tenant_context,
-        uow_factory=object(),
-        clock=object(),
+        overview_rollup_reader=None,
     )
-    document_service = DocumentService(
-        session=object(),
+    document_query = DocumentQueryHandler(
         document_repo=document_repo,
         link_repo=object(),
         structure_repo=object(),
         organization_repo=org_repo,
         user_session=user_session,
         tenant_context_service=tenant_context,
-        uow_factory=object(),
-        clock=object(),
+        overview_rollup_reader=None,
+        access_policy=_SeeEveryDocumentPolicy(),
     )
     calendar_service = PlatformCalendarService(
         session=object(),
@@ -337,10 +341,10 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
         tenant_context_service=tenant_context,
     )
 
-    assert [row.id for row in site_service.list_sites(active_only=None)] == ["site-b"]
-    assert [row.id for row in department_service.list_departments(active_only=None)] == ["department-b"]
-    assert [row.id for row in party_service.list_parties(active_only=None)] == ["party-b"]
-    assert [row.id for row in document_service.list_documents(active_only=None)] == ["document-b"]
+    assert [row.id for row in site_query.list_sites(active_only=None)] == ["site-b"]
+    assert [row.id for row in department_query.list_departments(active_only=None)] == ["department-b"]
+    assert [row.id for row in party_query.list_parties(active_only=None)] == ["party-b"]
+    assert [row.id for row in document_query.list_documents(active_only=None)] == ["document-b"]
     assert [row.id for row in calendar_service.list_calendars(active_only=None)] == ["calendar-b"]
     assert [row.id for row in shift_pattern_service.list_shift_patterns(active_only=None)] == ["pattern-b"]
     try:

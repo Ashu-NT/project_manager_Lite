@@ -7,7 +7,10 @@ import pytest
 from sqlalchemy import select
 
 from src.core.platform.application.security.auth.audit.security_audit import (
-    add_atomic_security_audit,
+    SecurityAuditRecorder,
+)
+from src.core.platform.application.security.authorization.enforcement.target_user_authorization import (
+    TargetUserAuthorization,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
@@ -36,16 +39,22 @@ def _platform_audit_service(*, role_names: set[str]):
         role_names=frozenset(role_names),
         permissions=frozenset({"platform.admin"}),
     )
-    service = SimpleNamespace(
-        _security_audit_repo=repository,
-        _user_session=SimpleNamespace(principal=principal),
-        _tenant_context_service=None,
+    user_session = SimpleNamespace(principal=principal)
+    service = SecurityAuditRecorder(
+        security_audit_repo=repository,
+        tenant_context_service=None,
+        user_session=user_session,
+        target_users=TargetUserAuthorization(
+            user_session=user_session,
+            tenant_context_service=None,
+            user_tenant_repo=None,
+        ),
     )
     return service, repository
 
 
 def _register_target(services, username: str):
-    return services["auth_service"].register_user(
+    return services["user_registration"].register_user(
         username,
         _PASSWORD,
         role_names=["viewer"],
@@ -57,7 +66,7 @@ def _fail_tenant_audit(services, monkeypatch: pytest.MonkeyPatch) -> None:
         raise RuntimeError("security audit unavailable")
 
     monkeypatch.setattr(
-        services["auth_service"]._security_audit_repo,
+        services["auth_bootstrap"]._security_audit_repo,
         "add_for_tenant",
         _raise,
     )
@@ -71,9 +80,9 @@ def test_account_status_rolls_back_when_security_audit_fails(
     _fail_tenant_audit(services, monkeypatch)
 
     with pytest.raises(RuntimeError, match="security audit unavailable"):
-        services["auth_service"].set_user_active(target.id, False)
+        services["user_administration_commands"].set_user_active(target.id, False)
 
-    persisted = services["auth_service"]._user_repo.get(target.id)
+    persisted = services["auth_queries"]._user_repo.get(target.id)
     assert persisted is not None
     assert persisted.is_active is True
 
@@ -83,7 +92,7 @@ def test_forced_password_reset_rolls_back_when_security_audit_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     target = _register_target(services, "atomic-password-target")
-    authenticated = services["auth_service"].authenticate(
+    authenticated = services["authentication"].authenticate(
         target.username,
         _PASSWORD,
     )
@@ -91,13 +100,13 @@ def test_forced_password_reset_rolls_back_when_security_audit_fails(
     _fail_tenant_audit(services, monkeypatch)
 
     with pytest.raises(RuntimeError, match="security audit unavailable"):
-        services["auth_service"].force_user_password_reset(target.id)
+        services["password_commands"].force_user_password_reset(target.id)
 
-    persisted = services["auth_service"]._user_repo.get(target.id)
+    persisted = services["auth_queries"]._user_repo.get(target.id)
     assert persisted is not None
     assert persisted.must_change_password is False
     assert persisted.session_revision == target.session_revision
-    persisted_session = services["auth_service"]._auth_session_repo.get(
+    persisted_session = services["auth_session_commands"]._auth_session_repo.get(
         authenticated.active_session_id
     )
     assert persisted_session is not None
@@ -112,9 +121,9 @@ def test_mfa_provisioning_rolls_back_when_security_audit_fails(
     _fail_tenant_audit(services, monkeypatch)
 
     with pytest.raises(RuntimeError, match="security audit unavailable"):
-        services["auth_service"].provision_mfa_secret(target.id)
+        services["mfa_commands"].provision_mfa_secret(target.id)
 
-    persisted = services["auth_service"]._user_repo.get(target.id)
+    persisted = services["auth_queries"]._user_repo.get(target.id)
     assert persisted is not None
     assert persisted.mfa_secret is None
     assert persisted.mfa_enabled is False
@@ -128,13 +137,13 @@ def test_federated_link_rolls_back_when_security_audit_fails(
     _fail_tenant_audit(services, monkeypatch)
 
     with pytest.raises(RuntimeError, match="security audit unavailable"):
-        services["auth_service"].link_federated_identity(
+        services["federated_identity_commands"].link_federated_identity(
             target.id,
             identity_provider="oidc",
             federated_subject="subject-not-audited",
         )
 
-    persisted = services["auth_service"]._user_repo.get(target.id)
+    persisted = services["auth_queries"]._user_repo.get(target.id)
     assert persisted is not None
     assert persisted.identity_provider is None
     assert persisted.federated_subject is None
@@ -144,13 +153,14 @@ def test_security_mutation_fails_closed_without_audit_writer(
     services,
 ) -> None:
     target = _register_target(services, "missing-audit-writer-target")
-    services["auth_service"]._security_audit_repo = None
+    # The audit recorder is shared by every account-change handler.
+    services["user_administration_commands"]._audit._security_audit_repo = None
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        services["auth_service"].set_user_active(target.id, False)
+        services["user_administration_commands"].set_user_active(target.id, False)
 
     assert exc_info.value.code == "SECURITY_AUDIT_REQUIRED"
-    persisted = services["auth_service"]._user_repo.get(target.id)
+    persisted = services["auth_queries"]._user_repo.get(target.id)
     assert persisted is not None
     assert persisted.is_active is True
 
@@ -160,7 +170,7 @@ def test_atomic_security_audit_is_explicitly_scoped_and_redacted(
 ) -> None:
     target = _register_target(services, "scoped-security-audit-target")
 
-    services["auth_service"].provision_mfa_secret(target.id)
+    services["mfa_commands"].provision_mfa_secret(target.id)
 
     rows = services["session"].execute(
         select(AuditEntryORM)
@@ -192,8 +202,7 @@ def test_permission_only_principal_cannot_write_platform_security_audit() -> Non
     service, repository = _platform_audit_service(role_names={"viewer"})
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        add_atomic_security_audit(
-            service,
+        service.add_atomic_security_audit(
             operation="update",
             entity_type="user",
             entity_id="target-user",
@@ -208,8 +217,7 @@ def test_permission_only_principal_cannot_write_platform_security_audit() -> Non
 def test_canonical_platform_operator_writes_platform_security_audit() -> None:
     service, repository = _platform_audit_service(role_names={"admin"})
 
-    add_atomic_security_audit(
-        service,
+    service.add_atomic_security_audit(
         operation="update",
         entity_type="user",
         entity_id="target-user",

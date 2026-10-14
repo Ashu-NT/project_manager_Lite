@@ -31,7 +31,7 @@ def test_is_module_accessible_false_for_empty_permissions():
 
 def _plant_principal(services, *, permissions: frozenset[str]):
     default_organization = services["platform_runtime_application_service"].get_active_organization()
-    real_user = services["auth_service"].register_user(
+    real_user = services["user_registration"].register_user(
         f"module-access-planner-{'-'.join(sorted(permissions)) or 'none'}",
         "StrongPass123",
         role_names=["viewer"],

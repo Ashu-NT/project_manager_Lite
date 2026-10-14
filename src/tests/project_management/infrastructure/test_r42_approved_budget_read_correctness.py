@@ -91,8 +91,8 @@ def _desktop_api(services):
     return build_project_management_projects_desktop_api(
         project_service=services["project_service"],
         project_query=services["project_query"],
-        site_service=services["site_service"],
-        department_service=services["department_service"],
+        site_query=services["site_query"],
+        department_query=services["department_query"],
     )
 
 

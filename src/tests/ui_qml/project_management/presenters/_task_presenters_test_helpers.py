@@ -30,6 +30,19 @@ from src.ui_qml.modules.project_management.context import (
 )
 
 
+def _collaboration_api(service):
+    """Feed one fake (implementing every collaboration handler method) to each handler slot."""
+    return build_project_management_collaboration_desktop_api(
+        inbox_query=service,
+        comment_query=service,
+        document_query=service,
+        presence_query=service,
+        comment_commands=service,
+        comment_engagement=service,
+        presence_commands=service,
+    )
+
+
 class _FakePmRuntimeApi:
     def __init__(self, organization_id: str | None = "org-1") -> None:
         self._organization_id = organization_id
@@ -480,11 +493,11 @@ def _build_tasks_catalog(
                 SimpleNamespace(id="pr-1", project_id="proj-1", resource_id="res-1", hourly_rate=90.0, currency_code="EUR", is_active=True)
             ] if project_id == "proj-1" else []
         ),
-        resource_service=SimpleNamespace(
+        resource_query=SimpleNamespace(
             list_for_task_workspace=lambda **_kwargs: [SimpleNamespace(id="res-1", name="Alex Taylor", is_active=True, hourly_rate=85.0, currency_code="EUR")]
         ),
     )
-    collaboration_api = build_project_management_collaboration_desktop_api(collaboration_service=collaboration_service)
+    collaboration_api = _collaboration_api(collaboration_service)
     if settings is None:
         settings = QSettings(str(tmp_path / "pm-task-views.ini"), QSettings.IniFormat)
         settings.clear()

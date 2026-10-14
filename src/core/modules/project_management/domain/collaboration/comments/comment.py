@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import field
 from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import field_validator
 
@@ -18,7 +19,7 @@ from src.core.platform.common.pydantic import (
 )
 
 
-def _coerce_iterable(value: object) -> list[object]:
+def _coerce_iterable(value: Any) -> list[object]:
     if value in (None, ""):
         return []
     if isinstance(value, str):
@@ -203,7 +204,7 @@ class TaskComment:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         try:
             normalized = int(value)
         except (TypeError, ValueError) as exc:

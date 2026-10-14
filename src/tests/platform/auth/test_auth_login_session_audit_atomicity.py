@@ -24,7 +24,7 @@ def _fail_tenant_audit(services, monkeypatch: pytest.MonkeyPatch) -> None:
         raise RuntimeError("authentication audit unavailable")
 
     monkeypatch.setattr(
-        services["auth_service"]._security_audit_repo,
+        services["auth_bootstrap"]._security_audit_repo,
         "add_for_tenant",
         _raise,
     )
@@ -49,9 +49,8 @@ def _matching_audits(
 
 
 def _register_and_authenticate(services, username: str):
-    auth = services["auth_service"]
-    target = auth.register_user(username, _PASSWORD)
-    authenticated = auth.authenticate(username, _PASSWORD)
+    target = services["user_registration"].register_user(username, _PASSWORD)
+    authenticated = services["authentication"].authenticate(username, _PASSWORD)
     assert authenticated.active_session_id is not None
     return target, authenticated.active_session_id
 
@@ -60,8 +59,7 @@ def test_successful_login_rolls_back_user_and_session_when_audit_fails(
     services,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    auth = services["auth_service"]
-    target = auth.register_user("atomic-login-success-target", _PASSWORD)
+    target = services["user_registration"].register_user("atomic-login-success-target", _PASSWORD)
     target.password_hash = PasswordHasher(
         time_cost=1,
         memory_cost=8 * 1024,
@@ -70,25 +68,25 @@ def test_successful_login_rolls_back_user_and_session_when_audit_fails(
         salt_len=16,
         type=Type.ID,
     ).hash(_PASSWORD)
-    auth._user_repo.update(target)
+    services["auth_queries"]._user_repo.update(target)
     services["session"].commit()
     original_hash = target.password_hash
     _fail_tenant_audit(services, monkeypatch)
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        auth.authenticate(target.username, _PASSWORD)
+        services["authentication"].authenticate(target.username, _PASSWORD)
 
     assert exc_info.value.code == "AUTH_AUDIT_UNAVAILABLE"
     assert str(exc_info.value) == (
         "Authentication could not be completed securely. Please try again."
     )
-    persisted = auth._user_repo.get(target.id)
+    persisted = services["auth_queries"]._user_repo.get(target.id)
     assert persisted is not None
     assert persisted.last_login_at is None
     assert persisted.last_login_auth_method is None
     assert persisted.password_hash == original_hash
     assert password_needs_rehash(persisted.password_hash) is True
-    assert auth._auth_session_repo.list_by_user(target.id) == []
+    assert services["auth_session_commands"]._auth_session_repo.list_by_user(target.id) == []
 
 
 def test_failed_login_fails_closed_and_records_nothing_when_audit_fails(
@@ -97,14 +95,13 @@ def test_failed_login_fails_closed_and_records_nothing_when_audit_fails(
 ) -> None:
     """An audit-write failure during a failed login must propagate (fail-closed, matching the
     successful-login audit policy) and roll back the whole attempt, not partially persist it."""
-    auth = services["auth_service"]
-    target = auth.register_user("atomic-login-denial-target", _PASSWORD)
+    target = services["user_registration"].register_user("atomic-login-denial-target", _PASSWORD)
     _fail_tenant_audit(services, monkeypatch)
 
     with pytest.raises(RuntimeError, match="authentication audit unavailable"):
-        auth.authenticate(target.username, "WrongPass123!")
+        services["authentication"].authenticate(target.username, "WrongPass123!")
 
-    persisted = auth._user_repo.get(target.id)
+    persisted = services["auth_queries"]._user_repo.get(target.id)
     assert persisted is not None
     assert persisted.failed_login_attempts == 0
     assert persisted.locked_until is None
@@ -114,22 +111,21 @@ def test_failed_login_counters_lockout_and_audit_commit_together(
     services,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    auth = services["auth_service"]
     monkeypatch.setenv("PM_AUTH_LOCKOUT_ATTEMPTS", "2")
-    target = auth.register_user("atomic-lockout-target", _PASSWORD)
+    target = services["user_registration"].register_user("atomic-lockout-target", _PASSWORD)
 
     for _attempt in range(2):
         with pytest.raises(ValidationError) as exc_info:
-            auth.authenticate(target.username, "WrongPass123!")
+            services["authentication"].authenticate(target.username, "WrongPass123!")
         assert exc_info.value.code == "AUTH_FAILED"
 
-    persisted = auth._user_repo.get(target.id)
+    persisted = services["auth_queries"]._user_repo.get(target.id)
     assert persisted is not None
     assert persisted.failed_login_attempts == 2
     assert persisted.locked_until is not None
 
     with pytest.raises(ValidationError) as locked_error:
-        auth.authenticate(target.username, _PASSWORD)
+        services["authentication"].authenticate(target.username, _PASSWORD)
     assert locked_error.value.code == "AUTH_LOCKED"
 
     matching = _matching_audits(
@@ -152,7 +148,7 @@ def test_failed_login_counters_lockout_and_audit_commit_together(
 
 def test_unknown_user_login_denial_is_platform_scoped(services) -> None:
     with pytest.raises(ValidationError) as exc_info:
-        services["auth_service"].authenticate(
+        services["authentication"].authenticate(
             "unknown-login-subject",
             "UnknownPass123!",
         )
@@ -182,13 +178,13 @@ def test_unknown_user_denial_is_preserved_when_platform_audit_fails(
         raise RuntimeError("platform authentication audit unavailable")
 
     monkeypatch.setattr(
-        services["auth_service"]._security_audit_repo,
+        services["auth_bootstrap"]._security_audit_repo,
         "add_platform",
         _raise,
     )
 
     with pytest.raises(ValidationError) as exc_info:
-        services["auth_service"].authenticate(
+        services["authentication"].authenticate(
             "unknown-audit-failure-subject",
             "UnknownPass123!",
         )
@@ -201,7 +197,7 @@ def test_unknown_federated_denial_never_records_subject(services) -> None:
     federated_subject = "sensitive-federated-subject"
 
     with pytest.raises(ValidationError) as exc_info:
-        services["auth_service"].authenticate_federated(
+        services["authentication"].authenticate_federated(
             identity_provider="AzureAD",
             federated_subject=federated_subject,
         )
@@ -222,10 +218,9 @@ def test_unknown_federated_denial_never_records_subject(services) -> None:
 
 
 def test_successful_login_audit_is_scoped_and_redacted(services) -> None:
-    auth = services["auth_service"]
-    target = auth.register_user("scoped-login-success-target", _PASSWORD)
+    target = services["user_registration"].register_user("scoped-login-success-target", _PASSWORD)
 
-    authenticated = auth.authenticate(target.username, _PASSWORD)
+    authenticated = services["authentication"].authenticate(target.username, _PASSWORD)
     assert authenticated.active_session_id is not None
 
     matching = _matching_audits(
@@ -248,8 +243,7 @@ def test_successful_login_audit_is_scoped_and_redacted(services) -> None:
 
 
 def test_successful_login_upgrades_obsolete_argon2id_profile(services) -> None:
-    auth = services["auth_service"]
-    target = auth.register_user("argon2-rehash-target", _PASSWORD)
+    target = services["user_registration"].register_user("argon2-rehash-target", _PASSWORD)
     target.password_hash = PasswordHasher(
         time_cost=1,
         memory_cost=8 * 1024,
@@ -258,14 +252,14 @@ def test_successful_login_upgrades_obsolete_argon2id_profile(services) -> None:
         salt_len=16,
         type=Type.ID,
     ).hash(_PASSWORD)
-    auth._user_repo.update(target)
+    services["auth_queries"]._user_repo.update(target)
     services["session"].commit()
 
     assert password_needs_rehash(target.password_hash) is True
 
-    auth.authenticate(target.username, _PASSWORD)
+    services["authentication"].authenticate(target.username, _PASSWORD)
 
-    persisted = auth._user_repo.get(target.id)
+    persisted = services["auth_queries"]._user_repo.get(target.id)
     assert persisted is not None
     assert verify_password(_PASSWORD, persisted.password_hash) is True
     assert password_needs_rehash(persisted.password_hash) is False
@@ -275,23 +269,22 @@ def test_session_policy_rolls_back_user_and_live_sessions_on_audit_failure(
     services,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    auth = services["auth_service"]
     target, session_id = _register_and_authenticate(
         services,
         "atomic-session-policy-target",
     )
-    before = auth._user_repo.get(target.id)
+    before = services["auth_queries"]._user_repo.get(target.id)
     assert before is not None
     _fail_tenant_audit(services, monkeypatch)
 
     with pytest.raises(RuntimeError, match="authentication audit unavailable"):
-        auth.set_user_session_policy(
+        services["auth_session_commands"].set_user_session_policy(
             target.id,
             session_timeout_minutes_override=30,
         )
 
-    persisted = auth._user_repo.get(target.id)
-    persisted_session = auth._auth_session_repo.get(session_id)
+    persisted = services["auth_queries"]._user_repo.get(target.id)
+    persisted_session = services["auth_session_commands"]._auth_session_repo.get(session_id)
     assert persisted is not None
     assert persisted.session_timeout_minutes_override is None
     assert persisted.session_revision == before.session_revision
@@ -303,20 +296,19 @@ def test_revoke_all_sessions_rolls_back_on_audit_failure(
     services,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    auth = services["auth_service"]
     target, session_id = _register_and_authenticate(
         services,
         "atomic-revoke-all-target",
     )
-    before = auth._user_repo.get(target.id)
+    before = services["auth_queries"]._user_repo.get(target.id)
     assert before is not None
     _fail_tenant_audit(services, monkeypatch)
 
     with pytest.raises(RuntimeError, match="authentication audit unavailable"):
-        auth.revoke_user_sessions(target.id, note="Security review")
+        services["auth_session_commands"].revoke_user_sessions(target.id, note="Security review")
 
-    persisted = auth._user_repo.get(target.id)
-    persisted_session = auth._auth_session_repo.get(session_id)
+    persisted = services["auth_queries"]._user_repo.get(target.id)
+    persisted_session = services["auth_session_commands"]._auth_session_repo.get(session_id)
     assert persisted is not None
     assert persisted.session_revision == before.session_revision
     assert persisted_session is not None
@@ -327,7 +319,6 @@ def test_single_session_revocation_rolls_back_on_audit_failure(
     services,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    auth = services["auth_service"]
     _target, session_id = _register_and_authenticate(
         services,
         "atomic-single-session-target",
@@ -335,23 +326,22 @@ def test_single_session_revocation_rolls_back_on_audit_failure(
     _fail_tenant_audit(services, monkeypatch)
 
     with pytest.raises(RuntimeError, match="authentication audit unavailable"):
-        auth.revoke_session(session_id, note="Compromised device")
+        services["auth_session_commands"].revoke_session(session_id, note="Compromised device")
 
-    persisted_session = auth._auth_session_repo.get(session_id)
+    persisted_session = services["auth_session_commands"]._auth_session_repo.get(session_id)
     assert persisted_session is not None
     assert persisted_session.revoked_at is None
 
 
 def test_session_administration_audit_is_scoped_and_idempotent(services) -> None:
-    auth = services["auth_service"]
     target, session_id = _register_and_authenticate(
         services,
         "scoped-session-admin-target",
     )
 
-    auth.revoke_session(session_id, note="Retired device")
-    auth.revoke_session(session_id, note="Duplicate request")
-    auth.set_user_session_policy(
+    services["auth_session_commands"].revoke_session(session_id, note="Retired device")
+    services["auth_session_commands"].revoke_session(session_id, note="Duplicate request")
+    services["auth_session_commands"].set_user_session_policy(
         target.id,
         session_timeout_minutes_override=45,
     )

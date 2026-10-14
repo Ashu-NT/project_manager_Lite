@@ -10,11 +10,11 @@ from src.core.platform.application.integration.accounting.outcome_ingress import
     AccountingIngressAuthenticationError,
     AccountingIngressSizeError,
     AccountingOutcomeIngress,
-    IngressRejectionReason,
 )
 from src.core.platform.contract.port.integration.accounting_outcomes import (
     AuthenticatedAccountingConnection,
     ExternalAccountingOutcome,
+    IngressRejectionReason,
 )
 
 

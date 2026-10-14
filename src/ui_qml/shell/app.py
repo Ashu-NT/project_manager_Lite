@@ -139,10 +139,11 @@ def _configure_runtime_environment(
 
 
 def _prompt_for_login_qml(
-    *, auth_service, user_session, username: str = "admin"
+    *, services, user_session, username: str = "admin"
 ) -> bool:
     controller = ShellLoginController(
-        auth_service=auth_service,
+        authentication=services["authentication"],
+        principals=services["principal_builder"],
         user_session=user_session,
         username=username,
     )
@@ -203,7 +204,7 @@ def main(
             preauthenticated,
         )
         if (not skip_login or not preauthenticated) and not _prompt_for_login_qml(
-            auth_service=services["auth_service"],
+            services=services,
             user_session=services["user_session"],
         ):
             logger.info("Login rejected; exiting application before shell load.")
@@ -388,7 +389,7 @@ def main(
             shell_context=shell_context,
             user_session=services["user_session"],
             login_prompt=lambda username: _prompt_for_login_qml(
-                auth_service=services["auth_service"],
+                services=services,
                 user_session=services["user_session"],
                 username=username or "admin",
             ),

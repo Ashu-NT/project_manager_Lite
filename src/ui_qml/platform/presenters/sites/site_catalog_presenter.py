@@ -3,12 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.platform.api.desktop.master_data.site.models.site import (
-    SiteCreateCommand,
     SiteDto,
-    SiteUpdateCommand,
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+    SiteUpdateCommand,
+)
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     int_value,
     preview_error_result,

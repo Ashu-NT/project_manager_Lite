@@ -38,13 +38,12 @@ def test_resource_workload_demand_fact_is_immutable() -> None:
 def test_resource_workload_reads_only_overlapping_assignment_demand(services) -> None:
     project_service = services["project_service"]
     task_service = services["task_service"]
-    resource_service = services["resource_service"]
     workload_service = services["resource_workload_service"]
     window_start = date.today() + timedelta(days=1)
     window_end = window_start + timedelta(days=6)
 
     project = project_service.create_project("R5D bounded workload")
-    resource = resource_service.create_resource("R5D bounded resource")
+    resource = services["resource_master_commands"].create_resource("R5D bounded resource")
     inside = task_service.create_task(
         project.id,
         "Inside range",
@@ -73,9 +72,11 @@ def test_resource_workload_reads_only_overlapping_assignment_demand(services) ->
 
 
 def test_resource_availability_rejects_invalid_and_unbounded_ranges(services) -> None:
-    resource = services["resource_service"].create_resource("R5D range resource")
+    resource = services["resource_master_commands"].create_resource("R5D range resource")
     api = build_project_management_resources_desktop_api(
-        resource_service=services["resource_service"],
+        resource_query=services["resource_query"],
+        resource_master_commands=services["resource_master_commands"],
+        resource_capability_commands=services["resource_capability_commands"],
         workload_service=services["resource_workload_service"],
     )
 
@@ -97,7 +98,7 @@ def test_resource_availability_rejects_invalid_and_unbounded_ranges(services) ->
 
 
 def test_resource_workload_requires_resource_read(services) -> None:
-    resource = services["resource_service"].create_resource("R5D protected resource")
+    resource = services["resource_master_commands"].create_resource("R5D protected resource")
     user_session = services["user_session"]
     original = user_session.principal
     assert original is not None
@@ -126,10 +127,9 @@ def test_resource_workload_requires_resource_read(services) -> None:
 
 
 def test_resource_workload_fails_closed_after_organization_switch(services) -> None:
-    resource = services["resource_service"].create_resource("R5D scoped resource")
-    organization_service = services["organization_service"]
+    resource = services["resource_master_commands"].create_resource("R5D scoped resource")
     original = services["tenant_context_service"].get_active_organization()
-    other = organization_service.create_organization(
+    other = services["organization_commands"].create_organization(
         organization_code="R5D-OTHER",
         display_name="R5D Other Organization",
         base_currency="EUR",

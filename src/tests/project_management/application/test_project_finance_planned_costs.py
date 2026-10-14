@@ -30,7 +30,7 @@ def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float 
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "Engineer One", hourly_rate=hourly_rate, currency_code="USD"
     )
     rate_card = services["rate_card_service"].create_rate_card(

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from pathlib import Path
 
 from reportlab.lib import colors
@@ -42,7 +43,7 @@ class PdfReportRenderer:
         story.append(Spacer(1, 12))
 
         # ---------------- Summary ----------------
-        def _money_or_restricted(value: float | None) -> str:
+        def _money_or_restricted(value: Decimal | float | None) -> str:
             if value is None:
                 return "Restricted (finance.read required)"
             return f"{value:.2f}"
@@ -349,11 +350,13 @@ class PdfReportRenderer:
             story.append(Paragraph("Resource Load Summary", styles["Heading2"]))
             story.append(Spacer(1, 8))
 
-            data = [["Resource", "Assigned %", "Capacity %", "Utilization %", "Tasks"]]
+            resource_data: list[list[object]] = [
+                ["Resource", "Assigned %", "Capacity %", "Utilization %", "Tasks"]
+            ]
             for r in ctx.resources:
                 capacity = float(getattr(r, "capacity_percent", 100.0) or 100.0)
                 utilization = float(getattr(r, "utilization_percent", r.total_allocation_percent) or 0.0)
-                data.append([
+                resource_data.append([
                     f"{r.resource_name} ({r.resource_id})",
                     f"{r.total_allocation_percent:.1f}",
                     f"{capacity:.1f}",
@@ -361,7 +364,7 @@ class PdfReportRenderer:
                     r.tasks_count,
                 ])
 
-            table = Table(data, colWidths=[250, 90, 90, 95, 60])
+            table = Table(resource_data, colWidths=[250, 90, 90, 95, 60])
             table.setStyle(TableStyle([
                 ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
                 ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),

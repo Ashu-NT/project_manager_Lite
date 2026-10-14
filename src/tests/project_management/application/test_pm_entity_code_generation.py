@@ -44,7 +44,7 @@ def test_task_manual_duplicate_blocked_within_project(services):
 
 # ── Resource (RES, global) ───────────────────────────────────────────────────
 def test_resource_autogenerates_code(services):
-    resource = services["resource_service"].create_resource("Electrical Crew", "Lead")
+    resource = services["resource_master_commands"].create_resource("Electrical Crew", "Lead")
     assert resource.code == "RES-ELEC-0001"
 
 

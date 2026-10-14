@@ -9,63 +9,6 @@ from src.core.modules.project_management.api.desktop.financials.builders.commitm
     build_commitment_line_dto,
     build_commitment_summary_dto,
 )
-from src.core.modules.project_management.api.desktop.financials.commands.billing import (
-    FinancialActivateBillingProfileCommand,
-    FinancialAddApprovedTimeBillingSourceCommand,
-    FinancialAddBillingScheduleLineCommand,
-    FinancialAddCostPlusBillingSourceCommand,
-    FinancialAddFixedPriceBillingSourceCommand,
-    FinancialCreateBillingPreparationCommand,
-    FinancialCreateBillingProfileCommand,
-    FinancialMarkBillingScheduleLineReadyCommand,
-    FinancialRemoveDraftBillingLineCommand,
-    FinancialVersionedBillingPreparationCommand,
-)
-from src.core.modules.project_management.api.desktop.financials.commands.budgets import (
-    FinancialAddBudgetLineCommand,
-    FinancialCreateBudgetSuccessorCommand,
-    FinancialCreateBudgetVersionCommand,
-    FinancialDeleteBudgetLineCommand,
-    FinancialUpdateBudgetCommand,
-    FinancialUpdateBudgetLineCommand,
-    FinancialVersionedBudgetCommand,
-)
-from src.core.modules.project_management.api.desktop.financials.commands.changes import (
-    FinancialChangeImpactCommand,
-    FinancialCreateChangeCommand,
-    FinancialRemoveChangeImpactCommand,
-    FinancialSubmitChangeCommand,
-    FinancialUpdateChangeCommand,
-    FinancialUpdateChangeImpactCommand,
-)
-from src.core.modules.project_management.api.desktop.financials.commands.configuration import (
-    FinancialChangeCostCodeStatusCommand,
-    FinancialCostCodeRestrictionCommand,
-    FinancialCreateCostCodeCommand,
-    FinancialTransitionProfileCommand,
-    FinancialUpdateCostCodeCommand,
-    FinancialUpdateProfileCommand,
-)
-from src.core.modules.project_management.api.desktop.financials.commands.cost_entries import (
-    FinancialCreateManualActualCommand,
-    FinancialDecideActualCommand,
-    FinancialPostActualCommand,
-    FinancialReverseActualCommand,
-    FinancialUpdateActualDraftCommand,
-    FinancialVersionedActualCommand,
-)
-from src.core.modules.project_management.api.desktop.financials.commands.forecasts import (
-    FinancialGenerateForecastCommand,
-    FinancialVersionedForecastCommand,
-)
-from src.core.modules.project_management.api.desktop.financials.commands.rates import (
-    FinancialAddRateLineCommand,
-    FinancialCreateRateCardCommand,
-    FinancialUpdateRateCardCommand,
-    FinancialUpdateRateLineCommand,
-    FinancialVersionedRateCardCommand,
-    FinancialVersionedRateLineCommand,
-)
 from src.core.modules.project_management.api.desktop.financials.models.billing import (
     FinancialBillingPreparationDto,
     FinancialBillingPreparationLineDto,
@@ -182,7 +125,7 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernedServicePort,
 )
 from src.core.modules.project_management.application.reporting import (
-    ReportingService,
+    ProfitabilityReportBuilder,
 )
 from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
     CommercialMetricAvailability,
@@ -229,10 +172,68 @@ from src.core.modules.project_management.contracts.reads.financials.sorting impo
 from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
 )
+from src.core.modules.project_management.contracts.use_cases.financials.billing import (
+    FinancialActivateBillingProfileCommand,
+    FinancialAddApprovedTimeBillingSourceCommand,
+    FinancialAddBillingScheduleLineCommand,
+    FinancialAddCostPlusBillingSourceCommand,
+    FinancialAddFixedPriceBillingSourceCommand,
+    FinancialCreateBillingPreparationCommand,
+    FinancialCreateBillingProfileCommand,
+    FinancialMarkBillingScheduleLineReadyCommand,
+    FinancialRemoveDraftBillingLineCommand,
+    FinancialVersionedBillingPreparationCommand,
+)
+from src.core.modules.project_management.contracts.use_cases.financials.budgets import (
+    FinancialAddBudgetLineCommand,
+    FinancialCreateBudgetSuccessorCommand,
+    FinancialCreateBudgetVersionCommand,
+    FinancialDeleteBudgetLineCommand,
+    FinancialUpdateBudgetCommand,
+    FinancialUpdateBudgetLineCommand,
+    FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.contracts.use_cases.financials.changes import (
+    FinancialChangeImpactCommand,
+    FinancialCreateChangeCommand,
+    FinancialRemoveChangeImpactCommand,
+    FinancialSubmitChangeCommand,
+    FinancialUpdateChangeCommand,
+    FinancialUpdateChangeImpactCommand,
+)
+from src.core.modules.project_management.contracts.use_cases.financials.configuration import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
+    FinancialCreateCostCodeCommand,
+    FinancialTransitionProfileCommand,
+    FinancialUpdateCostCodeCommand,
+    FinancialUpdateProfileCommand,
+)
+from src.core.modules.project_management.contracts.use_cases.financials.cost_entries import (
+    FinancialCreateManualActualCommand,
+    FinancialDecideActualCommand,
+    FinancialPostActualCommand,
+    FinancialReverseActualCommand,
+    FinancialUpdateActualDraftCommand,
+    FinancialVersionedActualCommand,
+)
+from src.core.modules.project_management.contracts.use_cases.financials.forecasts import (
+    FinancialGenerateForecastCommand,
+    FinancialVersionedForecastCommand,
+)
+from src.core.modules.project_management.contracts.use_cases.financials.rates import (
+    FinancialAddRateLineCommand,
+    FinancialCreateRateCardCommand,
+    FinancialUpdateRateCardCommand,
+    FinancialUpdateRateLineCommand,
+    FinancialVersionedRateCardCommand,
+    FinancialVersionedRateLineCommand,
+)
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpactType,
 )
 from src.core.modules.project_management.infrastructure.reporting.export_runtime import (
+    ProjectReportSources,
     generate_excel_report,
     generate_pdf_report,
 )
@@ -251,7 +252,8 @@ class ProjectManagementFinancialsDesktopApi:
         commitment_service: ProjectCommitmentService | None = None,
         billing_profile_service: ProjectBillingProfileService | None = None,
         billing_preparation_service: ProjectBillingPreparationService | None = None,
-        reporting_service: ReportingService | None = None,
+        report_sources: ProjectReportSources | None = None,
+        profitability_report: ProfitabilityReportBuilder | None = None,
     ) -> None:
         self._finance_service = finance_service
         self._finance_workspace_query = finance_workspace_query
@@ -261,7 +263,8 @@ class ProjectManagementFinancialsDesktopApi:
         self._commitment_service = commitment_service
         self._billing_profile_service = billing_profile_service
         self._billing_preparation_service = billing_preparation_service
-        self._reporting_service = reporting_service
+        self._report_sources = report_sources
+        self._profitability_report = profitability_report
 
     def active_scope_ids(self) -> tuple[str, str]:
         query = self._require_finance_workspace_query()
@@ -1625,11 +1628,11 @@ class ProjectManagementFinancialsDesktopApi:
         report_format: str,
         baseline_id: str | None = None,
     ) -> str:
-        if self._reporting_service is None:
+        if self._report_sources is None:
             raise RuntimeError("Project management reporting service is not connected.")
         if report_format == "xlsx":
             result = generate_excel_report(
-                self._reporting_service,
+                self._report_sources,
                 project_id,
                 output_path,
                 finance_service=self._require_finance_service(),
@@ -1637,7 +1640,7 @@ class ProjectManagementFinancialsDesktopApi:
             )
         elif report_format == "pdf":
             result = generate_pdf_report(
-                self._reporting_service,
+                self._report_sources,
                 project_id,
                 output_path,
                 finance_service=self._require_finance_service(),
@@ -2116,7 +2119,7 @@ class ProjectManagementFinancialsDesktopApi:
     def get_commercial_projection(
         self, project_id: str, *, as_of_date: date | None = None
     ) -> FinancialCommercialProjectionDto:
-        if not project_id or self._reporting_service is None:
+        if not project_id or self._profitability_report is None:
             reason = CommercialMetricUnavailableReason.PROJECT_NOT_SELECTED if not project_id else CommercialMetricUnavailableReason.QUERY_NOT_CONNECTED
             return FinancialCommercialProjectionDto(
                 revenue_availability=CommercialMetricAvailability.UNAVAILABLE,
@@ -2126,7 +2129,7 @@ class ProjectManagementFinancialsDesktopApi:
             )
         resolved_as_of = as_of_date or datetime.now(UTC).astimezone().date()
         return serialize_commercial_projection(
-            self._reporting_service.get_project_commercial_projection(
+            self._profitability_report.get_project_commercial_projection(
                 project_id, as_of_date=resolved_as_of
             )
         )

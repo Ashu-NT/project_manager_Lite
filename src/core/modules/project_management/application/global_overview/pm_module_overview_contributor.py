@@ -6,8 +6,8 @@ from src.core.global_overview.contract.action_center import (
 from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
 )
-from src.core.modules.project_management.application.dashboard.services.dashboard_service import (
-    DashboardService,
+from src.core.modules.project_management.application.dashboard.reporting.portfolio import (
+    PortfolioDashboardQueryHandler,
 )
 from src.core.modules.project_management.application.projects.service import (
     ProjectService,
@@ -35,11 +35,11 @@ class ProjectManagementModuleOverviewContributor:
         self,
         *,
         platform_runtime_application_service: PlatformRuntimeApplicationService,
-        dashboard_service: DashboardService,
+        portfolio_dashboard: PortfolioDashboardQueryHandler,
         project_service: ProjectService,
     ) -> None:
         self._platform_runtime_application_service = platform_runtime_application_service
-        self._dashboard_service = dashboard_service
+        self._portfolio_dashboard = portfolio_dashboard
         self._project_service = project_service
 
     def get_summary(self, context: ActionCenterContext) -> ModuleSummaryDto | None:
@@ -68,7 +68,7 @@ class ProjectManagementModuleOverviewContributor:
         # metric rather than recomputing the rule -- falls back to a plain
         # accessible-project count only if the user lacks report.view.
         try:
-            data = self._dashboard_service.get_portfolio_data()
+            data = self._portfolio_dashboard.get_portfolio_data()
         except BusinessRuleError:
             project_count = len(self._project_service.list_projects())
             noun = "project" if project_count == 1 else "projects"

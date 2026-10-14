@@ -12,13 +12,13 @@ from PySide6.QtQml import QQmlComponent
 from PySide6.QtQuick import QQuickItem
 from sqlalchemy import event
 
-from src.core.modules.project_management.api.desktop.resources.commands.skill_commands import (
-    ResourceAddSkillCommand,
-)
 from src.core.modules.project_management.api.desktop.resources.factories.resources_api_factory import (
     build_project_management_resources_desktop_api,
 )
 from src.core.modules.project_management.contracts.reads import ReadSort
+from src.core.modules.project_management.contracts.use_cases.resources.commands import (
+    ResourceAddSkillCommand,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.ui_qml.modules.project_management.controllers.resources import (
@@ -33,10 +33,9 @@ from src.ui_qml.shell.qml_engine import create_qml_engine
 def _seed_resource_context(services):
     project_service = services["project_service"]
     task_service = services["task_service"]
-    resource_service = services["resource_service"]
     project_resource_service = services["project_resource_service"]
 
-    resource = resource_service.create_resource("R5E Planner", role="Planner")
+    resource = services["resource_master_commands"].create_resource("R5E Planner", role="Planner")
     alpha = project_service.create_project(
         "Alpha Delivery",
         code="R5E-ALPHA",
@@ -84,13 +83,13 @@ def _seed_resource_context(services):
         allocation_percent=25,
         allocated_planned_hours=Decimal(30),
     )
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         alpha_assignment.id,
         entry_date=date(2026, 8, 12),
         hours=25,
         note="Alpha actual work",
     )
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         zulu_assignment.id,
         entry_date=date(2026, 9, 12),
         hours=10,
@@ -290,9 +289,10 @@ def test_r5e_readers_fail_closed_for_wrong_tenant_and_organization(services) -> 
 
 def test_r5e_activity_uses_authoritative_ledger_categories_order_and_paging(services, session) -> None:
     seeded = _seed_resource_context(services)
-    resource_service = services["resource_service"]
     desktop_api = build_project_management_resources_desktop_api(
-        resource_service=resource_service,
+        resource_query=services["resource_query"],
+        resource_master_commands=services["resource_master_commands"],
+        resource_capability_commands=services["resource_capability_commands"],
         resource_context_query=services["resource_context_query"],
     )
     desktop_api.add_resource_skill(

@@ -25,7 +25,7 @@ def test_project_management_dashboard_desktop_api_uses_real_period_labels_for_tr
                 )
             ]
         ),
-        dashboard_service=SimpleNamespace(
+        project_dashboard=(_dashboard := SimpleNamespace(
             get_dashboard_data=lambda project_id, baseline_id=None, include_evm=True: SimpleNamespace(
                 kpi=SimpleNamespace(
                     project_id=project_id,
@@ -63,8 +63,9 @@ def test_project_management_dashboard_desktop_api_uses_real_period_labels_for_tr
                 register_summary=None,
                 cost_sources=None,
             )
-        ),
-        reporting_service=SimpleNamespace(
+        )),
+        portfolio_dashboard=_dashboard,
+        earned_value_report=SimpleNamespace(
             get_evm_series=lambda project_id, baseline_id=None, as_of=None: [
                 SimpleNamespace(
                     period_end=period_dates[0],
@@ -117,7 +118,7 @@ def test_project_management_dashboard_desktop_api_normalizes_naive_activity_time
             list_projects=lambda: [SimpleNamespace(id="proj-1", name="Plant Upgrade")]
         ),
         baseline_service=SimpleNamespace(list_baselines=lambda _project_id: []),
-        dashboard_service=SimpleNamespace(
+        project_dashboard=(_dashboard := SimpleNamespace(
             get_dashboard_data=lambda project_id, baseline_id=None, include_evm=True: SimpleNamespace(
                 kpi=SimpleNamespace(
                     project_id=project_id,
@@ -142,8 +143,9 @@ def test_project_management_dashboard_desktop_api_normalizes_naive_activity_time
                 register_summary=None,
                 cost_sources=None,
             )
-        ),
-        collaboration_service=SimpleNamespace(
+        )),
+        portfolio_dashboard=_dashboard,
+        collaboration_inbox_query=SimpleNamespace(
             list_recent_activity=lambda **kwargs: [
                 SimpleNamespace(
                     comment_id="comment-1",

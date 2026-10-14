@@ -6,6 +6,15 @@ import pytest
 
 from src.core.modules.project_management.domain.enums import WorkerType
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
@@ -14,30 +23,28 @@ from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-
     project = ps.create_project("Timesheet Project")
     task = ts.create_task(project.id, "Timesheet Task", start_date=date(2026, 3, 2), duration_days=3)
-    resource = rs.create_resource("Time Logger", hourly_rate=110.0)
+    resource = services["resource_master_commands"].create_resource("Time Logger", hourly_rate=110.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=50.0)
 
-    first = services["timesheet_service"].add_time_entry(
+    first = services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 3, 2),
         hours=2.5,
         note="Design review",
     )
-    second = services["timesheet_service"].add_time_entry(
+    second = services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 3, 3),
         hours=3.0,
         note="Implementation",
     )
 
-    assert len(services["timesheet_service"].list_time_entries_for_assignment(assignment.id)) == 2
+    assert len(services["time_entry_queries"].list_time_entries_for_assignment(assignment.id)) == 2
     assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(5.5)
 
-    services["timesheet_service"].update_time_entry(
+    services["time_entry_commands"].update_time_entry(
         first.id,
         expected_version=first.version,
         hours=3.0,
@@ -45,10 +52,10 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
     )
     assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(6.0)
 
-    services["timesheet_service"].delete_time_entry(
+    services["time_entry_commands"].delete_time_entry(
         second.id, expected_version=second.version
     )
-    remaining = services["timesheet_service"].list_time_entries_for_assignment(assignment.id)
+    remaining = services["time_entry_queries"].list_time_entries_for_assignment(assignment.id)
     assert len(remaining) == 1
     assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(3.0)
 
@@ -59,15 +66,13 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
 def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-
     project = ps.create_project("Legacy Hours Project")
     task = ts.create_task(project.id, "Legacy Hours Task", start_date=date(2026, 3, 4), duration_days=2)
-    resource = rs.create_resource("Legacy Logger", hourly_rate=95.0)
+    resource = services["resource_master_commands"].create_resource("Legacy Logger", hourly_rate=95.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=60.0)
 
     services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
-    seeded_entries = services["timesheet_service"].initialize_timesheet_for_assignment(
+    seeded_entries = services["time_entry_commands"].initialize_timesheet_for_assignment(
         assignment.id
     )
 
@@ -77,14 +82,14 @@ def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(serv
     assert seeded_entries[0].author_username == "system"
     assert "Opening balance" in seeded_entries[0].note
 
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 3, 5),
         hours=2.0,
         note="Testing",
     )
 
-    entries = services["timesheet_service"].list_time_entries_for_assignment(assignment.id)
+    entries = services["time_entry_queries"].list_time_entries_for_assignment(assignment.id)
     assert len(entries) == 2
     assert services["task_assignment_commands"].get_assignment(assignment.id).hours_logged == pytest.approx(6.0)
 
@@ -95,28 +100,13 @@ def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(serv
 def test_time_entries_capture_platform_work_entry_context_for_employee_resources(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-    es = services["employee_service"]
-    site = services["site_service"].create_site(site_code="HAM", name="Hamburg Yard")
-    department = services["department_service"].create_department(
-        department_code="OPS",
-        name="Operations",
-        site_id=site.id,
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="HAM", name="Hamburg Yard"))
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="OPS", name="Operations", site_id=site.id))
 
-    employee = es.create_employee(
-        employee_code="EMP-101",
-        full_name="Context Owner",
-        department_id=department.id,
-        department="Operations",
-        site_id=site.id,
-        site_name="Hamburg Yard",
-        title="Technician",
-        email="context.owner@example.com",
-    )
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-101", full_name="Context Owner", department_id=department.id, department="Operations", site_id=site.id, site_name="Hamburg Yard", title="Technician", email="context.owner@example.com"))
     project = ps.create_project("Shared Time Context")
     task = ts.create_task(project.id, "Log Shared Work", start_date=date(2026, 8, 4), duration_days=2)
-    resource = rs.create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "",
         hourly_rate=88.0,
         worker_type=WorkerType.EMPLOYEE,
@@ -124,7 +114,7 @@ def test_time_entries_capture_platform_work_entry_context_for_employee_resources
     )
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
 
-    entry = services["timesheet_service"].add_time_entry(
+    entry = services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 8, 4),
         hours=5.0,
@@ -148,23 +138,20 @@ def test_time_entries_capture_platform_work_entry_context_for_employee_resources
 def test_shared_time_work_allocation_aliases_preserve_pm_timesheet_flows(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    timesheet_service = services["timesheet_service"]
-    rs = services["resource_service"]
-
     project = ps.create_project("Shared Time Alias Project")
     task = ts.create_task(project.id, "Alias Task", start_date=date(2026, 9, 1), duration_days=2)
-    resource = rs.create_resource("Alias Resource", hourly_rate=105.0)
+    resource = services["resource_master_commands"].create_resource("Alias Resource", hourly_rate=105.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
 
-    entry = timesheet_service.add_work_entry(
+    entry = services["time_entry_commands"].add_work_entry(
         assignment.id,
         entry_date=date(2026, 9, 1),
         hours=4.0,
         note="Shared work allocation entry",
     )
 
-    listed = timesheet_service.list_time_entries_for_work_allocation(assignment.id)
-    listed_period = timesheet_service.list_time_entries_for_work_allocation_period(
+    listed = services["time_entry_queries"].list_time_entries_for_work_allocation(assignment.id)
+    listed_period = services["time_entry_queries"].list_time_entries_for_work_allocation_period(
         assignment.id,
         period_start=date(2026, 9, 15),
     )
@@ -181,27 +168,25 @@ def test_shared_time_work_allocation_aliases_preserve_pm_timesheet_flows(service
 def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-
     project = ps.create_project("Timesheet Approval Project")
     task = ts.create_task(project.id, "Approval Task", start_date=date(2026, 3, 1), duration_days=5)
-    resource = rs.create_resource("Submitted Dev", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource("Submitted Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
 
-    march_entry = services["timesheet_service"].add_time_entry(
+    march_entry = services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 3, 5),
         hours=4.0,
         note="March work",
     )
-    april_entry = services["timesheet_service"].add_time_entry(
+    april_entry = services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 4, 2),
         hours=2.5,
         note="April work",
     )
 
-    period = services["timesheet_service"].submit_timesheet_period(
+    period = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id,
         period_start=date(2026, 3, 15),
         note="Ready for review",
@@ -209,27 +194,27 @@ def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
 
     assert period.status == TimesheetPeriodStatus.SUBMITTED
     assert period.period_start == date(2026, 3, 1)
-    assert len(services["timesheet_service"].list_time_entries_for_resource_period(resource.id, period_start=date(2026, 3, 1))) == 1
+    assert len(services["time_entry_queries"].list_time_entries_for_resource_period(resource.id, period_start=date(2026, 3, 1))) == 1
 
     with pytest.raises(ValidationError, match="submitted"):
-        services["timesheet_service"].add_time_entry(
+        services["time_entry_commands"].add_time_entry(
             assignment.id,
             entry_date=date(2026, 3, 6),
             hours=1.0,
             note="Blocked follow-up",
         )
     with pytest.raises(ValidationError, match="submitted"):
-        services["timesheet_service"].update_time_entry(
+        services["time_entry_commands"].update_time_entry(
             march_entry.id,
             expected_version=march_entry.version,
             hours=5.0,
         )
     with pytest.raises(ValidationError, match="submitted"):
-        services["timesheet_service"].delete_time_entry(
+        services["time_entry_commands"].delete_time_entry(
             march_entry.id, expected_version=march_entry.version
         )
 
-    services["timesheet_service"].update_time_entry(
+    services["time_entry_commands"].update_time_entry(
         april_entry.id,
         expected_version=april_entry.version,
         hours=3.0,
@@ -241,21 +226,19 @@ def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
 def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-
     project = ps.create_project("Timesheet Lock Project")
     task = ts.create_task(project.id, "Lock Task", start_date=date(2026, 5, 1), duration_days=3)
-    resource = rs.create_resource("Locked Dev", hourly_rate=90.0)
+    resource = services["resource_master_commands"].create_resource("Locked Dev", hourly_rate=90.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
-    may_entry = services["timesheet_service"].add_time_entry(
+    may_entry = services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 5, 3),
         hours=6.0,
         note="May work",
     )
 
-    submitted = services["timesheet_service"].submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-    approved = services["timesheet_service"].approve_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
+    approved = services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id,
         expected_version=submitted.version,
         note="Approved for payroll",
@@ -264,20 +247,20 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
     assert approved.locked_at is None
 
     with pytest.raises(ValidationError, match="approved"):
-        services["timesheet_service"].update_time_entry(
+        services["time_entry_commands"].update_time_entry(
             may_entry.id,
             expected_version=may_entry.version,
             hours=7.0,
         )
 
-    locked = services["timesheet_service"].lock_timesheet_period(
+    locked = services["timesheet_period_transitions"].lock_timesheet_period(
         approved.period_id,
         expected_version=approved.version,
         note="Payroll closed",
     )
     assert locked.status == TimesheetPeriodStatus.LOCKED
 
-    unlocked = services["timesheet_service"].unlock_timesheet_period(
+    unlocked = services["timesheet_period_transitions"].unlock_timesheet_period(
         locked.period_id,
         expected_version=locked.version,
         note="Administrative unlock",
@@ -289,7 +272,6 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
     importer = services["data_import_service"]
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
     expected_currency = services["tenant_context_service"].get_active_organization().base_currency
 
     tmp = create_test_workspace("import")
@@ -320,7 +302,7 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
         )
         resource_summary = importer.import_csv("resources", tmp / "resources.csv")
         assert resource_summary.created_count == 1
-        resource = next(item for item in rs.list_resources() if item.name == "Import Dev")
+        resource = next(item for item in services["resource_query"].list_resources() if item.name == "Import Dev")
         assert resource.capacity_percent == pytest.approx(80.0)
 
         (tmp / "tasks.csv").write_text(

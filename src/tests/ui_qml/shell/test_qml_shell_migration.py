@@ -99,7 +99,8 @@ def test_qml_login_view_model_keeps_empty_credentials_by_default() -> None:
 def test_qml_login_controller_authenticates_and_updates_session(services) -> None:
     services["user_session"].clear()
     controller = ShellLoginController(
-        auth_service=services["auth_service"],
+        authentication=services["authentication"],
+        principals=services["principal_builder"],
         user_session=services["user_session"],
     )
 
@@ -114,7 +115,6 @@ def test_qml_login_controller_authenticates_and_updates_session(services) -> Non
 
 
 def test_qml_runtime_session_controller_reauthenticates_after_expiry(qapp, services) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
     registry = build_qml_route_registry()
     shell_context = build_shell_context(build_main_window_navigation(registry))
@@ -131,12 +131,12 @@ def test_qml_runtime_session_controller_reauthenticates_after_expiry(qapp, servi
 
     def _prompt(username: str | None) -> bool:
         prompt_usernames.append(username)
-        authenticated_user = auth.authenticate(
+        authenticated_user = services["authentication"].authenticate(
             username or "admin",
             "ChangeMe123!",
             device_label="Runtime Reauth",
         )
-        user_session.set_principal(auth.build_principal(authenticated_user))
+        user_session.set_principal(services["principal_builder"].build(authenticated_user))
         return True
 
     controller = ShellRuntimeSessionController(
@@ -150,7 +150,7 @@ def test_qml_runtime_session_controller_reauthenticates_after_expiry(qapp, servi
     )
     current_session_id = user_session.principal.session_id
 
-    auth.revoke_session(current_session_id, note="expire runtime session")
+    services["auth_session_commands"].revoke_session(current_session_id, note="expire runtime session")
     controller.revalidateSession()
     qapp.processEvents()
 
@@ -163,7 +163,6 @@ def test_qml_runtime_session_controller_reauthenticates_after_expiry(qapp, servi
 
 
 def test_qml_runtime_session_controller_quits_when_reauth_is_rejected(qapp, services) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
     shell_context = build_shell_context(build_main_window_navigation(build_qml_route_registry()))
     quit_markers: list[str] = []
@@ -178,7 +177,7 @@ def test_qml_runtime_session_controller_quits_when_reauth_is_rejected(qapp, serv
     )
     current_session_id = user_session.principal.session_id
 
-    auth.revoke_session(current_session_id, note="expire runtime session")
+    services["auth_session_commands"].revoke_session(current_session_id, note="expire runtime session")
     controller.revalidateSession()
 
     assert prompt_usernames == ["admin"]

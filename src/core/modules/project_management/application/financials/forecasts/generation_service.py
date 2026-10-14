@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
@@ -93,6 +92,7 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.time.clock import CalendarClock
 
 _PAGE_SIZE = 200
 _OPEN_CONSTRAINT = "uq_pf_forecasts_one_open_per_project"
@@ -127,7 +127,7 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
         commitment_repo: ProjectCommitmentRepository,
         cost_entry_repo: ProjectCostEntryRepository,
         register_repo: RegisterEntryRepository,
-        clock: Clock,
+        clock: CalendarClock,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,
@@ -333,9 +333,9 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
 
         lines: list[ForecastLine] = []
         open_commitment_total = Decimal(0)
-        for item in commitments:
-            remaining = self._commitment_amount(item, currency)
-            snapshot_at = item.updated_at
+        for commitment in commitments:
+            remaining = self._commitment_amount(commitment, currency)
+            snapshot_at = commitment.updated_at
             if snapshot_at.date() > forecast.as_of_date:
                 raise BusinessRuleError(
                     "A commitment was updated after the forecast as-of date; historical reconstruction is unavailable.",
@@ -344,30 +344,30 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
             if remaining <= 0:
                 reason = (
                     ForecastDecisionReason.CLOSED_OR_CANCELLED
-                    if item.state in {ProjectCommitmentLineState.CLOSED, ProjectCommitmentLineState.CANCELLED}
+                    if commitment.state in {ProjectCommitmentLineState.CLOSED, ProjectCommitmentLineState.CANCELLED}
                     else ForecastDecisionReason.NO_REMAINING_AMOUNT
                 )
                 decisions.append(self._decision(
-                    forecast, item.cost_code_id, item.task_id,
-                    ForecastLineSourceType.OPEN_COMMITMENT, "project_commitment_line", item.id,
+                    forecast, commitment.cost_code_id, commitment.task_id,
+                    ForecastLineSourceType.OPEN_COMMITMENT, "project_commitment_line", commitment.id,
                     ForecastDecisionAction.EXCLUDED, reason,
-                    max(Decimal(0), self._commitment_gross_amount(item, currency)),
-                    Decimal(0), max(Decimal(0), self._commitment_gross_amount(item, currency)),
+                    max(Decimal(0), self._commitment_gross_amount(commitment, currency)),
+                    Decimal(0), max(Decimal(0), self._commitment_gross_amount(commitment, currency)),
                     snapshot_at, now,
                 ))
                 continue
             open_commitment_total += remaining
-            key = (item.cost_code_id, item.task_id)
+            key = (commitment.cost_code_id, commitment.task_id)
             commitment_offsets[key] = commitment_offsets.get(key, Decimal(0)) + remaining
             lines.append(self._line(
-                forecast, item.cost_code_id, item.task_id,
-                f"Open commitment {item.purchase_order_line_id}", remaining,
+                forecast, commitment.cost_code_id, commitment.task_id,
+                f"Open commitment {commitment.purchase_order_line_id}", remaining,
                 ForecastLineSourceKind.AUTOMATIC, ForecastLineSourceType.OPEN_COMMITMENT,
-                "project_commitment_line", item.id, snapshot_at, generated_by, now,
+                "project_commitment_line", commitment.id, snapshot_at, generated_by, now,
             ))
             decisions.append(self._decision(
-                forecast, item.cost_code_id, item.task_id,
-                ForecastLineSourceType.OPEN_COMMITMENT, "project_commitment_line", item.id,
+                forecast, commitment.cost_code_id, commitment.task_id,
+                ForecastLineSourceType.OPEN_COMMITMENT, "project_commitment_line", commitment.id,
                 ForecastDecisionAction.INCLUDED, ForecastDecisionReason.OPEN_COMMITMENT,
                 remaining, remaining, Decimal(0), snapshot_at, now,
             ))
@@ -377,13 +377,13 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
         manual_by_dimension = {(item.cost_code_id, item.task_id): item for item in manual_estimates}
         manual_cost_scopes = {item.cost_code_id for item in manual_estimates if item.task_id is None}
         remaining_plan_total = Decimal(0)
-        for item in plan:
-            source = item.source
+        for plan_slice in plan:
+            source = plan_slice.source
             overridden = (
                 source.cost_code_id in manual_cost_scopes
                 or (source.cost_code_id, source.task_id) in manual_by_dimension
             )
-            included = Decimal(0) if overridden else item.remaining
+            included = Decimal(0) if overridden else plan_slice.remaining
             excluded = source.amount - included
             reason = (
                 ForecastDecisionReason.MANUAL_OVERRIDE
@@ -415,43 +415,48 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
                 ))
 
         manual_total = Decimal(0)
-        for item in manual_estimates:
-            manual_total += item.amount
-            reference_id = f"{item.cost_code_id}:{item.task_id or '*'}"
-            if item.amount > 0:
+        for estimate in manual_estimates:
+            manual_total += estimate.amount
+            reference_id = f"{estimate.cost_code_id}:{estimate.task_id or '*'}"
+            if estimate.amount > 0:
                 lines.append(self._line(
-                    forecast, item.cost_code_id, item.task_id, item.description, item.amount,
+                    forecast, estimate.cost_code_id, estimate.task_id, estimate.description, estimate.amount,
                     ForecastLineSourceKind.MANUAL, ForecastLineSourceType.MANUAL_ESTIMATE,
                     "manual_etc_estimate", reference_id, now, generated_by, now,
-                    item.period_start, item.period_end,
+                    estimate.period_start, estimate.period_end,
                 ))
             decisions.append(self._decision(
-                forecast, item.cost_code_id, item.task_id,
+                forecast, estimate.cost_code_id, estimate.task_id,
                 ForecastLineSourceType.MANUAL_ESTIMATE, "manual_etc_estimate", reference_id,
-                ForecastDecisionAction.INCLUDED if item.amount > 0 else ForecastDecisionAction.EXCLUDED,
+                ForecastDecisionAction.INCLUDED if estimate.amount > 0 else ForecastDecisionAction.EXCLUDED,
                 ForecastDecisionReason.MANUAL_OVERRIDE,
-                item.amount, item.amount, Decimal(0), now, now,
+                estimate.amount, estimate.amount, Decimal(0), now, now,
             ))
 
         risk_total = Decimal(0)
-        for item in risk_contingencies:
-            risk = risks[item.risk_id]
-            risk_total += item.amount
-            snapshot_at = risk.updated_at
-            if item.amount > 0:
+        for contingency in risk_contingencies:
+            risk = risks[contingency.risk_id]
+            risk_total += contingency.amount
+            risk_snapshot_at = risk.updated_at
+            if risk_snapshot_at is None:  # _validated_risks already rejects this
+                raise BusinessRuleError(
+                    "Risk state is newer than the forecast as-of date.",
+                    code="PROJECT_FORECAST_RISK_AFTER_AS_OF",
+                )
+            if contingency.amount > 0:
                 lines.append(self._line(
-                    forecast, item.cost_code_id, item.task_id,
-                    item.description or f"Risk contingency: {risk.title}", item.amount,
+                    forecast, contingency.cost_code_id, contingency.task_id,
+                    contingency.description or f"Risk contingency: {risk.title}", contingency.amount,
                     ForecastLineSourceKind.MANUAL, ForecastLineSourceType.RISK,
-                    "register_risk", risk.id, snapshot_at, generated_by, now,
-                    item.period_start, item.period_end,
+                    "register_risk", risk.id, risk_snapshot_at, generated_by, now,
+                    contingency.period_start, contingency.period_end,
                 ))
             decisions.append(self._decision(
-                forecast, item.cost_code_id, item.task_id,
+                forecast, contingency.cost_code_id, contingency.task_id,
                 ForecastLineSourceType.RISK, "register_risk", risk.id,
-                ForecastDecisionAction.INCLUDED if item.amount > 0 else ForecastDecisionAction.EXCLUDED,
+                ForecastDecisionAction.INCLUDED if contingency.amount > 0 else ForecastDecisionAction.EXCLUDED,
                 ForecastDecisionReason.RISK_CONTINGENCY,
-                item.amount, item.amount, Decimal(0), snapshot_at, now,
+                contingency.amount, contingency.amount, Decimal(0), risk_snapshot_at, now,
             ))
 
         etc_total = open_commitment_total + remaining_plan_total + manual_total + risk_total

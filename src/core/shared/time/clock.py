@@ -6,7 +6,7 @@ record. Contract only; the concrete implementation (`SystemClock`) lives in
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Protocol
 
 
@@ -14,4 +14,10 @@ class Clock(Protocol):
     def now(self) -> datetime: ...
 
 
-__all__ = ["Clock"]
+class CalendarClock(Clock, Protocol):
+    """A `Clock` that also answers the current business date."""
+
+    def today(self) -> date: ...
+
+
+__all__ = ["CalendarClock", "Clock"]

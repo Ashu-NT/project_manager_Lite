@@ -27,10 +27,9 @@ def _active_context_ids(services) -> tuple[str, str]:
 
 
 def _bind_project_role(services, user_id: str, project_id: str, role_name: str) -> None:
-    auth = services["auth_service"]
-    role = auth._role_repo.get_by_name(role_name)
+    role = services["auth_queries"]._role_repo.get_by_name(role_name)
     assert role is not None
-    auth._role_binding_repo.add(
+    services["role_assignment_commands"]._role_binding_repo.add(
         RoleBinding.create(
             principal_id=user_id,
             role_id=role.id,
@@ -79,9 +78,8 @@ def test_all_project_scope_permissions_are_registered():
 # ---------------------------------------------------------------------------
 
 def test_project_scope_roles_are_seeded_in_db(services):
-    auth = services["auth_service"]
     for role_name in ("project_viewer", "project_contributor", "project_lead", "project_owner"):
-        role = auth._role_repo.get_by_name(role_name)
+        role = services["auth_queries"]._role_repo.get_by_name(role_name)
         assert role is not None, f"{role_name} role was not seeded"
         assert role.allowed_scope_type == "project"
 
@@ -91,12 +89,11 @@ def test_project_scope_roles_are_seeded_in_db(services):
 # ---------------------------------------------------------------------------
 
 def test_user_assigned_project_lead_gets_correct_permissions(services):
-    auth = services["auth_service"]
     project_service = services["project_service"]
     tenant_id, _ = _active_context_ids(services)
 
     project = project_service.create_project("Phase 2B Lead Project")
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2b-assign-plead",
         "StrongPass123!",
         role_names=["viewer"],
@@ -104,7 +101,7 @@ def test_user_assigned_project_lead_gets_correct_permissions(services):
     )
     _bind_project_role(services, user.id, project.id, "project_lead")
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert "project_lead" in principal.role_names
     assert "project_cost.create" in principal.permissions
     assert "project.manage" not in principal.permissions
@@ -113,12 +110,11 @@ def test_user_assigned_project_lead_gets_correct_permissions(services):
 
 
 def test_user_assigned_project_viewer_gets_read_only_permissions(services):
-    auth = services["auth_service"]
     project_service = services["project_service"]
     tenant_id, _ = _active_context_ids(services)
 
     project = project_service.create_project("Phase 2B Viewer Project")
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2b-assign-pviewer",
         "StrongPass123!",
         role_names=["viewer"],
@@ -126,7 +122,7 @@ def test_user_assigned_project_viewer_gets_read_only_permissions(services):
     )
     _bind_project_role(services, user.id, project.id, "project_viewer")
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert "project_viewer" in principal.role_names
     assert "project.read" in principal.permissions
     assert "task.manage" not in principal.permissions
@@ -138,13 +134,12 @@ def test_user_assigned_project_viewer_gets_read_only_permissions(services):
 # ---------------------------------------------------------------------------
 
 def test_project_role_binding_is_scoped_to_its_own_project(services):
-    auth = services["auth_service"]
     project_service = services["project_service"]
     tenant_id, organization_id = _active_context_ids(services)
 
     project_a = project_service.create_project("Phase 2B Scope A")
     project_b = project_service.create_project("Phase 2B Scope B")
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2b-project-scope",
         "StrongPass123!",
         role_names=["viewer"],
@@ -152,7 +147,7 @@ def test_project_role_binding_is_scoped_to_its_own_project(services):
     )
     _bind_project_role(services, user.id, project_a.id, "project_owner")
 
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         user,
         tenant_id=tenant_id,
         organization_id=organization_id,

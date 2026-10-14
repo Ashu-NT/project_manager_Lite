@@ -9,10 +9,6 @@ from src.core.modules.project_management.api.desktop.register.builders.option_bu
     build_severity_options,
     build_status_options,
 )
-from src.core.modules.project_management.api.desktop.register.commands.entry_commands import (
-    RegisterEntryCreateCommand,
-    RegisterEntryUpdateCommand,
-)
 from src.core.modules.project_management.api.desktop.register.models.entries import (
     RegisterCatalogPageDesktopDto,
     RegisterEntryDesktopDto,
@@ -35,6 +31,10 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.risk import RegisterQueryHandler
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleHandler,
+)
+from src.core.modules.project_management.contracts.use_cases.register.commands import (
+    RegisterEntryCreateCommand,
+    RegisterEntryUpdateCommand,
 )
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,

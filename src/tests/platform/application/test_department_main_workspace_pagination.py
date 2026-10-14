@@ -7,6 +7,12 @@ main workspace does not (Department is Site-optional)."""
 
 from __future__ import annotations
 
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.ui_qml.platform.presenters.departments.department_catalog_presenter import (
     PlatformDepartmentCatalogPresenter,
 )
@@ -24,16 +30,25 @@ def _presenter(services) -> PlatformDepartmentCatalogPresenter:
     )
 
     return PlatformDepartmentCatalogPresenter(
-        department_api=PlatformDepartmentDesktopApi(department_service=services["department_service"]),
-        site_api=PlatformSiteDesktopApi(site_service=services["site_service"]),
-        employee_api=PlatformEmployeeDesktopApi(employee_service=services["employee_service"]),
+        department_api=PlatformDepartmentDesktopApi(
+        department_commands=services["department_commands"],
+        department_query=services["department_query"],
+    ),
+        site_api=PlatformSiteDesktopApi(
+        site_commands=services["site_commands"],
+        site_query=services["site_query"],
+    ),
+        employee_api=PlatformEmployeeDesktopApi(
+            employee_commands=services["employee_commands"],
+            employee_query=services["employee_query"],
+            employee_documents=services["employee_document_commands"],
+        ),
     )
 
 
 def test_build_catalog_page_returns_paginated_result_for_active_organization(services) -> None:
-    department_service = services["department_service"]
-    department_service.create_department(department_code="MW-D1", name="Engineering")
-    department_service.create_department(department_code="MW-D2", name="Sales")
+    services["department_commands"].create_department(DepartmentCreateCommand(department_code="MW-D1", name="Engineering"))
+    services["department_commands"].create_department(DepartmentCreateCommand(department_code="MW-D2", name="Sales"))
 
     presenter = _presenter(services)
     result = presenter.build_catalog_page(page=1, page_size=25)
@@ -53,9 +68,8 @@ def test_build_catalog_page_returns_paginated_result_for_active_organization(ser
 
 
 def test_build_catalog_page_search_filters_by_name(services) -> None:
-    department_service = services["department_service"]
-    department_service.create_department(department_code="MW-SRCH-1", name="Payroll Operations")
-    department_service.create_department(department_code="MW-SRCH-2", name="Logistics")
+    services["department_commands"].create_department(DepartmentCreateCommand(department_code="MW-SRCH-1", name="Payroll Operations"))
+    services["department_commands"].create_department(DepartmentCreateCommand(department_code="MW-SRCH-2", name="Logistics"))
 
     presenter = _presenter(services)
     result = presenter.build_catalog_page(search="Payroll")
@@ -66,10 +80,9 @@ def test_build_catalog_page_search_filters_by_name(services) -> None:
 
 
 def test_build_catalog_page_status_filter_active_and_inactive(services) -> None:
-    department_service = services["department_service"]
-    active_dept = department_service.create_department(department_code="MW-ST-1", name="Still Active")
-    inactive_dept = department_service.create_department(department_code="MW-ST-2", name="Now Inactive")
-    department_service.deactivate_department(inactive_dept.id)
+    active_dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code="MW-ST-1", name="Still Active"))
+    inactive_dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code="MW-ST-2", name="Now Inactive"))
+    services["department_commands"].deactivate_department(inactive_dept.id)
 
     presenter = _presenter(services)
 
@@ -87,12 +100,10 @@ def test_build_catalog_page_status_filter_active_and_inactive(services) -> None:
 
 
 def test_build_catalog_page_site_filter_scopes_to_one_site(services) -> None:
-    site_service = services["site_service"]
-    department_service = services["department_service"]
-    site_a = site_service.create_site(site_code="MW-SITE-A", name="Site A")
-    site_b = site_service.create_site(site_code="MW-SITE-B", name="Site B")
-    department_service.create_department(department_code="MW-SITE-D1", name="Dept On Site A", site_id=site_a.id)
-    department_service.create_department(department_code="MW-SITE-D2", name="Dept On Site B", site_id=site_b.id)
+    site_a = services["site_commands"].create_site(SiteCreateCommand(site_code="MW-SITE-A", name="Site A"))
+    site_b = services["site_commands"].create_site(SiteCreateCommand(site_code="MW-SITE-B", name="Site B"))
+    services["department_commands"].create_department(DepartmentCreateCommand(department_code="MW-SITE-D1", name="Dept On Site A", site_id=site_a.id))
+    services["department_commands"].create_department(DepartmentCreateCommand(department_code="MW-SITE-D2", name="Dept On Site B", site_id=site_b.id))
 
     presenter = _presenter(services)
     result = presenter.build_catalog_page(site_id=site_a.id)
@@ -111,8 +122,7 @@ def test_build_catalog_page_true_empty_state_when_no_departments(services) -> No
 
 
 def test_build_catalog_page_filtered_empty_when_search_matches_nothing(services) -> None:
-    department_service = services["department_service"]
-    department_service.create_department(department_code="MW-FE-1", name="Real Department")
+    services["department_commands"].create_department(DepartmentCreateCommand(department_code="MW-FE-1", name="Real Department"))
 
     presenter = _presenter(services)
     result = presenter.build_catalog_page(search="no-such-department-xyz")

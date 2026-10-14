@@ -67,9 +67,8 @@ from src.core.platform.infrastructure.persistence.orm.time_management.calendar.e
 
 def _seed_priority_pm_rows(services):
     session = services["session"]
-    organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
-    other_org = organization_service.create_organization(organization_code="OPS", display_name="Operations Hub", timezone_name="UTC", base_currency="USD")
+    other_org = services["organization_commands"].create_organization(organization_code="OPS", display_name="Operations Hub", timezone_name="UTC", base_currency="USD")
     assert default_org is not None
     assert other_org is not None
     assert getattr(default_org, "tenant_id", None)
@@ -183,15 +182,15 @@ def test_pm_secondary_repositories_hide_other_organization_rows(services):
     seeded = _seed_pm_secondary_scope_rows(services)
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
     project_resource_repo = services["project_resource_service"]._project_resource_repo
-    resource_service = services["resource_service"]
-    skill_repo = resource_service._skill_repo
-    cert_repo = resource_service._cert_repo
+    capability_commands = services["resource_capability_commands"]
+    skill_repo = capability_commands._skill_repo
+    cert_repo = capability_commands._cert_repo
     requirement_repo = services["assignment_skill_validator"]._requirements
-    portfolio_service = services["portfolio_service"]
-    intake_repo = portfolio_service._intake_repo
-    scenario_repo = portfolio_service._scenario_repo
-    dependency_repo = portfolio_service._dependency_repo
-    scoring_repo = portfolio_service._scoring_template_repo
+
+    intake_repo = services["portfolio_intake_commands"]._intake_repo
+    scenario_repo = services["portfolio_scenario_commands"]._scenario_repo
+    dependency_repo = services["portfolio_dependency_commands"]._dependency_repo
+    scoring_repo = services["portfolio_template_commands"]._scoring_template_repo
     calendar_assignment_service = services["calendar_assignment_service"]
     project_assignment_repo = calendar_assignment_service._project_assignment_repo
     resource_assignment_repo = calendar_assignment_service._resource_assignment_repo
@@ -224,14 +223,14 @@ def test_pm_secondary_repositories_scope_mutations_to_active_organization(servic
     seeded = _seed_pm_secondary_scope_rows(services)
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
     project_resource_repo = services["project_resource_service"]._project_resource_repo
-    resource_service = services["resource_service"]
-    skill_repo = resource_service._skill_repo
-    cert_repo = resource_service._cert_repo
+    capability_commands = services["resource_capability_commands"]
+    skill_repo = capability_commands._skill_repo
+    cert_repo = capability_commands._cert_repo
     requirement_repo = services["assignment_skill_validator"]._requirements
-    portfolio_service = services["portfolio_service"]
-    intake_repo = portfolio_service._intake_repo
-    scenario_repo = portfolio_service._scenario_repo
-    dependency_repo = portfolio_service._dependency_repo
+
+    intake_repo = services["portfolio_intake_commands"]._intake_repo
+    scenario_repo = services["portfolio_scenario_commands"]._scenario_repo
+    dependency_repo = services["portfolio_dependency_commands"]._dependency_repo
     calendar_assignment_service = services["calendar_assignment_service"]
     project_assignment_repo = calendar_assignment_service._project_assignment_repo
     resource_assignment_repo = calendar_assignment_service._resource_assignment_repo

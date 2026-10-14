@@ -39,8 +39,8 @@ def test_priority_pm_repositories_hide_other_organization_rows(services):
     task_repo = services["task_lookup_query"]._task_repo
     assignment_repo = services["task_lookup_query"]._assignment_repo
     dependency_repo = services["task_dependency_diagnostics"]._dependency_repo
-    comment_repo = services["collaboration_service"]._comment_repo
-    presence_repo = services["collaboration_service"]._presence_repo
+    comment_repo = services["collaboration_comment_commands"]._comment_repo
+    presence_repo = services["collaboration_presence_query"]._presence_repo
     register_repo = services["register_query"]._register_repo
     baseline_repo = services["baseline_service"]._baselines
 
@@ -124,7 +124,7 @@ def test_priority_pm_repositories_reject_cross_organization_updates(services):
     task_repo = services["task_lookup_query"]._task_repo
     assignment_repo = services["task_lookup_query"]._assignment_repo
     dependency_repo = services["task_dependency_diagnostics"]._dependency_repo
-    comment_repo = services["collaboration_service"]._comment_repo
+    comment_repo = services["collaboration_comment_commands"]._comment_repo
     register_repo = services["register_query"]._register_repo
     baseline_repo = services["baseline_service"]._baselines
 

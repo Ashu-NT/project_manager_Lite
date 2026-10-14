@@ -17,56 +17,55 @@ _SIZES = {"small": 1, "medium": 5, "large": 12}
 def _seed_collaboration_workspace(services, *, project_count: int) -> None:
     projects = services["project_service"]
     tasks = services["task_service"]
-    collaboration = services["collaboration_service"]
     for index in range(project_count):
         project = projects.create_project(f"Phase 3D Project {index}")
         task = tasks.create_task(project.id, f"Phase 3D Task {index}")
-        collaboration.post_comment(
+        services["collaboration_comment_commands"].post_comment(
             task_id=task.id,
             body=f"Phase 3D update {index} for @admin",
         )
-        collaboration.touch_task_presence(task.id, activity="reviewing")
+        services["collaboration_presence_commands"].touch_task_presence(task.id, activity="reviewing")
 
 
 @pytest.mark.parametrize("size_name", ["small", "medium", "large"])
 def test_phase3d_measure_collaboration_reads(services, size_name, capsys) -> None:
     project_count = _SIZES[size_name]
     _seed_collaboration_workspace(services, project_count=project_count)
-    collaboration = services["collaboration_service"]
+    visibility_policy = services["collaboration_inbox_query"]._policy
     targets = [
         (
-            collaboration._workspace_reader,
+            services["collaboration_comment_query"]._workspace_reader,
             "read_comment_page",
             "collaboration_reader.read_comment_page",
         ),
         (
-            collaboration._workspace_reader,
+            services["collaboration_comment_query"]._workspace_reader,
             "read_active_presence",
             "collaboration_reader.read_active_presence",
         ),
-        (collaboration._project_repo, "list", "project_repo.list"),
-        (collaboration._project_repo, "get", "project_repo.get"),
-        (collaboration._task_repo, "list_by_project", "task_repo.list_by_project"),
+        (visibility_policy._project_repo, "list", "project_repo.list"),
+        (visibility_policy._project_repo, "get", "project_repo.get"),
+        (visibility_policy._task_repo, "list_by_project", "task_repo.list_by_project"),
         (
-            collaboration._comment_repo,
+            services["collaboration_comment_commands"]._comment_repo,
             "list_recent_for_tasks",
             "comment_repo.list_recent_for_tasks",
         ),
         (
-            collaboration._presence_repo,
+            services["collaboration_presence_query"]._presence_repo,
             "list_recent_for_tasks",
             "presence_repo.list_recent_for_tasks",
         ),
         (
-            collaboration._user_session,
+            visibility_policy._user_session,
             "has_project_permission",
             "session.has_project_permission",
         ),
     ]
     operations = (
-        ("inbox", lambda: collaboration.query_inbox_page(page=1, page_size=200)),
-        ("activity", lambda: collaboration.list_recent_activity(limit=100)),
-        ("presence", collaboration.list_active_presence),
+        ("inbox", lambda: services["collaboration_inbox_query"].query_inbox_page(page=1, page_size=200)),
+        ("activity", lambda: services["collaboration_inbox_query"].list_recent_activity(limit=100)),
+        ("presence", services["collaboration_presence_query"].list_active_presence),
     )
 
     for operation_name, operation in operations:

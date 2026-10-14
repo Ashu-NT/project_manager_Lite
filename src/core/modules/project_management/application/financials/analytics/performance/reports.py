@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import UTC, date, datetime
+from typing import TYPE_CHECKING
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -14,10 +16,21 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_permission,
 )
 
+if TYPE_CHECKING:
+    from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+        FinanceOverviewFacts,
+    )
+    from src.core.platform.domain.security.auth.session import UserSessionContext
+
 logger = logging.getLogger(__name__)
 
 
 class ReportsQueries:
+    # Host attributes supplied by ``ProjectFinancePerformanceQuery`` (declared for type checking only).
+    _user_session: UserSessionContext | None
+    _authorize_finance: Callable[[str, str], None]
+    _read_basis: Callable[[str, date], FinanceOverviewFacts]
+
     def get_reports(
         self,
         project_id: str,

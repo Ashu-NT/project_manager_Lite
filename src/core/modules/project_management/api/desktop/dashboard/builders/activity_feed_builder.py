@@ -32,13 +32,13 @@ def build_activity_feed(
     project_id: str | None,
     selected_period_key: str,
     portfolio_mode: bool,
-    collaboration_service=None,
+    collaboration_inbox_query=None,
 ) -> ProjectDashboardActivityFeedDescriptor:
-    if collaboration_service is None:
+    if collaboration_inbox_query is None:
         return build_preview_activity_feed()
     cutoff = period_cutoff_datetime(selected_period_key)
     try:
-        recent_activity = collaboration_service.list_recent_activity(
+        recent_activity = collaboration_inbox_query.list_recent_activity(
             project_id=project_id,
             created_since=cutoff,
             limit=120,

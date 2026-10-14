@@ -15,10 +15,6 @@ from src.core.modules.project_management.api.desktop.projects.builders.resource_
 from src.core.modules.project_management.api.desktop.projects.builders.status_builder import (
     build_status_options,
 )
-from src.core.modules.project_management.api.desktop.projects.commands.resource_commands import (
-    ProjectResourceAssignCommand,
-    ProjectResourceUpdateCommand,
-)
 from src.core.modules.project_management.api.desktop.projects.models.project import (
     ProjectCatalogPageDesktopDto,
     ProjectDesktopDto,
@@ -49,16 +45,20 @@ from src.core.modules.project_management.application.projects.queries.project_qu
 )
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
-    ResourceService,
+    ResourceQueryHandler,
 )
 from src.core.modules.project_management.contracts.use_cases.projects import (
     ProjectCreateCommand,
     ProjectUpdateCommand,
 )
-from src.core.platform.application.master_data.department.department_service import (
-    DepartmentService,
+from src.core.modules.project_management.contracts.use_cases.projects.commands import (
+    ProjectResourceAssignCommand,
+    ProjectResourceUpdateCommand,
 )
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.department import (
+    DepartmentQueryHandler,
+)
+from src.core.platform.application.master_data.site import SiteQueryHandler
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,
 )
@@ -76,17 +76,17 @@ class ProjectManagementProjectsDesktopApi:
         project_query: ProjectQueryHandler | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,
         project_resource_service: ProjectResourceService | None = None,
-        resource_service: ResourceService | None = None,
-        site_service: SiteService | None = None,
-        department_service: DepartmentService | None = None,
+        resource_query: ResourceQueryHandler | None = None,
+        site_query: SiteQueryHandler | None = None,
+        department_query: DepartmentQueryHandler | None = None,
     ) -> None:
         self._project_service = project_service
         self._project_query = project_query
         self._module_catalog_service = module_catalog_service
         self._project_resource_service = project_resource_service
-        self._resource_service = resource_service
-        self._site_service = site_service
-        self._department_service = department_service
+        self._resource_service = resource_query
+        self._site_query = site_query
+        self._department_query = department_query
 
     # ── Status options ────────────────────────────────────────────────────────
 
@@ -357,7 +357,7 @@ class ProjectManagementProjectsDesktopApi:
         resource_ids = tuple(str(getattr(pr, "resource_id", "") or "") for pr in project_resources)
         resources_by_id = resource_lookup(
             normalized_id, resource_ids,
-            resource_service=self._resource_service,
+            resource_query=self._resource_service,
         )
         rows = [
             serialize_project_resource(
@@ -412,7 +412,7 @@ class ProjectManagementProjectsDesktopApi:
         assigned_ids = {row.resource_id for row in self.list_project_resources(normalized_id)}
         return build_assignable_options(
             normalized_id, assigned_ids,
-            resource_service=self._resource_service,
+            resource_query=self._resource_service,
         )
 
     def add_project_resource(self, command: ProjectResourceAssignCommand) -> ProjectResourceDesktopDto:
@@ -436,7 +436,7 @@ class ProjectManagementProjectsDesktopApi:
         )
         res = resource_lookup(
             normalized_project_id, (normalized_resource_id,),
-            resource_service=self._resource_service,
+            resource_query=self._resource_service,
         ).get(normalized_resource_id)
         return serialize_project_resource(project_resource, resource_by_id=res)
 
@@ -500,27 +500,27 @@ class ProjectManagementProjectsDesktopApi:
         return self._project_resource_service
 
     def _site_lookup(self) -> dict[str, str]:
-        if self._site_service is None:
+        if self._site_query is None:
             return {}
         try:
             return {
                 str(site.id): str(getattr(site, "name", "") or "").strip()
-                for site in self._site_service.list_sites(active_only=None)
+                for site in self._site_query.list_sites(active_only=None)
                 if getattr(site, "id", None)
             }
-        except Exception:
+        except Exception:  # noqa: BLE001
             return {}
 
     def _department_lookup(self) -> dict[str, str]:
-        if self._department_service is None:
+        if self._department_query is None:
             return {}
         try:
             return {
                 str(department.id): str(getattr(department, "name", "") or "").strip()
-                for department in self._department_service.list_departments(active_only=None)
+                for department in self._department_query.list_departments(active_only=None)
                 if getattr(department, "id", None)
             }
-        except Exception:
+        except Exception:  # noqa: BLE001
             return {}
 
 __all__ = ["ProjectManagementProjectsDesktopApi"]

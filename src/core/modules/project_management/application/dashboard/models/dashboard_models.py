@@ -15,8 +15,10 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
 from src.core.modules.project_management.application.financials.models import (
     CostSourceBreakdown,
 )
-from src.core.modules.project_management.application.risk import RegisterProjectSummary
-from src.core.modules.project_management.domain.risk.register import RegisterEntry
+from src.core.modules.project_management.application.risk import (
+    RegisterHighRiskItem,
+    RegisterProjectSummary,
+)
 
 
 @dataclass
@@ -85,7 +87,7 @@ class DashboardData:
     milestone_health: list[MilestoneHealthRow] = field(default_factory=list)
     critical_watchlist: list[CriticalPathRow] = field(default_factory=list)
     register_summary: RegisterProjectSummary | None = None
-    high_risks: list[RegisterEntry] = field(default_factory=list)
+    high_risks: list[RegisterHighRiskItem] = field(default_factory=list)
     cost_sources: CostSourceBreakdown | None = None
     evm: DashboardEVM | None = None
     portfolio: DashboardPortfolio | None = None

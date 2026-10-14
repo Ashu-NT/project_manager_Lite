@@ -18,6 +18,9 @@ from src.core.platform.application.master_data.org.event_handlers.view_invalidat
     build_organization_created_view_invalidation_handler,
 )
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
+)
 from src.core.platform.domain.master_data.org import (
     events as organization_events_module,
 )
@@ -104,9 +107,8 @@ def test_organization_created_event_handlers_package_has_no_qt_dependency():
 
 
 def test_standalone_create_records_exactly_one_event_before_commit(services, monkeypatch):
-    organization_service = services["organization_service"]
     recorded = []
-    original_create = type(organization_service._uow_factory).create
+    original_create = type(services["organization_commands"]._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
@@ -120,9 +122,9 @@ def test_standalone_create_records_exactly_one_event_before_commit(services, mon
         uow.record_event = _spy_record_event
         return uow
 
-    monkeypatch.setattr(type(organization_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(services["organization_commands"]._uow_factory), "create", _spy_create)
 
-    organization = organization_service.create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=_unique_code("REC"), display_name="Recorded Org"
     )
 
@@ -135,21 +137,20 @@ def test_standalone_create_records_exactly_one_event_before_commit(services, mon
 
 
 def test_standalone_create_uses_injected_clock_deterministically(services):
-    organization_service = services["organization_service"]
     fixed_when = datetime(2030, 6, 15, 12, 0, 0, tzinfo=UTC)
-    original_clock = organization_service._clock
-    organization_service._clock = _FixedClock(fixed_when)
+    original_clock = services["organization_commands"]._clock
+    services["organization_commands"]._clock = _FixedClock(fixed_when)
     try:
         captured = {}
         channel = services["platform_view_invalidation_channel"]
         channel.subscribe(TenantWide(_active_tenant(services)), lambda hint: captured.setdefault("hint", hint))
 
-        organization_service.create_organization(
+        services["organization_commands"].create_organization(
             organization_code=_unique_code("CLOCK"), display_name="Clock Org"
         )
         assert "hint" in captured
     finally:
-        organization_service._clock = original_clock
+        services["organization_commands"]._clock = original_clock
 
 
 def _active_tenant(services) -> str:
@@ -157,13 +158,12 @@ def _active_tenant(services) -> str:
 
 
 def test_standalone_create_tenant_id_and_organization_id_explicit_not_ambient(services):
-    organization_service = services["organization_service"]
     tenant_id = _active_tenant(services)
     channel = services["platform_view_invalidation_channel"]
     hints = []
     channel.subscribe(TenantWide(tenant_id), lambda hint: hints.append(hint))
 
-    organization_service.create_organization(
+    services["organization_commands"].create_organization(
         organization_code=_unique_code("EXPLICIT"), display_name="Explicit Org"
     )
 
@@ -173,9 +173,8 @@ def test_standalone_create_tenant_id_and_organization_id_explicit_not_ambient(se
 
 
 def test_no_event_observable_on_validation_failure(services):
-    organization_service = services["organization_service"]
     code = _unique_code("DUPE-EVT")
-    organization_service.create_organization(organization_code=code, display_name="First")
+    services["organization_commands"].create_organization(organization_code=code, display_name="First")
 
     tenant_id = _active_tenant(services)
     channel = services["platform_view_invalidation_channel"]
@@ -185,7 +184,7 @@ def test_no_event_observable_on_validation_failure(services):
     from src.core.platform.common.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
-        organization_service.create_organization(organization_code=code, display_name="Second")
+        services["organization_commands"].create_organization(organization_code=code, display_name="Second")
 
     assert hints == []
 
@@ -195,7 +194,6 @@ def test_no_event_observable_on_commit_failure(services, monkeypatch):
         SqlAlchemyOrganizationUnitOfWork,
     )
 
-    organization_service = services["organization_service"]
     tenant_id = _active_tenant(services)
     channel = services["platform_view_invalidation_channel"]
     hints = []
@@ -207,7 +205,7 @@ def test_no_event_observable_on_commit_failure(services, monkeypatch):
     monkeypatch.setattr(SqlAlchemyOrganizationUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated commit failure"):
-        organization_service.create_organization(
+        services["organization_commands"].create_organization(
             organization_code=_unique_code("COMMITFAIL-EVT"), display_name="x"
         )
 
@@ -238,10 +236,7 @@ def test_provisioning_create_records_exactly_one_event_before_commit(services, m
 
     monkeypatch.setattr(type(app_service._provisioning_uow_factory), "create", _spy_create)
 
-    organization = app_service.provision_organization(
-        organization_code=_unique_code("PROV-EVT"), display_name="Provisioned Evt Org",
-        timezone_name="UTC", base_currency="EUR", initial_module_codes=[],
-    )
+    organization = app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("PROV-EVT"), display_name="Provisioned Evt Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert len(recorded) == 1
     assert isinstance(recorded[0], OrganizationCreated)
@@ -256,11 +251,7 @@ def test_provisioning_late_failure_produces_no_observable_event(services):
     channel.subscribe(TenantWide(tenant_id), lambda hint: hints.append(hint))
 
     with pytest.raises(NotFoundError):
-        app_service.provision_organization(
-            organization_code=_unique_code("PROV-LATEFAIL-EVT"), display_name="x",
-            timezone_name="UTC", base_currency="EUR",
-            initial_module_codes=["not-a-real-module"],
-        )
+        app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("PROV-LATEFAIL-EVT"), display_name="x", timezone_name="UTC", base_currency="EUR", initial_module_codes=["not-a-real-module"]))
 
     assert hints == []
 
@@ -297,20 +288,19 @@ def test_view_invalidation_mapper_produces_exactly_the_two_documented_hints():
 
 
 def test_cross_organization_routing_via_real_channel(services):
-    organization_service = services["organization_service"]
     tenant_id = _active_tenant(services)
-    org_a1 = organization_service.create_organization(
+    org_a1 = services["organization_commands"].create_organization(
         organization_code=_unique_code("ROUTE-A1"), display_name="Route Org A1"
     )
     channel = services["platform_view_invalidation_channel"]
     a1_hits, a2_hits = [], []
     channel.subscribe(ExactOrganization(tenant_id, org_a1.id), lambda hint: a1_hits.append(hint))
 
-    org_a2 = organization_service.create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("ROUTE-A2"), display_name="Route Org A2"
     )
     channel.subscribe(ExactOrganization(tenant_id, org_a2.id), lambda hint: a2_hits.append(hint))
-    organization_service.create_organization(
+    services["organization_commands"].create_organization(
         organization_code=_unique_code("ROUTE-A3"), display_name="Route Org A3"
     )
 
@@ -321,9 +311,6 @@ def test_cross_organization_routing_via_real_channel(services):
 
 
 def test_cross_tenant_routing_via_real_channel(services):
-    from src.core.platform.application.master_data.org.organization_service import (
-        OrganizationService,
-    )
     from src.core.platform.domain.security.auth.session import (
         UserSessionContext,
         UserSessionPrincipal,
@@ -334,8 +321,8 @@ def test_cross_tenant_routing_via_real_channel(services):
     from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
         SqlAlchemyOrganizationDefaultCalendarWriter,
     )
+    from src.tests.master_data_test_support import organization_handlers_for
 
-    organization_service = services["organization_service"]
     session = services["session"]
     tenant_a = _active_tenant(services)
     channel = services["platform_view_invalidation_channel"]
@@ -351,15 +338,15 @@ def test_cross_tenant_routing_via_real_channel(services):
         )
     )
     ctx_b.set_active_tenant_id(tenant_b_id)
-    service_as_b = OrganizationService(
-        session=organization_service._session,
-        organization_repo=organization_service._organization_repo,
-        uow_factory=organization_service._uow_factory,
-        clock=organization_service._clock,
+    service_as_b = organization_handlers_for(
+        session=services["session"],
+        organization_repo=services["organization_query"]._organization_repo,
+        uow_factory=services["organization_commands"]._uow_factory,
+        clock=services["organization_commands"]._clock,
         user_session=ctx_b,
-        enterprise_audit_service=organization_service._enterprise_audit_service,
+        enterprise_audit_service=services["organization_query"]._enterprise_audit_service,
         tenant_context_service=None,
-        overview_rollup_reader=organization_service._overview_rollup_reader,
+        overview_rollup_reader=services["organization_query"]._overview_rollup_reader,
         default_calendar_writer=SqlAlchemyOrganizationDefaultCalendarWriter(),
     )
 
@@ -377,8 +364,7 @@ def test_cross_tenant_routing_via_real_channel(services):
 
 
 def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(services):
-    organization_service = services["organization_service"]
-    bus = organization_service._uow_factory._post_commit_bus
+    bus = services["organization_commands"]._uow_factory._post_commit_bus
 
     def _failing_handler(event, context):
         raise RuntimeError("simulated post-commit handler failure")
@@ -391,11 +377,11 @@ def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(
     channel.subscribe(TenantWide(tenant_id), lambda hint: hints.append(hint))
 
     # Must not raise -- ISOLATE_AND_CONTINUE swallows the failing handler's exception.
-    organization = organization_service.create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=_unique_code("ISOLATE"), display_name="Isolate Org"
     )
 
     assert organization is not None
     assert any(h.scope_code == ORGANIZATION_LIST_SCOPE_CODE for h in hints)
-    reloaded = organization_service._organization_repo.get(organization.id)
+    reloaded = services["organization_query"]._organization_repo.get(organization.id)
     assert reloaded is not None

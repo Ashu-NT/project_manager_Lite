@@ -8,7 +8,10 @@ from src.core.modules.project_management.application.common.module_guard import 
     ProjectManagementModuleGuardMixin,
 )
 from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.resources import ResourceService
+from src.core.modules.project_management.application.resources import (
+    ResourceMasterCommandHandler,
+    ResourceQueryHandler,
+)
 from src.core.modules.project_management.infrastructure.importers.models import (
     ImportFieldSpec,
     ImportPreview,
@@ -66,7 +69,8 @@ class DataImportService(ProjectManagementModuleGuardMixin):
         *,
         project_service: ProjectService,
         task_capabilities: TaskImportCapabilities,
-        resource_service: ResourceService,
+        resource_query: ResourceQueryHandler,
+        resource_master_commands: ResourceMasterCommandHandler,
         user_session=None,
         module_catalog_service=None,
         import_registry: ImportDefinitionRegistry | None = None,
@@ -74,7 +78,8 @@ class DataImportService(ProjectManagementModuleGuardMixin):
     ) -> None:
         self._project_service = project_service
         self._task_capabilities = task_capabilities
-        self._resource_service = resource_service
+        self._resource_query = resource_query
+        self._resource_master_commands = resource_master_commands
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
@@ -84,12 +89,16 @@ class DataImportService(ProjectManagementModuleGuardMixin):
             schemas=IMPORT_SCHEMAS,
             preview_handlers={
                 "projects": lambda rows: preview_projects(rows, project_service=project_service),
-                "resources": lambda rows: preview_resources(rows, resource_service=resource_service),
+                "resources": lambda rows: preview_resources(rows, resource_query=resource_query),
                 "tasks": lambda rows: preview_tasks(rows, project_service=project_service, task_capabilities=task_capabilities),
             },
             execution_handlers={
                 "projects": lambda rows: import_projects(rows, project_service=project_service),
-                "resources": lambda rows: import_resources(rows, resource_service=resource_service),
+                "resources": lambda rows: import_resources(
+                    rows,
+                    resource_query=resource_query,
+                    resource_commands=resource_master_commands,
+                ),
                 "tasks": lambda rows: import_tasks(rows, project_service=project_service, task_capabilities=task_capabilities),
             },
         )

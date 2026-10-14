@@ -8,8 +8,9 @@ from src.core.platform.application.integration.accounting.capability import (
 from src.core.platform.application.integration.accounting.commands import (
     AccountingConnectorConfigurationCommands,
 )
-from src.core.platform.application.tenant.modules.module_catalog_service import (
-    ModuleCatalogService,
+from src.core.platform.application.tenant.modules import (
+    ModuleCatalogContext,
+    ModuleCatalogQueryHandler,
 )
 from src.core.platform.domain.tenant.modules import DEFAULT_ENTERPRISE_MODULES
 from src.core.platform.infrastructure.persistence.read.tenant.modules.module_entitlement_reader import (
@@ -32,16 +33,18 @@ def build_accounting_capability(
 ):
     repository = SqlAlchemyAccountingConnectorRepository(session)
     repository._tenant_context_service = tenant_context_service
-    catalog = ModuleCatalogService(
-        modules=DEFAULT_ENTERPRISE_MODULES,
-        enabled_codes=(),
-        licensed_codes=(),
-        read_only=True,
-        entitlement_repo=SqlAlchemyModuleEntitlementRepository(
-            session, tenant_context_service=tenant_context_service
-        ),
-        entitlement_reader=SqlAlchemyModuleEntitlementReader(session),
-        user_session=user_session,
+    catalog = ModuleCatalogQueryHandler(
+        context=ModuleCatalogContext(
+            modules=DEFAULT_ENTERPRISE_MODULES,
+            enabled_codes=(),
+            licensed_codes=(),
+            read_only=True,
+            entitlement_repo=SqlAlchemyModuleEntitlementRepository(
+                session, tenant_context_service=tenant_context_service
+            ),
+            entitlement_reader=SqlAlchemyModuleEntitlementReader(session),
+            user_session=user_session,
+        )
     )
     return AccountingIntegrationCapabilityService(
         module_registry=ModuleRegistry(catalog),

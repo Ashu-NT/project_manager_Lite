@@ -2,8 +2,17 @@ from __future__ import annotations
 
 import logging
 
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.dashboard.models.report_models import (
     TaskVarianceRow,
+)
+from src.core.modules.project_management.application.reporting.builders.access import (
+    ReportingAccessPolicy,
+)
+from src.core.modules.project_management.contracts.ports.reporting.critical_path import (
+    CriticalPathReport,
 )
 from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
     BaselineRepository,
@@ -17,9 +26,22 @@ from src.core.platform.common.exceptions import NotFoundError
 logger = logging.getLogger(__name__)
 
 
-class ReportingVarianceMixin:
-    _baseline_repo: BaselineRepository
-    _task_repo: TaskRepository
+class ScheduleVarianceReportBuilder(ProjectManagementModuleGuardMixin):
+    def __init__(
+        self,
+        *,
+        access: ReportingAccessPolicy,
+        baseline_repo: BaselineRepository,
+        task_repo: TaskRepository,
+        critical_path: CriticalPathReport,
+        module_catalog_service=None,
+    ) -> None:
+        self._access = access
+        self._baseline_repo = baseline_repo
+        self._task_repo = task_repo
+        self._critical_path = critical_path
+        self._user_session = access.user_session
+        self._module_catalog_service = module_catalog_service
 
     def get_baseline_schedule_variance(
         self,
@@ -27,7 +49,7 @@ class ReportingVarianceMixin:
         baseline_id: str | None = None,
     ) -> list[TaskVarianceRow]:
         """Compares baseline task dates vs current task dates."""
-        self._require_view("view schedule variance", project_id=project_id)
+        self._access.require_view("view schedule variance", project_id=project_id)
         if baseline_id:
             baseline = self._baseline_repo.get_baseline(baseline_id)
             if baseline is None or baseline.project_id != project_id:
@@ -41,9 +63,9 @@ class ReportingVarianceMixin:
         tasks_by_id = {t.id: t for t in tasks}
 
         # Critical-path task ids, best-effort -- not required for variance itself.
-        critical_ids = set()
+        critical_ids: set[str] = set()
         try:
-            cp = self.get_critical_path(project_id)
+            cp = self._critical_path.get_critical_path(project_id)
             critical_ids = {info.task.id for info in cp}
         except Exception:
             logger.exception("Failed to resolve critical path project_id=%s",
@@ -82,3 +104,6 @@ class ReportingVarianceMixin:
         # Sort: critical first, then largest finish variance
         rows.sort(key=lambda r: (not r.is_critical, -(r.finish_variance_days or 0)))
         return rows
+
+
+__all__ = [ "ScheduleVarianceReportBuilder"]

@@ -3,6 +3,9 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
+)
 from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
     CalendarWorkingRuleORM,
     PlatformCalendarORM,
@@ -24,9 +27,8 @@ def test_create_organization_transactionally_creates_exactly_one_default_calenda
     follow-up call. Verified directly against the ORM rows (not through
     PlatformCalendarRepository, which is scoped to the caller's ACTIVE
     organization and can't see a just-created, not-yet-active one)."""
-    organization_service = services["organization_service"]
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="CAL-DEFAULT", display_name="Calendar Default Org"
     )
 
@@ -53,7 +55,6 @@ def test_create_organization_rolls_back_entirely_if_default_calendar_seeding_fai
     """The organization cannot exist without its required calendar: if
     seeding the calendar rows fails, the organization row must not be
     committed either -- both happen in the one transaction."""
-    organization_service = services["organization_service"]
 
     from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
         SqlAlchemyOrganizationDefaultCalendarWriter,
@@ -65,11 +66,11 @@ def test_create_organization_rolls_back_entirely_if_default_calendar_seeding_fai
     monkeypatch.setattr(SqlAlchemyOrganizationDefaultCalendarWriter, "add_default_calendar", _boom)
 
     with pytest.raises(RuntimeError, match="simulated calendar seeding failure"):
-        organization_service.create_organization(
+        services["organization_commands"].create_organization(
             organization_code="CAL-ROLLBACK", display_name="Calendar Rollback Org"
         )
 
-    codes = {row.organization_code for row in organization_service.list_organizations()}
+    codes = {row.organization_code for row in services["organization_query"].list_organizations()}
     assert "CAL-ROLLBACK" not in codes
 
 
@@ -78,17 +79,16 @@ def test_organization_calendar_summary_is_correct_for_a_non_active_organization(
     ORGANIZATION_ID it is given, not the caller's ambient active
     organization -- the exact bug this read-model was introduced to avoid
     (see SqlAlchemyPlatformOverviewRollupReader.get_calendar_summary)."""
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
 
     active_org = tenant_context_service.get_active_organization()
-    other_org = organization_service.create_organization(
+    other_org = services["organization_commands"].create_organization(
         organization_code="CAL-OTHER", display_name="Calendar Other Org"
     )
     assert tenant_context_service.get_active_organization().id == active_org.id
     assert other_org.id != active_org.id
 
-    summary = organization_service.get_organization_calendar_summary(other_org.id)
+    summary = services["organization_query"].get_organization_calendar_summary(other_org.id)
 
     assert summary.has_calendar is True
     assert summary.calendar_name == "Global Calendar"
@@ -100,9 +100,8 @@ def test_organization_calendar_summary_handles_missing_calendar_cleanly(services
     """An organization with no GLOBAL calendar row (should not happen
     post-invariant, but the read model must never crash) returns a clean
     empty summary instead of raising."""
-    organization_service = services["organization_service"]
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="CAL-MISSING", display_name="Calendar Missing Org"
     )
     session.execute(
@@ -112,7 +111,7 @@ def test_organization_calendar_summary_handles_missing_calendar_cleanly(services
     )
     session.commit()
 
-    summary = organization_service.get_organization_calendar_summary(org.id)
+    summary = services["organization_query"].get_organization_calendar_summary(org.id)
 
     assert summary.has_calendar is False
     assert summary.calendar_id == ""
@@ -122,31 +121,30 @@ def test_organization_calendar_summary_handles_missing_calendar_cleanly(services
 def test_organization_service_bootstraps_default_and_activates_another_organization_independently(services):
     """Activating one organization must never deactivate a sibling -- multiple organizations in
     the same tenant may be `status == ACTIVE` simultaneously."""
-    organization_service = services["organization_service"]
 
-    initial_rows = organization_service.list_organizations()
+    initial_rows = services["organization_query"].list_organizations()
     assert len(initial_rows) == 1
     assert initial_rows[0].organization_code == "DEFAULT"
     assert initial_rows[0].status == "active"
 
-    second = organization_service.create_organization(
+    second = services["organization_commands"].create_organization(
         organization_code="NORTH",
         display_name="North Division",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
     )
-    organization_service.deactivate_organization(second.id)
+    services["organization_lifecycle"].deactivate_organization(second.id)
 
-    rows = organization_service.list_organizations()
+    rows = services["organization_query"].list_organizations()
     assert len(rows) == 2
     status_by_code = {row.organization_code: row.status for row in rows}
     assert status_by_code == {"DEFAULT": "active", "NORTH": "inactive"}
 
-    organization_service.activate_organization(second.id)
+    services["organization_lifecycle"].activate_organization(second.id)
 
     status_by_code = {
         row.organization_code: row.status
-        for row in organization_service.list_organizations()
+        for row in services["organization_query"].list_organizations()
     }
     # Both organizations are active -- no mutual exclusion.
     assert status_by_code == {"DEFAULT": "active", "NORTH": "active"}
@@ -163,13 +161,7 @@ def test_organization_provisioning_seeds_requested_modules_and_switches_to_the_n
     assert default_organization.organization_code == "DEFAULT"
     assert module_catalog.is_enabled("project_management") is True
 
-    created = app_service.provision_organization(
-        organization_code="EMPTY",
-        display_name="Empty Module Org",
-        timezone_name="UTC",
-        base_currency="EUR",
-        initial_module_codes=[],
-    )
+    created = app_service.provision_organization(OrganizationProvisionCommand(organization_code="EMPTY", display_name="Empty Module Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert created.organization_code == "EMPTY"
     assert tenant_context_service.get_active_organization().organization_code == "EMPTY"

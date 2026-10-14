@@ -10,6 +10,7 @@ from src.core.modules.project_management.access.policy import (
 from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.tests.auth_test_support import platform_user_api
 from src.tests.ui_runtime_helpers import login_as
 
 
@@ -18,7 +19,7 @@ def _platform_access_api(services) -> PlatformAccessDesktopApi:
 
 
 def _platform_user_api(services) -> PlatformUserDesktopApi:
-    return PlatformUserDesktopApi(auth_service=services["auth_service"])
+    return platform_user_api(services)
 
 
 def _access_scope_option_loaders(services):
@@ -31,27 +32,26 @@ def _access_scope_option_loaders(services):
 
 
 def test_security_and_payroll_roles_expose_expected_permissions(services):
-    auth = services["auth_service"]
 
-    security_user = auth.register_user(
+    security_user = services["user_registration"].register_user(
         "security-admin-role",
         "StrongPass123",
         role_names=["security_admin"],
     )
-    payroll_user = auth.register_user(
+    payroll_user = services["user_registration"].register_user(
         "payroll-manager-role",
         "StrongPass123",
         role_names=["payroll_manager"],
     )
-    inventory_user = auth.register_user(
+    inventory_user = services["user_registration"].register_user(
         "inventory-manager-role",
         "StrongPass123",
         role_names=["inventory_manager"],
     )
 
-    security_permissions = auth.get_user_permissions(security_user.id)
-    payroll_permissions = auth.get_user_permissions(payroll_user.id)
-    inventory_permissions = auth.get_user_permissions(inventory_user.id)
+    security_permissions = services["auth_queries"].get_user_permissions(security_user.id)
+    payroll_permissions = services["auth_queries"].get_user_permissions(payroll_user.id)
+    inventory_permissions = services["auth_queries"].get_user_permissions(inventory_user.id)
 
     assert "security.manage" in security_permissions
     assert "auth.read" in security_permissions
@@ -81,21 +81,20 @@ def test_security_and_payroll_roles_expose_expected_permissions(services):
 
 
 def test_access_and_security_admin_capabilities_are_separated(services):
-    auth = services["auth_service"]
     access = services["access_service"]
     active_tenant_id = services["user_session"].active_tenant_id()
     project = services["project_service"].create_project("Access Admin Project")
     # H-8: target must be in the active tenant so security_admin can manage them
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         "locked-target", "StrongPass123", role_names=["viewer"], tenant_id=active_tenant_id
     )
-    auth.register_user(
+    services["user_registration"].register_user(
         "access-admin-user",
         "StrongPass123",
         role_names=["access_admin"],
         tenant_id=active_tenant_id,
     )
-    auth.register_user(
+    services["user_registration"].register_user(
         "security-admin-user",
         "StrongPass123",
         role_names=["security_admin"],
@@ -108,16 +107,16 @@ def test_access_and_security_admin_capabilities_are_separated(services):
     memberships = access.list_scope_grants("project", project.id)
     assert len(memberships) == 1
     assert memberships[0].scope_role == "lead"
-    assert len(auth.list_users()) >= 3
+    assert len(services["user_directory_query"].list_users()) >= 3
     with pytest.raises(BusinessRuleError, match="security.manage"):
-        auth.unlock_user_account(target.id)
+        services["user_administration_commands"].unlock_user_account(target.id)
 
     login_as(services, "security-admin-user", "StrongPass123")
-    assert len(auth.list_users()) >= 3
-    assert len(auth.list_roles()) >= 1
-    auth.unlock_user_account(target.id)
+    assert len(services["user_directory_query"].list_users()) >= 3
+    assert len(services["user_directory_query"].list_roles()) >= 1
+    services["user_administration_commands"].unlock_user_account(target.id)
     with pytest.raises(BusinessRuleError, match="auth.manage"):
-        auth.register_user("blocked-by-security-admin", "StrongPass123")
+        services["user_registration"].register_user("blocked-by-security-admin", "StrongPass123")
 
 
 def test_project_scope_roles_are_canonical_and_editor_is_compatibility_alias():

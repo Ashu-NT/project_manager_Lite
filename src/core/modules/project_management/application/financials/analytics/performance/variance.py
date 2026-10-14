@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING, Protocol, cast
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
     PerformanceEvmFact,
@@ -11,10 +13,31 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 )
 from src.core.platform.common.exceptions import NotFoundError
 
+if TYPE_CHECKING:
+    from src.core.modules.project_management.contracts.ports.financials.performance_authorities import (
+        BaselineVarianceReadAuthority,
+    )
+    from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+        FinanceOverviewFacts,
+    )
+
 logger = logging.getLogger(__name__)
 
 
+class _IdentifiedBaseline(Protocol):
+    """Minimal shape read from baselines returned by the variance authority."""
+
+    @property
+    def id(self) -> str: ...
+
+
 class VarianceQueries:
+    # Host attributes supplied by ``ProjectFinancePerformanceQuery`` (declared for type checking only).
+    _baseline_variance_authority: BaselineVarianceReadAuthority
+    _authorize_finance: Callable[[str, str], None]
+    _read_basis: Callable[[str, date], FinanceOverviewFacts]
+    _read_evm: Callable[..., PerformanceEvmFact]
+
     def get_variance(
         self,
         project_id: str,
@@ -25,12 +48,13 @@ class VarianceQueries:
         self._authorize_finance(project_id, "view finance variance")
         resolved_as_of = as_of_date or datetime.now(UTC).astimezone().date()
         basis = self._read_basis(project_id, resolved_as_of)
-        baselines = tuple(
+        # The authority types baselines as object; only id is read directly.
+        baselines = cast(tuple[_IdentifiedBaseline, ...], tuple(
             item
             for item in self._baseline_variance_authority.list_baselines(project_id)
             if str(getattr(getattr(item, "status", ""), "value", getattr(item, "status", "")))
             in {"approved", "superseded"}
-        )
+        ))
         selected = next(
             (item for item in baselines if getattr(item, "id", "") == selected_baseline_id),
             None,

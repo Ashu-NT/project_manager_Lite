@@ -1,6 +1,8 @@
+from src.core.platform.domain.master_data.documents.classification import (
+    DocumentClassification,
+)
 from src.core.platform.domain.master_data.documents.document import (
     Document,
-    DocumentClassification,
     DocumentStorageKind,
     DocumentType,
 )

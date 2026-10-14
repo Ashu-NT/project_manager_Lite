@@ -3,13 +3,27 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioIntakeItemChanged,
     PortfolioIntakeItemChangeType,
+)
+from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
+    PortfolioPolicy,
+    new_portfolio_context,
+    utc_now,
+)
+from src.core.modules.project_management.contracts.repositories.portfolio.portfolio import (
+    PortfolioIntakeRepository,
+)
+from src.core.modules.project_management.contracts.uow.portfolio.portfolio_unit_of_work import (
+    PortfolioUnitOfWorkFactory,
 )
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
@@ -25,7 +39,23 @@ from src.core.shared.audit import record_audit_entry
 _INTAKE_UNSET = object()
 
 
-class PortfolioIntakeCommandMixin:
+class PortfolioIntakeCommandHandler(ProjectManagementModuleGuardMixin):
+    """Governed intake writes (create/update); one UoW per operation."""
+
+    def __init__(
+        self,
+        *,
+        intake_repo: PortfolioIntakeRepository,
+        policy: PortfolioPolicy,
+        uow_factory: PortfolioUnitOfWorkFactory,
+        user_session=None,
+        module_catalog_service=None,
+    ) -> None:
+        self._intake_repo = intake_repo
+        self._policy = policy
+        self._uow_factory = uow_factory
+        self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
     def create_intake_item(
         self,
@@ -44,12 +74,12 @@ class PortfolioIntakeCommandMixin:
         status: PortfolioIntakeStatus = PortfolioIntakeStatus.PROPOSED,
     ) -> PortfolioIntakeItem:
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio intake")
-        organization_id = self._active_portfolio_organization_id(operation_label="create portfolio intake")
-        scope = self._active_portfolio_scope(operation_label="create portfolio intake")
+        organization_id = self._policy.organization_id(operation_label="create portfolio intake")
+        scope = self._policy.scope(operation_label="create portfolio intake")
         try:
-            with self._require_uow_factory().create(context=self._new_context()) as uow:
+            with self._uow_factory.create(context=new_portfolio_context()) as uow:
                 events: list = []
-                scoring_template = self._resolve_scoring_template(
+                scoring_template = self._policy.resolve_scoring_template(
                     scoring_template_id, uow=uow, events=events
                 )
                 item = PortfolioIntakeItem.create(
@@ -103,7 +133,7 @@ class PortfolioIntakeCommandMixin:
                         organization_id=scope.organization_id,
                         intake_item_id=item.id,
                         change_type=PortfolioIntakeItemChangeType.CREATED,
-                        occurred_at=self._utc_now(),
+                        occurred_at=utc_now(),
                     )
                 )
                 for event in events:
@@ -124,7 +154,7 @@ class PortfolioIntakeCommandMixin:
         sponsor_name: str | None = None,
         summary: str | None = None,
         requested_budget: Decimal | int | str | None = None,
-        requested_capacity_percent: float | int | str | None = None,
+        requested_capacity_percent: float | str | None = None,
         target_start_date: date | None | object = _INTAKE_UNSET,
         strategic_score: int | str | None = None,
         value_score: int | str | None = None,
@@ -134,8 +164,8 @@ class PortfolioIntakeCommandMixin:
         scoring_template_id: str | None = None,
     ) -> PortfolioIntakeItem:
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio intake")
-        self._active_portfolio_organization_id(operation_label="update portfolio intake")
-        scope = self._active_portfolio_scope(operation_label="update portfolio intake")
+        self._policy.organization_id(operation_label="update portfolio intake")
+        scope = self._policy.scope(operation_label="update portfolio intake")
         item = self._intake_repo.get(item_id)
         if item is None:
             raise NotFoundError("Portfolio intake item not found.", code="PORTFOLIO_INTAKE_NOT_FOUND")
@@ -147,12 +177,12 @@ class PortfolioIntakeCommandMixin:
             requested_budget=(
                 item.requested_budget
                 if requested_budget is None
-                else requested_budget
+                else cast(Any, requested_budget)
             ),
             requested_capacity_percent=(
                 item.requested_capacity_percent
                 if requested_capacity_percent is None
-                else requested_capacity_percent
+                else cast(Any, requested_capacity_percent)
             ),
             target_start_date=(
                 item.target_start_date
@@ -162,27 +192,27 @@ class PortfolioIntakeCommandMixin:
             strategic_score=(
                 item.strategic_score
                 if strategic_score is None
-                else strategic_score
+                else cast(Any, strategic_score)
             ),
             value_score=(
                 item.value_score
                 if value_score is None
-                else value_score
+                else cast(Any, value_score)
             ),
             urgency_score=(
                 item.urgency_score
                 if urgency_score is None
-                else urgency_score
+                else cast(Any, urgency_score)
             ),
             risk_score=(
                 item.risk_score
                 if risk_score is None
-                else risk_score
+                else cast(Any, risk_score)
             ),
-            status=item.status if status is None else status,
-            updated_at=self._utc_now(),
+            status=item.status if status is None else cast(Any, status),
+            updated_at=utc_now(),
         )
-        with self._require_uow_factory().create(context=self._new_context()) as uow:
+        with self._uow_factory.create(context=new_portfolio_context()) as uow:
             events: list = []
             if scoring_template_id is not None:
                 scoring_template = uow.scoring_templates.get(scoring_template_id)
@@ -191,7 +221,7 @@ class PortfolioIntakeCommandMixin:
                         "Portfolio scoring template not found.",
                         code="PORTFOLIO_TEMPLATE_NOT_FOUND",
                     )
-                candidate = self._apply_scoring_template(candidate, scoring_template)
+                candidate = self._policy.apply_scoring_template(candidate, scoring_template)
             uow.intake.update(candidate)
             record_activity(
                 uow,
@@ -209,7 +239,7 @@ class PortfolioIntakeCommandMixin:
                     organization_id=scope.organization_id,
                     intake_item_id=candidate.id,
                     change_type=PortfolioIntakeItemChangeType.UPDATED,
-                    occurred_at=self._utc_now(),
+                    occurred_at=utc_now(),
                 )
             )
             for event in events:
@@ -218,4 +248,4 @@ class PortfolioIntakeCommandMixin:
         return candidate
 
 
-__all__ = ["PortfolioIntakeCommandMixin"]
+__all__ = ["PortfolioIntakeCommandHandler"]

@@ -3,18 +3,19 @@ the static country reference list backing the registered-address picker."""
 
 from __future__ import annotations
 
-from src.core.platform.api.desktop.master_data.org.models.organization import (
-    OrganizationProvisionCommand,
-    OrganizationUpdateCommand,
-)
 from src.core.platform.api.desktop.platform_runtime.runtime import (
     PlatformRuntimeDesktopApi,
+)
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
+    OrganizationUpdateCommand,
 )
 
 
 def test_list_countries_returns_static_reference_data(services):
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"]
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        module_entitlement_commands=services["module_entitlement_commands"],
     )
 
     result = api.list_countries()
@@ -31,7 +32,8 @@ def test_list_countries_returns_static_reference_data(services):
 
 def test_provision_organization_carries_new_fields_through_the_dto(services):
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"]
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        module_entitlement_commands=services["module_entitlement_commands"],
     )
 
     result = api.provision_organization(
@@ -66,7 +68,8 @@ def test_provision_organization_carries_new_fields_through_the_dto(services):
 
 def test_update_organization_carries_new_fields_through_the_dto(services):
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"]
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        module_entitlement_commands=services["module_entitlement_commands"],
     )
     created = api.provision_organization(
         OrganizationProvisionCommand(

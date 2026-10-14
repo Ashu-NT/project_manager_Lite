@@ -4,34 +4,44 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.api.desktop.master_data.department.department import (
     PlatformDepartmentDesktopApi,
 )
-from src.core.platform.api.desktop.master_data.department.models.department import (
-    DepartmentCreateCommand,
-    DepartmentUpdateCommand,
-)
 from src.core.platform.api.desktop.master_data.employee.employee import (
     PlatformEmployeeDesktopApi,
 )
-from src.core.platform.api.desktop.master_data.employee.models.employee import (
+from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+    DepartmentUpdateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )
-from src.core.platform.api.desktop.master_data.site.models.site import (
+from src.core.platform.contract.use_cases.master_data.site.commands import (
     SiteCreateCommand,
     SiteUpdateCommand,
 )
-from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 
 
 def _build_site_api(services) -> PlatformSiteDesktopApi:
-    return PlatformSiteDesktopApi(site_service=services["site_service"])
+    return PlatformSiteDesktopApi(
+        site_commands=services["site_commands"],
+        site_query=services["site_query"],
+    )
 
 
 def _build_department_api(services) -> PlatformDepartmentDesktopApi:
-    return PlatformDepartmentDesktopApi(department_service=services["department_service"])
+    return PlatformDepartmentDesktopApi(
+        department_commands=services["department_commands"],
+        department_query=services["department_query"],
+    )
 
 
 def _build_employee_api(services) -> PlatformEmployeeDesktopApi:
-    return PlatformEmployeeDesktopApi(employee_service=services["employee_service"])
+    return PlatformEmployeeDesktopApi(
+        employee_commands=services["employee_commands"],
+        employee_query=services["employee_query"],
+        employee_documents=services["employee_document_commands"],
+    )
 
 
 def test_platform_site_desktop_api_manages_site_dtos(services):
@@ -97,7 +107,7 @@ def test_platform_site_desktop_api_maps_site_validation_errors(services):
 
 def test_platform_department_desktop_api_manages_department_dtos(services):
     api = _build_department_api(services)
-    site = services["site_service"].create_site(site_code="DEPT", name="Department Site")
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="DEPT", name="Department Site"))
 
     create_result = api.create_department(
         DepartmentCreateCommand(

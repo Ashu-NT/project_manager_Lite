@@ -9,6 +9,12 @@ from datetime import UTC
 import pytest
 
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyRoleBindingRepository,
 )
@@ -36,10 +42,9 @@ def _switch_session_to_actor(services, actor, *, tenant_id, organization_id=None
     context-scoped principal for the delegated actor and add any permissions the delegation
     policy already covers redundantly, so the test does not depend on exactly which permissions
     happen to be pre-seeded on the actor's role."""
-    auth = services["auth_service"]
     if organization_id is None:
         organization_id = services["tenant_context_service"].get_active_organization_id()
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor, tenant_id=tenant_id, organization_id=organization_id
     )
     services["user_session"].set_principal(
@@ -57,16 +62,15 @@ def _tenant_scoped_binding_setup(services, *, suffix: str, role_name: str = "vie
     then switches the session onto the actor -- exactly the ordering `create_delegation_policy`
     (requires `platform.admin`) and `assign_role`/`revoke_role_binding` (reject a `platform.admin`
     actor) both demand."""
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         f"p5c1-actor-{suffix}", "P5C1Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         f"p5c1-target-{suffix}", "P5C1Target123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    target_role = auth._role_repo.get_by_name(role_name)
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    target_role = services["auth_queries"]._role_repo.get_by_name(role_name)
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=target_role.id,
@@ -189,21 +193,20 @@ def test_project_role_assignment_in_a_non_active_organization_remains_a_confirme
     project_a1 = services["project_service"].create_project("P5C-1 Non-Active Org Project")
     assert project_a1.organization_id == org_a1_id
 
-    org_a2 = services["organization_service"].create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C1-PROJ-A2"), display_name="P5C-1 Project Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
 
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code("p5c1-project-actor"), "P5C1Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code("p5c1-project-target"), "P5C1Target123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    project_role = auth._role_repo.get_by_name("project_viewer")
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    project_role = services["auth_queries"]._role_repo.get_by_name("project_viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=project_role.id,
@@ -234,7 +237,7 @@ def test_project_role_assignment_reverse_direction_active_a2_target_in_a1(servic
     tenant_context_service = services["tenant_context_service"]
     org_a1_id = tenant_context_service.get_active_organization_id()
 
-    org_a2 = services["organization_service"].create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C1-PROJ-REV-A2"), display_name="P5C-1 Project Reverse Org A2"
     )
     # Build project_a1 while A1 is still ambiently active (it already deactivated A1's DB flag
@@ -245,16 +248,15 @@ def test_project_role_assignment_reverse_direction_active_a2_target_in_a1(servic
     tenant_context_service.set_active_organization(org_a2.id)
     assert tenant_context_service.get_active_organization_id() == org_a2.id
 
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code("p5c1-project-rev-actor"), "P5C1Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code("p5c1-project-rev-target"), "P5C1Target123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    project_role = auth._role_repo.get_by_name("project_viewer")
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    project_role = services["auth_queries"]._role_repo.get_by_name("project_viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=project_role.id,
@@ -287,26 +289,23 @@ def test_site_role_assignment_targets_a_non_active_organization(services):
     like storeroom."""
     tenant_context_service = services["tenant_context_service"]
     org_a1_id = tenant_context_service.get_active_organization_id()
-    site_a1 = services["site_service"].create_site(
-        site_code=_unique_code("P5C1-SITE-A1"), name="A1 Site For Role Scope", city="Berlin", currency_code="EUR"
-    )
+    site_a1 = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique_code("P5C1-SITE-A1"), name="A1 Site For Role Scope", city="Berlin", currency_code="EUR"))
     assert site_a1.organization_id == org_a1_id
 
-    org_a2 = services["organization_service"].create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C1-SITE-A2"), display_name="P5C-1 Site Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
 
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code("p5c1-site-actor"), "P5C1Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code("p5c1-site-target"), "P5C1Target123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    site_role = auth._role_repo.get_by_name("site_viewer")
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    site_role = services["auth_queries"]._role_repo.get_by_name("site_viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=site_role.id,
@@ -337,22 +336,21 @@ def test_organization_scoped_role_assignment_targets_a_non_active_organization(s
     organization A2 while A1 remains active must succeed without switching."""
     tenant_context_service = services["tenant_context_service"]
     org_a1_id = tenant_context_service.get_active_organization_id()
-    org_a2 = services["organization_service"].create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C1-ORG-SCOPE-A2"),
         display_name="P5C-1 Org Scope A2",
     )
     assert tenant_context_service.get_active_organization_id() == org_a1_id  # unaffected
 
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code("p5c1-org-scope-actor"), "P5C1Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code("p5c1-org-scope-target"), "P5C1Target123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    org_role = auth._role_repo.get_by_name("org_viewer")
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    org_role = services["auth_queries"]._role_repo.get_by_name("org_viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=org_role.id,
@@ -384,17 +382,15 @@ def test_department_role_assignment_remains_unreachable_and_undocumented_as_a_ne
     assert role_governance_service._scope_exists_resolvers.get("department") is None
     assert role_governance_service._organization_owner_resolvers.get("department") is None
     assert not any(
-        role.allowed_scope_type == "department" for role in services["auth_service"]._role_repo.list_all()
+        role.allowed_scope_type == "department" for role in services["auth_queries"]._role_repo.list_all()
     )
 
     tenant_context_service = services["tenant_context_service"]
     org_a1_id = tenant_context_service.get_active_organization_id()
-    department_a1 = services["department_service"].create_department(
-        department_code=_unique_code("P5C1-DEPT-A1"), name="P5C-1 Department A1"
-    )
+    department_a1 = services["department_commands"].create_department(DepartmentCreateCommand(department_code=_unique_code("P5C1-DEPT-A1"), name="P5C-1 Department A1"))
     assert department_a1.organization_id == org_a1_id  # ownership trivially derivable
 
-    org_a2 = services["organization_service"].create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C1-DEPT-A2"), display_name="P5C-1 Department Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
@@ -430,16 +426,15 @@ def test_site_role_assignment_rejects_a_foreign_tenant_site(services):
 
     now = datetime.now(UTC)
     session = services["session"]
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code("p5c1-cross-tenant-actor"), "P5C1Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code("p5c1-cross-tenant-target"), "P5C1Target123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    site_role = auth._role_repo.get_by_name("site_viewer")
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    site_role = services["auth_queries"]._role_repo.get_by_name("site_viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=site_role.id,
@@ -508,14 +503,13 @@ def test_self_assignment_refreshes_current_principal_only_after_commit(services)
     `refresh_current_session_if_user` AFTER the canonical UoW commits.
     `RoleGovernanceService.assign_role`/`revoke_role_binding` never call this refresh
     themselves -- it's deliberately the calling facade's responsibility."""
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
     username = _unique_code("p5c1-self-actor")
-    self_actor = auth.register_user(
+    self_actor = services["user_registration"].register_user(
         username, "P5C1SelfActor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    tenant_admin_role = auth._role_repo.get_by_name("tenant_admin")
-    viewer_role = auth._role_repo.get_by_name("viewer")
+    tenant_admin_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=tenant_admin_role.id,
         assignable_role_id=viewer_role.id,
@@ -526,10 +520,10 @@ def test_self_assignment_refreshes_current_principal_only_after_commit(services)
     login_as(services, username, "P5C1SelfActor123!")
     assert "viewer" not in services["user_session"].principal.role_names
 
-    auth.assign_role(self_actor.id, "viewer")
+    services["role_assignment_commands"].assign_role(self_actor.id, "viewer")
     assert "viewer" in services["user_session"].principal.role_names
 
-    auth.revoke_role(self_actor.id, "viewer")
+    services["role_assignment_commands"].revoke_role(self_actor.id, "viewer")
     assert "viewer" not in services["user_session"].principal.role_names
 
 
@@ -550,14 +544,13 @@ def test_current_principal_refresh_failure_after_commit_fails_closed(services, m
     """If rebuilding the principal raises AFTER the RoleBinding transaction has already
     committed, `refresh_current_session_if_user` clears the session entirely -- fail-closed --
     rather than silently continuing with a stale principal."""
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
     username = _unique_code("p5c1-refresh-fail-actor")
-    self_actor = auth.register_user(
+    self_actor = services["user_registration"].register_user(
         username, "P5C1RefreshFail123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    tenant_admin_role = auth._role_repo.get_by_name("tenant_admin")
-    viewer_role = auth._role_repo.get_by_name("viewer")
+    tenant_admin_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=tenant_admin_role.id,
         assignable_role_id=viewer_role.id,
@@ -566,19 +559,18 @@ def test_current_principal_refresh_failure_after_commit_fails_closed(services, m
     )
 
     login_as(services, username, "P5C1RefreshFail123!")
-    auth.assign_role(self_actor.id, "viewer")
+    services["role_assignment_commands"].assign_role(self_actor.id, "viewer")
     assert "viewer" in services["user_session"].principal.role_names
 
     def _fail_build_principal(*_args, **_kwargs):
         raise RuntimeError("simulated build_principal failure")
 
     monkeypatch.setattr(
-        "src.core.platform.application.security.auth.session.session_service.build_principal",
-        _fail_build_principal,
+        services["auth_session_lifecycle"]._principals, "build", _fail_build_principal
     )
 
     # Must NOT raise -- the fail-closed helper swallows the rebuild failure and clears instead.
-    auth.revoke_role(self_actor.id, "viewer")
+    services["role_assignment_commands"].revoke_role(self_actor.id, "viewer")
 
     assert services["user_session"].principal is None  # cleared, never left stale/elevated
 
@@ -589,12 +581,9 @@ def test_current_principal_refresh_failure_after_commit_fails_closed(services, m
 
 
 def test_access_facade_does_not_own_a_competing_transaction(services):
-    site = services["site_service"].create_site(
-        site_code=_unique_code("P5C1-FACADE-SITE"), name="Facade Site", city="Berlin", currency_code="EUR"
-    )
-    auth = services["auth_service"]
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique_code("P5C1-FACADE-SITE"), name="Facade Site", city="Berlin", currency_code="EUR"))
     tenant_id = _tenant_id(services)
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         _unique_code("p5c1-facade-user"), "P5C1Facade123!", role_names=["inventory_manager"], tenant_id=tenant_id
     )
 

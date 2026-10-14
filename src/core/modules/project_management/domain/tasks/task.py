@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -76,7 +77,7 @@ class Task:
 
     @field_validator("sort_order", mode="before")
     @classmethod
-    def _validate_sort_order(cls, value: object) -> int:
+    def _validate_sort_order(cls, value: Any) -> int:
         resolved = int(value if value not in (None, "") else 0)
         if resolved < 0:
             raise ValidationError(
@@ -128,7 +129,7 @@ class Task:
 
     @field_validator("duration_days", mode="before")
     @classmethod
-    def _validate_duration_days(cls, value: object) -> int | None:
+    def _validate_duration_days(cls, value: Any) -> int | None:
         if value in (None, ""):
             return None
         resolved = int(value)
@@ -146,7 +147,7 @@ class Task:
 
     @field_validator("percent_complete", mode="before")
     @classmethod
-    def _validate_percent_complete(cls, value: object) -> float:
+    def _validate_percent_complete(cls, value: Any) -> float:
         resolved = float(value if value not in (None, "") else 0.0)
         if resolved < 0 or resolved > 100:
             raise ValidationError(
@@ -274,7 +275,7 @@ class TaskAssignment:
 
     @field_validator("allocation_percent", mode="before")
     @classmethod
-    def _validate_allocation_percent(cls, value: object) -> float:
+    def _validate_allocation_percent(cls, value: Any) -> float:
         resolved = float(value if value not in (None, "") else 0.0)
         if resolved <= 0 or resolved > 100:
             raise ValidationError(
@@ -307,7 +308,7 @@ class TaskAssignment:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -390,7 +391,7 @@ class TaskDependency:
 
     @field_validator("lag_days", mode="before")
     @classmethod
-    def _validate_lag_days(cls, value: object) -> int:
+    def _validate_lag_days(cls, value: Any) -> int:
         return int(value if value not in (None, "") else 0)
 
     @model_validator(mode="after")

@@ -40,6 +40,11 @@ class RuntimeExecutionService:
         ctx = self._tenant_context_service.require_organization_context(
             operation_label="start runtime execution"
         )
+        if ctx.organization_id is None:
+            raise BusinessRuleError(
+                "Active organization context is required for start runtime execution.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         principal = self._user_session.principal if self._user_session is not None else None
         resolved_attempt_number = max(1, int(attempt_number or 1))
         if retry_of_execution_id and attempt_number is None:
@@ -57,8 +62,8 @@ class RuntimeExecutionService:
             authorization_context_id=(
                 str(getattr(principal, "session_id", "") or "").strip() or None
             ),
-            input_path=input_path,
-            output_path=output_path,
+            input_path=None if input_path is None else str(input_path),
+            output_path=None if output_path is None else str(output_path),
             retry_of_execution_id=retry_of_execution_id,
             attempt_number=resolved_attempt_number,
         )
@@ -80,16 +85,17 @@ class RuntimeExecutionService:
         self._require_execution_scope(execution, operation_label="complete runtime execution")
         execution.status = "COMPLETED"
         if output_path is not None:
-            execution.output_path = output_path
+            execution.output_path = str(output_path)
         if str(output_file_name or "").strip():
             execution.output_file_name = output_file_name
         if str(output_media_type or "").strip():
             execution.output_media_type = output_media_type
         if output_metadata is not None:
             execution.output_metadata = output_metadata
-        execution.created_count = created_count
-        execution.updated_count = updated_count
-        execution.error_count = error_count
+        # None maps to the field default (0), as the field validators do.
+        execution.created_count = created_count if created_count is not None else 0
+        execution.updated_count = updated_count if updated_count is not None else 0
+        execution.error_count = error_count if error_count is not None else 0
         execution.completed_at = datetime.now(UTC)
         execution.updated_at = execution.completed_at
         self._runtime_execution_repo.update(execution)
@@ -109,7 +115,7 @@ class RuntimeExecutionService:
         execution.status = "FAILED"
         execution.error_message = str(error_message or "").strip() or "Runtime execution failed."
         if output_path is not None:
-            execution.output_path = output_path
+            execution.output_path = str(output_path)
         if str(output_file_name or "").strip():
             execution.output_file_name = output_file_name
         if str(output_media_type or "").strip():

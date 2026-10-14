@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.api.desktop import (
+from src.core.modules.project_management.contracts.use_cases.financials import (
     FinancialAddBudgetLineCommand,
     FinancialCreateBudgetSuccessorCommand,
     FinancialCreateBudgetVersionCommand,

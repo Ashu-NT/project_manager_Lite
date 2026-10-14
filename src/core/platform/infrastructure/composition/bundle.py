@@ -19,34 +19,54 @@ from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.master_data.data_exchange import (
     MasterDataExchangeService,
 )
-from src.core.platform.application.master_data.department.department_service import (
-    DepartmentService,
+from src.core.platform.application.master_data.department import (
+    DepartmentCommandHandler,
+    DepartmentQueryHandler,
 )
 from src.core.platform.application.master_data.documents import (
-    DocumentIntegrationService,
-    DocumentService,
+    DocumentAttachmentCommandHandler,
+    DocumentAttachmentQueryHandler,
+    DocumentCommandHandler,
+    DocumentQueryHandler,
+    DocumentStructureCommandHandler,
+    PermissionDocumentAccessPolicy,
 )
-from src.core.platform.application.master_data.employee.employee_service import (
-    EmployeeService,
+from src.core.platform.application.master_data.employee import (
+    EmployeeCommandHandler,
+    EmployeeDocumentCommandHandler,
+    EmployeeQueryHandler,
 )
-from src.core.platform.application.master_data.org.organization_service import (
-    OrganizationService,
+from src.core.platform.application.master_data.org import (
+    OrganizationCommandHandler,
+    OrganizationLifecycleCommandHandler,
+    OrganizationQueryHandler,
 )
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.party import (
+    PartyCommandHandler,
+    PartyQueryHandler,
+)
+from src.core.platform.application.master_data.site import (
+    SiteCommandHandler,
+    SiteQueryHandler,
+)
 from src.core.platform.application.notifications.notification_service import (
     NotificationService,
 )
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
 )
-from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.security.authorization.roles import (
     RoleGovernanceService,
     TenantRoleAdministrationService,
 )
+from src.core.platform.application.security.authorization.roles.commands import (
+    RoleAssignmentHandler,
+)
 from src.core.platform.application.security.identity import ServicePrincipalService
-from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.tenant.modules import (
+    ModuleCatalogQueryHandler,
+    ModuleEntitlementCommandHandler,
+)
 from src.core.platform.application.tenant.tenancy import (
     TenantAdminService,
     TenantContextService,
@@ -89,8 +109,8 @@ from src.core.platform.contract.repositories.master_data.site.contracts import (
     SiteRepository,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.infrastructure.composition.dependencies.repositories import (
-    build_platform_repositories as build_platform_repositories,
+from src.core.platform.infrastructure.composition.dependencies.security.auth import (
+    AuthComposition,
 )
 from src.core.shared.events.view_invalidation import (
     ViewInvalidationChannel,
@@ -119,17 +139,30 @@ class PlatformServiceBundle:
     platform_transactional_dispatcher: InProcessTransactionalEventDispatcher
     platform_post_commit_bus: InProcessPostCommitEventBus
     platform_runtime_application_service: PlatformRuntimeApplicationService
-    module_catalog_service: ModuleCatalogService
-    auth_service: AuthService
+    module_catalog_service: ModuleCatalogQueryHandler
+    module_entitlement_commands: ModuleEntitlementCommandHandler
+    auth: AuthComposition
+    role_assignment_commands: RoleAssignmentHandler
     role_governance_service: RoleGovernanceService
     tenant_role_administration_service: TenantRoleAdministrationService
-    organization_service: OrganizationService
-    document_service: DocumentService
-    document_integration_service: DocumentIntegrationService
-    party_service: PartyService
-    department_service: DepartmentService
-    site_service: SiteService
-    employee_service: EmployeeService
+    organization_commands: OrganizationCommandHandler
+    organization_lifecycle: OrganizationLifecycleCommandHandler
+    organization_query: OrganizationQueryHandler
+    document_access_policy: PermissionDocumentAccessPolicy
+    document_commands: DocumentCommandHandler
+    document_structure_commands: DocumentStructureCommandHandler
+    document_query: DocumentQueryHandler
+    document_attachment_commands: DocumentAttachmentCommandHandler
+    document_attachment_query: DocumentAttachmentQueryHandler
+    party_commands: PartyCommandHandler
+    party_query: PartyQueryHandler
+    department_commands: DepartmentCommandHandler
+    department_query: DepartmentQueryHandler
+    site_commands: SiteCommandHandler
+    site_query: SiteQueryHandler
+    employee_commands: EmployeeCommandHandler
+    employee_query: EmployeeQueryHandler
+    employee_document_commands: EmployeeDocumentCommandHandler
     master_data_exchange_service: MasterDataExchangeService
     runtime_execution_service: RuntimeExecutionService
     access_service: AccessControlService

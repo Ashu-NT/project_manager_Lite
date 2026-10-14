@@ -3,22 +3,6 @@
 from src.core.modules.project_management.api.desktop.resources.api import (
     ProjectManagementResourcesDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.resources.commands.certification_commands import (
-    ResourceAddCertificationCommand,
-    ResourceRemoveCertificationCommand,
-    ResourceUpdateCertificationCommand,
-)
-from src.core.modules.project_management.api.desktop.resources.commands.resource_commands import (
-    ResourceCreateCommand,
-    ResourceLifecycleCommand,
-    ResourcePurgeCommand,
-    ResourceUpdateCommand,
-)
-from src.core.modules.project_management.api.desktop.resources.commands.skill_commands import (
-    ResourceAddSkillCommand,
-    ResourceRemoveSkillCommand,
-    ResourceUpdateSkillCommand,
-)
 from src.core.modules.project_management.api.desktop.resources.factories.resources_api_factory import (
     build_project_management_resources_desktop_api,
 )
@@ -55,6 +39,18 @@ from src.core.modules.project_management.api.desktop.resources.models.resources 
 from src.core.modules.project_management.api.desktop.resources.models.skills import (
     ResourceSkillDesktopDto,
     ResourceSkillsPageDesktopDto,
+)
+from src.core.modules.project_management.contracts.use_cases.resources.commands import (
+    ResourceAddCertificationCommand,
+    ResourceAddSkillCommand,
+    ResourceCreateCommand,
+    ResourceLifecycleCommand,
+    ResourcePurgeCommand,
+    ResourceRemoveCertificationCommand,
+    ResourceRemoveSkillCommand,
+    ResourceUpdateCertificationCommand,
+    ResourceUpdateCommand,
+    ResourceUpdateSkillCommand,
 )
 
 __all__ = [

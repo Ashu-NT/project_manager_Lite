@@ -130,7 +130,7 @@ class ResourceCapabilityQueryHandler:
             "resource_id": str(resource_id or "").strip(),
             "search_text": str(search_text or "").strip(),
             "status": normalized_status,
-            "as_of": date.today(),
+            "as_of": date.today(),  # noqa: DTZ011
             "page": request.page,
             "page_size": request.page_size,
             "sort": sort,

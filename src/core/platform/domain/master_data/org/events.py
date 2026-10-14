@@ -1,5 +1,5 @@
 """Organization's business event vocabulary. Application-authored via `uow.record_event(...)`
-from `OrganizationService` -- Organization has no state-transition methods of its own. Pure
+from the Organization command handlers -- Organization has no state-transition methods of its own. Pure
 business vocabulary only: no ViewInvalidation import, no dispatch/execution metadata
 (`correlation_id`/`causation_id`/`command_id` live on `DomainEventContext`, never duplicated here).
 """

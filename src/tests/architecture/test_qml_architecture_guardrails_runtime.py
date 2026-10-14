@@ -121,7 +121,7 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
 
 def test_project_management_portfolio_heatmap_search_and_paging_are_controller_owned() -> None:
     # R3.4: the Heatmap browse (search/page/pageSize) is now server-paginated
-    # (see PortfolioService.list_portfolio_heatmap_page) and lives in its own
+    # (see PortfolioExecutiveQueryHandler.list_portfolio_heatmap_page) and lives in its own
     # tab component rather than inline on the workspace page.
     heatmap_tab_path = (
         UI_QML_ROOT

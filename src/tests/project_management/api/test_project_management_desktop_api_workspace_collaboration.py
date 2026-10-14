@@ -47,7 +47,13 @@ def test_project_management_desktop_api_gets_workspace_by_route_id() -> None:
 def test_project_management_collaboration_desktop_api_exposes_purpose_queries() -> None:
     service = _FakeCollaborationService()
     api = build_project_management_collaboration_desktop_api(
-        collaboration_service=service
+        inbox_query=service,
+        comment_query=service,
+        document_query=service,
+        presence_query=service,
+        comment_commands=service,
+        comment_engagement=service,
+        presence_commands=service,
     )
 
     inbox = api.query_inbox_page(page=1, page_size=25)

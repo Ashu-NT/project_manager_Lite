@@ -92,7 +92,7 @@ def _make_service(monkeypatch: pytest.MonkeyPatch) -> AccessControlService:
     return AccessControlService(
         session=_FakeSession(),
         user_repo=_FakeUserRepo(),
-        auth_service=object(),
+        session_lifecycle=object(),
         policy_registry=_make_policy_registry(),
         scope_exists_resolvers={
             "site": lambda tenant_id, scope_id: (

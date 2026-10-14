@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -55,7 +56,7 @@ def _normalize_required_code(value: object, *, message: str, code: str) -> str:
     return normalize_required_text(value, message=message, code=code).lower()
 
 
-def _normalize_positive_int(value: object, *, code: str, message: str) -> int:
+def _normalize_positive_int(value: Any, *, code: str, message: str) -> int:
     try:
         normalized = int(value if value not in (None, "") else 1)
     except (TypeError, ValueError) as exc:

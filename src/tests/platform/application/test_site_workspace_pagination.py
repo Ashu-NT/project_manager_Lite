@@ -7,22 +7,24 @@ the exact same list_sites_page_for_organization backend call."""
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 
 def test_sites_workspace_list_is_paginated_and_scoped_to_active_organization(services):
-    site_service = services["site_service"]
     tenant_context_service = services["tenant_context_service"]
     active_org = tenant_context_service.get_active_organization()
 
     for i in range(3):
-        site_service.create_site(site_code=f"PAGN-A-{i}", name=f"Active Org Site {i}")
+        services["site_commands"].create_site(SiteCreateCommand(site_code=f"PAGN-A-{i}", name=f"Active Org Site {i}"))
 
-    other_org = services["organization_service"].create_organization(
+    other_org = services["organization_commands"].create_organization(
         organization_code="PAGN-OTHER", display_name="Other Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(other_org.id)
-    site_service.create_site(site_code="PAGN-B-0", name="Other Org Site")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="PAGN-B-0", name="Other Org Site"))
     tenant_context_service.set_active_organization(active_org.id)
 
     registry = build_desktop_api_registry(services)
@@ -41,10 +43,9 @@ def test_sites_workspace_list_is_paginated_and_scoped_to_active_organization(ser
 
 
 def test_sites_workspace_search_and_page_size_round_trip_through_admin_workspace(services):
-    site_service = services["site_service"]
     for i in range(3):
-        site_service.create_site(site_code=f"PAGN-C-{i}", name=f"Findme Site {i}")
-    site_service.create_site(site_code="PAGN-D-0", name="Unrelated Site")
+        services["site_commands"].create_site(SiteCreateCommand(site_code=f"PAGN-C-{i}", name=f"Findme Site {i}"))
+    services["site_commands"].create_site(SiteCreateCommand(site_code="PAGN-D-0", name="Unrelated Site"))
 
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)

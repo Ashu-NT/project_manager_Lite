@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
@@ -85,6 +84,7 @@ from src.core.platform.domain.finance import DecimalQuantity, Money
 from src.core.platform.integration.canonical_json import canonical_json_sha256
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.time.clock import CalendarClock
 
 
 class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
@@ -101,7 +101,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         rate_resolver: RateCardResolver,
         financial_period_service: FinancialPeriodService,
         tenant_context_service: TenantContextService,
-        clock: Clock,
+        clock: CalendarClock,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,

@@ -7,6 +7,12 @@ from src.core.modules.project_management.infrastructure.persistence.reads.resour
 from src.core.modules.project_management.infrastructure.persistence.reads.timesheets.sqlalchemy_workspace_reader import (
     SqlAlchemyTimesheetWorkspaceReader,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
 
 
 def _tenant_org(services):
@@ -28,19 +34,13 @@ def test_resolve_mine_resource_still_resolves_a_time_reporting_eligible_resource
     """Behavior-preservation: same result as before the delegation refactor
     for the common, time-reporting-eligible case."""
     tenant_id, organization_id = _tenant_org(services)
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         "timesheet-owner", "StrongPass123", role_names=["viewer"]
     )
-    department = services["department_service"].create_department(
-        department_code="TS-DEPT-1", name="Timesheet Owner Department"
-    )
-    employee = services["employee_service"].create_employee(
-        employee_code="EMP-TS-1",
-        full_name="Timesheet Owner",
-        department_id=department.id,
-    )
-    services["employee_service"].link_employee_user_account(employee.id, user.id)
-    resource = services["resource_service"].create_resource(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="TS-DEPT-1", name="Timesheet Owner Department"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-TS-1", full_name="Timesheet Owner", department_id=department.id))
+    services["employee_commands"].link_employee_user_account(employee.id, user.id)
+    resource = services["resource_master_commands"].create_resource(
         "Timesheet Owner Resource",
         worker_type=WorkerType.EMPLOYEE,
         cost_type=CostType.LABOR,
@@ -62,19 +62,13 @@ def test_resolve_mine_resource_still_excludes_a_time_reporting_ineligible_resour
     """The neutral resolver would find this resource; the Timesheets-owned
     eligibility check layered on top must still reject it, unchanged."""
     tenant_id, organization_id = _tenant_org(services)
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         "equipment-owner-2", "StrongPass123", role_names=["viewer"]
     )
-    department = services["department_service"].create_department(
-        department_code="TS-DEPT-2", name="Equipment Owner Department"
-    )
-    employee = services["employee_service"].create_employee(
-        employee_code="EMP-TS-2",
-        full_name="Equipment Owner Two",
-        department_id=department.id,
-    )
-    services["employee_service"].link_employee_user_account(employee.id, user.id)
-    services["resource_service"].create_resource(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="TS-DEPT-2", name="Equipment Owner Department"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-TS-2", full_name="Equipment Owner Two", department_id=department.id))
+    services["employee_commands"].link_employee_user_account(employee.id, user.id)
+    services["resource_master_commands"].create_resource(
         "Owned Equipment Two",
         worker_type=WorkerType.EMPLOYEE,
         cost_type=CostType.EQUIPMENT,

@@ -32,7 +32,7 @@ def test_pm_only_commercial_workflow_needs_no_optional_operational_module(servic
         period_end=date(2026, 8, 31),
         idempotency_key="pm-only-preparation",
     )
-    projection = services["reporting_service"].get_project_commercial_projection(
+    projection = services["profitability_report"].get_project_commercial_projection(
         project.id, as_of_date=date(2026, 8, 31)
     )
     assert preparation.project_id == project.id

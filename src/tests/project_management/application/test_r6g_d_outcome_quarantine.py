@@ -6,12 +6,10 @@ import pytest
 from src.core.modules.project_management.application.financials.accounting.outcome_quarantine import (
     AccountingOutcomeQuarantine,
 )
-from src.core.platform.application.integration.accounting.outcome_ingress import (
-    IngressRejectionReason,
-    ValidatedAccountingIngress,
-)
 from src.core.platform.contract.port.integration.accounting_outcomes import (
     AuthenticatedAccountingConnection,
+    IngressRejectionReason,
+    ValidatedAccountingIngress,
 )
 from src.tests.platform.integration.test_integration_delivery_foundation import (
     _Clock,

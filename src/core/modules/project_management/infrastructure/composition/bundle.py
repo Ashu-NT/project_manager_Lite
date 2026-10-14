@@ -5,10 +5,21 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from src.core.modules.project_management.application.collaboration import (
-    CollaborationService,
+from src.core.modules.project_management.application.collaboration.commands import (
+    CollaborationCommentCommandHandler,
+    CollaborationCommentEngagementHandler,
+    CollaborationPresenceCommandHandler,
 )
-from src.core.modules.project_management.application.dashboard import DashboardService
+from src.core.modules.project_management.application.collaboration.queries import (
+    CollaborationCommentQueryHandler,
+    CollaborationDocumentQueryHandler,
+    CollaborationInboxQueryHandler,
+    CollaborationPresenceQueryHandler,
+)
+from src.core.modules.project_management.application.dashboard import (
+    PortfolioDashboardQueryHandler,
+    ProjectDashboardQueryHandler,
+)
 from src.core.modules.project_management.application.financials import (
     ApprovedTimeLaborCostConsumer,
     BudgetService,
@@ -31,20 +42,37 @@ from src.core.modules.project_management.application.financials import (
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
 )
-from src.core.modules.project_management.application.portfolio import PortfolioService
-from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
+from src.core.modules.project_management.application.portfolio.commands import (
+    PortfolioDependencyCommandHandler,
+    PortfolioIntakeCommandHandler,
+    PortfolioScenarioCommandHandler,
+    PortfolioTemplateCommandHandler,
+)
+from src.core.modules.project_management.application.portfolio.queries import (
+    PortfolioDependencyQueryHandler,
+    PortfolioExecutiveQueryHandler,
     PortfolioIntakeQueryHandler,
+    PortfolioScenarioQueryHandler,
+    PortfolioTemplateQueryHandler,
 )
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
 )
 from src.core.modules.project_management.application.reporting import (
-    ReportingService,
+    BaselineCompareReportBuilder,
+    CostBreakdownReportBuilder,
+    EarnedValueReportBuilder,
+    LaborReportBuilder,
+    ProfitabilityReportBuilder,
+    ProjectKpiReportBuilder,
+    ScheduleVarianceReportBuilder,
 )
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
-    ResourceService,
+    ResourceCapabilityCommandHandler,
+    ResourceMasterCommandHandler,
+    ResourceQueryHandler,
 )
 from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
@@ -99,7 +127,11 @@ from src.core.modules.project_management.application.tasks.queries.task_lookup i
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
 )
-from src.core.modules.project_management.application.timesheets import TimesheetService
+from src.core.modules.project_management.application.timesheets import (
+    TimesheetReviewQueryHandler,
+    TimesheetWorkspaceCommandHandler,
+    TimesheetWorkspaceQueryHandler,
+)
 from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import (
     FinanceGovernanceUnitOfWork,
 )
@@ -109,7 +141,12 @@ from src.core.modules.project_management.infrastructure.importers import (
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
-from src.core.platform.application.time_management.time import TimeService
+from src.core.platform.application.time_management.time import (
+    TimeEntryCommandHandler,
+    TimeEntryQueryHandler,
+    TimesheetPeriodQueryHandler,
+    TimesheetPeriodTransitionHandler,
+)
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
@@ -120,8 +157,16 @@ from src.core.platform.domain.security.identity.service_principal import (
 
 @dataclass(frozen=True)
 class ProjectManagementServiceBundle:
-    time_service: TimeService
-    collaboration_service: CollaborationService
+    time_entry_commands: TimeEntryCommandHandler
+    time_entry_queries: TimeEntryQueryHandler
+    timesheet_period_transitions: TimesheetPeriodTransitionHandler
+    collaboration_comment_commands: CollaborationCommentCommandHandler
+    collaboration_comment_engagement: CollaborationCommentEngagementHandler
+    collaboration_presence_commands: CollaborationPresenceCommandHandler
+    collaboration_comment_query: CollaborationCommentQueryHandler
+    collaboration_document_query: CollaborationDocumentQueryHandler
+    collaboration_inbox_query: CollaborationInboxQueryHandler
+    collaboration_presence_query: CollaborationPresenceQueryHandler
     project_service: ProjectService
     project_query: ProjectQueryHandler
     task_service: TaskService
@@ -131,8 +176,13 @@ class ProjectManagementServiceBundle:
     task_lookup_query: TaskLookupQueryHandler
     task_assignment_commands: TaskAssignmentCommandHandler
     task_time_entries: TaskTimeEntryHandler
-    timesheet_service: TimesheetService
-    resource_service: ResourceService
+    timesheet_workspace_query: TimesheetWorkspaceQueryHandler
+    timesheet_workspace_commands: TimesheetWorkspaceCommandHandler
+    timesheet_review_query: TimesheetReviewQueryHandler
+    timesheet_period_query: TimesheetPeriodQueryHandler
+    resource_query: ResourceQueryHandler
+    resource_master_commands: ResourceMasterCommandHandler
+    resource_capability_commands: ResourceCapabilityCommandHandler
     resource_capability_query: ResourceCapabilityQueryHandler
     resource_context_query: ResourceContextQueryHandler
     finance_governance_commands: FinanceGovernanceCommandBoundary
@@ -162,11 +212,25 @@ class ProjectManagementServiceBundle:
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim - enterprise-backed
     scheduling_engine: SchedulingEngine
-    reporting_service: ReportingService
+    project_kpi_report: ProjectKpiReportBuilder
+    earned_value_report: EarnedValueReportBuilder
+    cost_breakdown_report: CostBreakdownReportBuilder
+    baseline_compare_report: BaselineCompareReportBuilder
+    schedule_variance_report: ScheduleVarianceReportBuilder
+    profitability_report: ProfitabilityReportBuilder
+    labor_report: LaborReportBuilder
     baseline_service: BaselineService
-    dashboard_service: DashboardService
-    portfolio_service: PortfolioService
+    project_dashboard_query: ProjectDashboardQueryHandler
+    portfolio_dashboard_query: PortfolioDashboardQueryHandler
     portfolio_intake_query: PortfolioIntakeQueryHandler
+    portfolio_intake_commands: PortfolioIntakeCommandHandler
+    portfolio_template_query: PortfolioTemplateQueryHandler
+    portfolio_template_commands: PortfolioTemplateCommandHandler
+    portfolio_scenario_query: PortfolioScenarioQueryHandler
+    portfolio_scenario_commands: PortfolioScenarioCommandHandler
+    portfolio_dependency_query: PortfolioDependencyQueryHandler
+    portfolio_dependency_commands: PortfolioDependencyCommandHandler
+    portfolio_executive_query: PortfolioExecutiveQueryHandler
     register_query: RegisterQueryHandler
     register_lifecycle_commands: RegisterLifecycleHandler
     project_resource_service: ProjectResourceService

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
-from src.core.platform.application.master_data.department.department_service import (
-    DepartmentService,
+from src.core.platform.application.master_data.department import (
+    DepartmentCommandHandler,
 )
-from src.core.platform.application.master_data.employee.employee_service import (
-    EmployeeService,
-)
+from src.core.platform.application.master_data.employee import EmployeeCommandHandler
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+    DepartmentUpdateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+    EmployeeUpdateCommand,
+)
 from src.core.platform.domain.master_data.department import Department
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
 from src.core.platform.domain.master_data.org import Organization
@@ -299,7 +305,7 @@ def test_department_cost_center_code_rejects_over_length_input():
 
 def test_department_service_uses_entity_validation(monkeypatch):
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.department.department_commands.require_permission",
+        "src.core.platform.application.master_data.department.commands.department_commands.require_permission",
         lambda *args, **kwargs: None,
     )
 
@@ -316,14 +322,8 @@ def test_department_service_uses_entity_validation(monkeypatch):
     department_repo = _FakeDepartmentRepo()
     employee_repo = _FakeEmployeeRepo()
     enterprise_audit_service = _FakeEnterpriseAuditService()
-    service = DepartmentService(
-        session=session,
-        department_repo=department_repo,
-        organization_repo=object(),
-        site_repo=site_repo,
-        employee_repo=employee_repo,
+    service = DepartmentCommandHandler(
         user_session=object(),
-        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=_FakeTenantContext(organization),
         uow_factory=_FakeDepartmentUnitOfWorkFactory(
             session=session,
@@ -335,15 +335,7 @@ def test_department_service_uses_entity_validation(monkeypatch):
         clock=SystemClock(),
     )
 
-    created = service.create_department(
-        department_code=" ops ",
-        display_name="  Operations  ",
-        description="  Core team  ",
-        site_id=f"  {site.id}  ",
-        department_type="  operations  ",
-        cost_center_code="  cc-100  ",
-        notes="  Note  ",
-    )
+    created = service.create_department(DepartmentCreateCommand(department_code=" ops ", name="  Operations  ", description="  Core team  ", site_id=f"  {site.id}  ", department_type="  operations  ", cost_center_code="  cc-100  ", notes="  Note  "))
 
     assert created.department_code == "OPS"
     assert created.name == "Operations"
@@ -353,20 +345,14 @@ def test_department_service_uses_entity_validation(monkeypatch):
     assert created.cost_center_code == "CC-100"
     assert created.notes == "Note"
 
-    updated = service.update_department(
-        created.id,
-        department_code=" ops-2 ",
-        display_name="  Field Operations  ",
-        cost_center_code=" cc-200 ",
-        expected_version=created.version,
-    )
+    updated = service.update_department(DepartmentUpdateCommand(department_id=created.id, department_code=" ops-2 ", name="  Field Operations  ", cost_center_code=" cc-200 ", expected_version=created.version))
 
     assert updated.department_code == "OPS-2"
     assert updated.name == "Field Operations"
     assert updated.cost_center_code == "CC-200"
 
     try:
-        service.create_department(department_code=" ops-2 ", name="Duplicate")
+        service.create_department(DepartmentCreateCommand(department_code=" ops-2 ", name="Duplicate"))
     except ValidationError as exc:
         assert exc.code == "DEPARTMENT_CODE_EXISTS"
     else:
@@ -426,7 +412,7 @@ def test_employee_dto_normalizes_and_validates_fields():
 
 def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.employee.employee_service.require_permission",
+        "src.core.platform.application.master_data.employee.commands.employee_commands.require_permission",
         lambda *args, **kwargs: None,
     )
 
@@ -465,15 +451,12 @@ def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
 
     session = _FakeSession()
     enterprise_audit_service = _FakeEnterpriseAuditService()
-    service = EmployeeService(
-        session=session,
-        employee_repo=employee_repo,
-        site_repo=site_repo,
-        department_repo=department_repo,
+    service = EmployeeCommandHandler(
         organization_repo=object(),
+        user_repo=None,
+        user_tenant_repo=None,
         tenant_context_service=_FakeTenantContext(organization),
         user_session=object(),
-        enterprise_audit_service=enterprise_audit_service,
         uow_factory=_FakeEmployeeUnitOfWorkFactory(
             session=session,
             employees=employee_repo,
@@ -484,18 +467,7 @@ def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
         clock=SystemClock(),
     )
 
-    created = service.create_employee(
-        employee_code=" emp-1 ",
-        full_name="  Alice Admin  ",
-        department_id=f"  {department.id}  ",
-        department="  PMO  ",
-        site_id=f"  {site.id}  ",
-        site_name="  Headquarters  ",
-        title="  Planner  ",
-        employment_type="part_time",
-        email="  ALICE@EXAMPLE.COM  ",
-        phone="  +234-555  ",
-    )
+    created = service.create_employee(EmployeeCreateCommand(employee_code=" emp-1 ", full_name="  Alice Admin  ", department_id=f"  {department.id}  ", department="  PMO  ", site_id=f"  {site.id}  ", site_name="  Headquarters  ", title="  Planner  ", employment_type="part_time", email="  ALICE@EXAMPLE.COM  ", phone="  +234-555  "))
 
     assert created.employee_code == "EMP-1"
     assert created.full_name == "Alice Admin"
@@ -508,18 +480,7 @@ def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
     assert created.email == "alice@example.com"
     assert created.phone == "+234-555"
 
-    updated = service.update_employee(
-        created.id,
-        employee_code=" emp-2 ",
-        full_name="  Alice Smith  ",
-        department_id=next_department.id,
-        site_id=next_site.id,
-        title="  Senior Planner  ",
-        employment_type="temporary",
-        email="",
-        phone="  +49-555-0101  ",
-        expected_version=created.version,
-    )
+    updated = service.update_employee(EmployeeUpdateCommand(employee_id=created.id, employee_code=" emp-2 ", full_name="  Alice Smith  ", department_id=next_department.id, site_id=next_site.id, title="  Senior Planner  ", employment_type="temporary", email="", phone="  +49-555-0101  ", expected_version=created.version))
 
     assert updated.employee_code == "EMP-2"
     assert updated.full_name == "Alice Smith"
@@ -533,7 +494,7 @@ def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
     assert updated.phone == "+49-555-0101"
 
     try:
-        service.create_employee(employee_code=" emp-2 ", full_name="Duplicate")
+        service.create_employee(EmployeeCreateCommand(employee_code=" emp-2 ", full_name="Duplicate"))
     except ValidationError as exc:
         assert exc.code == "EMPLOYEE_CODE_EXISTS"
     else:

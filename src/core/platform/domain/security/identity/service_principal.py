@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import field
 from datetime import UTC, datetime
+from typing import cast
 
 from pydantic import field_validator, model_validator
 
@@ -180,7 +182,8 @@ class ApiKeyCredential:
             sorted(
                 {
                     str(scope or "").strip().lower()
-                    for scope in value
+                    # Pydantic "before" input: callers pass an iterable of scopes.
+                    for scope in cast(Iterable[object], value)
                     if str(scope or "").strip()
                 }
             )
@@ -199,9 +202,11 @@ class ApiKeyCredential:
                 code="API_KEY_SCOPE_REQUIRED",
             )
         now = datetime.now(UTC)
-        if self.created_at is None:
+        created_at = self.created_at
+        if created_at is None:
+            created_at = now
             object.__setattr__(self, "created_at", now)
-        if self.expires_at is None or self.expires_at <= self.created_at:
+        if self.expires_at is None or self.expires_at <= created_at:
             raise ValidationError(
                 "API-key expiry must be after creation.",
                 code="API_KEY_EXPIRY_INVALID",

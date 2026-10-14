@@ -132,8 +132,8 @@ def test_reader_empty_snapshot_when_no_rows(reader_session):
 
 # ---------------------------------------------------------------------------
 # Service-level result-equivalence + tenancy tests, through the real
-# composition root (services fixture) -- confirms ModuleCatalogService's
-# CQRS-rewired read path (module_catalog_query.py/module_catalog_context.py)
+# composition root (services fixture) -- confirms ModuleCatalogQueryHandler's
+# CQRS-rewired read path (module_catalog_queries.py/module_catalog_context.py)
 # produces the same answers a caller would reasonably expect, and that
 # switching the active organization switches the visible entitlement state.
 # ---------------------------------------------------------------------------
@@ -148,7 +148,7 @@ def test_module_catalog_read_path_reflects_writes_through_the_reader(services):
     assert baseline.licensed is True  # default-enabled per DEFAULT_ENTERPRISE_MODULES
     assert baseline.enabled is True
 
-    module_catalog.disable_module(active_org.id, "project_management")
+    services["module_entitlement_commands"].disable_module(active_org.id, "project_management")
 
     updated = module_catalog.get_entitlement("project_management")
     assert updated.licensed is True
@@ -167,7 +167,7 @@ def test_module_catalog_read_path_reflects_writes_through_the_reader(services):
     assert entitlements_by_code["project_management"].label not in enabled_section.split(", ")
     assert entitlements_by_code["project_management"].label in licensed_section.split(", ")
 
-    module_catalog.revoke_module_license(active_org.id, "project_management")
+    services["module_entitlement_commands"].revoke_module_license(active_org.id, "project_management")
     catalog_snapshot = module_catalog.snapshot()
     assert "project_management" not in {m.code for m in catalog_snapshot.licensed_modules}
     assert "project_management" not in {m.code for m in catalog_snapshot.enabled_modules}
@@ -175,11 +175,10 @@ def test_module_catalog_read_path_reflects_writes_through_the_reader(services):
 
 
 def test_module_catalog_read_path_is_isolated_per_organization(services):
-    organization_service = services["organization_service"]
     module_catalog = services["module_catalog_service"]
 
     default_organization = services["tenant_context_service"].get_active_organization()
-    second_organization = organization_service.create_organization(
+    second_organization = services["organization_commands"].create_organization(
         organization_code="SOUTH",
         display_name="South Division",
         timezone_name="Europe/Berlin",
@@ -188,7 +187,7 @@ def test_module_catalog_read_path_is_isolated_per_organization(services):
 
     # Disable on the default organization only. project_management defaults
     # to licensed=True/enabled=True (DEFAULT_ENTERPRISE_MODULES.default_enabled).
-    module_catalog.disable_module(default_organization.id, "project_management")
+    services["module_entitlement_commands"].disable_module(default_organization.id, "project_management")
     assert module_catalog.is_enabled("project_management") is False
 
     services["tenant_context_service"].set_active_organization(second_organization.id)

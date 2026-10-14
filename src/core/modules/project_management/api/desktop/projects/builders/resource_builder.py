@@ -14,11 +14,11 @@ def resource_lookup(
     project_id: str,
     resource_ids: tuple[str, ...],
     *,
-    resource_service=None,
+    resource_query=None,
 ) -> dict[str, object]:
     resources = list_resources_for_context(
         project_id, resource_ids=resource_ids,
-        resource_service=resource_service,
+        resource_query=resource_query,
     )
     return {
         str(r.id): r
@@ -31,11 +31,11 @@ def list_resources_for_context(
     project_id: str,
     *,
     resource_ids: tuple[str, ...] | None = None,
-    resource_service=None,
+    resource_query=None,
 ) -> tuple[object, ...]:
-    if resource_service is None:
+    if resource_query is None:
         return ()
-    list_resources = getattr(resource_service, "list_for_project_workspace", None)
+    list_resources = getattr(resource_query, "list_for_project_workspace", None)
     if not callable(list_resources):
         return ()
     resources = list(
@@ -51,10 +51,10 @@ def build_assignable_options(
     project_id: str,
     assigned_resource_ids: set[str],
     *,
-    resource_service=None,
+    resource_query=None,
 ) -> tuple[ProjectAssignableResourceOptionDescriptor, ...]:
     resources = list_resources_for_context(
-        project_id, resource_service=resource_service
+        project_id, resource_query=resource_query
     )
     options = [
         ProjectAssignableResourceOptionDescriptor(

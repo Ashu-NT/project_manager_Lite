@@ -12,13 +12,13 @@ from src.core.modules.project_management.application.financials.revenue.profitab
     ProjectProfitabilityCalculator,
 )
 from src.core.modules.project_management.application.reporting.builders.profitability import (
-    ReportingProfitabilityMixin,
+    ProfitabilityReportBuilder,
 )
 
 
 def test_commercial_projection_has_one_bounded_managerial_read_path() -> None:
     source = inspect.getsource(CommercialProjectionQuery)
-    assert "CommercialProjectionQuery(" in inspect.getsource(ReportingProfitabilityMixin)
+    assert "CommercialProjectionQuery(" in inspect.getsource(ProfitabilityReportBuilder)
     assert "approved_preparation_amount(" in source
     assert "list_preparations(" not in source
     assert "list_external_events(" not in source

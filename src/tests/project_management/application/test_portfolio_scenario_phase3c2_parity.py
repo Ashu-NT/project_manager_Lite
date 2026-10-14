@@ -66,22 +66,20 @@ def _approve_budget(services, project_id: str, amount: str) -> None:
 def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(services) -> None:
     projects = services["project_service"]
     tasks = services["task_service"]
-    resources = services["resource_service"]
-    portfolio = services["portfolio_service"]
 
-    shared = resources.create_resource(
+    shared = services["resource_master_commands"].create_resource(
         "Shared",
         capacity_percent=100.0,
         hourly_rate=80.0,
         currency_code="EUR",
     )
-    specialist = resources.create_resource(
+    specialist = services["resource_master_commands"].create_resource(
         "Specialist",
         capacity_percent=50.0,
         hourly_rate=80.0,
         currency_code="EUR",
     )
-    resources.create_resource(
+    services["resource_master_commands"].create_resource(
         "Inactive capacity",
         is_active=False,
         capacity_percent=900.0,
@@ -129,7 +127,7 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
         allocation=50.0,
     )
 
-    intake = portfolio.create_intake_item(
+    intake = services["portfolio_intake_commands"].create_intake_item(
         title="Intake",
         sponsor_name="PMO",
         requested_budget=200.0,
@@ -139,14 +137,14 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
         urgency_score=3,
         risk_score=2,
     )
-    base = portfolio.create_scenario(
+    base = services["portfolio_scenario_commands"].create_scenario(
         name="Base",
         budget_limit=500.0,
         capacity_limit_percent=None,
         project_ids=[alpha.id],
         intake_item_ids=[intake.id],
     )
-    candidate = portfolio.create_scenario(
+    candidate = services["portfolio_scenario_commands"].create_scenario(
         name="Candidate",
         budget_limit=2_000.0,
         capacity_limit_percent=250.0,
@@ -154,10 +152,10 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
         intake_item_ids=[],
     )
 
-    base_result = portfolio.evaluate_scenario(base.id)
-    comparison = portfolio.compare_scenarios(base.id, candidate.id)
+    base_result = services["portfolio_scenario_query"].evaluate_scenario(base.id)
+    comparison = services["portfolio_scenario_query"].compare_scenarios(base.id, candidate.id)
 
-    assert isinstance(portfolio._scenario_reader, SqlAlchemyPortfolioScenarioReader)
+    assert isinstance(services["portfolio_scenario_query"]._scenario_reader, SqlAlchemyPortfolioScenarioReader)
     assert base_result.total_budget == pytest.approx(600.0)
     assert base_result.total_capacity_percent == pytest.approx(110.0)
     assert base_result.available_capacity_percent == pytest.approx(150.0)
@@ -176,39 +174,37 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
 
 
 def test_scenario_comparison_reads_one_fact_graph(services, monkeypatch) -> None:
-    portfolio = services["portfolio_service"]
     project = services["project_service"].create_project(
         "Single", financial_currency_code="EUR"
     )
-    base = portfolio.create_scenario(name="Base", project_ids=[project.id], intake_item_ids=[])
-    candidate = portfolio.create_scenario(
+    base = services["portfolio_scenario_commands"].create_scenario(name="Base", project_ids=[project.id], intake_item_ids=[])
+    candidate = services["portfolio_scenario_commands"].create_scenario(
         name="Candidate",
         project_ids=[project.id],
         intake_item_ids=[],
     )
     calls = 0
-    original = portfolio._scenario_reader.read_facts
+    original = services["portfolio_scenario_query"]._scenario_reader.read_facts
 
     def _read_once(**kwargs):
         nonlocal calls
         calls += 1
         return original(**kwargs)
 
-    monkeypatch.setattr(portfolio._scenario_reader, "read_facts", _read_once)
+    monkeypatch.setattr(services["portfolio_scenario_query"]._scenario_reader, "read_facts", _read_once)
 
-    portfolio.compare_scenarios(base.id, candidate.id)
+    services["portfolio_scenario_query"].compare_scenarios(base.id, candidate.id)
 
     assert calls == 1
 
 
 def test_concrete_scenario_reader_rejects_cross_organization_ids(services) -> None:
     seeded = _seed_priority_pm_rows(services)
-    portfolio = services["portfolio_service"]
-    scope = portfolio._tenant_context_service.require_active_scope_ids(
+    scope = services["portfolio_scenario_query"]._tenant_context_service.require_active_scope_ids(
         operation_label="test scenario isolation"
     )
 
-    facts = portfolio._scenario_reader.read_facts(
+    facts = services["portfolio_scenario_query"]._scenario_reader.read_facts(
         tenant_id=scope.tenant_id,
         organization_id=scope.organization_id,
         scenario_ids=(),

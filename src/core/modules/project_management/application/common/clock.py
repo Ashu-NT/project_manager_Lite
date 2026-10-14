@@ -5,12 +5,6 @@ in tests instead of calling ``datetime.now()`` directly."""
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
-from typing import Protocol
-
-
-class Clock(Protocol):
-    def now(self) -> datetime: ...
-    def today(self) -> date: ...
 
 
 class SystemClock:
@@ -21,4 +15,4 @@ class SystemClock:
         return datetime.now(UTC).date()
 
 
-__all__ = ["Clock", "SystemClock"]
+__all__ = [ "SystemClock"]

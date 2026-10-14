@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import cast
 
 from pydantic import field_validator
 
@@ -105,7 +106,7 @@ class PortfolioScenario:
             id=generate_id(),
             organization_id=organization_id,
             name=name,
-            budget_limit=budget_limit,
+            budget_limit=cast(Decimal | None, budget_limit),  # coerced by the field's before-validator
             capacity_limit_percent=capacity_limit_percent,
             project_ids=list(project_ids or []),
             intake_item_ids=list(intake_item_ids or []),

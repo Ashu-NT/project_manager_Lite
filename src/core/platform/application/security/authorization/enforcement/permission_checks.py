@@ -178,7 +178,7 @@ def _stored_context_id(
         return None
     try:
         return _clean_optional(accessor())
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None
 
 

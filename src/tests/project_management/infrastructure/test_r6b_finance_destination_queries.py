@@ -337,7 +337,7 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
         "R6B Engineering",
         wbs_code="1.1",
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "R6B Engineer",
         hourly_rate=Decimal(50),
         currency_code="USD",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -25,7 +26,7 @@ def _normalize_optional_date(value: object) -> date | None:
     return value
 
 
-def _normalize_int(value: object, *, default: int = 0) -> int:
+def _normalize_int(value: Any, *, default: int = 0) -> int:
     try:
         return int(value if value not in (None, "") else default)
     except (TypeError, ValueError) as exc:

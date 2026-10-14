@@ -270,7 +270,6 @@ def _unique(prefix: str) -> str:
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))

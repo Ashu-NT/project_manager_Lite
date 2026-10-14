@@ -3,18 +3,20 @@ from __future__ import annotations
 import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
+)
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
 def test_platform_runtime_application_service_tracks_active_organization_context(services):
     app_service = services["platform_runtime_application_service"]
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
 
     assert app_service.current_context_label() == "Default Organization"
     assert app_service.snapshot().context_label == "Default Organization"
 
-    second = organization_service.create_organization(
+    second = services["organization_commands"].create_organization(
         organization_code="NORTH",
         display_name="North Division",
         timezone_name="Europe/Berlin",
@@ -29,12 +31,11 @@ def test_platform_runtime_application_service_tracks_active_organization_context
 
 def test_platform_runtime_application_service_switches_module_mix_by_organization(services):
     app_service = services["platform_runtime_application_service"]
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     default_organization = app_service.get_active_organization()
     assert default_organization is not None
 
-    second = organization_service.create_organization(
+    second = services["organization_commands"].create_organization(
         organization_code="SOUTH",
         display_name="South Division",
         timezone_name="Africa/Lagos",
@@ -44,7 +45,7 @@ def test_platform_runtime_application_service_switches_module_mix_by_organizatio
     assert app_service.is_enabled("project_management") is True
 
     tenant_context_service.set_active_organization(second.id)
-    app_service.disable_module("project_management")
+    services["module_entitlement_commands"].disable_module(second.id, "project_management")
     assert app_service.is_enabled("project_management") is False
 
     tenant_context_service.set_active_organization(default_organization.id)
@@ -54,12 +55,14 @@ def test_platform_runtime_application_service_switches_module_mix_by_organizatio
 
 def test_platform_runtime_application_service_exposes_lifecycle_status_changes(services):
     app_service = services["platform_runtime_application_service"]
+    commands = services["module_entitlement_commands"]
+    active_organization_id = app_service.get_active_organization().id
 
-    trial = app_service.transition_module_lifecycle("project_management", "trial")
+    trial = commands.transition_module_lifecycle(active_organization_id, "project_management", "trial")
     assert trial.lifecycle_status == "trial"
     assert trial.runtime_enabled is True
 
-    expired = app_service.transition_module_lifecycle("project_management", "expired")
+    expired = commands.transition_module_lifecycle(active_organization_id, "project_management", "expired")
     assert expired.lifecycle_status == "expired"
     assert expired.enabled is False
     assert expired.runtime_enabled is False
@@ -76,13 +79,7 @@ def test_platform_runtime_application_service_provisions_organization_with_initi
     assert default_organization is not None
     assert app_service.is_enabled("project_management") is True
 
-    provisioned = app_service.provision_organization(
-        organization_code="OPS",
-        display_name="Operations Hub",
-        timezone_name="Africa/Lagos",
-        base_currency="USD",
-        initial_module_codes=[],
-    )
+    provisioned = app_service.provision_organization(OrganizationProvisionCommand(organization_code="OPS", display_name="Operations Hub", timezone_name="Africa/Lagos", base_currency="USD", initial_module_codes=[]))
 
     assert provisioned.organization_code == "OPS"
     assert app_service.get_active_organization() is not None
@@ -93,24 +90,17 @@ def test_platform_runtime_application_service_provisions_organization_with_initi
 
 def test_provision_organization_activates_in_one_transaction(services):
     app_service = services["platform_runtime_application_service"]
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
 
     default_organization = app_service.get_active_organization()
     assert default_organization is not None
 
-    provisioned = app_service.provision_organization(
-        organization_code="EAST",
-        display_name="East Division",
-        timezone_name="Asia/Dubai",
-        base_currency="AED",
-        initial_module_codes=["project_management"],
-    )
+    provisioned = app_service.provision_organization(OrganizationProvisionCommand(organization_code="EAST", display_name="East Division", timezone_name="Asia/Dubai", base_currency="AED", initial_module_codes=["project_management"]))
 
     # Organization persisted ACTIVE -- re-read the full list from the
     # repository, not the in-memory return value, so this actually confirms
     # the commit landed.
-    all_orgs_by_id = {o.id: o for o in organization_service.list_organizations(status=None)}
+    all_orgs_by_id = {o.id: o for o in services["organization_query"].list_organizations(status=None)}
     persisted = all_orgs_by_id[provisioned.id]
     assert persisted.status == "active"
     assert persisted.organization_code == "EAST"
@@ -125,25 +115,24 @@ def test_provision_organization_activates_in_one_transaction(services):
     assert app_service.get_active_organization().id == provisioned.id
     assert app_service.current_context_label() == "East Division"
 
-    all_orgs_by_id = {o.id: o for o in organization_service.list_organizations(status=None)}
+    all_orgs_by_id = {o.id: o for o in services["organization_query"].list_organizations(status=None)}
     still_there = all_orgs_by_id[default_organization.id]
     assert still_there.status == "active"
 
 
 def test_switching_context_does_not_require_settings_manage(services):
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     user_session = services["user_session"]
 
     default_organization = tenant_context_service.get_active_organization()
     assert default_organization is not None
-    second = organization_service.create_organization(
+    second = services["organization_commands"].create_organization(
         organization_code="WEST",
         display_name="West Division",
         timezone_name="America/Chicago",
         base_currency="USD",
     )
-    real_user = services["auth_service"].register_user(
+    real_user = services["user_registration"].register_user(
         "context-switch-planner", "StrongPass123", role_names=["viewer"]
     )
     active_tenant_id = tenant_context_service.get_active_tenant_id()
@@ -179,19 +168,18 @@ def test_switching_context_does_not_require_settings_manage(services):
 def test_switching_to_a_disabled_organization_is_denied(services):
     """The switch-time gate checks `status == ACTIVE` -- an organization the caller is otherwise
     authorized for still cannot be selected while inactive."""
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     user_session = services["user_session"]
 
     default_organization = tenant_context_service.get_active_organization()
     assert default_organization is not None
-    second = organization_service.create_organization(
+    second = services["organization_commands"].create_organization(
         organization_code="DISABLED-CTX",
         display_name="Disabled Context Org",
         timezone_name="America/Chicago",
         base_currency="USD",
     )
-    second = organization_service.deactivate_organization(second.id)
+    second = services["organization_lifecycle"].deactivate_organization(second.id)
 
     user_session.set_principal(
         UserSessionPrincipal(

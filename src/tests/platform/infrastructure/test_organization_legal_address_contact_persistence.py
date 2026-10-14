@@ -5,6 +5,10 @@ and test_organization_pagination.py (pagination mechanics)."""
 
 from __future__ import annotations
 
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationUpdateCommand,
+)
+
 _COUNTER = {"n": 0}
 
 
@@ -14,9 +18,8 @@ def _unique_code(prefix: str) -> str:
 
 
 def test_create_with_new_fields_round_trips_through_repository(services):
-    organization_service = services["organization_service"]
     code = _unique_code("LEGALFIELDS")
-    created = organization_service.create_organization(
+    created = services["organization_commands"].create_organization(
         organization_code=code,
         display_name="Legal Fields Org",
         legal_name="Legal Fields Org Holdings B.V.",
@@ -33,7 +36,7 @@ def test_create_with_new_fields_round_trips_through_repository(services):
         website="https://www.example.com",
     )
 
-    reloaded = organization_service._organization_repo.get(created.id)
+    reloaded = services["organization_query"]._organization_repo.get(created.id)
     assert reloaded is not None
     assert reloaded.legal_name == "Legal Fields Org Holdings B.V."
     assert reloaded.registration_number == "12345678"
@@ -50,14 +53,13 @@ def test_create_with_new_fields_round_trips_through_repository(services):
 
 
 def test_create_with_all_new_fields_blank_persists_blank(services):
-    organization_service = services["organization_service"]
     code = _unique_code("BLANKFIELDS")
-    created = organization_service.create_organization(
+    created = services["organization_commands"].create_organization(
         organization_code=code,
         display_name="Blank Fields Org",
     )
 
-    reloaded = organization_service._organization_repo.get(created.id)
+    reloaded = services["organization_query"]._organization_repo.get(created.id)
     assert reloaded is not None
     assert reloaded.legal_name == ""
     assert reloaded.registration_number == ""
@@ -71,20 +73,15 @@ def test_create_with_all_new_fields_blank_persists_blank(services):
 
 
 def test_update_changes_only_the_new_fields_provided(services):
-    organization_service = services["organization_service"]
     code = _unique_code("UPDATEFIELDS")
-    created = organization_service.create_organization(
+    created = services["organization_commands"].create_organization(
         organization_code=code,
         display_name="Update Fields Org",
         legal_name="Original Legal Name",
         city="Original City",
     )
 
-    updated = organization_service.update_organization(
-        created.id,
-        legal_name="New Legal Name",
-        expected_version=created.version,
-    )
+    updated = services["organization_commands"].update_organization(OrganizationUpdateCommand(organization_id=created.id, legal_name="New Legal Name", expected_version=created.version))
 
     assert updated.legal_name == "New Legal Name"
     # Untouched fields are preserved, not blanked out by the partial update.
@@ -94,17 +91,12 @@ def test_update_changes_only_the_new_fields_provided(services):
 
 
 def test_update_can_explicitly_blank_a_field(services):
-    organization_service = services["organization_service"]
     code = _unique_code("BLANKUPDATE")
-    created = organization_service.create_organization(
+    created = services["organization_commands"].create_organization(
         organization_code=code,
         display_name="Blank Update Org",
         phone="+1 555 0000",
     )
 
-    updated = organization_service.update_organization(
-        created.id,
-        phone="",
-        expected_version=created.version,
-    )
+    updated = services["organization_commands"].update_organization(OrganizationUpdateCommand(organization_id=created.id, phone="", expected_version=created.version))
     assert updated.phone == ""

@@ -2,9 +2,15 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.dashboard.models.report_models import (
     BaselineComparisonResult,
     BaselineComparisonRow,
+)
+from src.core.modules.project_management.application.reporting.builders.access import (
+    ReportingAccessPolicy,
 )
 from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
     BaselineRepository,
@@ -19,12 +25,23 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
-class ReportingBaselineCompareMixin:
-    _baseline_repo: BaselineRepository
-    _task_repo: TaskRepository
+class BaselineCompareReportBuilder(ProjectManagementModuleGuardMixin):
+    def __init__(
+        self,
+        *,
+        access: ReportingAccessPolicy,
+        baseline_repo: BaselineRepository,
+        task_repo: TaskRepository,
+        module_catalog_service=None,
+    ) -> None:
+        self._access = access
+        self._baseline_repo = baseline_repo
+        self._task_repo = task_repo
+        self._user_session = access.user_session
+        self._module_catalog_service = module_catalog_service
 
     def list_project_baselines(self, project_id: str) -> list[ProjectBaseline]:
-        self._require_view("list project baselines", project_id=project_id)
+        self._access.require_view("list project baselines", project_id=project_id)
         return self._baseline_repo.list_for_project(project_id)
 
     def compare_baselines(
@@ -34,7 +51,7 @@ class ReportingBaselineCompareMixin:
         baseline_b_id: str,
         include_unchanged: bool = False,
     ) -> BaselineComparisonResult:
-        self._require_view("compare baselines", project_id=project_id)
+        self._access.require_view("compare baselines", project_id=project_id)
         if not baseline_a_id or not baseline_b_id:
             raise ValidationError("Two baseline IDs are required.", code="BASELINE_COMPARE_INPUT_INVALID")
         if baseline_a_id == baseline_b_id:
@@ -59,7 +76,7 @@ class ReportingBaselineCompareMixin:
 
         # Planned-cost figures are redacted to None without a finance.read grant,
         # matching get_project_kpis's mixed-content pattern.
-        financial_detail_included = self._has_finance_view(project_id)
+        financial_detail_included = self._access.has_finance_view(project_id)
 
         all_rows = self._build_baseline_comparison_rows(
             project_id=project_id,
@@ -183,4 +200,4 @@ class ReportingBaselineCompareMixin:
         return "UNCHANGED" if unchanged else "CHANGED"
 
 
-__all__ = ["ReportingBaselineCompareMixin"]
+__all__ = ["BaselineCompareReportBuilder"]

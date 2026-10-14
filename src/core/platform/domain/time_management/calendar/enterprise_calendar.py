@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, time
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -139,7 +140,7 @@ def _normalize_optional_datetime(value: object) -> datetime | None:
 
 
 def _normalize_optional_float(
-    value: object,
+    value: Any,
     *,
     code: str,
     message: str,
@@ -164,7 +165,7 @@ def _normalize_non_negative_float(
     return normalized
 
 
-def _normalize_int(value: object, *, default: int = 0) -> int:
+def _normalize_int(value: Any, *, default: int = 0) -> int:
     try:
         return int(value if value not in (None, "") else default)
     except (TypeError, ValueError) as exc:

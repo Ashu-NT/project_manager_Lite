@@ -4,8 +4,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.modules.project_management.application.collaboration.services.collaboration_service import (
-    CollaborationService,
+from src.core.modules.project_management.application.collaboration.commands import (
+    CollaborationCommentCommandHandler,
+    CollaborationCommentEngagementHandler,
+)
+from src.core.modules.project_management.application.collaboration.queries import (
+    CollaborationCommentQueryHandler,
+)
+from src.core.modules.project_management.application.collaboration.utils.visibility import (
+    CollaborationVisibilityPolicy,
 )
 from src.core.modules.project_management.domain.collaboration import (
     CollaborationMentionCandidate,
@@ -228,48 +235,63 @@ def _make_service(
     user_id: str = "user-1",
     username: str = "alex",
     display_name: str = "Alex Planner",
-) -> CollaborationService:
-    monkeypatch.setattr(
-        "src.core.modules.project_management.application.collaboration.commands.collaboration_comments.require_permission",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.modules.project_management.application.collaboration.commands.collaboration_comments.require_project_permission",
-        lambda *args, **kwargs: None,
-    )
+) -> SimpleNamespace:
+    """Wire the comment lifecycle, engagement and query handlers over one shared
+    visibility policy and one fake collaboration unit-of-work factory."""
+    for module in ("collaboration_comments", "collaboration_comment_engagement"):
+        prefix = f"src.core.modules.project_management.application.collaboration.commands.{module}"
+        monkeypatch.setattr(f"{prefix}.require_permission", lambda *args, **kwargs: None)
+        monkeypatch.setattr(f"{prefix}.require_project_permission", lambda *args, **kwargs: None)
     comment_repo = _FakeCommentRepo()
-    return CollaborationService(
-        attachment_store=lambda **kwargs: [
-            str(item).strip() for item in kwargs["attachments"] if str(item).strip()
-        ],
-        attachment_cleanup=lambda paths: None,
-        session=_FakeSession(),
-        comment_repo=comment_repo,
-        presence_repo=object(),
+    session = _FakeSession()
+    uow_factory = _FakeCollaborationUnitOfWorkFactory(comment_repo)
+    user_session = _FakeUserSession(
+        user_id=user_id,
+        username=username,
+        display_name=display_name,
+    )
+    tenant_context_service = _FakeTenantContextService()
+    workspace_reader = SimpleNamespace(
+        read_mention_candidates=lambda **kwargs: (
+            CollaborationMentionCandidate(
+                user_id="user-2", username="planner", display_name="Project Planner"
+            ),
+        ) if "planner" in kwargs.get("handles", ()) else (),
+    )
+    policy = CollaborationVisibilityPolicy(
         task_repo=_FakeTaskRepo(),
         project_repo=object(),
-        user_repo=_FakeUserRepo(),
-        workspace_reader=SimpleNamespace(
-            read_mention_candidates=lambda **kwargs: (
-                CollaborationMentionCandidate(
-                    user_id="user-2", username="planner", display_name="Project Planner"
-                ),
-            ) if "planner" in kwargs.get("handles", ()) else (),
+        workspace_reader=workspace_reader,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+    )
+    writes = {
+        "comment_repo": comment_repo,
+        "policy": policy,
+        "uow_factory": uow_factory,
+        "tenant_context_service": tenant_context_service,
+        "user_session": user_session,
+    }
+    return SimpleNamespace(
+        commands=CollaborationCommentCommandHandler(
+            **writes,
+            attachment_store=lambda **kwargs: [
+                str(item).strip() for item in kwargs["attachments"] if str(item).strip()
+            ],
+            attachment_cleanup=lambda paths: None,
+            document_access_policy=None,
         ),
-        document_integration_service=None,
-        user_session=_FakeUserSession(
-            user_id=user_id,
-            username=username,
-            display_name=display_name,
+        engagement=CollaborationCommentEngagementHandler(**writes),
+        comment_query=CollaborationCommentQueryHandler(
+            workspace_reader=workspace_reader,
+            policy=policy,
+            tenant_context_service=tenant_context_service,
+            user_session=user_session,
         ),
-        tenant_context_service=_FakeTenantContextService(),
-        role_repo=_FakeRoleRepo(
-            {"project_viewer": _FakeRole("role-viewer", "project_viewer")}
-        ),
-        role_binding_repo=_FakeRoleBindingRepo(
-            {"role-viewer": [_FakeRoleBinding("user-2", "project", "proj-1")]}
-        ),
-        uow_factory=_FakeCollaborationUnitOfWorkFactory(comment_repo),
+        policy=policy,
+        comment_repo=comment_repo,
+        uow_factory=uow_factory,
+        session=session,
     )
 
 
@@ -328,12 +350,12 @@ def test_task_comment_dto_rejects_invalid_local_fields():
     assert exc_timestamp.value.code == "COLLABORATION_TIMESTAMP_INVALID"
 
 
-def test_collaboration_service_post_comment_uses_domain_validation(
+def test_comment_commands_post_comment_uses_domain_validation(
     monkeypatch: pytest.MonkeyPatch,
 ):
     service = _make_service(monkeypatch)
 
-    comment = service.post_comment(
+    comment = service.commands.post_comment(
         task_id="task-1",
         body="  Please review @planner  ",
         attachments=[" handover.txt ", "", "ticket-42"],
@@ -346,15 +368,15 @@ def test_collaboration_service_post_comment_uses_domain_validation(
     assert comment.mentions == ["planner"]
     assert comment.mentioned_user_ids == ["user-2"]
     assert comment.attachments == ["handover.txt", "ticket-42"]
-    assert service._uow_factory.commit_calls == 1
-    assert service._session.commit_calls == 0
+    assert service.uow_factory.commit_calls == 1
+    assert service.session.commit_calls == 0
 
     with pytest.raises(ValidationError) as exc:
-        service.post_comment(task_id="task-1", body="   ")
+        service.commands.post_comment(task_id="task-1", body="   ")
     assert exc.value.code == "COLLABORATION_BODY_REQUIRED"
 
 
-def test_collaboration_service_marks_mentions_read_idempotently(
+def test_comment_engagement_marks_mentions_read_idempotently(
     monkeypatch: pytest.MonkeyPatch,
 ):
     service = _make_service(
@@ -380,26 +402,26 @@ def test_collaboration_service_marks_mentions_read_idempotently(
         mentions=["alex"],
         mentioned_user_ids=["user-1"],
     )
-    service._comment_repo.add(mentioned)
-    service._comment_repo.add(not_mentioned)
+    service.comment_repo.add(mentioned)
+    service.comment_repo.add(not_mentioned)
 
-    service.mark_task_mentions_read("task-1")
+    service.engagement.mark_task_mentions_read("task-1")
 
-    stored = service._comment_repo.get(mentioned.id)
+    stored = service.comment_repo.get(mentioned.id)
     assert stored is not None
     assert stored.read_by == ["planner"]
     assert stored.read_by_user_ids == ["user-2"]
-    assert service._uow_factory.commit_calls == 1
-    assert service._session.commit_calls == 0
+    assert service.uow_factory.commit_calls == 1
+    assert service.session.commit_calls == 0
 
-    unchanged = service._comment_repo.get(not_mentioned.id)
+    unchanged = service.comment_repo.get(not_mentioned.id)
     assert unchanged is not None
     assert unchanged.read_by == []
     assert unchanged.read_by_user_ids == []
 
-    service.mark_task_mentions_read("task-1")
-    assert service._uow_factory.commit_calls == 2
-    assert service._session.commit_calls == 0
+    service.engagement.mark_task_mentions_read("task-1")
+    assert service.uow_factory.commit_calls == 2
+    assert service.session.commit_calls == 0
 
 
 def test_comment_action_context_is_computed_from_authenticated_scope(
@@ -407,7 +429,7 @@ def test_comment_action_context_is_computed_from_authenticated_scope(
 ):
     service = _make_service(monkeypatch)
 
-    action_context = service.get_task_comment_action_context("task-1")
+    action_context = service.comment_query.get_task_comment_action_context("task-1")
 
     assert action_context.principal_user_id == "user-1"
     assert action_context.can_read is True
@@ -421,10 +443,10 @@ def test_comment_action_context_is_computed_from_authenticated_scope(
 
 def test_edit_comment_updates_body_and_sets_updated_at(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
-    comment = service.post_comment(task_id="task-1", body="Original text")
+    comment = service.commands.post_comment(task_id="task-1", body="Original text")
     assert comment.updated_at is None
 
-    edited = service.edit_comment(
+    edited = service.commands.edit_comment(
         comment.id,
         "Revised text @planner",
         expected_revision=1,
@@ -438,10 +460,10 @@ def test_edit_comment_updates_body_and_sets_updated_at(monkeypatch: pytest.Monke
 
 def test_edit_comment_rejects_stale_revision(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
-    comment = service.post_comment(task_id="task-1", body="Original text")
+    comment = service.commands.post_comment(task_id="task-1", body="Original text")
 
     with pytest.raises(ConcurrencyError) as exc:
-        service.edit_comment(
+        service.commands.edit_comment(
             comment.id,
             "Stale edit",
             expected_revision=comment.version + 1,
@@ -452,7 +474,7 @@ def test_edit_comment_rejects_stale_revision(monkeypatch: pytest.MonkeyPatch):
 
 def test_edit_comment_rejects_non_author(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
-    comment = service.post_comment(task_id="task-1", body="Original text")
+    comment = service.commands.post_comment(task_id="task-1", body="Original text")
 
     other_service = _make_service(
         monkeypatch,
@@ -460,30 +482,30 @@ def test_edit_comment_rejects_non_author(monkeypatch: pytest.MonkeyPatch):
         username="planner",
         display_name="Project Planner",
     )
-    other_service._comment_repo = service._comment_repo
+    other_service.commands._comment_repo = service.comment_repo
 
     from src.core.platform.common.exceptions import OperationNotPermittedError
 
     with pytest.raises(OperationNotPermittedError):
-        other_service.edit_comment(comment.id, "Hijacked text")
+        other_service.commands.edit_comment(comment.id, "Hijacked text")
 
 
 def test_edit_comment_rejects_deleted_comment(monkeypatch: pytest.MonkeyPatch):
     from src.core.platform.common.exceptions import BusinessRuleError
 
     service = _make_service(monkeypatch)
-    comment = service.post_comment(task_id="task-1", body="Original text")
-    service.delete_comment(comment.id, expected_revision=comment.version)
+    comment = service.commands.post_comment(task_id="task-1", body="Original text")
+    service.commands.delete_comment(comment.id, expected_revision=comment.version)
 
     with pytest.raises(BusinessRuleError):
-        service.edit_comment(comment.id, "Edit after delete")
+        service.commands.edit_comment(comment.id, "Edit after delete")
 
 
 def test_delete_comment_is_soft_and_idempotent(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
-    comment = service.post_comment(task_id="task-1", body="Will be removed")
+    comment = service.commands.post_comment(task_id="task-1", body="Will be removed")
 
-    deleted = service.delete_comment(
+    deleted = service.commands.delete_comment(
         comment.id,
         expected_revision=comment.version,
         reason="Contains superseded instructions",
@@ -496,15 +518,15 @@ def test_delete_comment_is_soft_and_idempotent(monkeypatch: pytest.MonkeyPatch):
     assert deleted.deleted_by_user_id == "user-1"
     assert deleted.deletion_reason == "Contains superseded instructions"
 
-    deleted_again = service.delete_comment(comment.id)
+    deleted_again = service.commands.delete_comment(comment.id)
     assert deleted_again.deleted_at == deleted.deleted_at
 
 
 def test_post_comment_with_parent_creates_reply_thread(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
-    root = service.post_comment(task_id="task-1", body="Root comment")
+    root = service.commands.post_comment(task_id="task-1", body="Root comment")
 
-    reply = service.post_comment(
+    reply = service.commands.post_comment(
         task_id="task-1", body="Reply comment", parent_comment_id=root.id
     )
 
@@ -519,31 +541,31 @@ def test_post_comment_rejects_parent_from_different_task(
     service = _make_service(
         monkeypatch,
     )
-    service._task_repo = _FakeTaskRepo(
+    service.policy._task_repo = _FakeTaskRepo(
         {
             "task-1": SimpleNamespace(id="task-1", project_id="proj-1"),
             "task-2": SimpleNamespace(id="task-2", project_id="proj-1"),
         }
     )
-    root = service.post_comment(task_id="task-1", body="Root on task 1")
+    root = service.commands.post_comment(task_id="task-1", body="Root on task 1")
 
     with pytest.raises(NotFoundError):
-        service.post_comment(
+        service.commands.post_comment(
             task_id="task-2", body="Reply from wrong task", parent_comment_id=root.id
         )
 
 
 def test_react_and_remove_reaction_round_trip(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
-    comment = service.post_comment(task_id="task-1", body="React to me")
+    comment = service.commands.post_comment(task_id="task-1", body="React to me")
 
-    reacted = service.react_to_comment(comment.id, "👍")
+    reacted = service.engagement.react_to_comment(comment.id, "👍")
     assert reacted.reactions == {"👍": ["user-1"]}
 
-    reacted_twice = service.react_to_comment(comment.id, "👍")
+    reacted_twice = service.engagement.react_to_comment(comment.id, "👍")
     assert reacted_twice.reactions == {"👍": ["user-1"]}
 
-    cleared = service.remove_reaction(comment.id, "👍")
+    cleared = service.engagement.remove_reaction(comment.id, "👍")
     assert cleared.reactions == {}
 
 
@@ -552,14 +574,14 @@ def test_post_comment_cleans_staged_attachments_when_write_fails(
 ):
     service = _make_service(monkeypatch)
     cleaned: list[list[str]] = []
-    service._attachment_cleanup = lambda paths: cleaned.append(list(paths))
+    service.commands._attachment_cleanup = lambda paths: cleaned.append(list(paths))
 
     def fail_add(_comment):
         raise RuntimeError("repository failed")
 
-    monkeypatch.setattr(service._comment_repo, "add", fail_add)
+    monkeypatch.setattr(service.comment_repo, "add", fail_add)
     with pytest.raises(RuntimeError, match="repository failed"):
-        service.post_comment(task_id="task-1", body="Evidence", attachments=["evidence.pdf"])
+        service.commands.post_comment(task_id="task-1", body="Evidence", attachments=["evidence.pdf"])
 
     assert cleaned == [["evidence.pdf"]]
 
@@ -569,7 +591,7 @@ def test_post_comment_preserves_attachments_after_committed_event_failure(
 ):
     service = _make_service(monkeypatch)
     cleaned: list[list[str]] = []
-    service._attachment_cleanup = lambda paths: cleaned.append(list(paths))
+    service.commands._attachment_cleanup = lambda paths: cleaned.append(list(paths))
     original_commit = _FakeCollaborationUnitOfWork.commit
 
     def fail_after_commit(uow):
@@ -578,18 +600,18 @@ def test_post_comment_preserves_attachments_after_committed_event_failure(
 
     monkeypatch.setattr(_FakeCollaborationUnitOfWork, "commit", fail_after_commit)
     with pytest.raises(RuntimeError, match="post-commit handler failed"):
-        service.post_comment(task_id="task-1", body="Evidence", attachments=["evidence.pdf"])
+        service.commands.post_comment(task_id="task-1", body="Evidence", attachments=["evidence.pdf"])
 
     assert cleaned == []
-    assert len(service._comment_repo.list_by_task("task-1")) == 1
+    assert len(service.comment_repo.list_by_task("task-1")) == 1
 
 
 def test_react_to_deleted_comment_raises(monkeypatch: pytest.MonkeyPatch):
     from src.core.platform.common.exceptions import BusinessRuleError
 
     service = _make_service(monkeypatch)
-    comment = service.post_comment(task_id="task-1", body="Will be removed")
-    service.delete_comment(comment.id, expected_revision=comment.version)
+    comment = service.commands.post_comment(task_id="task-1", body="Will be removed")
+    service.commands.delete_comment(comment.id, expected_revision=comment.version)
 
     with pytest.raises(BusinessRuleError):
-        service.react_to_comment(comment.id, "👍")
+        service.engagement.react_to_comment(comment.id, "👍")

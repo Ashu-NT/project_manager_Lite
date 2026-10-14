@@ -12,7 +12,6 @@ from src.core.platform.access import (
     ScopedRolePolicyRegistry,
 )
 from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.security.authorization.roles import (
     RoleGovernanceService,
     TenantRoleAdministrationService,
@@ -32,6 +31,9 @@ from src.core.platform.domain.master_data.site.access_policy import (
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.infrastructure.composition.dependencies.repositories import (
     PlatformRepositories,
+)
+from src.core.platform.infrastructure.composition.dependencies.security.auth import (
+    AuthComposition,
 )
 from src.core.platform.infrastructure.composition.registrations.security.scope_resolvers import (
     ScopeResolvers,
@@ -62,7 +64,7 @@ def build_security_administration_dependencies(
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
     enterprise_audit_service: EnterpriseAuditService,
-    auth_service: AuthService,
+    auth: AuthComposition,
     role_governance_service: RoleGovernanceService,
     scope_resolvers: ScopeResolvers,
     transactional_dispatcher: InProcessTransactionalEventDispatcher,
@@ -77,14 +79,15 @@ def build_security_administration_dependencies(
         organization_repo=repositories.organization_repo,
         membership_repo=repositories.user_tenant_repo,
         audit_repo=repositories.audit_entry_repo,
-        auth_service=auth_service,
+        registration=auth.registration,
+        principals=auth.principals,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
     access_service = AccessControlService(
         session=session,
         user_repo=repositories.user_repo,
-        auth_service=auth_service,
+        session_lifecycle=auth.session_lifecycle,
         policy_registry=ScopedRolePolicyRegistry(
             (
                 ScopedRolePolicy(

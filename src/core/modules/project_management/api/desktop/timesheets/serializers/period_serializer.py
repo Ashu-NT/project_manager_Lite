@@ -37,7 +37,7 @@ def serialize_period_summary(
         submitted_at_label=format_datetime(aggregate.submitted_at),
         decided_by_username=aggregate.decided_by_username or "-",
         decided_at_label=format_datetime(aggregate.decided_at),
-        decision_note=aggregate.decision_note,
+        decision_note=aggregate.decision_note or "",
         entry_count=aggregate.entry_count,
         total_hours=aggregate.total_hours,
         total_hours_label=format_hours(aggregate.total_hours),
@@ -50,12 +50,12 @@ def serialize_period_summary(
 def serialize_period_aggregate(
     aggregate: TimesheetPeriodAggregate,
     *,
-    resource_service,
+    resource_query,
     project_service,
 ) -> TimesheetPeriodSummaryDesktopDto:
     resource = (
-        resource_service.get_resource(aggregate.resource_id)
-        if resource_service is not None
+        resource_query.get_resource(aggregate.resource_id)
+        if resource_query is not None
         else None
     )
     return serialize_period_summary(

@@ -295,11 +295,9 @@ def test_baseline_snapshot_of_deleted_task_is_not_flagged(session):
 def test_assign_resource_twice_raises_assignment_duplicate(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-
     project = ps.create_project("Dup Assign", "")
     task = ts.create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=2)
-    resource = rs.create_resource("Dup Dev", "Developer", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource("Dup Dev", "Developer", hourly_rate=100.0)
 
     ts.assign_resource(task.id, resource.id, allocation_percent=50.0)
     with pytest.raises(ValidationError) as exc:

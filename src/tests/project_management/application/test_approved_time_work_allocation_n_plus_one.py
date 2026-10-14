@@ -18,7 +18,7 @@ def _setup(services, *, suffix: str):
     project = services["project_service"].create_project(
         f"N+1 Guardrail {suffix}", financial_currency_code=organization.base_currency
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         f"N+1 Engineer {suffix}", hourly_rate=0, currency_code=organization.base_currency
     )
     task = services["task_service"].create_task(
@@ -74,23 +74,21 @@ def _count_allocation_selects(engine, fn):
 def _approve_n_entries(services, session, *, entry_count: int, suffix: str):
     project, resource, task, assignment = _setup(services, suffix=suffix)
     for day in range(entry_count):
-        services["timesheet_service"].add_time_entry(
+        services["time_entry_commands"].add_time_entry(
             assignment.id,
             entry_date=date(2026, 5, 1 + (day % 28)),
             hours=Decimal(1),
             note=f"entry-{day}",
         )
-
-    time_service = services["timesheet_service"]
-    assignment_repo = time_service._work_allocation_repo
+    assignment_repo = services["time_entry_queries"]._work_allocation_repo
     assert isinstance(assignment_repo, SqlAlchemyAssignmentRepository)
 
     counts, restore = _instrument(assignment_repo)
     engine = session.get_bind()
 
     def do_approve():
-        submitted = time_service.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-        return time_service.approve_timesheet_period(
+        submitted = services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
+        return services["timesheet_period_transitions"].approve_timesheet_period(
             submitted.period_id,
             expected_version=submitted.version,
             note="N+1 guardrail",

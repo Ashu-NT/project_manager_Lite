@@ -88,7 +88,7 @@ def preview_tasks(
             else:
                 preview.updated_count += 1
         except Exception as exc:
-            logger.exception("Failed to import task row at line %s: %s", line_no, exc)
+            logger.exception("Failed to import task row at line %s", line_no)
             preview.rows.append(
                 ImportPreviewRow(line_no=line_no, status="ERROR", action="ERROR", message=str(exc), row=row)
             )
@@ -140,7 +140,7 @@ def import_tasks(
                 )
                 made_progress = True
             except Exception as exc:
-                logger.exception("Failed to import task row at line %s: %s", line_no, exc)
+                logger.exception("Failed to import task row at line %s", line_no)
                 summary.add_row_error(line_no=line_no, message=str(exc))
                 made_progress = True
 

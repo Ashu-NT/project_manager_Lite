@@ -35,48 +35,47 @@ _REMOVED_TENANT_ADMIN_PERMISSIONS = {
 
 
 def _reconciliation_service(services) -> RolePolicyReconciliationService:
-    auth = services["auth_service"]
+    auth = services["auth"]
     return RolePolicyReconciliationService(
         session=services["session"],
-        role_repo=auth._role_repo,
-        permission_repo=auth._permission_repo,
-        role_permission_repo=auth._role_permission_repo,
-        user_repo=auth._user_repo,
-        auth_session_repo=auth._auth_session_repo,
+        role_repo=services["auth_queries"]._role_repo,
+        permission_repo=services["platform_owner_provisioning"]._permission_repo,
+        role_permission_repo=services["platform_owner_provisioning"]._role_permission_repo,
+        user_repo=services["auth_queries"]._user_repo,
+        auth_session_repo=services["auth_session_commands"]._auth_session_repo,
         reconciliation_repo=SqlAlchemyAuthPolicyReconciliationRepository(
             services["session"]
         ),
         user_session=services["user_session"],
         role_binding_repo=SqlAlchemyRoleBindingRepository(services["session"]),
-        transactional_dispatcher=auth._transactional_dispatcher,
-        post_commit_bus=auth._post_commit_bus,
-        uow_factory=auth._uow_factory,
+        transactional_dispatcher=auth.bootstrap._tx._transactional_dispatcher,
+        post_commit_bus=auth.bootstrap._tx._post_commit_bus,
+        uow_factory=auth.bootstrap._tx._uow_factory,
     )
 
 
 def _seed_stale_tenant_admin_policy(services, *, username: str):
-    auth = services["auth_service"]
     tenant_id = services["tenant_context_service"].get_active_tenant_id()
     assert tenant_id is not None
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         username,
         "StrongPass123!",
         role_names=["tenant_admin"],
         tenant_id=tenant_id,
     )
-    authenticated = auth.authenticate(username, "StrongPass123!")
+    authenticated = services["authentication"].authenticate(username, "StrongPass123!")
     assert authenticated.active_session_id is not None
 
-    role = auth._role_repo.get_by_name("tenant_admin")
+    role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     assert role is not None
     permission_by_code = {
         permission.code: permission
-        for permission in auth._permission_repo.list_all()
+        for permission in services["platform_owner_provisioning"]._permission_repo.list_all()
     }
     for code in _REMOVED_TENANT_ADMIN_PERMISSIONS:
         permission = permission_by_code[code]
-        if not auth._role_permission_repo.exists(role.id, permission.id):
-            auth._role_permission_repo.add(
+        if not services["platform_owner_provisioning"]._role_permission_repo.exists(role.id, permission.id):
+            services["platform_owner_provisioning"]._role_permission_repo.add(
                 RolePermissionBinding.create(
                     role_id=role.id,
                     permission_id=permission.id,
@@ -94,9 +93,9 @@ def test_reconciliation_preview_is_deterministic_and_startup_is_non_destructive(
         username="policy-preview-tenant-admin",
     )
 
-    services["auth_service"].bootstrap_defaults()
+    services["auth_bootstrap"].bootstrap_defaults()
     for code in _REMOVED_TENANT_ADMIN_PERMISSIONS:
-        assert services["auth_service"]._role_permission_repo.exists(
+        assert services["platform_owner_provisioning"]._role_permission_repo.exists(
             role.id,
             permission_by_code[code].id,
         )
@@ -155,7 +154,7 @@ def test_reconciliation_apply_rejects_unreviewed_drift(
 
     assert exc_info.value.code == expected_code
     for code in _REMOVED_TENANT_ADMIN_PERMISSIONS:
-        assert services["auth_service"]._role_permission_repo.exists(
+        assert services["platform_owner_provisioning"]._role_permission_repo.exists(
             role.id,
             permission_by_code[code].id,
         )
@@ -168,14 +167,13 @@ def test_reconciliation_apply_removes_drift_records_rollback_and_revokes_session
         services,
         username="policy-apply-tenant-admin",
     )
-    auth = services["auth_service"]
     unmanaged_role = Role.create(
         name="integration_admin",
         description="Owned by a separate platform policy.",
     )
-    auth._role_repo.add(unmanaged_role)
+    services["auth_queries"]._role_repo.add(unmanaged_role)
     services["session"].commit()
-    before_revision = auth._user_repo.get(user.id).session_revision
+    before_revision = services["auth_queries"]._user_repo.get(user.id).session_revision
     service = _reconciliation_service(services)
     plan = service.preview()
 
@@ -187,24 +185,24 @@ def test_reconciliation_apply_removes_drift_records_rollback_and_revokes_session
     assert result.applied is True
     assert result.revoked_session_count >= 1
     for code in _REMOVED_TENANT_ADMIN_PERMISSIONS:
-        assert not auth._role_permission_repo.exists(
+        assert not services["platform_owner_provisioning"]._role_permission_repo.exists(
             role.id,
             permission_by_code[code].id,
         )
-    updated_user = auth._user_repo.get(user.id)
+    updated_user = services["auth_queries"]._user_repo.get(user.id)
     assert updated_user.session_revision == before_revision + 1
     assert all(
         managed_role.policy_version == SYSTEM_ROLE_POLICY_VERSION
-        for managed_role in auth._role_repo.list_all()
+        for managed_role in services["auth_queries"]._role_repo.list_all()
         if (
             managed_role.is_system
             and managed_role.name in DEFAULT_ROLE_PERMISSIONS
         )
     )
-    assert auth._role_repo.get(unmanaged_role.id).policy_version == 1
-    assert auth._auth_session_repo.get(session_id).revoked_at is not None
+    assert services["auth_queries"]._role_repo.get(unmanaged_role.id).policy_version == 1
+    assert services["auth_session_commands"]._auth_session_repo.get(session_id).revoked_at is not None
     assert _REMOVED_TENANT_ADMIN_PERMISSIONS.isdisjoint(
-        auth.build_principal(updated_user).permissions
+        services["principal_builder"].build(updated_user).permissions
     )
 
     latest = SqlAlchemyAuthPolicyReconciliationRepository(
@@ -230,20 +228,19 @@ def test_reconciliation_apply_removes_drift_records_rollback_and_revokes_session
 def test_tenant_admin_cannot_preview_platform_policy_reconciliation(
     services,
 ) -> None:
-    auth = services["auth_service"]
     tenant_id = services["tenant_context_service"].get_active_tenant_id()
     organization_id = (
         services["tenant_context_service"].get_active_organization_id()
     )
     assert tenant_id is not None
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "policy-denied-tenant-admin",
         "StrongPass123!",
         role_names=["tenant_admin"],
         tenant_id=tenant_id,
     )
     services["user_session"].set_principal(
-        auth.build_principal_for_context(
+        services["principal_builder"].build_for_context(
             user,
             tenant_id=tenant_id,
             organization_id=organization_id,
@@ -259,17 +256,16 @@ def test_tenant_admin_cannot_preview_platform_policy_reconciliation(
 def test_policy_v1_preview_requires_reviewed_role_assignment_additions(
     services,
 ) -> None:
-    auth = services["auth_service"]
-    permission = auth._permission_repo.get_by_code("auth.role.assign")
+    permission = services["platform_owner_provisioning"]._permission_repo.get_by_code("auth.role.assign")
     assert permission is not None
     expected_role_names = {"admin", "tenant_admin", "org_admin"}
     role_map = {
         role.name: role
-        for role in auth._role_repo.list_all()
+        for role in services["auth_queries"]._role_repo.list_all()
         if role.name in expected_role_names
     }
     for role in role_map.values():
-        auth._role_permission_repo.delete(role.id, permission.id)
+        services["platform_owner_provisioning"]._role_permission_repo.delete(role.id, permission.id)
 
     reconciliation_repo = SqlAlchemyAuthPolicyReconciliationRepository(
         services["session"]

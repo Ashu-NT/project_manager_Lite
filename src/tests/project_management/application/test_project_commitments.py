@@ -37,6 +37,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.commitme
     ProjectCommitmentLineORM,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.contract.use_cases.master_data.party.commands import (
+    PartyCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.finance import (
     DecimalQuantityPayload,
     MonetaryRatePayload,
@@ -61,12 +67,8 @@ def _setup(services):
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="PROCURE", name="Procurement"
     )
-    site = services["site_service"].create_site(
-        site_code="COMMIT", name="Commitment Site", currency_code=organization.base_currency
-    )
-    supplier = services["party_service"].create_party(
-        party_code="COMMIT-SUP", party_name="Commitment Supplier", roles=["SUPPLIER"]
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="COMMIT", name="Commitment Site", currency_code=organization.base_currency))
+    supplier = services["party_commands"].create_party(PartyCreateCommand(party_code="COMMIT-SUP", party_name="Commitment Supplier", roles=["SUPPLIER"]))
     period = services["financial_period_service"].create_period(
         code="COMMIT-2026-08", name="August 2026", fiscal_year=2026, period_number=8,
         start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
@@ -454,8 +456,7 @@ def test_commitment_repository_isolates_active_organization(services) -> None:
             organization=organization, project=project, site=site, supplier=supplier, revision=1
         ),
     )
-    organization_service = services["organization_service"]
-    other = organization_service.create_organization(
+    other = services["organization_commands"].create_organization(
         organization_code="COMMIT2", display_name="Second commitment organization",
         timezone_name="UTC", base_currency="EUR",    )
     services["tenant_context_service"].set_active_organization(other.id)

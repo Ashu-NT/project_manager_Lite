@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Sequence
 from typing import Any
 
@@ -87,10 +88,9 @@ class EnterpriseAuditService:
         tenant_id: str | None = None
         tc = self._tenant_context_service
         if tc is not None:
-            try:
+            # Context is best-effort: recording audit must never fail on it.
+            with contextlib.suppress(Exception):
                 tenant_id = tc.get_active_tenant_id()
-            except Exception:
-                pass
 
         entry = AuditEntry.create(
             operation=operation,
@@ -208,7 +208,7 @@ class EnterpriseAuditService:
             return None
         try:
             return tc.require_active_organization_id(operation_label="enterprise audit")
-        except Exception:
+        except Exception:  # noqa: BLE001
             return None
 
     def _require_active_organization_id(self) -> str:

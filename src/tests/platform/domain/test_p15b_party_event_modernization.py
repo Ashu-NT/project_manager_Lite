@@ -9,6 +9,10 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
+from src.core.platform.contract.use_cases.master_data.party.commands import (
+    PartyCreateCommand,
+    PartyUpdateCommand,
+)
 from src.core.platform.domain.master_data.party.events import (
     PartyCreated,
     PartyDeactivated,
@@ -26,7 +30,7 @@ def _unique_code(prefix: str) -> str:
 
 def _spy(services, event_type):
     calls = []
-    services["party_service"]._uow_factory._post_commit_bus.subscribe(
+    services["party_commands"]._uow_factory._post_commit_bus.subscribe(
         event_type, lambda event, context: calls.append(event)
     )
     return calls
@@ -62,19 +66,16 @@ def _spy_party_list_hints(services):
 
 def test_create_produces_exactly_one_party_created(services):
     calls = _spy(services, PartyCreated)
-    party = services["party_service"].create_party(
-        party_code=_unique_code("P15B-CREATE"), party_name="Acme Supplier"
-    )
+    party = services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-CREATE"), party_name="Acme Supplier"))
     assert [e.party_id for e in calls] == [party.id]
     assert calls[0].organization_id == party.organization_id
 
 
 def test_profile_update_produces_exactly_one_party_profile_updated(services):
-    party_service = services["party_service"]
-    party = party_service.create_party(party_code=_unique_code("P15B-PROFILE"), party_name="Before")
+    party = services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-PROFILE"), party_name="Before"))
     calls = _spy(services, PartyProfileUpdated)
 
-    party_service.update_party(party.id, party_name="After", expected_version=party.version)
+    services["party_commands"].update_party(PartyUpdateCommand(party_id=party.id, party_name="After", expected_version=party.version))
 
     assert len(calls) == 1
     assert calls[0].party_id == party.id
@@ -85,12 +86,11 @@ def test_deactivate_produces_a_dedicated_event_not_a_profile_update(services):
     fire their own PartyActivated/PartyDeactivated events -- never through
     update_party's generic profile-update path, which no longer accepts an
     is_active/status parameter at all (matching Employee's own precedent)."""
-    party_service = services["party_service"]
-    party = party_service.create_party(party_code=_unique_code("P15B-TOGGLE"), party_name="Active Party")
+    party = services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-TOGGLE"), party_name="Active Party"))
     profile_calls = _spy(services, PartyProfileUpdated)
     deactivate_calls = _spy(services, PartyDeactivated)
 
-    updated = party_service.deactivate_party(party.id)
+    updated = services["party_commands"].deactivate_party(party.id)
 
     assert [e.party_id for e in deactivate_calls] == [party.id]
     assert profile_calls == []
@@ -98,50 +98,44 @@ def test_deactivate_produces_a_dedicated_event_not_a_profile_update(services):
 
 
 def test_no_op_update_produces_zero_events_zero_write_zero_audit_zero_updated_at_bump(services, monkeypatch):
-    party_service = services["party_service"]
-    party = party_service.create_party(party_code=_unique_code("P15B-NOOP"), party_name="Same Name")
-    before = party_service._party_repo.get(party.id)
+    party = services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-NOOP"), party_name="Same Name"))
+    before = services["party_query"]._party_repo.get(party.id)
     profile_calls = _spy(services, PartyProfileUpdated)
     audit_calls = []
     monkeypatch.setattr(
         EnterpriseAuditService, "record", lambda self, **kwargs: audit_calls.append(kwargs)
     )
 
-    result = party_service.update_party(
-        party.id, party_name="Same Name", expected_version=party.version
-    )
+    result = services["party_commands"].update_party(PartyUpdateCommand(party_id=party.id, party_name="Same Name", expected_version=party.version))
 
     assert result.version == party.version
     assert profile_calls == []
     assert audit_calls == []
-    reloaded = party_service._party_repo.get(party.id)
+    reloaded = services["party_query"]._party_repo.get(party.id)
     assert reloaded.version == before.version
     assert reloaded.updated_at == before.updated_at
 
 
 def test_duplicate_code_create_produces_zero_event(services):
-    party_service = services["party_service"]
     code = _unique_code("P15B-DUPE")
-    party_service.create_party(party_code=code, party_name="First")
+    services["party_commands"].create_party(PartyCreateCommand(party_code=code, party_name="First"))
     calls = _spy(services, PartyCreated)
 
     from src.core.platform.common.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
-        party_service.create_party(party_code=code, party_name="Second")
+        services["party_commands"].create_party(PartyCreateCommand(party_code=code, party_name="Second"))
 
     assert calls == []
 
 
 def test_cross_org_update_produces_zero_event(services):
-    party_service = services["party_service"]
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     default_organization = tenant_context_service.get_active_organization()
 
-    party = party_service.create_party(party_code=_unique_code("P15B-CROSSORG"), party_name="Home Org Party")
+    party = services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-CROSSORG"), party_name="Home Org Party"))
 
-    other_organization = organization_service.create_organization(
+    other_organization = services["organization_commands"].create_organization(
         organization_code=_unique_code("P15B-CROSSORG-OTHER"),
         display_name="Other Org",
         timezone_name="UTC",
@@ -153,7 +147,7 @@ def test_cross_org_update_produces_zero_event(services):
         from src.core.platform.common.exceptions import NotFoundError
 
         with pytest.raises(NotFoundError):
-            party_service.update_party(party.id, party_name="Hijacked")
+            services["party_commands"].update_party(PartyUpdateCommand(party_id=party.id, party_name="Hijacked"))
     finally:
         tenant_context_service.set_active_organization(default_organization.id)
 
@@ -161,16 +155,13 @@ def test_cross_org_update_produces_zero_event(services):
 
 
 def test_stale_version_update_produces_zero_event(services):
-    party_service = services["party_service"]
-    party = party_service.create_party(party_code=_unique_code("P15B-STALE"), party_name="Stale Party")
+    party = services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-STALE"), party_name="Stale Party"))
     calls = _spy(services, PartyProfileUpdated)
 
     from src.core.platform.common.exceptions import ConcurrencyError
 
     with pytest.raises(ConcurrencyError):
-        party_service.update_party(
-            party.id, party_name="Should Not Apply", expected_version=party.version + 1
-        )
+        services["party_commands"].update_party(PartyUpdateCommand(party_id=party.id, party_name="Should Not Apply", expected_version=party.version + 1))
 
     assert calls == []
 
@@ -180,7 +171,6 @@ def test_commit_failure_produces_zero_postcommit_event(services, monkeypatch):
         SqlAlchemyPartyUnitOfWork,
     )
 
-    party_service = services["party_service"]
     calls = _spy(services, PartyCreated)
 
     def _fail_commit(self):
@@ -189,7 +179,7 @@ def test_commit_failure_produces_zero_postcommit_event(services, monkeypatch):
     monkeypatch.setattr(SqlAlchemyPartyUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
-        party_service.create_party(party_code=_unique_code("P15B-COMMITFAIL"), party_name="Commit Fail")
+        services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-COMMITFAIL"), party_name="Commit Fail"))
 
     assert calls == []
 
@@ -203,18 +193,13 @@ def test_admin_console_sub_controller_refreshes_once_after_committed_create(serv
         lambda: refresh_calls.append("admin-parties") or None
     )
 
-    services["party_service"].create_party(
-        party_code=_unique_code("P15B-ADMIN-CREATE"), party_name="Admin Refresh Party"
-    )
+    services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-ADMIN-CREATE"), party_name="Admin Refresh Party"))
 
     assert refresh_calls == ["admin-parties"]
 
 
 def test_admin_console_sub_controller_refreshes_once_after_update(services):
-    party_service = services["party_service"]
-    party = party_service.create_party(
-        party_code=_unique_code("P15B-ADMIN-UPDATE"), party_name="Before"
-    )
+    party = services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-ADMIN-UPDATE"), party_name="Before"))
 
     catalog = _platform_catalog(services)
     catalog.adminWorkspace.parties
@@ -224,14 +209,13 @@ def test_admin_console_sub_controller_refreshes_once_after_update(services):
         lambda: refresh_calls.append("admin-parties") or None
     )
 
-    party_service.update_party(party.id, party_name="After", expected_version=party.version)
+    services["party_commands"].update_party(PartyUpdateCommand(party_id=party.id, party_name="After", expected_version=party.version))
 
     assert refresh_calls == ["admin-parties"]
 
 
 def test_admin_console_no_refresh_on_no_op_update(services):
-    party_service = services["party_service"]
-    party = party_service.create_party(party_code=_unique_code("P15B-ADMIN-NOOP"), party_name="Same")
+    party = services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-ADMIN-NOOP"), party_name="Same"))
 
     catalog = _platform_catalog(services)
     catalog.adminWorkspace.parties
@@ -241,15 +225,14 @@ def test_admin_console_no_refresh_on_no_op_update(services):
         lambda: refresh_calls.append("admin-parties") or None
     )
 
-    party_service.update_party(party.id, party_name="Same", expected_version=party.version)
+    services["party_commands"].update_party(PartyUpdateCommand(party_id=party.id, party_name="Same", expected_version=party.version))
 
     assert refresh_calls == []
 
 
 def test_admin_console_no_refresh_on_failed_transaction(services):
-    party_service = services["party_service"]
     code = _unique_code("P15B-ADMIN-FAILED")
-    party_service.create_party(party_code=code, party_name="Existing")
+    services["party_commands"].create_party(PartyCreateCommand(party_code=code, party_name="Existing"))
 
     catalog = _platform_catalog(services)
     catalog.adminWorkspace.parties
@@ -262,13 +245,13 @@ def test_admin_console_no_refresh_on_failed_transaction(services):
     from src.core.platform.common.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
-        party_service.create_party(party_code=code, party_name="Duplicate")
+        services["party_commands"].create_party(PartyCreateCommand(party_code=code, party_name="Duplicate"))
 
     assert refresh_calls == []
 
 
 def test_parties_changed_field_and_producers_are_fully_gone():
-    import src.core.platform.application.master_data.party.party_service as party_service_module
+    import src.core.platform.application.master_data.party.commands.party_commands as party_service_module
 
     assert "parties_changed" not in inspect.getsource(party_service_module)
 
@@ -289,24 +272,22 @@ def test_no_forbidden_party_changed_event_name_exists():
 
 
 def test_two_separate_party_commits_produce_exactly_two_party_list_hints(services):
-    party_service = services["party_service"]
     hints = _spy_party_list_hints(services)
 
-    party_service.create_party(party_code=_unique_code("P15B-SEP-A"), party_name="Separate A")
-    party_service.create_party(party_code=_unique_code("P15B-SEP-B"), party_name="Separate B")
+    services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-SEP-A"), party_name="Separate A"))
+    services["party_commands"].create_party(PartyCreateCommand(party_code=_unique_code("P15B-SEP-B"), party_name="Separate B"))
 
     assert len(hints) == 2
 
 
 def test_failed_transaction_produces_zero_party_list_hints(services):
-    party_service = services["party_service"]
     code = _unique_code("P15B-FAILED")
-    party_service.create_party(party_code=code, party_name="Existing")
+    services["party_commands"].create_party(PartyCreateCommand(party_code=code, party_name="Existing"))
     hints = _spy_party_list_hints(services)
 
     from src.core.platform.common.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
-        party_service.create_party(party_code=code, party_name="Duplicate")
+        services["party_commands"].create_party(PartyCreateCommand(party_code=code, party_name="Duplicate"))
 
     assert hints == []

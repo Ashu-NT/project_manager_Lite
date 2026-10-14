@@ -1,7 +1,7 @@
 """Concrete, tenant-scoped single-query read for module entitlements.
 
 One dedicated read-side adapter — not the write repository's ``list_all()``
-called once per module. ``ModuleCatalogService`` depends on
+called once per module. ``ModuleCatalogContext`` depends on
 ``ModuleEntitlementReader`` (``contract/tenant/modules/read/
 module_entitlement_reader.py``), never on this concrete class directly.
 Takes ``tenant_id``/``organization_id`` explicitly rather than resolving

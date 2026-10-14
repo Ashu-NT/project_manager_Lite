@@ -3,14 +3,16 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.platform.api.desktop.master_data.party.models.party import (
-    PartyCreateCommand,
     PartyDto,
-    PartyUpdateCommand,
 )
 from src.core.platform.api.desktop.master_data.party.party import (
     PlatformPartyDesktopApi,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.contract.use_cases.master_data.party.commands import (
+    PartyCreateCommand,
+    PartyUpdateCommand,
+)
 from src.core.platform.domain.master_data.party import PartyRole, PartyType
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     option_item,

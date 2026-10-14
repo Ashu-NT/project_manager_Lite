@@ -44,9 +44,7 @@ def test_r5b_resource_catalog_scale_measurement(services, resource_count: int) -
         ],
     )
     session.flush()
-
-    resource_service = services["resource_service"]
-    resource_service.query_catalog_page(page=1, page_size=25)
+    services["resource_query"].query_catalog_page(page=1, page_size=25)
     engine = session.get_bind()
     statement_count = 0
 
@@ -59,7 +57,7 @@ def test_r5b_resource_catalog_scale_measurement(services, resource_count: int) -
     try:
         for _ in range(7):
             before = perf_counter()
-            page = resource_service.query_catalog_page(
+            page = services["resource_query"].query_catalog_page(
                 search_text="Resource",
                 page=1,
                 page_size=25,
@@ -83,13 +81,12 @@ def test_r5b_resource_catalog_scale_measurement(services, resource_count: int) -
 
 
 def test_r5b_resource_inspector_scale_measurement(services) -> None:
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         name="Inspector Performance Resource",
         role="Planner",
     )
-    resource_service = services["resource_service"]
     cold_started = perf_counter()
-    resource_service.get_resource_inspector(resource.id)
+    services["resource_query"].get_resource_inspector(resource.id)
     cold_ms = (perf_counter() - cold_started) * 1_000.0
 
     elapsed_ms: list[float] = []
@@ -105,7 +102,7 @@ def test_r5b_resource_inspector_scale_measurement(services) -> None:
     try:
         for _ in range(10):
             before = perf_counter()
-            resource_service.get_resource_inspector(resource.id)
+            services["resource_query"].get_resource_inspector(resource.id)
             elapsed_ms.append((perf_counter() - before) * 1_000.0)
     finally:
         event.remove(engine, "before_cursor_execute", count_statement)
@@ -122,12 +119,11 @@ def test_r5b_resource_inspector_scale_measurement(services) -> None:
 
 
 def test_r5b_resource_summary_scale_measurement(services) -> None:
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         name="Summary Performance Resource",
         role="Planner",
     )
-    resource_service = services["resource_service"]
-    resource_service.get_resource_summary(resource.id)
+    services["resource_query"].get_resource_summary(resource.id)
     elapsed_ms: list[float] = []
     session = services["project_service"]._session
     engine = session.get_bind()
@@ -141,7 +137,7 @@ def test_r5b_resource_summary_scale_measurement(services) -> None:
     try:
         for _ in range(10):
             before = perf_counter()
-            resource_service.get_resource_summary(resource.id)
+            services["resource_query"].get_resource_summary(resource.id)
             elapsed_ms.append((perf_counter() - before) * 1_000.0)
     finally:
         event.remove(engine, "before_cursor_execute", count_statement)

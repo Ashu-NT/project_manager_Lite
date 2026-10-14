@@ -1,22 +1,21 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+    DocumentLinkCreateCommand,
+    DocumentStructureCreateCommand,
+    DocumentStructureUpdateCommand,
+    DocumentUpdateCommand,
+)
 
 
 def test_document_service_scopes_documents_by_active_organization(services):
-    organization_service = services["organization_service"]
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
+    document_query = services["document_query"]
 
     default_organization = services["tenant_context_service"].get_active_organization()
-    created = document_service.create_document(
-        document_code="MAN-001",
-        title="Operations Manual",
-        document_type="MANUAL",
-        storage_kind="FILE_PATH",
-        storage_uri="C:/docs/manual.pdf",
-        confidentiality_level="INTERNAL",
-        revision="R1",
-    )
+    created = document_commands.create_document(DocumentCreateCommand(document_code="MAN-001", title="Operations Manual", document_type="MANUAL", storage_kind="FILE_PATH", storage_uri="C:/docs/manual.pdf", confidentiality_level="INTERNAL", business_version_label="R1"))
 
     assert created.organization_id == default_organization.id
     assert created.document_type.value == "MANUAL"
@@ -27,9 +26,9 @@ def test_document_service_scopes_documents_by_active_organization(services):
     assert created.is_current is True
     assert created.revision == "R1"
     assert created.confidentiality_level == "INTERNAL"
-    assert [document.title for document in document_service.list_documents()] == ["Operations Manual"]
+    assert [document.title for document in document_query.list_documents()] == ["Operations Manual"]
 
-    second_organization = organization_service.create_organization(
+    second_organization = services["organization_commands"].create_organization(
         organization_code="OPS",
         display_name="Operations Hub",
         timezone_name="Europe/Berlin",
@@ -37,39 +36,23 @@ def test_document_service_scopes_documents_by_active_organization(services):
     )
     services["tenant_context_service"].set_active_organization(second_organization.id)
 
-    assert document_service.get_context_organization().display_name == "Operations Hub"
-    assert document_service.list_documents() == []
+    assert document_query.get_context_organization().display_name == "Operations Hub"
+    assert document_query.list_documents() == []
 
 
 def test_document_service_links_documents_to_module_entities(services):
-    document_service = services["document_service"]
-    structure = document_service.create_document_structure(
-        structure_code="ASSET_MANUALS",
-        name="Asset Manuals",
-        object_scope="ASSET",
-        default_document_type="MANUAL",
-    )
-    document = document_service.create_document(
-        document_code="DRW-001",
-        title="Pump Drawing",
-        document_type="DRAWING",
-        document_structure_id=structure.id,
-        storage_kind="REFERENCE",
-        storage_uri="vault://pump/drawing-001",
-    )
+    document_commands = services["document_commands"]
+    document_structure_commands = services["document_structure_commands"]
+    document_query = services["document_query"]
+    structure = document_structure_commands.create_document_structure(DocumentStructureCreateCommand(structure_code="ASSET_MANUALS", name="Asset Manuals", object_scope="ASSET", default_document_type="MANUAL"))
+    document = document_commands.create_document(DocumentCreateCommand(document_code="DRW-001", title="Pump Drawing", document_type="DRAWING", document_structure_id=structure.id, storage_kind="REFERENCE", storage_uri="vault://pump/drawing-001"))
 
-    link = document_service.add_link(
-        document_id=document.id,
-        module_code="  INVENTORY_PROCUREMENT  ",
-        entity_type="  asset  ",
-        entity_id="asset-001",
-        link_role="  reference  ",
-    )
+    link = document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="  INVENTORY_PROCUREMENT  ", entity_type="  asset  ", entity_id="asset-001", link_role="  reference  "))
 
     assert link.module_code == "inventory_procurement"
     assert document.document_structure_id == structure.id
-    assert [item.entity_id for item in document_service.list_links(document.id)] == ["asset-001"]
-    assert [item.document_id for item in document_service.list_links_for_entity(
+    assert [item.entity_id for item in document_query.list_links(document.id)] == ["asset-001"]
+    assert [item.document_id for item in document_query.list_links_for_entity(
         module_code="inventory_procurement",
         entity_type="asset",
         entity_id="asset-001",
@@ -77,44 +60,21 @@ def test_document_service_links_documents_to_module_entities(services):
 
 
 def test_document_service_rejects_duplicate_codes_and_links(services):
-    document_service = services["document_service"]
-    document_service.create_document(
-        document_code="DOC-001",
-        title="Policy",
-        document_type="POLICY",
-        storage_kind="EXTERNAL_URL",
-        storage_uri="https://example.test/policy",
-    )
+    document_commands = services["document_commands"]
+    document_query = services["document_query"]
+    document_commands.create_document(DocumentCreateCommand(document_code="DOC-001", title="Policy", document_type="POLICY", storage_kind="EXTERNAL_URL", storage_uri="https://example.test/policy"))
 
     try:
-        document_service.create_document(
-            document_code="DOC-001",
-            title="Second Policy",
-            document_type="POLICY",
-            storage_kind="EXTERNAL_URL",
-            storage_uri="https://example.test/other-policy",
-        )
+        document_commands.create_document(DocumentCreateCommand(document_code="DOC-001", title="Second Policy", document_type="POLICY", storage_kind="EXTERNAL_URL", storage_uri="https://example.test/other-policy"))
     except ValidationError as exc:
         assert exc.code == "DOCUMENT_CODE_EXISTS"
     else:
         raise AssertionError("Expected duplicate document code validation error.")
 
-    document = document_service.list_documents()[0]
-    document_service.add_link(
-        document_id=document.id,
-        module_code="project_management",
-        entity_type="task_comment",
-        entity_id="comment-1",
-        link_role="attachment",
-    )
+    document = document_query.list_documents()[0]
+    document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="project_management", entity_type="task_comment", entity_id="comment-1", link_role="attachment"))
     try:
-        document_service.add_link(
-            document_id=document.id,
-            module_code="project_management",
-            entity_type="task_comment",
-            entity_id="comment-1",
-            link_role="attachment",
-        )
+        document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="project_management", entity_type="task_comment", entity_id="comment-1", link_role="attachment"))
     except ValidationError as exc:
         assert exc.code == "DOCUMENT_LINK_EXISTS"
     else:
@@ -122,32 +82,12 @@ def test_document_service_rejects_duplicate_codes_and_links(services):
 
 
 def test_document_service_updates_and_unlinks_documents(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code="DOC-002",
-        title="Checklist",
-        document_type="PROCEDURE",
-        storage_kind="FILE_PATH",
-        storage_uri="C:/docs/checklist.docx",
-        source_system="sharepoint",
-        revision="R0",
-    )
-    link = document_service.add_link(
-        document_id=document.id,
-        module_code="qhse",
-        entity_type="inspection",
-        entity_id="inspection-77",
-        link_role="evidence",
-    )
+    document_commands = services["document_commands"]
+    document_query = services["document_query"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code="DOC-002", title="Checklist", document_type="PROCEDURE", storage_kind="FILE_PATH", storage_uri="C:/docs/checklist.docx", source_system="sharepoint", business_version_label="R0"))
+    link = document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="inspection-77", link_role="evidence"))
 
-    updated = document_service.update_document(
-        document.id,
-        title="Inspection Checklist",
-        revision="R2",
-        confidentiality_level="CONFIDENTIAL",
-        is_active=False,
-        expected_version=document.version,
-    )
+    updated = document_commands.update_document(DocumentUpdateCommand(document_id=document.id, title="Inspection Checklist", business_version_label="R2", confidentiality_level="CONFIDENTIAL", is_active=False, expected_version=document.version))
 
     assert updated.title == "Inspection Checklist"
     assert updated.revision == "R2"
@@ -155,69 +95,39 @@ def test_document_service_updates_and_unlinks_documents(services):
     assert updated.source_system == "sharepoint"
     assert updated.is_active is False
 
-    document_service.remove_link(link.id)
-    assert document_service.list_links(document.id) == []
+    document_commands.remove_link(link.id)
+    assert document_query.list_links(document.id) == []
 
 
 def test_document_service_infers_mime_type_from_storage_path(services, tmp_path):
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
     pdf_path = tmp_path / "pump-manual.pdf"
     pdf_path.write_bytes(b"%PDF-1.4\n")
 
-    document = document_service.create_document(
-        document_code="DOC-PDF",
-        title="Pump Manual",
-        document_type="MANUAL",
-        storage_kind="FILE_PATH",
-        storage_uri=str(pdf_path),
-    )
+    document = document_commands.create_document(DocumentCreateCommand(document_code="DOC-PDF", title="Pump Manual", document_type="MANUAL", storage_kind="FILE_PATH", storage_uri=str(pdf_path)))
 
     assert document.file_name == "pump-manual.pdf"
     assert document.mime_type == "application/pdf"
 
 
 def test_document_service_manages_document_structures_and_business_version_labels(services):
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
+    document_structure_commands = services["document_structure_commands"]
+    document_query = services["document_query"]
 
-    parent = document_service.create_document_structure(
-        structure_code="ASSET_DOCS",
-        name="Asset Documents",
-        object_scope="ASSET",
-        default_document_type="GENERAL",
-        sort_order=10,
-    )
-    child = document_service.create_document_structure(
-        structure_code="CAL_CERTS",
-        name="Calibration Certificates",
-        parent_structure_id=parent.id,
-        object_scope="ASSET",
-        default_document_type="CERTIFICATE",
-        sort_order=20,
-    )
+    parent = document_structure_commands.create_document_structure(DocumentStructureCreateCommand(structure_code="ASSET_DOCS", name="Asset Documents", object_scope="ASSET", default_document_type="GENERAL", sort_order=10))
+    child = document_structure_commands.create_document_structure(DocumentStructureCreateCommand(structure_code="CAL_CERTS", name="Calibration Certificates", parent_structure_id=parent.id, object_scope="ASSET", default_document_type="CERTIFICATE", sort_order=20))
 
-    structures = document_service.list_document_structures(object_scope="ASSET")
+    structures = document_query.list_document_structures(object_scope="ASSET")
     assert [row.structure_code for row in structures] == ["ASSET_DOCS", "CAL_CERTS"]
 
-    document = document_service.create_document(
-        document_code="CERT-001",
-        title="Pump Calibration Certificate",
-        document_type="CERTIFICATE",
-        document_structure_id=child.id,
-        storage_kind="REFERENCE",
-        storage_uri="vault://certs/pump-001",
-        business_version_label="Rev C",
-    )
+    document = document_commands.create_document(DocumentCreateCommand(document_code="CERT-001", title="Pump Calibration Certificate", document_type="CERTIFICATE", document_structure_id=child.id, storage_kind="REFERENCE", storage_uri="vault://certs/pump-001", business_version_label="Rev C"))
 
     assert document.document_structure_id == child.id
     assert document.business_version_label == "Rev C"
     assert document.revision == "Rev C"
 
-    updated_child = document_service.update_document_structure(
-        child.id,
-        name="Calibration and Test Certificates",
-        is_active=False,
-        expected_version=child.version,
-    )
+    updated_child = document_structure_commands.update_document_structure(DocumentStructureUpdateCommand(structure_id=child.id, name="Calibration and Test Certificates", is_active=False, expected_version=child.version))
 
     assert updated_child.name == "Calibration and Test Certificates"
     assert updated_child.is_active is False

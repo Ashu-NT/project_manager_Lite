@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from src.core.platform.contract.port.master_data.documents.document_access_policy import (
+    DocumentVisibility,
+)
 from src.core.platform.domain.master_data.documents import (
     Document,
     DocumentLink,
@@ -61,6 +64,7 @@ class DocumentRepository(ABC):
         *,
         page: int,
         page_size: int,
+        visibility: DocumentVisibility,
         search: str | None = None,
         active_only: bool | None = None,
     ) -> tuple[list[Document], int, int]:
@@ -102,6 +106,7 @@ class DocumentLinkRepository(ABC):
         entity_id: str,
         page: int,
         page_size: int,
+        visibility: DocumentVisibility,
         search: str | None = None,
         active_only: bool | None = None,
         document_type: str | None = None,

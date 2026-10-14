@@ -3,11 +3,9 @@ from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.application.master_data.employee.employee_service import (
-    EmployeeService,
-)
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.employee import EmployeeQueryHandler
+from src.core.platform.application.master_data.party import PartyQueryHandler
+from src.core.platform.application.master_data.site import SiteQueryHandler
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 
@@ -32,9 +30,9 @@ def test_admin_console_refresh_calls_all_entities_for_platform_operator(services
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
 
     employee_counts, restore_employee = _instrument(
-        EmployeeService, "list_employees_page_for_organization"
+        EmployeeQueryHandler, "list_employees_page_for_organization"
     )
-    site_counts, restore_site = _instrument(SiteService, "list_sites")
+    site_counts, restore_site = _instrument(SiteQueryHandler, "list_sites")
     try:
         catalog.adminWorkspace.refresh()
     finally:
@@ -58,9 +56,9 @@ def test_admin_console_refresh_skips_entities_the_session_cannot_access(services
     catalog.adminWorkspace._runtime_api = NoEntityPermissionsRuntimeApi()
 
     employee_counts, restore_employee = _instrument(
-        EmployeeService, "list_employees_page_for_organization"
+        EmployeeQueryHandler, "list_employees_page_for_organization"
     )
-    site_counts, restore_site = _instrument(SiteService, "list_sites")
+    site_counts, restore_site = _instrument(SiteQueryHandler, "list_sites")
     try:
         catalog.adminWorkspace.refresh()
     finally:
@@ -86,10 +84,10 @@ def test_admin_console_refresh_selectively_includes_only_granted_entities(servic
     catalog.adminWorkspace._runtime_api = PartyOnlyRuntimeApi()
 
     employee_counts, restore_employee = _instrument(
-        EmployeeService, "list_employees_page_for_organization"
+        EmployeeQueryHandler, "list_employees_page_for_organization"
     )
     party_counts, restore_party = _instrument(
-        PartyService, "list_parties_page_for_organization"
+        PartyQueryHandler, "list_parties_page_for_organization"
     )
     try:
         catalog.adminWorkspace.refresh()

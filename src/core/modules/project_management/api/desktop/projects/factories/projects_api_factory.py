@@ -11,18 +11,18 @@ def build_project_management_projects_desktop_api(
     project_query=None,
     module_catalog_service=None,
     project_resource_service=None,
-    resource_service=None,
-    site_service=None,
-    department_service=None,
+    resource_query=None,
+    site_query=None,
+    department_query=None,
 ) -> ProjectManagementProjectsDesktopApi:
     return ProjectManagementProjectsDesktopApi(
         project_service=project_service,
         project_query=project_query,
         module_catalog_service=module_catalog_service,
         project_resource_service=project_resource_service,
-        resource_service=resource_service,
-        site_service=site_service,
-        department_service=department_service,
+        resource_query=resource_query,
+        site_query=site_query,
+        department_query=department_query,
     )
 
 

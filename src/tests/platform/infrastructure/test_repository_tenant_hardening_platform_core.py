@@ -28,9 +28,8 @@ from src.core.platform.infrastructure.persistence.orm.master_data.site.sites imp
 
 def _seed_core_scope_rows(services) -> dict[str, str]:
     session = services["session"]
-    organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
-    other_org = organization_service.create_organization(
+    other_org = services["organization_commands"].create_organization(
         organization_code="OPS",
         display_name="Operations Hub",
         timezone_name="UTC",
@@ -243,13 +242,13 @@ def _seed_core_scope_rows(services) -> dict[str, str]:
 def test_platform_root_repositories_hide_cross_organization_rows(services) -> None:
     seeded = _seed_core_scope_rows(services)
 
-    site_repo = services["site_service"]._site_repo
-    department_repo = services["department_service"]._department_repo
-    employee_repo = services["employee_service"]._employee_repo
-    party_repo = services["party_service"]._party_repo
-    structure_repo = services["document_service"]._structure_repo
-    document_repo = services["document_service"]._document_repo
-    link_repo = services["document_service"]._link_repo
+    site_repo = services["site_query"]._site_repo
+    department_repo = services["department_query"]._department_repo
+    employee_repo = services["employee_query"]._employee_repo
+    party_repo = services["party_query"]._party_repo
+    structure_repo = services["document_query"]._structure_repo
+    document_repo = services["document_query"]._document_repo
+    link_repo = services["document_query"]._link_repo
 
     assert site_repo.get(seeded["site_other"]) is None
     assert department_repo.get(seeded["department_other"]) is None

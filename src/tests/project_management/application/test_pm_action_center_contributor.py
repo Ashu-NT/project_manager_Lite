@@ -15,6 +15,12 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
 from src.core.modules.project_management.infrastructure.persistence.reads.global_overview.action_center_reader import (
     SqlAlchemyProjectManagementActionCenterReader,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
 from src.core.shared.resource_identity.contracts import ResourceIdentityReader
 
 
@@ -61,19 +67,13 @@ def _resource_identity_reader(services):
 
 def _setup_user_employee_resource(services, *, suffix: str):
     organization = services["tenant_context_service"].get_active_organization()
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         f"pm-action-center-{suffix}", "StrongPass123", role_names=["project_manager"]
     )
-    department = services["department_service"].create_department(
-        department_code=f"AC-DEPT-{suffix}", name=f"Action Center Department {suffix}"
-    )
-    employee = services["employee_service"].create_employee(
-        employee_code=f"EMP-AC-{suffix}",
-        full_name=f"Action Center {suffix}",
-        department_id=department.id,
-    )
-    services["employee_service"].link_employee_user_account(employee.id, user.id)
-    resource = services["resource_service"].create_resource(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"AC-DEPT-{suffix}", name=f"Action Center Department {suffix}"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=f"EMP-AC-{suffix}", full_name=f"Action Center {suffix}", department_id=department.id))
+    services["employee_commands"].link_employee_user_account(employee.id, user.id)
+    resource = services["resource_master_commands"].create_resource(
         f"Action Center Resource {suffix}",
         worker_type=WorkerType.EMPLOYEE,
         employee_id=employee.id,
@@ -89,7 +89,7 @@ def test_tasks_resolve_through_resource_identity_and_include_only_open_states(se
     project = services["project_service"].create_project(
         "Action Center Tasks Project", financial_currency_code=organization.base_currency
     )
-    other_resource = services["resource_service"].create_resource("Unrelated Resource")
+    other_resource = services["resource_master_commands"].create_resource("Unrelated Resource")
 
     todo = services["task_service"].create_task(
         project.id, "Todo task", start_date=date(2026, 6, 1), duration_days=2, deadline=date(2026, 9, 20)
@@ -197,13 +197,13 @@ def _reviewer_context_and_contributor(services, *, project_id: str, permissions:
     bypass in has_scope_permission."""
     active_tenant_id = services["tenant_context_service"].get_active_tenant_id()
     organization = services["tenant_context_service"].get_active_organization()
-    reviewer = services["auth_service"].register_user(
+    reviewer = services["user_registration"].register_user(
         f"baseline-reviewer-{'-'.join(sorted(permissions)) or 'none'}",
         "StrongPass123",
         role_names=["approver"] if "baseline.approve" in permissions else ["viewer"],
     )
     services["user_session"].set_principal(
-        services["auth_service"].build_principal(reviewer)
+        services["principal_builder"].build(reviewer)
     )
     services["user_session"].set_active_organization_id(organization.id)
     reader = _resource_identity_reader(services)
@@ -307,23 +307,23 @@ def test_timesheets_include_open_and_rejected_but_not_approved_or_locked(service
     assignment = services["task_service"].assign_resource(task.id, resource.id, allocation_percent=100.0)
 
     # OPEN period: entries logged, never submitted.
-    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=4)
+    services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=4)
 
     # REJECTED period: a different period, submitted then rejected.
-    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 7, 4), hours=4)
-    submitted = services["timesheet_service"].submit_timesheet_period(
+    services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 7, 4), hours=4)
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 7, 1)
     )
-    services["timesheet_service"].reject_timesheet_period(
+    services["timesheet_period_transitions"].reject_timesheet_period(
         submitted.period_id, expected_version=submitted.version, note="Please recheck hours"
     )
 
     # APPROVED period: submitted then approved -- must be excluded.
-    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 8, 4), hours=4)
-    approved_submission = services["timesheet_service"].submit_timesheet_period(
+    services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 8, 4), hours=4)
+    approved_submission = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 8, 1)
     )
-    services["timesheet_service"].approve_timesheet_period(
+    services["timesheet_period_transitions"].approve_timesheet_period(
         approved_submission.period_id, expected_version=approved_submission.version, note="OK"
     )
 
@@ -371,7 +371,7 @@ def test_all_action_items_equals_the_sum_of_the_three_pm_categories(services):
         resource.id,
         allocation_percent=50.0,
     )
-    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=2)
+    services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=2)
 
     reader = _resource_identity_reader(services)
     contributor = _contributor(services, reader)

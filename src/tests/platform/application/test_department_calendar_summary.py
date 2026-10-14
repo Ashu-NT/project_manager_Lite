@@ -14,6 +14,12 @@ from src.core.platform.api.desktop.time_management.calendar.models.platform_cale
     DeptCalendarAssignCommand,
     SiteCalendarAssignCommand,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.ui_qml.platform.controllers.calendars.context import (
     department_calendar_summary,
 )
@@ -27,8 +33,7 @@ def _fake_controller(registry) -> SimpleNamespace:
 
 
 def test_department_calendar_summary_inherited_from_organization_when_no_site_and_no_override(services) -> None:
-    department_service = services["department_service"]
-    department = department_service.create_department(department_code="DCAL-1", name="No Site Dept")
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DCAL-1", name="No Site Dept"))
     organization_id = department.organization_id
 
     registry = build_desktop_api_registry(services)
@@ -42,12 +47,8 @@ def test_department_calendar_summary_inherited_from_organization_when_no_site_an
 
 
 def test_department_calendar_summary_inherited_from_site_when_site_has_override(services) -> None:
-    department_service = services["department_service"]
-    site_service = services["site_service"]
-    site = site_service.create_site(site_code="DCAL-SITE-1", name="Dept Cal Site One")
-    department = department_service.create_department(
-        department_code="DCAL-2", name="Site Dept", site_id=site.id
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="DCAL-SITE-1", name="Dept Cal Site One"))
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DCAL-2", name="Site Dept", site_id=site.id))
     organization_id = department.organization_id
 
     registry = build_desktop_api_registry(services)
@@ -68,12 +69,8 @@ def test_department_calendar_summary_inherited_from_site_when_site_has_override(
 
 
 def test_department_calendar_summary_inherited_from_organization_when_site_has_no_override(services) -> None:
-    department_service = services["department_service"]
-    site_service = services["site_service"]
-    site = site_service.create_site(site_code="DCAL-SITE-2", name="Dept Cal Site Two")
-    department = department_service.create_department(
-        department_code="DCAL-3", name="Site Dept Two", site_id=site.id
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="DCAL-SITE-2", name="Dept Cal Site Two"))
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DCAL-3", name="Site Dept Two", site_id=site.id))
     organization_id = department.organization_id
 
     registry = build_desktop_api_registry(services)
@@ -85,12 +82,8 @@ def test_department_calendar_summary_inherited_from_organization_when_site_has_n
 
 
 def test_department_calendar_summary_is_department_override_when_department_has_its_own_assignment(services) -> None:
-    department_service = services["department_service"]
-    site_service = services["site_service"]
-    site = site_service.create_site(site_code="DCAL-SITE-3", name="Dept Cal Site Three")
-    department = department_service.create_department(
-        department_code="DCAL-4", name="Override Dept", site_id=site.id
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="DCAL-SITE-3", name="Dept Cal Site Three"))
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DCAL-4", name="Override Dept", site_id=site.id))
     organization_id = department.organization_id
 
     registry = build_desktop_api_registry(services)

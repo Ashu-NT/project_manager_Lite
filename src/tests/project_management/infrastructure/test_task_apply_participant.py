@@ -29,10 +29,9 @@ from src.infra.persistence.orm.base import Base
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _make_two_tasks(services, name: str = "Task Approval Participant"):

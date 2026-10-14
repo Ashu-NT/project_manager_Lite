@@ -11,9 +11,6 @@ import pytest
 from sqlalchemy import select
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.application.security.auth.credentials.authentication_transactions import (
-    register_failed_login,
-)
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.domain.security.auth.events import (
     AuthenticationFailureRecorded,
@@ -46,15 +43,14 @@ def _tenant_id(services) -> str:
 
 
 def _set_tenant_admin(services, *, username: str | None = None):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         username or _unique("p46b-admin"),
         _PASSWORD,
         role_names=["tenant_admin"],
         tenant_id=tenant_id,
     )
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor,
         tenant_id=tenant_id,
         organization_id=services["tenant_context_service"].get_active_organization_id(),
@@ -66,12 +62,11 @@ def _set_tenant_admin(services, *, username: str | None = None):
 def _allow_tenant_admin_to_assign(services, role_id: str) -> None:
     """`create_delegation_policy` requires `platform.admin` -- create it as the platform admin,
     then restore whichever principal was active (the tenant admin under test)."""
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    tenant_admin_role = auth._role_repo.get_by_name("tenant_admin")
+    tenant_admin_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     acting_principal = services["user_session"].principal
     services["user_session"].set_principal(
-        auth.build_principal(auth.authenticate("admin", "ChangeMe123!"))
+        services["principal_builder"].build(services["authentication"].authenticate("admin", "ChangeMe123!"))
     )
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=tenant_admin_role.id,
@@ -109,23 +104,23 @@ def test_register_failed_login_bounded_retry_recovers_from_concurrent_write(
     lose its own increment: exactly one bounded retry reloads fresh state and reapplies it."""
     from datetime import datetime
 
-    auth = services["auth_service"]
-    target = auth.register_user(_unique("p46b-race-target"), _PASSWORD, role_names=[])
-    stale_copy = auth._user_repo.get(target.id)
+    auth = services["auth"]
+    target = services["user_registration"].register_user(_unique("p46b-race-target"), _PASSWORD, role_names=[])
+    stale_copy = services["auth_queries"]._user_repo.get(target.id)
 
     recorded = _spy_record_event(monkeypatch)
 
-    register_failed_login(
-        auth, auth._user_repo.get(target.id), username=target.username,
+    auth.authentication._transactions.register_failed_login(
+        services["auth_queries"]._user_repo.get(target.id), username=target.username,
         occurred_at=datetime.now(UTC),
     )
     # `stale_copy` still holds the pre-first-attempt version -- its own commit must conflict,
     # then recover via the bounded retry rather than silently losing this second attempt.
-    register_failed_login(
-        auth, stale_copy, username=target.username, occurred_at=datetime.now(UTC)
+    auth.authentication._transactions.register_failed_login(
+        stale_copy, username=target.username, occurred_at=datetime.now(UTC)
     )
 
-    refreshed = auth._user_repo.get(target.id)
+    refreshed = services["auth_queries"]._user_repo.get(target.id)
     assert refreshed.failed_login_attempts == 2, "the second (raced) attempt must not be lost"
     failure_events = [e for e in recorded if isinstance(e, AuthenticationFailureRecorded)]
     assert len(failure_events) == 2, "exactly one typed event per successful commit, no more, no fewer"
@@ -144,11 +139,10 @@ def test_register_failed_login_exhausted_retry_propagates_not_silently_swallowed
         SqlAlchemyUserRepository,
     )
 
-    auth = services["auth_service"]
-    target = auth.register_user(_unique("p46b-race-exhaust"), _PASSWORD, role_names=[])
-    stale_copy = auth._user_repo.get(target.id)
+    auth = services["auth"]
+    target = services["user_registration"].register_user(_unique("p46b-race-exhaust"), _PASSWORD, role_names=[])
+    stale_copy = services["auth_queries"]._user_repo.get(target.id)
 
-    original_update = SqlAlchemyUserRepository.update
     call_count = {"n": 0}
 
     def _always_conflict(self, user):
@@ -157,8 +151,8 @@ def test_register_failed_login_exhausted_retry_propagates_not_silently_swallowed
 
     monkeypatch.setattr(SqlAlchemyUserRepository, "update", _always_conflict)
     with pytest.raises(ConcurrencyError):
-        register_failed_login(
-            auth, stale_copy, username=target.username, occurred_at=datetime.now(UTC)
+        auth.authentication._transactions.register_failed_login(
+            stale_copy, username=target.username, occurred_at=datetime.now(UTC)
         )
     assert call_count["n"] == 2, "exactly the bounded max (2 attempts), not silently retried forever"
 
@@ -169,23 +163,23 @@ def test_register_failed_login_audit_failure_propagates_and_rolls_back(services,
     rather than leaving a half-recorded lockout state."""
     from datetime import datetime
 
-    auth = services["auth_service"]
-    target = auth.register_user(_unique("p46b-audit-fail"), _PASSWORD, role_names=[])
-    before = auth._user_repo.get(target.id).failed_login_attempts
+    auth = services["auth"]
+    target = services["user_registration"].register_user(_unique("p46b-audit-fail"), _PASSWORD, role_names=[])
+    before = services["auth_queries"]._user_repo.get(target.id).failed_login_attempts
 
     def _raise(*_a, **_kw):
         raise RuntimeError("security audit unavailable")
 
-    monkeypatch.setattr(auth._security_audit_repo, "add_platform", _raise)
-    monkeypatch.setattr(auth._security_audit_repo, "add_for_tenant", _raise)
+    monkeypatch.setattr(services["auth_bootstrap"]._security_audit_repo, "add_platform", _raise)
+    monkeypatch.setattr(services["auth_bootstrap"]._security_audit_repo, "add_for_tenant", _raise)
 
     with pytest.raises(RuntimeError, match="security audit unavailable"):
-        register_failed_login(
-            auth, auth._user_repo.get(target.id), username=target.username,
+        auth.authentication._transactions.register_failed_login(
+            services["auth_queries"]._user_repo.get(target.id), username=target.username,
             occurred_at=datetime.now(UTC),
         )
 
-    assert auth._user_repo.get(target.id).failed_login_attempts == before, (
+    assert services["auth_queries"]._user_repo.get(target.id).failed_login_attempts == before, (
         "a failed audit write must roll back the whole attempt, not partially persist it"
     )
 
@@ -207,11 +201,10 @@ def test_registration_records_exactly_user_created_membership_provisioned_and_ro
     )
 
     _set_tenant_admin(services)
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
     recorded = _spy_record_event(monkeypatch)
 
-    created = auth.register_user(
+    created = services["user_registration"].register_user(
         _unique("p46b-reg-complete"),
         _PASSWORD,
         role_names=["viewer", "tenant_admin"],
@@ -240,14 +233,13 @@ def test_platform_scoped_registration_records_zero_membership_provisioned(servic
     )
 
     services["user_session"].set_principal(
-        services["auth_service"].build_principal(
-            services["auth_service"].authenticate("admin", "ChangeMe123!")
+        services["principal_builder"].build(
+            services["authentication"].authenticate("admin", "ChangeMe123!")
         )
     )
-    auth = services["auth_service"]
     recorded = _spy_record_event(monkeypatch)
 
-    auth.register_user(_unique("p46b-platform-reg"), _PASSWORD, role_names=[])
+    services["user_registration"].register_user(_unique("p46b-platform-reg"), _PASSWORD, role_names=[])
 
     assert [e for e in recorded if isinstance(e, TenantMembershipProvisioned)] == []
 
@@ -266,7 +258,6 @@ def test_registration_rolls_back_the_entire_transaction_and_records_zero_events_
     )
 
     _set_tenant_admin(services)
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
     recorded = _spy_record_event(monkeypatch)
     before_user_count = services["session"].scalar(select(func.count()).select_from(UserORM))
@@ -277,7 +268,7 @@ def test_registration_rolls_back_the_entire_transaction_and_records_zero_events_
     monkeypatch.setattr(SqlAlchemyUserRepository, "add", _raise)
 
     with pytest.raises(Exception):
-        auth.register_user(
+        services["user_registration"].register_user(
             _unique("p46b-reg-rollback"), _PASSWORD, role_names=["viewer"], tenant_id=tenant_id
         )
 
@@ -299,10 +290,9 @@ def test_bootstrap_role_repair_records_exactly_one_role_binding_assigned_and_no_
         RoleBindingAssigned,
     )
 
-    auth = services["auth_service"]
-    admin = auth._user_repo.get_by_username("admin")
-    admin_role = auth._require_role_by_name("admin")
-    binding = auth._role_binding_repo.get_active_for_assignment(
+    admin = services["auth_queries"]._user_repo.get_by_username("admin")
+    admin_role = services["auth_queries"].require_role_by_name("admin")
+    binding = services["role_assignment_commands"]._role_binding_repo.get_active_for_assignment(
         principal_id=admin.id,
         role_id=admin_role.id,
         tenant_id=None,
@@ -310,11 +300,11 @@ def test_bootstrap_role_repair_records_exactly_one_role_binding_assigned_and_no_
         actual_scope_id=None,
     )
     assert binding is not None
-    auth._role_binding_repo.revoke(binding.id, revoked_at=binding.assigned_at)
+    services["role_assignment_commands"]._role_binding_repo.revoke(binding.id, revoked_at=binding.assigned_at)
     services["session"].commit()
 
     recorded = _spy_record_event(monkeypatch)
-    auth.bootstrap_defaults()
+    services["auth_bootstrap"].bootstrap_defaults()
 
     binding_events = [e for e in recorded if isinstance(e, RoleBindingAssigned)]
     assert len(binding_events) == 1, "self-repair records exactly the fact for the actual change"
@@ -322,7 +312,7 @@ def test_bootstrap_role_repair_records_exactly_one_role_binding_assigned_and_no_
     assert [e for e in recorded if isinstance(e, UserAccountCreated)] == [], (
         "repair must never fabricate a UserAccountCreated fact -- the account already existed"
     )
-    assert auth._role_binding_repo.get_active_for_assignment(
+    assert services["role_assignment_commands"]._role_binding_repo.get_active_for_assignment(
         principal_id=admin.id, role_id=admin_role.id, tenant_id=None,
         actual_scope_type=ROLE_SCOPE_PLATFORM, actual_scope_id=None,
     ) is not None
@@ -331,10 +321,9 @@ def test_bootstrap_role_repair_records_exactly_one_role_binding_assigned_and_no_
 def test_bootstrap_defaults_is_idempotent_and_records_zero_events_when_nothing_changed(
     services, monkeypatch
 ):
-    auth = services["auth_service"]
     recorded = _spy_record_event(monkeypatch)
 
-    auth.bootstrap_defaults()  # admin already exists with its binding intact
+    services["auth_bootstrap"].bootstrap_defaults()  # admin already exists with its binding intact
 
     assert recorded == []
 
@@ -355,7 +344,6 @@ def test_custom_role_retirement_revokes_every_active_binding_with_one_event_each
     tenant_id = _tenant_id(services)
     role_admin_service = services["tenant_role_administration_service"]
     role_governance_service = services["role_governance_service"]
-    auth = services["auth_service"]
 
     role = role_admin_service.create_custom_role(
         name=_unique("p46b_custom_role"),
@@ -364,7 +352,7 @@ def test_custom_role_retirement_revokes_every_active_binding_with_one_event_each
     )
     _allow_tenant_admin_to_assign(services, role.id)
     holders = [
-        auth.register_user(_unique("p46b-holder"), _PASSWORD, role_names=[], tenant_id=tenant_id)
+        services["user_registration"].register_user(_unique("p46b-holder"), _PASSWORD, role_names=[], tenant_id=tenant_id)
         for _ in range(3)
     ]
     for holder in holders:
@@ -382,7 +370,7 @@ def test_custom_role_retirement_revokes_every_active_binding_with_one_event_each
     retirement_events = [e for e in recorded if isinstance(e, CustomRoleRetired)]
     assert len(retirement_events) == 1
     for holder in holders:
-        assert auth._role_binding_repo.get_active_for_assignment(
+        assert services["role_assignment_commands"]._role_binding_repo.get_active_for_assignment(
             principal_id=holder.id,
             role_id=role.id,
             tenant_id=tenant_id,
@@ -404,7 +392,6 @@ def test_custom_role_retirement_rolls_back_all_binding_revocations_on_audit_fail
     tenant_id = _tenant_id(services)
     role_admin_service = services["tenant_role_administration_service"]
     role_governance_service = services["role_governance_service"]
-    auth = services["auth_service"]
 
     role = role_admin_service.create_custom_role(
         name=_unique("p46b_custom_role_rb"),
@@ -413,7 +400,7 @@ def test_custom_role_retirement_rolls_back_all_binding_revocations_on_audit_fail
     )
     _allow_tenant_admin_to_assign(services, role.id)
     holders = [
-        auth.register_user(_unique("p46b-rb-holder"), _PASSWORD, role_names=[], tenant_id=tenant_id)
+        services["user_registration"].register_user(_unique("p46b-rb-holder"), _PASSWORD, role_names=[], tenant_id=tenant_id)
         for _ in range(2)
     ]
     for holder in holders:
@@ -452,7 +439,6 @@ def test_account_security_and_authorization_context_targets_never_cross_fire(ser
     `authorization_context`, and a custom-role mutation (`authorization_context`) must never
     trigger `account_security` -- the two families are strictly non-overlapping."""
     _set_tenant_admin(services)
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
     catalog = _catalog(services)
 
@@ -465,13 +451,13 @@ def test_account_security_and_authorization_context_targets_never_cross_fire(ser
         lambda: authorization_context_calls.append("stale")
     )
 
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique("p46b-precision-target"), _PASSWORD, role_names=[], tenant_id=tenant_id
     )
     account_security_calls.clear()
     authorization_context_calls.clear()
 
-    auth.force_user_password_reset(target.id)
+    services["password_commands"].force_user_password_reset(target.id)
     assert account_security_calls == ["stale"]
     assert authorization_context_calls == []
 
@@ -484,7 +470,6 @@ def test_account_security_and_authorization_context_targets_never_cross_fire(ser
 
 
 def test_account_security_invalidation_is_tenant_scoped_not_cross_tenant(services):
-    auth = services["auth_service"]
     other_tenant = services["tenant_admin_service"].create_tenant(
         _unique("p46b-other-tenant"), "Other Tenant"
     )
@@ -500,10 +485,10 @@ def test_account_security_invalidation_is_tenant_scoped_not_cross_tenant(service
         lambda: stale_calls.append("stale")
     )
 
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique("p46b-cross-tenant-target"), _PASSWORD, role_names=[], tenant_id=tenant_id
     )
-    auth.force_user_password_reset(target.id)
+    services["password_commands"].force_user_password_reset(target.id)
 
     assert stale_calls == [], "a fact for tenant A must never invalidate tenant B's subscription"
 
@@ -518,9 +503,8 @@ def test_principal_changed_listener_fires_on_login_and_logout_not_on_unrelated_c
 
     calls = []
     context = UserSessionContext(principal_changed_listener=lambda ctx: calls.append("changed"))
-    auth = services["auth_service"]
-    target = auth.register_user(_unique("p46b-principal-listener"), _PASSWORD, role_names=[])
-    principal = auth.build_principal(target)
+    target = services["user_registration"].register_user(_unique("p46b-principal-listener"), _PASSWORD, role_names=[])
+    principal = services["principal_builder"].build(target)
 
     context.set_principal(principal)
     assert calls == ["changed"]
@@ -534,9 +518,8 @@ def test_active_scope_changed_listener_fires_on_tenant_and_organization_switch_o
 
     calls = []
     context = UserSessionContext(active_scope_changed_listener=lambda ctx: calls.append("scope"))
-    auth = services["auth_service"]
-    target = auth.register_user(_unique("p46b-scope-listener"), _PASSWORD, role_names=[])
-    context.set_principal(auth.build_principal(target))
+    target = services["user_registration"].register_user(_unique("p46b-scope-listener"), _PASSWORD, role_names=[])
+    context.set_principal(services["principal_builder"].build(target))
     calls.clear()  # set_principal itself does not call the scope listener directly here
 
     context.set_active_tenant_id("tenant-x")

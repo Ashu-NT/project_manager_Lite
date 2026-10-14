@@ -4,30 +4,41 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationDto,
 )
 from src.core.platform.api.desktop.master_data.party.models.party import (
-    PartyCreateCommand,
     PartyDto,
     PartyPageDto,
     PartyRollupSummaryDto,
-    PartyUpdateCommand,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import (
     execute_desktop_operation,
     serialize_organization,
 )
-from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.master_data.party import (
+    PartyCommandHandler,
+    PartyQueryHandler,
+)
+from src.core.platform.contract.use_cases.master_data.party.commands import (
+    PartyCreateCommand,
+    PartyUpdateCommand,
+)
 from src.core.platform.domain.master_data.party import Party
 
 
 class PlatformPartyDesktopApi:
     """Desktop-facing adapter for platform party master data."""
 
-    def __init__(self, *, party_service: PartyService) -> None:
-        self._party_service = party_service
+    def __init__(
+        self,
+        *,
+        party_commands: PartyCommandHandler,
+        party_query: PartyQueryHandler,
+    ) -> None:
+        self._party_commands = party_commands
+        self._party_query = party_query
 
     def get_context(self) -> DesktopApiResult[OrganizationDto]:
         return execute_desktop_operation(
-            lambda: serialize_organization(self._party_service.get_context_organization())
+            lambda: serialize_organization(self._party_query.get_context_organization())
         )
 
     def list_parties(
@@ -38,7 +49,7 @@ class PlatformPartyDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_party(party)
-                for party in self._party_service.list_parties(active_only=active_only)
+                for party in self._party_query.list_parties(active_only=active_only)
             )
         )
 
@@ -55,7 +66,7 @@ class PlatformPartyDesktopApi:
     ) -> DesktopApiResult[PartyPageDto]:
         return execute_desktop_operation(
             lambda: self._serialize_party_page(
-                self._party_service.list_parties_page_for_organization(
+                self._party_query.list_parties_page_for_organization(
                     organization_id,
                     page=page,
                     page_size=page_size,
@@ -70,72 +81,32 @@ class PlatformPartyDesktopApi:
     def get_party_rollup_summary(self) -> DesktopApiResult[PartyRollupSummaryDto]:
         return execute_desktop_operation(
             lambda: self._serialize_rollup_summary(
-                self._party_service.get_party_rollup_summary()
+                self._party_query.get_party_rollup_summary()
             )
         )
 
     def create_party(self, command: PartyCreateCommand) -> DesktopApiResult[PartyDto]:
         return execute_desktop_operation(
             lambda: self._serialize_party(
-                self._party_service.create_party(
-                    party_code=command.party_code,
-                    party_name=command.party_name,
-                    party_type=command.party_type,
-                    roles=command.roles,
-                    legal_name=command.legal_name,
-                    contact_name=command.contact_name,
-                    email=command.email,
-                    phone=command.phone,
-                    country=command.country,
-                    city=command.city,
-                    address_line_1=command.address_line_1,
-                    address_line_2=command.address_line_2,
-                    postal_code=command.postal_code,
-                    website=command.website,
-                    registration_number=command.registration_number,
-                    tax_identifier=command.tax_identifier,
-                    external_reference=command.external_reference,
-                    notes=command.notes,
-                )
+                self._party_commands.create_party(command)
             )
         )
 
     def update_party(self, command: PartyUpdateCommand) -> DesktopApiResult[PartyDto]:
         return execute_desktop_operation(
             lambda: self._serialize_party(
-                self._party_service.update_party(
-                    command.party_id,
-                    party_code=command.party_code,
-                    party_name=command.party_name,
-                    party_type=command.party_type,
-                    roles=command.roles,
-                    legal_name=command.legal_name,
-                    contact_name=command.contact_name,
-                    email=command.email,
-                    phone=command.phone,
-                    country=command.country,
-                    city=command.city,
-                    address_line_1=command.address_line_1,
-                    address_line_2=command.address_line_2,
-                    postal_code=command.postal_code,
-                    website=command.website,
-                    registration_number=command.registration_number,
-                    tax_identifier=command.tax_identifier,
-                    external_reference=command.external_reference,
-                    notes=command.notes,
-                    expected_version=command.expected_version,
-                )
+                self._party_commands.update_party(command)
             )
         )
 
     def activate_party(self, party_id: str) -> DesktopApiResult[PartyDto]:
         return execute_desktop_operation(
-            lambda: self._serialize_party(self._party_service.activate_party(party_id))
+            lambda: self._serialize_party(self._party_commands.activate_party(party_id))
         )
 
     def deactivate_party(self, party_id: str) -> DesktopApiResult[PartyDto]:
         return execute_desktop_operation(
-            lambda: self._serialize_party(self._party_service.deactivate_party(party_id))
+            lambda: self._serialize_party(self._party_commands.deactivate_party(party_id))
         )
 
     @staticmethod

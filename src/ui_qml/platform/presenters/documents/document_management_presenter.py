@@ -8,13 +8,15 @@ from src.core.platform.api.desktop.master_data.documents.document import (
 )
 from src.core.platform.api.desktop.master_data.documents.models.document import (
     DocumentDto,
-    DocumentLinkCreateCommand,
     DocumentLinkDto,
-    DocumentStructureCreateCommand,
     DocumentStructureDto,
-    DocumentStructureUpdateCommand,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentLinkCreateCommand,
+    DocumentStructureCreateCommand,
+    DocumentStructureUpdateCommand,
+)
 from src.core.platform.domain.master_data.documents import (
     DocumentStorageKind,
     DocumentType,

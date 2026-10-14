@@ -7,6 +7,10 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
     EnterpriseAuditService,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+    DocumentLinkCreateCommand,
+)
 from src.core.platform.domain.master_data.documents.events import (
     DocumentCreated,
     DocumentReferenceLinked,
@@ -27,7 +31,7 @@ def _unique_code(prefix: str) -> str:
 
 def _spy_event(services, event_type):
     calls = []
-    services["document_service"]._uow_factory._post_commit_bus.subscribe(
+    services["document_commands"]._uow_factory._post_commit_bus.subscribe(
         event_type, lambda event, context: calls.append(event)
     )
     return calls
@@ -64,15 +68,11 @@ def _platform_catalog(services) -> PlatformWorkspaceCatalog:
 
 
 def test_add_link_produces_exactly_one_document_reference_linked(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-ADDLINK"), title="Doc", storage_uri="C:/docs/a.pdf"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-ADDLINK"), title="Doc", storage_uri="C:/docs/a.pdf"))
     calls = _spy_event(services, DocumentReferenceLinked)
 
-    document_service.add_link(
-        document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-1"
-    )
+    document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-1"))
 
     assert len(calls) == 1
     event = calls[0]
@@ -83,27 +83,21 @@ def test_add_link_produces_exactly_one_document_reference_linked(services):
 
 
 def test_remove_link_produces_exactly_one_document_reference_unlinked(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-REMOVELINK"), title="Doc", storage_uri="C:/docs/b.pdf"
-    )
-    link = document_service.add_link(
-        document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-2"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-REMOVELINK"), title="Doc", storage_uri="C:/docs/b.pdf"))
+    link = document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-2"))
     calls = _spy_event(services, DocumentReferenceUnlinked)
 
-    document_service.remove_link(link.id)
+    document_commands.remove_link(link.id)
 
     assert len(calls) == 1
     assert calls[0].document_id == document.id
 
 
 def test_link_existing_document_produces_exactly_one_event(services):
-    document_service = services["document_service"]
-    integration_service = services["collaboration_service"]._document_integration_service
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-LINKEXIST"), title="Doc", storage_uri="C:/docs/c.pdf"
-    )
+    document_commands = services["document_commands"]
+    integration_service = services["document_attachment_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-LINKEXIST"), title="Doc", storage_uri="C:/docs/c.pdf"))
     calls = _spy_event(services, DocumentReferenceLinked)
 
     integration_service.link_existing_document(
@@ -119,11 +113,9 @@ def test_link_existing_document_produces_exactly_one_event(services):
 
 
 def test_unlink_existing_document_produces_exactly_one_event(services):
-    document_service = services["document_service"]
-    integration_service = services["collaboration_service"]._document_integration_service
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-UNLINKEXIST"), title="Doc", storage_uri="C:/docs/d.pdf"
-    )
+    document_commands = services["document_commands"]
+    integration_service = services["document_attachment_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-UNLINKEXIST"), title="Doc", storage_uri="C:/docs/d.pdf"))
     entity_id = _unique_code("ITEM")
     integration_service.link_existing_document(
         required_permission="settings.manage",
@@ -148,28 +140,20 @@ def test_unlink_existing_document_produces_exactly_one_event(services):
 
 
 def test_add_link_duplicate_produces_zero_event(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-DUPE"), title="Doc", storage_uri="C:/docs/e.pdf"
-    )
-    document_service.add_link(
-        document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-3"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-DUPE"), title="Doc", storage_uri="C:/docs/e.pdf"))
+    document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-3"))
     calls = _spy_event(services, DocumentReferenceLinked)
 
     with pytest.raises(ValidationError):
-        document_service.add_link(
-            document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-3"
-        )
+        document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-3"))
 
     assert calls == []
 
 
 def test_add_link_commit_failure_produces_zero_event(services, monkeypatch):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-LINKCOMMITFAIL"), title="Doc", storage_uri="C:/docs/f.pdf"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-LINKCOMMITFAIL"), title="Doc", storage_uri="C:/docs/f.pdf"))
     calls = _spy_event(services, DocumentReferenceLinked)
 
     def _fail_commit(self):
@@ -178,18 +162,14 @@ def test_add_link_commit_failure_produces_zero_event(services, monkeypatch):
     monkeypatch.setattr(SqlAlchemyDocumentUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated commit failure"):
-        document_service.add_link(
-            document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-4"
-        )
+        document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-4"))
 
     assert calls == []
 
 
 def test_add_link_audit_failure_produces_zero_event(services, monkeypatch):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-LINKAUDITFAIL"), title="Doc", storage_uri="C:/docs/g.pdf"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-LINKAUDITFAIL"), title="Doc", storage_uri="C:/docs/g.pdf"))
     calls = _spy_event(services, DocumentReferenceLinked)
 
     def _fail_record(self, **kwargs):
@@ -198,20 +178,18 @@ def test_add_link_audit_failure_produces_zero_event(services, monkeypatch):
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
 
     with pytest.raises(RuntimeError, match="simulated audit failure"):
-        document_service.add_link(
-            document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-5"
-        )
+        document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-5"))
 
     monkeypatch.undo()
     assert calls == []
 
 
 def test_remove_link_missing_produces_zero_event(services):
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
     calls = _spy_event(services, DocumentReferenceUnlinked)
 
     with pytest.raises(NotFoundError):
-        document_service.remove_link("does-not-exist")
+        document_commands.remove_link("does-not-exist")
 
     assert calls == []
 
@@ -222,7 +200,7 @@ def test_remove_link_missing_produces_zero_event(services):
 
 
 def test_register_entity_attachments_produces_n_created_and_n_linked_events(services):
-    integration_service = services["collaboration_service"]._document_integration_service
+    integration_service = services["document_attachment_commands"]
     created_calls = _spy_event(services, DocumentCreated)
     linked_calls = _spy_event(services, DocumentReferenceLinked)
     entity_id = _unique_code("P16D-BATCH")
@@ -244,7 +222,7 @@ def test_register_entity_attachments_produces_n_created_and_n_linked_events(serv
 
 
 def test_register_entity_attachments_failure_midway_produces_zero_events(services, monkeypatch):
-    integration_service = services["collaboration_service"]._document_integration_service
+    integration_service = services["document_attachment_commands"]
     created_calls = _spy_event(services, DocumentCreated)
     linked_calls = _spy_event(services, DocumentReferenceLinked)
     call_count = {"n": 0}
@@ -279,15 +257,11 @@ def test_register_entity_attachments_failure_midway_produces_zero_events(service
 
 
 def test_link_entity_a_does_not_invalidate_entity_b(services):
-    document_service = services["document_service"]
-    doc_a = document_service.create_document(
-        document_code=_unique_code("P16D-SCOPE-A"), title="Doc A", storage_uri="C:/docs/h.pdf"
-    )
+    document_commands = services["document_commands"]
+    doc_a = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-SCOPE-A"), title="Doc A", storage_uri="C:/docs/h.pdf"))
     hints = _spy_document_links_hints(services)
 
-    document_service.add_link(
-        document_id=doc_a.id, module_code="qhse", entity_type="inspection", entity_id="entity-a"
-    )
+    document_commands.add_link(DocumentLinkCreateCommand(document_id=doc_a.id, module_code="qhse", entity_type="inspection", entity_id="entity-a"))
 
     entity_shape_hints = [h for h in hints if h.entity_type == "inspection"]
     assert len(entity_shape_hints) == 1
@@ -296,7 +270,7 @@ def test_link_entity_a_does_not_invalidate_entity_b(services):
 
 
 def test_n_links_to_same_entity_in_one_commit_produce_one_link_invalidation(services):
-    integration_service = services["collaboration_service"]._document_integration_service
+    integration_service = services["document_attachment_commands"]
     hints = _spy_document_links_hints(services)
     entity_id = _unique_code("P16D-SAME-ENTITY")
 
@@ -316,7 +290,7 @@ def test_n_links_to_same_entity_in_one_commit_produce_one_link_invalidation(serv
 
 
 def test_n_links_to_same_entity_produce_n_distinct_document_shape_hints(services):
-    integration_service = services["collaboration_service"]._document_integration_service
+    integration_service = services["document_attachment_commands"]
     hints = _spy_document_links_hints(services)
     entity_id = _unique_code("P16D-DOC-SHAPE")
 
@@ -334,18 +308,12 @@ def test_n_links_to_same_entity_produce_n_distinct_document_shape_hints(services
 
 
 def test_two_separate_link_commits_to_different_entities_produce_two_invalidations(services):
-    document_service = services["document_service"]
-    doc = document_service.create_document(
-        document_code=_unique_code("P16D-TWO-ENTITIES"), title="Doc", storage_uri="C:/docs/i.pdf"
-    )
+    document_commands = services["document_commands"]
+    doc = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-TWO-ENTITIES"), title="Doc", storage_uri="C:/docs/i.pdf"))
     hints = _spy_document_links_hints(services)
 
-    document_service.add_link(
-        document_id=doc.id, module_code="qhse", entity_type="inspection", entity_id="two-a"
-    )
-    document_service.add_link(
-        document_id=doc.id, module_code="qhse", entity_type="inspection", entity_id="two-b"
-    )
+    document_commands.add_link(DocumentLinkCreateCommand(document_id=doc.id, module_code="qhse", entity_type="inspection", entity_id="two-a"))
+    document_commands.add_link(DocumentLinkCreateCommand(document_id=doc.id, module_code="qhse", entity_type="inspection", entity_id="two-b"))
 
     entity_shape_hints = [h for h in hints if h.entity_type == "inspection"]
     assert {h.entity_id for h in entity_shape_hints} == {"two-a", "two-b"}
@@ -355,22 +323,14 @@ def test_same_target_entity_across_two_separate_transactions_produces_two_invali
     """Dedup is transaction-scoped only: the per-transaction dedup sets are cleared the moment a
     new correlation_id arrives, so a later transaction targeting the same entity as an earlier
     one is never silently suppressed."""
-    document_service = services["document_service"]
-    doc_1 = document_service.create_document(
-        document_code=_unique_code("P16D-XACT-1"), title="Doc 1", storage_uri="C:/docs/q.pdf"
-    )
-    doc_2 = document_service.create_document(
-        document_code=_unique_code("P16D-XACT-2"), title="Doc 2", storage_uri="C:/docs/r.pdf"
-    )
+    document_commands = services["document_commands"]
+    doc_1 = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-XACT-1"), title="Doc 1", storage_uri="C:/docs/q.pdf"))
+    doc_2 = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-XACT-2"), title="Doc 2", storage_uri="C:/docs/r.pdf"))
     entity_id = _unique_code("P16D-SAME-TARGET")
     hints = _spy_document_links_hints(services)
 
-    document_service.add_link(
-        document_id=doc_1.id, module_code="qhse", entity_type="inspection", entity_id=entity_id
-    )
-    document_service.add_link(
-        document_id=doc_2.id, module_code="qhse", entity_type="inspection", entity_id=entity_id
-    )
+    document_commands.add_link(DocumentLinkCreateCommand(document_id=doc_1.id, module_code="qhse", entity_type="inspection", entity_id=entity_id))
+    document_commands.add_link(DocumentLinkCreateCommand(document_id=doc_2.id, module_code="qhse", entity_type="inspection", entity_id=entity_id))
 
     entity_shape_hints = [
         h for h in hints if h.entity_type == "inspection" and h.entity_id == entity_id
@@ -379,10 +339,8 @@ def test_same_target_entity_across_two_separate_transactions_produces_two_invali
 
 
 def test_failed_link_commit_produces_zero_document_links_hints(services, monkeypatch):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-HINT-FAIL"), title="Doc", storage_uri="C:/docs/j.pdf"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-HINT-FAIL"), title="Doc", storage_uri="C:/docs/j.pdf"))
     hints = _spy_document_links_hints(services)
 
     def _fail_commit(self):
@@ -391,9 +349,7 @@ def test_failed_link_commit_produces_zero_document_links_hints(services, monkeyp
     monkeypatch.setattr(SqlAlchemyDocumentUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated commit failure"):
-        document_service.add_link(
-            document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="hint-fail"
-        )
+        document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="hint-fail"))
 
     assert hints == []
 
@@ -443,10 +399,8 @@ def test_link_scope_is_typed_not_stringly_encoded():
 
 
 def test_admin_selected_document_link_refreshes_focus_narrowly(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-ADMIN-DOC"), title="Doc", storage_uri="C:/docs/n.pdf"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-ADMIN-DOC"), title="Doc", storage_uri="C:/docs/n.pdf"))
 
     catalog = _platform_catalog(services)
     catalog.adminWorkspace.documents
@@ -459,22 +413,16 @@ def test_admin_selected_document_link_refreshes_focus_narrowly(services):
     full_calls = []
     catalog.adminWorkspace.refresh = lambda: full_calls.append("full") or None
 
-    document_service.add_link(
-        document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="admin-insp-1"
-    )
+    document_commands.add_link(DocumentLinkCreateCommand(document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="admin-insp-1"))
 
     assert narrow_calls == ["focus"]
     assert full_calls == []
 
 
 def test_admin_unselected_document_link_does_not_refresh_focus(services):
-    document_service = services["document_service"]
-    selected_document = document_service.create_document(
-        document_code=_unique_code("P16D-ADMIN-SELECTED"), title="Selected Doc", storage_uri="C:/docs/o.pdf"
-    )
-    other_document = document_service.create_document(
-        document_code=_unique_code("P16D-ADMIN-OTHER"), title="Other Doc", storage_uri="C:/docs/p.pdf"
-    )
+    document_commands = services["document_commands"]
+    selected_document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-ADMIN-SELECTED"), title="Selected Doc", storage_uri="C:/docs/o.pdf"))
+    other_document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16D-ADMIN-OTHER"), title="Other Doc", storage_uri="C:/docs/p.pdf"))
 
     catalog = _platform_catalog(services)
     catalog.adminWorkspace.documents
@@ -485,9 +433,7 @@ def test_admin_unselected_document_link_does_not_refresh_focus(services):
         lambda: narrow_calls.append("focus") or None
     )
 
-    document_service.add_link(
-        document_id=other_document.id, module_code="qhse", entity_type="inspection", entity_id="admin-insp-2"
-    )
+    document_commands.add_link(DocumentLinkCreateCommand(document_id=other_document.id, module_code="qhse", entity_type="inspection", entity_id="admin-insp-2"))
 
     assert narrow_calls == []
 
@@ -506,17 +452,17 @@ def test_all_real_business_callers_resolve_entity_org_scoped_before_linking():
     """DocumentLink's `entity_id` is caller-trusted, not independently validated by the Document
     layer -- a generic cross-module resolver would just be a forbidden entity resolver/service
     locator. Every real business-workflow caller must resolve its entity through its own
-    organization-scoped lookup before calling into DocumentIntegrationService. Admin's manual
+    organization-scoped lookup before calling into the Documents attachment handlers. Admin's manual
     `add_link` tool is a deliberately different, settings.manage-gated manual-entry path and is
     not held to this invariant."""
     import inspect
 
     from src.core.modules.project_management.application.collaboration.commands.collaboration_comments import (
-        CollaborationCommentCommandMixin,
+        CollaborationCommentCommandHandler,
     )
 
     class_checks = [
-        (CollaborationCommentCommandMixin, ("post_comment",), "self._require_task("),
+        (CollaborationCommentCommandHandler, ("post_comment",), "self._policy.require_task("),
     ]
     for owner_class, method_names, org_scoped_lookup in class_checks:
         for method_name in method_names:
@@ -571,8 +517,8 @@ def test_no_document_changed_or_document_updated_blanket_event():
 def test_no_generic_entity_resolver_or_service_locator_introduced():
     import inspect
 
-    import src.core.platform.application.master_data.documents.document_commands as document_commands_module
-    import src.core.platform.application.master_data.documents.document_integration_service as document_integration_service_module
+    import src.core.platform.application.master_data.documents.commands.document_attachment_commands as document_integration_service_module
+    import src.core.platform.application.master_data.documents.commands.document_commands as document_commands_module
 
     for module in (document_commands_module, document_integration_service_module):
         source = inspect.getsource(module)
@@ -583,8 +529,8 @@ def test_no_generic_entity_resolver_or_service_locator_introduced():
 def test_document_uow_retained_and_raw_session_commit_not_reintroduced():
     import inspect
 
-    import src.core.platform.application.master_data.documents.document_commands as document_commands_module
-    import src.core.platform.application.master_data.documents.document_integration_service as document_integration_service_module
+    import src.core.platform.application.master_data.documents.commands.document_attachment_commands as document_integration_service_module
+    import src.core.platform.application.master_data.documents.commands.document_commands as document_commands_module
     import src.core.platform.infrastructure.persistence.uow.master_data.document_unit_of_work as infra_module
 
     assert "class SqlAlchemyDocumentUnitOfWork(" in inspect.getsource(infra_module)

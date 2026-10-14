@@ -1,16 +1,11 @@
 from __future__ import annotations
 
 from src.core.platform.api.desktop.master_data.documents.models.document import (
-    DocumentCreateCommand,
     DocumentDto,
-    DocumentLinkCreateCommand,
     DocumentLinkDto,
     DocumentPageDto,
     DocumentRollupSummaryDto,
-    DocumentStructureCreateCommand,
     DocumentStructureDto,
-    DocumentStructureUpdateCommand,
-    DocumentUpdateCommand,
 )
 from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationDto,
@@ -20,8 +15,17 @@ from src.core.platform.api.desktop.support._support import (
     execute_desktop_operation,
     serialize_organization,
 )
-from src.core.platform.application.master_data.documents.document_service import (
-    DocumentService,
+from src.core.platform.application.master_data.documents import (
+    DocumentCommandHandler,
+    DocumentQueryHandler,
+    DocumentStructureCommandHandler,
+)
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+    DocumentLinkCreateCommand,
+    DocumentStructureCreateCommand,
+    DocumentStructureUpdateCommand,
+    DocumentUpdateCommand,
 )
 from src.core.platform.domain.master_data.documents import (
     Document,
@@ -33,12 +37,20 @@ from src.core.platform.domain.master_data.documents import (
 class PlatformDocumentDesktopApi:
     """Desktop-facing adapter for platform document administration flows."""
 
-    def __init__(self, *, document_service: DocumentService) -> None:
-        self._document_service = document_service
+    def __init__(
+        self,
+        *,
+        document_commands: DocumentCommandHandler,
+        document_structure_commands: DocumentStructureCommandHandler,
+        document_query: DocumentQueryHandler,
+    ) -> None:
+        self._document_commands = document_commands
+        self._document_structure_commands = document_structure_commands
+        self._document_query = document_query
 
     def get_context(self) -> DesktopApiResult[OrganizationDto]:
         return execute_desktop_operation(
-            lambda: serialize_organization(self._document_service.get_context_organization())
+            lambda: serialize_organization(self._document_query.get_context_organization())
         )
 
     def list_documents(
@@ -49,7 +61,7 @@ class PlatformDocumentDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_document(document)
-                for document in self._document_service.list_documents(active_only=active_only)
+                for document in self._document_query.list_documents(active_only=active_only)
             )
         )
 
@@ -64,7 +76,7 @@ class PlatformDocumentDesktopApi:
     ) -> DesktopApiResult[DocumentPageDto]:
         return execute_desktop_operation(
             lambda: self._serialize_document_page(
-                self._document_service.list_documents_page_for_organization(
+                self._document_query.list_documents_page_for_organization(
                     organization_id,
                     page=page,
                     page_size=page_size,
@@ -76,7 +88,7 @@ class PlatformDocumentDesktopApi:
 
     def get_document(self, document_id: str) -> DesktopApiResult[DocumentDto]:
         return execute_desktop_operation(
-            lambda: self._serialize_document(self._document_service.get_document(document_id))
+            lambda: self._serialize_document(self._document_query.get_document(document_id))
         )
 
     def list_documents_page_for_entity(
@@ -93,7 +105,7 @@ class PlatformDocumentDesktopApi:
     ) -> DesktopApiResult[DocumentPageDto]:
         return execute_desktop_operation(
             lambda: self._serialize_entity_document_page(
-                self._document_service.list_documents_page_for_entity(
+                self._document_query.list_documents_page_for_entity(
                     module_code=module_code,
                     entity_type=entity_type,
                     entity_id=entity_id,
@@ -109,7 +121,7 @@ class PlatformDocumentDesktopApi:
     def get_document_rollup_summary(self) -> DesktopApiResult[DocumentRollupSummaryDto]:
         return execute_desktop_operation(
             lambda: self._serialize_rollup_summary(
-                self._document_service.get_document_rollup_summary()
+                self._document_query.get_document_rollup_summary()
             )
         )
 
@@ -122,7 +134,7 @@ class PlatformDocumentDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_document_structure(structure)
-                for structure in self._document_service.list_document_structures(
+                for structure in self._document_query.list_document_structures(
                     active_only=active_only,
                     object_scope=object_scope,
                 )
@@ -132,54 +144,14 @@ class PlatformDocumentDesktopApi:
     def create_document(self, command: DocumentCreateCommand) -> DesktopApiResult[DocumentDto]:
         return execute_desktop_operation(
             lambda: self._serialize_document(
-                self._document_service.create_document(
-                    document_code=command.document_code,
-                    title=command.title,
-                    document_type=command.document_type,
-                    document_structure_id=command.document_structure_id,
-                    storage_kind=command.storage_kind,
-                    storage_uri=command.storage_uri,
-                    file_name=command.file_name,
-                    mime_type=command.mime_type,
-                    source_system=command.source_system,
-                    uploaded_at=command.uploaded_at,
-                    uploaded_by_user_id=command.uploaded_by_user_id,
-                    effective_date=command.effective_date,
-                    review_date=command.review_date,
-                    confidentiality_level=command.confidentiality_level,
-                    business_version_label=command.business_version_label,
-                    is_current=command.is_current,
-                    notes=command.notes,
-                    is_active=command.is_active,
-                )
+                self._document_commands.create_document(command)
             )
         )
 
     def update_document(self, command: DocumentUpdateCommand) -> DesktopApiResult[DocumentDto]:
         return execute_desktop_operation(
             lambda: self._serialize_document(
-                self._document_service.update_document(
-                    command.document_id,
-                    document_code=command.document_code,
-                    title=command.title,
-                    document_type=command.document_type,
-                    document_structure_id=command.document_structure_id,
-                    storage_kind=command.storage_kind,
-                    storage_uri=command.storage_uri,
-                    file_name=command.file_name,
-                    mime_type=command.mime_type,
-                    source_system=command.source_system,
-                    uploaded_at=command.uploaded_at,
-                    uploaded_by_user_id=command.uploaded_by_user_id,
-                    effective_date=command.effective_date,
-                    review_date=command.review_date,
-                    confidentiality_level=command.confidentiality_level,
-                    business_version_label=command.business_version_label,
-                    is_current=command.is_current,
-                    notes=command.notes,
-                    is_active=command.is_active,
-                    expected_version=command.expected_version,
-                )
+                self._document_commands.update_document(command)
             )
         )
 
@@ -189,17 +161,7 @@ class PlatformDocumentDesktopApi:
     ) -> DesktopApiResult[DocumentStructureDto]:
         return execute_desktop_operation(
             lambda: self._serialize_document_structure(
-                self._document_service.create_document_structure(
-                    structure_code=command.structure_code,
-                    name=command.name,
-                    description=command.description,
-                    parent_structure_id=command.parent_structure_id,
-                    object_scope=command.object_scope,
-                    default_document_type=command.default_document_type,
-                    sort_order=command.sort_order,
-                    is_active=command.is_active,
-                    notes=command.notes,
-                )
+                self._document_structure_commands.create_document_structure(command)
             )
         )
 
@@ -209,19 +171,7 @@ class PlatformDocumentDesktopApi:
     ) -> DesktopApiResult[DocumentStructureDto]:
         return execute_desktop_operation(
             lambda: self._serialize_document_structure(
-                self._document_service.update_document_structure(
-                    command.structure_id,
-                    structure_code=command.structure_code,
-                    name=command.name,
-                    description=command.description,
-                    parent_structure_id=command.parent_structure_id,
-                    object_scope=command.object_scope,
-                    default_document_type=command.default_document_type,
-                    sort_order=command.sort_order,
-                    is_active=command.is_active,
-                    notes=command.notes,
-                    expected_version=command.expected_version,
-                )
+                self._document_structure_commands.update_document_structure(command)
             )
         )
 
@@ -229,26 +179,20 @@ class PlatformDocumentDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_document_link(link)
-                for link in self._document_service.list_links(document_id)
+                for link in self._document_query.list_links(document_id)
             )
         )
 
     def add_link(self, command: DocumentLinkCreateCommand) -> DesktopApiResult[DocumentLinkDto]:
         return execute_desktop_operation(
             lambda: self._serialize_document_link(
-                self._document_service.add_link(
-                    document_id=command.document_id,
-                    module_code=command.module_code,
-                    entity_type=command.entity_type,
-                    entity_id=command.entity_id,
-                    link_role=command.link_role,
-                )
+                self._document_commands.add_link(command)
             )
         )
 
     def remove_link(self, link_id: str) -> DesktopApiResult[None]:
         return execute_desktop_operation(
-            lambda: self._document_service.remove_link(link_id)
+            lambda: self._document_commands.remove_link(link_id)
         )
 
     def _serialize_document_page(self, page) -> DocumentPageDto:

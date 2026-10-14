@@ -40,14 +40,13 @@ from src.core.platform.infrastructure.persistence.repositories.master_data.docum
 
 @pytest.fixture(autouse=True)
 def _isolate_physical_storage_for_sql_atomicity(services):
-    collaboration = services["collaboration_service"]
-    original_store = collaboration._attachment_store
-    original_cleanup = collaboration._attachment_cleanup
-    collaboration._attachment_store = lambda **kwargs: list(kwargs["attachments"])
-    collaboration._attachment_cleanup = lambda _paths: None
+    original_store = services["collaboration_comment_commands"]._attachment_store
+    original_cleanup = services["collaboration_comment_commands"]._attachment_cleanup
+    services["collaboration_comment_commands"]._attachment_store = lambda **kwargs: list(kwargs["attachments"])
+    services["collaboration_comment_commands"]._attachment_cleanup = lambda _paths: None
     yield
-    collaboration._attachment_store = original_store
-    collaboration._attachment_cleanup = original_cleanup
+    services["collaboration_comment_commands"]._attachment_store = original_store
+    services["collaboration_comment_commands"]._attachment_cleanup = original_cleanup
 
 
 def _fake_channel():
@@ -93,7 +92,7 @@ def _setup(services):
 
 
 def _make_existing_document(services) -> str:
-    documents = services["collaboration_service"]._document_integration_service.register_entity_attachments(
+    documents = services["document_attachment_commands"].register_entity_attachments(
         required_permission="collaboration.manage",
         operation_label="seed existing document for link test",
         module_code="project_management",
@@ -118,7 +117,7 @@ def test_post_comment_with_attachment_and_link_is_one_atomic_transaction(service
     before_documents = _count(services, DocumentORM)
     before_links = _count(services, DocumentLinkORM)
 
-    comment = services["collaboration_service"].post_comment(
+    comment = services["collaboration_comment_commands"].post_comment(
         task_id=task.id,
         body="See attached and the linked reference",
         attachments=["notes.txt"],
@@ -160,7 +159,7 @@ def test_post_comment_without_attachment_never_touches_document_capability(servi
     before_documents = _count(services, DocumentORM)
     before_links = _count(services, DocumentLinkORM)
 
-    services["collaboration_service"].post_comment(task_id=task.id, body="Plain text only")
+    services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Plain text only")
 
     assert _count(services, DocumentORM) == before_documents
     assert _count(services, DocumentLinkORM) == before_links
@@ -187,7 +186,7 @@ def test_document_registration_failure_rolls_back_the_already_staged_comment(ser
     monkeypatch.setattr(SqlAlchemyDocumentRepository, "add", _boom)
 
     with pytest.raises(RuntimeError):
-        services["collaboration_service"].post_comment(
+        services["collaboration_comment_commands"].post_comment(
             task_id=task.id, body="Should never persist", attachments=["will-fail.txt"]
         )
 
@@ -221,7 +220,7 @@ def test_comment_persistence_failure_prevents_any_document_state(services, monke
     monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "add", _boom)
 
     with pytest.raises(RuntimeError):
-        services["collaboration_service"].post_comment(
+        services["collaboration_comment_commands"].post_comment(
             task_id=task.id, body="Should never persist either", attachments=["also-fails.txt"]
         )
 
@@ -251,7 +250,7 @@ def test_transactional_handler_failure_rolls_back_both_capabilities(services):
         TaskCommentChanged,
     )
 
-    dispatcher = services["collaboration_service"]._uow_factory._transactional_dispatcher
+    dispatcher = services["collaboration_comment_commands"]._uow_factory._transactional_dispatcher
 
     def _raising_handler(event, uow) -> None:
         raise RuntimeError("simulated transactional handler failure")
@@ -259,7 +258,7 @@ def test_transactional_handler_failure_rolls_back_both_capabilities(services):
     dispatcher.subscribe(TaskCommentChanged, _raising_handler)
 
     with pytest.raises(RuntimeError):
-        services["collaboration_service"].post_comment(
+        services["collaboration_comment_commands"].post_comment(
             task_id=task.id,
             body="Handler will explode",
             attachments=["never-lands.txt"],
@@ -294,7 +293,7 @@ def test_physical_commit_failure_persists_neither_capability(services, monkeypat
     monkeypatch.setattr(Session, "commit", _boom)
 
     with pytest.raises(RuntimeError):
-        services["collaboration_service"].post_comment(
+        services["collaboration_comment_commands"].post_comment(
             task_id=task.id, body="Commit itself will fail", attachments=["irrelevant.txt"]
         )
 
@@ -319,7 +318,7 @@ def test_retry_after_failed_attempt_produces_exactly_one_comment_and_one_documen
 
     monkeypatch.setattr(SqlAlchemyDocumentRepository, "add", _boom)
     with pytest.raises(RuntimeError):
-        services["collaboration_service"].post_comment(
+        services["collaboration_comment_commands"].post_comment(
             task_id=task.id, body="Retry me", attachments=["retry.txt"]
         )
     monkeypatch.undo()
@@ -327,7 +326,7 @@ def test_retry_after_failed_attempt_produces_exactly_one_comment_and_one_documen
     before_comments = _count(services, TaskCommentORM)
     before_documents = _count(services, DocumentORM)
 
-    services["collaboration_service"].post_comment(
+    services["collaboration_comment_commands"].post_comment(
         task_id=task.id, body="Retry me", attachments=["retry.txt"]
     )
 

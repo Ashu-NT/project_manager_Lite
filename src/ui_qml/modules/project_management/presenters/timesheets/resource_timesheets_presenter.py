@@ -6,9 +6,11 @@ from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementTimesheetsDesktopApi,
+    build_project_management_timesheets_desktop_api,
+)
+from src.core.modules.project_management.contracts.use_cases.timesheets import (
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
-    build_project_management_timesheets_desktop_api,
 )
 
 _WORKSPACE = {

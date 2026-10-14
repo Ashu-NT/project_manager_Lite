@@ -9,13 +9,15 @@ import pytest
 from PySide6.QtCore import Qt
 
 from src.core.modules.project_management.api.desktop.financials import (
+    ProjectManagementFinancialsDesktopApi,
+)
+from src.core.modules.project_management.contracts.use_cases.financials import (
     FinancialCreateCostCodeCommand,
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
-    ProjectManagementFinancialsDesktopApi,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.ui_qml.modules.project_management.controllers.financials.financials_workspace_controller import (

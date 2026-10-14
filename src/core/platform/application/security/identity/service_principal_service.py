@@ -9,7 +9,10 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.security.auth import UserRegistrationHandler
+from src.core.platform.application.security.auth.session.principal_builder import (
+    PrincipalBuilder,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -73,7 +76,8 @@ class ServicePrincipalService:
         organization_repo: OrganizationRepository,
         membership_repo: UserTenantMembershipRepository,
         audit_repo: AuditRepository,
-        auth_service: AuthService,
+        registration: UserRegistrationHandler,
+        principals: PrincipalBuilder,
         user_session: UserSessionContext,
         tenant_context_service: TenantContextService,
     ) -> None:
@@ -85,7 +89,8 @@ class ServicePrincipalService:
         self._organization_repo = organization_repo
         self._membership_repo = membership_repo
         self._audit_repo = audit_repo
-        self._auth_service = auth_service
+        self._registration = registration
+        self._principals = principals
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
 
@@ -103,7 +108,7 @@ class ServicePrincipalService:
         actor = self._require_actor()
         username = self._service_username(ctx.tenant_id, name)
         try:
-            user = self._auth_service.register_user(
+            user = self._registration.register_user(
                 username=username,
                 raw_password=self._unusable_random_password(),
                 display_name=name,
@@ -339,7 +344,7 @@ class ServicePrincipalService:
             or user.account_type != ACCOUNT_TYPE_SERVICE
         ):
             raise ValidationError("Service account is inactive.", code="SERVICE_ACCOUNT_INACTIVE")
-        principal = self._auth_service.build_principal_for_context(
+        principal = self._principals.build_for_context(
             user,
             tenant_id=principal_record.tenant_id,
             organization_id=principal_record.organization_id,
@@ -364,7 +369,7 @@ class ServicePrincipalService:
                 metadata={"api_key_id": credential.id, "key_prefix": credential.key_prefix},
             )
             self._session.commit()
-        except Exception:
+        except Exception:  # noqa: BLE001
             self._session.rollback()
             raise BusinessRuleError(
                 "API-key authentication audit could not be persisted.",
@@ -406,7 +411,7 @@ class ServicePrincipalService:
         user = self._user_repo.get(principal.user_id)
         if user is None:
             raise NotFoundError("Service account not found.", code="SERVICE_ACCOUNT_NOT_FOUND")
-        effective = self._auth_service.build_principal_for_context(
+        effective = self._principals.build_for_context(
             user,
             tenant_id=principal.tenant_id,
             organization_id=principal.organization_id,

@@ -33,10 +33,9 @@ from src.core.platform.common.exceptions import (
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _make_project(services, name: str = "Budget Project"):
@@ -303,7 +302,7 @@ def test_explicit_budget_approval_request_always_uses_platform_approval(
         services["approval_service"].reject(result.approval_request_id)
     assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
 
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "budget-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "budget-reviewer", "StrongPass123")
@@ -659,13 +658,12 @@ def test_add_line_rejects_mismatched_currency(services) -> None:
 
 def test_add_line_rejects_cross_organization_cost_code(services) -> None:
     _login(services, "admin", "ChangeMe123!")
-    organization_service = services["organization_service"]
     original_organization = services["tenant_context_service"].get_active_organization()
     project = _make_project(services)
     budget_service = services["budget_service"]
     budget = budget_service.create_budget(project.id, "cross-org")
 
-    other_organization = organization_service.create_organization(
+    other_organization = services["organization_commands"].create_organization(
         organization_code="PF-BUDGET-OTHER",
         display_name="Budget Other Org",
         base_currency="USD",
@@ -939,7 +937,6 @@ def test_governed_approve_creates_request_and_actor_is_the_deciding_principal(
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "budget.approve")
     _login(services, "admin", "ChangeMe123!")
 
-    auth = services["auth_service"]
     project = _make_project(services, name="Governed Budget Project")
     budget_service = services["budget_service"]
     approvals = services["approval_service"]
@@ -947,7 +944,7 @@ def test_governed_approve_creates_request_and_actor_is_the_deciding_principal(
     budget = budget_service.create_budget(project.id, "governed")
     budget = _submit_with_line(services, budget)
 
-    auth.register_user("budget-requester", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user("budget-requester", "StrongPass123", role_names=["planner"])
     _login(services, "budget-requester", "StrongPass123")
 
     result = budget_service.approve_budget(
@@ -968,7 +965,7 @@ def test_governed_approve_creates_request_and_actor_is_the_deciding_principal(
     requester_user_id = req.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
-    auth.register_user("budget-reviewer", "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user("budget-reviewer", "StrongPass123", role_names=["approver"])
     _login(services, "budget-reviewer", "StrongPass123")
     reviewer_user_id = services["user_session"].principal.user_id
     approvals.approve_and_apply(req.id, note="Approved via governance")
@@ -988,7 +985,6 @@ def test_governed_reject_drives_domain_reject(services, monkeypatch) -> None:
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "budget.approve")
     _login(services, "admin", "ChangeMe123!")
 
-    auth = services["auth_service"]
     project = _make_project(services, name="Governed Reject Project")
     budget_service = services["budget_service"]
     approvals = services["approval_service"]
@@ -996,7 +992,7 @@ def test_governed_reject_drives_domain_reject(services, monkeypatch) -> None:
     budget = budget_service.create_budget(project.id, "governed-reject")
     budget = _submit_with_line(services, budget)
 
-    auth.register_user("budget-requester-2", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user("budget-requester-2", "StrongPass123", role_names=["planner"])
     _login(services, "budget-requester-2", "StrongPass123")
     result = budget_service.approve_budget(
         budget.id, approved_by="budget-requester-2", expected_version=budget.row_version
@@ -1007,7 +1003,7 @@ def test_governed_reject_drives_domain_reject(services, monkeypatch) -> None:
     requester_user_id = req.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
-    auth.register_user("budget-reject-reviewer", "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user("budget-reject-reviewer", "StrongPass123", role_names=["approver"])
     _login(services, "budget-reject-reviewer", "StrongPass123")
     reviewer_user_id = services["user_session"].principal.user_id
     approvals.reject(req.id, note="Not this time")
@@ -1065,13 +1061,12 @@ def test_internal_apply_methods_bypass_budget_approve_permission(services) -> No
 
 def test_direct_approve_and_reject_require_budget_approve_permission(services) -> None:
     _login(services, "admin", "ChangeMe123!")
-    auth = services["auth_service"]
     project = _make_project(services, name="Permission Guard Project")
     budget_service = services["budget_service"]
     budget = budget_service.create_budget(project.id, "guarded")
     budget = _submit_with_line(services, budget)
 
-    auth.register_user("no-approve-user", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user("no-approve-user", "StrongPass123", role_names=["planner"])
     _login(services, "no-approve-user", "StrongPass123")
     with pytest.raises(Exception):
         budget_service.approve_budget(
@@ -1231,13 +1226,12 @@ def test_task_referenced_by_budget_line_cannot_be_hard_deleted(services) -> None
 
 def test_tenant_isolation_across_organizations(services) -> None:
     _login(services, "admin", "ChangeMe123!")
-    organization_service = services["organization_service"]
     original_organization = services["tenant_context_service"].get_active_organization()
     project = _make_project(services)
     budget_service = services["budget_service"]
     budget = budget_service.create_budget(project.id, "org-scoped")
 
-    other_organization = organization_service.create_organization(
+    other_organization = services["organization_commands"].create_organization(
         organization_code="PF-BUDGET-ISOLATION",
         display_name="Budget Isolation Org",
         base_currency="USD",

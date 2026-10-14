@@ -24,11 +24,10 @@ def _build_admin_workspace(services):
 
 
 def test_related_actions_and_key_statistics_switch_the_local_tab_not_global_navigation(services, qapp) -> None:
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     catalog, admin = _build_admin_workspace(services)
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="ROUTE-ORG", display_name="Routing Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)

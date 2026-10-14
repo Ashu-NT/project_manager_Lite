@@ -10,6 +10,13 @@ from src.core.modules.project_management.domain.enums import WorkerType
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+    EmployeeUpdateCommand,
+)
 from src.core.platform.domain.master_data.employee.events import (
     EmployeeCreated,
     EmployeeProfileUpdated,
@@ -39,63 +46,46 @@ def _pm_catalog(services) -> ProjectManagementWorkspaceCatalog:
 
 def _spy(services, event_type):
     calls = []
-    services["employee_service"]._uow_factory._post_commit_bus.subscribe(
+    services["employee_commands"]._uow_factory._post_commit_bus.subscribe(
         event_type, lambda event, context: calls.append(event)
     )
     return calls
 
 
 def _dept(services):
-    return services["department_service"].create_department(
-        department_code=_unique_code("P12B-DEPT"), name="P12B Department"
-    )
+    return services["department_commands"].create_department(DepartmentCreateCommand(department_code=_unique_code("P12B-DEPT"), name="P12B Department"))
 
 
 def test_create_produces_exactly_one_employee_created(services):
     calls = _spy(services, EmployeeCreated)
-    employee = services["employee_service"].create_employee(
-        employee_code=_unique_code("P12B-CREATE"), full_name="Ada Lovelace", department_id=_dept(services).id
-    )
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique_code("P12B-CREATE"), full_name="Ada Lovelace", department_id=_dept(services).id))
     assert [e.employee_id for e in calls] == [employee.id]
     assert calls[0].organization_id == employee.organization_id
 
 
 def test_real_update_produces_exactly_one_employee_profile_updated(services):
-    employee_service = services["employee_service"]
-    employee = employee_service.create_employee(
-        employee_code=_unique_code("P12B-UPDATE"), full_name="Before", department_id=_dept(services).id
-    )
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique_code("P12B-UPDATE"), full_name="Before", department_id=_dept(services).id))
     calls = _spy(services, EmployeeProfileUpdated)
 
-    employee_service.update_employee(
-        employee.id, full_name="After", expected_version=employee.version
-    )
+    services["employee_commands"].update_employee(EmployeeUpdateCommand(employee_id=employee.id, full_name="After", expected_version=employee.version))
 
     assert [e.employee_id for e in calls] == [employee.id]
 
 
 def test_no_op_update_produces_zero_events_zero_write_zero_audit(services, monkeypatch):
-    employee_service = services["employee_service"]
-    employee = employee_service.create_employee(
-        employee_code=_unique_code("P12B-NOOP"), full_name="Same Name", title="Planner", department_id=_dept(services).id
-    )
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique_code("P12B-NOOP"), full_name="Same Name", title="Planner", department_id=_dept(services).id))
     calls = _spy(services, EmployeeProfileUpdated)
     audit_calls = []
     monkeypatch.setattr(
         EnterpriseAuditService, "record", lambda self, **kwargs: audit_calls.append(kwargs)
     )
 
-    result = employee_service.update_employee(
-        employee.id,
-        full_name="Same Name",
-        title="Planner",
-        expected_version=employee.version,
-    )
+    result = services["employee_commands"].update_employee(EmployeeUpdateCommand(employee_id=employee.id, full_name="Same Name", title="Planner", expected_version=employee.version))
 
     assert result.version == employee.version
     assert calls == []
     assert audit_calls == []
-    reloaded = employee_service._employee_repo.get(employee.id)
+    reloaded = services["employee_query"]._employee_repo.get(employee.id)
     assert reloaded.version == employee.version
 
 
@@ -108,9 +98,7 @@ def test_admin_console_employee_sub_controller_refreshes_after_committed_create(
         lambda: refresh_calls.append("admin-employees") or None
     )
 
-    services["employee_service"].create_employee(
-        employee_code=_unique_code("P12B-ADMIN"), full_name="Admin Refresh Employee", department_id=_dept(services).id
-    )
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique_code("P12B-ADMIN"), full_name="Admin Refresh Employee", department_id=_dept(services).id))
 
     assert refresh_calls == ["admin-employees"]
 
@@ -124,14 +112,13 @@ def test_admin_console_refresh_does_not_fire_before_commit_or_on_rollback(servic
         lambda: refresh_calls.append("admin-employees") or None
     )
 
-    employee_service = services["employee_service"]
     code = _unique_code("P12B-ADMIN-ROLLBACK")
-    employee_service.create_employee(employee_code=code, full_name="First", department_id=_dept(services).id)
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=code, full_name="First", department_id=_dept(services).id))
 
     from src.core.platform.common.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
-        employee_service.create_employee(employee_code=code, full_name="Second", department_id=_dept(services).id)
+        services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=code, full_name="Second", department_id=_dept(services).id))
 
     assert refresh_calls == ["admin-employees"]
 
@@ -145,21 +132,15 @@ def test_pm_resources_narrow_refresh_after_committed_employee_create_with_no_lin
     resources_workspace.refresh_employee_options = lambda: narrow_calls.append("narrow")
     resources_workspace.refresh = lambda: full_calls.append("full")
 
-    services["employee_service"].create_employee(
-        employee_code=_unique_code("P12B-PM-NARROW"), full_name="No Linked Resource Employee", department_id=_dept(services).id
-    )
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique_code("P12B-PM-NARROW"), full_name="No Linked Resource Employee", department_id=_dept(services).id))
 
     assert narrow_calls == ["narrow"]
     assert full_calls == []
 
 
 def test_no_duplicate_pm_refresh_when_employee_update_touches_a_linked_resource(services):
-    employee_service = services["employee_service"]
-    resource_service = services["resource_service"]
-    employee = employee_service.create_employee(
-        employee_code=_unique_code("P12B-LINKED"), full_name="Linked Employee", title="Planner", department_id=_dept(services).id
-    )
-    resource_service.create_resource(
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique_code("P12B-LINKED"), full_name="Linked Employee", title="Planner", department_id=_dept(services).id))
+    services["resource_master_commands"].create_resource(
         "", hourly_rate=100.0, worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
     )
 
@@ -171,9 +152,7 @@ def test_no_duplicate_pm_refresh_when_employee_update_touches_a_linked_resource(
     resources_workspace.refresh_employee_options = lambda: narrow_calls.append("narrow")
     resources_workspace.refresh = lambda: full_calls.append("full")
 
-    employee_service.update_employee(
-        employee.id, title="Senior Planner", expected_version=employee.version
-    )
+    services["employee_commands"].update_employee(EmployeeUpdateCommand(employee_id=employee.id, title="Senior Planner", expected_version=employee.version))
 
     assert narrow_calls == ["narrow"]
     assert full_calls == ["full"]
@@ -193,14 +172,13 @@ def test_failed_employee_transaction_produces_zero_ui_refresh(services):
     pm_catalog.resourcesWorkspace.refresh_employee_options = lambda: pm_narrow_calls.append("narrow")
     pm_catalog.resourcesWorkspace.refresh = lambda: pm_full_calls.append("full")
 
-    employee_service = services["employee_service"]
     code = _unique_code("P12B-FAILED")
-    employee_service.create_employee(employee_code=code, full_name="Existing", department_id=_dept(services).id)
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=code, full_name="Existing", department_id=_dept(services).id))
 
     from src.core.platform.common.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
-        employee_service.create_employee(employee_code=code, full_name="Duplicate", department_id=_dept(services).id)
+        services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=code, full_name="Duplicate", department_id=_dept(services).id))
 
     assert admin_calls == ["admin"]
     assert pm_narrow_calls == ["narrow"]
@@ -208,7 +186,7 @@ def test_failed_employee_transaction_produces_zero_ui_refresh(services):
 
 
 def test_employees_changed_field_and_producers_are_fully_gone():
-    import src.core.platform.application.master_data.employee.employee_service as employee_service_module
+    import src.core.platform.application.master_data.employee.commands.employee_commands as employee_service_module
 
     source = inspect.getsource(employee_service_module)
     assert "employees_changed" not in source
@@ -230,9 +208,9 @@ def test_no_forbidden_employee_changed_event_name_exists():
 
 
 def test_canonical_employee_uow_retained_no_raw_session_commit():
-    import src.core.platform.application.master_data.employee.employee_service as employee_service_module
-    from src.core.platform.application.master_data.employee.employee_service import (
-        EmployeeService,
+    import src.core.platform.application.master_data.employee.commands.employee_commands as employee_service_module
+    from src.core.platform.application.master_data.employee import (
+        EmployeeCommandHandler as EmployeeService,
     )
 
     source = inspect.getsource(EmployeeService.create_employee) + inspect.getsource(

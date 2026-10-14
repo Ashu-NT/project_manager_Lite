@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, Literal, overload
 
 from pydantic import field_validator, model_validator
 
@@ -42,6 +43,24 @@ def normalize_role_scope_type(value: object) -> str:
             code="AUTH_ROLE_SCOPE_TYPE_INVALID",
         )
     return normalized
+
+
+@overload
+def _normalize_binding_datetime(
+    value: object,
+    *,
+    code: str,
+    required: Literal[True],
+) -> datetime: ...
+
+
+@overload
+def _normalize_binding_datetime(
+    value: object,
+    *,
+    code: str,
+    required: bool = False,
+) -> datetime | None: ...
 
 
 def _normalize_binding_datetime(
@@ -147,7 +166,7 @@ class RoleBinding:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         try:
             normalized = int(value if value not in (None, "") else 1)
         except (TypeError, ValueError) as exc:

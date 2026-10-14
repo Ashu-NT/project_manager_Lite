@@ -3,10 +3,6 @@
 from src.core.modules.project_management.api.desktop.register.api import (
     ProjectManagementRegisterDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.register.commands.entry_commands import (
-    RegisterEntryCreateCommand,
-    RegisterEntryUpdateCommand,
-)
 from src.core.modules.project_management.api.desktop.register.factories.register_api_factory import (
     build_project_management_register_desktop_api,
 )
@@ -19,6 +15,10 @@ from src.core.modules.project_management.api.desktop.register.models.options imp
     RegisterEntryStatusDescriptor,
     RegisterEntryTypeDescriptor,
     RegisterProjectOptionDescriptor,
+)
+from src.core.modules.project_management.contracts.use_cases.register.commands import (
+    RegisterEntryCreateCommand,
+    RegisterEntryUpdateCommand,
 )
 
 __all__ = [

@@ -71,7 +71,7 @@ def _setup(services):
         code="LABOR-2026-05", name="May 2026", fiscal_year=2026,
         period_number=5, start_date=date(2026, 5, 1), end_date=date(2026, 5, 31),
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "Approved Time Engineer", hourly_rate=0, currency_code=organization.base_currency
     )
     card = services["rate_card_service"].create_rate_card(
@@ -91,17 +91,17 @@ def _setup(services):
 
 
 def _approve_without_immediate_dispatch(services, *, resource_id, assignment_id):
-    services["timesheet_service"].set_approved_time_dispatcher(None)
-    services["timesheet_service"].add_time_entry(
+    services["timesheet_period_transitions"].set_approved_time_dispatcher(None)
+    services["time_entry_commands"].add_time_entry(
         assignment_id,
         entry_date=date(2026, 5, 11),
         hours=Decimal(2),
     )
-    submitted = services["timesheet_service"].submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource_id,
         period_start=date(2026, 5, 1),
     )
-    services["timesheet_service"].approve_timesheet_period(
+    services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id,
         expected_version=submitted.version,
     )
@@ -111,12 +111,11 @@ def _approve_without_immediate_dispatch(services, *, resource_id, assignment_id)
 
 def test_approved_time_posts_once_and_correction_reverses_and_replaces(services) -> None:
     _, project, resource, _, assignment = _setup(services)
-    time = services["timesheet_service"]
-    entry = services["timesheet_service"].add_time_entry(
+    entry = services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 4), hours=Decimal(4), note="Initial"
     )
-    submitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-    approved = time.approve_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
+    approved = services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id, expected_version=submitted.version, note="Approved"
     )
     assert approved.locked_at is None
@@ -156,31 +155,31 @@ def test_approved_time_posts_once_and_correction_reverses_and_replaces(services)
     assert session.execute(select(TimeFinancialOutboxORM.status)).scalar_one() == OutboxDeliveryStatus.PUBLISHED.value
     assert session.execute(select(ProjectFinanceInboxORM.status)).scalar_one() == InboxProcessingStatus.PROCESSED.value
 
-    locked = time.lock_timesheet_period(
+    locked = services["timesheet_period_transitions"].lock_timesheet_period(
         approved.period_id, expected_version=approved.version
     )
     assert locked.status.value == "LOCKED"
     _, unchanged_total = services["cost_entry_service"].list_for_project(project.id)
     assert unchanged_total == 1
-    unlocked = time.unlock_timesheet_period(
+    unlocked = services["timesheet_period_transitions"].unlock_timesheet_period(
         locked.period_id,
         expected_version=locked.version,
         note="Unlock correction control",
     )
-    reopened = time.reopen_approved_timesheet_period_for_correction(
+    reopened = services["timesheet_period_transitions"].reopen_approved_timesheet_period_for_correction(
         unlocked.period_id,
         expected_version=unlocked.version,
         note="Correct entered hours",
     )
     assert reopened.status.value == "OPEN"
-    time.update_time_entry(
+    services["time_entry_commands"].update_time_entry(
         entry.id,
         expected_version=entry.version,
         hours=Decimal(5),
         note="Corrected",
     )
-    resubmitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-    time.approve_timesheet_period(
+    resubmitted = services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
+    services["timesheet_period_transitions"].approve_timesheet_period(
         resubmitted.period_id,
         expected_version=resubmitted.version,
         note="Correction approved",
@@ -200,12 +199,11 @@ def test_approved_time_posts_once_and_correction_reverses_and_replaces(services)
 
 def test_rejected_time_creates_no_financial_delivery(services) -> None:
     _, _, resource, _, assignment = _setup(services)
-    time = services["timesheet_service"]
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 5), hours=Decimal(2)
     )
-    submitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-    time.reject_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
+    services["timesheet_period_transitions"].reject_timesheet_period(
         submitted.period_id,
         expected_version=submitted.version,
         note="Needs correction",
@@ -215,58 +213,55 @@ def test_rejected_time_creates_no_financial_delivery(services) -> None:
 
 def test_approval_rolls_back_when_atomic_outbox_write_fails(services, monkeypatch) -> None:
     _, _, resource, _, assignment = _setup(services)
-    time = services["timesheet_service"]
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 6), hours=Decimal(3)
     )
-    submitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
 
     def _fail(_envelope):
         raise RuntimeError("outbox unavailable")
 
     monkeypatch.setattr(services["time_financial_outbox_service"], "enqueue", _fail)
     with pytest.raises(RuntimeError, match="outbox unavailable"):
-        time.approve_timesheet_period(
+        services["timesheet_period_transitions"].approve_timesheet_period(
             submitted.period_id, expected_version=submitted.version
         )
-    persisted = services["timesheet_service"]._timesheet_period_repo.get(submitted.period_id)
+    persisted = services["timesheet_period_query"]._timesheet_period_repo.get(submitted.period_id)
     assert persisted.status is TimesheetPeriodStatus.SUBMITTED
     assert services["session"].execute(select(TimeFinancialOutboxORM)).scalars().all() == []
 
 
 def test_stale_reviewer_cannot_overwrite_an_approved_period(services) -> None:
     _, _, resource, _, assignment = _setup(services)
-    time = services["timesheet_service"]
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 9), hours=Decimal(3)
     )
-    submitted = time.submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 5, 1)
     )
-    approved = time.approve_timesheet_period(
+    approved = services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id, expected_version=submitted.version
     )
 
     with pytest.raises(ConcurrencyError) as error:
-        time.reject_timesheet_period(
+        services["timesheet_period_transitions"].reject_timesheet_period(
             submitted.period_id,
             expected_version=submitted.version,
             note="Stale return attempt",
         )
 
     assert error.value.code == "TIMESHEET_PERIOD_STALE"
-    persisted = time._timesheet_period_repo.get(submitted.period_id)
+    persisted = services["timesheet_period_query"]._timesheet_period_repo.get(submitted.period_id)
     assert persisted.status is TimesheetPeriodStatus.APPROVED
     assert persisted.version == approved.version
 
 
 def test_audit_failure_rolls_back_transition_version_and_outbox(services, monkeypatch) -> None:
     _, _, resource, _, assignment = _setup(services)
-    time = services["timesheet_service"]
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 10), hours=Decimal(3)
     )
-    submitted = time.submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 5, 1)
     )
 
@@ -274,15 +269,15 @@ def test_audit_failure_rolls_back_transition_version_and_outbox(services, monkey
         raise RuntimeError("audit unavailable")
 
     monkeypatch.setattr(
-        "src.core.platform.application.time_management.time.timesheet_periods.record_audit_entry",
+        "src.core.platform.application.time_management.time.commands.timesheet_period_writer.record_audit_entry",
         fail_audit,
     )
     with pytest.raises(RuntimeError, match="audit unavailable"):
-        time.approve_timesheet_period(
+        services["timesheet_period_transitions"].approve_timesheet_period(
             submitted.period_id, expected_version=submitted.version
         )
 
-    persisted = time._timesheet_period_repo.get(submitted.period_id)
+    persisted = services["timesheet_period_query"]._timesheet_period_repo.get(submitted.period_id)
     assert persisted.status is TimesheetPeriodStatus.SUBMITTED
     assert persisted.version == submitted.version
     assert services["session"].execute(select(TimeFinancialOutboxORM)).scalars().all() == []
@@ -294,13 +289,13 @@ def test_closed_financial_period_keeps_approved_time_retryable_without_posting(s
     financial_period = period_service.list_periods()[0]
     period_service.close_period(financial_period.id, expected_version=financial_period.version)
 
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 7), hours=Decimal(2)
     )
-    submitted = services["timesheet_service"].submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 5, 1)
     )
-    approved = services["timesheet_service"].approve_timesheet_period(
+    approved = services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id,
         expected_version=submitted.version,
         note="Approved source fact",
@@ -329,15 +324,15 @@ def test_post_commit_delivery_emits_scoped_refresh_after_durable_processing(serv
     subscription = post_commit_bus.subscribe(
         CostEntryRecorded, lambda e, c: events.append(e)
     )
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 8), hours=Decimal(1)
     )
-    submitted = services["timesheet_service"].submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 5, 1)
     )
 
     try:
-        services["timesheet_service"].approve_timesheet_period(
+        services["timesheet_period_transitions"].approve_timesheet_period(
             submitted.period_id, expected_version=submitted.version
         )
     finally:
@@ -368,14 +363,14 @@ def test_refresh_subscriber_failure_does_not_retry_approved_time_delivery(servic
 
     post_commit_bus = services["approved_time_financial_dispatcher"]._post_commit_bus
     subscription = post_commit_bus.subscribe(CostEntryRecorded, fail_refresh)
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 9), hours=Decimal(1)
     )
-    submitted = services["timesheet_service"].submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 5, 1)
     )
     try:
-        approved = services["timesheet_service"].approve_timesheet_period(
+        approved = services["timesheet_period_transitions"].approve_timesheet_period(
             submitted.period_id, expected_version=submitted.version
         )
     finally:
@@ -469,32 +464,31 @@ def test_approved_time_worker_no_rate_failure_statement_count(services) -> None:
 
 def test_approved_time_correction_worker_statement_count(services) -> None:
     _, project, resource, _, assignment = _setup(services)
-    time = services["timesheet_service"]
-    entry = services["timesheet_service"].add_time_entry(
+    entry = services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 4), hours=Decimal(4)
     )
-    submitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-    approved = time.approve_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
+    approved = services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id, expected_version=submitted.version
     )
-    locked = time.lock_timesheet_period(
+    locked = services["timesheet_period_transitions"].lock_timesheet_period(
         approved.period_id, expected_version=approved.version
     )
-    unlocked = time.unlock_timesheet_period(
+    unlocked = services["timesheet_period_transitions"].unlock_timesheet_period(
         locked.period_id, expected_version=locked.version, note="Correction"
     )
-    reopened = time.reopen_approved_timesheet_period_for_correction(
+    reopened = services["timesheet_period_transitions"].reopen_approved_timesheet_period_for_correction(
         unlocked.period_id, expected_version=unlocked.version, note="Correct hours"
     )
     assert reopened.status is TimesheetPeriodStatus.OPEN
-    time.update_time_entry(
+    services["time_entry_commands"].update_time_entry(
         entry.id, expected_version=entry.version, hours=Decimal(5)
     )
-    resubmitted = time.submit_timesheet_period(
+    resubmitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 5, 1)
     )
-    time.set_approved_time_dispatcher(None)
-    time.approve_timesheet_period(
+    services["timesheet_period_transitions"].set_approved_time_dispatcher(None)
+    services["timesheet_period_transitions"].approve_timesheet_period(
         resubmitted.period_id, expected_version=resubmitted.version
     )
     outbox = services["session"].execute(
@@ -531,13 +525,13 @@ def test_disabled_worker_identity_is_quarantined_without_posting(services) -> No
     )
     services["service_principal_service"].disable_service_principal(principal.id)
 
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 12), hours=Decimal(2)
     )
-    submitted = services["timesheet_service"].submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 5, 1)
     )
-    services["timesheet_service"].approve_timesheet_period(
+    services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id, expected_version=submitted.version
     )
 
@@ -558,13 +552,13 @@ def test_missing_cost_rate_is_durable_and_never_posts_zero_actual(services) -> N
         card.id, expected_version=card.version
     )
 
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 13), hours=Decimal(2)
     )
-    submitted = services["timesheet_service"].submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 5, 1)
     )
-    services["timesheet_service"].approve_timesheet_period(
+    services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id, expected_version=submitted.version
     )
 
@@ -585,16 +579,16 @@ def test_posting_failure_read_is_bounded_scoped_and_sensitive_by_permission(
         card.id,
         expected_version=card.version,
     )
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 5, 13),
         hours=Decimal(2),
     )
-    submitted = services["timesheet_service"].submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id,
         period_start=date(2026, 5, 1),
     )
-    services["timesheet_service"].approve_timesheet_period(
+    services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id,
         expected_version=submitted.version,
     )
@@ -659,13 +653,13 @@ def test_posting_failure_read_is_bounded_scoped_and_sensitive_by_permission(
 
 def test_rate_changes_do_not_revalue_existing_labor_provenance(services) -> None:
     organization, project, resource, _, assignment = _setup(services)
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 14), hours=Decimal(2)
     )
-    submitted = services["timesheet_service"].submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 5, 1)
     )
-    services["timesheet_service"].approve_timesheet_period(
+    services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id, expected_version=submitted.version
     )
     original = services["session"].execute(select(ApprovedTimeLaborPostingORM)).scalar_one()
@@ -749,13 +743,13 @@ def test_finance_audit_failure_rolls_back_labor_cost_and_inbox_success(
         "src.core.modules.project_management.application.financials.cost.entries.cost_entry_service.record_project_cost_entry_audit",
         fail_audit,
     )
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 15), hours=Decimal(2)
     )
-    submitted = services["timesheet_service"].submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 5, 1)
     )
-    services["timesheet_service"].approve_timesheet_period(
+    services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id, expected_version=submitted.version
     )
 
@@ -788,13 +782,13 @@ def test_approved_time_transactional_handler_receives_the_real_uow_not_the_dispa
 
     subscription = dispatcher._transactional_dispatcher.subscribe(CostEntryRecorded, _observe)
     try:
-        services["timesheet_service"].add_time_entry(
+        services["time_entry_commands"].add_time_entry(
             assignment.id, entry_date=date(2026, 5, 6), hours=Decimal(2)
         )
-        submitted = services["timesheet_service"].submit_timesheet_period(
+        submitted = services["timesheet_period_transitions"].submit_timesheet_period(
             resource.id, period_start=date(2026, 5, 1)
         )
-        services["timesheet_service"].approve_timesheet_period(
+        services["timesheet_period_transitions"].approve_timesheet_period(
             submitted.period_id, expected_version=submitted.version
         )
     finally:
@@ -830,13 +824,13 @@ def test_approved_time_transactional_handler_failure_rolls_back_and_yields_zero_
         CostEntryRecorded, lambda e, c: postcommit_seen.append(e)
     )
     try:
-        services["timesheet_service"].add_time_entry(
+        services["time_entry_commands"].add_time_entry(
             assignment.id, entry_date=date(2026, 5, 7), hours=Decimal(2)
         )
-        submitted = services["timesheet_service"].submit_timesheet_period(
+        submitted = services["timesheet_period_transitions"].submit_timesheet_period(
             resource.id, period_start=date(2026, 5, 1)
         )
-        services["timesheet_service"].approve_timesheet_period(
+        services["timesheet_period_transitions"].approve_timesheet_period(
             submitted.period_id, expected_version=submitted.version
         )
     finally:

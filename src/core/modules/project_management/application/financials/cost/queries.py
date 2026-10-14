@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
@@ -22,8 +25,32 @@ from src.core.platform.application.security.authorization.enforcement.permission
 )
 from src.core.platform.common.exceptions import NotFoundError
 
+if TYPE_CHECKING:
+    from src.core.modules.project_management.contracts.reads.financials.finance_lookup_reader import (
+        FinanceLookupReader,
+    )
+    from src.core.modules.project_management.contracts.reads.financials.finance_planned_cost_reader import (
+        FinancePlannedCostReader,
+    )
+    from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+        FinanceLookupOptionFact,
+        FinanceLookupPageFacts,
+    )
+    from src.core.platform.application.tenant.tenancy.tenant_context import (
+        TenantContextService,
+    )
+    from src.core.platform.domain.security.auth.session import UserSessionContext
+
 
 class CostWorkspaceQueries:
+    # Host attributes supplied by ``ProjectFinanceWorkspaceQuery`` (declared for type checking only).
+    _planned_cost_reader: FinancePlannedCostReader | None
+    _tenant_context_service: TenantContextService | None
+    _user_session: UserSessionContext | None
+    _require_lookup_reader: Callable[[], FinanceLookupReader]
+    _resolve_project: Callable[..., FinanceLookupOptionFact | None]
+    _search_projects: Callable[..., FinanceLookupPageFacts]
+
     def search_manual_actual_projects(
         self, *, request: FinanceLookupQuery
     ) -> FinanceLookupPageFacts:

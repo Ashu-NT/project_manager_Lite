@@ -17,10 +17,9 @@ def make_settings_store(root: Path, *, prefix: str) -> AppSettingsStore:
 
 
 def login_as(services, username: str, password: str):
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    principal = auth.build_principal(user)
+    user = services["authentication"].authenticate(username, password)
+    principal = services["principal_builder"].build(user)
     user_session.set_principal(principal)
     return principal
 
@@ -33,7 +32,7 @@ def register_and_login(
     role_names: tuple[str, ...] = ("viewer",),
 ):
     username = f"{username_prefix}-{uuid4().hex[:8]}"
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         username=username,
         raw_password=password,
         role_names=role_names,

@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from datetime import date
-from typing import Protocol
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.contracts.ports.financials.performance_authorities import (
+    BaselineVarianceReadAuthority,
+    EarnedValueReadAuthority,
 )
 from src.core.modules.project_management.contracts.reads.financials.finance_overview_reader import (
     FinanceOverviewReader,
@@ -26,26 +28,6 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 from src.core.platform.common.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
-
-
-class EarnedValueReadAuthority(Protocol):
-    def get_earned_value(
-        self,
-        project_id: str,
-        as_of: date | None = None,
-        baseline_id: str | None = None,
-    ) -> object: ...
-
-
-class BaselineVarianceReadAuthority(Protocol):
-    def list_baselines(self, project_id: str) -> Sequence[object]: ...
-
-    def list_variance_records(
-        self,
-        baseline_id: str,
-        *,
-        expected_project_id: str | None = None,
-    ) -> Sequence[object]: ...
 
 
 from src.core.modules.project_management.application.financials.analytics.performance.cost_phasing import (

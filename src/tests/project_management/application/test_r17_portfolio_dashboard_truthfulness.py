@@ -12,7 +12,7 @@ from src.core.modules.project_management.api.desktop.dashboard.builders.overview
     build_contextual_overview,
 )
 from src.core.modules.project_management.application.dashboard.reporting.portfolio import (
-    DashboardPortfolioMixin,
+    PortfolioDashboardQueryHandler,
 )
 
 
@@ -144,24 +144,23 @@ def test_portfolio_financial_aggregate_is_complete_and_decimal_exact(
         def get_resource_load_summary(_project_id: str) -> list[object]:
             return []
 
-    class Harness(DashboardPortfolioMixin):
-        def __init__(self) -> None:
-            self._projects = SimpleNamespace(list_projects=lambda: projects)
-            self._reporting = Reporting()
-            self._calendar = SimpleNamespace(working_days_between=lambda _start, _end: 0)
-            self._user_session = object()
-            self._resources = SimpleNamespace(list_resources=list)
-            self._task_lookup = SimpleNamespace(
-                list_tasks_for_project=lambda _project_id: [],
-                list_assignments_for_tasks=lambda _task_ids: [],
-            )
-            self._sched = SimpleNamespace(
-                recalculate_project_schedule=lambda _project_id, persist=False: {}
-            )
-
-        @staticmethod
-        def _build_upcoming_tasks(_project_id: str, **_kwargs: object) -> list[object]:
-            return []
+    handler = PortfolioDashboardQueryHandler(
+        kpi_report=Reporting(),  # type: ignore[arg-type]
+        project_query=SimpleNamespace(list_projects=lambda: projects),  # type: ignore[arg-type]
+        resource_query=SimpleNamespace(list_resources=list),  # type: ignore[arg-type]
+        task_lookup=SimpleNamespace(  # type: ignore[arg-type]
+            list_tasks_for_project=lambda _project_id: [],
+            list_assignments_for_tasks=lambda _task_ids: [],
+        ),
+        scheduling_engine=SimpleNamespace(  # type: ignore[arg-type]
+            recalculate_project_schedule=lambda _project_id, persist=False: {}
+        ),
+        work_calendar_engine=SimpleNamespace(  # type: ignore[arg-type]
+            working_days_between=lambda _start, _end: 0
+        ),
+        upcoming=SimpleNamespace(build=lambda **_kwargs: []),  # type: ignore[arg-type]
+        user_session=object(),
+    )
 
     monkeypatch.setattr(
         "src.core.modules.project_management.application.dashboard.reporting.portfolio.require_permission",
@@ -172,7 +171,7 @@ def test_portfolio_financial_aggregate_is_complete_and_decimal_exact(
         lambda rows, *_args, **_kwargs: list(rows),
     )
 
-    result = Harness().get_portfolio_data()
+    result = handler.get_portfolio_data()
 
     assert result.portfolio.projects_total == 51
     assert len(result.portfolio.project_rankings) == 51

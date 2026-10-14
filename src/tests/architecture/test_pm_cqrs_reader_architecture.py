@@ -7,13 +7,13 @@ from dataclasses import is_dataclass
 from pathlib import Path
 
 from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
-    CollaborationInboxQueryMixin,
+    CollaborationInboxQueryHandler,
 )
 from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
-    CollaborationPresenceQueryMixin,
+    CollaborationPresenceQueryHandler,
 )
-from src.core.modules.project_management.application.collaboration.utils.support import (
-    CollaborationSupportMixin,
+from src.core.modules.project_management.application.collaboration.utils.visibility import (
+    CollaborationVisibilityPolicy,
 )
 from src.core.modules.project_management.application.financials.budgets import (
     BudgetApprovalOutcome,
@@ -36,25 +36,25 @@ from src.core.modules.project_management.application.financials.services.finance
     FinanceService,
 )
 from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
-    PortfolioExecutiveQueryMixin,
+    PortfolioExecutiveQueryHandler,
 )
 from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import (
-    PortfolioScenarioQueryMixin,
+    PortfolioScenarioQueryHandler,
+)
+from src.core.modules.project_management.application.portfolio.utils.portfolio_heatmap import (
+    PortfolioHeatmapCalculator,
 )
 from src.core.modules.project_management.application.reporting.builders.cost_breakdown import (
-    ReportingCostBreakdownMixin,
+    CostBreakdownReportBuilder,
 )
 from src.core.modules.project_management.application.reporting.builders.cost_policy import (
-    ReportingCostPolicyMixin,
+    ReportingCostPolicy,
 )
-from src.core.modules.project_management.application.reporting.builders.evm_core import (
-    ReportingEvmCoreMixin,
-)
-from src.core.modules.project_management.application.reporting.builders.evm_series import (
-    ReportingEvmSeriesMixin,
+from src.core.modules.project_management.application.reporting.builders.evm import (
+    EarnedValueReportBuilder,
 )
 from src.core.modules.project_management.application.reporting.builders.kpi import (
-    ReportingKpiMixin,
+    ProjectKpiReportBuilder,
 )
 from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
     PortfolioResourcePoolService,
@@ -355,19 +355,20 @@ def test_evm_series_keeps_one_scoped_reader_without_rate_revaluation() -> None:
 
 def test_evm_series_runtime_reader_proof_remains_present() -> None:
     registry = (PM_COMPOSITION / "reporting/services.py").read_text(encoding="utf-8")
-    source = inspect.getsource(ReportingEvmSeriesMixin._make_evm_series_calculator)
+    source = inspect.getsource(EarnedValueReportBuilder._make_evm_series_calculator)
 
-    assert "evm_series_reader=SqlAlchemyEvmSeriesReader(session=session)" in registry
+    assert "evm_series_reader = SqlAlchemyEvmSeriesReader(session=session)" in registry
+    assert "evm_series_reader=evm_series_reader" in registry
     assert "reader=self._evm_series_reader" in source
 
 
 def test_reporting_financial_reads_keep_evm_rate_independent() -> None:
-    finance_source = inspect.getsource(ReportingCostPolicyMixin._compose_finance_policy)
-    evm_source = inspect.getsource(ReportingCostPolicyMixin._read_evm_facts)
-    totals_source = inspect.getsource(ReportingCostPolicyMixin.get_project_cost_control_totals)
-    sources_source = inspect.getsource(ReportingCostPolicyMixin.get_project_cost_source_breakdown)
-    breakdown_source = inspect.getsource(ReportingCostBreakdownMixin.get_cost_breakdown)
-    earned_value_source = inspect.getsource(ReportingEvmCoreMixin.get_earned_value)
+    finance_source = inspect.getsource(ReportingCostPolicy.compose_finance_policy)
+    evm_source = inspect.getsource(ReportingCostPolicy.read_evm_facts)
+    totals_source = inspect.getsource(CostBreakdownReportBuilder.get_project_cost_control_totals)
+    sources_source = inspect.getsource(CostBreakdownReportBuilder.get_project_cost_source_breakdown)
+    breakdown_source = inspect.getsource(CostBreakdownReportBuilder.get_cost_breakdown)
+    earned_value_source = inspect.getsource(EarnedValueReportBuilder.get_earned_value)
 
     assert finance_source.count("self._finance_snapshot_reader.read_facts(") == 1
     assert evm_source.count("self._evm_series_reader.read_facts(") == 1
@@ -392,20 +393,23 @@ def test_reporting_financial_reads_keep_evm_rate_independent() -> None:
         ):
             assert forbidden not in source
 
-    assert "_compose_finance_policy(" in totals_source
-    assert "_compose_finance_policy(" in sources_source
-    assert "_read_evm_facts(" in breakdown_source
+    assert "self._cost_policy.compose_finance_policy(" in totals_source
+    assert "self._cost_policy.compose_finance_policy(" in sources_source
+    assert "self._cost_policy.read_evm_facts(" in breakdown_source
     assert "build_breakdown_from_snapshot(" in breakdown_source
-    assert "_read_evm_facts(" in earned_value_source
+    assert "self._cost_policy.read_evm_facts(" in earned_value_source
     assert "EvmCalculationInput(" in earned_value_source
     assert "ACTUAL_COST_INCOMPLETE" not in earned_value_source
 
 
 def test_reporting_financial_runtime_reader_proof_remains_present() -> None:
     registry = (PM_COMPOSITION / "reporting/services.py").read_text(encoding="utf-8")
-    source = inspect.getsource(ReportingCostPolicyMixin._compose_finance_policy)
+    source = inspect.getsource(ReportingCostPolicy.compose_finance_policy)
 
-    assert "finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session)" in registry
+    assert "finance_snapshot_reader = SqlAlchemyFinanceSnapshotReader(session=session)" in registry
+    assert "finance_snapshot_reader=finance_snapshot_reader" in registry
+    # One shared cost policy instance is the single reporting financial authority.
+    assert registry.count("ReportingCostPolicy(") == 1
     assert "self._finance_snapshot_reader.read_facts(" in source
 
 
@@ -432,14 +436,14 @@ def test_phase3b_removed_repository_backed_financial_transition_paths() -> None:
 
 
 def test_phase6_reporting_uses_canonical_finance_composition() -> None:
-    kpi_source = inspect.getsource(ReportingKpiMixin.get_project_kpis)
-    snapshot_source = inspect.getsource(ReportingCostPolicyMixin._build_cost_policy_snapshot)
+    kpi_source = inspect.getsource(ProjectKpiReportBuilder.get_project_kpis)
+    snapshot_source = inspect.getsource(ReportingCostPolicy.build_cost_policy_snapshot)
     series_factory_source = inspect.getsource(
-        ReportingEvmSeriesMixin._make_evm_series_calculator
+        EarnedValueReportBuilder._make_evm_series_calculator
     )
 
-    assert "_build_cost_policy_snapshot(" in kpi_source
-    assert "_compose_finance_policy(" in snapshot_source
+    assert "self._cost_policy.build_cost_policy_snapshot(" in kpi_source
+    assert "self.compose_finance_policy(" in snapshot_source
     assert "calendar=self._calendar" in series_factory_source
     assert "LaborCostEngine.for_facts(" not in series_factory_source
     assert "CostPolicyEngine.for_facts(" not in series_factory_source
@@ -471,10 +475,10 @@ def test_portfolio_capacity_uses_one_scoped_reader_and_bulk_calendar_snapshot() 
 
 
 def test_portfolio_scenarios_use_one_scoped_fact_graph_and_shared_load_engine() -> None:
-    compare_source = inspect.getsource(PortfolioScenarioQueryMixin.compare_scenarios)
-    acquisition_source = inspect.getsource(PortfolioScenarioQueryMixin._read_scenario_facts)
-    scenario_source = inspect.getsource(PortfolioScenarioQueryMixin)
-    reporting_source = inspect.getsource(ReportingKpiMixin.get_resource_load_summary)
+    compare_source = inspect.getsource(PortfolioScenarioQueryHandler.compare_scenarios)
+    acquisition_source = inspect.getsource(PortfolioScenarioQueryHandler._read_scenario_facts)
+    scenario_source = inspect.getsource(PortfolioScenarioQueryHandler)
+    reporting_source = inspect.getsource(ProjectKpiReportBuilder.get_resource_load_summary)
     registry = (PM_COMPOSITION / "portfolio/services.py").read_text(encoding="utf-8")
     reader_source = PORTFOLIO_SCENARIO_READER.read_text(encoding="utf-8")
 
@@ -503,8 +507,10 @@ def test_portfolio_scenarios_use_one_scoped_fact_graph_and_shared_load_engine() 
 
 
 def test_portfolio_heatmap_uses_one_scoped_fact_graph_and_pure_policy_engines() -> None:
-    heatmap_source = inspect.getsource(PortfolioExecutiveQueryMixin.list_portfolio_heatmap)
-    source = inspect.getsource(PortfolioExecutiveQueryMixin)
+    heatmap_source = inspect.getsource(PortfolioExecutiveQueryHandler.list_portfolio_heatmap)
+    source = inspect.getsource(PortfolioExecutiveQueryHandler) + inspect.getsource(
+        PortfolioHeatmapCalculator
+    )
     registry = (PM_COMPOSITION / "portfolio/services.py").read_text(encoding="utf-8")
     reader_source = PORTFOLIO_HEATMAP_READER.read_text(encoding="utf-8")
 
@@ -524,7 +530,7 @@ def test_portfolio_heatmap_uses_one_scoped_fact_graph_and_pure_policy_engines() 
         "_resource_repo.get(",
     ):
         assert forbidden not in heatmap_source
-    assert "heatmap_reader=SqlAlchemyPortfolioHeatmapReader(session=session)" in registry
+    assert "SqlAlchemyPortfolioHeatmapReader(session=session)" in registry
     for predicate in (
         "ProjectORM.tenant_id == tenant_id",
         "ProjectORM.organization_id == organization_id",
@@ -556,9 +562,9 @@ def test_finance_snapshot_is_a_disposable_read_model_not_a_persisted_authority()
 
 
 def test_collaboration_cross_project_reads_use_purpose_specific_scoped_readers() -> None:
-    support_source = inspect.getsource(CollaborationSupportMixin)
-    inbox_source = inspect.getsource(CollaborationInboxQueryMixin)
-    presence_source = inspect.getsource(CollaborationPresenceQueryMixin.list_active_presence)
+    support_source = inspect.getsource(CollaborationVisibilityPolicy)
+    inbox_source = inspect.getsource(CollaborationInboxQueryHandler)
+    presence_source = inspect.getsource(CollaborationPresenceQueryHandler.list_active_presence)
     registry = (PM_COMPOSITION / "collaboration/services.py").read_text(encoding="utf-8")
     reader_source = COLLABORATION_WORKSPACE_READER.read_text(encoding="utf-8")
 
@@ -582,10 +588,7 @@ def test_collaboration_cross_project_reads_use_purpose_specific_scoped_readers()
     ):
         assert forbidden not in inbox_source
         assert forbidden not in presence_source
-    assert (
-        "workspace_reader=SqlAlchemyCollaborationWorkspaceReader(session=session)"
-        in registry
-    )
+    assert "SqlAlchemyCollaborationWorkspaceReader(session=session)" in registry
     for predicate in (
         "ProjectORM.tenant_id == tenant_id",
         "ProjectORM.organization_id == organization_id",

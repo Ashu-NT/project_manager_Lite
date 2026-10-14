@@ -19,10 +19,9 @@ def test_budget_command_uses_fresh_uow_after_shared_session_reads(tmp_path) -> N
     shared_session = sessions()
     try:
         services = build_service_dict(shared_session)
-        auth = services["auth_service"]
         user_session = services["user_session"]
-        admin = auth.authenticate("admin", "ChangeMe123!")
-        user_session.set_principal(auth.build_principal(admin))
+        admin = services["authentication"].authenticate("admin", "ChangeMe123!")
+        user_session.set_principal(services["principal_builder"].build(admin))
 
         project = services["project_service"].create_project("SQLite Finance")
         boundary = services["finance_governance_commands"]

@@ -32,6 +32,7 @@ class DepartmentRepository(ABC):
         organization_id: str,
         *,
         active_only: bool | None = None,
+        site_id: str | None = None,
     ) -> list[Department]: ...
 
     @abstractmethod

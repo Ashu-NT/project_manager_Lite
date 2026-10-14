@@ -7,12 +7,12 @@ from src.core.platform.application.security.authorization.enforcement.permission
 )
 
 if TYPE_CHECKING:
-    from .department_service import DepartmentService
+    from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-def require_department_read_access(service: DepartmentService, operation_label: str) -> None:
+def require_department_read_access(user_session: UserSessionContext | None, operation_label: str) -> None:
     require_any_permission(
-        service._user_session,
+        user_session,
         ("settings.manage", "department.read"),
         operation_label=operation_label,
     )

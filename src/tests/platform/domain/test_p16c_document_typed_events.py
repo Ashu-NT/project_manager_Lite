@@ -11,6 +11,12 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+    DocumentStructureCreateCommand,
+    DocumentStructureUpdateCommand,
+    DocumentUpdateCommand,
+)
 from src.core.platform.domain.master_data.documents.events import (
     DocumentCreated,
     DocumentProfileUpdated,
@@ -30,7 +36,7 @@ def _unique_code(prefix: str) -> str:
     return f"{prefix}-{_COUNTER['n']}"
 
 
-def _spy_event(services, event_type, *, on="document_service"):
+def _spy_event(services, event_type, *, on="document_commands"):
     calls = []
     services[on]._uow_factory._post_commit_bus.subscribe(
         event_type, lambda event, context: calls.append(event)
@@ -90,70 +96,57 @@ def _platform_catalog(services) -> PlatformWorkspaceCatalog:
 
 def test_create_document_produces_exactly_one_document_created(services):
     calls = _spy_event(services, DocumentCreated)
-    document = services["document_service"].create_document(
-        document_code=_unique_code("P16C-CREATE"), title="Create Ok", storage_uri="C:/docs/a.pdf"
-    )
+    document = services["document_commands"].create_document(DocumentCreateCommand(document_code=_unique_code("P16C-CREATE"), title="Create Ok", storage_uri="C:/docs/a.pdf"))
     assert [e.document_id for e in calls] == [document.id]
     assert calls[0].organization_id == document.organization_id
 
 
 def test_real_update_document_produces_exactly_one_document_profile_updated(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16C-UPDATE"), title="Before", storage_uri="C:/docs/b.pdf"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-UPDATE"), title="Before", storage_uri="C:/docs/b.pdf"))
     calls = _spy_event(services, DocumentProfileUpdated)
 
-    document_service.update_document(document.id, title="After", expected_version=document.version)
+    document_commands.update_document(DocumentUpdateCommand(document_id=document.id, title="After", expected_version=document.version))
 
     assert len(calls) == 1
     assert calls[0].document_id == document.id
 
 
 def test_no_op_document_update_produces_zero_event(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16C-NOOP"), title="Same", storage_uri="C:/docs/c.pdf"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-NOOP"), title="Same", storage_uri="C:/docs/c.pdf"))
     calls = _spy_event(services, DocumentProfileUpdated)
 
-    document_service.update_document(
-        document.id, title="Same", storage_uri="C:/docs/c.pdf", expected_version=document.version
-    )
+    document_commands.update_document(DocumentUpdateCommand(document_id=document.id, title="Same", storage_uri="C:/docs/c.pdf", expected_version=document.version))
 
     assert calls == []
 
 
 def test_document_authorization_failure_produces_zero_event(services, monkeypatch):
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
     calls = _spy_event(services, DocumentCreated)
 
     def _deny(*args, **kwargs):
         raise ValidationError("denied", code="PERMISSION_DENIED")
 
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.documents.document_commands.require_permission",
+        "src.core.platform.application.master_data.documents.commands.document_commands.require_permission",
         _deny,
     )
 
     with pytest.raises(ValidationError):
-        document_service.create_document(
-            document_code=_unique_code("P16C-AUTHFAIL"), title="No Access", storage_uri="C:/docs/d.pdf"
-        )
+        document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-AUTHFAIL"), title="No Access", storage_uri="C:/docs/d.pdf"))
 
     assert calls == []
 
 
 def test_document_cross_org_update_produces_zero_event(services):
-    document_service = services["document_service"]
-    organization_service = services["organization_service"]
+    document_commands = services["document_commands"]
     tenant_context_service = services["tenant_context_service"]
     default_organization = tenant_context_service.get_active_organization()
 
-    document = document_service.create_document(
-        document_code=_unique_code("P16C-CROSSORG"), title="Home Doc", storage_uri="C:/docs/e.pdf"
-    )
-    other_organization = organization_service.create_organization(
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-CROSSORG"), title="Home Doc", storage_uri="C:/docs/e.pdf"))
+    other_organization = services["organization_commands"].create_organization(
         organization_code=_unique_code("P16C-CROSSORG-OTHER"),
         display_name="Other Org",
         timezone_name="UTC",
@@ -163,7 +156,7 @@ def test_document_cross_org_update_produces_zero_event(services):
     calls = _spy_event(services, DocumentProfileUpdated)
     try:
         with pytest.raises(NotFoundError):
-            document_service.update_document(document.id, title="Hijacked")
+            document_commands.update_document(DocumentUpdateCommand(document_id=document.id, title="Hijacked"))
     finally:
         tenant_context_service.set_active_organization(default_organization.id)
 
@@ -171,16 +164,12 @@ def test_document_cross_org_update_produces_zero_event(services):
 
 
 def test_document_stale_version_produces_zero_event(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16C-STALE"), title="Stale Doc", storage_uri="C:/docs/f.pdf"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-STALE"), title="Stale Doc", storage_uri="C:/docs/f.pdf"))
     calls = _spy_event(services, DocumentProfileUpdated)
 
     with pytest.raises(ConcurrencyError):
-        document_service.update_document(
-            document.id, title="Should Not Apply", expected_version=document.version + 1
-        )
+        document_commands.update_document(DocumentUpdateCommand(document_id=document.id, title="Should Not Apply", expected_version=document.version + 1))
 
     assert calls == []
 
@@ -190,20 +179,18 @@ def test_document_audit_failure_produces_zero_event(services, monkeypatch):
         raise RuntimeError("simulated audit failure")
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
     calls = _spy_event(services, DocumentCreated)
 
     with pytest.raises(RuntimeError, match="simulated audit failure"):
-        document_service.create_document(
-            document_code=_unique_code("P16C-AUDITFAIL"), title="Audit Fail", storage_uri="C:/docs/g.pdf"
-        )
+        document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-AUDITFAIL"), title="Audit Fail", storage_uri="C:/docs/g.pdf"))
 
     monkeypatch.undo()
     assert calls == []
 
 
 def test_document_commit_failure_produces_zero_event(services, monkeypatch):
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
     calls = _spy_event(services, DocumentCreated)
 
     def _fail_commit(self):
@@ -212,9 +199,7 @@ def test_document_commit_failure_produces_zero_event(services, monkeypatch):
     monkeypatch.setattr(SqlAlchemyDocumentUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated commit failure"):
-        document_service.create_document(
-            document_code=_unique_code("P16C-COMMITFAIL"), title="Commit Fail", storage_uri="C:/docs/h.pdf"
-        )
+        document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-COMMITFAIL"), title="Commit Fail", storage_uri="C:/docs/h.pdf"))
 
     assert calls == []
 
@@ -226,39 +211,33 @@ def test_document_commit_failure_produces_zero_event(services, monkeypatch):
 
 def test_create_structure_produces_exactly_one_document_structure_created(services):
     calls = _spy_event(services, DocumentStructureCreated)
-    structure = services["document_service"].create_document_structure(
-        structure_code=_unique_code("P16C-STRUCT-CREATE"), name="Manuals"
-    )
+    structure = services["document_structure_commands"].create_document_structure(DocumentStructureCreateCommand(structure_code=_unique_code("P16C-STRUCT-CREATE"), name="Manuals"))
     assert [e.structure_id for e in calls] == [structure.id]
 
 
 def test_real_structure_update_produces_exactly_one_document_structure_profile_updated(services):
-    document_service = services["document_service"]
-    structure = document_service.create_document_structure(
-        structure_code=_unique_code("P16C-STRUCT-UPDATE"), name="Before"
-    )
+    document_structure_commands = services["document_structure_commands"]
+    structure = document_structure_commands.create_document_structure(DocumentStructureCreateCommand(structure_code=_unique_code("P16C-STRUCT-UPDATE"), name="Before"))
     calls = _spy_event(services, DocumentStructureProfileUpdated)
 
-    document_service.update_document_structure(structure.id, name="After", expected_version=structure.version)
+    document_structure_commands.update_document_structure(DocumentStructureUpdateCommand(structure_id=structure.id, name="After", expected_version=structure.version))
 
     assert len(calls) == 1
     assert calls[0].structure_id == structure.id
 
 
 def test_no_op_structure_update_produces_zero_event(services):
-    document_service = services["document_service"]
-    structure = document_service.create_document_structure(
-        structure_code=_unique_code("P16C-STRUCT-NOOP"), name="Same"
-    )
+    document_structure_commands = services["document_structure_commands"]
+    structure = document_structure_commands.create_document_structure(DocumentStructureCreateCommand(structure_code=_unique_code("P16C-STRUCT-NOOP"), name="Same"))
     calls = _spy_event(services, DocumentStructureProfileUpdated)
 
-    document_service.update_document_structure(structure.id, name="Same", expected_version=structure.version)
+    document_structure_commands.update_document_structure(DocumentStructureUpdateCommand(structure_id=structure.id, name="Same", expected_version=structure.version))
 
     assert calls == []
 
 
 def test_structure_commit_failure_produces_zero_event(services, monkeypatch):
-    document_service = services["document_service"]
+    document_structure_commands = services["document_structure_commands"]
     calls = _spy_event(services, DocumentStructureCreated)
 
     def _fail_commit(self):
@@ -267,7 +246,7 @@ def test_structure_commit_failure_produces_zero_event(services, monkeypatch):
     monkeypatch.setattr(SqlAlchemyDocumentUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated commit failure"):
-        document_service.create_document_structure(structure_code=_unique_code("P16C-STRUCT-COMMITFAIL"), name="Fail")
+        document_structure_commands.create_document_structure(DocumentStructureCreateCommand(structure_code=_unique_code("P16C-STRUCT-COMMITFAIL"), name="Fail"))
 
     assert calls == []
 
@@ -278,27 +257,27 @@ def test_structure_commit_failure_produces_zero_event(services, monkeypatch):
 
 
 def test_two_separate_document_commits_produce_exactly_two_document_list_hints(services):
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
     hints = _spy_document_list_hints(services)
 
-    document_service.create_document(document_code=_unique_code("P16C-SEP-A"), title="A", storage_uri="C:/docs/i.pdf")
-    document_service.create_document(document_code=_unique_code("P16C-SEP-B"), title="B", storage_uri="C:/docs/j.pdf")
+    document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-SEP-A"), title="A", storage_uri="C:/docs/i.pdf"))
+    document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-SEP-B"), title="B", storage_uri="C:/docs/j.pdf"))
 
     assert len(hints) == 2
 
 
 def test_two_separate_structure_commits_produce_exactly_two_document_structure_list_hints(services):
-    document_service = services["document_service"]
+    document_structure_commands = services["document_structure_commands"]
     hints = _spy_document_structure_list_hints(services)
 
-    document_service.create_document_structure(structure_code=_unique_code("P16C-STRUCT-SEP-A"), name="A")
-    document_service.create_document_structure(structure_code=_unique_code("P16C-STRUCT-SEP-B"), name="B")
+    document_structure_commands.create_document_structure(DocumentStructureCreateCommand(structure_code=_unique_code("P16C-STRUCT-SEP-A"), name="A"))
+    document_structure_commands.create_document_structure(DocumentStructureCreateCommand(structure_code=_unique_code("P16C-STRUCT-SEP-B"), name="B"))
 
     assert len(hints) == 2
 
 
 def test_failed_document_commit_produces_zero_document_list_hints(services, monkeypatch):
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
     hints = _spy_document_list_hints(services)
 
     def _fail_commit(self):
@@ -307,9 +286,7 @@ def test_failed_document_commit_produces_zero_document_list_hints(services, monk
     monkeypatch.setattr(SqlAlchemyDocumentUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated commit failure"):
-        document_service.create_document(
-            document_code=_unique_code("P16C-HINT-FAIL"), title="Fail", storage_uri="C:/docs/k.pdf"
-        )
+        document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-HINT-FAIL"), title="Fail", storage_uri="C:/docs/k.pdf"))
 
     assert hints == []
 
@@ -320,8 +297,8 @@ def test_failed_document_commit_produces_zero_document_list_hints(services, monk
 
 
 def test_register_entity_attachments_produces_n_document_created_business_events(services):
-    integration_service = services["collaboration_service"]._document_integration_service
-    calls = _spy_event(services, DocumentCreated, on="document_service")
+    integration_service = services["document_attachment_commands"]
+    calls = _spy_event(services, DocumentCreated, on="document_commands")
     entity_id = _unique_code("P16C-BATCH")
 
     created = integration_service.register_entity_attachments(
@@ -338,7 +315,7 @@ def test_register_entity_attachments_produces_n_document_created_business_events
 
 
 def test_register_entity_attachments_uses_one_transaction_for_all_typed_events(services, monkeypatch):
-    integration_service = services["collaboration_service"]._document_integration_service
+    integration_service = services["document_attachment_commands"]
     create_calls = []
     original_create = type(integration_service._uow_factory).create
 
@@ -362,7 +339,7 @@ def test_register_entity_attachments_uses_one_transaction_for_all_typed_events(s
 
 
 def test_register_entity_attachments_coalesces_to_one_document_list_hint(services):
-    integration_service = services["collaboration_service"]._document_integration_service
+    integration_service = services["document_attachment_commands"]
     hints = _spy_document_list_hints(services)
 
     integration_service.register_entity_attachments(
@@ -393,19 +370,15 @@ def test_admin_document_controller_refreshes_once_after_committed_create(service
     full_refresh_calls = []
     catalog.adminWorkspace.refresh = lambda: full_refresh_calls.append("full") or None
 
-    services["document_service"].create_document(
-        document_code=_unique_code("P16C-ADMIN-CREATE"), title="Admin Refresh Doc", storage_uri="C:/docs/l.pdf"
-    )
+    services["document_commands"].create_document(DocumentCreateCommand(document_code=_unique_code("P16C-ADMIN-CREATE"), title="Admin Refresh Doc", storage_uri="C:/docs/l.pdf"))
 
     assert refresh_calls == ["admin-documents"]
     assert full_refresh_calls == []
 
 
 def test_admin_document_controller_refreshes_once_after_real_update(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16C-ADMIN-UPDATE"), title="Before", storage_uri="C:/docs/m.pdf"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-ADMIN-UPDATE"), title="Before", storage_uri="C:/docs/m.pdf"))
 
     catalog = _platform_catalog(services)
     catalog.adminWorkspace.documents
@@ -415,16 +388,14 @@ def test_admin_document_controller_refreshes_once_after_real_update(services):
         lambda: refresh_calls.append("admin-documents") or None
     )
 
-    document_service.update_document(document.id, title="After", expected_version=document.version)
+    document_commands.update_document(DocumentUpdateCommand(document_id=document.id, title="After", expected_version=document.version))
 
     assert refresh_calls == ["admin-documents"]
 
 
 def test_admin_document_controller_no_refresh_on_no_op(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16C-ADMIN-NOOP"), title="Same", storage_uri="C:/docs/n.pdf"
-    )
+    document_commands = services["document_commands"]
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique_code("P16C-ADMIN-NOOP"), title="Same", storage_uri="C:/docs/n.pdf"))
 
     catalog = _platform_catalog(services)
     catalog.adminWorkspace.documents
@@ -434,15 +405,15 @@ def test_admin_document_controller_no_refresh_on_no_op(services):
         lambda: refresh_calls.append("admin-documents") or None
     )
 
-    document_service.update_document(document.id, title="Same", expected_version=document.version)
+    document_commands.update_document(DocumentUpdateCommand(document_id=document.id, title="Same", expected_version=document.version))
 
     assert refresh_calls == []
 
 
 def test_admin_document_controller_no_refresh_on_failed_transaction(services):
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
     code = _unique_code("P16C-ADMIN-FAILED")
-    document_service.create_document(document_code=code, title="Existing", storage_uri="C:/docs/o.pdf")
+    document_commands.create_document(DocumentCreateCommand(document_code=code, title="Existing", storage_uri="C:/docs/o.pdf"))
 
     catalog = _platform_catalog(services)
     catalog.adminWorkspace.documents
@@ -453,7 +424,7 @@ def test_admin_document_controller_no_refresh_on_failed_transaction(services):
     )
 
     with pytest.raises(ValidationError):
-        document_service.create_document(document_code=code, title="Duplicate", storage_uri="C:/docs/p.pdf")
+        document_commands.create_document(DocumentCreateCommand(document_code=code, title="Duplicate", storage_uri="C:/docs/p.pdf"))
 
     assert refresh_calls == []
 
@@ -469,19 +440,15 @@ def test_admin_structure_controller_refreshes_once_after_committed_create(servic
     full_refresh_calls = []
     catalog.adminWorkspace.refresh = lambda: full_refresh_calls.append("full") or None
 
-    services["document_service"].create_document_structure(
-        structure_code=_unique_code("P16C-ADMIN-STRUCT-CREATE"), name="Admin Refresh Structure"
-    )
+    services["document_structure_commands"].create_document_structure(DocumentStructureCreateCommand(structure_code=_unique_code("P16C-ADMIN-STRUCT-CREATE"), name="Admin Refresh Structure"))
 
     assert refresh_calls == ["admin-structures"]
     assert full_refresh_calls == []
 
 
 def test_admin_structure_controller_refreshes_once_after_real_update(services):
-    document_service = services["document_service"]
-    structure = document_service.create_document_structure(
-        structure_code=_unique_code("P16C-ADMIN-STRUCT-UPDATE"), name="Before"
-    )
+    document_structure_commands = services["document_structure_commands"]
+    structure = document_structure_commands.create_document_structure(DocumentStructureCreateCommand(structure_code=_unique_code("P16C-ADMIN-STRUCT-UPDATE"), name="Before"))
 
     catalog = _platform_catalog(services)
     catalog.adminWorkspace.documentStructures
@@ -491,16 +458,14 @@ def test_admin_structure_controller_refreshes_once_after_real_update(services):
         lambda: refresh_calls.append("admin-structures") or None
     )
 
-    document_service.update_document_structure(structure.id, name="After", expected_version=structure.version)
+    document_structure_commands.update_document_structure(DocumentStructureUpdateCommand(structure_id=structure.id, name="After", expected_version=structure.version))
 
     assert refresh_calls == ["admin-structures"]
 
 
 def test_admin_structure_controller_no_refresh_on_no_op(services):
-    document_service = services["document_service"]
-    structure = document_service.create_document_structure(
-        structure_code=_unique_code("P16C-ADMIN-STRUCT-NOOP"), name="Same"
-    )
+    document_structure_commands = services["document_structure_commands"]
+    structure = document_structure_commands.create_document_structure(DocumentStructureCreateCommand(structure_code=_unique_code("P16C-ADMIN-STRUCT-NOOP"), name="Same"))
 
     catalog = _platform_catalog(services)
     catalog.adminWorkspace.documentStructures
@@ -510,7 +475,7 @@ def test_admin_structure_controller_no_refresh_on_no_op(services):
         lambda: refresh_calls.append("admin-structures") or None
     )
 
-    document_service.update_document_structure(structure.id, name="Same", expected_version=structure.version)
+    document_structure_commands.update_document_structure(DocumentStructureUpdateCommand(structure_id=structure.id, name="Same", expected_version=structure.version))
 
     assert refresh_calls == []
 
@@ -550,12 +515,15 @@ def test_document_list_view_invalidation_handler_has_no_generic_bridge():
 def test_no_documents_changed_reference_in_simple_document_and_structure_paths():
     import inspect
 
-    import src.core.platform.application.master_data.documents.document_commands as document_commands_module
+    from src.core.platform.application.master_data.documents import (
+        DocumentCommandHandler,
+        DocumentStructureCommandHandler,
+    )
 
-    create_document_source = inspect.getsource(document_commands_module.create_document)
-    update_document_source = inspect.getsource(document_commands_module.update_document)
-    create_structure_source = inspect.getsource(document_commands_module.create_document_structure)
-    update_structure_source = inspect.getsource(document_commands_module.update_document_structure)
+    create_document_source = inspect.getsource(DocumentCommandHandler.create_document)
+    update_document_source = inspect.getsource(DocumentCommandHandler.update_document)
+    create_structure_source = inspect.getsource(DocumentStructureCommandHandler.create_document_structure)
+    update_structure_source = inspect.getsource(DocumentStructureCommandHandler.update_document_structure)
 
     for source in (
         create_document_source,
@@ -569,8 +537,8 @@ def test_no_documents_changed_reference_in_simple_document_and_structure_paths()
 def test_no_raw_session_commit_reintroduced():
     import inspect
 
-    import src.core.platform.application.master_data.documents.document_commands as document_commands_module
-    import src.core.platform.application.master_data.documents.document_integration_service as document_integration_service_module
+    import src.core.platform.application.master_data.documents.commands.document_attachment_commands as document_integration_service_module
+    import src.core.platform.application.master_data.documents.commands.document_commands as document_commands_module
 
     for module in (document_commands_module, document_integration_service_module):
         source = inspect.getsource(module)

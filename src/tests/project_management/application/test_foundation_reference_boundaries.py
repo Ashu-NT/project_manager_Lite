@@ -13,40 +13,38 @@ from src.core.modules.project_management.api.desktop.resources.serializers.resou
 )
 from src.core.modules.project_management.domain.enums import WorkerType
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+    EmployeeUpdateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.party.commands import (
+    PartyCreateCommand,
+)
 
 
 def test_employee_reference_requires_pm_employee_resource_registration(services):
-    department = services["department_service"].create_department(
-        department_code="DEP-BOUNDARY", name="Boundary Department"
-    )
-    employee = services["employee_service"].create_employee(
-        employee_code="EMP-BOUNDARY", full_name="Boundary Employee", department_id=department.id
-    )
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEP-BOUNDARY", name="Boundary Department"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-BOUNDARY", full_name="Boundary Employee", department_id=department.id))
     with pytest.raises(ValidationError, match="Only employee resources"):
-        services["resource_service"].create_resource(
+        services["resource_master_commands"].create_resource(
             "External", worker_type=WorkerType.EXTERNAL, employee_id=employee.id
         )
 
 
 def test_resource_desktop_dto_uses_current_platform_employee_profile(services):
-    department = services["department_service"].create_department(
-        department_code="DEP-DISPLAY", name="Display Department"
-    )
-    employee_service = services["employee_service"]
-    employee = employee_service.create_employee(
-        employee_code="EMP-DISPLAY", full_name="Original Name",
-        department_id=department.id, email="before@example.com",
-    )
-    resource = services["resource_service"].create_resource(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEP-DISPLAY", name="Display Department"))
+    employee_query = services["employee_query"]
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-DISPLAY", full_name="Original Name", department_id=department.id, email="before@example.com"))
+    resource = services["resource_master_commands"].create_resource(
         "", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
     )
-    employee_service.update_employee(
-        employee.id, full_name="Current Name", email="after@example.com",
-        expected_version=employee.version,
-    )
+    services["employee_commands"].update_employee(EmployeeUpdateCommand(employee_id=employee.id, full_name="Current Name", email="after@example.com", expected_version=employee.version))
     dto = serialize_resource(
-        services["resource_service"].get_resource(resource.id),
-        employee_lookup=build_employee_lookup(employee_service),
+        services["resource_query"].get_resource(resource.id),
+        employee_lookup=build_employee_lookup(employee_query),
     )
     assert dto.name == "Current Name"
     assert dto.contact == "after@example.com"
@@ -54,16 +52,15 @@ def test_resource_desktop_dto_uses_current_platform_employee_profile(services):
 
 
 def test_project_client_party_is_platform_owned_and_scope_checked(services):
-    party_service = services["party_service"]
     project_service = services["project_service"]
-    client = party_service.create_party(party_code="CUST-BOUNDARY", party_name="Client")
+    client = services["party_commands"].create_party(PartyCreateCommand(party_code="CUST-BOUNDARY", party_name="Client"))
 
     project = project_service.create_project(
         name="Party reference project", client_party_id=client.id
     )
     assert project.client_party_id == client.id
 
-    party_service.deactivate_party(client.id)
+    services["party_commands"].deactivate_party(client.id)
     project_service.update_project(project.id, name="Renamed project")
     with pytest.raises(ValidationError, match="inactive"):
         project_service.create_project(
@@ -77,18 +74,15 @@ def test_project_client_party_is_platform_owned_and_scope_checked(services):
 
 def test_project_department_reference_is_optional_and_platform_owned(services):
     project_service = services["project_service"]
-    department_service = services["department_service"]
     project = project_service.create_project(name="No department project")
     assert project.department_id is None
 
-    department = department_service.create_department(
-        department_code="DEP-PROJECT", name="Project Department"
-    )
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEP-PROJECT", name="Project Department"))
     linked = project_service.create_project(
         name="Linked department project", department_id=department.id
     )
     assert linked.department_id == department.id
-    department_service.deactivate_department(department.id)
+    services["department_commands"].deactivate_department(department.id)
     project_service.update_project(linked.id, name="Historical department project")
     with pytest.raises(ValidationError, match="inactive"):
         project_service.create_project(

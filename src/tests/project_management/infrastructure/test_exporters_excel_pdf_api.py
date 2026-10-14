@@ -35,10 +35,19 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
+def _report_sources(services) -> reporting_api.ProjectReportSources:
+    return reporting_api.ProjectReportSources(
+        kpi=services["project_kpi_report"],
+        earned_value=services["earned_value_report"],
+        schedule_variance=services["schedule_variance_report"],
+        cost_breakdown=services["cost_breakdown_report"],
+    )
+
+
+
 def _setup_report_project(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
     bs = services["baseline_service"]
 
     project = ps.create_project(
@@ -54,7 +63,7 @@ def _setup_report_project(services):
     t2 = ts.create_task(pid, "Task Beta", duration_days=2)
     ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-    res = rs.create_resource(
+    res = services["resource_master_commands"].create_resource(
         "Exporter Dev",
         "Developer",
         hourly_rate=100.0,
@@ -87,7 +96,7 @@ def test_excel_export_contains_expected_sections_when_baseline_is_approved(servi
     output = tmp_path / "report.xlsx"
 
     reporting_api.generate_excel_report(
-        services["reporting_service"],
+        _report_sources(services),
         pid,
         output,
         baseline_id=baseline_id,
@@ -113,7 +122,7 @@ def test_excel_export_without_baseline_skips_evm_sheet(services, tmp_path):
     ts.create_task(pid, "Task No Base", start_date=date(2023, 11, 6), duration_days=2)
 
     output = tmp_path / "report_no_baseline.xlsx"
-    reporting_api.generate_excel_report(services["reporting_service"], pid, output)
+    reporting_api.generate_excel_report(_report_sources(services), pid, output)
 
     wb = load_workbook(output)
     assert "EVM" not in wb.sheetnames
@@ -131,7 +140,7 @@ def test_pdf_export_succeeds_when_gantt_generation_fails(services, tmp_path, mon
 
     output = tmp_path / "report.pdf"
     reporting_api.generate_pdf_report(
-        services["reporting_service"],
+        _report_sources(services),
         pid,
         output,
         temp_dir=temp_dir,
@@ -149,7 +158,7 @@ def test_pdf_export_cleans_temporary_gantt_artifact(services, tmp_path):
     output = tmp_path / "report_cleanup.pdf"
 
     reporting_api.generate_pdf_report(
-        services["reporting_service"],
+        _report_sources(services),
         pid,
         output,
         temp_dir=temp_dir,
@@ -325,7 +334,10 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
     monkeypatch.setattr(reporting_api, "PdfReportRenderer", lambda: _FakePdfRenderer())
     monkeypatch.setattr(reporting_api, "generate_gantt_png", lambda *_args, **_kwargs: Path(tmp_path / "gantt.png"))
 
-    service = DummyReportingService()
+    dummy = DummyReportingService()
+    service = reporting_api.ProjectReportSources(
+        kpi=dummy, earned_value=dummy, schedule_variance=dummy, cost_breakdown=dummy,  # type: ignore[arg-type]
+    )
     as_of = date(2023, 11, 30)
 
     reporting_api.generate_excel_report(service, "p1", tmp_path / "api.xlsx", baseline_id="b1", as_of=as_of)
@@ -349,8 +361,8 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
 def test_reporting_api_requires_report_export_permission_from_live_session(services, tmp_path):
     tenant_id = services["user_session"].stored_active_tenant_id()
     organization_id = services["user_session"].stored_active_organization_id()
-    services["module_catalog_service"].license_module(organization_id, "project_management")
-    services["module_catalog_service"].enable_module(organization_id, "project_management")
+    services["module_entitlement_commands"].license_module(organization_id, "project_management")
+    services["module_entitlement_commands"].enable_module(organization_id, "project_management")
     services["user_session"].set_principal(
         UserSessionPrincipal(
             user_id="u-report",
@@ -365,7 +377,7 @@ def test_reporting_api_requires_report_export_permission_from_live_session(servi
 
     with pytest.raises(BusinessRuleError, match="Permission denied") as exc:
         reporting_api.generate_gantt_png(
-            services["reporting_service"],
+            services["project_kpi_report"],
             "project-1",
             tmp_path / "restricted.png",
         )
@@ -394,7 +406,7 @@ def test_excel_export_omits_finance_sections_without_finance_read(services, tmp_
 
     output = tmp_path / "restricted_report.xlsx"
     reporting_api.generate_excel_report(
-        services["reporting_service"],
+        _report_sources(services),
         pid,
         output,
         finance_service=services["finance_service"],

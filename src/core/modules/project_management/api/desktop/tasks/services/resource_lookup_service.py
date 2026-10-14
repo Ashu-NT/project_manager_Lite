@@ -3,12 +3,12 @@ from __future__ import annotations
 
 def resource_by_id(
     *,
-    resource_service: object | None,
+    resource_query: object | None,
     resource_ids: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
-    if resource_service is None:
+    if resource_query is None:
         return {}
-    list_for_task_workspace = getattr(resource_service, "list_for_task_workspace", None)
+    list_for_task_workspace = getattr(resource_query, "list_for_task_workspace", None)
     if not callable(list_for_task_workspace):
         return {}
     normalized_ids = tuple(

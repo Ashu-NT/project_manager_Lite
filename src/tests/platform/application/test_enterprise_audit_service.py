@@ -10,10 +10,9 @@ from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry 
 
 
 def _login_admin(services):
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    admin = auth.authenticate("admin", "ChangeMe123!")
-    user_session.set_principal(auth.build_principal(admin))
+    admin = services["authentication"].authenticate("admin", "ChangeMe123!")
+    user_session.set_principal(services["principal_builder"].build(admin))
 
 
 def test_enterprise_audit_service_is_available(services):
@@ -48,9 +47,8 @@ def test_enterprise_audit_entries_have_required_fields(services):
 
 def test_auth_actions_produce_audit_entries(services):
     _login_admin(services)
-    auth = services["auth_service"]
     eas = services["enterprise_audit_service"]
-    auth.register_user("audit_test_user", "TestPass123!", display_name="Audit Test")
+    services["user_registration"].register_user("audit_test_user", "TestPass123!", display_name="Audit Test")
     entries = eas.list_recent(limit=50)
     operations = {e.operation for e in entries}
     assert "create" in operations
@@ -58,17 +56,16 @@ def test_auth_actions_produce_audit_entries(services):
 
 def test_role_assignment_produces_audit_entry(services):
     _login_admin(services)
-    auth = services["auth_service"]
     tenant_id = services[
         "tenant_context_service"
     ].require_active_tenant_id(operation_label="test canonical role audit")
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "rbac_audit_user",
         "TestPass123!",
         role_names=[],
         tenant_id=tenant_id,
     )
-    auth.assign_role(user.id, "team_member")
+    services["role_assignment_commands"].assign_role(user.id, "team_member")
     operations = set(
         services["session"].execute(
             select(AuditEntryORM.operation)
@@ -126,10 +123,9 @@ def test_explicit_human_audit_actor_does_not_borrow_other_users_name(services):
 
 
 def test_audit_recent_order_is_stable_when_timestamps_match(services):
-    organizations = services["organization_service"]
     context = services["tenant_context_service"]
     audit = services["enterprise_audit_service"]
-    org = organizations.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="AUDIT-ORDER",
         display_name="Audit Order",
         timezone_name="UTC",

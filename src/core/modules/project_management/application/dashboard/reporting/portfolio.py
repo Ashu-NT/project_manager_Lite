@@ -6,8 +6,12 @@ from decimal import Decimal
 from src.core.modules.project_management.access.scope_permissions import (
     filter_project_rows,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
     DashboardData,
+    UpcomingTask,
 )
 from src.core.modules.project_management.application.dashboard.models.portfolio_models import (
     PORTFOLIO_SCOPE_ID,
@@ -19,18 +23,57 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
     ProjectKPI,
     ResourceLoadRow,
 )
+from src.core.modules.project_management.application.dashboard.widgets.upcoming import (
+    DashboardUpcomingWidget,
+)
+from src.core.modules.project_management.contracts.ports.dashboard.dashboard_queries import (
+    DashboardKpiQuery,
+    DashboardProjectQuery,
+    DashboardResourceQuery,
+    DashboardScheduleQuery,
+    DashboardTaskQuery,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
-class DashboardPortfolioMixin:
+class PortfolioDashboardQueryHandler(ProjectManagementModuleGuardMixin):
+    """Portfolio overview dashboard (cross-project KPI/risk/load roll-up)."""
+
+    def __init__(
+        self,
+        *,
+        kpi_report: DashboardKpiQuery,
+        project_query: DashboardProjectQuery,
+        resource_query: DashboardResourceQuery,
+        task_lookup: DashboardTaskQuery,
+        scheduling_engine: DashboardScheduleQuery,
+        work_calendar_engine: CalendarProtocol,
+        upcoming: DashboardUpcomingWidget | None = None,
+        user_session=None,
+        module_catalog_service=None,
+    ) -> None:
+        self._reporting = kpi_report
+        self._projects = project_query
+        self._resources = resource_query
+        self._task_lookup = task_lookup
+        self._sched = scheduling_engine
+        self._calendar = work_calendar_engine
+        self._upcoming = upcoming or DashboardUpcomingWidget()
+        self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
+
     def get_portfolio_data(self) -> DashboardData:
         # Fetches tasks/schedule/assignments/resources once per project and passes them
-        # to get_project_kpis()/_build_upcoming_tasks() via their optional overrides,
-        # instead of letting each helper re-fetch rows and re-run CPM per project.
+        # to get_project_kpis()/the upcoming widget, instead of letting each helper
+        # re-fetch rows and re-run CPM per project.
         require_permission(self._user_session, "report.view", operation_label="view portfolio dashboard")
         projects = filter_project_rows(
             self._projects.list_projects(),
@@ -83,7 +126,7 @@ class DashboardPortfolioMixin:
         at_risk_projects = 0
         status_counts: dict[str, int] = {}
         ranking_rows: list[PortfolioProjectRow] = []
-        upcoming_rows = []
+        upcoming_rows: list[UpcomingTask] = []
         resource_load_by_id: dict[str, ResourceLoadRow] = {}
         resources_by_id = {resource.id: resource for resource in self._resources.list_resources()}
 
@@ -91,7 +134,7 @@ class DashboardPortfolioMixin:
             tasks = select_leaf_tasks(self._task_lookup.list_tasks_for_project(project.id))
             schedule = self._sched.recalculate_project_schedule(project.id, persist=False)
             assignments = self._task_lookup.list_assignments_for_tasks([task.id for task in tasks])
-            assignments_by_task: dict[str, list[object]] = {}
+            assignments_by_task: dict[str, list[TaskAssignment]] = {}
             for assignment in assignments:
                 assignments_by_task.setdefault(assignment.task_id, []).append(assignment)
 
@@ -139,8 +182,7 @@ class DashboardPortfolioMixin:
                 )
             )
 
-            for upcoming in self._build_upcoming_tasks(
-                project.id,
+            for upcoming in self._upcoming.build(
                 tasks=tasks,
                 assignments_by_task=assignments_by_task,
                 resources_by_id=resources_by_id,
@@ -199,8 +241,18 @@ class DashboardPortfolioMixin:
                 start_date=earliest_start,
                 end_date=latest_end,
                 financial_detail_included=financial_detail_included,
-                **task_totals,
-                **cost_totals,
+                tasks_total=task_totals["tasks_total"],
+                tasks_completed=task_totals["tasks_completed"],
+                tasks_in_progress=task_totals["tasks_in_progress"],
+                task_blocked=task_totals["task_blocked"],
+                tasks_not_started=task_totals["tasks_not_started"],
+                critical_tasks=task_totals["critical_tasks"],
+                late_tasks=task_totals["late_tasks"],
+                total_planned_cost=cost_totals["total_planned_cost"],
+                total_actual_cost=cost_totals["total_actual_cost"],
+                total_committed_cost=cost_totals["total_committed_cost"],
+                cost_variance=cost_totals["cost_variance"],
+                committment_variance=cost_totals["committment_variance"],
             ),
             alerts=self._build_portfolio_alerts(portfolio=portfolio, resource_load=resource_load, cost_variance=cost_totals["cost_variance"]),
             resource_load=resource_load,
@@ -325,4 +377,4 @@ class DashboardPortfolioMixin:
         return alerts
 
 
-__all__ = ["DashboardPortfolioMixin"]
+__all__ = ["PortfolioDashboardQueryHandler"]

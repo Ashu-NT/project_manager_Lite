@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from src.core.platform.application.tenant.modules import ModuleGuardedServiceMixin
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 class ProjectManagementModuleGuardMixin(ModuleGuardedServiceMixin):
+    _user_session: UserSessionContext | None
     _module_guard_code = "project_management"
     _module_guard_exempt_methods = frozenset({
         "consume_last_overallocation_warning",

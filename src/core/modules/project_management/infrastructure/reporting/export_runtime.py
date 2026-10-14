@@ -5,13 +5,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from src.core.modules.project_management.application.dashboard.models.report_models import (
     GanttTaskBar,
 )
 from src.core.modules.project_management.application.financials import FinanceService
-from src.core.modules.project_management.application.reporting.services.reporting_service import (
-    ReportingService,
+from src.core.modules.project_management.application.reporting import (
+    CostBreakdownReportBuilder,
+    EarnedValueReportBuilder,
+    ProjectKpiReportBuilder,
+    ScheduleVarianceReportBuilder,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
     ProjectFinanceLedgerQuery,
@@ -48,10 +52,26 @@ from src.core.platform.application.data_operations.report_runtime import (
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.data_operations.exporting import ExportArtifact
 
+if TYPE_CHECKING:
+    from src.core.platform.contract.port.tenant.modules import (
+        SupportsModuleEntitlements,
+    )
+    from src.core.platform.domain.security.auth.session import UserSessionContext
+
+
+@dataclass(frozen=True)
+class ProjectReportSources:
+    """The report builders a full project report export reads from."""
+
+    kpi: ProjectKpiReportBuilder
+    earned_value: EarnedValueReportBuilder | None = None
+    schedule_variance: ScheduleVarianceReportBuilder | None = None
+    cost_breakdown: CostBreakdownReportBuilder | None = None
+
 
 @dataclass(frozen=True)
 class GanttPngRequest:
-    reporting_service: ReportingService
+    kpi_report: ProjectKpiReportBuilder
     project_id: str
     output_path: str | Path
     bars: list[GanttTaskBar] | None = None
@@ -59,7 +79,7 @@ class GanttPngRequest:
 
 @dataclass(frozen=True)
 class EvmPngRequest:
-    reporting_service: ReportingService
+    earned_value_report: EarnedValueReportBuilder
     project_id: str
     output_path: str | Path
     baseline_id: str | None = None
@@ -68,7 +88,7 @@ class EvmPngRequest:
 
 @dataclass(frozen=True)
 class ExcelReportRequest:
-    reporting_service: ReportingService
+    sources: ProjectReportSources
     project_id: str
     output_path: str | Path
     finance_service: FinanceService | None = None
@@ -81,7 +101,7 @@ class ExcelReportRequest:
 
 @dataclass(frozen=True)
 class PdfReportRequest:
-    reporting_service: ReportingService
+    sources: ProjectReportSources
     project_id: str
     output_path: str | Path
     temp_dir: str | Path = "tmp_reports"
@@ -116,13 +136,14 @@ def _available_evm(value):
 
 
 def _resolved_as_of(value: date | None) -> date:
-    return value or date.today()
+    return value or date.today()  # noqa: DTZ011
 
 
 def _artifact_path(result: object) -> Path:
     if isinstance(result, ExportArtifact):
         return result.file_path
-    return Path(result)
+    # Report definitions render an artifact or a filesystem path.
+    return Path(cast("str | Path", result))
 
 
 def _finance_export_context(request, *, as_of: date):
@@ -152,29 +173,29 @@ def _finance_export_context(request, *, as_of: date):
 
 
 def _resolve_runtime_access_context(
-    reporting_service: object,
+    report_source: object,
     *,
-    user_session: object | None,
-    module_catalog_service: object | None,
-) -> tuple[object | None, object | None]:
+    user_session: UserSessionContext | None,
+    module_catalog_service: SupportsModuleEntitlements | None,
+) -> tuple[UserSessionContext | None, SupportsModuleEntitlements | None]:
     return (
         user_session
         if user_session is not None
-        else getattr(reporting_service, "_user_session", None),
+        else getattr(report_source, "_user_session", None),
         module_catalog_service
         if module_catalog_service is not None
-        else getattr(reporting_service, "_module_catalog_service", None),
+        else getattr(report_source, "_module_catalog_service", None),
     )
 
 
 def _build_excel_context(request: ExcelReportRequest) -> ExcelReportContext:
     as_of = _resolved_as_of(request.as_of)
-    reporting_service = request.reporting_service
-    get_evm = getattr(reporting_service, "get_earned_value", None)
-    get_series = getattr(reporting_service, "get_evm_series", None)
-    get_variance = getattr(reporting_service, "get_baseline_schedule_variance", None)
-    get_cost = getattr(reporting_service, "get_cost_breakdown", None)
-    get_cost_sources = getattr(reporting_service, "get_project_cost_source_breakdown", None)
+    sources = request.sources
+    get_evm = getattr(sources.earned_value, "get_earned_value", None)
+    get_series = getattr(sources.earned_value, "get_evm_series", None)
+    get_variance = getattr(sources.schedule_variance, "get_baseline_schedule_variance", None)
+    get_cost = getattr(sources.cost_breakdown, "get_cost_breakdown", None)
+    get_cost_sources = getattr(sources.cost_breakdown, "get_project_cost_source_breakdown", None)
     finance_snapshot, project_finance_ledger_page = _finance_export_context(
         request,
         as_of=as_of,
@@ -185,9 +206,9 @@ def _build_excel_context(request: ExcelReportRequest) -> ExcelReportContext:
         else None
     )
     return ExcelReportContext(
-        kpi=reporting_service.get_project_kpis(request.project_id, as_of=as_of),
-        gantt=reporting_service.get_gantt_data(request.project_id),
-        resources=reporting_service.get_resource_load_summary(request.project_id),
+        kpi=sources.kpi.get_project_kpis(request.project_id, as_of=as_of),
+        gantt=sources.kpi.get_gantt_data(request.project_id),
+        resources=sources.kpi.get_resource_load_summary(request.project_id),
         evm=_available_evm(evm),
         evm_series=(
             _optional_report_call(get_series, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
@@ -216,12 +237,12 @@ def _build_excel_context(request: ExcelReportRequest) -> ExcelReportContext:
 
 def _build_pdf_context(request: PdfReportRequest, gantt_path: Path | None) -> PdfReportContext:
     as_of = _resolved_as_of(request.as_of)
-    reporting_service = request.reporting_service
-    get_evm = getattr(reporting_service, "get_earned_value", None)
-    get_series = getattr(reporting_service, "get_evm_series", None)
-    get_variance = getattr(reporting_service, "get_baseline_schedule_variance", None)
-    get_cost = getattr(reporting_service, "get_cost_breakdown", None)
-    get_cost_sources = getattr(reporting_service, "get_project_cost_source_breakdown", None)
+    sources = request.sources
+    get_evm = getattr(sources.earned_value, "get_earned_value", None)
+    get_series = getattr(sources.earned_value, "get_evm_series", None)
+    get_variance = getattr(sources.schedule_variance, "get_baseline_schedule_variance", None)
+    get_cost = getattr(sources.cost_breakdown, "get_cost_breakdown", None)
+    get_cost_sources = getattr(sources.cost_breakdown, "get_project_cost_source_breakdown", None)
     finance_snapshot, project_finance_ledger_page = _finance_export_context(
         request,
         as_of=as_of,
@@ -232,9 +253,9 @@ def _build_pdf_context(request: PdfReportRequest, gantt_path: Path | None) -> Pd
         else None
     )
     return PdfReportContext(
-        kpi=reporting_service.get_project_kpis(request.project_id, as_of=as_of),
+        kpi=sources.kpi.get_project_kpis(request.project_id, as_of=as_of),
         gantt_png_path=str(gantt_path) if gantt_path else "",
-        resources=reporting_service.get_resource_load_summary(request.project_id),
+        resources=sources.kpi.get_resource_load_summary(request.project_id),
         evm=_available_evm(evm),
         evm_series=(
             _optional_report_call(get_series, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
@@ -263,7 +284,7 @@ def _build_pdf_context(request: PdfReportRequest, gantt_path: Path | None) -> Pd
 
 def _render_gantt_png(request: object) -> ExportArtifact:
     assert isinstance(request, GanttPngRequest)
-    bars = request.bars if request.bars is not None else request.reporting_service.get_gantt_data(request.project_id)
+    bars = request.bars if request.bars is not None else request.kpi_report.get_gantt_data(request.project_id)
     rendered_path = GanttPngRenderer().render(bars, ensure_output_path(request.output_path))
     return finalize_artifact(rendered_path, media_type="image/png")
 
@@ -272,7 +293,7 @@ def _render_evm_png(request: object) -> ExportArtifact:
     assert isinstance(request, EvmPngRequest)
     output_path = ensure_output_path(request.output_path)
     as_of = _resolved_as_of(request.as_of)
-    get_series = getattr(request.reporting_service, "get_evm_series", None)
+    get_series = getattr(request.earned_value_report, "get_evm_series", None)
     if not callable(get_series):
         return finalize_artifact(output_path, media_type="image/png")
     series = _optional_report_call(get_series, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
@@ -297,10 +318,11 @@ def _render_pdf_report(request: object) -> ExportArtifact:
     output_path = ensure_output_path(request.output_path)
     temp_dir = Path(request.temp_dir)
     temp_dir.mkdir(parents=True, exist_ok=True)
-    gantt_path: Path | None = temp_dir / f"gantt_{request.project_id}.png"
+    gantt_target = temp_dir / f"gantt_{request.project_id}.png"
+    gantt_path: Path | None = gantt_target
     try:
         try:
-            generate_gantt_png(request.reporting_service, request.project_id, gantt_path)
+            generate_gantt_png(request.sources.kpi, request.project_id, gantt_target)
         except ValueError:
             gantt_path = None
         ctx = _build_pdf_context(request, gantt_path)
@@ -328,16 +350,16 @@ def _get_report_runtime() -> ReportRuntime:
 
 
 def generate_gantt_png(
-    reporting_service: ReportingService,
+    kpi_report: ProjectKpiReportBuilder,
     project_id: str,
     output_path: str | Path,
     *,
     bars: list[GanttTaskBar] | None = None,
-    user_session: object | None = None,
-    module_catalog_service: object | None = None,
+    user_session: UserSessionContext | None = None,
+    module_catalog_service: SupportsModuleEntitlements | None = None,
 ) -> Path:
     resolved_user_session, resolved_module_catalog_service = _resolve_runtime_access_context(
-        reporting_service,
+        kpi_report,
         user_session=user_session,
         module_catalog_service=module_catalog_service,
     )
@@ -345,7 +367,7 @@ def generate_gantt_png(
         _get_report_runtime().render(
             "gantt_png",
             GanttPngRequest(
-                reporting_service=reporting_service,
+                kpi_report=kpi_report,
                 project_id=project_id,
                 output_path=output_path,
                 bars=bars,
@@ -357,17 +379,17 @@ def generate_gantt_png(
 
 
 def generate_evm_png(
-    reporting_service: ReportingService,
+    earned_value_report: EarnedValueReportBuilder,
     project_id: str,
     output_path: str | Path,
     baseline_id: str | None = None,
     as_of: date | None = None,
     *,
-    user_session: object | None = None,
-    module_catalog_service: object | None = None,
+    user_session: UserSessionContext | None = None,
+    module_catalog_service: SupportsModuleEntitlements | None = None,
 ) -> Path:
     resolved_user_session, resolved_module_catalog_service = _resolve_runtime_access_context(
-        reporting_service,
+        earned_value_report,
         user_session=user_session,
         module_catalog_service=module_catalog_service,
     )
@@ -375,7 +397,7 @@ def generate_evm_png(
         _get_report_runtime().render(
             "evm_png",
             EvmPngRequest(
-                reporting_service=reporting_service,
+                earned_value_report=earned_value_report,
                 project_id=project_id,
                 output_path=output_path,
                 baseline_id=baseline_id,
@@ -388,7 +410,7 @@ def generate_evm_png(
 
 
 def generate_excel_report(
-    reporting_service: ReportingService,
+    sources: ProjectReportSources,
     project_id: str,
     output_path: str | Path,
     finance_service: FinanceService | None = None,
@@ -398,11 +420,11 @@ def generate_excel_report(
     project_finance_ledger_offset: int = 0,
     project_finance_ledger_limit: int = 500,
     *,
-    user_session: object | None = None,
-    module_catalog_service: object | None = None,
+    user_session: UserSessionContext | None = None,
+    module_catalog_service: SupportsModuleEntitlements | None = None,
 ) -> Path:
     resolved_user_session, resolved_module_catalog_service = _resolve_runtime_access_context(
-        reporting_service,
+        sources.kpi,
         user_session=user_session,
         module_catalog_service=module_catalog_service,
     )
@@ -410,7 +432,7 @@ def generate_excel_report(
         _get_report_runtime().render(
             "excel_report",
             ExcelReportRequest(
-                reporting_service=reporting_service,
+                sources=sources,
                 project_id=project_id,
                 output_path=output_path,
                 finance_service=finance_service,
@@ -427,7 +449,7 @@ def generate_excel_report(
 
 
 def generate_pdf_report(
-    reporting_service: ReportingService,
+    sources: ProjectReportSources,
     project_id: str,
     output_path: str | Path,
     temp_dir: str | Path = "tmp_reports",
@@ -438,11 +460,11 @@ def generate_pdf_report(
     project_finance_ledger_offset: int = 0,
     project_finance_ledger_limit: int = 500,
     *,
-    user_session: object | None = None,
-    module_catalog_service: object | None = None,
+    user_session: UserSessionContext | None = None,
+    module_catalog_service: SupportsModuleEntitlements | None = None,
 ) -> Path:
     resolved_user_session, resolved_module_catalog_service = _resolve_runtime_access_context(
-        reporting_service,
+        sources.kpi,
         user_session=user_session,
         module_catalog_service=module_catalog_service,
     )
@@ -450,7 +472,7 @@ def generate_pdf_report(
         _get_report_runtime().render(
             "pdf_report",
             PdfReportRequest(
-                reporting_service=reporting_service,
+                sources=sources,
                 project_id=project_id,
                 output_path=output_path,
                 temp_dir=temp_dir,
@@ -465,3 +487,12 @@ def generate_pdf_report(
             module_catalog_service=resolved_module_catalog_service,
         )
     )
+
+
+__all__ = [
+    "ProjectReportSources",
+    "generate_evm_png",
+    "generate_excel_report",
+    "generate_gantt_png",
+    "generate_pdf_report",
+]

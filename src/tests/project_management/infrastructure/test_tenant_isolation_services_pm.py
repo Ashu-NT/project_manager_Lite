@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
+    PortfolioPolicy,
+)
 from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.resources import ResourceService
+from src.core.modules.project_management.application.resources import (
+    ResourceQueryHandler,
+)
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.application.tenant.tenancy import TenantContextService
@@ -215,22 +219,14 @@ def test_project_service_lists_only_active_tenant_projects() -> None:
     assert service.get_project("project-b") is None
 
 
-def test_portfolio_service_requires_tenant_context_service() -> None:
-    with pytest.raises(BusinessRuleError, match="PortfolioService requires TenantContextService"):
-        PortfolioService(
-            session=object(),
-            intake_repo=object(),
-            dependency_repo=object(),
-            scoring_template_repo=object(),
-            scenario_repo=object(),
-            audit_repo=object(),
-            project_repo=object(),
-            heatmap_reader=object(),
-            scenario_reader=object(),
-            calendar=object(),
-            project_calendar_adapter=object(),
-            rate_resolver=object(),
+def test_portfolio_policy_requires_tenant_context_service() -> None:
+    with pytest.raises(BusinessRuleError, match="Portfolio handlers require TenantContextService"):
+        PortfolioPolicy(
             tenant_context_service=None,
+            project_repo=object(),
+            intake_repo=object(),
+            scoring_template_repo=object(),
+            uow_factory=object(),
         )
 
 
@@ -238,10 +234,8 @@ def test_resource_service_lists_only_active_tenant_resources() -> None:
     user_session, tenant_context = _tenant_context("org-b")
     resource_repo = _ResourceRepo()
     resource_repo._tenant_context_service = tenant_context
-    service = ResourceService(
+    service = ResourceQueryHandler(
         resource_repo=resource_repo,
-        master_command_handler=object(),
-        capability_command_handler=object(),
         user_session=user_session,
         tenant_context_service=tenant_context,
     )

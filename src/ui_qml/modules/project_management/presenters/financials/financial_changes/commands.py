@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.api.desktop import (
+from src.core.modules.project_management.contracts.use_cases.financials import (
     FinancialChangeImpactCommand,
     FinancialCreateChangeCommand,
     FinancialRemoveChangeImpactCommand,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import cast
 
 from pydantic import field_validator, model_validator
 
@@ -105,7 +106,7 @@ class PortfolioProjectDependency:
             id=generate_id(),
             predecessor_project_id=predecessor_project_id,
             successor_project_id=successor_project_id,
-            dependency_type=dependency_type,
+            dependency_type=cast(DependencyType, dependency_type),  # coerced by the field's before-validator
             summary=summary,
             created_at=now,
             updated_at=now,

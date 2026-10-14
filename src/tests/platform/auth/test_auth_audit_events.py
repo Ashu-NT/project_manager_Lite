@@ -8,10 +8,9 @@ from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry 
 
 
 def _login_admin(services):
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    admin = auth.authenticate("admin", "ChangeMe123!")
-    user_session.set_principal(auth.build_principal(admin))
+    admin = services["authentication"].authenticate("admin", "ChangeMe123!")
+    user_session.set_principal(services["principal_builder"].build(admin))
 
 
 def _get_recent_audit_operations(services, limit: int = 50) -> list[str]:
@@ -27,7 +26,7 @@ def _register_tenant_identity(services, username: str):
     tenant_id = services[
         "tenant_context_service"
     ].require_active_tenant_id(operation_label="test role audit")
-    return services["auth_service"].register_user(
+    return services["user_registration"].register_user(
         username,
         "TestPass123!",
         role_names=[],
@@ -37,9 +36,8 @@ def _register_tenant_identity(services, username: str):
 
 def test_register_user_records_high_severity_audit(services):
     _login_admin(services)
-    auth = services["auth_service"]
     eas = services["enterprise_audit_service"]
-    auth.register_user("audit_reg_user", "TestPass123!")
+    services["user_registration"].register_user("audit_reg_user", "TestPass123!")
     entries = eas.list_recent(limit=50)
     create_entries = [e for e in entries if e.operation == "create" and e.entity_type == "user"]
     assert len(create_entries) >= 1
@@ -48,28 +46,25 @@ def test_register_user_records_high_severity_audit(services):
 
 def test_assign_role_records_permission_change(services):
     _login_admin(services)
-    auth = services["auth_service"]
     user = _register_tenant_identity(services, "role_assign_user")
-    auth.assign_role(user.id, "team_member")
+    services["role_assignment_commands"].assign_role(user.id, "team_member")
     assert "permission_change" in _get_recent_audit_operations(services)
 
 
 def test_revoke_role_records_delete_operation(services):
     _login_admin(services)
-    auth = services["auth_service"]
     user = _register_tenant_identity(services, "role_revoke_user")
-    auth.assign_role(user.id, "team_member")
-    auth.revoke_role(user.id, "team_member")
+    services["role_assignment_commands"].assign_role(user.id, "team_member")
+    services["role_assignment_commands"].revoke_role(user.id, "team_member")
     operations = _get_recent_audit_operations(services)
     assert "delete" in operations
 
 
 def test_set_user_active_records_update_audit(services):
     _login_admin(services)
-    auth = services["auth_service"]
     eas = services["enterprise_audit_service"]
-    user = auth.register_user("deactivate_user", "TestPass123!")
-    auth.set_user_active(user.id, False)
+    user = services["user_registration"].register_user("deactivate_user", "TestPass123!")
+    services["user_administration_commands"].set_user_active(user.id, False)
     entries = eas.list_recent(limit=50)
     update_entries = [e for e in entries if e.operation == "update" and e.entity_type == "user"]
     assert len(update_entries) >= 1
@@ -77,10 +72,9 @@ def test_set_user_active_records_update_audit(services):
 
 def test_unlock_user_account_records_audit(services):
     _login_admin(services)
-    auth = services["auth_service"]
     eas = services["enterprise_audit_service"]
-    user = auth.register_user("lockout_user", "TestPass123!")
-    auth.unlock_user_account(user.id)
+    user = services["user_registration"].register_user("lockout_user", "TestPass123!")
+    services["user_administration_commands"].unlock_user_account(user.id)
     entries = eas.list_recent(limit=50)
     update_entries = [e for e in entries if e.operation == "update" and e.entity_type == "user"]
     assert len(update_entries) >= 1
@@ -88,10 +82,9 @@ def test_unlock_user_account_records_audit(services):
 
 def test_force_password_reset_records_high_severity(services):
     _login_admin(services)
-    auth = services["auth_service"]
     eas = services["enterprise_audit_service"]
-    user = auth.register_user("pw_reset_user", "TestPass123!")
-    auth.force_user_password_reset(user.id)
+    user = services["user_registration"].register_user("pw_reset_user", "TestPass123!")
+    services["password_commands"].force_user_password_reset(user.id)
     entries = eas.list_recent(limit=50)
     high_entries = [e for e in entries if e.severity == "high" and e.entity_type == "user"]
     assert len(high_entries) >= 1
@@ -99,9 +92,8 @@ def test_force_password_reset_records_high_severity(services):
 
 def test_audit_entries_have_entity_id_set(services):
     _login_admin(services)
-    auth = services["auth_service"]
     eas = services["enterprise_audit_service"]
-    auth.register_user("entity_id_check_user", "TestPass123!")
+    services["user_registration"].register_user("entity_id_check_user", "TestPass123!")
     entries = eas.list_recent(limit=50)
     for entry in entries:
         assert entry.entity_id is not None
@@ -110,9 +102,8 @@ def test_audit_entries_have_entity_id_set(services):
 
 def test_audit_entries_category_for_user_create(services):
     _login_admin(services)
-    auth = services["auth_service"]
     eas = services["enterprise_audit_service"]
-    auth.register_user("category_user", "TestPass123!")
+    services["user_registration"].register_user("category_user", "TestPass123!")
     entries = eas.list_recent(limit=50)
     create_user_entries = [
         e for e in entries

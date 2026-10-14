@@ -4,6 +4,16 @@ from __future__ import annotations
 
 import logging
 from datetime import date
+from decimal import Decimal
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from src.core.modules.project_management.domain.scheduling.baseline import (
+        BaselineTask,
+    )
+    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+        WorkingDaysCommand,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -50,19 +60,6 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.project
 from src.core.modules.project_management.api.desktop.scheduling.builders.resource_load_builder import (
     build_resource_load,
 )
-from src.core.modules.project_management.api.desktop.scheduling.commands.baseline_commands import (
-    SchedulingBaselineApproveCommand,
-    SchedulingBaselineCreateCommand,
-    SchedulingBaselineRejectCommand,
-    SchedulingBaselineSubmitCommand,
-)
-from src.core.modules.project_management.api.desktop.scheduling.commands.dependency_commands import (
-    SchedulingDependencyCreateCommand,
-    SchedulingDependencyUpdateCommand,
-)
-from src.core.modules.project_management.api.desktop.scheduling.commands.working_day_commands import (
-    SchedulingWorkingDayCalculationCommand,
-)
 from src.core.modules.project_management.api.desktop.scheduling.models import (
     GanttBaselineOverlayDto,
     GanttProjectionDto,
@@ -106,7 +103,8 @@ from src.core.modules.project_management.api.desktop.scheduling.services.schedul
 )
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.reporting import (
-    ReportingService,
+    BaselineCompareReportBuilder,
+    ProjectKpiReportBuilder,
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
@@ -119,15 +117,35 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.contracts.use_cases.scheduling.commands import (
+    SchedulingBaselineApproveCommand,
+    SchedulingBaselineCreateCommand,
+    SchedulingBaselineRejectCommand,
+    SchedulingBaselineSubmitCommand,
+    SchedulingDependencyCreateCommand,
+    SchedulingDependencyUpdateCommand,
+    SchedulingWorkingDayCalculationCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
 from src.core.platform.domain.finance.money import canonical_decimal_text
+
+
+class _PlatformWorkingDaysApi(Protocol):
+    def calculate_working_days(self, command: WorkingDaysCommand) -> object: ...
+
+
+def _required_decimal_text(value: Decimal | None) -> str:
+    # Mirrors ``decimal_value``'s required-value check for ``None`` inputs.
+    if value is None:
+        raise ValidationError("Decimal value is required.", code="DECIMAL_VALUE_REQUIRED")
+    return canonical_decimal_text(value)
 
 
 class ProjectManagementSchedulingDesktopApi:
@@ -137,11 +155,12 @@ class ProjectManagementSchedulingDesktopApi:
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
         scheduling_engine: SchedulingEngine | None = None,
-        platform_calendar_api: object | None = None,
+        platform_calendar_api: _PlatformWorkingDaysApi | None = None,
         work_calendar_service=None,
         work_calendar_engine: CalendarProtocol | None = None,
         baseline_service: BaselineService | None = None,
-        reporting_service: ReportingService | None = None,
+        baseline_compare_report: BaselineCompareReportBuilder | None = None,
+        project_kpi_report: ProjectKpiReportBuilder | None = None,
         change_impact_service: ScheduleChangeImpactService | None = None,
         constraint_validator: ConstraintValidator | None = None,
         tenant_context_service: TenantContextService | None = None,
@@ -153,7 +172,8 @@ class ProjectManagementSchedulingDesktopApi:
         self._work_calendar_service = work_calendar_service
         self._work_calendar_engine = work_calendar_engine
         self._baseline_service = baseline_service
-        self._reporting_service = reporting_service
+        self._baseline_compare_report = baseline_compare_report
+        self._project_kpi_report = project_kpi_report
         self._change_impact_service = change_impact_service
         self._constraint_validator = constraint_validator
         self._tenant_context_service = tenant_context_service
@@ -354,7 +374,7 @@ class ProjectManagementSchedulingDesktopApi:
 
         dependencies = self.list_project_dependencies(normalized_id)
         baseline_id = str(selected_baseline_id or "").strip()
-        baseline_tasks = ()
+        baseline_tasks: tuple[BaselineTask, ...] = ()
         if baseline_id:
             baseline_tasks = tuple(
                 self._require_baseline_service().list_baseline_tasks(
@@ -444,7 +464,7 @@ class ProjectManagementSchedulingDesktopApi:
         # this boundary resolves "as of" itself — never inside
         # BaselineService (see create_baseline's `rate_as_of` docstring).
         baseline = self._require_baseline_service().create_baseline(
-            command.project_id, command.name, rate_as_of=date.today()
+            command.project_id, command.name, rate_as_of=date.today()  # noqa: DTZ011
         )
         return SchedulingBaselineOptionDescriptor(
             value=baseline.id, label=f"{baseline.name} ({baseline.created_at.isoformat()})"
@@ -468,7 +488,7 @@ class ProjectManagementSchedulingDesktopApi:
     def compare_baselines(
         self, *, project_id: str, baseline_a_id: str, baseline_b_id: str, include_unchanged: bool = False
     ) -> tuple[SchedulingBaselineComparisonRowDto, ...]:
-        result = self._require_reporting_service().compare_baselines(
+        result = self._require_baseline_compare_report().compare_baselines(
             project_id=project_id, baseline_a_id=baseline_a_id,
             baseline_b_id=baseline_b_id, include_unchanged=include_unchanged,
         )
@@ -479,7 +499,7 @@ class ProjectManagementSchedulingDesktopApi:
                 baseline_b_start=row.baseline_b_start, baseline_b_finish=row.baseline_b_finish,
                 start_shift_days=row.start_shift_days, finish_shift_days=row.finish_shift_days,
                 duration_delta_days=row.duration_delta_days,
-                planned_cost_delta=canonical_decimal_text(row.planned_cost_delta),
+                planned_cost_delta=_required_decimal_text(row.planned_cost_delta),
             )
             for row in result.rows
         )
@@ -487,7 +507,7 @@ class ProjectManagementSchedulingDesktopApi:
     # ── Resources ─────────────────────────────────────────────────────────────
 
     def list_resource_load(self, project_id: str) -> tuple[SchedulingResourceLoadDto, ...]:
-        return build_resource_load((project_id or "").strip(), self._reporting_service)
+        return build_resource_load((project_id or "").strip(), self._project_kpi_report)
 
     # ── Resource leveling ─────────────────────────────────────────────────────
 
@@ -611,10 +631,10 @@ class ProjectManagementSchedulingDesktopApi:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
         return self._baseline_service
 
-    def _require_reporting_service(self) -> ReportingService:
-        if self._reporting_service is None:
+    def _require_baseline_compare_report(self) -> BaselineCompareReportBuilder:
+        if self._baseline_compare_report is None:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
-        return self._reporting_service
+        return self._baseline_compare_report
 
 
 def _date_range(start: date, end: date):

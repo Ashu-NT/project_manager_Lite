@@ -55,7 +55,6 @@ from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.us
 def _make_svc(services, *, role_names=None, permissions=None) -> TenantAdminService:
     """Build a TenantAdminService scoped to a new session context with the given principal."""
     session = services["session"]
-    auth = services["auth_service"]
 
     if role_names is None and permissions is None:
         # Use the bootstrapped admin session directly
@@ -64,16 +63,16 @@ def _make_svc(services, *, role_names=None, permissions=None) -> TenantAdminServ
     main_tenant_id = services["tenant_context_service"].get_active_tenant_id()
     username = f"p2b-user-{''.join(sorted(role_names or []))}"
     try:
-        user = auth.register_user(
+        user = services["user_registration"].register_user(
             username,
             "StrongPass123!",
             role_names=list(role_names or []),
             tenant_id=main_tenant_id,
         )
     except Exception:
-        user = auth.authenticate(username, "StrongPass123!")
+        user = services["authentication"].authenticate(username, "StrongPass123!")
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     ctx = UserSessionContext()
     ctx.set_principal(principal)
 
@@ -170,7 +169,7 @@ def test_create_tenant_does_not_seed_platform_operator_membership(services):
     actor_id = services["user_session"].principal.user_id
     tenant = svc.create_tenant("P2B-NO-SEED", "No Implicit Membership")
 
-    assert services["auth_service"]._user_tenant_repo.is_active_member(
+    assert services["role_assignment_commands"]._user_tenant_repo.is_active_member(
         actor_id,
         tenant.id,
     ) is False

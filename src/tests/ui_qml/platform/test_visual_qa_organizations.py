@@ -14,6 +14,18 @@ from PySide6.QtCore import qInstallMessageHandler
 from PySide6.QtQuick import QQuickItem
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
 )
@@ -59,9 +71,8 @@ def _grab(app, item, path: Path) -> bool:
 
 
 def _seed_organizations(services, *, count: int, prefix: str) -> None:
-    organization_service = services["organization_service"]
     for i in range(count):
-        organization_service.create_organization(
+        services["organization_commands"].create_organization(
             organization_code=f"{prefix}{i:03d}", display_name=f"{prefix} Org {i:03d}"
         )
 
@@ -70,12 +81,11 @@ def _seed_mixed_lifecycle_organizations(services, *, prefix: str) -> None:
     """One of each status -- for a screenshot that actually shows the
     Active/Inactive/Archived StatusChip tones side by side, and for the
     status-filtered captures below."""
-    organization_service = services["organization_service"]
-    active = organization_service.create_organization(organization_code=f"{prefix}-ACT", display_name=f"{prefix} Active Org")
-    inactive = organization_service.create_organization(organization_code=f"{prefix}-INA", display_name=f"{prefix} Inactive Org")
-    archived = organization_service.create_organization(organization_code=f"{prefix}-ARC", display_name=f"{prefix} Archived Org")
-    organization_service.deactivate_organization(inactive.id)
-    organization_service.archive_organization(archived.id)
+    active = services["organization_commands"].create_organization(organization_code=f"{prefix}-ACT", display_name=f"{prefix} Active Org")
+    inactive = services["organization_commands"].create_organization(organization_code=f"{prefix}-INA", display_name=f"{prefix} Inactive Org")
+    archived = services["organization_commands"].create_organization(organization_code=f"{prefix}-ARC", display_name=f"{prefix} Archived Org")
+    services["organization_lifecycle"].deactivate_organization(inactive.id)
+    services["organization_lifecycle"].archive_organization(archived.id)
 
 
 @pytest.mark.parametrize("theme_mode", ["light", "dark"])
@@ -185,9 +195,8 @@ def _seed_full_organization(services, *, code: str, name: str) -> str:
     """One organization with a real row in each of the four Phase K tabs,
     plus a mixed-lifecycle status so the redesigned grouped Inspector shows
     real Key Statistics counts, not just "0" for everything."""
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code=code,
         display_name=name,
         timezone_name="UTC",
@@ -198,16 +207,10 @@ def _seed_full_organization(services, *, code: str, name: str) -> str:
         country_code="NG",
     )
     tenant_context_service.set_active_organization(org.id)
-    services["site_service"].create_site(site_code="VQA-SITE-1", name="VQA Site One", city="Lagos", country="Nigeria")
-    department = services["department_service"].create_department(
-        department_code="VQA-DEPT-1", name="VQA Department One"
-    )
-    services["employee_service"].create_employee(
-        employee_code="VQA-EMP-1", full_name="VQA Employee One", department_id=department.id
-    )
-    services["document_service"].create_document(
-        document_code="VQA-DOC-1", title="VQA Document One", storage_uri="C:/docs/vqa.pdf"
-    )
+    services["site_commands"].create_site(SiteCreateCommand(site_code="VQA-SITE-1", name="VQA Site One", city="Lagos", country="Nigeria"))
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="VQA-DEPT-1", name="VQA Department One"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="VQA-EMP-1", full_name="VQA Employee One", department_id=department.id))
+    services["document_commands"].create_document(DocumentCreateCommand(document_code="VQA-DOC-1", title="VQA Document One", storage_uri="C:/docs/vqa.pdf"))
     return org.id
 
 

@@ -141,7 +141,7 @@ class BaselineComparisonService:
             baseline_id=baseline.id,
             baseline_name=baseline.name,
             project_id=project_id,
-            compared_at=date.today(),
+            compared_at=date.today(),  # noqa: DTZ011
             task_variances=variances,
             total_schedule_slippage_days=max(0, max_slip),
             tasks_delayed=sum(1 for v in variances if v.is_delayed),

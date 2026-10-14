@@ -1,14 +1,28 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Any
 
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
+    PortfolioPolicy,
+)
 from src.core.modules.project_management.application.resources.capacity.resource_load_engine import (
     ResourceLoadEngine,
 )
 from src.core.modules.project_management.contracts.reads.portfolio.models.scenario_facts import (
     PortfolioScenarioFact,
     PortfolioScenarioFacts,
+)
+from src.core.modules.project_management.contracts.reads.portfolio.scenario_reader import (
+    PortfolioScenarioReader,
+)
+from src.core.modules.project_management.contracts.repositories.portfolio.portfolio import (
+    PortfolioScenarioRepository,
 )
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioScenario,
@@ -18,13 +32,107 @@ from src.core.modules.project_management.domain.portfolio import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 
 
-class PortfolioScenarioQueryMixin:
+def _scenario_selection(
+    scenario,
+    *,
+    accessible_projects: Mapping[str, Any],
+    intake_by_id: Mapping[str, Any],
+) -> tuple[list[Any], list[Any]]:
+    selected_projects = [
+        accessible_projects[project_id]
+        for project_id in scenario.project_ids
+        if project_id in accessible_projects
+    ]
+    selected_intake = [
+        intake_by_id[item_id]
+        for item_id in scenario.intake_item_ids
+        if item_id in intake_by_id
+    ]
+    return selected_projects, selected_intake
+
+
+def _build_evaluation_summary(
+    *,
+    over_budget: bool,
+    over_capacity: bool,
+    total_budget: Decimal,
+    budget_limit: Decimal | None,
+    total_capacity_percent: float,
+    capacity_limit: float,
+    selected_projects: int,
+    selected_intake: int,
+) -> str:
+    budget_text = (
+        f"budget {total_budget:.2f}/{budget_limit:.2f}"
+        if budget_limit is not None
+        else f"budget {total_budget:.2f}"
+    )
+    capacity_text = f"capacity {total_capacity_percent:.1f}/{capacity_limit:.1f}%"
+    state: list[str] = []
+    if over_budget:
+        state.append("over budget")
+    if over_capacity:
+        state.append("over capacity")
+    if not state:
+        state.append("within limits")
+    return (
+        f"{selected_projects} project(s) and {selected_intake} intake item(s); "
+        f"{budget_text}; {capacity_text}; {', '.join(state)}."
+    )
+
+
+def _build_comparison_summary(comparison: PortfolioScenarioComparison) -> str:
+    parts = [
+        f"{comparison.candidate_scenario_name} vs {comparison.base_scenario_name}",
+        f"budget delta {comparison.budget_delta:+.2f}",
+        f"capacity delta {comparison.capacity_delta_percent:+.1f}%",
+        f"intake score delta {comparison.intake_score_delta:+d}",
+    ]
+    if comparison.added_project_names:
+        parts.append(f"added projects: {', '.join(comparison.added_project_names)}")
+    if comparison.removed_project_names:
+        parts.append(f"removed projects: {', '.join(comparison.removed_project_names)}")
+    if comparison.added_intake_titles:
+        parts.append(f"added intake: {', '.join(comparison.added_intake_titles)}")
+    if comparison.removed_intake_titles:
+        parts.append(f"removed intake: {', '.join(comparison.removed_intake_titles)}")
+    return "; ".join(parts) + "."
+
+
+class PortfolioScenarioQueryHandler(ProjectManagementModuleGuardMixin):
+    """Bounded scenario reads: list, evaluate and compare (Decimal budgets)."""
+
+    def __init__(
+        self,
+        *,
+        scenario_repo: PortfolioScenarioRepository,
+        scenario_reader: PortfolioScenarioReader,
+        calendar: CalendarProtocol,
+        policy: PortfolioPolicy,
+        tenant_context_service: TenantContextService,
+        user_session=None,
+        module_catalog_service=None,
+    ) -> None:
+        self._scenario_repo = scenario_repo
+        self._scenario_reader = scenario_reader
+        self._calendar = calendar
+        self._policy = policy
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
+
     def list_scenarios(self) -> list[PortfolioScenario]:
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio scenarios")
-        self._active_portfolio_organization_id(operation_label="view portfolio scenarios")
+        self._policy.organization_id(operation_label="view portfolio scenarios")
         return self._scenario_repo.list()
 
     def evaluate_scenario(self, scenario_id: str) -> PortfolioScenarioEvaluation:
@@ -81,12 +189,12 @@ class PortfolioScenarioQueryMixin:
 
         accessible_projects = {project.id: project for project in facts.projects}
         intake_by_id = {item.id: item for item in facts.intake_items}
-        base_projects, base_intake = self._scenario_selection(
+        base_projects, base_intake = _scenario_selection(
             base_scenario,
             accessible_projects=accessible_projects,
             intake_by_id=intake_by_id,
         )
-        candidate_projects, candidate_intake = self._scenario_selection(
+        candidate_projects, candidate_intake = _scenario_selection(
             candidate_scenario,
             accessible_projects=accessible_projects,
             intake_by_id=intake_by_id,
@@ -117,14 +225,14 @@ class PortfolioScenarioQueryMixin:
             added_intake_titles=sorted(candidate_intake_titles - base_intake_titles),
             removed_intake_titles=sorted(base_intake_titles - candidate_intake_titles),
         )
-        comparison.summary = self._build_comparison_summary(comparison)
+        comparison.summary = _build_comparison_summary(comparison)
         return comparison
 
     def _read_scenario_facts(self, scenario_ids: tuple[str, ...]) -> PortfolioScenarioFacts:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="evaluate portfolio scenarios"
         )
-        accessible_project_ids = tuple(project.id for project in self._accessible_projects())
+        accessible_project_ids = tuple(project.id for project in self._policy.accessible_projects())
         return self._scenario_reader.read_facts(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
@@ -185,7 +293,7 @@ class PortfolioScenarioQueryMixin:
         capacity_by_project: dict[str, float],
         available_capacity_percent: float,
     ) -> PortfolioScenarioEvaluation:
-        selected_projects, selected_intake = self._scenario_selection(
+        selected_projects, selected_intake = _scenario_selection(
             scenario,
             accessible_projects={project.id: project for project in facts.projects},
             intake_by_id={item.id: item for item in facts.intake_items},
@@ -212,7 +320,7 @@ class PortfolioScenarioQueryMixin:
         over_budget = scenario.budget_limit is not None and total_budget > scenario.budget_limit
         over_capacity = total_capacity_percent > float(capacity_limit or 0.0)
         intake_score = sum(item.composite_score for item in selected_intake)
-        summary = self._build_evaluation_summary(
+        summary = _build_evaluation_summary(
             over_budget=over_budget,
             over_capacity=over_capacity,
             total_budget=total_budget,
@@ -243,4 +351,4 @@ class PortfolioScenarioQueryMixin:
         return sum(resource.capacity_percent for resource in facts.resources if resource.is_active)
 
 
-__all__ = ["PortfolioScenarioQueryMixin"]
+__all__ = ["PortfolioScenarioQueryHandler"]

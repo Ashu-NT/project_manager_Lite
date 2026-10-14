@@ -8,7 +8,7 @@ from __future__ import annotations
 import dataclasses
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.api.desktop.master_data.org.models.organization import (
+from src.core.platform.contract.use_cases.master_data.org.commands import (
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
 )
@@ -16,8 +16,7 @@ from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 
 def _create_org(services, code: str, name: str) -> str:
-    org_service = services["organization_service"]
-    organization = org_service.create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=code,
         display_name=name,
         timezone_name="UTC",
@@ -44,10 +43,9 @@ def _row_by_id(admin, organization_id: str) -> dict:
 
 def test_status_filter_is_applied_server_side(services, qapp) -> None:
     _catalog, admin = _build_admin_workspace(services)
-    org_service = services["organization_service"]
     active_id = _create_org(services, "SF-ACTIVE", "Stays Active")
     inactive_id = _create_org(services, "SF-INACTIVE", "Goes Inactive")
-    org_service.deactivate_organization(inactive_id)
+    services["organization_lifecycle"].deactivate_organization(inactive_id)
 
     admin.setOrganizationStatusFilter("active")
     admin.refresh()
@@ -72,12 +70,11 @@ def test_status_filter_is_applied_server_side(services, qapp) -> None:
 
 def test_status_label_carries_explicit_presenter_owned_tone(services, qapp) -> None:
     _catalog, admin = _build_admin_workspace(services)
-    org_service = services["organization_service"]
     active_id = _create_org(services, "TONE-ACT", "Tone Active")
     inactive_id = _create_org(services, "TONE-INACT", "Tone Inactive")
     archived_id = _create_org(services, "TONE-ARCH", "Tone Archived")
-    org_service.deactivate_organization(inactive_id)
-    org_service.archive_organization(archived_id)
+    services["organization_lifecycle"].deactivate_organization(inactive_id)
+    services["organization_lifecycle"].archive_organization(archived_id)
 
     admin.setOrganizationStatusFilter("")
     admin.refresh()
@@ -107,18 +104,17 @@ def test_bulk_archive_routes_through_the_canonical_bulk_service_method(services,
     assert result["ok"] is True, result
     assert admin.selectedOrganizationIds == []
 
-    org_service = services["organization_service"]
-    all_orgs = {o.id: o for o in org_service.list_organizations(status=None)}
+    all_orgs = {o.id: o for o in services["organization_query"].list_organizations(status=None)}
     assert all_orgs[org_a].status == "archived"
     assert all_orgs[org_b].status == "archived"
 
     # Archived is terminal -- a second archive attempt on the same
     # selection must fail clearly rather than silently no-op or partially
-    # apply (see OrganizationService._require_valid_organization_transition).
+    # apply (see the Organization handlers._require_valid_organization_transition).
     admin.setOrganizationBulkSelection(org_a, True)
     result = admin.bulkArchiveOrganizations()
     assert result["ok"] is False
-    all_orgs = {o.id: o for o in org_service.list_organizations(status=None)}
+    all_orgs = {o.id: o for o in services["organization_query"].list_organizations(status=None)}
     assert all_orgs[org_a].status == "archived"
 
 

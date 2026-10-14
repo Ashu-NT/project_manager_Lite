@@ -34,15 +34,13 @@ from src.core.platform.domain.finance.money.money import Money
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
-    user = auth.authenticate(username, password)
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def _become_independent_decider(services, *, role="finance_controller") -> None:
-    auth = services["auth_service"]
-    user = auth.register_user("independent-cost-decider", "StrongPass123", role_names=[role])
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["user_registration"].register_user("independent-cost-decider", "StrongPass123", role_names=[role])
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def _source(*, command_id: str = "command-1", content_hash: str = "a" * 64):
@@ -379,7 +377,7 @@ def test_governed_cost_approval_applies_as_deciding_principal(
     _organization, project, _cost_code, _period, draft = _create_draft(services)
     service = services["cost_entry_service"]
     submitted = service.submit(draft.id, expected_version=draft.row_version)
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "cost-requester",
         "StrongPass123",
         role_names=["planner"],
@@ -402,9 +400,8 @@ def test_governed_cost_approval_applies_as_deciding_principal(
 
 def test_cost_entry_repository_isolates_active_organization(services) -> None:
     _organization, _project, _cost_code, _period, draft = _create_draft(services)
-    organization_service = services["organization_service"]
     original = services["tenant_context_service"].get_active_organization()
-    other = organization_service.create_organization(
+    other = services["organization_commands"].create_organization(
         organization_code="COST2",
         display_name="Second cost organization",
         timezone_name="UTC",

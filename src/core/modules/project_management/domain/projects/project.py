@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from typing import Any, cast
 
 from pydantic import field_validator, model_validator
 
@@ -171,7 +172,7 @@ class ProjectResource:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -193,8 +194,8 @@ class ProjectResource:
             id=generate_id(),
             project_id=project_id,
             resource_id=resource_id,
-            hourly_rate=hourly_rate,
+            hourly_rate=cast(Decimal | None, hourly_rate),  # coerced by the field's before-validator
             currency_code=currency_code,
-            planned_hours=planned_hours,
+            planned_hours=cast(Decimal, planned_hours),  # coerced by the field's before-validator
             is_active=is_active,
         )

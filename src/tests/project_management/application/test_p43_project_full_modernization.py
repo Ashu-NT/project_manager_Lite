@@ -222,7 +222,7 @@ def test_delete_produces_hints_and_atomic_audit(services):
 
 def test_project_resource_add_produces_detail_hint_only(services):
     project = services["project_service"].create_project("P43 pr project", "")
-    resource = services["resource_service"].create_resource("P43 PR Resource", "Developer")
+    resource = services["resource_master_commands"].create_resource("P43 PR Resource", "Developer")
     hints = _spy_hints(services)
 
     services["project_resource_service"].add_to_project(project.id, resource.id)

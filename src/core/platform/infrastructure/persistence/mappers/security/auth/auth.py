@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
+from typing import cast
+
 from src.core.platform.domain.security.auth import (
     AuthSession,
     Permission,
@@ -21,6 +24,11 @@ from src.core.platform.infrastructure.persistence.orm.security.auth.auth import 
     RolePermissionORM,
     UserORM,
 )
+
+
+def _required_utc_datetime(value: datetime) -> datetime:
+    # ensure_utc_datetime only returns None for a None input.
+    return cast(datetime, ensure_utc_datetime(value))
 
 
 def user_to_orm(user: UserAccount) -> UserORM:
@@ -178,7 +186,7 @@ def role_binding_from_orm(obj: RoleBindingORM) -> RoleBinding:
         actual_scope_type=obj.actual_scope_type,
         actual_scope_id=obj.actual_scope_id,
         assigned_by=obj.assigned_by,
-        assigned_at=ensure_utc_datetime(obj.assigned_at),
+        assigned_at=_required_utc_datetime(obj.assigned_at),
         expires_at=ensure_utc_datetime(obj.expires_at),
         revoked_at=ensure_utc_datetime(obj.revoked_at),
         version=obj.version,
@@ -214,7 +222,7 @@ def role_delegation_policy_from_orm(
         assignable_role_policy_version=obj.assignable_role_policy_version,
         assignable_permission_set_hash=obj.assignable_permission_set_hash,
         created_by=obj.created_by,
-        created_at=ensure_utc_datetime(obj.created_at),
+        created_at=_required_utc_datetime(obj.created_at),
         revoked_at=ensure_utc_datetime(obj.revoked_at),
     )
 

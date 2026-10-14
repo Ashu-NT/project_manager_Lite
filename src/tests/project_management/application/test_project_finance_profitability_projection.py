@@ -111,10 +111,9 @@ def _approve_forecast_with_etc(services, project_id: str, cost_code, *, etc_amou
 
 
 def _register_and_login(services, username: str, *, role_names: list[str]) -> None:
-    auth = services["auth_service"]
-    auth.register_user(username, "StrongPass123", role_names=role_names)
-    user = auth.authenticate(username, "StrongPass123")
-    services["user_session"].set_principal(auth.build_principal(user))
+    services["user_registration"].register_user(username, "StrongPass123", role_names=role_names)
+    user = services["authentication"].authenticate(username, "StrongPass123")
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def test_fixed_price_projected_margin_and_percent(services) -> None:
@@ -124,8 +123,7 @@ def test_fixed_price_projected_margin_and_percent(services) -> None:
     _create_billing_profile(services, project.id, contract_value=Decimal(1000000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="720000")
 
-    reporting = services["reporting_service"]
-    projection = reporting.get_project_commercial_projection(project.id)
+    projection = services["profitability_report"].get_project_commercial_projection(project.id)
 
     assert projection.profitability_detail_included is True
     assert projection.revenue_basis == "contract_value"
@@ -141,7 +139,7 @@ def test_desktop_api_get_commercial_projection_serializes_service_result(service
     _create_billing_profile(services, project.id, contract_value=Decimal(1000000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="720000")
 
-    api = ProjectManagementFinancialsDesktopApi(reporting_service=services["reporting_service"])
+    api = ProjectManagementFinancialsDesktopApi(profitability_report=services["profitability_report"])
     dto = api.get_commercial_projection(project.id)
 
     assert dto.project_id == project.id
@@ -170,8 +168,7 @@ def test_fixed_price_negative_margin_on_cost_overrun(services) -> None:
     _create_billing_profile(services, project.id, contract_value=Decimal(100000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="150000")
 
-    reporting = services["reporting_service"]
-    projection = reporting.get_project_commercial_projection(project.id)
+    projection = services["profitability_report"].get_project_commercial_projection(project.id)
 
     assert projection.projected_margin_amount == Decimal(-50000)
     assert projection.projected_margin_percent == pytest.approx(Decimal(-50))
@@ -181,7 +178,7 @@ def test_commercial_as_of_and_zero_margin_are_explicit(services) -> None:
     _organization, project, cost_code = _setup_billable_project(services)
     _create_billing_profile(services, project.id, contract_value=Decimal(100))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="100")
-    api = ProjectManagementFinancialsDesktopApi(reporting_service=services["reporting_service"])
+    api = ProjectManagementFinancialsDesktopApi(profitability_report=services["profitability_report"])
 
     before = api.get_commercial_projection(project.id, as_of_date=date(2026, 8, 10))
     after = api.get_commercial_projection(project.id, as_of_date=date(2026, 8, 31))
@@ -204,8 +201,7 @@ def test_zero_contract_value_gives_none_percent_not_divide_by_zero(services) -> 
     )
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="10000")
 
-    reporting = services["reporting_service"]
-    projection = reporting.get_project_commercial_projection(project.id)
+    projection = services["profitability_report"].get_project_commercial_projection(project.id)
 
     assert projection.forecast_revenue_at_completion == Decimal(0)
     assert projection.projected_margin_amount == Decimal(-10000)
@@ -219,8 +215,7 @@ def test_time_and_materials_profitability_explicitly_unavailable(services) -> No
     _create_billing_profile(services, project.id, contract_value=Decimal(500000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="300000")
 
-    reporting = services["reporting_service"]
-    projection = reporting.get_project_commercial_projection(project.id)
+    projection = services["profitability_report"].get_project_commercial_projection(project.id)
 
     assert projection.profitability_detail_included is True
     assert projection.revenue_reason.value == "t_and_m_forecast_authority_missing"
@@ -239,8 +234,7 @@ def test_cost_plus_profitability_explicitly_unavailable(services) -> None:
     _create_billing_profile(services, project.id, contract_value=Decimal(500000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="300000")
 
-    reporting = services["reporting_service"]
-    projection = reporting.get_project_commercial_projection(project.id)
+    projection = services["profitability_report"].get_project_commercial_projection(project.id)
 
     assert projection.revenue_reason.value == "recoverable_cost_authority_missing"
     assert projection.revenue_availability.value == "unsupported"
@@ -259,8 +253,7 @@ def test_profitability_redacted_without_finance_read_profitability_permission(
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="720000")
 
     _register_and_login(services, "profit-reader-nonsensitive", role_names=["project_manager"])
-    reporting = services["reporting_service"]
-    projection = reporting.get_project_commercial_projection(project.id)
+    projection = services["profitability_report"].get_project_commercial_projection(project.id)
 
     assert projection.profitability_detail_included is False
     assert projection.forecast_revenue_at_completion is None
@@ -279,8 +272,7 @@ def test_finance_read_profitability_allows_margin_detail(services) -> None:
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="720000")
 
     _register_and_login(services, "profit-reader-sensitive", role_names=["finance_controller"])
-    reporting = services["reporting_service"]
-    projection = reporting.get_project_commercial_projection(project.id)
+    projection = services["profitability_report"].get_project_commercial_projection(project.id)
 
     assert projection.profitability_detail_included is True
     assert projection.projected_margin_amount == Decimal(280000)
@@ -292,8 +284,7 @@ def test_no_billing_profile_returns_empty_projection_without_error(services) -> 
         "No Billing Profile", financial_currency_code=organization.base_currency
     )
 
-    reporting = services["reporting_service"]
-    projection = reporting.get_project_commercial_projection(project.id)
+    projection = services["profitability_report"].get_project_commercial_projection(project.id)
 
     assert projection.contract_value is None
     assert projection.approved_preparation_amount == Decimal(0)
@@ -307,17 +298,16 @@ def test_project_scope_is_enforced(services) -> None:
     _organization2, project_b, _cost_code_b = _setup_billable_project(
         services, name="Profitability Scope B", create_period=False
     )
-    reporting = services["reporting_service"]
 
     tenant_id = services["user_session"].stored_active_tenant_id()
     organization_id = services["user_session"].stored_active_organization_id()
     from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "profit-scoped-to-a", "StrongPass123", role_names=["viewer"]
     )
-    user = services["auth_service"].authenticate("profit-scoped-to-a", "StrongPass123")
-    principal = services["auth_service"].build_principal(user)
+    user = services["authentication"].authenticate("profit-scoped-to-a", "StrongPass123")
+    principal = services["principal_builder"].build(user)
     services["user_session"].set_principal(
         UserSessionPrincipal(
             user_id=principal.user_id,
@@ -331,9 +321,9 @@ def test_project_scope_is_enforced(services) -> None:
         )
     )
 
-    assert reporting.get_project_commercial_projection(project_a.id) is not None
+    assert services["profitability_report"].get_project_commercial_projection(project_a.id) is not None
     with pytest.raises(BusinessRuleError, match="finance.read"):
-        reporting.get_project_commercial_projection(project_b.id)
+        services["profitability_report"].get_project_commercial_projection(project_b.id)
 
 
 def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accounting_services, accounting_outcome) -> None:
@@ -351,7 +341,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     )
 
     preparation_service = services["billing_preparation_service"]
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "profit-billing-reviewer", "StrongPass123", role_names=["approver"]
     )
     _register_and_login(services, "profit-billing-requester", role_names=["finance_controller"])
@@ -371,22 +361,20 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     preparation_service.submit_preparation(
         preparation.id, expected_row_version=preparation.row_version
     )
-    auth = services["auth_service"]
-    reviewer = auth.authenticate("profit-billing-reviewer", "StrongPass123")
-    services["user_session"].set_principal(auth.build_principal(reviewer))
+    reviewer = services["authentication"].authenticate("profit-billing-reviewer", "StrongPass123")
+    services["user_session"].set_principal(services["principal_builder"].build(reviewer))
     request = services["approval_service"].list_pending(project_id=project.id)[0]
     services["approval_service"].approve_and_apply(request.id, note="Approved for delivery")
 
     approved = preparation_service.get_preparation(preparation.id)
-    admin = auth.authenticate("admin", "ChangeMe123!")
-    services["user_session"].set_principal(auth.build_principal(admin))
+    admin = services["authentication"].authenticate("admin", "ChangeMe123!")
+    services["user_session"].set_principal(services["principal_builder"].build(admin))
     preparation_service.request_delivery(
         approved.id, expected_row_version=approved.row_version
     )
     delivery_pending = preparation_service.get_preparation(approved.id)
 
-    reporting = services["reporting_service"]
-    before_events = reporting.get_project_commercial_projection(project.id)
+    before_events = services["profitability_report"].get_project_commercial_projection(project.id)
     assert before_events.approved_preparation_amount == Decimal(24000)
     assert not hasattr(before_events, "externally_invoiced_amount")
     assert not hasattr(before_events, "externally_paid_amount")
@@ -400,7 +388,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     )
     acknowledged = preparation_service.get_preparation(delivery_pending.id)
 
-    after_invoice = reporting.get_project_commercial_projection(project.id)
+    after_invoice = services["profitability_report"].get_project_commercial_projection(project.id)
     assert after_invoice.approved_preparation_amount == Decimal(24000)
     assert not hasattr(after_invoice, "externally_invoiced_amount")
 
@@ -412,7 +400,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
         reconciliation_reference="RECON-0001",
     )
 
-    after_reconciliation = reporting.get_project_commercial_projection(project.id)
+    after_reconciliation = services["profitability_report"].get_project_commercial_projection(project.id)
     assert after_reconciliation.approved_preparation_amount == Decimal(24000)
     assert not hasattr(after_reconciliation, "externally_paid_amount")
 
@@ -437,18 +425,17 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
     )
 
     preparation_service = services["billing_preparation_service"]
-    auth = services["auth_service"]
-    auth.register_user(
+    services["user_registration"].register_user(
         "profit-multi-reviewer", "StrongPass123", role_names=["approver"]
     )
-    auth.register_user(
+    services["user_registration"].register_user(
         "profit-multi-requester", "StrongPass123", role_names=["finance_controller"]
     )
 
     def _govern(preparation_number, line, idempotency_key):
         # Create/add-source/submit as a requester, then use a distinct reviewer.
-        requester = auth.authenticate("profit-multi-requester", "StrongPass123")
-        services["user_session"].set_principal(auth.build_principal(requester))
+        requester = services["authentication"].authenticate("profit-multi-requester", "StrongPass123")
+        services["user_session"].set_principal(services["principal_builder"].build(requester))
         preparation = preparation_service.create_preparation(
             project.id,
             preparation_number=preparation_number,
@@ -463,8 +450,8 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
         preparation_service.submit_preparation(
             preparation.id, expected_row_version=preparation.row_version
         )
-        reviewer = auth.authenticate("profit-multi-reviewer", "StrongPass123")
-        services["user_session"].set_principal(auth.build_principal(reviewer))
+        reviewer = services["authentication"].authenticate("profit-multi-reviewer", "StrongPass123")
+        services["user_session"].set_principal(services["principal_builder"].build(reviewer))
         request = services["approval_service"].list_pending(project_id=project.id)[-1]
         services["approval_service"].approve_and_apply(request.id, note="Approved")
         return preparation_service.get_preparation(preparation.id)
@@ -472,8 +459,7 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
     _govern("BP-PROFIT-A", line_a, "billing-run-a")
     _govern("BP-PROFIT-B", line_b, "billing-run-b")
 
-    reporting = services["reporting_service"]
-    projection = reporting.get_project_commercial_projection(project.id)
+    projection = services["profitability_report"].get_project_commercial_projection(project.id)
     assert projection.approved_preparation_amount == Decimal(48000)
 
 
@@ -515,7 +501,6 @@ def test_commercial_aggregate_is_bounded_and_nets_correction_history(services) -
     add_row(2, status="rejected", amount="50")
     add_row(3, status="cancelled", amount="50")
     session.commit()
-    reporting = services["reporting_service"]
 
     def measured_projection():
         statements = []
@@ -525,7 +510,7 @@ def test_commercial_aggregate_is_bounded_and_nets_correction_history(services) -
 
         event.listen(session.bind, "before_cursor_execute", count)
         try:
-            result = reporting.get_project_commercial_projection(
+            result = services["profitability_report"].get_project_commercial_projection(
                 project.id, as_of_date=date(2026, 8, 31)
             )
         finally:
@@ -566,10 +551,9 @@ def test_billing_line_rate_evidence_is_redacted_without_sensitive_read(services)
     visible = query.get_billing_read_workspace(project.id, selected_preparation_id=preparation.id)
     assert visible.lines.items[0].unit_rate == Decimal(100)
 
-    auth = services["auth_service"]
-    auth.register_user("commercial-reader", "StrongPass123", role_names=["viewer"])
-    user = auth.authenticate("commercial-reader", "StrongPass123")
-    principal = auth.build_principal(user)
+    services["user_registration"].register_user("commercial-reader", "StrongPass123", role_names=["viewer"])
+    user = services["authentication"].authenticate("commercial-reader", "StrongPass123")
+    principal = services["principal_builder"].build(user)
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="billing redaction test"
     )
@@ -602,10 +586,10 @@ def test_commercial_report_desktop_and_presenter_consume_identical_facts(service
     _, project, code = _setup_billable_project(services)
     _create_billing_profile(services, project.id, contract_value=Decimal(1000000))
     _approve_forecast_with_etc(services, project.id, code, etc_amount="750000")
-    reporting = services["reporting_service"]
+    reporting = services["profitability_report"]
     cutoff = date(2026, 8, 31)
-    fact = reporting.get_project_commercial_projection(project.id, as_of_date=cutoff)
-    api = ProjectManagementFinancialsDesktopApi(reporting_service=reporting)
+    fact = services["profitability_report"].get_project_commercial_projection(project.id, as_of_date=cutoff)
+    api = ProjectManagementFinancialsDesktopApi(profitability_report=reporting)
     assert api.get_commercial_projection(project.id, as_of_date=cutoff) == serialize_commercial_projection(fact)
     model = build_destination_state(api, destination="commercial", subsection="profitability",
                                     selected_project_id=project.id, performance_as_of_date=cutoff)
@@ -634,7 +618,6 @@ def test_commercial_statement_shape_ignores_growing_cost_schedule_and_time_colle
         amount=Decimal(1), currency_code=organization.base_currency,
         transaction_date=date(2026, 8, 1), cost_code_id=code.id)
     session = services["session"]
-    reporting = services["reporting_service"]
 
     def measured():
         statements = []
@@ -642,7 +625,7 @@ def test_commercial_statement_shape_ignores_growing_cost_schedule_and_time_colle
             statements.append(sql)
         event.listen(session.bind, "before_cursor_execute", count)
         try:
-            result = reporting.get_project_commercial_projection(project.id, as_of_date=date(2026, 8, 31))
+            result = services["profitability_report"].get_project_commercial_projection(project.id, as_of_date=date(2026, 8, 31))
         finally:
             event.remove(session.bind, "before_cursor_execute", count)
         return result, statements

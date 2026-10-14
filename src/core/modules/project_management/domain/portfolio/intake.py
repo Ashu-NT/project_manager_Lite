@@ -4,6 +4,7 @@ from dataclasses import field
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Any, cast
 
 from pydantic import field_validator, model_validator
 
@@ -229,7 +230,7 @@ class PortfolioIntakeItem:
 
     @field_validator("status", mode="before")
     @classmethod
-    def _validate_status(cls, value: object) -> PortfolioIntakeStatus:
+    def _validate_status(cls, value: Any) -> PortfolioIntakeStatus:
         return as_portfolio_intake_status(value)
 
     @field_validator("created_at", "updated_at", mode="before")
@@ -279,7 +280,7 @@ class PortfolioIntakeItem:
             title=title,
             sponsor_name=sponsor_name,
             summary=summary,
-            requested_budget=requested_budget,
+            requested_budget=cast(Decimal, requested_budget),  # coerced by the field's before-validator
             requested_capacity_percent=requested_capacity_percent,
             target_start_date=target_start_date,
             strategic_score=strategic_score,

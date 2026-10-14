@@ -7,20 +7,21 @@ from src.core.modules.project_management.api.desktop.projects.api import (
 )
 from src.core.modules.project_management.domain.enums import WorkerType
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
 
 
 def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -> None:
     project_service = services["project_service"]
     user_id = services["user_session"].principal.user_id
-    department = services["department_service"].create_department(
-        department_code="PM-MANAGER", name="Management"
-    )
-    employee = services["employee_service"].create_employee(
-        employee_code="PM-MANAGER", full_name="Manager Employee",
-        department_id=department.id,
-    )
-    services["employee_service"].link_employee_user_account(employee.id, user_id)
-    resource = services["resource_service"].create_resource(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="PM-MANAGER", name="Management"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="PM-MANAGER", full_name="Manager Employee", department_id=department.id))
+    services["employee_commands"].link_employee_user_account(employee.id, user_id)
+    resource = services["resource_master_commands"].create_resource(
         name="Manager Resource", worker_type=WorkerType.EMPLOYEE,
         employee_id=employee.id,
     )
@@ -48,7 +49,7 @@ def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -
     updated = project_service.update_project(other.id, manager_user_id=user_id)
     assert updated.manager_user_id == user_id
 
-    services["resource_service"].deactivate_resource(
+    services["resource_master_commands"].deactivate_resource(
         resource_id=resource.id, expected_version=resource.version
     )
     assert all(
@@ -61,7 +62,7 @@ def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -
 
 
 def test_project_manager_rejects_unregistered_user(services) -> None:
-    user = services["auth_service"].onboard_tenant_user(
+    user = services["user_registration"].onboard_tenant_user(
         username="pm-no-resource", raw_password="StrongPass123!"
     )
     with pytest.raises(ValidationError) as error:

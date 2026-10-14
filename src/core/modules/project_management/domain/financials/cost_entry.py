@@ -4,6 +4,7 @@ from dataclasses import field
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -180,17 +181,17 @@ class ProjectCostEntry:
 
     @field_validator("amount", mode="before")
     @classmethod
-    def _validate_amount(cls, value: object) -> Decimal:
+    def _validate_amount(cls, value: Any) -> Decimal:
         return MONEY_STORAGE.validate(value)
 
     @field_validator("base_amount", mode="before")
     @classmethod
-    def _validate_base_amount(cls, value: object) -> Decimal | None:
+    def _validate_base_amount(cls, value: Any) -> Decimal | None:
         return None if value is None else MONEY_STORAGE.validate(value)
 
     @field_validator("exchange_rate", mode="before")
     @classmethod
-    def _validate_exchange_rate(cls, value: object) -> Decimal | None:
+    def _validate_exchange_rate(cls, value: Any) -> Decimal | None:
         if value is None:
             return None
         rate = EXCHANGE_RATE_STORAGE.validate(value)
@@ -219,7 +220,7 @@ class ProjectCostEntry:
 
     @field_validator("row_version", mode="before")
     @classmethod
-    def _validate_row_version(cls, value: object) -> int:
+    def _validate_row_version(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -583,7 +584,8 @@ class ProjectCostEntry:
                     "Posted cost entries require a complete accounting snapshot.",
                     code="PROJECT_COST_ENTRY_POSTING_SNAPSHOT_INCOMPLETE",
                 )
-            if self.base_amount == 0 or self.amount * self.base_amount <= 0:
+            base_amount = self.base_amount
+            if base_amount is None or base_amount == 0 or self.amount * base_amount <= 0:
                 raise ValidationError(
                     "Transaction and base amounts must have the same non-zero sign.",
                     code="PROJECT_COST_ENTRY_BASE_AMOUNT_SIGN_INVALID",

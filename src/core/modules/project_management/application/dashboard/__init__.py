@@ -14,8 +14,11 @@ from src.core.modules.project_management.application.dashboard.models.portfolio_
     PortfolioProjectRow,
     PortfolioStatusRollupRow,
 )
-from src.core.modules.project_management.application.dashboard.services.dashboard_service import (
-    DashboardService,
+from src.core.modules.project_management.application.dashboard.reporting.portfolio import (
+    PortfolioDashboardQueryHandler,
+)
+from src.core.modules.project_management.application.dashboard.services.project_dashboard_query import (
+    ProjectDashboardQueryHandler,
 )
 
 __all__ = [
@@ -25,9 +28,10 @@ __all__ = [
     "DashboardData",
     "DashboardEVM",
     "DashboardPortfolio",
-    "DashboardService",
     "MilestoneHealthRow",
+    "PortfolioDashboardQueryHandler",
     "PortfolioProjectRow",
     "PortfolioStatusRollupRow",
+    "ProjectDashboardQueryHandler",
     "UpcomingTask",
 ]

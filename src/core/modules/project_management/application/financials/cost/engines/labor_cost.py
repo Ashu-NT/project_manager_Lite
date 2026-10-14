@@ -26,6 +26,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 if TYPE_CHECKING:
     from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
         FinanceSnapshotFacts,
+        LaborAssignmentFact,
     )
 
 
@@ -76,7 +77,7 @@ class LaborCostEngine:
 
         tasks = {row.task_id: row for row in facts.tasks}
         resources = {row.resource_id: row for row in facts.resources}
-        by_resource: dict[str, list[object]] = {}
+        by_resource: dict[str, list[LaborAssignmentFact]] = {}
         for assignment in facts.assignments:
             by_resource.setdefault(assignment.resource_id, []).append(assignment)
 

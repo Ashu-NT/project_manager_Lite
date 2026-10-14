@@ -11,12 +11,14 @@ from src.core.platform.api.desktop.history.activity.models.activity import (
 )
 from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationDto,
-    OrganizationProvisionCommand,
-    OrganizationUpdateCommand,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.platform_runtime.runtime import (
     PlatformRuntimeDesktopApi,
+)
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
+    OrganizationUpdateCommand,
 )
 from src.core.platform.domain.master_data.org import (
     ORGANIZATION_STATUS_ACTIVE,

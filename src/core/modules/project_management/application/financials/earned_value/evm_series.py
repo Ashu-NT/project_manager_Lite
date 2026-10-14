@@ -56,7 +56,7 @@ class EarnedValueSeriesCalculator:
     ) -> list[EvmSeriesPoint]:
         """Return cumulative PV/EV/AC at each month-end up to as_of."""
         if as_of is None:
-            as_of = date.today()
+            as_of = date.today()  # noqa: DTZ011
 
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="build earned value series"

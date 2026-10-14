@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import date, time, timedelta
+from functools import partial
+from typing import cast
 
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
@@ -334,7 +336,7 @@ class PlatformCalendarDesktopApi:
 
     def delete_calendar(self, calendar_id: str) -> DesktopApiResult:
         return execute_desktop_operation(
-            lambda: self._calendar_service.delete_calendar(calendar_id) or None
+            partial(self._calendar_service.delete_calendar, calendar_id)
         )
 
     # --- Working Rules ---
@@ -367,7 +369,7 @@ class PlatformCalendarDesktopApi:
 
     def delete_working_rule(self, rule_id: str) -> DesktopApiResult:
         return execute_desktop_operation(
-            lambda: self._rule_service.delete_rule(rule_id) or None
+            partial(self._rule_service.delete_rule, rule_id)
         )
 
     # --- Exceptions ---
@@ -426,7 +428,7 @@ class PlatformCalendarDesktopApi:
 
     def delete_exception(self, exception_id: str) -> DesktopApiResult:
         return execute_desktop_operation(
-            lambda: self._exception_service.delete_exception(exception_id) or None
+            partial(self._exception_service.delete_exception, exception_id)
         )
 
     # --- Recurring Events ---
@@ -451,8 +453,10 @@ class PlatformCalendarDesktopApi:
                     title=command.title,
                     event_type=command.event_type,
                     recurrence_rule=command.recurrence_rule,
-                    start_time=_parse_time(command.start_time),
-                    end_time=_parse_time(command.end_time),
+                    # Blank times pass through as None (the RecurringEvent model's
+                    # times are optional); the service signature is narrower.
+                    start_time=cast(time, _parse_time(command.start_time)),
+                    end_time=cast(time, _parse_time(command.end_time)),
                     impact_type=command.impact_type,
                     effective_from=date.fromisoformat(command.effective_from),
                     scope_type=command.scope_type or None,
@@ -488,7 +492,7 @@ class PlatformCalendarDesktopApi:
 
     def delete_recurring_event(self, event_id: str) -> DesktopApiResult:
         return execute_desktop_operation(
-            lambda: self._recurring_event_service.delete_recurring_event(event_id) or None
+            partial(self._recurring_event_service.delete_recurring_event, event_id)
         )
 
     # --- Shift Patterns ---
@@ -551,7 +555,7 @@ class PlatformCalendarDesktopApi:
 
     def delete_shift_pattern(self, pattern_id: str) -> DesktopApiResult:
         return execute_desktop_operation(
-            lambda: self._shift_pattern_service.delete_shift_pattern(pattern_id) or None
+            partial(self._shift_pattern_service.delete_shift_pattern, pattern_id)
         )
 
     def set_shift_pattern_day(self, command: ShiftPatternDaySetCommand) -> DesktopApiResult:
@@ -572,7 +576,7 @@ class PlatformCalendarDesktopApi:
 
     def delete_shift_pattern_day(self, day_id: str) -> DesktopApiResult:
         return execute_desktop_operation(
-            lambda: self._shift_pattern_service.delete_day(day_id) or None
+            partial(self._shift_pattern_service.delete_day, day_id)
         )
 
     # --- Assignments ---

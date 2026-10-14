@@ -1,6 +1,6 @@
 """Authorization and failure-propagation regressions:
 
-1. `PortfolioDependencyCommandMixin.create_project_dependency` checks project-scoped
+1. `PortfolioDependencyCommandHandler.create_project_dependency` checks project-scoped
    `portfolio.manage` on both the predecessor and successor project, not just global
    `portfolio.manage` + project-read accessibility.
 2. `TaskDependencyDiagnosticsQueryHandler.get_dependency_diagnostics` requires `task.read` on the
@@ -24,12 +24,11 @@ from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
 def test_create_project_dependency_succeeds_for_authorized_caller(services):
-    portfolio = services["portfolio_service"]
     project_service = services["project_service"]
     project_a = project_service.create_project("Dependency Auth Project A")
     project_b = project_service.create_project("Dependency Auth Project B")
 
-    dependency = portfolio.create_project_dependency(
+    dependency = services["portfolio_dependency_commands"].create_project_dependency(
         predecessor_project_id=project_a.id,
         successor_project_id=project_b.id,
     )
@@ -39,7 +38,6 @@ def test_create_project_dependency_succeeds_for_authorized_caller(services):
 
 
 def test_create_project_dependency_denies_caller_without_project_scope(services):
-    portfolio = services["portfolio_service"]
     project_service = services["project_service"]
     project_a = project_service.create_project("Dependency Scope Project A")
     project_b = project_service.create_project("Dependency Scope Project B")
@@ -63,7 +61,7 @@ def test_create_project_dependency_denies_caller_without_project_scope(services)
     )
 
     with pytest.raises(BusinessRuleError, match="Permission denied") as exc:
-        portfolio.create_project_dependency(
+        services["portfolio_dependency_commands"].create_project_dependency(
             predecessor_project_id=project_a.id,
             successor_project_id=project_b.id,
         )

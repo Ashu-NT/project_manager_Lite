@@ -6,43 +6,23 @@ from datetime import date, timedelta
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
     UpcomingTask,
 )
-from src.core.modules.project_management.application.resources import ResourceService
-from src.core.modules.project_management.application.tasks.commands.assignment import (
-    TaskAssignmentCommandHandler,
-)
-from src.core.modules.project_management.application.tasks.queries.task_lookup import (
-    TaskLookupQueryHandler,
-)
 from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 
 
-class DashboardUpcomingMixin:
-    _task_lookup: TaskLookupQueryHandler
-    _task_assignments: TaskAssignmentCommandHandler
-    _resources: ResourceService
+class DashboardUpcomingWidget:
+    """Next-14-day task list built from already-loaded tasks/assignments."""
 
-    def _build_upcoming_tasks(
+    def build(
         self,
-        project_id: str,
         *,
-        tasks: list[Task] | None = None,
-        assignments_by_task: dict[str, list[TaskAssignment]] | None = None,
-        resources_by_id: Mapping[str, Resource] | None = None,
+        tasks: list[Task],
+        assignments_by_task: Mapping[str, list[TaskAssignment]],
+        resources_by_id: Mapping[str, Resource],
     ) -> list[UpcomingTask]:
-        today = date.today()
+        today = date.today()  # noqa: DTZ011
         horizon = today + timedelta(days=14)
 
-        tasks = (
-            tasks
-            if tasks is not None
-            else select_leaf_tasks(self._task_lookup.list_tasks_for_project(project_id))
-        )
-        if resources_by_id is None:
-            resources_by_id = {
-                resource.id: resource for resource in self._resources.list_resources()
-            }
         upcoming: list[UpcomingTask] = []
 
         for task in tasks:
@@ -57,11 +37,7 @@ class DashboardUpcomingMixin:
             if str(task.status) in ("TaskStatus.BLOCKED", "BLOCKED"):
                 continue
 
-            assignments = (
-                assignments_by_task.get(task.id, [])
-                if assignments_by_task is not None
-                else self._task_assignments.list_assignments_for_task(task.id)
-            )
+            assignments = assignments_by_task.get(task.id, [])
             main_resource = None
             if assignments:
                 assignment = max(assignments, key=lambda item: item.allocation_percent or 0.0)
@@ -92,3 +68,6 @@ class DashboardUpcomingMixin:
 
         upcoming.sort(key=lambda row: (row.start_date or date.max))
         return upcoming
+
+
+__all__ = ["DashboardUpcomingWidget"]

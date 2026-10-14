@@ -76,6 +76,10 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "approval.request": "Submit governed change requests",
     "approval.decide": "Approve or reject governed change requests",
     "settings.manage": "Manage app settings",
+    "document.read": "View documents and their links",
+    "document.manage": "Create, update, link and unlink documents",
+    "document.structure.manage": "Manage the document structure catalog",
+    "document.confidential.read": "View documents classified as confidential",
     "auth.read": "View user and role directory data",
     "auth.manage": "Manage users and roles",
     "auth.role.assign": "Assign reviewed roles through explicit delegation policy",
@@ -307,6 +311,10 @@ _SUPPORT_ADMIN = {
 }
 
 _TENANT_ADMIN = {
+    "document.read",
+    "document.manage",
+    "document.structure.manage",
+    "document.confidential.read",
     "org.create",
     "org.manage",
     "organization.access",
@@ -325,6 +333,10 @@ _TENANT_ADMIN = {
 }
 
 _ORG_ADMIN = {
+    "document.read",
+    "document.manage",
+    "document.structure.manage",
+    "document.confidential.read",
     "org.manage",
     "employee.read",
     "employee.manage",

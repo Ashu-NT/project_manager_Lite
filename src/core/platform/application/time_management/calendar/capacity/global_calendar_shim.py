@@ -37,7 +37,7 @@ class GlobalCalendarShim:
         try:
             ctx = self._resolver.resolve_calendar_context(target_date=target_date)
             return ctx.available_hours > 0
-        except Exception:
+        except Exception:  # noqa: BLE001
             return target_date.weekday() < 5
 
     def next_working_day(self, target_date: date, include_today: bool = True) -> date:
@@ -100,7 +100,7 @@ class GlobalCalendarShim:
         try:
             days = self._resolver.resolve_range(start=start, end=end)
             return sum(1 for d in days if d.available_hours > 0)
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Fallback: day-by-day (safe but slower)
             count = 0
             current = start
@@ -117,7 +117,7 @@ class GlobalCalendarShim:
         try:
             days = self._resolver.resolve_range(start=start, end=end)
             return frozenset(day.date for day in days if day.available_hours > 0)
-        except Exception:
+        except Exception:  # noqa: BLE001
             working: set[date] = set()
             current = start
             while current <= end:

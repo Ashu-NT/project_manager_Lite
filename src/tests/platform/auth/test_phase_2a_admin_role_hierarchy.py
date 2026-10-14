@@ -32,10 +32,9 @@ def _active_context_ids(services) -> tuple[str, str]:
 
 
 def _bind_org_role(services, user_id: str, organization_id: str, role_name: str) -> None:
-    auth = services["auth_service"]
-    role = auth._role_repo.get_by_name(role_name)
+    role = services["auth_queries"]._role_repo.get_by_name(role_name)
     assert role is not None
-    auth._role_binding_repo.add(
+    services["role_assignment_commands"]._role_binding_repo.add(
         RoleBinding.create(
             principal_id=user_id,
             role_id=role.id,
@@ -163,44 +162,39 @@ def test_new_permissions_are_registered():
 
 def test_tenant_admin_role_is_seeded_in_db(services):
     """After bootstrap, a tenant_admin role exists in the DB."""
-    auth = services["auth_service"]
-    role = auth._role_repo.get_by_name("tenant_admin")
+    role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     assert role is not None, "tenant_admin role was not seeded"
 
 
 def test_org_admin_role_is_seeded_in_db(services):
     """After bootstrap, an org_admin role exists in the DB."""
-    auth = services["auth_service"]
-    role = auth._role_repo.get_by_name("org_admin")
+    role = services["auth_queries"]._role_repo.get_by_name("org_admin")
     assert role is not None, "org_admin role was not seeded"
 
 
 def test_org_viewer_role_is_seeded_in_db(services):
-    auth = services["auth_service"]
-    role = auth._role_repo.get_by_name("org_viewer")
+    role = services["auth_queries"]._role_repo.get_by_name("org_viewer")
     assert role is not None, "org_viewer role was not seeded"
     assert role.allowed_scope_type == "organization"
 
 
 def test_org_member_role_is_seeded_in_db(services):
-    auth = services["auth_service"]
-    role = auth._role_repo.get_by_name("org_member")
+    role = services["auth_queries"]._role_repo.get_by_name("org_member")
     assert role is not None, "org_member role was not seeded"
     assert role.allowed_scope_type == "organization"
 
 
 def test_tenant_admin_role_has_seeded_permissions(services):
     """The seeded tenant_admin role has its expected permissions wired."""
-    auth = services["auth_service"]
 
     tenant_id, _ = _active_context_ids(services)
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2a-tadmin-perms",
         "StrongPass123!",
         role_names=["tenant_admin"],
         tenant_id=tenant_id,
     )
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
 
     assert "tenant.create" not in principal.permissions
     assert "tenant.manage" not in principal.permissions
@@ -212,17 +206,16 @@ def test_tenant_admin_role_has_seeded_permissions(services):
 
 def test_org_admin_role_has_seeded_permissions(services):
     """The seeded org_admin role has its expected permissions wired."""
-    auth = services["auth_service"]
 
     tenant_id, organization_id = _active_context_ids(services)
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2a-oadmin-perms",
         "StrongPass123!",
         role_names=["viewer"],
         tenant_id=tenant_id,
     )
     _bind_org_admin(services, user.id, organization_id)
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
 
     assert "org.manage" in principal.permissions
     assert "employee.read" in principal.permissions
@@ -236,18 +229,17 @@ def test_org_admin_role_has_seeded_permissions(services):
 # ---------------------------------------------------------------------------
 
 def test_user_assigned_tenant_admin_gets_correct_permissions(services):
-    auth = services["auth_service"]
     tenant_id, _ = _active_context_ids(services)
 
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2a-assign-tadmin",
         "StrongPass123!",
         role_names=["viewer"],
         tenant_id=tenant_id,
     )
-    auth.assign_role(user.id, "tenant_admin")
+    services["role_assignment_commands"].assign_role(user.id, "tenant_admin")
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert "tenant_admin" in principal.role_names
     assert "tenant.create" not in principal.permissions
     assert "tenant.manage" not in principal.permissions
@@ -255,10 +247,9 @@ def test_user_assigned_tenant_admin_gets_correct_permissions(services):
 
 
 def test_user_assigned_org_admin_gets_correct_permissions(services):
-    auth = services["auth_service"]
     tenant_id, organization_id = _active_context_ids(services)
 
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2a-assign-oadmin",
         "StrongPass123!",
         role_names=["viewer"],
@@ -266,7 +257,7 @@ def test_user_assigned_org_admin_gets_correct_permissions(services):
     )
     _bind_org_admin(services, user.id, organization_id)
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert "org_admin" in principal.role_names
     assert "org.manage" in principal.permissions
     assert "employee.manage" in principal.permissions
@@ -275,10 +266,9 @@ def test_user_assigned_org_admin_gets_correct_permissions(services):
 
 
 def test_user_assigned_org_viewer_gets_correct_permissions(services):
-    auth = services["auth_service"]
     tenant_id, organization_id = _active_context_ids(services)
 
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2a-assign-oviewer",
         "StrongPass123!",
         role_names=["viewer"],
@@ -286,7 +276,7 @@ def test_user_assigned_org_viewer_gets_correct_permissions(services):
     )
     _bind_org_role(services, user.id, organization_id, "org_viewer")
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert "org_viewer" in principal.role_names
     assert "organization.access" in principal.permissions
     assert "project.read" in principal.permissions
@@ -295,10 +285,9 @@ def test_user_assigned_org_viewer_gets_correct_permissions(services):
 
 
 def test_user_assigned_org_member_gets_correct_permissions(services):
-    auth = services["auth_service"]
     tenant_id, organization_id = _active_context_ids(services)
 
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2a-assign-omember",
         "StrongPass123!",
         role_names=["viewer"],
@@ -306,7 +295,7 @@ def test_user_assigned_org_member_gets_correct_permissions(services):
     )
     _bind_org_role(services, user.id, organization_id, "org_member")
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert "org_member" in principal.role_names
     assert "collaboration.manage" in principal.permissions
     assert "timesheet.submit" in principal.permissions
@@ -319,7 +308,6 @@ def test_org_admin_is_effective_only_in_its_canonical_organization(services):
         SqlAlchemyOrganizationRepository,
     )
 
-    auth = services["auth_service"]
     session = services["session"]
     tenant_id, organization_id = _active_context_ids(services)
     other = Organization.create(
@@ -329,7 +317,7 @@ def test_org_admin_is_effective_only_in_its_canonical_organization(services):
     )
     SqlAlchemyOrganizationRepository(session).add(other)
     session.flush()
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2a-oadmin-context",
         "StrongPass123!",
         role_names=["viewer"],
@@ -337,12 +325,12 @@ def test_org_admin_is_effective_only_in_its_canonical_organization(services):
     )
     _bind_org_admin(services, user.id, organization_id)
 
-    active = auth.build_principal_for_context(
+    active = services["principal_builder"].build_for_context(
         user,
         tenant_id=tenant_id,
         organization_id=organization_id,
     )
-    other_context = auth.build_principal_for_context(
+    other_context = services["principal_builder"].build_for_context(
         user,
         tenant_id=tenant_id,
         organization_id=other.id,
@@ -362,11 +350,10 @@ def test_org_admin_is_effective_only_in_its_canonical_organization(services):
 
 def test_is_platform_admin_returns_true_for_admin(services):
     """The bootstrapped admin user has platform.admin and is_platform_admin() returns True."""
-    auth = services["auth_service"]
     user_session = services["user_session"]
 
-    admin = auth.authenticate("admin", "ChangeMe123!")
-    principal = auth.build_principal(admin)
+    admin = services["authentication"].authenticate("admin", "ChangeMe123!")
+    principal = services["principal_builder"].build(admin)
     assert "platform.admin" in principal.permissions
 
     user_session.set_principal(principal)
@@ -374,28 +361,26 @@ def test_is_platform_admin_returns_true_for_admin(services):
 
 
 def test_is_platform_admin_returns_false_for_tenant_admin(services):
-    auth = services["auth_service"]
     user_session = services["user_session"]
 
-    user = auth.register_user("p2a-padmin-tadmin", "StrongPass123!", role_names=["tenant_admin"])
-    principal = auth.build_principal(user)
+    user = services["user_registration"].register_user("p2a-padmin-tadmin", "StrongPass123!", role_names=["tenant_admin"])
+    principal = services["principal_builder"].build(user)
 
     user_session.set_principal(principal)
     assert user_session.is_platform_admin() is False
 
 
 def test_is_platform_admin_returns_false_for_org_admin(services):
-    auth = services["auth_service"]
     user_session = services["user_session"]
 
     _, organization_id = _active_context_ids(services)
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2a-padmin-oadmin",
         "StrongPass123!",
         role_names=["viewer"],
     )
     _bind_org_admin(services, user.id, organization_id)
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
 
     user_session.set_principal(principal)
     assert user_session.is_platform_admin() is False
@@ -418,7 +403,6 @@ def test_org_admin_binding_supports_organization_scope(services):
     )
 
     session = services["session"]
-    auth = services["auth_service"]
     tenant_context = services["tenant_context_service"]
     active_tenant_id = tenant_context.get_active_tenant_id()
 
@@ -429,8 +413,8 @@ def test_org_admin_binding_supports_organization_scope(services):
     org_repo.add(org_b)
     session.flush()
 
-    user = auth.register_user("p2a-orgscope", "StrongPass123!", role_names=["viewer"])
-    org_admin_role = auth._role_repo.get_by_name("org_admin")
+    user = services["user_registration"].register_user("p2a-orgscope", "StrongPass123!", role_names=["viewer"])
+    org_admin_role = services["auth_queries"]._role_repo.get_by_name("org_admin")
     assert org_admin_role is not None
 
     binding_org_a = RoleBinding.create(
@@ -448,9 +432,9 @@ def test_org_admin_binding_supports_organization_scope(services):
         actual_scope_id=org_b.id,
     )
 
-    auth._role_binding_repo.add(binding_org_a)
+    services["role_assignment_commands"]._role_binding_repo.add(binding_org_a)
     session.flush()
-    auth._role_binding_repo.add(binding_org_b)
+    services["role_assignment_commands"]._role_binding_repo.add(binding_org_b)
     session.flush()
 
     rows = session.execute(

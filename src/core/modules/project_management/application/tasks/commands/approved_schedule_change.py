@@ -18,7 +18,7 @@ from src.core.modules.project_management.application.tasks.task_events import (
 from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
     TaskUowScope,
 )
-from src.core.modules.project_management.contracts.ports.schedule_change import (
+from src.core.modules.project_management.contracts.ports.scheduling.schedule_change import (
     AppliedTaskScheduleChange,
     ApprovedTaskScheduleChange,
 )

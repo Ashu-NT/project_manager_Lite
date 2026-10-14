@@ -15,6 +15,9 @@ from types import SimpleNamespace
 import pytest
 
 from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.security.authorization.roles import RoleBinding
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
@@ -43,10 +46,9 @@ def _active_context_ids(services) -> tuple[str, str]:
 
 
 def _bind_storeroom_role(services, user_id: str, storeroom_id: str, role_name: str) -> None:
-    auth = services["auth_service"]
-    role = auth._role_repo.get_by_name(role_name)
+    role = services["auth_queries"]._role_repo.get_by_name(role_name)
     assert role is not None
-    auth._role_binding_repo.add(
+    services["role_assignment_commands"]._role_binding_repo.add(
         RoleBinding.create(
             principal_id=user_id,
             role_id=role.id,
@@ -63,12 +65,7 @@ def _create_storeroom(services, storeroom_code: str):
     opaque string with no FK to a real storeroom row (see role_binding.py),
     so a real storeroom entity is not required to exercise storeroom-scoped
     role binding/permission behavior."""
-    services["site_service"].create_site(
-        site_code=f"{storeroom_code}-SITE",
-        name=f"Phase 2D {storeroom_code} Site",
-        city="Berlin",
-        currency_code="EUR",
-    )
+    services["site_commands"].create_site(SiteCreateCommand(site_code=f"{storeroom_code}-SITE", name=f"Phase 2D {storeroom_code} Site", city="Berlin", currency_code="EUR"))
     return SimpleNamespace(id=generate_id())
 
 
@@ -109,9 +106,8 @@ def test_all_storeroom_scope_permissions_are_registered():
 # ---------------------------------------------------------------------------
 
 def test_storeroom_scope_roles_are_seeded_in_db(services):
-    auth = services["auth_service"]
     for role_name in ("storeroom_viewer", "storeroom_operator", "storeroom_manager"):
-        role = auth._role_repo.get_by_name(role_name)
+        role = services["auth_queries"]._role_repo.get_by_name(role_name)
         assert role is not None, f"{role_name} role was not seeded"
         assert role.allowed_scope_type == "storeroom"
 
@@ -122,11 +118,10 @@ def test_storeroom_scope_roles_are_seeded_in_db(services):
 
 @pytest.mark.skip(reason=_NO_STOREROOM_RESOLVER_REASON)
 def test_user_assigned_storeroom_manager_gets_correct_permissions(services):
-    auth = services["auth_service"]
     tenant_id, _ = _active_context_ids(services)
 
     storeroom = _create_storeroom(services, "P2D-MGR")
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2d-assign-smanager",
         "StrongPass123!",
         role_names=["viewer"],
@@ -134,7 +129,7 @@ def test_user_assigned_storeroom_manager_gets_correct_permissions(services):
     )
     _bind_storeroom_role(services, user.id, storeroom.id, "storeroom_manager")
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert "storeroom_manager" in principal.role_names
     assert "report.view" in principal.permissions
     assert storeroom.id in principal.scoped_access.get("storeroom", {})
@@ -142,11 +137,10 @@ def test_user_assigned_storeroom_manager_gets_correct_permissions(services):
 
 @pytest.mark.skip(reason=_NO_STOREROOM_RESOLVER_REASON)
 def test_user_assigned_storeroom_viewer_gets_read_only_permissions(services):
-    auth = services["auth_service"]
     tenant_id, _ = _active_context_ids(services)
 
     storeroom = _create_storeroom(services, "P2D-VWR")
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2d-assign-sviewer",
         "StrongPass123!",
         role_names=["viewer"],
@@ -154,7 +148,7 @@ def test_user_assigned_storeroom_viewer_gets_read_only_permissions(services):
     )
     _bind_storeroom_role(services, user.id, storeroom.id, "storeroom_viewer")
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert "storeroom_viewer" in principal.role_names
     assert "inventory.read" in principal.permissions
     assert "inventory.manage" not in principal.permissions
@@ -166,12 +160,11 @@ def test_user_assigned_storeroom_viewer_gets_read_only_permissions(services):
 
 @pytest.mark.skip(reason=_NO_STOREROOM_RESOLVER_REASON)
 def test_storeroom_role_binding_is_scoped_to_its_own_storeroom(services):
-    auth = services["auth_service"]
     tenant_id, organization_id = _active_context_ids(services)
 
     storeroom_a = _create_storeroom(services, "P2D-SCOPE-A")
     storeroom_b = _create_storeroom(services, "P2D-SCOPE-B")
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2d-storeroom-scope",
         "StrongPass123!",
         role_names=["viewer"],
@@ -179,7 +172,7 @@ def test_storeroom_role_binding_is_scoped_to_its_own_storeroom(services):
     )
     _bind_storeroom_role(services, user.id, storeroom_a.id, "storeroom_manager")
 
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         user,
         tenant_id=tenant_id,
         organization_id=organization_id,

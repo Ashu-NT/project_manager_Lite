@@ -10,6 +10,7 @@ import inspect
 from datetime import UTC
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.application.master_data.org import OrganizationCommandHandler
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
 )
@@ -34,10 +35,9 @@ def _pm_catalog(services) -> ProjectManagementWorkspaceCatalog:
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _strip_strings_and_comments(source: str) -> str:
@@ -77,7 +77,7 @@ def test_organization_creation_produces_exactly_the_typed_view_invalidation(serv
         lambda: typed_calls.append("typed")
     )
 
-    services["organization_service"].create_organization(
+    services["organization_commands"].create_organization(
         organization_code=_unique("P7-ORG"), display_name="P7 Organization"
     )
 
@@ -94,15 +94,15 @@ def test_tenant_membership_mutation_produces_exactly_the_typed_view_invalidation
         lambda: typed_calls.append("typed")
     )
 
-    target = services["auth_service"].register_user(
+    target = services["user_registration"].register_user(
         _unique("p7-membership-target"), "P7Membership123!", display_name="P7 Membership Target"
     )
     admin_principal = services["user_session"].principal
     issued = services["tenant_membership_service"].issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
-    target_auth = services["auth_service"].authenticate(target.username, "P7Membership123!")
-    services["user_session"].set_principal(services["auth_service"].build_principal(target_auth))
+    target_auth = services["authentication"].authenticate(target.username, "P7Membership123!")
+    services["user_session"].set_principal(services["principal_builder"].build(target_auth))
 
     services["tenant_membership_service"].accept_invitation(issued.token)
     services["user_session"].set_principal(admin_principal)
@@ -143,7 +143,7 @@ def test_password_reset_produces_exactly_the_typed_account_security_invalidation
     access = catalog.adminAccessWorkspace
     access.ensureLoaded()
 
-    target = services["auth_service"].register_user(
+    target = services["user_registration"].register_user(
         _unique("p7-password-target"), "P7PasswordOld123!", display_name="P7 Password Target"
     )
 
@@ -250,10 +250,9 @@ def test_subscribe_domain_change_has_zero_production_references():
 
 
 def test_organization_service_create_never_emits_the_legacy_signal():
-    import src.core.platform.application.master_data.org.organization_service as org_service_module
 
     source = _strip_strings_and_comments(
-        inspect.getsource(org_service_module.OrganizationService.create_organization)
+        inspect.getsource(OrganizationCommandHandler.create_organization)
     )
     assert "organizations_changed" not in source
 

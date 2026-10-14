@@ -12,7 +12,7 @@ import Platform.Components 1.0 as PlatformComponents
 // nesting a second copy of that detail UI here. That navigation still needs
 // the same gate as before, though: the shared workspaceController's
 // selectDocument(id)/inspectDocument(id) calls resolve the ACTIVE
-// organization internally (DocumentService.list_documents()/_require_
+// organization internally (DocumentQueryHandler.list_documents()/_require_
 // document_in_context() both do), so activating a row for a document that
 // belongs to a DIFFERENT (non-active) organization would resolve the wrong
 // document. Row activation therefore stays gated to only the organization

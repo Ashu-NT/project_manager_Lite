@@ -13,7 +13,7 @@ from PySide6.QtCore import QObject, Qt
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QTest
 
-from src.core.modules.project_management.api.desktop.financials.commands.rates import (
+from src.core.modules.project_management.contracts.use_cases.financials.rates import (
     FinancialAddRateLineCommand,
     FinancialCreateRateCardCommand,
 )
@@ -51,7 +51,7 @@ def _project_resource(services):
     project = services["project_service"].create_project(
         "R6D-B governed rates", financial_currency_code="XAF"
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "R6D-B resource", role="engineer", hourly_rate=Decimal(999)
     )
     return project, resource

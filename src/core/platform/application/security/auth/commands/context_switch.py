@@ -1,0 +1,234 @@
+from __future__ import annotations
+
+import logging
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.history.audit import AuditEntry
+
+logger = logging.getLogger(__name__)
+
+_SWITCH_TYPES = frozenset({"tenant", "organization"})
+
+
+def _clean_optional(value: object) -> str | None:
+    return str(value or "").strip()[:255] or None
+from collections.abc import Callable
+
+from sqlalchemy.orm import Session
+
+from src.core.platform.contract.repositories.history.audit.contracts import (
+    AuditRepository,
+)
+from src.core.platform.contract.repositories.security.auth import AuthSessionRepository
+from src.core.platform.contract.uow.security.session_write_lock import SessionWriteLock
+from src.core.platform.domain.security.auth.session import UserSessionContext
+
+if TYPE_CHECKING:
+    from src.core.platform.domain.security.auth.session import UserSessionPrincipal
+
+
+class ContextSwitchCommandHandler:
+    """Commits a tenant/organization context switch: persists the session context
+    and its audit under the session write lock."""
+
+    def __init__(
+        self,
+        *,
+        session: Session,
+        auth_session_repo: AuthSessionRepository | None,
+        request_id_provider: Callable[[], str | None] | None,
+        security_audit_repo: AuditRepository | None,
+        session_write_lock: SessionWriteLock,
+        user_session: UserSessionContext | None,
+    ) -> None:
+        self._session = session
+        self._auth_session_repo = auth_session_repo
+        self._request_id_provider = request_id_provider
+        self._security_audit_repo = security_audit_repo
+        self._session_write_lock = session_write_lock
+        self._user_session = user_session
+
+    def commit_context_switch(
+        self,
+        target_principal: UserSessionPrincipal,
+        switch_type: str,
+    ) -> None:
+        user_session = self._user_session
+        current_principal = user_session.principal if user_session is not None else None
+        if user_session is None or current_principal is None:
+            raise BusinessRuleError(
+                "Authentication is required to switch context.",
+                code="AUTHENTICATION_REQUIRED",
+            )
+
+        normalized_switch_type = str(switch_type or "").strip().lower()
+        if normalized_switch_type not in _SWITCH_TYPES:
+            raise BusinessRuleError(
+                "Context switch type is invalid.",
+                code="CONTEXT_SWITCH_TYPE_INVALID",
+            )
+        if target_principal.user_id != current_principal.user_id:
+            raise BusinessRuleError(
+                "Context authority cannot be transferred between users.",
+                code="CONTEXT_SWITCH_PRINCIPAL_MISMATCH",
+            )
+
+        old_tenant_id = _clean_optional(current_principal.active_tenant_id)
+        old_organization_id = _clean_optional(
+            current_principal.active_organization_id
+        )
+        new_tenant_id = _clean_optional(target_principal.active_tenant_id)
+        new_organization_id = _clean_optional(
+            target_principal.active_organization_id
+        )
+        if new_tenant_id is None:
+            raise BusinessRuleError(
+                "A validated tenant is required for context switching.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        if (
+            normalized_switch_type == "organization"
+            and old_tenant_id != new_tenant_id
+        ):
+            raise BusinessRuleError(
+                "Organization switching cannot change the active tenant.",
+                code="ORGANIZATION_TENANT_MISMATCH",
+            )
+
+        if (
+            old_tenant_id == new_tenant_id
+            and old_organization_id == new_organization_id
+        ):
+            user_session.set_principal(target_principal)
+            return
+
+        occurred_at = datetime.now(UTC)
+        try:
+            # This commits directly on the shared Session rather than through a
+            # per-operation UnitOfWork -- it is the long-lived Session the
+            # composition root shares across the process (see app.py), so this
+            # write must take the same SQLite write lock a UnitOfWork.commit()
+            # would, or it can race one for SQLite's single writer slot and
+            # surface as "database is locked" on an unrelated mutation.
+            self._stage_persisted_session_context(
+                target_principal,
+                tenant_id=new_tenant_id,
+                organization_id=new_organization_id,
+                occurred_at=occurred_at,
+            )
+            self._add_context_switch_audit(
+                current_principal=current_principal,
+                target_principal=target_principal,
+                switch_type=normalized_switch_type,
+                old_tenant_id=old_tenant_id,
+                old_organization_id=old_organization_id,
+                new_tenant_id=new_tenant_id,
+                new_organization_id=new_organization_id,
+            )
+            with self._session_write_lock.for_session(self._session):
+                self._session.commit()
+        except Exception as exc:
+            self._session.rollback()
+            logger.exception(
+                "Context switch rolled back switch_type=%s actor_user_id=%s "
+                "target_tenant_id=%s target_organization_id=%s",
+                normalized_switch_type,
+                current_principal.user_id,
+                new_tenant_id,
+                new_organization_id,
+            )
+            raise BusinessRuleError(
+                "Context could not be changed securely. Please try again.",
+                code="CONTEXT_SWITCH_AUDIT_UNAVAILABLE",
+            ) from exc
+
+        user_session.set_principal(target_principal)
+
+    def _stage_persisted_session_context(
+        self,
+        target_principal: UserSessionPrincipal,
+        *,
+        tenant_id: str,
+        organization_id: str | None,
+        occurred_at: datetime,
+    ) -> None:
+        session_id = _clean_optional(target_principal.session_id)
+        if self._auth_session_repo is None or session_id is None:
+            return
+        auth_session = self._auth_session_repo.get(session_id)
+        if (
+            auth_session is None
+            or auth_session.user_id != target_principal.user_id
+            or auth_session.revoked_at is not None
+        ):
+            raise BusinessRuleError(
+                "The authenticated session is no longer available.",
+                code="AUTH_SESSION_INVALID",
+            )
+        auth_session.last_active_tenant_id = tenant_id
+        auth_session.last_active_organization_id = organization_id
+        auth_session.updated_at = occurred_at
+        self._auth_session_repo.update(auth_session)
+
+    def _add_context_switch_audit(
+        self,
+        *,
+        current_principal: UserSessionPrincipal,
+        target_principal: UserSessionPrincipal,
+        switch_type: str,
+        old_tenant_id: str | None,
+        old_organization_id: str | None,
+        new_tenant_id: str,
+        new_organization_id: str | None,
+    ) -> None:
+        audit_repo = self._security_audit_repo
+        if audit_repo is None:
+            raise BusinessRuleError(
+                "Security audit persistence is required for context switching.",
+                code="SECURITY_AUDIT_REQUIRED",
+            )
+        session_id = _clean_optional(target_principal.session_id)
+        action = f"auth.context.{switch_type}.switched"
+        field = "tenant_id" if switch_type == "tenant" else "organization_id"
+        old_value = old_tenant_id if switch_type == "tenant" else old_organization_id
+        new_value = new_tenant_id if switch_type == "tenant" else new_organization_id
+        entry = AuditEntry.create(
+            operation=action,
+            entity_type="auth_session",
+            entity_id=session_id or current_principal.user_id,
+            entity_parent_id=new_tenant_id,
+            module="auth",
+            actor_id=current_principal.user_id,
+            actor_username=str(current_principal.username or "").strip()[:128] or None,
+            tenant_id=new_tenant_id,
+            organization_id=new_organization_id,
+            request_id=self._current_request_id(),
+            source="auth",
+            severity="medium",
+            category="SECURITY",
+            changed_fields={field: {"before": old_value, "after": new_value}},
+            metadata={
+                "action": action,
+                "outcome": "success",
+                "switch_type": switch_type,
+                "old_tenant_id": old_tenant_id,
+                "old_organization_id": old_organization_id,
+                "new_tenant_id": new_tenant_id,
+                "new_organization_id": new_organization_id,
+            },
+        )
+        audit_repo.add_for_tenant(entry, new_tenant_id)
+
+    def _current_request_id(self) -> str | None:
+        provider = self._request_id_provider
+        if provider is None:
+            return None
+        try:
+            return _clean_optional(provider())
+        except Exception:  # noqa: BLE001
+            return None
+
+
+__all__ = ["ContextSwitchCommandHandler"]

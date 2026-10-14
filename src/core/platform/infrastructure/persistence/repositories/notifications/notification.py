@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, cast
 
 from sqlalchemy import and_, false, func, or_, select, update
+from sqlalchemy.dialects.postgresql import Insert as PostgresInsert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import Insert as SqliteInsert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.engine import CursorResult, Result
 from sqlalchemy.orm import Session
 
 from src.core.platform.contract.repositories.notifications.contracts import (
@@ -20,6 +24,12 @@ from src.core.platform.infrastructure.persistence.orm.notifications.notification
 )
 
 
+def _affected_rows(result: Result[Any]) -> int:
+    # DML statements return a CursorResult at runtime; the Session.execute
+    # stub types the return value as the generic Result.
+    return cast(CursorResult[Any], result).rowcount
+
+
 class SqlAlchemyNotificationRepository(NotificationRepository):
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -32,6 +42,7 @@ class SqlAlchemyNotificationRepository(NotificationRepository):
             for column in NotificationORM.__table__.columns
         }
         dialect = self.session.get_bind().dialect.name
+        stmt: PostgresInsert | SqliteInsert
         if dialect == "postgresql":
             stmt = pg_insert(NotificationORM).values(**values).on_conflict_do_nothing(
                 index_elements=["tenant_id", "source_event_id", "category", "recipient_user_id"],
@@ -44,7 +55,7 @@ class SqlAlchemyNotificationRepository(NotificationRepository):
             )
         else:
             raise RuntimeError(f"Unsupported notification idempotency backend: {dialect}")
-        inserted = bool(self.session.execute(stmt).rowcount)
+        inserted = bool(_affected_rows(self.session.execute(stmt)))
         if inserted:
             return notification, True
         existing = self.session.scalar(
@@ -142,7 +153,7 @@ class SqlAlchemyNotificationRepository(NotificationRepository):
             .values(read_at=read_at)
         )
         result = self.session.execute(stmt)
-        return int(result.rowcount or 0)
+        return int(_affected_rows(result) or 0)
 
 
 __all__ = ["SqlAlchemyNotificationRepository"]

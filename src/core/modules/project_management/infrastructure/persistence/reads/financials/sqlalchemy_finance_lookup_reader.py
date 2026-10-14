@@ -444,7 +444,7 @@ class SqlAlchemyFinanceLookupReader:
         project_id: str,
         request: ManualActualCostCodeQuery,
     ) -> FinanceLookupPageFacts:
-        effective_on = request.effective_on or date.today()
+        effective_on = request.effective_on or date.today()  # noqa: DTZ011
         base = self._cost_code_statement(
             tenant_id=tenant_id,
             organization_id=organization_id,
@@ -494,7 +494,7 @@ class SqlAlchemyFinanceLookupReader:
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 project_id=project_id,
-                effective_on=effective_on or date.today(),
+                effective_on=effective_on or date.today(),  # noqa: DTZ011
             ).where(ProjectCostCodeORM.id == cost_code_id)
         ).one_or_none()
         return (

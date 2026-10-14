@@ -3,13 +3,19 @@ from __future__ import annotations
 from datetime import date, timedelta
 from decimal import Decimal
 
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.dashboard.models.report_models import (
     GanttTaskBar,
     ProjectKPI,
     ResourceLoadRow,
 )
+from src.core.modules.project_management.application.reporting.builders.access import (
+    ReportingAccessPolicy,
+)
 from src.core.modules.project_management.application.reporting.builders.cost_policy import (
-    ReportingCostPolicyMixin,
+    ReportingCostPolicy,
 )
 from src.core.modules.project_management.application.resources.capacity.resource_load_engine import (
     ResourceLoadEngine,
@@ -22,7 +28,6 @@ from src.core.modules.project_management.application.scheduling.services.schedul
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
-    ProjectResourceRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resources.resource import (
     ResourceRepository,
@@ -38,17 +43,35 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 )
 
 
-class ReportingKpiMixin(ReportingCostPolicyMixin):
-    _project_repo: ProjectRepository
-    _task_repo: TaskRepository
-    _scheduling_engine: SchedulingEngine
-    _calendar: CalendarProtocol
-    _project_resource_repo: ProjectResourceRepository
-    _resource_repo: ResourceRepository
-    _assignment_repo: AssignmentRepository
+class ProjectKpiReportBuilder(ProjectManagementModuleGuardMixin):
+    """Schedule/KPI/resource-load reports (Gantt, KPIs, critical path, load)."""
+
+    def __init__(
+        self,
+        *,
+        access: ReportingAccessPolicy,
+        cost_policy: ReportingCostPolicy,
+        project_repo: ProjectRepository,
+        task_repo: TaskRepository,
+        resource_repo: ResourceRepository,
+        assignment_repo: AssignmentRepository,
+        scheduling_engine: SchedulingEngine,
+        calendar: CalendarProtocol,
+        module_catalog_service=None,
+    ) -> None:
+        self._access = access
+        self._cost_policy = cost_policy
+        self._project_repo = project_repo
+        self._task_repo = task_repo
+        self._resource_repo = resource_repo
+        self._assignment_repo = assignment_repo
+        self._scheduling_engine = scheduling_engine
+        self._calendar = calendar
+        self._user_session = access.user_session
+        self._module_catalog_service = module_catalog_service
 
     def get_gantt_data(self, project_id: str) -> list[GanttTaskBar]:
-        self._require_view("view gantt report", project_id=project_id)
+        self._access.require_view("view gantt report", project_id=project_id)
         """
         Returns a list of GanttTaskBars, ensuring schedule is up to date (CPM).
         """
@@ -102,7 +125,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         schedule: dict[str, CPMTaskInfo] | None = None,
         as_of: date | None = None,
     ) -> ProjectKPI:
-        self._require_view("view project kpis", project_id=project_id)
+        self._access.require_view("view project kpis", project_id=project_id)
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
@@ -137,23 +160,23 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         if start_date and end_date:
             duration_working_days = self._calendar.working_days_between(start_date, end_date)
 
-        financial_detail_included = self._has_finance_view(project_id)
+        financial_detail_included = self._access.has_finance_view(project_id)
         total_planned: Decimal | None = None
         total_committed: Decimal | None = None
         total_actual: Decimal | None = None
         cost_variance: Decimal | None = None
         committed_variance: Decimal | None = None
         if financial_detail_included:
-            cost_snapshot = self._build_cost_policy_snapshot(project_id=project_id, as_of=as_of)
-            total_planned = self._sum_bucket_map(
+            cost_snapshot = self._cost_policy.build_cost_policy_snapshot(project_id, as_of=as_of)
+            total_planned = self._cost_policy.sum_bucket_map(
                 cost_snapshot.planned_map,
                 cost_snapshot.project_currency,
             )
-            total_committed = self._sum_bucket_map(
+            total_committed = self._cost_policy.sum_bucket_map(
                 cost_snapshot.committed_map,
                 cost_snapshot.project_currency,
             )
-            total_actual = self._sum_bucket_map(
+            total_actual = self._cost_policy.sum_bucket_map(
                 cost_snapshot.actual_map,
                 cost_snapshot.project_currency,
             )
@@ -183,7 +206,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         )
 
     def get_critical_path(self, project_id: str) -> list[CPMTaskInfo]:
-        self._require_view("view critical path report", project_id=project_id)
+        self._access.require_view("view critical path report", project_id=project_id)
         """
         Return critical tasks in topological order (approximate critical path).
         """
@@ -194,7 +217,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         return critical
 
     def get_resource_load_summary(self, project_id: str) -> list[ResourceLoadRow]:
-        self._require_view("view resource load report", project_id=project_id)
+        self._access.require_view("view resource load report", project_id=project_id)
         """
         Capacity-aware load summary by resource using peak concurrent allocation.
         """
@@ -249,3 +272,6 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
                 working_dates.add(cur)
             cur += timedelta(days=1)
         return frozenset(working_dates)
+
+
+__all__ = ["ProjectKpiReportBuilder"]

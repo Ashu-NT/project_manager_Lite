@@ -1,20 +1,16 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+    SiteUpdateCommand,
+)
 
 
 def test_site_service_scopes_site_master_data_by_active_organization(services):
-    organization_service = services["organization_service"]
-    site_service = services["site_service"]
 
     default_organization = services["tenant_context_service"].get_active_organization()
-    created = site_service.create_site(
-        site_code="HQ",
-        name="Headquarters",
-        city="Lagos",
-        country="Nigeria",
-        site_type="PLANT",
-    )
+    created = services["site_commands"].create_site(SiteCreateCommand(site_code="HQ", name="Headquarters", city="Lagos", country="Nigeria", site_type="PLANT"))
 
     assert created.organization_id == default_organization.id
     assert created.city == "Lagos"
@@ -23,9 +19,9 @@ def test_site_service_scopes_site_master_data_by_active_organization(services):
     assert created.default_calendar_id == "default"
     assert created.created_at is not None
     assert created.updated_at is not None
-    assert [site.name for site in site_service.list_sites()] == ["Headquarters"]
+    assert [site.name for site in services["site_query"].list_sites()] == ["Headquarters"]
 
-    second_organization = organization_service.create_organization(
+    second_organization = services["organization_commands"].create_organization(
         organization_code="OPS",
         display_name="Operations Hub",
         timezone_name="Europe/Berlin",
@@ -33,25 +29,24 @@ def test_site_service_scopes_site_master_data_by_active_organization(services):
     )
     services["tenant_context_service"].set_active_organization(second_organization.id)
 
-    assert site_service.get_context_organization().display_name == "Operations Hub"
-    assert site_service.list_sites() == []
+    assert services["site_query"].get_context_organization().display_name == "Operations Hub"
+    assert services["site_query"].list_sites() == []
 
-    plant = site_service.create_site(site_code="PLANT1", display_name="Plant 1")
+    plant = services["site_commands"].create_site(SiteCreateCommand(site_code="PLANT1", name="Plant 1"))
     assert plant.organization_id == second_organization.id
-    assert [site.site_code for site in site_service.list_sites()] == ["PLANT1"]
+    assert [site.site_code for site in services["site_query"].list_sites()] == ["PLANT1"]
 
     services["tenant_context_service"].set_active_organization(default_organization.id)
-    assert site_service.get_context_organization().display_name == "Default Organization"
-    assert [site.site_code for site in site_service.list_sites()] == ["HQ"]
+    assert services["site_query"].get_context_organization().display_name == "Default Organization"
+    assert [site.site_code for site in services["site_query"].list_sites()] == ["HQ"]
 
 
 def test_site_service_rejects_duplicate_codes_inside_one_organization(services):
-    site_service = services["site_service"]
 
-    site_service.create_site(site_code="HQ", name="Headquarters")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="HQ", name="Headquarters"))
 
     try:
-        site_service.create_site(site_code="HQ", name="Second HQ")
+        services["site_commands"].create_site(SiteCreateCommand(site_code="HQ", name="Second HQ"))
     except ValidationError as exc:
         assert exc.code == "SITE_CODE_EXISTS"
     else:
@@ -59,17 +54,9 @@ def test_site_service_rejects_duplicate_codes_inside_one_organization(services):
 
 
 def test_site_service_updates_site_metadata(services):
-    site_service = services["site_service"]
-    created = site_service.create_site(site_code="YARD", name="Yard")
+    created = services["site_commands"].create_site(SiteCreateCommand(site_code="YARD", name="Yard"))
 
-    updated = site_service.update_site(
-        created.id,
-        name="North Yard",
-        city="Berlin",
-        country="Germany",
-        site_type="WAREHOUSE",
-        expected_version=created.version,
-    )
+    updated = services["site_commands"].update_site(SiteUpdateCommand(site_id=created.id, name="North Yard", city="Berlin", country="Germany", site_type="WAREHOUSE", expected_version=created.version))
 
     assert updated.name == "North Yard"
     assert updated.city == "Berlin"
@@ -77,8 +64,8 @@ def test_site_service_updates_site_metadata(services):
     assert updated.site_type == "WAREHOUSE"
     assert updated.status == "active"
 
-    deactivated = site_service.deactivate_site(updated.id)
+    deactivated = services["site_commands"].deactivate_site(updated.id)
     assert deactivated.status == "inactive"
     assert deactivated.is_active is False
-    assert [site.name for site in site_service.list_sites(active_only=False)] == ["North Yard"]
+    assert [site.name for site in services["site_query"].list_sites(active_only=False)] == ["North Yard"]
 

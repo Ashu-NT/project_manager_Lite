@@ -24,6 +24,10 @@ from __future__ import annotations
 import os
 import time
 
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import qInstallMessageHandler
@@ -49,8 +53,7 @@ def _settle(app, *, seconds: float = 2.0) -> None:
 
 
 def test_open_project_management_cta_switches_shell_route_not_overview(qapp, services) -> None:
-    site_service = services["site_service"]
-    site = site_service.create_site(site_code="PMNAV-1", name="PM Nav Site")
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="PMNAV-1", name="PM Nav Site"))
 
     messages: list[str] = []
     previous_handler = qInstallMessageHandler(lambda t, c, m: messages.append(str(m)))

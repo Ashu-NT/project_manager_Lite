@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Protocol, SupportsFloat, cast
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -13,6 +14,29 @@ from src.core.modules.project_management.infrastructure.reporting.exporters.rend
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
     ExcelReportContext,
 )
+
+
+class _EvmMetrics(Protocol):
+    """Earned-value metrics read from ``ExcelReportContext.evm``."""
+
+    @property
+    def BAC(self) -> object: ...
+    @property
+    def PV(self) -> object: ...
+    @property
+    def EV(self) -> object: ...
+    @property
+    def AC(self) -> object: ...
+    @property
+    def SPI(self) -> object: ...
+    @property
+    def CPI(self) -> object: ...
+    @property
+    def EAC(self) -> object: ...
+    @property
+    def ETC(self) -> object: ...
+    @property
+    def VAC(self) -> object: ...
 
 
 class ExcelReportRenderer:
@@ -162,6 +186,7 @@ class ExcelReportRenderer:
             ws_evm["A1"].font = title_font
 
             if ctx.evm:
+                evm = cast(_EvmMetrics, ctx.evm)
                 ws_evm["A2"], ws_evm["B2"] = ("Metric", "Value")
                 ws_evm["A2"].font = header_font
                 ws_evm["B2"].font = header_font
@@ -172,15 +197,15 @@ class ExcelReportRenderer:
 
                 rows = [
                     ("As of", ctx.as_of.isoformat()),
-                    ("BAC", ctx.evm.BAC),
-                    ("PV", ctx.evm.PV),
-                    ("EV", ctx.evm.EV),
-                    ("AC", ctx.evm.AC),
-                    ("SPI", ctx.evm.SPI),
-                    ("CPI", ctx.evm.CPI),
-                    ("EAC", ctx.evm.EAC),
-                    ("ETC", ctx.evm.ETC),
-                    ("VAC", ctx.evm.VAC),
+                    ("BAC", evm.BAC),
+                    ("PV", evm.PV),
+                    ("EV", evm.EV),
+                    ("AC", evm.AC),
+                    ("SPI", evm.SPI),
+                    ("CPI", evm.CPI),
+                    ("EAC", evm.EAC),
+                    ("ETC", evm.ETC),
+                    ("VAC", evm.VAC),
                 ]
 
                 for i, (k, v) in enumerate(rows, start=3):
@@ -426,7 +451,8 @@ class ExcelReportRenderer:
                 raise ValueError("Finance ledger export page is required.")
             for row_idx, row_data in enumerate(ledger_page.rows, start=2):
                 values = list(project_finance_ledger_values(row_data))
-                values[-2] = float(values[-2])
+                # The ledger amount column (second to last) is a Decimal.
+                values[-2] = float(cast(SupportsFloat, values[-2]))
                 for idx, val in enumerate(values, start=1):
                     cell = ws_ledger.cell(row=row_idx, column=idx, value=val)
                     cell.border = thin_border

@@ -99,7 +99,7 @@ def test_project_management_dashboard_desktop_api_builds_preview_snapshot() -> N
 
 def test_project_management_dashboard_desktop_api_builds_portfolio_service_snapshot() -> None:
     api = build_project_management_dashboard_desktop_api(
-        dashboard_service=SimpleNamespace(
+        project_dashboard=(_dashboard := SimpleNamespace(
             get_portfolio_data=lambda: SimpleNamespace(
                 kpi=SimpleNamespace(
                     project_id="__portfolio__",
@@ -130,7 +130,8 @@ def test_project_management_dashboard_desktop_api_builds_portfolio_service_snaps
                 cost_sources=None,
             )
         )
-    )
+    ),
+        portfolio_dashboard=_dashboard)
 
     snapshot = api.build_snapshot(project_id="__portfolio__")
 
@@ -153,7 +154,7 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
                 )
             ]
         ),
-        dashboard_service=SimpleNamespace(
+        project_dashboard=(_dashboard := SimpleNamespace(
             get_dashboard_data=lambda project_id, baseline_id=None, include_evm=True: SimpleNamespace(
                 kpi=SimpleNamespace(
                     project_id=project_id,
@@ -265,7 +266,8 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
                     ]
                 ),
             )
-        ),
+        )),
+        portfolio_dashboard=_dashboard,
     )
 
     snapshot = api.build_snapshot(project_id="proj-1", baseline_id="base-1")

@@ -38,6 +38,12 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryKind,
 )
 from src.core.platform.common.exceptions import ConcurrencyError
+from src.core.platform.contract.use_cases.master_data.party.commands import (
+    PartyCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.finance import (
     DecimalQuantityPayload,
     MonetaryRatePayload,
@@ -89,12 +95,8 @@ def _setup(services):
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="P36-PROCURE", name="P36 Procurement"
     )
-    site = services["site_service"].create_site(
-        site_code="P36-COMMIT", name="P36 Commitment Site", currency_code=organization.base_currency
-    )
-    supplier = services["party_service"].create_party(
-        party_code="P36-COMMIT-SUP", party_name="P36 Commitment Supplier", roles=["SUPPLIER"]
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="P36-COMMIT", name="P36 Commitment Site", currency_code=organization.base_currency))
+    supplier = services["party_commands"].create_party(PartyCreateCommand(party_code="P36-COMMIT-SUP", party_name="P36 Commitment Supplier", roles=["SUPPLIER"]))
     period = services["financial_period_service"].create_period(
         code="P36-COMMIT-2026-08", name="August 2026", fiscal_year=2026, period_number=8,
         start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),

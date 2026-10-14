@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Any, cast
 
 from pydantic import field_validator
 
@@ -162,7 +163,7 @@ class Employee:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         resolved = int(value if value not in (None, "") else 1)
         if resolved < 1:
             raise ValidationError(
@@ -204,7 +205,8 @@ class Employee:
             site_id=site_id,
             site_name=site_name,
             title=title,
-            employment_type=employment_type,
+            # Raw input is coerced by the field's "before" validator.
+            employment_type=cast(EmploymentType, employment_type),
             email=email,
             phone=phone,
             user_id=user_id,

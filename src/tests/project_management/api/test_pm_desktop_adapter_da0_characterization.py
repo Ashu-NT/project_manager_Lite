@@ -29,9 +29,6 @@ from src.core.modules.project_management.api.desktop.register.builders.entry_lis
 from src.core.modules.project_management.api.desktop.resources.api import (
     ProjectManagementResourcesDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.resources.commands.resource_commands import (
-    ResourceUpdateCommand,
-)
 from src.core.modules.project_management.api.desktop.resources.serializers.context_serializer import (
     serialize_resource_assignment,
 )
@@ -55,6 +52,9 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
 )
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceAssignmentFact,
+)
+from src.core.modules.project_management.contracts.use_cases.resources.commands import (
+    ResourceUpdateCommand,
 )
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
@@ -129,7 +129,7 @@ def test_da1_project_resource_scope_resolution_uses_public_application_query() -
 
     rows = list_resources_for_context(
         "project-1",
-        resource_service=resource_service,
+        resource_query=resource_service,
     )
 
     assert [row.id for row in rows] == ["resource-active-org"]
@@ -138,7 +138,7 @@ def test_da1_project_resource_scope_resolution_uses_public_application_query() -
 
 def test_da1_project_manager_queries_project_resources_without_resource_read(services) -> None:
     project = services["project_service"].create_project("DA1 Scoped Project")
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         name="Scoped Planner",
         role="Planner",
     )
@@ -162,7 +162,7 @@ def test_da1_project_manager_queries_project_resources_without_resource_read(ser
         )
     )
 
-    resources = services["resource_service"].list_for_project_workspace(project.id)
+    resources = services["resource_query"].list_for_project_workspace(project.id)
     memberships = services["project_resource_service"].list_for_project_workspace(project.id)
 
     assert [row.id for row in resources] == [resource.id]
@@ -172,7 +172,7 @@ def test_da1_project_manager_queries_project_resources_without_resource_read(ser
 def test_da1_task_reader_queries_only_its_scoped_project_resources(services) -> None:
     project = services["project_service"].create_project("DA1 Task Project")
     services["project_service"].create_project("DA1 Hidden Project")
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         name="Task Planner",
         role="Planner",
     )
@@ -198,7 +198,7 @@ def test_da1_task_reader_queries_only_its_scoped_project_resources(services) -> 
 
     projects = services["project_service"].list_for_task_workspace()
     memberships = services["project_resource_service"].list_for_task_workspace(project.id)
-    resources = services["resource_service"].list_for_task_workspace(
+    resources = services["resource_query"].list_for_task_workspace(
         resource_ids=(resource.id,),
     )
 
@@ -254,7 +254,7 @@ class _CapturingResourceService:
 
 def test_da3_desktop_forwards_rate_fields_without_policy_decision() -> None:
     service = _CapturingResourceService()
-    api = ProjectManagementResourcesDesktopApi(resource_service=service)
+    api = ProjectManagementResourcesDesktopApi(resource_master_commands=service)  # type: ignore[arg-type]
 
     api.update_resource(
         ResourceUpdateCommand(
@@ -316,7 +316,7 @@ def test_da1_resource_assignments_use_authoritative_typed_read_fact() -> None:
 
 def test_da1_task_service_lists_authorized_resource_assignments(services) -> None:
     project = services["project_service"].create_project("DA1 Resource Assignment")
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         name="DA1 Planner",
         role="Planner",
     )
@@ -363,7 +363,7 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
         project_resource_service=SimpleNamespace(
             list_for_task_workspace=lambda _project_id: (project_resource,)
         ),
-        resource_service=SimpleNamespace(
+        resource_query=SimpleNamespace(
             list_for_task_workspace=lambda **_kwargs: (resource,)
         ),
     )

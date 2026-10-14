@@ -48,7 +48,7 @@ def build_department_options(service: object | None) -> tuple[ResourceScopeOptio
         return (ResourceScopeOptionDescriptor(value="", label="No department", is_active=True),)
     try:
         rows = service.list_departments(active_only=None)
-    except Exception:
+    except Exception:  # noqa: BLE001
         rows = ()
     return (
         ResourceScopeOptionDescriptor(value="", label="No department", is_active=True),
@@ -69,7 +69,7 @@ def build_site_options(service: object | None) -> tuple[ResourceScopeOptionDescr
         return (ResourceScopeOptionDescriptor(value="", label="No site", is_active=True),)
     try:
         rows = service.list_sites(active_only=None)
-    except Exception:
+    except Exception:  # noqa: BLE001
         rows = ()
     return (
         ResourceScopeOptionDescriptor(value="", label="No site", is_active=True),

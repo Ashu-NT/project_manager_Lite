@@ -114,7 +114,7 @@ class TaskWorkspacePageQueryHandler:
             priority=priority,
             schedule=schedule,
             milestones_only=milestones_only,
-            as_of=as_of or date.today(),
+            as_of=as_of or date.today(),  # noqa: DTZ011
         )
         reader = self._task_workspace_reader
 

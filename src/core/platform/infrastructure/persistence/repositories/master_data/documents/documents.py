@@ -3,6 +3,9 @@ from __future__ import annotations
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from src.core.platform.contract.port.master_data.documents.document_access_policy import (
+    DocumentVisibility,
+)
 from src.core.platform.contract.repositories.master_data.documents.contracts import (
     DocumentLinkRepository,
     DocumentRepository,
@@ -28,6 +31,9 @@ from src.core.platform.infrastructure.persistence.orm.master_data.documents.docu
 )
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
+)
+from src.core.platform.infrastructure.persistence.repositories.master_data.documents.visibility import (
+    document_visibility_condition,
 )
 from src.infra.persistence.db.optimistic import update_with_version_check
 
@@ -222,6 +228,7 @@ class SqlAlchemyDocumentRepository(TenantScopedRepositorySupport, DocumentReposi
         *,
         page: int,
         page_size: int,
+        visibility: DocumentVisibility,
         search: str | None = None,
         active_only: bool | None = None,
     ) -> tuple[list[Document], int, int]:
@@ -234,6 +241,7 @@ class SqlAlchemyDocumentRepository(TenantScopedRepositorySupport, DocumentReposi
         base_condition = (
             DocumentORM.organization_id == organization_id,
             DocumentORM.tenant_id == tenant_id,
+            document_visibility_condition(visibility),
         )
         total = self.session.execute(
             select(func.count()).select_from(DocumentORM).where(*base_condition)
@@ -326,6 +334,7 @@ class SqlAlchemyDocumentLinkRepository(TenantScopedRepositorySupport, DocumentLi
         entity_id: str,
         page: int,
         page_size: int,
+        visibility: DocumentVisibility,
         search: str | None = None,
         active_only: bool | None = None,
         document_type: str | None = None,
@@ -344,6 +353,7 @@ class SqlAlchemyDocumentLinkRepository(TenantScopedRepositorySupport, DocumentLi
             DocumentLinkORM.entity_id == entity_id,
             DocumentORM.organization_id == organization_id,
             DocumentORM.tenant_id == tenant_id,
+            document_visibility_condition(visibility),
         )
         total = self.session.execute(
             select(func.count())

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import field
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -87,7 +88,7 @@ class ApprovedTimeLaborPosting:
 
     @field_validator("hours", mode="before")
     @classmethod
-    def _hours(cls, value: object) -> Decimal:
+    def _hours(cls, value: Any) -> Decimal:
         amount = QUANTITY_STORAGE.validate(value)
         if amount <= 0:
             raise ValidationError("Approved labor hours must be positive.", code="LABOR_POSTING_HOURS_INVALID")
@@ -95,7 +96,7 @@ class ApprovedTimeLaborPosting:
 
     @field_validator("rate_amount", mode="before")
     @classmethod
-    def _rate(cls, value: object) -> Decimal:
+    def _rate(cls, value: Any) -> Decimal:
         amount = MONEY_STORAGE.validate(value)
         if amount < 0:
             raise ValidationError("Approved labor rate cannot be negative.", code="LABOR_POSTING_RATE_INVALID")
@@ -103,7 +104,7 @@ class ApprovedTimeLaborPosting:
 
     @field_validator("rate_base_amount", mode="before")
     @classmethod
-    def _optional_base_rate(cls, value: object) -> Decimal | None:
+    def _optional_base_rate(cls, value: Any) -> Decimal | None:
         if value is None:
             return None
         amount = MONEY_STORAGE.validate(value)
@@ -121,7 +122,7 @@ class ApprovedTimeLaborPosting:
 
     @field_validator("source_revision", "rate_card_version", "rate_precedence_level", mode="before")
     @classmethod
-    def _positive(cls, value: object, info) -> int:
+    def _positive(cls, value: Any, info) -> int:
         resolved = int(value)
         if resolved < 1:
             raise ValidationError(f"{info.field_name} must be positive.", code="LABOR_POSTING_VERSION_INVALID")
@@ -129,7 +130,7 @@ class ApprovedTimeLaborPosting:
 
     @field_validator("rate_line_version", mode="before")
     @classmethod
-    def _optional_line_version(cls, value: object) -> int | None:
+    def _optional_line_version(cls, value: Any) -> int | None:
         if value is None:
             return None
         resolved = int(value)

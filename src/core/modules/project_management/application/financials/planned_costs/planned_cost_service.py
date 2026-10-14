@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
@@ -60,6 +59,7 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.time.clock import CalendarClock
 
 _REVISION_CONSTRAINT = "uq_pf_planned_cost_versions_project_revision"
 
@@ -87,7 +87,7 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
         assignment_repo: AssignmentRepository,
         project_resource_repo: ProjectResourceRepository,
         rate_resolver: LaborRateResolver,
-        clock: Clock,
+        clock: CalendarClock,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,
@@ -186,6 +186,12 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
             operation_label="calculate planned-cost snapshot",
         )
         context = self._require_context("calculate planned-cost snapshot")
+        organization_id = context.organization_id
+        if organization_id is None:  # require_organization_context guarantees this
+            raise BusinessRuleError(
+                "Active organization context is required to calculate planned-cost snapshot.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         if self._project_repo.get(project_id) is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
@@ -282,7 +288,7 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
         if resource_ids:
             batch = self._rate_resolver.resolve_many(
                 tenant_id=context.tenant_id,
-                organization_id=context.organization_id,
+                organization_id=organization_id,
                 project_id=project_id,
                 resource_ids=resource_ids,
                 rate_type=RateType.COST,
@@ -295,7 +301,7 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
         revision = (previous.revision + 1) if previous is not None else 1
         version = ProjectPlannedCostVersion.create(
             tenant_id=context.tenant_id,
-            organization_id=context.organization_id,
+            organization_id=organization_id,
             project_id=project_id,
             revision=revision,
             currency_code=profile.currency_code,
@@ -326,7 +332,7 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
             lines.append(
                 ProjectPlannedCostLine.create(
                     tenant_id=context.tenant_id,
-                    organization_id=context.organization_id,
+                    organization_id=organization_id,
                     version_id=version.id,
                     project_id=project_id,
                     task_id=assignment.task_id,

@@ -30,7 +30,7 @@ def register_project_scope_access(repositories, platform_services) -> None:
     platform_services.access_service.register_scope_exists_resolver(
         "project", _project_belongs_to_tenant
     )
-    platform_services.auth_service.register_canonical_scope_tenant_resolver(
+    platform_services.auth.queries.require_canonical_role_resolver().register_scope_tenant_resolver(
         "project", _project_belongs_to_tenant
     )
 

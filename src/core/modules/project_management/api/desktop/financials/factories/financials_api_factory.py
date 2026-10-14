@@ -17,7 +17,8 @@ def build_project_management_financials_desktop_api(
     commitment_service=None,
     billing_profile_service=None,
     billing_preparation_service=None,
-    reporting_service=None,
+    report_sources=None,
+    profitability_report=None,
 ) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
         finance_service=finance_service,
@@ -28,7 +29,8 @@ def build_project_management_financials_desktop_api(
         commitment_service=commitment_service,
         billing_profile_service=billing_profile_service,
         billing_preparation_service=billing_preparation_service,
-        reporting_service=reporting_service,
+        report_sources=report_sources,
+        profitability_report=profitability_report,
     )
 
 

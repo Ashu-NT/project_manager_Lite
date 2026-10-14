@@ -87,7 +87,7 @@ class CommercialProjectionQuery:
             if include_profitability
             else Availability.RESTRICTED
         )
-        reason = (
+        reason: Reason | None = (
             (
                 Reason.FINANCIAL_PROFILE_MISSING
                 if financial is None

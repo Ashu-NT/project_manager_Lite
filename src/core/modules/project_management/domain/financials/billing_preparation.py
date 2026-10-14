@@ -4,6 +4,7 @@ from dataclasses import field
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -143,12 +144,12 @@ class ProjectBillingPreparation:
 
     @field_validator("total_amount", mode="before")
     @classmethod
-    def _total(cls, value: object) -> Decimal:
+    def _total(cls, value: Any) -> Decimal:
         return MONEY_STORAGE.validate(value)
 
     @field_validator("line_count", mode="before")
     @classmethod
-    def _line_count(cls, value: object) -> int:
+    def _line_count(cls, value: Any) -> int:
         count = int(value)
         if count < 0:
             raise ValidationError(
@@ -159,7 +160,7 @@ class ProjectBillingPreparation:
 
     @field_validator("row_version", mode="before")
     @classmethod
-    def _version(cls, value: object) -> int:
+    def _version(cls, value: Any) -> int:
         version = int(value)
         if version < 1:
             raise ValidationError(
@@ -407,7 +408,7 @@ class ProjectBillingPreparationLine:
 
     @field_validator("quantity", mode="before")
     @classmethod
-    def _quantity(cls, value: object) -> Decimal:
+    def _quantity(cls, value: Any) -> Decimal:
         quantity = QUANTITY_STORAGE.validate(value)
         if quantity == 0:
             raise ValidationError(
@@ -418,12 +419,12 @@ class ProjectBillingPreparationLine:
 
     @field_validator("unit_rate", mode="before")
     @classmethod
-    def _unit_rate(cls, value: object) -> Decimal:
+    def _unit_rate(cls, value: Any) -> Decimal:
         return RATE_STORAGE.validate(value)
 
     @field_validator("net_amount", mode="before")
     @classmethod
-    def _net_amount(cls, value: object) -> Decimal:
+    def _net_amount(cls, value: Any) -> Decimal:
         amount = MONEY_STORAGE.validate(value)
         if amount == 0:
             raise ValidationError(
@@ -434,12 +435,12 @@ class ProjectBillingPreparationLine:
 
     @field_validator("source_amount", mode="before")
     @classmethod
-    def _source_amount(cls, value: object) -> Decimal | None:
+    def _source_amount(cls, value: Any) -> Decimal | None:
         return None if value is None else MONEY_STORAGE.validate(value)
 
     @field_validator("markup_percent", mode="before")
     @classmethod
-    def _markup(cls, value: object) -> Decimal | None:
+    def _markup(cls, value: Any) -> Decimal | None:
         return None if value is None else PERCENTAGE_STORAGE.validate(value)
 
     @field_validator("currency_code", mode="before")
@@ -451,7 +452,7 @@ class ProjectBillingPreparationLine:
 
     @field_validator("rate_card_version", "rate_line_version", mode="before")
     @classmethod
-    def _rate_version(cls, value: object) -> int | None:
+    def _rate_version(cls, value: Any) -> int | None:
         if value is None:
             return None
         version = int(value)
@@ -470,7 +471,7 @@ class ProjectBillingPreparationLine:
 
     @field_validator("rate_modifier_multiplier", mode="before")
     @classmethod
-    def _rate_modifier_multiplier(cls, value: object) -> Decimal | None:
+    def _rate_modifier_multiplier(cls, value: Any) -> Decimal | None:
         if value is None:
             return None
         multiplier = RATE_STORAGE.validate(value)

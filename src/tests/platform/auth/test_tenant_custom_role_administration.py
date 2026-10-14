@@ -35,15 +35,14 @@ def _tenant_id(services) -> str:
 
 
 def _set_tenant_admin(services, *, username: str = "custom-role-admin"):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         username,
         _PASSWORD,
         role_names=["tenant_admin"],
         tenant_id=tenant_id,
     )
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor,
         tenant_id=tenant_id,
         organization_id=services[
@@ -178,15 +177,14 @@ def test_platform_operator_cannot_use_customer_custom_role_path(
 def test_customer_role_manager_requires_canonical_tenant_scope(
     services,
 ) -> None:
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         "organization-scoped-role-manager",
         _PASSWORD,
         role_names=[],
         tenant_id=tenant_id,
     )
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor,
         tenant_id=tenant_id,
         organization_id=services[
@@ -380,7 +378,7 @@ def test_permission_update_revokes_current_tenant_holder_session(
         display_name="Session Guarded Role",
         permission_codes={"project.read"},
     )
-    target = services["auth_service"].register_user(
+    target = services["user_registration"].register_user(
         "custom-role-update-holder",
         _PASSWORD,
         role_names=["viewer"],
@@ -396,7 +394,7 @@ def test_permission_update_revokes_current_tenant_holder_session(
         )
     )
     services["session"].commit()
-    authenticated = services["auth_service"].authenticate(
+    authenticated = services["authentication"].authenticate(
         target.username,
         _PASSWORD,
     )
@@ -437,13 +435,13 @@ def test_custom_role_update_invalidates_reviewed_delegation(
         display_name="Delegated Coordinator",
         permission_codes={"project.read"},
     )
-    target = services["auth_service"].register_user(
+    target = services["user_registration"].register_user(
         "delegated-custom-role-target",
         _PASSWORD,
         role_names=["viewer"],
         tenant_id=tenant_id,
     )
-    actor_role = services["auth_service"]._role_repo.get_by_name(
+    actor_role = services["auth_queries"]._role_repo.get_by_name(
         "tenant_admin"
     )
     assert actor_role is not None
@@ -482,7 +480,7 @@ def test_retiring_custom_role_revokes_bindings_and_tenant_sessions(
         display_name="Temporary Coordinator",
         permission_codes={"project.read"},
     )
-    target = services["auth_service"].register_user(
+    target = services["user_registration"].register_user(
         "custom-role-holder",
         _PASSWORD,
         role_names=["viewer"],
@@ -498,7 +496,7 @@ def test_retiring_custom_role_revokes_bindings_and_tenant_sessions(
         )
     )
     services["session"].commit()
-    authenticated = services["auth_service"].authenticate(
+    authenticated = services["authentication"].authenticate(
         target.username,
         _PASSWORD,
     )

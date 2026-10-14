@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 from pydantic import field_validator
 
 from src.core.platform.common.exceptions import ValidationError
@@ -26,7 +28,7 @@ def _normalize_document_type(value: object) -> DocumentType:
         ) from exc
 
 
-def _normalize_sort_order(value: object) -> int:
+def _normalize_sort_order(value: Any) -> int:
     try:
         return int(value if value not in (None, "") else 0)
     except (TypeError, ValueError) as exc:
@@ -36,7 +38,7 @@ def _normalize_sort_order(value: object) -> int:
         ) from exc
 
 
-def _normalize_positive_int(value: object, *, code: str, message: str) -> int:
+def _normalize_positive_int(value: Any, *, code: str, message: str) -> int:
     try:
         resolved = int(value if value not in (None, "") else 1)
     except (TypeError, ValueError) as exc:
@@ -142,7 +144,7 @@ class DocumentStructure:
         description: str = "",
         parent_structure_id: str | None = None,
         object_scope: str = "GENERAL",
-        default_document_type: DocumentType = DocumentType.GENERAL,
+        default_document_type: DocumentType | str | None = DocumentType.GENERAL,
         sort_order: int = 0,
         is_active: bool = True,
         notes: str = "",
@@ -155,7 +157,8 @@ class DocumentStructure:
             description=description,
             parent_structure_id=parent_structure_id,
             object_scope=object_scope,
-            default_document_type=default_document_type,
+            # Raw input is coerced/validated by the field's "before" validator.
+            default_document_type=cast(DocumentType, default_document_type),
             sort_order=sort_order,
             is_active=is_active,
             notes=notes,

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING
 
 from src.core.platform.application.security.authorization.roles.role_scope_policy import (
     is_platform_role,
@@ -17,9 +16,6 @@ from src.core.platform.domain.security.authorization.roles.role_permission_catal
     DEFAULT_PERMISSIONS,
     DEFAULT_ROLE_PERMISSIONS,
 )
-
-if TYPE_CHECKING:
-    from src.core.platform.application.security.auth.auth_service import AuthService
 
 logger = logging.getLogger(__name__)
 
@@ -48,69 +44,80 @@ def resolve_bootstrap_admin_password() -> str:
         default_password,
     )
     return default_password
+from sqlalchemy.orm import Session
+
+from src.core.platform.contract.repositories.security.auth import (
+    PermissionRepository,
+    RolePermissionRepository,
+    RoleRepository,
+)
 
 
-def ensure_default_permissions(service: AuthService) -> None:
-    for code, description in DEFAULT_PERMISSIONS.items():
-        if service._permission_repo.get_by_code(code) is None:
-            service._permission_repo.add(Permission.create(code=code, description=description))
+class AuthPolicySeeder:
+    """Idempotently seeds the default permission, role and role-permission catalog."""
 
+    def __init__(
+        self,
+        *,
+        session: Session,
+        role_repo: RoleRepository,
+        permission_repo: PermissionRepository,
+        role_permission_repo: RolePermissionRepository,
+    ) -> None:
+        self._session = session
+        self._role_repo = role_repo
+        self._permission_repo = permission_repo
+        self._role_permission_repo = role_permission_repo
 
-def ensure_default_roles(service: AuthService) -> dict[str, Role]:
-    roles: dict[str, Role] = {}
-    for role_name in DEFAULT_ROLE_PERMISSIONS:
-        role = service._role_repo.get_by_name(role_name)
-        if role is None:
-            role = Role.create(
-                name=role_name,
-                description=f"System role: {role_name}",
-                is_system=True,
-                allowed_scope_type=system_role_scope_type(role_name),
-                is_assignable=not is_platform_role(role_name),
-            )
-            service._role_repo.add(role)
-        roles[role_name] = role
-    return roles
+    def ensure_default_permissions(self) -> None:
+        for code, description in DEFAULT_PERMISSIONS.items():
+            if self._permission_repo.get_by_code(code) is None:
+                self._permission_repo.add(Permission.create(code=code, description=description))
 
-
-def ensure_role_permissions(service: AuthService, role_map: dict[str, Role]) -> None:
-    permission_map = {p.code: p.id for p in service._permission_repo.list_all()}
-    for role_name, permission_codes in DEFAULT_ROLE_PERMISSIONS.items():
-        role = role_map.get(role_name)
-        if not role:
-            continue
-        for code in permission_codes:
-            permission_id = permission_map.get(code)
-            if not permission_id:
-                continue
-            if not service._role_permission_repo.exists(role.id, permission_id):
-                service._role_permission_repo.add(
-                    RolePermissionBinding.create(role_id=role.id, permission_id=permission_id)
+    def ensure_default_roles(self) -> dict[str, Role]:
+        roles: dict[str, Role] = {}
+        for role_name in DEFAULT_ROLE_PERMISSIONS:
+            role = self._role_repo.get_by_name(role_name)
+            if role is None:
+                role = Role.create(
+                    name=role_name,
+                    description=f"System role: {role_name}",
+                    is_system=True,
+                    allowed_scope_type=system_role_scope_type(role_name),
+                    is_assignable=not is_platform_role(role_name),
                 )
+                self._role_repo.add(role)
+            roles[role_name] = role
+        return roles
+
+    def ensure_role_permissions(self, role_map: dict[str, Role]) -> None:
+        permission_map = {p.code: p.id for p in self._permission_repo.list_all()}
+        for role_name, permission_codes in DEFAULT_ROLE_PERMISSIONS.items():
+            role = role_map.get(role_name)
+            if not role:
+                continue
+            for code in permission_codes:
+                permission_id = permission_map.get(code)
+                if not permission_id:
+                    continue
+                if not self._role_permission_repo.exists(role.id, permission_id):
+                    self._role_permission_repo.add(
+                        RolePermissionBinding.create(role_id=role.id, permission_id=permission_id)
+                    )
+
+    def ensure_auth_policy_definitions(self) -> dict[str, Role]:
+        self.ensure_default_permissions()
+        self._session.flush()
+        role_map = self.ensure_default_roles()
+        self._session.flush()
+        return role_map
+
+    def ensure_auth_policy_defaults(self) -> dict[str, Role]:
+        """Seed complete policy only for explicit local/bootstrap workflows."""
+        role_map = self.ensure_auth_policy_definitions()
+        self.ensure_role_permissions(role_map)
+        self._session.flush()
+        return role_map
 
 
-def ensure_auth_policy_definitions(service: AuthService) -> dict[str, Role]:
-    ensure_default_permissions(service)
-    service._session.flush()
-    role_map = ensure_default_roles(service)
-    service._session.flush()
-    return role_map
-
-
-def ensure_auth_policy_defaults(service: AuthService) -> dict[str, Role]:
-    """Seed complete policy only for explicit local/bootstrap workflows."""
-    role_map = ensure_auth_policy_definitions(service)
-    ensure_role_permissions(service, role_map)
-    service._session.flush()
-    return role_map
-
-
-__all__ = [
-    "ensure_auth_policy_defaults",
-    "ensure_auth_policy_definitions",
-    "ensure_default_permissions",
-    "ensure_default_roles",
-    "ensure_role_permissions",
-    "resolve_bootstrap_admin_password",
-    "truthy_env",
-]
+__all__ = ["AuthPolicySeeder"]

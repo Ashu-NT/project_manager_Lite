@@ -13,6 +13,10 @@ this needs the real backend event pipeline underneath."""
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
+    OrganizationUpdateCommand,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 _COUNTER = {"n": 0}
@@ -34,8 +38,7 @@ def test_standalone_create_organization_refreshes_both_ui_consumers(services):
     catalog.settingsWorkspace.refresh()
 
     code = _unique_code("QTCUT-STANDALONE")
-    organization_service = services["organization_service"]
-    organization_service.create_organization(organization_code=code, display_name="Qt Cutover Org")
+    services["organization_commands"].create_organization(organization_code=code, display_name="Qt Cutover Org")
 
     admin_titles = [row["title"] for row in catalog.adminWorkspace.organizations["items"]]
     settings_titles = [row["title"] for row in catalog.settingsWorkspace.organizationProfiles["items"]]
@@ -50,10 +53,7 @@ def test_provisioning_create_organization_refreshes_both_ui_consumers_identicall
 
     app_service = services["platform_runtime_application_service"]
     code = _unique_code("QTCUT-PROV")
-    app_service.provision_organization(
-        organization_code=code, display_name="Qt Cutover Provisioned Org",
-        timezone_name="UTC", base_currency="EUR", initial_module_codes=[],
-    )
+    app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Qt Cutover Provisioned Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     admin_titles = [row["title"] for row in catalog.adminWorkspace.organizations["items"]]
     settings_titles = [row["title"] for row in catalog.settingsWorkspace.organizationProfiles["items"]]
@@ -68,16 +68,15 @@ def test_no_refresh_signal_before_commit_and_none_on_rollback(services):
         lambda: refresh_calls.append("admin") or None
     )
 
-    organization_service = services["organization_service"]
     code = _unique_code("QTCUT-ROLLBACK")
-    organization_service.create_organization(organization_code=code, display_name="First")
+    services["organization_commands"].create_organization(organization_code=code, display_name="First")
 
     import pytest
 
     from src.core.platform.common.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
-        organization_service.create_organization(organization_code=code, display_name="Second")
+        services["organization_commands"].create_organization(organization_code=code, display_name="Second")
 
     # Exactly one successful creation happened -- exactly one refresh signal, not two, and none
     # attributable to the failed/rolled-back second attempt.
@@ -89,11 +88,10 @@ def test_update_and_activate_now_also_use_the_typed_view_invalidation_path(servi
     `OrganizationActivated`, which reach the SAME real Qt consumers `OrganizationCreated` already
     does, through the identical adapter path."""
     catalog = _catalog(services)
-    organization_service = services["organization_service"]
-    organization = organization_service.create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=_unique_code("QTCUT-UPDATE"), display_name="Before Update"
     )
-    organization = organization_service.deactivate_organization(organization.id)
+    organization = services["organization_lifecycle"].deactivate_organization(organization.id)
     catalog.adminWorkspace.organizations  # establish baseline read, post-creation
     catalog.settingsWorkspace.refresh()
 
@@ -105,9 +103,7 @@ def test_update_and_activate_now_also_use_the_typed_view_invalidation_path(servi
         lambda: refresh_calls.append("settings-update") or None
     )
 
-    organization_service.update_organization(
-        organization.id, expected_version=organization.version, display_name="After Update"
-    )
+    services["organization_commands"].update_organization(OrganizationUpdateCommand(organization_id=organization.id, expected_version=organization.version, display_name="After Update"))
     assert refresh_calls == ["admin-update", "settings-update"]
 
     refresh_calls.clear()
@@ -118,7 +114,7 @@ def test_update_and_activate_now_also_use_the_typed_view_invalidation_path(servi
         lambda: refresh_calls.append("settings-activate") or None
     )
 
-    organization_service.activate_organization(organization.id)
+    services["organization_lifecycle"].activate_organization(organization.id)
     assert refresh_calls == ["admin-activate", "settings-activate"]
 
 
@@ -136,8 +132,7 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
     signal_calls = []
     adapter.organizationCollectionStale.connect(lambda: signal_calls.append("stale"))
 
-    organization_service = services["organization_service"]
-    organization_service.create_organization(
+    services["organization_commands"].create_organization(
         organization_code=_unique_code("SCOPE-A"), display_name="Scope Tenant A Org"
     )
     assert signal_calls == ["stale"]
@@ -146,9 +141,6 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
     tenant_b = admin_svc.create_tenant(_unique_code("SCOPE-TENANT-B"), "Scope Tenant B")
     services["session"].flush()
 
-    from src.core.platform.application.master_data.org.organization_service import (
-        OrganizationService,
-    )
     from src.core.platform.domain.security.auth.session import (
         UserSessionContext,
         UserSessionPrincipal,
@@ -156,6 +148,7 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
     from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
         SqlAlchemyOrganizationDefaultCalendarWriter,
     )
+    from src.tests.master_data_test_support import organization_handlers_for
 
     ctx_b = UserSessionContext()
     ctx_b.set_principal(
@@ -165,15 +158,15 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
         )
     )
     ctx_b.set_active_tenant_id(tenant_b.id)
-    service_as_b = OrganizationService(
-        session=organization_service._session,
-        organization_repo=organization_service._organization_repo,
-        uow_factory=organization_service._uow_factory,
-        clock=organization_service._clock,
+    service_as_b = organization_handlers_for(
+        session=services["session"],
+        organization_repo=services["organization_query"]._organization_repo,
+        uow_factory=services["organization_commands"]._uow_factory,
+        clock=services["organization_commands"]._clock,
         user_session=ctx_b,
-        enterprise_audit_service=organization_service._enterprise_audit_service,
+        enterprise_audit_service=services["organization_query"]._enterprise_audit_service,
         tenant_context_service=None,
-        overview_rollup_reader=organization_service._overview_rollup_reader,
+        overview_rollup_reader=services["organization_query"]._overview_rollup_reader,
         default_calendar_writer=SqlAlchemyOrganizationDefaultCalendarWriter(),
     )
     service_as_b.create_organization(organization_code=_unique_code("SCOPE-B"), display_name="Scope Tenant B Org")
@@ -201,8 +194,7 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
     adapter.organizationCollectionStale.connect(lambda: signal_calls.append("stale"))
     subscription_count_before = len(channel._subscriptions)
 
-    organization_service = services["organization_service"]
-    organization_service.create_organization(
+    services["organization_commands"].create_organization(
         organization_code=_unique_code("SWITCH-A1"), display_name="Switch Org A1"
     )
     assert signal_calls == ["stale"]
@@ -211,9 +203,6 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
     tenant_b = admin_svc.create_tenant(_unique_code("SWITCH-TENANT-B"), "Switch Tenant B")
     services["session"].flush()
 
-    from src.core.platform.application.master_data.org.organization_service import (
-        OrganizationService,
-    )
     from src.core.platform.domain.security.auth.session import (
         UserSessionContext,
         UserSessionPrincipal,
@@ -221,6 +210,7 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
     from src.core.platform.infrastructure.persistence.repositories.master_data.org.default_calendar_writer import (
         SqlAlchemyOrganizationDefaultCalendarWriter,
     )
+    from src.tests.master_data_test_support import organization_handlers_for
 
     ctx_b = UserSessionContext()
     ctx_b.set_principal(
@@ -230,15 +220,15 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
         )
     )
     ctx_b.set_active_tenant_id(tenant_b.id)
-    service_as_b = OrganizationService(
-        session=organization_service._session,
-        organization_repo=organization_service._organization_repo,
-        uow_factory=organization_service._uow_factory,
-        clock=organization_service._clock,
+    service_as_b = organization_handlers_for(
+        session=services["session"],
+        organization_repo=services["organization_query"]._organization_repo,
+        uow_factory=services["organization_commands"]._uow_factory,
+        clock=services["organization_commands"]._clock,
         user_session=ctx_b,
-        enterprise_audit_service=organization_service._enterprise_audit_service,
+        enterprise_audit_service=services["organization_query"]._enterprise_audit_service,
         tenant_context_service=None,
-        overview_rollup_reader=organization_service._overview_rollup_reader,
+        overview_rollup_reader=services["organization_query"]._overview_rollup_reader,
         default_calendar_writer=SqlAlchemyOrganizationDefaultCalendarWriter(),
     )
 
@@ -251,7 +241,7 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
     )
 
     # Tenant A creating another organization must no longer refresh (stale subscription gone).
-    organization_service.create_organization(
+    services["organization_commands"].create_organization(
         organization_code=_unique_code("SWITCH-A2"), display_name="Switch Org A2"
     )
     assert signal_calls == ["stale"], "Tenant A must no longer trigger the signal after switching away"

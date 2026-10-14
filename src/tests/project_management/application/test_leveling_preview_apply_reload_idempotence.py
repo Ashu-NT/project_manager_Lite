@@ -36,13 +36,12 @@ class TestPreviewApplyReloadIdempotence:
     def test_resource_conflict_resolution_survives_reload_and_repeated_cpm_via_the_pure_function(self, services):
         ps = services["project_service"]
         ts = services["task_service"]
-        rs = services["resource_service"]
         calendar = services["work_calendar_engine"]
 
         project = ps.create_project("Idempotence Pure CPM", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-        resource = rs.create_resource("Idempotence Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource("Idempotence Dev", "Developer", hourly_rate=100.0)
         ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
@@ -92,14 +91,13 @@ class TestPreviewApplyReloadIdempotence:
         two independent orchestrations sharing only primitives."""
         ps = services["project_service"]
         ts = services["task_service"]
-        rs = services["resource_service"]
         calendar = services["work_calendar_engine"]
         sched = services["scheduling_engine"]
 
         project = ps.create_project("Idempotence Live Engine", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-        resource = rs.create_resource("Idempotence Live Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource("Idempotence Live Dev", "Developer", hourly_rate=100.0)
         ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 

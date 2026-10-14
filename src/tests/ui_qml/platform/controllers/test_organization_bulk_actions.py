@@ -35,8 +35,7 @@ def _count_uow_creations(factory_cls=SqlAlchemyOrganizationUnitOfWorkFactory):
 
 
 def _create_org(services, code: str, name: str) -> str:
-    org_service = services["organization_service"]
-    organization = org_service.create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=code,
         display_name=name,
         timezone_name="UTC",
@@ -71,8 +70,7 @@ def test_bulk_activate_deactivate_applies_to_every_selected_organization(service
     assert result["ok"] is True, result
     assert admin.selectedOrganizationIds == []
 
-    org_service = services["organization_service"]
-    all_orgs = {o.id: o for o in org_service.list_organizations(status=None)}
+    all_orgs = {o.id: o for o in services["organization_query"].list_organizations(status=None)}
     assert all_orgs[org_a].status == "inactive"
     assert all_orgs[org_b].status == "inactive"
 
@@ -80,13 +78,13 @@ def test_bulk_activate_deactivate_applies_to_every_selected_organization(service
     admin.setOrganizationBulkSelection(org_b, True)
     result = admin.bulkActivateOrganizations()
     assert result["ok"] is True, result
-    all_orgs = {o.id: o for o in org_service.list_organizations(status=None)}
+    all_orgs = {o.id: o for o in services["organization_query"].list_organizations(status=None)}
     assert all_orgs[org_a].status == "active"
     assert all_orgs[org_b].status == "active"
 
 
 def test_bulk_status_change_opens_exactly_one_transaction_for_the_whole_selection(services, qapp) -> None:
-    """The whole point of routing bulk actions through OrganizationService.
+    """The whole point of routing bulk actions through the Organization handlers.
     bulk_deactivate_organizations() instead of looping N calls to
     deactivate_organization(): N selected rows must cost ONE UnitOfWork/commit,
     not N. This is the regression test for that."""
@@ -126,8 +124,7 @@ def test_bulk_currency_and_timezone_update_every_selected_organization(services,
     result = admin.applyBulkOrganizationTimezone({"value": "Europe/Amsterdam"})
     assert result["ok"] is True, result
 
-    org_service = services["organization_service"]
-    all_orgs = {o.id: o for o in org_service.list_organizations(status=None)}
+    all_orgs = {o.id: o for o in services["organization_query"].list_organizations(status=None)}
     for org_id in (org_a, org_b):
         assert all_orgs[org_id].base_currency == "EUR"
         assert all_orgs[org_id].timezone_name == "Europe/Amsterdam"
@@ -161,7 +158,7 @@ def test_bulk_assign_modules_grants_and_revokes_across_every_selected_organizati
     )
 
     for org_id in (org_a, org_b):
-        entitlement = module_catalog_service.license_module(org_id, module_code)
+        entitlement = services["module_entitlement_commands"].license_module(org_id, module_code)
         assert entitlement.licensed is True
 
     admin.setOrganizationBulkSelection(org_a, True)
@@ -170,7 +167,7 @@ def test_bulk_assign_modules_grants_and_revokes_across_every_selected_organizati
     assert result["ok"] is True, result
 
     for org_id in (org_a, org_b):
-        entitlement = module_catalog_service.revoke_module_license(org_id, module_code)
+        entitlement = services["module_entitlement_commands"].revoke_module_license(org_id, module_code)
         assert entitlement.licensed is False
 
 

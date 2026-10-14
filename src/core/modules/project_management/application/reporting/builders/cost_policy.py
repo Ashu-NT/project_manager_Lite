@@ -1,8 +1,8 @@
-"""Cost policy mixin — thin reporting delegate.
+"""Reporting cost policy -- the single financial authority shared by builders.
 
-Business logic lives in financials/costs/cost_policy_engine.py.
-This mixin wires the reporting service's repos into CostPolicyEngine
-so that all cost-policy calculations use a single authoritative implementation.
+Business logic lives in financials/cost/engines (CostPolicyEngine,
+LaborCostEngine). This policy object wires the scoped fact readers into those
+engines once, so every report builder composes finance facts the same way.
 """
 
 from __future__ import annotations
@@ -18,11 +18,6 @@ from src.core.modules.project_management.application.financials.cost.engines.cos
 )
 from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
     LaborCostEngine,
-)
-
-# Re-export so existing imports of these from reporting.builders.cost_policy still work.
-from src.core.modules.project_management.application.financials.models import (
-    CostSourceBreakdown,
 )
 from src.core.modules.project_management.contracts.reads.financials import (
     EvmSeriesFacts,
@@ -42,57 +37,33 @@ from src.core.platform.common.exceptions import NotFoundError
 CostBucketKey = tuple[CostType, str]
 
 
-class ReportingCostPolicyMixin:
-    """Thin delegate — all logic lives in CostPolicyEngine (financials)."""
+class ReportingCostPolicy:
+    """Composes scoped finance/EVM facts through the canonical engines."""
 
-    _rate_resolver: LaborRateResolver
-    _tenant_context_service: TenantContextService
-    _finance_snapshot_reader: FinanceSnapshotReader
-    _evm_series_reader: EvmSeriesReader
+    def __init__(
+        self,
+        *,
+        rate_resolver: LaborRateResolver,
+        tenant_context_service: TenantContextService,
+        finance_snapshot_reader: FinanceSnapshotReader,
+        evm_series_reader: EvmSeriesReader,
+    ) -> None:
+        self._rate_resolver = rate_resolver
+        self._tenant_context_service = tenant_context_service
+        self._finance_snapshot_reader = finance_snapshot_reader
+        self._evm_series_reader = evm_series_reader
 
-    def _make_cost_policy_engine(self) -> CostPolicyEngine:
-        return CostPolicyEngine.for_facts(
-            rate_resolver=self._rate_resolver,
-            tenant_context_service=self._tenant_context_service,
-        )
-
-    def _build_cost_policy_snapshot(
+    def build_cost_policy_snapshot(
         self,
         project_id: str,
         *,
         as_of: date | None = None,
     ) -> CostPolicySnapshot:
-        return self._compose_finance_policy(
-            project_id, as_of=as_of or date.today()
+        return self.compose_finance_policy(
+            project_id, as_of=as_of or date.today()  # noqa: DTZ011
         )[1].snapshot
 
-    def get_project_cost_control_totals(
-        self,
-        project_id: str,
-        *,
-        as_of: date | None = None,
-    ) -> CostControlTotals:
-        self._require_finance_view("view cost control totals", project_id=project_id)
-        _, policy = self._compose_finance_policy(
-            project_id,
-            as_of=as_of or date.today(),
-        )
-        return policy.totals
-
-    def get_project_cost_source_breakdown(
-        self,
-        project_id: str,
-        *,
-        as_of: date | None = None,
-    ) -> CostSourceBreakdown:
-        self._require_finance_view("view cost source breakdown", project_id=project_id)
-        _, policy = self._compose_finance_policy(
-            project_id,
-            as_of=as_of or date.today(),
-        )
-        return policy.source_breakdown
-
-    def _compose_finance_policy(
+    def compose_finance_policy(
         self,
         project_id: str,
         *,
@@ -123,7 +94,7 @@ class ReportingCostPolicyMixin:
         ).compose_from_facts(facts, labor)
         return facts, policy
 
-    def _read_evm_facts(
+    def read_evm_facts(
         self,
         project_id: str,
         *,
@@ -144,48 +115,20 @@ class ReportingCostPolicyMixin:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
         return facts
 
-    # Proxy helpers for mixins that call self._xxx() ─────────────────────────
-
-    def _normalize_currency(self, value: str | None, fallback: str | None = None) -> str:
-        return self._make_cost_policy_engine()._normalize_currency(value, fallback)
-
-    def _add_bucket(
-        self,
-        target: dict[CostBucketKey, Decimal],
-        *,
-        cost_type: CostType,
-        currency: str,
-        amount: Decimal,
-    ) -> None:
-        self._make_cost_policy_engine()._add_bucket(
-            target, cost_type=cost_type, currency=currency, amount=amount
-        )
-
-    def _sum_bucket_map(
+    def sum_bucket_map(
         self,
         values: dict[CostBucketKey, Decimal],
         project_currency: str | None,
     ) -> Decimal:
-        return self._make_cost_policy_engine()._sum_bucket_map(values, project_currency)
+        return CostPolicyEngine.for_facts(
+            rate_resolver=self._rate_resolver,
+            tenant_context_service=self._tenant_context_service,
+        )._sum_bucket_map(values, project_currency)
 
-    def _sum_bucket_for_type(
-        self,
-        values: dict[CostBucketKey, Decimal],
-        *,
-        cost_type: CostType,
-        project_currency: str | None,
-    ) -> Decimal:
-        return self._make_cost_policy_engine()._sum_bucket_for_type(
-            values, cost_type=cost_type, project_currency=project_currency
-        )
 
-    def _sum_bucket_excluding_type(
-        self,
-        values: dict[CostBucketKey, Decimal],
-        *,
-        excluded_type: CostType,
-        project_currency: str | None,
-    ) -> Decimal:
-        return self._make_cost_policy_engine()._sum_bucket_excluding_type(
-            values, excluded_type=excluded_type, project_currency=project_currency
-        )
+__all__ = [
+    "CostBucketKey",
+    "CostControlTotals",
+    "CostPolicySnapshot",
+    "ReportingCostPolicy",
+]

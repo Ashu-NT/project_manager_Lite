@@ -3,12 +3,6 @@
 from src.core.modules.project_management.api.desktop.collaboration.api import (
     ProjectManagementCollaborationDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.collaboration.commands.task_commands import (
-    TaskCollaborationDeleteCommand,
-    TaskCollaborationEditCommand,
-    TaskCollaborationPostCommand,
-    TaskCollaborationReactionCommand,
-)
 from src.core.modules.project_management.api.desktop.collaboration.factories.collaboration_factory import (
     build_project_management_collaboration_desktop_api,
 )
@@ -22,6 +16,12 @@ from src.core.modules.project_management.api.desktop.collaboration.models.collab
     TaskCollaborationMentionOptionDescriptor,
     TaskCollaborationReactionSummaryDto,
     TaskCollaborationSnapshotDto,
+)
+from src.core.modules.project_management.contracts.use_cases.collaboration.commands import (
+    TaskCollaborationDeleteCommand,
+    TaskCollaborationEditCommand,
+    TaskCollaborationPostCommand,
+    TaskCollaborationReactionCommand,
 )
 
 __all__ = [

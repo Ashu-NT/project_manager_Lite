@@ -5,7 +5,17 @@ from datetime import date
 
 import pytest
 
-from src.core.platform.application.time_management.time.time_service import TimeService
+from src.core.platform.application.time_management.time import (
+    ApprovedTimeEventPublisher,
+    PlatformTimeAccessPolicy,
+    TimeEntryCommandHandler,
+    TimeEntryLedgerRecorder,
+    TimeEntryQueryHandler,
+    TimesheetPeriodQueryHandler,
+    TimesheetPeriodTransitionHandler,
+    TimesheetPeriodTransitionWriter,
+    TimesheetSupport,
+)
 from src.core.platform.application.time_management.time.timesheet_events import (
     TimesheetPeriodStatusChanged,
     TimesheetPeriodStatusChangeType,
@@ -252,40 +262,113 @@ class _FakeTimesheetPeriodRepo:
         return rows
 
 
-def _make_time_service(monkeypatch: pytest.MonkeyPatch) -> tuple[TimeService, _FakeWorkAllocation]:
+@dataclass
+class _TimeHandlers:
+    entries: TimeEntryCommandHandler
+    periods: TimesheetPeriodTransitionHandler
+    work_allocation_repo: _FakeWorkAllocationRepo
+    post_commit_bus: _FakePostCommitBus
+
+
+def _make_time_handlers(monkeypatch: pytest.MonkeyPatch) -> tuple[_TimeHandlers, _FakeWorkAllocation]:
     monkeypatch.setattr(
-        "src.core.platform.application.time_management.time.timesheet_support.require_any_permission",
+        "src.core.platform.application.time_management.time.time_access_policy.require_any_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.application.time_management.time.timesheet_periods.require_permission",
+        "src.core.platform.application.time_management.time.commands.timesheet_period_transitions.require_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.application.time_management.time.timesheet_entries.record_audit_entry",
+        "src.core.platform.application.time_management.time.commands.time_entry_ledger.record_audit_entry",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.application.time_management.time.timesheet_periods.record_audit_entry",
+        "src.core.platform.application.time_management.time.commands.timesheet_period_writer.record_audit_entry",
         lambda *args, **kwargs: None,
     )
 
     allocation = _FakeWorkAllocation(id="alloc-1", resource_id="resource-1")
-    service = TimeService(
-        session=_FakeSession(),
-        assignment_repo=_FakeWorkAllocationRepo(allocation),
-        task_repo=_FakeWorkOwnerRepo(_FakeWorkOwner(id="owner-1", name="Task Alpha")),
-        resource_repo=_FakeResourceRepo(_FakeResource(id="resource-1", name="Alice Admin")),
+    session = _FakeSession()
+    work_allocation_repo = _FakeWorkAllocationRepo(allocation)
+    resource_repo = _FakeResourceRepo(_FakeResource(id="resource-1", name="Alice Admin"))
+    time_entry_repo = _FakeTimeEntryRepo()
+    timesheet_period_repo = _FakeTimesheetPeriodRepo()
+    user_session = _FakeUserSession()
+    tenant_context_service = _FakeTenantContextService()
+    dispatcher = _FakeTransactionalDispatcher()
+    bus = _FakePostCommitBus()
+    uow_factory = SqlAlchemyTimeUnitOfWorkFactory()
+    support = TimesheetSupport(
+        work_allocation_repo=work_allocation_repo,
+        work_owner_repo=_FakeWorkOwnerRepo(_FakeWorkOwner(id="owner-1", name="Task Alpha")),
+        resource_repo=resource_repo,
         employee_repo=_FakeEmployeeRepo(_FakeEmployee(id="employee-1")),
-        time_entry_repo=_FakeTimeEntryRepo(),
-        timesheet_period_repo=_FakeTimesheetPeriodRepo(),
-        user_session=_FakeUserSession(),
-        tenant_context_service=_FakeTenantContextService(),
-        transactional_dispatcher=_FakeTransactionalDispatcher(),
-        post_commit_bus=_FakePostCommitBus(),
-        uow_factory=SqlAlchemyTimeUnitOfWorkFactory(),
+        time_entry_repo=time_entry_repo,
+        timesheet_period_repo=timesheet_period_repo,
     )
-    return service, allocation
+    access = PlatformTimeAccessPolicy(user_session=user_session)
+    entry_queries = TimeEntryQueryHandler(
+        support=support,
+        access_policy=access,
+        work_allocation_repo=work_allocation_repo,
+        time_entry_repo=time_entry_repo,
+    )
+    period_queries = TimesheetPeriodQueryHandler(
+        support=support,
+        access_policy=access,
+        entry_queries=entry_queries,
+        timesheet_period_repo=timesheet_period_repo,
+    )
+    entries = TimeEntryCommandHandler(
+        session=session,
+        support=support,
+        access_policy=access,
+        ledger=TimeEntryLedgerRecorder(
+            session=session,
+            support=support,
+            work_allocation_repo=work_allocation_repo,
+            time_entry_repo=time_entry_repo,
+            uow_factory=uow_factory,
+            transactional_dispatcher=dispatcher,
+            post_commit_bus=bus,
+            tenant_context_service=tenant_context_service,
+        ),
+        time_entry_repo=time_entry_repo,
+        user_session=user_session,
+    )
+    periods = TimesheetPeriodTransitionHandler(
+        session=session,
+        support=support,
+        entry_queries=entry_queries,
+        access_policy=access,
+        writer=TimesheetPeriodTransitionWriter(
+            session=session,
+            support=support,
+            period_queries=period_queries,
+            approved_time_events=ApprovedTimeEventPublisher(
+                outbox_service=None,
+                tenant_context_service=tenant_context_service,
+                work_allocation_repo=work_allocation_repo,
+                support=support,
+            ),
+            resource_repo=resource_repo,
+            timesheet_period_repo=timesheet_period_repo,
+            uow_factory=uow_factory,
+            transactional_dispatcher=dispatcher,
+            post_commit_bus=bus,
+            tenant_context_service=tenant_context_service,
+            user_session=user_session,
+        ),
+        timesheet_period_repo=timesheet_period_repo,
+        user_session=user_session,
+    )
+    return _TimeHandlers(
+        entries=entries,
+        periods=periods,
+        work_allocation_repo=work_allocation_repo,
+        post_commit_bus=bus,
+    ), allocation
 
 
 def test_time_entry_dto_normalizes_and_validates_fields():
@@ -368,9 +451,9 @@ def test_timesheet_period_dto_normalizes_and_validates_fields():
 
 
 def test_time_service_uses_entity_validation_for_entries_and_periods(monkeypatch: pytest.MonkeyPatch):
-    service, allocation = _make_time_service(monkeypatch)
+    time, allocation = _make_time_handlers(monkeypatch)
 
-    entry = service.add_work_entry(
+    entry = time.entries.add_work_entry(
         "alloc-1",
         entry_date=date(2026, 7, 10),
         hours="4.0",
@@ -385,10 +468,10 @@ def test_time_service_uses_entity_validation_for_entries_and_periods(monkeypatch
     assert entry.scope_id == "project-1"
     assert entry.department_name == "Engineering"
     assert entry.site_name == "Berlin Hub"
-    allocation = service._work_allocation_repo.get("alloc-1")
+    allocation = time.work_allocation_repo.get("alloc-1")
     assert allocation.hours_logged == 4.0
 
-    updated = service.update_time_entry(
+    updated = time.entries.update_time_entry(
         entry.id,
         expected_version=entry.version,
         hours="5.5",
@@ -397,10 +480,10 @@ def test_time_service_uses_entity_validation_for_entries_and_periods(monkeypatch
 
     assert updated.hours == 5.5
     assert updated.note == "Revised work"
-    allocation = service._work_allocation_repo.get("alloc-1")
+    allocation = time.work_allocation_repo.get("alloc-1")
     assert allocation.hours_logged == 5.5
 
-    submitted = service.submit_timesheet_period(
+    submitted = time.periods.submit_timesheet_period(
         "resource-1",
         period_start=date(2026, 7, 5),
         note="  Submitted for approval  ",
@@ -413,7 +496,7 @@ def test_time_service_uses_entity_validation_for_entries_and_periods(monkeypatch
     assert submitted.submitted_by_username == "ada"
     assert submitted.decision_note == "Submitted for approval"
 
-    approved = service.approve_timesheet_period(
+    approved = time.periods.approve_timesheet_period(
         submitted.period_id,
         expected_version=submitted.version,
         note="  Approved  ",
@@ -425,7 +508,7 @@ def test_time_service_uses_entity_validation_for_entries_and_periods(monkeypatch
     assert approved.decision_note == "Approved"
     assert approved.locked_at is None
 
-    published = service._post_commit_bus.published
+    published = time.post_commit_bus.published
     status_changes = [event for event in published if isinstance(event, TimesheetPeriodStatusChanged)]
     assert [event.change_type for event in status_changes] == [
         TimesheetPeriodStatusChangeType.SUBMITTED,

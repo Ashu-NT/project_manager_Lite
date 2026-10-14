@@ -9,13 +9,15 @@ from src.core.platform.api.desktop.master_data.employee.employee import (
     PlatformEmployeeDesktopApi,
 )
 from src.core.platform.api.desktop.master_data.employee.models.employee import (
-    EmployeeCreateCommand,
     EmployeeDto,
-    EmployeeUpdateCommand,
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+    EmployeeUpdateCommand,
+)
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     int_value,
     option_item,

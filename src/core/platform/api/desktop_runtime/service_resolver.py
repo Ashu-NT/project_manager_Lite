@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.tenant.modules import ModuleCatalogQueryHandler
 
 
 def resolve_module_catalog_service(
     services: Mapping[str, object],
-) -> ModuleCatalogService | None:
+) -> ModuleCatalogQueryHandler | None:
     candidate = services.get("module_catalog_service")
-    return candidate if isinstance(candidate, ModuleCatalogService) else None
+    return candidate if isinstance(candidate, ModuleCatalogQueryHandler) else None
 
 
 __all__ = [

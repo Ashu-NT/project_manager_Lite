@@ -1,21 +1,23 @@
 """Collaboration queries — read-only collaboration operations."""
 
 from src.core.modules.project_management.application.collaboration.queries.collaboration_comments import (
-    CollaborationCommentQueryMixin,
+    CollaborationCommentQueryHandler,
+    TaskCommentActionContext,
 )
 from src.core.modules.project_management.application.collaboration.queries.collaboration_documents import (
-    CollaborationDocumentQueryMixin,
+    CollaborationDocumentQueryHandler,
 )
 from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
-    CollaborationInboxQueryMixin,
+    CollaborationInboxQueryHandler,
 )
 from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
-    CollaborationPresenceQueryMixin,
+    CollaborationPresenceQueryHandler,
 )
 
 __all__ = [
-    "CollaborationCommentQueryMixin",
-    "CollaborationDocumentQueryMixin",
-    "CollaborationInboxQueryMixin",
-    "CollaborationPresenceQueryMixin",
+    "CollaborationCommentQueryHandler",
+    "CollaborationDocumentQueryHandler",
+    "CollaborationInboxQueryHandler",
+    "CollaborationPresenceQueryHandler",
+    "TaskCommentActionContext",
 ]

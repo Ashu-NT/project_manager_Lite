@@ -38,7 +38,7 @@ def recurring_event_occurs_on(event: CalendarRecurringEvent, target_date: date) 
         day_end = datetime.combine(target_date, time(23, 59, 59))
         occurrences = list(rule.between(day_start, day_end, inc=True))
         return len(occurrences) > 0
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 

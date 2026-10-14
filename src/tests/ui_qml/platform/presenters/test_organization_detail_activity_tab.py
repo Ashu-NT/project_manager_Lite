@@ -12,6 +12,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Q_ARG, QCoreApplication, QMetaObject, qInstallMessageHandler
@@ -45,18 +52,16 @@ def _load_detail_page(engine, organization: dict, workspace_controller, platform
 
 
 def test_activity_tab_loads_real_paginated_data_for_a_non_active_organization(services, qapp) -> None:
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
-    site_service = services["site_service"]
     catalog, admin = _build_admin_workspace(services)
 
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="QML-ACT-A", display_name="QML Activity Org A", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_a.id)
-    site_service.create_site(site_code="QACT-SITE", name="QML Activity Site")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="QACT-SITE", name="QML Activity Site"))
 
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="QML-ACT-B", display_name="QML Activity Org B", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_b.id)  # active org is now B, not A
@@ -107,16 +112,14 @@ def test_activity_tab_loads_real_paginated_data_for_a_non_active_organization(se
 
 
 def test_activating_a_site_activity_row_requests_navigation_to_site_detail(services, qapp) -> None:
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
-    site_service = services["site_service"]
     catalog, admin = _build_admin_workspace(services)
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="QML-ACT-NAV", display_name="QML Activity Nav Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
-    site = site_service.create_site(site_code="NAV-SITE", name="Nav Site")
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="NAV-SITE", name="Nav Site"))
 
     messages: list[str] = []
     previous_handler = qInstallMessageHandler(lambda t, c, m: messages.append(str(m)))
@@ -166,18 +169,15 @@ def test_activating_a_site_activity_row_requests_navigation_to_site_detail(servi
 
 
 def test_activity_tab_controller_slot_applies_search_and_type_filter_server_side(services, qapp) -> None:
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
-    site_service = services["site_service"]
-    department_service = services["department_service"]
     _catalog, admin = _build_admin_workspace(services)
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="QML-ACT-FILTER", display_name="QML Activity Filter Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
-    site_service.create_site(site_code="FIL-ACT-SITE", name="Filter Site")
-    department_service.create_department(department_code="FIL-ACT-DEPT", name="Filter Department")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="FIL-ACT-SITE", name="Filter Site"))
+    services["department_commands"].create_department(DepartmentCreateCommand(department_code="FIL-ACT-DEPT", name="Filter Department"))
 
     result = admin.organizationActivityPage(org.id, 1, 25, "", "site", "")
     titles = [item["title"] for item in result["items"]]

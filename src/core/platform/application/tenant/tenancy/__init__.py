@@ -1,8 +1,6 @@
 from src.core.platform.application.tenant.tenancy.context_policy import (
     LocalSingleTenantContextPolicy,
     SaaSTenantContextPolicy,
-    TenancyMode,
-    TenantContextPolicy,
     build_tenant_context_policy,
 )
 from src.core.platform.application.tenant.tenancy.tenant_admin_service import (
@@ -17,6 +15,10 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 from src.core.platform.application.tenant.tenancy.tenant_membership_service import (
     IssuedTenantInvitation,
     TenantMembershipService,
+)
+from src.core.platform.contract.read.tenant.tenancy.tenant_context_policy import (
+    TenancyMode,
+    TenantContextPolicy,
 )
 
 __all__ = [

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, JsonValue, field_validator
 
@@ -52,7 +53,7 @@ class IntegrationEventEnvelope(BaseModel):
 
     @field_validator("schema_version", mode="before")
     @classmethod
-    def _validate_schema_version(cls, value: object) -> int:
+    def _validate_schema_version(cls, value: Any) -> int:
         resolved = int(value)
         if resolved < 1:
             raise ValueError("Schema version must be positive")
@@ -60,7 +61,7 @@ class IntegrationEventEnvelope(BaseModel):
 
     @field_validator("aggregate_version", mode="before")
     @classmethod
-    def _validate_aggregate_version(cls, value: object) -> int:
+    def _validate_aggregate_version(cls, value: Any) -> int:
         resolved = int(value)
         if resolved < 0:
             raise ValueError("Aggregate version cannot be negative")

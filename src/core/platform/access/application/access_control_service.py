@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, ClassVar, NoReturn
 
 from sqlalchemy.orm import Session
 
@@ -12,9 +12,6 @@ from src.core.platform.access.domain import (
     normalize_access_scope_id,
     normalize_access_scope_type,
     normalize_access_user_id,
-)
-from src.core.platform.application.security.auth.session.session_service import (
-    refresh_current_session_if_user,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
@@ -34,7 +31,9 @@ if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import (
         EnterpriseAuditService,
     )
-    from src.core.platform.application.security.auth.auth_service import AuthService
+    from src.core.platform.application.security.auth.session.session_lifecycle import (
+        AuthSessionLifecycle,
+    )
     from src.core.platform.application.security.authorization.roles.role_governance_service import (
         RoleGovernanceService,
     )
@@ -64,7 +63,7 @@ class AccessControlService:
         *,
         session: Session,
         user_repo: UserRepository,
-        auth_service: AuthService,
+        session_lifecycle: AuthSessionLifecycle,
         policy_registry: ScopedRolePolicyRegistry | None = None,
         scope_exists_resolvers: dict[str, ScopeExistsResolver] | None = None,
         user_session: UserSessionContext | None = None,
@@ -77,7 +76,7 @@ class AccessControlService:
     ) -> None:
         self._session = session
         self._user_repo = user_repo
-        self._auth_service = auth_service
+        self._session_lifecycle = session_lifecycle
         self._policy_registry = policy_registry or ScopedRolePolicyRegistry()
         self._scope_exists_resolvers = {
             self._normalize_scope_type(scope_type): resolver
@@ -261,7 +260,7 @@ class AccessControlService:
             )
         return self._role_governance_service, self._role_repo, self._role_binding_repo
 
-    _CANONICAL_ROLE_NAME_OVERRIDES: dict[tuple[str, str], str] = {
+    _CANONICAL_ROLE_NAME_OVERRIDES: ClassVar[dict[tuple[str, str], str]] = {
         ("organization", choice): canonical_name
         for choice, canonical_name in ORGANIZATION_SCOPE_ROLE_CANONICAL_NAMES.items()
     }
@@ -509,7 +508,7 @@ class AccessControlService:
         )
 
     def _refresh_current_session_if_needed(self, user_id: str) -> None:
-        refresh_current_session_if_user(self._auth_service, user_id)
+        self._session_lifecycle.refresh_current_session_if_user(user_id)
 
     def _clear_active_organization_if_revoked(
         self, scope_type: str, scope_id: str, user_id: str

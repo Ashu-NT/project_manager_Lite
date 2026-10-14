@@ -76,10 +76,9 @@ def _billing_hints(hints):
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _setup_billable_project(services):
@@ -397,7 +396,7 @@ def test_governed_approval_produces_status_changed_approved(services):
     assert creator_view.can_approve is False
 
     reviewer = _unique("p39-billing-reviewer")
-    services["auth_service"].register_user(reviewer, "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
 
     hints = _spy_hints(services)
@@ -416,7 +415,7 @@ def test_governed_rejection_produces_status_changed_rejected(services):
     request = services["approval_service"].list_pending(project_id=project.id)[0]
 
     reviewer = _unique("p39-billing-rejector")
-    services["auth_service"].register_user(reviewer, "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
 
     hints = _spy_hints(services)
@@ -435,7 +434,7 @@ def test_rejected_preparation_releases_source_for_new_draft(services):
     request = services["approval_service"].list_pending(project_id=project.id)[0]
 
     reviewer = _unique("billing-release-reviewer")
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         reviewer, "StrongPass123", role_names=["approver"]
     )
     _login(services, reviewer, "StrongPass123")
@@ -591,7 +590,7 @@ def test_request_delivery_produces_status_changed_delivery_pending(accounting_se
     submitted = _submitted_preparation(services, project, line)
     request = services["approval_service"].list_pending(project_id=project.id)[0]
     reviewer = _unique("p39-delivery-reviewer")
-    services["auth_service"].register_user(reviewer, "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
     services["approval_service"].approve_and_apply(request.id)
     _login(services, "admin", "ChangeMe123!")
@@ -628,7 +627,7 @@ def test_correction_uses_reconciled_parent_without_mutating_its_evidence(account
         correction(parent.id)
     request = services["approval_service"].list_pending(project_id=project.id)[0]
     reviewer = _unique("correction-reviewer")
-    services["auth_service"].register_user(reviewer, "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
     services["approval_service"].approve_and_apply(request.id)
     _login(services, "admin", "ChangeMe123!")
@@ -671,7 +670,7 @@ def test_external_outcome_replay_produces_zero_hints(accounting_services, accoun
     submitted = _submitted_preparation(services, project, line)
     request = services["approval_service"].list_pending(project_id=project.id)[0]
     reviewer = _unique("p39-replay-reviewer")
-    services["auth_service"].register_user(reviewer, "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
     services["approval_service"].approve_and_apply(request.id)
     _login(services, "admin", "ChangeMe123!")
@@ -710,8 +709,7 @@ def test_add_schedule_line_reports_the_command_permission_without_a_boundary_pre
     _, project, _cost_code = _setup_billable_project(services)
     billing_profile_service = services["billing_profile_service"]
 
-    auth = services["auth_service"]
-    auth.register_user("p39-viewer-profile", "StrongPass123", role_names=["viewer"])
+    services["user_registration"].register_user("p39-viewer-profile", "StrongPass123", role_names=["viewer"])
     _login(services, "p39-viewer-profile", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="finance.manage"):
@@ -733,8 +731,7 @@ def test_mark_schedule_line_ready_permission_check_is_not_masked(services):
         project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     )
 
-    auth = services["auth_service"]
-    auth.register_user("p39-viewer-schedule", "StrongPass123", role_names=["viewer"])
+    services["user_registration"].register_user("p39-viewer-schedule", "StrongPass123", role_names=["viewer"])
     _login(services, "p39-viewer-schedule", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="finance.manage"):
@@ -755,8 +752,7 @@ def test_add_fixed_price_source_permission_check_is_not_masked(services):
         idempotency_key=_unique("bp-key"),
     )
 
-    auth = services["auth_service"]
-    auth.register_user("p39-viewer-prep", "StrongPass123", role_names=["viewer"])
+    services["user_registration"].register_user("p39-viewer-prep", "StrongPass123", role_names=["viewer"])
     _login(services, "p39-viewer-prep", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="finance.manage"):

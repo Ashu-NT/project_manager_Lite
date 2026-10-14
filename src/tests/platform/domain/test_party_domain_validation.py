@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
-from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.master_data.party import (
+    PartyCommandHandler,
+    PartyQueryHandler,
+)
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.contract.use_cases.master_data.party.commands import (
+    PartyCreateCommand,
+    PartyUpdateCommand,
+)
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.party import (
     Party,
@@ -110,26 +119,36 @@ def _make_organization() -> Organization:
     )
 
 
-def _make_service(monkeypatch: pytest.MonkeyPatch) -> PartyService:
+def _make_service(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.party.party_service.require_permission",
+        "src.core.platform.application.master_data.party.commands.party_commands.require_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.party.party_service.require_any_permission",
+        "src.core.platform.application.master_data.party.queries.party_queries.require_any_permission",
         lambda *args, **kwargs: None,
     )
     party_repo = _FakePartyRepo()
     enterprise_audit_service = _FakeEnterpriseAuditService()
-    return PartyService(
-        session=_FakeSession(),
+    tenant_context = _FakeTenantContext(_make_organization())
+    commands = PartyCommandHandler(
+        user_session=object(),
+        tenant_context_service=tenant_context,
+        uow_factory=_FakePartyUnitOfWorkFactory(party_repo, enterprise_audit_service),
+        clock=SystemClock(),
+    )
+    queries = PartyQueryHandler(
         party_repo=party_repo,
         organization_repo=object(),
         user_session=object(),
-        enterprise_audit_service=enterprise_audit_service,
-        tenant_context_service=_FakeTenantContext(_make_organization()),
-        uow_factory=_FakePartyUnitOfWorkFactory(party_repo, enterprise_audit_service),
-        clock=SystemClock(),
+        tenant_context_service=tenant_context,
+        overview_rollup_reader=None,
+    )
+    return SimpleNamespace(
+        create_party=commands.create_party,
+        update_party=commands.update_party,
+        find_party_by_code=queries.find_party_by_code,
+        search_parties=queries.search_parties,
     )
 
 
@@ -201,18 +220,7 @@ def test_party_dto_normalizes_and_validates_fields():
 def test_party_service_uses_entity_validation_and_final_state(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
 
-    created = service.create_party(
-        party_code=" sup-001 ",
-        name="  North Supply  ",
-        party_type="organization",
-        roles=["supplier"],
-        legal_name="  North Supply GmbH  ",
-        email="  SALES@EXAMPLE.COM  ",
-        phone="  +49-555-0101  ",
-        country="  Germany  ",
-        city="  Berlin  ",
-        notes="  Preferred vendor  ",
-    )
+    created = service.create_party(PartyCreateCommand(party_code=" sup-001 ", party_name="  North Supply  ", party_type="organization", roles=["supplier"], legal_name="  North Supply GmbH  ", email="  SALES@EXAMPLE.COM  ", phone="  +49-555-0101  ", country="  Germany  ", city="  Berlin  ", notes="  Preferred vendor  "))
 
     assert created.party_code == "SUP-001"
     assert created.party_name == "North Supply"
@@ -229,16 +237,7 @@ def test_party_service_uses_entity_validation_and_final_state(monkeypatch: pytes
     assert resolved is not None
     assert resolved.id == created.id
 
-    updated = service.update_party(
-        created.id,
-        party_code=" ven-002 ",
-        party_name="  North Services  ",
-        roles=["service_provider"],
-        email="",
-        phone="  +49-555-0102  ",
-        city="  Hamburg  ",
-        expected_version=created.version,
-    )
+    updated = service.update_party(PartyUpdateCommand(party_id=created.id, party_code=" ven-002 ", party_name="  North Services  ", roles=["service_provider"], email="", phone="  +49-555-0102  ", city="  Hamburg  ", expected_version=created.version))
 
     assert updated.party_code == "VEN-002"
     assert updated.party_name == "North Services"
@@ -251,8 +250,5 @@ def test_party_service_uses_entity_validation_and_final_state(monkeypatch: pytes
     assert [row.id for row in search_rows] == [updated.id]
 
     with pytest.raises(ValidationError) as exc_duplicate:
-        service.create_party(
-            party_code=" ven-002 ",
-            party_name="Duplicate Vendor",
-        )
+        service.create_party(PartyCreateCommand(party_code=" ven-002 ", party_name="Duplicate Vendor"))
     assert exc_duplicate.value.code == "PARTY_CODE_EXISTS"

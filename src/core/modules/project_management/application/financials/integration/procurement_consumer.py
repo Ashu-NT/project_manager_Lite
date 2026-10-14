@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 from src.core.modules.project_management.application.financials.commitments import (
     ProjectCommitmentService,
@@ -172,7 +173,8 @@ class ProcurementFinancialConsumer:
         return ProcurementFinancialConsumption(
             project_id=project_id,
             commitment_events=(event,) if event is not None else (),
-            cost_entry_events=cost_entry_events,
+            # The Cost Entry service returns its typed DomainEvent instances as tuple[object, ...].
+            cost_entry_events=cast(tuple[DomainEvent, ...], cost_entry_events),
         )
 
     def _resolve_project(

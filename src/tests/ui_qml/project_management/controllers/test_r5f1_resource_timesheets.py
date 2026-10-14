@@ -13,23 +13,23 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
 def _build_resource_timesheet(services):
     principal = services["user_session"].principal
-    department = services["department_service"].create_department(
-        department_code="R5F1-DEPT", name="R5F1 Department"
-    )
-    employee = services["employee_service"].create_employee(
-        employee_code="R5F1-OWNER",
-        full_name="Timesheet Owner",
-        department_id=department.id,
-    )
-    services["employee_service"].link_employee_user_account(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="R5F1-DEPT", name="R5F1 Department"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="R5F1-OWNER", full_name="Timesheet Owner", department_id=department.id))
+    services["employee_commands"].link_employee_user_account(
         employee.id, principal.user_id
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         name="Timesheet Owner",
         role="Engineer",
         worker_type=WorkerType.EMPLOYEE,
@@ -48,23 +48,22 @@ def _build_resource_timesheet(services):
 
 def test_resource_timesheet_read_is_scoped_paged_sorted_and_backend_aggregated(services) -> None:
     _, resource, project, task, assignment = _build_resource_timesheet(services)
-    timesheets = services["timesheet_service"]
     for work_date, hours in (
         (date(2026, 8, 3), 7.5),
         (date(2026, 8, 4), 2.0),
         (date(2026, 8, 5), 5.0),
     ):
-        timesheets.add_time_entry(
+        services["time_entry_commands"].add_time_entry(
             assignment.id,
             entry_date=work_date,
             hours=hours,
             note=f"Work on {work_date.isoformat()}",
         )
 
-    period = timesheets.get_timesheet_period(
+    period = services["timesheet_workspace_query"].get_timesheet_period(
         scope=TimesheetScope.MINE, resource_id=resource.id, period_start=date(2026, 8, 18)
     )
-    first = timesheets.query_timesheet_entries(
+    first = services["timesheet_workspace_query"].query_timesheet_entries(
         scope=TimesheetScope.MINE,
         resource_id=resource.id,
         period_start=date(2026, 8, 1),
@@ -73,7 +72,7 @@ def test_resource_timesheet_read_is_scoped_paged_sorted_and_backend_aggregated(s
         sort_key="hours",
         sort_direction="asc",
     )
-    second = timesheets.query_timesheet_entries(
+    second = services["timesheet_workspace_query"].query_timesheet_entries(
         scope=TimesheetScope.MINE,
         resource_id=resource.id,
         period_start=date(2026, 8, 1),
@@ -99,17 +98,16 @@ def test_resource_timesheet_read_is_scoped_paged_sorted_and_backend_aggregated(s
 
 def test_resource_mutations_deny_another_resource_and_enforce_selected_period(services) -> None:
     _, owner_resource, _, _, owner_assignment = _build_resource_timesheet(services)
-    other = services["resource_service"].create_resource(
+    other = services["resource_master_commands"].create_resource(
         name="Another Resource",
         role="Engineer",
     )
     project = services["project_service"].create_project("Other Work")
     task = services["task_service"].create_task(project.id, "Other Task")
     other_assignment = services["task_service"].assign_resource(task.id, other.id)
-    timesheets = services["timesheet_service"]
 
     with pytest.raises(BusinessRuleError, match="does not belong"):
-        timesheets.add_timesheet_entry(
+        services["timesheet_workspace_commands"].add_timesheet_entry(
             other_assignment.id,
             scope=TimesheetScope.MINE,
             resource_id=owner_resource.id,
@@ -119,7 +117,7 @@ def test_resource_mutations_deny_another_resource_and_enforce_selected_period(se
         )
 
     with pytest.raises(Exception, match="selected reporting period"):
-        timesheets.add_timesheet_entry(
+        services["timesheet_workspace_commands"].add_timesheet_entry(
             owner_assignment.id,
             scope=TimesheetScope.MINE,
             resource_id=owner_resource.id,
@@ -131,31 +129,30 @@ def test_resource_mutations_deny_another_resource_and_enforce_selected_period(se
 
 def test_resource_submit_is_versioned_and_populates_review_queue(services) -> None:
     _, resource, _, _, assignment = _build_resource_timesheet(services)
-    timesheets = services["timesheet_service"]
-    timesheets.add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 8, 4),
         hours=8,
         note="Ready for review",
     )
-    before = timesheets.get_timesheet_period(
+    before = services["timesheet_workspace_query"].get_timesheet_period(
         scope=TimesheetScope.MINE, resource_id=resource.id, period_start=date(2026, 8, 1)
     )
 
-    submitted = timesheets.submit_resource_timesheet_period(
+    submitted = services["timesheet_workspace_commands"].submit_resource_timesheet_period(
         scope=TimesheetScope.MINE,
         resource_id=resource.id,
         period_start=date(2026, 8, 1),
         expected_version=before.version,
         note="Owner submission",
     )
-    after = timesheets.get_timesheet_period(
+    after = services["timesheet_workspace_query"].get_timesheet_period(
         scope=TimesheetScope.MINE, resource_id=resource.id, period_start=date(2026, 8, 1)
     )
-    queue = timesheets.query_review_queue_page(
+    queue = services["timesheet_review_query"].query_review_queue_page(
         status=TimesheetPeriodStatus.SUBMITTED
     )
-    history = timesheets.query_timesheet_history(
+    history = services["timesheet_workspace_query"].query_timesheet_history(
         scope=TimesheetScope.MINE, resource_id=resource.id, page=1, page_size=12
     )
 
@@ -170,7 +167,7 @@ def test_resource_submit_is_versioned_and_populates_review_queue(services) -> No
     assert history.items[0].period_id == after.period_id
 
     with pytest.raises(ConcurrencyError):
-        timesheets.submit_resource_timesheet_period(
+        services["timesheet_workspace_commands"].submit_resource_timesheet_period(
             scope=TimesheetScope.MINE,
             resource_id=resource.id,
             period_start=date(2026, 8, 1),
@@ -201,22 +198,21 @@ def test_r5f1_navigation_keeps_timesheets_and_review_queue_distinct() -> None:
 
 def test_resource_timesheet_scopes_enforce_target_and_eligibility(services) -> None:
     _, owner, _, _, _ = _build_resource_timesheet(services)
-    external = services["resource_service"].create_resource(
+    external = services["resource_master_commands"].create_resource(
         name="External Without Login",
         role="Consultant",
         kind=ResourceKind.PERSON,
         worker_type=WorkerType.EXTERNAL,
     )
-    crew = services["resource_service"].create_resource(
+    crew = services["resource_master_commands"].create_resource(
         name="Field Crew",
         role="Crew",
         kind=ResourceKind.CREW,
         worker_type=WorkerType.EXTERNAL,
     )
-    timesheets = services["timesheet_service"]
 
-    access = timesheets.get_timesheet_workspace_access()
-    all_page = timesheets.query_timesheet_resources(
+    access = services["timesheet_workspace_query"].get_timesheet_workspace_access()
+    all_page = services["timesheet_workspace_query"].query_timesheet_resources(
         scope=TimesheetScope.ALL, page=1, page_size=20
     )
 
@@ -242,13 +238,13 @@ def test_resource_timesheet_scopes_enforce_target_and_eligibility(services) -> N
         )
     )
     with pytest.raises(Exception, match="not available"):
-        timesheets.get_timesheet_period(
+        services["timesheet_workspace_query"].get_timesheet_period(
             scope=TimesheetScope.MINE,
             resource_id=external.id,
             period_start=date(2026, 8, 1),
         )
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        timesheets.query_timesheet_resources(scope=TimesheetScope.ALL)
+        services["timesheet_workspace_query"].query_timesheet_resources(scope=TimesheetScope.ALL)
 
 
 def test_reviewer_permission_does_not_grant_timesheet_edit_other(services) -> None:
@@ -264,7 +260,7 @@ def test_reviewer_permission_does_not_grant_timesheet_edit_other(services) -> No
         )
     )
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        services["timesheet_service"].add_timesheet_entry(
+        services["timesheet_workspace_commands"].add_timesheet_entry(
             assignment.id,
             scope=TimesheetScope.ALL,
             resource_id=assignment.resource_id,
@@ -275,7 +271,7 @@ def test_reviewer_permission_does_not_grant_timesheet_edit_other(services) -> No
 
 
 def test_external_without_login_supports_governed_delegated_lifecycle(services) -> None:
-    external = services["resource_service"].create_resource(
+    external = services["resource_master_commands"].create_resource(
         name="Delegated Contractor",
         role="Consultant",
         kind=ResourceKind.PERSON,
@@ -284,9 +280,8 @@ def test_external_without_login_supports_governed_delegated_lifecycle(services) 
     project = services["project_service"].create_project("Delegated Delivery")
     task = services["task_service"].create_task(project.id, "Consulting")
     assignment = services["task_service"].assign_resource(task.id, external.id)
-    timesheets = services["timesheet_service"]
 
-    entry = timesheets.add_timesheet_entry(
+    entry = services["timesheet_workspace_commands"].add_timesheet_entry(
         assignment.id,
         scope=TimesheetScope.ALL,
         resource_id=external.id,
@@ -295,12 +290,12 @@ def test_external_without_login_supports_governed_delegated_lifecycle(services) 
         hours=6,
         note="Entered by timekeeper",
     )
-    before = timesheets.get_timesheet_period(
+    before = services["timesheet_workspace_query"].get_timesheet_period(
         scope=TimesheetScope.ALL,
         resource_id=external.id,
         period_start=date(2026, 8, 1),
     )
-    submitted = timesheets.submit_resource_timesheet_period(
+    submitted = services["timesheet_workspace_commands"].submit_resource_timesheet_period(
         scope=TimesheetScope.ALL,
         resource_id=external.id,
         period_start=date(2026, 8, 1),
@@ -315,10 +310,10 @@ def test_external_without_login_supports_governed_delegated_lifecycle(services) 
 
 
 def test_team_selector_uses_explicit_project_scope(services) -> None:
-    in_team = services["resource_service"].create_resource(
+    in_team = services["resource_master_commands"].create_resource(
         name="In Team", role="Engineer", kind=ResourceKind.PERSON
     )
-    out_team = services["resource_service"].create_resource(
+    out_team = services["resource_master_commands"].create_resource(
         name="Out Team", role="Engineer", kind=ResourceKind.PERSON
     )
     team_project = services["project_service"].create_project("Team Project")
@@ -339,13 +334,13 @@ def test_team_selector_uses_explicit_project_scope(services) -> None:
         )
     )
 
-    page = services["timesheet_service"].query_timesheet_resources(
+    page = services["timesheet_workspace_query"].query_timesheet_resources(
         scope=TimesheetScope.TEAM
     )
 
     assert {item.resource_id for item in page.items} == {in_team.id}
     with pytest.raises(Exception, match="not available"):
-        services["timesheet_service"].get_timesheet_period(
+        services["timesheet_workspace_query"].get_timesheet_period(
             scope=TimesheetScope.TEAM,
             resource_id=out_team.id,
             period_start=date(2026, 8, 1),

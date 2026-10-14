@@ -46,19 +46,18 @@ def _role_repositories(services):
     # RoleGovernanceService opens a fresh UoW-bound role-binding repo per mutation -- a
     # freshly-constructed repository bound to the same shared test `session` reads/writes the
     # identical underlying data for setup/assertion purposes.
-    auth = services["auth_service"]
     return SimpleNamespace(
         role_binding_repo=SqlAlchemyRoleBindingRepository(services["session"]),
-        role_repo=auth._role_repo,
-        role_permission_repo=auth._role_permission_repo,
-        permission_repo=auth._permission_repo,
+        role_repo=services["auth_queries"]._role_repo,
+        role_permission_repo=services["platform_owner_provisioning"]._role_permission_repo,
+        permission_repo=services["platform_owner_provisioning"]._permission_repo,
     )
 
 
 def _create_user_without_legacy_roles(services, username: str):
     tenant_id = services["tenant_context_service"].get_active_tenant_id()
     assert tenant_id is not None
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         username,
         "CanonicalResolver123!",
         role_names=[],
@@ -81,7 +80,7 @@ def _add_role_permission(services, role: Role, permission_code: str) -> None:
 
 def test_resolves_platform_authority_without_customer_context(services) -> None:
     repositories = _role_repositories(services)
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         "canonical-resolver-platform",
         "CanonicalResolver123!",
         role_names=[],

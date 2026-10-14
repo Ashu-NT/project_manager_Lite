@@ -6,6 +6,9 @@ from typing import Protocol
 from src.core.modules.project_management.domain.collaboration import (
     CollaborationMentionCandidate,
 )
+from src.core.platform.contract.port.master_data.documents.document_access_policy import (
+    DocumentVisibility,
+)
 
 from .models.workspace_facts import (
     CollaborationCommentCriteria,
@@ -23,6 +26,7 @@ class CollaborationWorkspaceReader(Protocol):
         *,
         tenant_id: str,
         organization_id: str,
+        visibility: DocumentVisibility,
         query: str = "",
         limit: int = 50,
     ) -> tuple[TaskDocumentOptionFact, ...]: ...
@@ -56,6 +60,7 @@ class CollaborationWorkspaceReader(Protocol):
         organization_id: str,
         task_id: str,
         comment_ids: tuple[str, ...],
+        visibility: DocumentVisibility,
     ) -> dict[str, tuple[TaskDetailLinkedDocumentFact, ...]]: ...
 
     def read_comment_authors(

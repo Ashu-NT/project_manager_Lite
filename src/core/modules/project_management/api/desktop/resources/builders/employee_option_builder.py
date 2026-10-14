@@ -11,20 +11,20 @@ from src.core.modules.project_management.api.desktop.resources.models.options im
 
 
 def build_employee_options(
-    employee_service: object | None = None,
+    employee_query: object | None = None,
 ) -> tuple[ResourceEmployeeOptionDescriptor, ...]:
-    if employee_service is None:
+    if employee_query is None:
         return ()
     try:
         employees = sorted(
-            employee_service.list_employees(active_only=None),
+            employee_query.list_employees(active_only=None),
             key=lambda employee: (
                 not bool(getattr(employee, "is_active", True)),
                 str(getattr(employee, "full_name", "") or "").casefold(),
                 str(getattr(employee, "employee_code", "") or "").casefold(),
             ),
         )
-    except Exception:
+    except Exception:  # noqa: BLE001
         return ()
     return tuple(
         ResourceEmployeeOptionDescriptor(
@@ -46,11 +46,11 @@ def build_employee_options(
 
 
 def build_employee_lookup(
-    employee_service: object | None = None,
+    employee_query: object | None = None,
 ) -> dict[str, ResourceEmployeeOptionDescriptor]:
     return {
         option.value: option
-        for option in build_employee_options(employee_service)
+        for option in build_employee_options(employee_query)
     }
 
 

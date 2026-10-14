@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Protocol
 from uuid import uuid4
 
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -18,10 +17,7 @@ from src.core.platform.integration import (
     IntegrationOutboxRecord,
     OutboxDeliveryStatus,
 )
-
-
-class DeliveryClock(Protocol):
-    def now(self) -> datetime: ...
+from src.core.shared.time.clock import Clock
 
 
 class InboxDeliveryDisposition(str, Enum):
@@ -71,7 +67,7 @@ class IntegrationOutboxService:
         *,
         repository: IntegrationOutboxRepository,
         owner_module: str,
-        clock: DeliveryClock,
+        clock: Clock,
         retry_policy: IntegrationRetryPolicy | None = None,
         max_attempts: int = 8,
     ) -> None:
@@ -197,7 +193,7 @@ class IntegrationInboxService:
         *,
         repository: IntegrationInboxRepository,
         consumer_name: str,
-        clock: DeliveryClock,
+        clock: Clock,
         retry_policy: IntegrationRetryPolicy | None = None,
         max_attempts: int = 8,
     ) -> None:

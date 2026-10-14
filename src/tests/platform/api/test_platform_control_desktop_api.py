@@ -28,7 +28,7 @@ def test_platform_access_desktop_api_manages_project_scope_grants(services):
     tenant_id = services["tenant_context_service"].require_active_tenant_id(
         operation_label="prepare desktop access test user"
     )
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         "desktop-access",
         "StrongPass123",
         role_names=["viewer"],
@@ -80,12 +80,12 @@ def test_platform_approval_desktop_api_lists_and_approves_requests(services):
         lambda _request, _deps: None,
         dependencies_factory=lambda _session: None,
     )
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "approval-requester-desktop",
         "StrongPass123",
         role_names=["inventory_manager"],
     )
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "approval-approver-desktop",
         "StrongPass123",
         role_names=["approver"],
@@ -129,8 +129,7 @@ def test_build_desktop_api_registry_exposes_platform_control_adapters(services):
 
 
 def test_build_desktop_api_registry_exposes_organization_as_an_access_scope_type(services):
-    organization_service = services["organization_service"]
-    other_org = organization_service.create_organization(
+    other_org = services["organization_commands"].create_organization(
         organization_code="DESKTOP-ORG-B", display_name="Desktop Access Org B",
     )
     registry = build_desktop_api_registry(services)
@@ -146,7 +145,7 @@ def test_build_desktop_api_registry_exposes_organization_as_an_access_scope_type
     assert targets_result.ok is True
     target_ids = {row.id for row in targets_result.data}
     # Only the current tenant's organizations appear -- the loader is backed by
-    # `OrganizationService.list_organizations`, which is tenant-scoped by construction.
+    # `the Organization handlers.list_organizations`, which is tenant-scoped by construction.
     assert other_org.id in target_ids
     assert all(row.scope_type == "organization" for row in targets_result.data)
 
@@ -157,7 +156,7 @@ def test_build_desktop_api_registry_exposes_organization_as_an_access_scope_type
     tenant_id = services["tenant_context_service"].require_active_tenant_id(
         operation_label="prepare desktop organization access test user"
     )
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         "desktop-org-access",
         "StrongPass123",
         role_names=["viewer"],

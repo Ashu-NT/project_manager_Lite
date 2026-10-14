@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
+from typing import Any, Literal, overload
 
 from pydantic import field_validator, model_validator
 
@@ -16,6 +17,24 @@ from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_dat
 from src.core.platform.domain.security.authorization.roles.role_binding import (
     normalize_role_scope_type,
 )
+
+
+@overload
+def _normalize_delegation_datetime(
+    value: object,
+    *,
+    code: str,
+    required: Literal[True],
+) -> datetime: ...
+
+
+@overload
+def _normalize_delegation_datetime(
+    value: object,
+    *,
+    code: str,
+    required: bool = False,
+) -> datetime | None: ...
 
 
 def _normalize_delegation_datetime(
@@ -81,7 +100,7 @@ class RoleDelegationPolicy:
 
     @field_validator("assignable_role_policy_version", mode="before")
     @classmethod
-    def _validate_policy_version(cls, value: object) -> int:
+    def _validate_policy_version(cls, value: Any) -> int:
         try:
             normalized = int(value)
         except (TypeError, ValueError) as exc:

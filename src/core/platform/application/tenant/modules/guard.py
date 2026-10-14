@@ -5,6 +5,9 @@ from functools import wraps
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,
 )
+from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
+    SupportsModuleEntitlements,
+)
 
 
 def _humanize_method_name(name: str) -> str:
@@ -12,6 +15,10 @@ def _humanize_method_name(name: str) -> str:
 
 
 class ModuleGuardedServiceMixin:
+    """Stateless module-entitlement guard policy. Hosts provide `_module_catalog_service`
+    (the "is module enabled" capability); a host without one is never blocked."""
+
+    _module_catalog_service: SupportsModuleEntitlements | None
     _module_guard_code: str | None = None
     _module_guard_exempt_methods: frozenset[str] = frozenset()
 
@@ -29,7 +36,7 @@ class ModuleGuardedServiceMixin:
             return attr
 
         @wraps(attr)
-        def _guarded(*args, **kwargs):
+        def _guarded(*args: object, **kwargs: object) -> object:
             require_module_enabled(
                 getattr(self, "_module_catalog_service", None),
                 module_code,

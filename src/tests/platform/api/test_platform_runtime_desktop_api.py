@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.api.desktop.master_data.org.models.organization import (
-    OrganizationProvisionCommand,
-)
 from src.core.platform.api.desktop.platform_runtime.runtime import (
     PlatformRuntimeDesktopApi,
+)
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
 )
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
 def test_platform_runtime_desktop_api_returns_runtime_context_dto(services):
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"]
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        module_entitlement_commands=services["module_entitlement_commands"],
     )
 
     result = api.get_runtime_context()
@@ -35,7 +36,8 @@ def test_platform_runtime_desktop_api_provisions_organization_with_initial_modul
     the caller's session into the just-created organization -- there is no longer a separate
     "provision quietly, activate and switch later" path."""
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"]
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        module_entitlement_commands=services["module_entitlement_commands"],
     )
 
     result = api.provision_organization(
@@ -57,7 +59,8 @@ def test_platform_runtime_desktop_api_provisions_organization_with_initial_modul
 
 def test_platform_runtime_desktop_api_maps_validation_errors(services):
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"]
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        module_entitlement_commands=services["module_entitlement_commands"],
     )
 
     result = api.license_module("hr_management")
@@ -73,14 +76,14 @@ def test_platform_runtime_desktop_api_maps_permission_denied_activate_organizati
     """`activate_organization` is the desktop API's organization-scoped write, gated by
     `settings.manage` -- proves that gate's desktop-API error mapping."""
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"]
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        module_entitlement_commands=services["module_entitlement_commands"],
     )
-    organization_service = services["organization_service"]
     user_session = services["user_session"]
 
     default_organization = services["platform_runtime_application_service"].get_active_organization()
     assert default_organization is not None
-    second = organization_service.create_organization(
+    second = services["organization_commands"].create_organization(
         organization_code="EAST",
         display_name="East Division",
         timezone_name="Asia/Dubai",
@@ -115,7 +118,8 @@ def test_platform_runtime_desktop_api_maps_permission_denied_activate_organizati
 
 def test_platform_runtime_desktop_api_handles_missing_active_organization_context(services):
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"]
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        module_entitlement_commands=services["module_entitlement_commands"],
     )
 
     services["user_session"].set_active_organization_id(None)
@@ -149,7 +153,8 @@ def test_list_accessible_modules_returns_enabled_and_permitted_modules(services)
     """Same authoritative source shell navigation (Phase 6G), Global Overview's
     module cards, and Quick Actions all read -- see module_access_policy.py."""
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"]
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        module_entitlement_commands=services["module_entitlement_commands"],
     )
 
     result = api.list_accessible_modules()
@@ -161,7 +166,8 @@ def test_list_accessible_modules_returns_enabled_and_permitted_modules(services)
 
 def test_list_accessible_modules_excludes_modules_the_principal_lacks_permission_for(services):
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"]
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        module_entitlement_commands=services["module_entitlement_commands"],
     )
     user_session = services["user_session"]
     original_principal = user_session.principal

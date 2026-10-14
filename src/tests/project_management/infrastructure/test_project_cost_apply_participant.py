@@ -29,16 +29,14 @@ def _make_project(services, name: str = "Cost Entry Project"):
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _become_independent_decider(services) -> None:
-    auth = services["auth_service"]
-    user = auth.register_user("independent-cost-decider", "StrongPass123", role_names=["finance_controller"])
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["user_registration"].register_user("independent-cost-decider", "StrongPass123", role_names=["finance_controller"])
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def _submitted_entry(services, session):

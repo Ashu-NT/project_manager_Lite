@@ -3,6 +3,8 @@ from __future__ import annotations
 import glob
 import inspect
 
+from src.core.platform.application.master_data.org import OrganizationCommandHandler
+
 # ---------------------------------------------------------------------------
 # The frozen legacy Signal allowlist
 # ---------------------------------------------------------------------------
@@ -271,10 +273,9 @@ def test_no_service_locator_pattern_reintroduced_in_composition_roots():
 
 
 def test_organization_create_path_has_zero_legacy_signal_involvement():
-    import src.core.platform.application.master_data.org.organization_service as module
 
     source = _strip_strings_and_comments(
-        inspect.getsource(module.OrganizationService.create_organization)
+        inspect.getsource(OrganizationCommandHandler.create_organization)
     )
     assert "organizations_changed" not in source
     assert "domain_events" not in source

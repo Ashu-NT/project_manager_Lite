@@ -19,10 +19,9 @@ from src.infra.persistence.db.unit_of_work import _SQLITE_WRITE_LOCK, sqlite_wri
 
 
 def test_commit_context_switch_waits_for_the_shared_sqlite_write_lock(services) -> None:
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
 
-    target_org = organization_service.create_organization(
+    target_org = services["organization_commands"].create_organization(
         organization_code="CTXSWITCH-TARGET", display_name="Context Switch Target Org"
     )
 

@@ -8,9 +8,6 @@ from __future__ import annotations
 
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.application.master_data.org.organization_service import (
-    OrganizationService,
-)
 from src.core.platform.domain.master_data.org.organization import Organization
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
@@ -38,6 +35,7 @@ from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
 from src.infra.time.system_clock import SystemClock
+from src.tests.master_data_test_support import organization_handlers_for
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -93,7 +91,7 @@ def test_list_organizations_is_scoped_to_active_tenant(services):
     session.flush()
 
     ctx_a = _make_session_context(tenant_a)
-    svc_a = OrganizationService(
+    svc_a = organization_handlers_for(
         session=session,
         organization_repo=repo,
         uow_factory=_make_organization_uow_factory(session, tenant_context_service, ctx_a),
@@ -118,10 +116,9 @@ def test_platform_admin_permission_in_default_permissions():
 
 
 def test_admin_user_has_platform_admin_permission(services):
-    auth = services["auth_service"]
 
-    admin_perms = auth.get_user_permissions(
-        services["auth_service"].authenticate("admin", "ChangeMe123!").id
+    admin_perms = services["auth_queries"].get_user_permissions(
+        services["authentication"].authenticate("admin", "ChangeMe123!").id
     )
     assert "platform.admin" in admin_perms
 
@@ -131,12 +128,11 @@ def test_is_platform_admin_returns_true_for_admin_session(services):
 
 
 def test_is_platform_admin_returns_false_for_viewer(services):
-    auth = services["auth_service"]
     user_session = services["user_session"]
 
-    auth.register_user("viewer-no-admin", "StrongPass123", role_names=["viewer"])
-    viewer = auth.authenticate("viewer-no-admin", "StrongPass123")
-    user_session.set_principal(auth.build_principal(viewer))
+    services["user_registration"].register_user("viewer-no-admin", "StrongPass123", role_names=["viewer"])
+    viewer = services["authentication"].authenticate("viewer-no-admin", "StrongPass123")
+    user_session.set_principal(services["principal_builder"].build(viewer))
 
     assert user_session.is_platform_admin() is False
 

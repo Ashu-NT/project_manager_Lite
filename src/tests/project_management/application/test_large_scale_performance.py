@@ -85,8 +85,6 @@ def _timed(metrics: dict[str, float], key: str, fn):
 def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-
     project_end = config.start_date + timedelta(days=max(365, config.tasks // 2))
     project = ps.create_project(
         f"Large Perf Project ({config.tasks} tasks)",
@@ -99,7 +97,7 @@ def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
 
     resources = []
     for idx in range(config.resources):
-        resource = rs.create_resource(
+        resource = services["resource_master_commands"].create_resource(
             name=f"Perf Resource {idx + 1:04d}",
             role="Developer",
             hourly_rate=95.0 + float(idx % 7) * 5.0,
@@ -161,17 +159,16 @@ def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
 
 
 def _run_reporting_phase(services: dict, project_id: str, baseline_id: str):
-    rp = services["reporting_service"]
     today = date.today()
     return {
-        "kpi": rp.get_project_kpis(project_id),
-        "gantt": rp.get_gantt_data(project_id),
-        "critical_path": rp.get_critical_path(project_id),
-        "resource_load": rp.get_resource_load_summary(project_id),
-        "cost_totals": rp.get_project_cost_control_totals(project_id, as_of=today),
-        "cost_source": rp.get_project_cost_source_breakdown(project_id, as_of=today),
-        "evm": rp.get_earned_value(project_id=project_id, baseline_id=baseline_id, as_of=today),
-        "evm_series": rp.get_evm_series(project_id=project_id, baseline_id=baseline_id, as_of=today),
+        "kpi": services["project_kpi_report"].get_project_kpis(project_id),
+        "gantt": services["project_kpi_report"].get_gantt_data(project_id),
+        "critical_path": services["project_kpi_report"].get_critical_path(project_id),
+        "resource_load": services["project_kpi_report"].get_resource_load_summary(project_id),
+        "cost_totals": services["cost_breakdown_report"].get_project_cost_control_totals(project_id, as_of=today),
+        "cost_source": services["cost_breakdown_report"].get_project_cost_source_breakdown(project_id, as_of=today),
+        "evm": services["earned_value_report"].get_earned_value(project_id=project_id, baseline_id=baseline_id, as_of=today),
+        "evm_series": services["earned_value_report"].get_evm_series(project_id=project_id, baseline_id=baseline_id, as_of=today),
     }
 
 
@@ -205,8 +202,6 @@ def test_large_scale_performance_workflow(services):
 
     sched = services["scheduling_engine"]
     bs = services["baseline_service"]
-    ds = services["dashboard_service"]
-
     metrics: dict[str, float] = {}
     total_started = time.perf_counter()
 
@@ -234,7 +229,7 @@ def test_large_scale_performance_workflow(services):
     dashboard_data = _timed(
         metrics,
         "dashboard",
-        lambda: ds.get_dashboard_data(seeded.project_id, baseline_id=baseline.id),
+        lambda: services["project_dashboard_query"].get_dashboard_data(seeded.project_id, baseline_id=baseline.id),
     )
 
     metrics["total"] = time.perf_counter() - total_started

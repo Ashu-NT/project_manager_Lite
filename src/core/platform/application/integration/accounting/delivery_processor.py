@@ -70,7 +70,7 @@ class ExternalAccountingDeliveryProcessor:
             )
             if not credential.get_secret_value():
                 return ExternalAccountingFailureKind.CREDENTIAL
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Provider exceptions may embed credentials. Never log or persist them.
             return ExternalAccountingFailureKind.CREDENTIAL
         try:
@@ -79,7 +79,7 @@ class ExternalAccountingDeliveryProcessor:
             )
         except ExternalAccountingDeliveryError as error:
             return error.kind
-        except Exception:
+        except Exception:  # noqa: BLE001
             return ExternalAccountingFailureKind.AMBIGUOUS
         if not isinstance(receipt, ExternalAccountingReceipt) or not receipt.matches(
             claim.evidence, target

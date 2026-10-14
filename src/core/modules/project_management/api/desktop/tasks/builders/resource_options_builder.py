@@ -9,16 +9,16 @@ def build_project_resource_options(
     project_id: str,
     *,
     project_resource_service: object | None,
-    resource_service: object | None,
+    resource_query: object | None,
 ) -> tuple[TaskProjectResourceOptionDescriptor, ...]:
-    if not project_id or project_resource_service is None or resource_service is None:
+    if not project_id or project_resource_service is None or resource_query is None:
         return ()
     list_project_resources = getattr(
         project_resource_service,
         "list_for_task_workspace",
         None,
     )
-    list_resources = getattr(resource_service, "list_for_task_workspace", None)
+    list_resources = getattr(resource_query, "list_for_task_workspace", None)
     if not callable(list_project_resources) or not callable(list_resources):
         return ()
     project_resources = list(list_project_resources(project_id))

@@ -256,7 +256,7 @@ class SchedulingEngine:
             )
             if value is not None
         ]
-        today = date.today()
+        today = date.today()  # noqa: DTZ011
         earliest = min(anchors, default=today)
         latest = max(anchors, default=today)
         work_span = sum(max(1, int(task.duration_days or 1)) for task in tasks)

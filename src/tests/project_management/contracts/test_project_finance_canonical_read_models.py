@@ -29,16 +29,24 @@ from src.core.modules.project_management.infrastructure.reporting import (
 from src.core.platform.common.exceptions import NotFoundError
 
 
+def _report_sources(services) -> reporting_api.ProjectReportSources:
+    return reporting_api.ProjectReportSources(
+        kpi=services["project_kpi_report"],
+        earned_value=services["earned_value_report"],
+        schedule_variance=services["schedule_variance_report"],
+        cost_breakdown=services["cost_breakdown_report"],
+    )
+
+
+
 def _become_independent_decider(services) -> None:
-    auth = services["auth_service"]
-    user = auth.register_user("independent-cost-decider", "StrongPass123", role_names=["finance_controller"])
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["user_registration"].register_user("independent-cost-decider", "StrongPass123", role_names=["finance_controller"])
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
-    user = auth.authenticate(username, password)
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def _approved_controls(services):
@@ -171,7 +179,7 @@ def test_finance_excel_export_has_bounded_lineage_and_control_parity(
     output = tmp_path / "finance-d5.xlsx"
 
     reporting_api.generate_excel_report(
-        services["reporting_service"],
+        _report_sources(services),
         project.id,
         output,
         finance_service=services["finance_service"],
@@ -249,7 +257,7 @@ def test_finance_pdf_export_uses_the_same_canonical_read_basis(
     output = tmp_path / "finance-d5.pdf"
 
     reporting_api.generate_pdf_report(
-        services["reporting_service"],
+        _report_sources(services),
         project.id,
         output,
         temp_dir=tmp_path / "report-temp",
@@ -449,7 +457,7 @@ def test_r6e_cost_phasing_boundaries_reconcile_exactly_and_preserve_as_of(servic
 
 def test_cost_phasing_historical_actual_does_not_query_current_rates(services, monkeypatch) -> None:
     project, _budget, _forecast, entry, _code = _approved_controls(services)
-    resource = services["resource_service"].create_resource("Historical cost resource")
+    resource = services["resource_master_commands"].create_resource("Historical cost resource")
     rate_service = services["rate_card_service"]
     card = rate_service.create_rate_card(name="Historical cost rates", project_id=project.id)
     rate_service.create_line(
@@ -485,9 +493,8 @@ def test_cost_phasing_historical_actual_does_not_query_current_rates(services, m
 
 def test_r6h_reporting_kpi_uses_the_requested_financial_as_of_date(services) -> None:
     project, *_ = _approved_controls(services)
-    reporting = services["reporting_service"]
-    before = reporting.get_project_kpis(project.id, as_of=date(2026, 7, 31))
-    after = reporting.get_project_kpis(project.id, as_of=date(2026, 8, 31))
+    before = services["project_kpi_report"].get_project_kpis(project.id, as_of=date(2026, 7, 31))
+    after = services["project_kpi_report"].get_project_kpis(project.id, as_of=date(2026, 8, 31))
     assert before.total_actual_cost == Decimal(0)
     assert after.total_actual_cost == Decimal(25)
     snapshot = services["finance_service"].get_finance_snapshot(
@@ -505,10 +512,11 @@ def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> No
     baseline = services["baseline_service"].create_baseline(
         foreign.id, "Foreign baseline", rate_as_of=date(2026, 8, 1),
     )
-    reporting = services["reporting_service"]
     for query in (
-        reporting.get_earned_value, reporting.get_evm_series,
-        reporting.get_cost_breakdown, reporting.get_baseline_schedule_variance,
+        services["earned_value_report"].get_earned_value,
+        services["earned_value_report"].get_evm_series,
+        services["cost_breakdown_report"].get_cost_breakdown,
+        services["schedule_variance_report"].get_baseline_schedule_variance,
     ):
         with pytest.raises(NotFoundError):
             query(project.id, baseline_id=baseline.id)
@@ -552,7 +560,7 @@ def test_r6e_integrated_performance_uses_one_approved_financial_basis(services) 
         project.id, date_from=date(2026, 8, 1), date_to=as_of, as_of_date=as_of
     )
     snapshot = services["finance_service"].get_finance_snapshot(project.id, as_of=as_of)
-    report_evm = services["reporting_service"].get_earned_value(project.id, as_of=as_of)
+    report_evm = services["earned_value_report"].get_earned_value(project.id, as_of=as_of)
 
     assert evm.availability == "available"
     assert (evm.bac, evm.pv, evm.ev, evm.ac, evm.etc, evm.eac, evm.vac) == (

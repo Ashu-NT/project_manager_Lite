@@ -12,7 +12,7 @@ from src.core.modules.project_management.api.desktop.portfolio.models.capacity i
 def build_capacity_pool(pool_service=None) -> tuple[PortfolioCapacityResourceDto, ...]:
     if pool_service is None:
         return ()
-    today = date.today()
+    today = date.today()  # noqa: DTZ011
     to_date = today + timedelta(days=90)
     report = pool_service.get_pool_report(from_date=today, to_date=to_date)
     sorted_pool = sorted(report.pool, key=lambda r: float(r.peak_load_percent or 0.0), reverse=True)

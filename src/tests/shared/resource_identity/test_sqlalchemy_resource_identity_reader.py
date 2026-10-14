@@ -4,6 +4,12 @@ from src.core.modules.project_management.domain.enums import CostType, WorkerTyp
 from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
     SqlAlchemyResourceIdentityReader,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
 
 
 def _tenant_org(services):
@@ -14,19 +20,13 @@ def _tenant_org(services):
 
 def test_resolves_the_resource_linked_to_a_users_employee_record(services, session):
     tenant_id, organization_id = _tenant_org(services)
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         "identity-owner", "StrongPass123", role_names=["viewer"]
     )
-    department = services["department_service"].create_department(
-        department_code="DEP-IDN-1", name="Identity"
-    )
-    employee = services["employee_service"].create_employee(
-        employee_code="EMP-IDN-1",
-        full_name="Identity Owner",
-        department_id=department.id,
-    )
-    services["employee_service"].link_employee_user_account(employee.id, user.id)
-    resource = services["resource_service"].create_resource(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEP-IDN-1", name="Identity"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-IDN-1", full_name="Identity Owner", department_id=department.id))
+    services["employee_commands"].link_employee_user_account(employee.id, user.id)
+    resource = services["resource_master_commands"].create_resource(
         "Identity Owner Resource",
         worker_type=WorkerType.EMPLOYEE,
         employee_id=employee.id,
@@ -60,19 +60,13 @@ def test_resolves_a_resource_that_is_not_time_reporting_eligible(services, sessi
     (kind/worker_type/cost_type) -- that stays a Timesheets-specific concern,
     layered on top of this identity mapping, not baked into it."""
     tenant_id, organization_id = _tenant_org(services)
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         "equipment-owner", "StrongPass123", role_names=["viewer"]
     )
-    department = services["department_service"].create_department(
-        department_code="DEP-IDN-2", name="Equipment"
-    )
-    employee = services["employee_service"].create_employee(
-        employee_code="EMP-IDN-2",
-        full_name="Equipment Owner",
-        department_id=department.id,
-    )
-    services["employee_service"].link_employee_user_account(employee.id, user.id)
-    resource = services["resource_service"].create_resource(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEP-IDN-2", name="Equipment"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-IDN-2", full_name="Equipment Owner", department_id=department.id))
+    services["employee_commands"].link_employee_user_account(employee.id, user.id)
+    resource = services["resource_master_commands"].create_resource(
         "Owned Equipment",
         worker_type=WorkerType.EMPLOYEE,
         cost_type=CostType.EQUIPMENT,  # not in TimeReportingEligibilityPolicy.ELIGIBLE_COST_TYPES

@@ -145,7 +145,7 @@ def test_post_comment_produces_both_targets_and_atomic_audit(services):
     _, task = _setup(services)
     hints = _spy_hints(services)
 
-    comment = services["collaboration_service"].post_comment(task_id=task.id, body="Hello durable world")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Hello durable world")
 
     comment_hints = _comment_hints(hints)
     assert {h.scope_code for h in comment_hints} == {TASK_COMMENT_SCOPE_CODE, COLLABORATION_WORKSPACE_SCOPE_CODE}
@@ -155,10 +155,10 @@ def test_post_comment_produces_both_targets_and_atomic_audit(services):
 
 def test_edit_comment_produces_hints_and_audit(services):
     _, task = _setup(services)
-    comment = services["collaboration_service"].post_comment(task_id=task.id, body="Original")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Original")
     hints = _spy_hints(services)
 
-    edited = services["collaboration_service"].edit_comment(
+    edited = services["collaboration_comment_commands"].edit_comment(
         comment.id, "Edited body", expected_revision=comment.version
     )
 
@@ -171,10 +171,10 @@ def test_edit_comment_produces_hints_and_audit(services):
 
 def test_delete_comment_produces_hints_and_audit(services):
     _, task = _setup(services)
-    comment = services["collaboration_service"].post_comment(task_id=task.id, body="Delete me")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Delete me")
     hints = _spy_hints(services)
 
-    deleted = services["collaboration_service"].delete_comment(
+    deleted = services["collaboration_comment_commands"].delete_comment(
         comment.id, expected_revision=comment.version,
     )
 
@@ -187,29 +187,28 @@ def test_delete_comment_produces_hints_and_audit(services):
 
 def test_mutable_comment_requires_revision_before_edit_or_first_delete(services):
     _, task = _setup(services)
-    comment = services["collaboration_service"].post_comment(
+    comment = services["collaboration_comment_commands"].post_comment(
         task_id=task.id, body="Keep this revision",
     )
-    service = services["collaboration_service"]
     with pytest.raises(ValidationError) as edit_error:
-        service.edit_comment(comment.id, "Unsafe overwrite")
+        services["collaboration_comment_commands"].edit_comment(comment.id, "Unsafe overwrite")
     assert edit_error.value.code == "COLLABORATION_COMMENT_REVISION_REQUIRED"
     with pytest.raises(ValidationError) as delete_error:
-        service.delete_comment(comment.id)
+        services["collaboration_comment_commands"].delete_comment(comment.id)
     assert delete_error.value.code == "COLLABORATION_COMMENT_REVISION_REQUIRED"
-    assert service.query_task_comments_page(task.id).items[0].body == "Keep this revision"
+    assert services["collaboration_comment_query"].query_task_comments_page(task.id).items[0].body == "Keep this revision"
 
 
 def test_plain_comment_post_and_edit_do_not_scan_mention_candidates(monkeypatch, services):
     _, task = _setup(services)
-    service = services["collaboration_service"]
+    visibility_policy = services["collaboration_comment_commands"]._policy
 
-    def unexpected_lookup(_project_id):
+    def unexpected_lookup(_project_id, **_kwargs):
         raise AssertionError("Plain comments must not load project mention candidates")
 
-    monkeypatch.setattr(service, "_list_mention_candidates_for_project", unexpected_lookup)
-    comment = service.post_comment(task_id=task.id, body="No mentions here")
-    edited = service.edit_comment(
+    monkeypatch.setattr(visibility_policy, "mention_candidates_for_project", unexpected_lookup)
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="No mentions here")
+    edited = services["collaboration_comment_commands"].edit_comment(
         comment.id, "Still no mentions", expected_revision=comment.version,
     )
     assert edited.mentioned_user_ids == []
@@ -217,16 +216,16 @@ def test_plain_comment_post_and_edit_do_not_scan_mention_candidates(monkeypatch,
 
 def test_react_and_remove_reaction_produce_task_scoped_hints_only(services):
     _, task = _setup(services)
-    comment = services["collaboration_service"].post_comment(task_id=task.id, body="React to me")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="React to me")
     hints = _spy_hints(services)
 
-    reacted = services["collaboration_service"].react_to_comment(comment.id, "👍")
+    reacted = services["collaboration_comment_engagement"].react_to_comment(comment.id, "👍")
     react_hints = _comment_hints(hints)
     assert {h.scope_code for h in react_hints} == {TASK_COMMENT_SCOPE_CODE}
     assert "👍" in reacted.reactions
 
     hints2 = _spy_hints(services)
-    unreacted = services["collaboration_service"].remove_reaction(comment.id, "👍")
+    unreacted = services["collaboration_comment_engagement"].remove_reaction(comment.id, "👍")
     unreact_hints = _comment_hints(hints2)
     assert {h.scope_code for h in unreact_hints} == {TASK_COMMENT_SCOPE_CODE}
     assert "👍" not in unreacted.reactions
@@ -235,10 +234,10 @@ def test_react_and_remove_reaction_produce_task_scoped_hints_only(services):
 def test_mark_task_mentions_read_produces_task_scoped_hint_only(services):
     principal = services["user_session"].principal
     _, task = _setup(services)
-    services["collaboration_service"].post_comment(task_id=task.id, body=f"Hey @{principal.username}")
+    services["collaboration_comment_commands"].post_comment(task_id=task.id, body=f"Hey @{principal.username}")
     hints = _spy_hints(services)
 
-    services["collaboration_service"].mark_task_mentions_read(task.id)
+    services["collaboration_comment_engagement"].mark_task_mentions_read(task.id)
 
     read_hints = _comment_hints(hints)
     assert {h.scope_code for h in read_hints} == {TASK_COMMENT_SCOPE_CODE}
@@ -252,24 +251,24 @@ def test_mark_task_mentions_read_produces_task_scoped_hint_only(services):
 def test_mark_task_mentions_read_is_a_true_no_op_when_already_read(services):
     principal = services["user_session"].principal
     _, task = _setup(services)
-    services["collaboration_service"].post_comment(task_id=task.id, body=f"Hey @{principal.username}")
-    services["collaboration_service"].mark_task_mentions_read(task.id)
+    services["collaboration_comment_commands"].post_comment(task_id=task.id, body=f"Hey @{principal.username}")
+    services["collaboration_comment_engagement"].mark_task_mentions_read(task.id)
 
     hints = _spy_hints(services)
-    services["collaboration_service"].mark_task_mentions_read(task.id)
+    services["collaboration_comment_engagement"].mark_task_mentions_read(task.id)
 
     assert _comment_hints(hints) == [], "already-read is a true no-op: zero write/audit/event"
 
 
 def test_delete_comment_is_a_true_no_op_when_already_deleted(services):
     _, task = _setup(services)
-    comment = services["collaboration_service"].post_comment(task_id=task.id, body="Delete me once")
-    services["collaboration_service"].delete_comment(
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Delete me once")
+    services["collaboration_comment_commands"].delete_comment(
         comment.id, expected_revision=comment.version,
     )
 
     hints = _spy_hints(services)
-    redeleted = services["collaboration_service"].delete_comment(comment.id)
+    redeleted = services["collaboration_comment_commands"].delete_comment(comment.id)
 
     assert _comment_hints(hints) == [], "repeated delete is a true no-op: zero write/audit/event"
     assert redeleted.is_deleted is True
@@ -277,11 +276,11 @@ def test_delete_comment_is_a_true_no_op_when_already_deleted(services):
 
 def test_reaction_repeat_is_a_true_no_op(services):
     _, task = _setup(services)
-    comment = services["collaboration_service"].post_comment(task_id=task.id, body="React twice")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="React twice")
 
-    services["collaboration_service"].react_to_comment(comment.id, "👍")
+    services["collaboration_comment_engagement"].react_to_comment(comment.id, "👍")
     hints = _spy_hints(services)
-    reacted_again = services["collaboration_service"].react_to_comment(comment.id, "👍")
+    reacted_again = services["collaboration_comment_engagement"].react_to_comment(comment.id, "👍")
 
     assert _comment_hints(hints) == [], "repeated reaction must not write or emit again"
     assert len(reacted_again.reactions["👍"]) == 1, "the reactor set itself IS data-level idempotent"
@@ -306,18 +305,18 @@ def test_audit_failure_rolls_back_post_comment_permanently(services, monkeypatch
     monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(RuntimeError):
-        services["collaboration_service"].post_comment(task_id=task.id, body="Should never persist")
+        services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Should never persist")
 
     assert _comment_hints(hints) == []
     monkeypatch.undo()
-    assert services["collaboration_service"].query_task_comments_page(task.id).items == ()
+    assert services["collaboration_comment_query"].query_task_comments_page(task.id).items == ()
 
 
 def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
     _, task = _setup(services)
     hints = _spy_hints(services)
 
-    dispatcher = services["collaboration_service"]._uow_factory._transactional_dispatcher
+    dispatcher = services["collaboration_comment_commands"]._uow_factory._transactional_dispatcher
 
     def _raising_handler(event, uow) -> None:
         raise RuntimeError("simulated transactional handler failure")
@@ -325,10 +324,10 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
     dispatcher.subscribe(TaskCommentChanged, _raising_handler)
 
     with pytest.raises(RuntimeError):
-        services["collaboration_service"].post_comment(task_id=task.id, body="Should never persist either")
+        services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Should never persist either")
 
     assert _comment_hints(hints) == []
-    assert services["collaboration_service"].query_task_comments_page(task.id).items == ()
+    assert services["collaboration_comment_query"].query_task_comments_page(task.id).items == ()
 
 
 # ---------------------------------------------------------------------------
@@ -338,31 +337,31 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
 
 def test_stale_edit_raises_and_produces_zero_hints_and_zero_write(services):
     _, task = _setup(services)
-    comment = services["collaboration_service"].post_comment(task_id=task.id, body="Original")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Original")
     hints = _spy_hints(services)
 
     with pytest.raises(ConcurrencyError):
-        services["collaboration_service"].edit_comment(
+        services["collaboration_comment_commands"].edit_comment(
             comment.id, "Should not apply", expected_revision=comment.version + 1
         )
 
     assert _comment_hints(hints) == []
-    reloaded = services["collaboration_service"]._comment_repo.get(comment.id)
+    reloaded = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert reloaded.body == "Original"
 
 
 def test_stale_delete_raises_and_produces_zero_hints_and_zero_write(services):
     _, task = _setup(services)
-    comment = services["collaboration_service"].post_comment(task_id=task.id, body="Do not delete")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Do not delete")
     hints = _spy_hints(services)
 
     with pytest.raises(ConcurrencyError):
-        services["collaboration_service"].delete_comment(
+        services["collaboration_comment_commands"].delete_comment(
             comment.id, expected_revision=comment.version + 1
         )
 
     assert _comment_hints(hints) == []
-    reloaded = services["collaboration_service"]._comment_repo.get(comment.id)
+    reloaded = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert reloaded.is_deleted is False
 
 
@@ -370,22 +369,22 @@ def test_two_independent_sessions_concurrent_edit_second_writer_gets_canonical_e
     """Two independent UoWs race on the same comment; the final persisted body must reflect only
     the winner."""
     _, task = _setup(services)
-    comment = services["collaboration_service"].post_comment(task_id=task.id, body="Race me")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Race me")
 
-    winner = services["collaboration_service"]._comment_repo.get(comment.id)
-    loser = services["collaboration_service"]._comment_repo.get(comment.id)
+    winner = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
+    loser = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert winner.version == loser.version
 
-    services["collaboration_service"].edit_comment(
+    services["collaboration_comment_commands"].edit_comment(
         winner.id, "Winner body", expected_revision=winner.version
     )
 
     with pytest.raises(ConcurrencyError):
-        services["collaboration_service"].edit_comment(
+        services["collaboration_comment_commands"].edit_comment(
             loser.id, "Loser body", expected_revision=loser.version
         )
 
-    reloaded = services["collaboration_service"]._comment_repo.get(comment.id)
+    reloaded = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert reloaded.body == "Winner body"
 
 
@@ -396,7 +395,7 @@ def test_two_independent_sessions_concurrent_edit_second_writer_gets_canonical_e
 
 def test_edit_unknown_comment_is_rejected_with_zero_write(services):
     with pytest.raises(NotFoundError):
-        services["collaboration_service"].edit_comment("not-a-real-comment-id", "New body")
+        services["collaboration_comment_commands"].edit_comment("not-a-real-comment-id", "New body")
 
 
 # ---------------------------------------------------------------------------
@@ -405,15 +404,13 @@ def test_edit_unknown_comment_is_rejected_with_zero_write(services):
 
 
 def test_durable_comment_commands_source_never_names_collaboration_changed():
-    path = (
-        "src/core/modules/project_management/application/collaboration/commands/"
-        "collaboration_comments.py"
-    )
-    with open(path, "r", encoding="utf-8") as fh:
-        source = fh.read()
-    assert "collaboration_changed" not in source
-    assert "domain_events" not in source
-    assert "tasks_changed" not in source
+    for module in ("collaboration_comments.py", "collaboration_comment_engagement.py"):
+        path = "src/core/modules/project_management/application/collaboration/commands/" + module
+        with open(path, "r", encoding="utf-8") as fh:
+            source = fh.read()
+        assert "collaboration_changed" not in source
+        assert "domain_events" not in source
+        assert "tasks_changed" not in source
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 """ModuleRegistry — capability-aware entitlement facade.
 
-Wraps ModuleCatalogService and adds fine-grained capability checks and
+Wraps the module catalog read capability and adds fine-grained capability checks and
 integration-pairing rules. All other layers (API, controllers, QML) should
 query ModuleRegistry, not import optional module code directly.
 
@@ -13,7 +13,9 @@ Module IDs match DEFAULT_ENTERPRISE_MODULES codes:
 
 from __future__ import annotations
 
-from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
+    SupportsModuleEntitlements,
+)
 
 # Maps capability_id → module_id.  "platform" capabilities are always available.
 _CAPABILITY_MODULE: dict[str, str] = {
@@ -65,7 +67,7 @@ class ModuleRegistry:
     code at the call site — use this registry to guard every cross-module action.
     """
 
-    def __init__(self, module_catalog_service: ModuleCatalogService) -> None:
+    def __init__(self, module_catalog_service: SupportsModuleEntitlements) -> None:
         self._runtime = module_catalog_service
 
     # ------------------------------------------------------------------

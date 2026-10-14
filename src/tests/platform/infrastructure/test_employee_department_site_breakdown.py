@@ -16,6 +16,15 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
@@ -247,29 +256,24 @@ def test_site_breakdown_issues_exactly_one_sql_statement(reader_session):
 
 
 def test_employee_service_get_department_breakdown_reflects_writes(services):
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
 
-    dept = department_service.create_department(department_code="BRK-D1", name="Breakdown Dept")
-    employee_service.create_employee(employee_code="BRK-E1", full_name="Breakdown One", department_id=dept.id)
-    inactive = employee_service.create_employee(employee_code="BRK-E2", full_name="Breakdown Two", department_id=dept.id)
-    employee_service.deactivate_employee(inactive.id)
+    dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code="BRK-D1", name="Breakdown Dept"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="BRK-E1", full_name="Breakdown One", department_id=dept.id))
+    inactive = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="BRK-E2", full_name="Breakdown Two", department_id=dept.id))
+    services["employee_commands"].deactivate_employee(inactive.id)
 
-    rows = employee_service.get_department_breakdown()
+    rows = services["employee_query"].get_department_breakdown()
     by_name = {row.department_name: row for row in rows}
     assert (by_name["Breakdown Dept"].total, by_name["Breakdown Dept"].active) == (2, 1)
 
 
 def test_employee_service_get_site_breakdown_reflects_writes(services):
-    employee_service = services["employee_service"]
-    site_service = services["site_service"]
-    department_service = services["department_service"]
 
-    site = site_service.create_site(site_code="BRK-S1", name="Breakdown Site")
-    dept = department_service.create_department(department_code="BRK-S1-D", name="Breakdown Site Dept")
-    employee_service.create_employee(employee_code="BRK-E3", full_name="Breakdown Three", department_id=dept.id, site_id=site.id)
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="BRK-S1", name="Breakdown Site"))
+    dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code="BRK-S1-D", name="Breakdown Site Dept"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="BRK-E3", full_name="Breakdown Three", department_id=dept.id, site_id=site.id))
 
-    rows = employee_service.get_site_breakdown()
+    rows = services["employee_query"].get_site_breakdown()
     by_name = {row.site_name: row for row in rows}
     assert (by_name["Breakdown Site"].total, by_name["Breakdown Site"].active) == (1, 1)
 
@@ -279,14 +283,16 @@ def test_desktop_api_get_department_and_site_breakdown(services):
         PlatformEmployeeDesktopApi,
     )
 
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    site_service = services["site_service"]
-    api = PlatformEmployeeDesktopApi(employee_service=employee_service)
+    employee_service = services["employee_commands"]
+    api = PlatformEmployeeDesktopApi(
+        employee_commands=services["employee_commands"],
+        employee_query=services["employee_query"],
+        employee_documents=services["employee_document_commands"],
+    )
 
-    dept = department_service.create_department(department_code="BRK-API-D", name="API Dept")
-    site = site_service.create_site(site_code="BRK-API-S", name="API Site")
-    employee_service.create_employee(employee_code="BRK-API-E1", full_name="API One", department_id=dept.id, site_id=site.id)
+    dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code="BRK-API-D", name="API Dept"))
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="BRK-API-S", name="API Site"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="BRK-API-E1", full_name="API One", department_id=dept.id, site_id=site.id))
 
     department_result = api.get_department_breakdown()
     site_result = api.get_site_breakdown()
@@ -307,11 +313,9 @@ def test_admin_overview_shows_real_breakdown_cards_not_placeholder(services):
     from src.application.runtime import build_desktop_api_registry
     from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
 
-    dept = department_service.create_department(department_code="BRK-OV-D", name="Overview Dept")
-    employee_service.create_employee(employee_code="BRK-OV-E1", full_name="Overview One", department_id=dept.id)
+    dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code="BRK-OV-D", name="Overview Dept"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="BRK-OV-E1", full_name="Overview One", department_id=dept.id))
 
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)

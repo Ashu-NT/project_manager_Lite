@@ -1,21 +1,21 @@
 """Portfolio commands — state-changing portfolio operations."""
 
 from src.core.modules.project_management.application.portfolio.commands.portfolio_dependencies import (
-    PortfolioDependencyCommandMixin,
+    PortfolioDependencyCommandHandler,
 )
 from src.core.modules.project_management.application.portfolio.commands.portfolio_intake import (
-    PortfolioIntakeCommandMixin,
+    PortfolioIntakeCommandHandler,
 )
 from src.core.modules.project_management.application.portfolio.commands.portfolio_scenarios import (
-    PortfolioScenarioCommandMixin,
+    PortfolioScenarioCommandHandler,
 )
 from src.core.modules.project_management.application.portfolio.commands.portfolio_templates import (
-    PortfolioTemplateCommandMixin,
+    PortfolioTemplateCommandHandler,
 )
 
 __all__ = [
-    "PortfolioDependencyCommandMixin",
-    "PortfolioIntakeCommandMixin",
-    "PortfolioScenarioCommandMixin",
-    "PortfolioTemplateCommandMixin",
+    "PortfolioDependencyCommandHandler",
+    "PortfolioIntakeCommandHandler",
+    "PortfolioScenarioCommandHandler",
+    "PortfolioTemplateCommandHandler",
 ]

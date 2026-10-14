@@ -31,30 +31,29 @@ from src.core.platform.infrastructure.composition.dependencies.master_data.catal
     build_master_data_dependencies,
 )
 from src.core.platform.infrastructure.composition.dependencies.master_data.employee import (
-    build_employee_service,
+    build_employee_handlers,
 )
 from src.core.platform.infrastructure.composition.dependencies.master_data.exchange import (
     build_master_data_exchange_service,
 )
 from src.core.platform.infrastructure.composition.dependencies.master_data.organization import (
-    build_organization_service,
+    build_organization_handlers,
 )
 from src.core.platform.infrastructure.composition.dependencies.notifications.delivery import (
     build_notification_service,
 )
 from src.core.platform.infrastructure.composition.dependencies.repositories import (
     PlatformRepositories,
-)
-from src.core.platform.infrastructure.composition.dependencies.repositories import (
-    build_platform_repositories as build_platform_repositories,
+    build_platform_repositories,
 )
 from src.core.platform.infrastructure.composition.dependencies.security.administration import (
     build_security_administration_dependencies,
 )
 from src.core.platform.infrastructure.composition.dependencies.security.auth import (
-    build_auth_service,
+    build_auth_capabilities,
 )
 from src.core.platform.infrastructure.composition.dependencies.security.governance import (
+    build_role_assignment_handler,
     build_role_governance_service,
 )
 from src.core.platform.infrastructure.composition.dependencies.tenancy.admin import (
@@ -201,13 +200,12 @@ def build_platform_service_bundle(
         post_commit_bus=platform_post_commit_bus,
     )
     overview_rollup_reader = SqlAlchemyPlatformOverviewRollupReader(session)
-    logger.debug("Creating Platform auth service and bootstrapping policy catalog")
-    auth_service = build_auth_service(
+    logger.debug("Creating Platform auth handlers and bootstrapping policy catalog")
+    auth = build_auth_capabilities(
         session=session,
         repositories=repositories,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
-        enterprise_audit_service=enterprise_audit_service,
         overview_rollup_reader=overview_rollup_reader,
         security_configuration=security_configuration,
         transactional_dispatcher=platform_transactional_dispatcher,
@@ -218,7 +216,7 @@ def build_platform_service_bundle(
         (perf_counter() - started) * 1000,
     )
 
-    organization_service = build_organization_service(
+    organization = build_organization_handlers(
         session=session,
         repositories=repositories,
         user_session=user_session,
@@ -234,7 +232,7 @@ def build_platform_service_bundle(
             session=session,
             repositories=repositories,
             user_session=user_session,
-            organization_service=organization_service,
+            organization_commands=organization.commands,
         )
     else:
         logger.info(
@@ -261,9 +259,6 @@ def build_platform_service_bundle(
         transactional_dispatcher=platform_transactional_dispatcher,
         post_commit_bus=platform_post_commit_bus,
     )
-    document_service = master_data.document_service
-    party_service = master_data.party_service
-    site_service = master_data.site_service
 
     configure_session_rls_context(session, user_session=user_session)
     validate_postgresql_execution_role(session)
@@ -272,13 +267,13 @@ def build_platform_service_bundle(
         session=session,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
-        enterprise_audit_service=enterprise_audit_service,
-        organization_service=organization_service,
+        organization=organization,
         view_invalidation_channel=platform_view_invalidation_channel,
         transactional_dispatcher=platform_transactional_dispatcher,
         post_commit_bus=platform_post_commit_bus,
     )
     module_catalog_service = modules.module_catalog_service
+    module_entitlement_commands = modules.module_entitlement_commands
     platform_runtime_application_service = modules.platform_runtime_application_service
     runtime_execution_service = modules.runtime_execution_service
     logger.debug(
@@ -293,7 +288,6 @@ def build_platform_service_bundle(
 
     role_governance_service = build_role_governance_service(
         session=session,
-        auth_service=auth_service,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         security_configuration=security_configuration,
@@ -315,25 +309,27 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         enterprise_audit_service=enterprise_audit_service,
-        auth_service=auth_service,
+        auth=auth,
         role_governance_service=role_governance_service,
         scope_resolvers=scope_resolvers,
         transactional_dispatcher=platform_transactional_dispatcher,
         post_commit_bus=platform_post_commit_bus,
     )
-    employee_service = build_employee_service(
+    employee = build_employee_handlers(
         session=session,
         repositories=repositories,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
-        enterprise_audit_service=enterprise_audit_service,
-        document_service=document_service,
+        document_commands=master_data.document_commands,
+        document_query=master_data.document_query,
         transactional_dispatcher=platform_transactional_dispatcher,
         post_commit_bus=platform_post_commit_bus,
     )
     master_data_exchange_service = build_master_data_exchange_service(
-        site_service=site_service,
-        party_service=party_service,
+        site_commands=master_data.site_commands,
+        site_query=master_data.site_query,
+        party_commands=master_data.party_commands,
+        party_query=master_data.party_query,
         user_session=user_session,
     )
 
@@ -359,16 +355,35 @@ def build_platform_service_bundle(
         platform_post_commit_bus=platform_post_commit_bus,
         platform_runtime_application_service=platform_runtime_application_service,
         module_catalog_service=module_catalog_service,
-        auth_service=auth_service,
+        module_entitlement_commands=module_entitlement_commands,
+        auth=auth,
+        role_assignment_commands=build_role_assignment_handler(
+            repositories=repositories,
+            auth=auth,
+            role_governance_service=role_governance_service,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+        ),
         role_governance_service=role_governance_service,
         tenant_role_administration_service=security.tenant_role_administration_service,
-        organization_service=organization_service,
-        document_service=document_service,
-        document_integration_service=master_data.document_integration_service,
-        party_service=party_service,
-        department_service=master_data.department_service,
-        site_service=site_service,
-        employee_service=employee_service,
+        organization_commands=organization.commands,
+        organization_lifecycle=organization.lifecycle,
+        organization_query=organization.query,
+        document_access_policy=master_data.document_access_policy,
+        document_commands=master_data.document_commands,
+        document_structure_commands=master_data.document_structure_commands,
+        document_query=master_data.document_query,
+        document_attachment_commands=master_data.document_attachment_commands,
+        document_attachment_query=master_data.document_attachment_query,
+        party_commands=master_data.party_commands,
+        party_query=master_data.party_query,
+        department_commands=master_data.department_commands,
+        department_query=master_data.department_query,
+        site_commands=master_data.site_commands,
+        site_query=master_data.site_query,
+        employee_commands=employee.commands,
+        employee_query=employee.query,
+        employee_document_commands=employee.documents,
         master_data_exchange_service=master_data_exchange_service,
         runtime_execution_service=runtime_execution_service,
         access_service=security.access_service,

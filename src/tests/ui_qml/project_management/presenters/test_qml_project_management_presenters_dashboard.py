@@ -77,7 +77,7 @@ def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_st
                 )
             ]
         ),
-        dashboard_service=SimpleNamespace(
+        project_dashboard=(_dashboard := SimpleNamespace(
             get_dashboard_data=lambda project_id, baseline_id=None, include_evm=True: SimpleNamespace(
                 kpi=SimpleNamespace(
                     project_id=project_id,
@@ -168,7 +168,8 @@ def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_st
                 register_summary=None,
                 cost_sources=None,
             ),
-        ),
+        )),
+        portfolio_dashboard=_dashboard,
     )
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(project_management_dashboard=desktop_api)

@@ -41,26 +41,6 @@ from src.core.modules.project_management.api.desktop.tasks.builders.resource_opt
 from src.core.modules.project_management.api.desktop.tasks.builders.status_options_builder import (
     build_status_options,
 )
-from src.core.modules.project_management.api.desktop.tasks.commands.assignment_commands import (
-    TaskAssignmentAllocationCommand,
-    TaskAssignmentCreateCommand,
-    TaskAssignmentHoursCommand,
-    TaskAssignmentPlannedHoursCommand,
-)
-from src.core.modules.project_management.api.desktop.tasks.commands.bulk_commands import (
-    TaskBulkStatusCommand,
-)
-from src.core.modules.project_management.api.desktop.tasks.commands.dependency_commands import (
-    TaskDependencyCreateCommand,
-    TaskDependencyUpdateCommand,
-)
-from src.core.modules.project_management.api.desktop.tasks.commands.task_commands import (
-    TaskConstraintUpdateCommand,
-    TaskCreateCommand,
-    TaskProgressCommand,
-    TaskUpdateCommand,
-    TaskWbsMoveCommand,
-)
 from src.core.modules.project_management.api.desktop.tasks.models.assignment import (
     TaskAssignmentDesktopDto,
     TaskAssignmentPageDesktopDto,
@@ -127,7 +107,7 @@ from src.core.modules.project_management.api.desktop.tasks.utils.task_status_uti
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
-    ResourceService,
+    ResourceQueryHandler,
 )
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
@@ -150,6 +130,20 @@ from src.core.modules.project_management.application.tasks.queries.task_detail_p
 )
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
+)
+from src.core.modules.project_management.contracts.use_cases.tasks.commands import (
+    TaskAssignmentAllocationCommand,
+    TaskAssignmentCreateCommand,
+    TaskAssignmentHoursCommand,
+    TaskAssignmentPlannedHoursCommand,
+    TaskBulkStatusCommand,
+    TaskConstraintUpdateCommand,
+    TaskCreateCommand,
+    TaskDependencyCreateCommand,
+    TaskDependencyUpdateCommand,
+    TaskProgressCommand,
+    TaskUpdateCommand,
+    TaskWbsMoveCommand,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.gateway.task.reservation import (
@@ -179,7 +173,7 @@ class ProjectManagementTasksDesktopApi:
         task_time_entries: TaskTimeEntryHandler | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,
         project_resource_service: ProjectResourceService | None = None,
-        resource_service: ResourceService | None = None,
+        resource_query: ResourceQueryHandler | None = None,
         reservation_service: TaskReservationGateway | None = None,
         assignment_skill_validator: AssignmentSkillValidator | None = None,
         schedule_change_impact_service: ScheduleChangeImpactService | None = None,
@@ -193,7 +187,7 @@ class ProjectManagementTasksDesktopApi:
         self._task_time_entries = task_time_entries
         self._module_catalog_service = module_catalog_service
         self._project_resource_service = project_resource_service
-        self._resource_service = resource_service
+        self._resource_service = resource_query
         self._reservation_service = reservation_service
         self._assignment_skill_validator = assignment_skill_validator
         self._schedule_change_impact_service = schedule_change_impact_service
@@ -213,7 +207,7 @@ class ProjectManagementTasksDesktopApi:
         return build_project_resource_options(
             project_id,
             project_resource_service=self._project_resource_service,
-            resource_service=self._resource_service,
+            resource_query=self._resource_service,
         )
 
     def get_task(self, task_id: str) -> TaskDesktopDto | None:
@@ -484,7 +478,7 @@ class ProjectManagementTasksDesktopApi:
             return ()
         assignments = list(list_assignments_for_task(task_id))
         resources_by_id = resource_by_id(
-            resource_service=self._resource_service,
+            resource_query=self._resource_service,
             resource_ids=tuple(
                 str(getattr(assignment, "resource_id", "") or "")
                 for assignment in assignments
@@ -605,7 +599,7 @@ class ProjectManagementTasksDesktopApi:
             sort_direction=sort_direction,
         )
         resources_by_id = resource_by_id(
-            resource_service=self._resource_service,
+            resource_query=self._resource_service,
             resource_ids=tuple({row.resource_id for row in page_result.items}),
         )
         return serialize_task_time_entries_page(page_result, resources_by_id=resources_by_id)
@@ -623,7 +617,7 @@ class ProjectManagementTasksDesktopApi:
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
-                resource_service=self._resource_service,
+                resource_query=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
             project_resource_version=self._project_resource_version_for(assignment),
@@ -641,7 +635,7 @@ class ProjectManagementTasksDesktopApi:
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
-                resource_service=self._resource_service,
+                resource_query=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
             project_resource_version=self._project_resource_version_for(assignment),
@@ -660,7 +654,7 @@ class ProjectManagementTasksDesktopApi:
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
-                resource_service=self._resource_service,
+                resource_query=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
             project_resource_version=self._project_resource_version_for(assignment),
@@ -679,7 +673,7 @@ class ProjectManagementTasksDesktopApi:
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
-                resource_service=self._resource_service,
+                resource_query=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
             project_resource_version=self._project_resource_version_for(assignment),
@@ -693,7 +687,7 @@ class ProjectManagementTasksDesktopApi:
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
-                resource_service=self._resource_service,
+                resource_query=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
             project_resource_version=self._project_resource_version_for(assignment),
@@ -704,7 +698,7 @@ class ProjectManagementTasksDesktopApi:
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
-                resource_service=self._resource_service,
+                resource_query=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
             project_resource_version=self._project_resource_version_for(assignment),

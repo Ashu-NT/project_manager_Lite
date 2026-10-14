@@ -1,18 +1,33 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
     PerformanceEvmFact,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
+if TYPE_CHECKING:
+    from src.core.modules.project_management.contracts.ports.financials.performance_authorities import (
+        EarnedValueReadAuthority,
+    )
+    from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+        FinanceOverviewFacts,
+    )
+
 logger = logging.getLogger(__name__)
 
 
 class EvmQueries:
+    # Host attributes supplied by ``ProjectFinancePerformanceQuery`` (declared for type checking only).
+    _earned_value_authority: EarnedValueReadAuthority
+    _authorize_finance: Callable[[str, str], None]
+    _read_basis: Callable[[str, date], FinanceOverviewFacts]
+
     def get_evm(
         self,
         project_id: str,
@@ -35,7 +50,7 @@ class EvmQueries:
         *,
         project_id: str,
         as_of_date: date,
-        basis: object,
+        basis: FinanceOverviewFacts,
         baseline_id: str | None,
     ) -> PerformanceEvmFact:
         try:

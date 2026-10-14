@@ -6,6 +6,9 @@ activation state) end-to-end through Controller -> Presenter -> Desktop API
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 
@@ -16,16 +19,14 @@ def _build_admin_workspace(services):
 
 
 def test_activity_page_has_human_readable_titles_actor_and_subject(services) -> None:
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
-    site_service = services["site_service"]
     _catalog, admin = _build_admin_workspace(services)
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="ACT-RICH", display_name="Rich Activity Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
-    site = site_service.create_site(site_code="RICH-SITE", name="Rich Site")
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="RICH-SITE", name="Rich Site"))
 
     result = admin.organizationActivityPage(org.id, 1, 25, "", "", "")
     items = result["items"]
@@ -60,18 +61,17 @@ def test_activity_page_has_human_readable_titles_actor_and_subject(services) -> 
 
 
 def test_activity_page_lifecycle_titles_use_activated_deactivated_archived_vocabulary(services) -> None:
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     _catalog, admin = _build_admin_workspace(services)
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="ACT-LIFECYCLE", display_name="Lifecycle Activity Org", timezone_name="UTC", base_currency="USD"
     )
-    other = organization_service.create_organization(
+    other = services["organization_commands"].create_organization(
         organization_code="ACT-LIFECYCLE-OTHER", display_name="Lifecycle Other", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
-    organization_service.deactivate_organization(org.id)
+    services["organization_lifecycle"].deactivate_organization(org.id)
     # Deactivating the currently-ACTIVE organization clears active-org
     # context -- switch to some other active org first, exactly like an
     # admin browsing Organization Detail would (ActivityService's scope
@@ -89,11 +89,10 @@ def test_activity_page_lifecycle_titles_use_activated_deactivated_archived_vocab
 
 
 def test_activity_page_empty_and_filtered_no_results_states_are_distinct(services) -> None:
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     _catalog, admin = _build_admin_workspace(services)
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="ACT-EMPTY", display_name="Empty Activity Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)

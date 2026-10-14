@@ -243,13 +243,12 @@ def test_tenant_switch_success_is_audited_and_idempotent(services) -> None:
 
 
 def test_organization_switch_success_is_tenant_scoped(services) -> None:
-    organization_service = services["organization_service"]
     tenant_context = services["tenant_context_service"]
     user_session = services["user_session"]
     current = user_session.principal
     assert current is not None
     old_organization_id = current.active_organization_id
-    target = organization_service.create_organization(
+    target = services["organization_commands"].create_organization(
         organization_code="AUDIT-ORG",
         display_name="Audited Organization",
     )
@@ -278,7 +277,6 @@ def test_context_audit_failure_rolls_back_persisted_session_and_principal(
     services,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    auth = services["auth_service"]
     tenant_context = services["tenant_context_service"]
     tenant_admin = services["tenant_admin_service"]
     user_session = services["user_session"]
@@ -286,11 +284,11 @@ def test_context_audit_failure_rolls_back_persisted_session_and_principal(
         "AUDIT-ROLLBACK",
         "Audit Rollback Tenant",
     )
-    user = auth.authenticate("admin", "ChangeMe123!")
+    user = services["authentication"].authenticate("admin", "ChangeMe123!")
     session_id = user.active_session_id
     assert session_id is not None
     user_session.set_principal(
-        auth.build_principal(user, session_id=session_id)
+        services["principal_builder"].build(user, session_id=session_id)
     )
     previous = user_session.principal
     assert previous is not None
@@ -301,7 +299,7 @@ def test_context_audit_failure_rolls_back_persisted_session_and_principal(
         raise RuntimeError("context audit unavailable")
 
     monkeypatch.setattr(
-        auth._security_audit_repo,
+        services["auth_bootstrap"]._security_audit_repo,
         "add_for_tenant",
         _fail,
     )
@@ -311,7 +309,7 @@ def test_context_audit_failure_rolls_back_persisted_session_and_principal(
 
     assert exc.value.code == "CONTEXT_SWITCH_AUDIT_UNAVAILABLE"
     assert user_session.principal == previous
-    persisted = auth._auth_session_repo.get(session_id)
+    persisted = services["auth_session_commands"]._auth_session_repo.get(session_id)
     assert persisted is not None
     assert persisted.last_active_tenant_id == previous_tenant_id
     assert (
@@ -329,7 +327,6 @@ def test_context_audit_failure_rolls_back_persisted_session_and_principal(
 
 
 def test_tenant_switch_denial_is_durable_and_preserves_reason(services) -> None:
-    auth = services["auth_service"]
     tenant_admin = services["tenant_admin_service"]
     tenant_context = services["tenant_context_service"]
     user_session = services["user_session"]
@@ -337,13 +334,13 @@ def test_tenant_switch_denial_is_durable_and_preserves_reason(services) -> None:
         "ZZZ-AUDIT-DENIED",
         "Denied Switch Tenant",
     )
-    user = auth.onboard_tenant_user(
+    user = services["user_registration"].onboard_tenant_user(
         username="context-denied-user",
         raw_password="StrongPass123!",
     )
-    user_session.set_principal(auth.build_principal(user))
+    user_session.set_principal(services["principal_builder"].build(user))
     current_tenant_id = user_session.active_tenant_id()
-    membership_ids = auth._user_tenant_repo.list_tenant_ids_for_user(user.id)
+    membership_ids = services["role_assignment_commands"]._user_tenant_repo.list_tenant_ids_for_user(user.id)
     assert current_tenant_id is not None
     assert current_tenant_id != target.id
     assert target.id not in membership_ids

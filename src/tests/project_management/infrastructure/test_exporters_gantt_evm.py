@@ -34,7 +34,7 @@ def test_gantt_export_inclusive_duration_for_one_day_tasks(services, tmp_path, m
     monkeypatch.setattr(Axes, "barh", _spy_barh)
 
     output = tmp_path / "gantt.png"
-    reporting_api.generate_gantt_png(services["reporting_service"], pid, output)
+    reporting_api.generate_gantt_png(services["project_kpi_report"], pid, output)
 
     assert output.exists()
     assert output.stat().st_size > 0
@@ -44,8 +44,6 @@ def test_gantt_export_inclusive_duration_for_one_day_tasks(services, tmp_path, m
 def test_gantt_render_uses_day_cell_alignment_for_inclusive_finish(services, tmp_path, monkeypatch):
     ps = services["project_service"]
     ts = services["task_service"]
-    rp = services["reporting_service"]
-
     project = ps.create_project("Gantt Day Cell Alignment", "")
     pid = project.id
     task = ts.create_task(pid, "Aligned Task", start_date=date(2023, 11, 6), duration_days=3)
@@ -60,10 +58,10 @@ def test_gantt_render_uses_day_cell_alignment_for_inclusive_finish(services, tmp
     monkeypatch.setattr(Axes, "barh", _spy_barh)
 
     output = tmp_path / "gantt_aligned.png"
-    reporting_api.generate_gantt_png(services["reporting_service"], pid, output)
+    reporting_api.generate_gantt_png(services["project_kpi_report"], pid, output)
 
     assert output.exists()
-    bars = rp.get_gantt_data(pid)
+    bars = services["project_kpi_report"].get_gantt_data(pid)
     bar = next(b for b in bars if b.task_id == task.id)
 
     # Main bars have dark edge color; progress overlays do not.

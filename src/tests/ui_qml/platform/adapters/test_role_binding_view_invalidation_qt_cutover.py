@@ -13,6 +13,9 @@ from src.core.platform.application.security.authorization.roles.event_handlers.v
     build_role_binding_view_invalidation_handler,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.security.authorization.roles.events import (
     RoleBindingAssigned,
     RoleBindingRevoked,
@@ -56,10 +59,9 @@ def _active_tenant(services) -> str:
 
 
 def _switch_session_to_actor(services, actor, *, tenant_id, organization_id=None, extra_permissions=()):
-    auth = services["auth_service"]
     if organization_id is None:
         organization_id = services["tenant_context_service"].get_active_organization_id()
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor, tenant_id=tenant_id, organization_id=organization_id
     )
     services["user_session"].set_principal(
@@ -72,16 +74,15 @@ def _switch_session_to_actor(services, actor, *, tenant_id, organization_id=None
 
 
 def _resource_scoped_binding_setup(services, *, suffix, scope_type, role_name, organization_id=None):
-    auth = services["auth_service"]
     tenant_id = _active_tenant(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code(f"p5c3-actor-{suffix}"), "P5C3Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code(f"p5c3-target-{suffix}"), "P5C3Target123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    target_role = auth._role_repo.get_by_name(role_name)
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    target_role = services["auth_queries"]._role_repo.get_by_name(role_name)
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=target_role.id,
@@ -210,14 +211,12 @@ def test_role_binding_view_invalidation_mapper_has_no_qt_dependency():
 def test_access_workspace_scope_grants_refresh_on_real_assign_mutation(services):
     catalog = _catalog(services)
     catalog.adminAccessWorkspace.refresh()
-    site = services["site_service"].create_site(
-        site_code=_unique_code("P5C3-SITE"), name="P5C-3 Site", city="Berlin", currency_code="EUR"
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique_code("P5C3-SITE"), name="P5C-3 Site", city="Berlin", currency_code="EUR"))
     catalog.adminAccessWorkspace.setScopeType("site")
     catalog.adminAccessWorkspace.setScopeId(site.id)
     assert catalog.adminAccessWorkspace.scopeGrants.get("items") == []
 
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         _unique_code("p5c3-e2e-user"), "P5C3End2End123!", role_names=["inventory_manager"],
         tenant_id=_active_tenant(services),
     )
@@ -237,10 +236,8 @@ def test_access_workspace_full_catalog_options_do_not_needlessly_refresh(service
     catalog.adminAccessWorkspace.refresh()
     full_refresh_calls = []
     catalog.adminAccessWorkspace.refresh = lambda: full_refresh_calls.append("refresh")
-    site = services["site_service"].create_site(
-        site_code=_unique_code("P5C3-NOFULL-SITE"), name="P5C-3 No-Full Site", city="Berlin", currency_code="EUR"
-    )
-    user = services["auth_service"].register_user(
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique_code("P5C3-NOFULL-SITE"), name="P5C-3 No-Full Site", city="Berlin", currency_code="EUR"))
+    user = services["user_registration"].register_user(
         _unique_code("p5c3-nofull-user"), "P5C3NoFull123!", role_names=["inventory_manager"],
         tenant_id=_active_tenant(services),
     )
@@ -257,13 +254,11 @@ def test_no_refresh_before_commit_and_none_on_commit_failure(services, monkeypat
     catalog.adminAccessWorkspace.refresh()
     refresh_calls = []
     catalog.adminAccessWorkspace.refresh_role_bindings = lambda: refresh_calls.append("refresh") or None
-    site = services["site_service"].create_site(
-        site_code=_unique_code("P5C3-COMMITFAIL-SITE"), name="Commit Fail Site", city="Berlin", currency_code="EUR"
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique_code("P5C3-COMMITFAIL-SITE"), name="Commit Fail Site", city="Berlin", currency_code="EUR"))
     # role_names=[] -- a non-empty global role assignment itself records a RoleBindingAssigned
     # event (and thus a `refresh_role_bindings()` reaction), which would pollute the
     # under-test assertion below; the target user's global role is irrelevant to a scope grant.
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         _unique_code("p5c3-commitfail-user"), "P5C3CommitFail123!", role_names=[],
         tenant_id=_active_tenant(services),
     )
@@ -283,10 +278,8 @@ def test_no_refresh_before_commit_and_none_on_commit_failure(services, monkeypat
 def test_no_invalidation_on_no_op_assign_or_revoke(services):
     catalog = _catalog(services)
     catalog.adminAccessWorkspace.refresh()
-    site = services["site_service"].create_site(
-        site_code=_unique_code("P5C3-NOOP-SITE"), name="No-op Site", city="Berlin", currency_code="EUR"
-    )
-    user = services["auth_service"].register_user(
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique_code("P5C3-NOOP-SITE"), name="No-op Site", city="Berlin", currency_code="EUR"))
+    user = services["user_registration"].register_user(
         _unique_code("p5c3-noop-user"), "P5C3NoOp123!", role_names=["inventory_manager"],
         tenant_id=_active_tenant(services),
     )
@@ -323,20 +316,18 @@ def test_non_active_organization_resource_mutation_does_not_refresh_the_active_o
     catalog = _catalog(services)
     catalog.adminAccessWorkspace.refresh()
     org_a1_id = tenant_context_service.get_active_organization_id()
-    site_a2_org = services["organization_service"].create_organization(
+    site_a2_org = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C3-NONACTIVE-A2"), display_name="P5C-3 Non-Active A2"
     )
     tenant_context_service.set_active_organization(site_a2_org.id)
-    site_a2 = services["site_service"].create_site(
-        site_code=_unique_code("P5C3-NONACTIVE-SITE"), name="A2 Site", city="Berlin", currency_code="EUR"
-    )
+    site_a2 = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique_code("P5C3-NONACTIVE-SITE"), name="A2 Site", city="Berlin", currency_code="EUR"))
     tenant_context_service.set_active_organization(org_a1_id)
     assert tenant_context_service.get_active_organization_id() == org_a1_id
 
     refresh_calls = []
     catalog.adminAccessWorkspace.refresh_role_bindings = lambda: refresh_calls.append("refresh") or None
     # role_names=[] -- see test_no_refresh_before_commit_and_none_on_commit_failure.
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         _unique_code("p5c3-nonactive-user"), "P5C3NonActive123!", role_names=[],
         tenant_id=_active_tenant(services),
     )
@@ -357,15 +348,13 @@ def test_switching_to_the_non_active_org_then_repeating_the_mutation_refreshes_e
     catalog = _catalog(services)
     catalog.adminAccessWorkspace.refresh()
     org_a1_id = tenant_context_service.get_active_organization_id()
-    org_a2 = services["organization_service"].create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C3-SWITCH-A2"), display_name="P5C-3 Switch A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
-    site_a2 = services["site_service"].create_site(
-        site_code=_unique_code("P5C3-SWITCH-SITE"), name="Switch A2 Site", city="Berlin", currency_code="EUR"
-    )
-    user = services["auth_service"].register_user(
+    site_a2 = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique_code("P5C3-SWITCH-SITE"), name="Switch A2 Site", city="Berlin", currency_code="EUR"))
+    user = services["user_registration"].register_user(
         _unique_code("p5c3-switch-user"), "P5C3Switch123!", role_names=["inventory_manager"],
         tenant_id=_active_tenant(services),
     )
@@ -388,25 +377,24 @@ def test_tenant_scope_mutation_refreshes_regardless_of_which_organization_is_act
     tenant_context_service = services["tenant_context_service"]
     catalog = _catalog(services)
     catalog.adminAccessWorkspace.refresh()
-    org_a2 = services["organization_service"].create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C3-TENANTSCOPE-A2"), display_name="P5C-3 Tenant Scope A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
 
-    auth = services["auth_service"]
     tenant_id = _active_tenant(services)
     # Registered before `refresh_calls` starts tracking -- registering `actor` with a non-empty
     # global role itself records a RoleBindingAssigned event (its own `refresh_role_bindings()`
     # reaction), which is setup noise, not the mutation under test.
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code("p5c3-tenantscope-actor"), "P5C3TenantScope123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code("p5c3-tenantscope-target"), "P5C3TenantScope123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    viewer_role = auth._role_repo.get_by_name("viewer")
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id, assignable_role_id=viewer_role.id,
         target_scope_type="tenant", tenant_id=tenant_id,
@@ -497,10 +485,9 @@ def test_adapter_subscribes_via_exact_organization_and_tenant_wide_only(services
 
 def test_adapter_only_reacts_to_its_exact_active_organization_for_resource_scope(services):
     channel = services["platform_view_invalidation_channel"]
-    organization_service = services["organization_service"]
     tenant_id = _active_tenant(services)
     org_a1 = services["tenant_context_service"].get_active_organization()
-    org_a2 = organization_service.create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C3-ADAPTER-A2"), display_name="Adapter Scope A2"
     )
 
@@ -547,13 +534,12 @@ def _hint(scope):
 
 
 def test_real_organization_switch_through_refresh_current_permissions_rewires_the_adapter(services):
-    organization_service = services["organization_service"]
     catalog = _catalog(services)
     channel = services["platform_view_invalidation_channel"]
     adapter = catalog._role_binding_view_invalidation_adapter
 
     org_a1 = services["tenant_context_service"].get_active_organization()
-    org_a2 = organization_service.create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C3-REALSWITCH-A2"), display_name="Real Switch A2"
     )
 
@@ -596,11 +582,10 @@ def test_adapter_follows_a_tenant_switch_via_refresh_current_permissions(service
 
 
 def test_switching_does_not_accumulate_subscriptions(services):
-    organization_service = services["organization_service"]
     catalog = _catalog(services)
     channel = services["platform_view_invalidation_channel"]
     org_a1 = services["tenant_context_service"].get_active_organization()
-    org_a2 = organization_service.create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C3-NOACCUMULATE-A2"), display_name="No Accumulate A2"
     )
     subscription_count_before = len(channel._subscriptions)
@@ -625,15 +610,14 @@ def test_platform_scope_assignment_remains_denied_no_invalidation_ever_fabricate
     hints = []
     channel.subscribe(PlatformWide(), lambda hint: hints.append(hint))
 
-    auth = services["auth_service"]
     tenant_id = _active_tenant(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code("p5c3-platform-actor"), "P5C3Platform123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code("p5c3-platform-target"), "P5C3Platform123!", role_names=[], tenant_id=tenant_id
     )
-    platform_role = auth._role_repo.get_by_name("admin")
+    platform_role = services["auth_queries"]._role_repo.get_by_name("admin")
     _switch_session_to_actor(services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",))
 
     with pytest.raises(BusinessRuleError):

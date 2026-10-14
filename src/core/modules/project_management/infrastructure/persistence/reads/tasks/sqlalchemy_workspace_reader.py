@@ -449,7 +449,7 @@ class SqlAlchemyTaskWorkspaceReader:
         elif criteria.priority == "low":
             conditions.append(rows.c.priority < 30)
 
-        current_date = criteria.as_of or date.today()
+        current_date = criteria.as_of or date.today()  # noqa: DTZ011
         if criteria.schedule == "overdue":
             conditions.extend((rows.c.deadline.is_not(None), rows.c.deadline < current_date))
         elif criteria.schedule == "due_7":
@@ -523,7 +523,7 @@ class SqlAlchemyTaskWorkspaceReader:
             allowed_project_ids=allowed_project_ids,
         )
         scope_conditions = [rows.c.project_id == criteria.project_id] if criteria.project_id else []
-        current_date = criteria.as_of or date.today()
+        current_date = criteria.as_of or date.today()  # noqa: DTZ011
         summary_row = self._session.execute(
             select(
                 func.count(rows.c.id).label("total"),

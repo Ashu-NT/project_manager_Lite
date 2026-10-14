@@ -7,10 +7,9 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def _login_as(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def test_project_create_emits_typed_domain_event_and_view_invalidation(services):
@@ -82,12 +81,10 @@ def test_task_create_dependency_assignment_emit_typed_domain_events_and_view_inv
 
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-
     project = ps.create_project("Event Task Ops", "")
     t1 = ts.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
     t2 = ts.create_task(project.id, "Task B", start_date=date(2024, 1, 3), duration_days=2)
-    resource = rs.create_resource("Event Dev", "Developer", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource("Event Dev", "Developer", hourly_rate=100.0)
 
     class _AnyOrgFilter:
         def matches(self, scope) -> bool:
@@ -153,10 +150,9 @@ def test_approve_baseline_request_emits_project_baseline_view_invalidation(servi
 
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "baseline.create")
-    auth = services["auth_service"]
-    auth.register_user("planner-baseline", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user("planner-baseline", "StrongPass123", role_names=["planner"])
     _login_as(services, "admin", "ChangeMe123!")
-    auth.assign_role(auth.authenticate("admin", "ChangeMe123!").id, "approver")
+    services["role_assignment_commands"].assign_role(services["authentication"].authenticate("admin", "ChangeMe123!").id, "approver")
 
     ps = services["project_service"]
     ts = services["task_service"]

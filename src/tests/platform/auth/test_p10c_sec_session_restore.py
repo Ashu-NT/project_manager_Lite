@@ -7,7 +7,7 @@ def _register_active_tenant_user(services, username: str, *, role_names: list[st
     tenant_id = services["tenant_context_service"].require_active_tenant_id(
         operation_label="prepare session restore test user"
     )
-    return services["auth_service"].register_user(
+    return services["user_registration"].register_user(
         username, "StrongPass123", role_names=role_names, tenant_id=tenant_id
     )
 
@@ -19,9 +19,8 @@ def _grant(services, *, user_id: str, organization_id: str, scope_role: str = "v
 
 
 def _login_admin(services) -> None:
-    auth = services["auth_service"]
-    user = auth.authenticate("admin", "ChangeMe123!")
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate("admin", "ChangeMe123!")
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 # ----------------------------------------------------------------------
@@ -30,8 +29,7 @@ def _login_admin(services) -> None:
 
 
 def test_granted_organization_is_valid_on_login(services):
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-GRANT-A", display_name="Sec Grant A"
     )
     user = _register_active_tenant_user(services, "sec-grant-user", role_names=["viewer"])
@@ -50,8 +48,7 @@ def test_granted_organization_is_valid_on_login(services):
 
 def test_revoked_organization_is_not_restored_on_a_new_login(services):
     access = services["access_service"]
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-REVOKE-RELOGIN-A", display_name="Sec Revoke Relogin A"
     )
     user = _register_active_tenant_user(services, "sec-revoke-relogin-user", role_names=["viewer"])
@@ -82,11 +79,10 @@ def test_revoked_organization_cannot_be_switched_to_manually(services):
     from src.core.platform.common.exceptions import BusinessRuleError
 
     access = services["access_service"]
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-REVOKE-MANUAL-A", display_name="Sec Revoke Manual A"
     )
-    other = organization_service.create_organization(
+    other = services["organization_commands"].create_organization(
         organization_code="SEC-REVOKE-MANUAL-OTHER", display_name="Sec Revoke Manual Other"
     )
     user = _register_active_tenant_user(services, "sec-revoke-manual-user", role_names=["viewer"])
@@ -113,8 +109,7 @@ def test_revoked_organization_cannot_be_switched_to_manually(services):
 
 
 def test_persisted_disabled_organization_is_not_restored(services):
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-DISABLED-RESTORE-A", display_name="Sec Disabled Restore A"
     )
     user = _register_active_tenant_user(services, "sec-disabled-restore-user", role_names=["viewer"])
@@ -124,7 +119,7 @@ def test_persisted_disabled_organization_is_not_restored(services):
     services["tenant_context_service"].set_active_organization(org_a.id)
 
     _login_admin(services)
-    organization_service.deactivate_organization(org_a.id)
+    services["organization_lifecycle"].deactivate_organization(org_a.id)
 
     login_as(services, "sec-disabled-restore-user", "StrongPass123")
 
@@ -148,8 +143,7 @@ def test_persisted_cross_tenant_organization_is_not_restored(services):
         SqlAlchemyTenantRepository,
     )
 
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-CROSS-TENANT-A", display_name="Sec Cross Tenant A"
     )
     user = _register_active_tenant_user(services, "sec-cross-tenant-user", role_names=["viewer"])
@@ -168,10 +162,10 @@ def test_persisted_cross_tenant_organization_is_not_restored(services):
         display_name="Sec Cross Tenant Foreign Org",
         tenant_id=foreign_tenant.id,
     )
-    organization_service._organization_repo.add(foreign_org_obj)
+    services["organization_query"]._organization_repo.add(foreign_org_obj)
     services["session"].flush()
 
-    auth_session_repo = services["auth_service"]._auth_session_repo
+    auth_session_repo = services["auth_session_commands"]._auth_session_repo
     live_session_id = services["user_session"].principal.session_id
     auth_session = auth_session_repo.get(live_session_id)
     auth_session.last_active_organization_id = foreign_org_obj.id
@@ -189,8 +183,7 @@ def test_persisted_cross_tenant_organization_is_not_restored(services):
 
 
 def test_persisted_still_authorized_organization_is_restored(services):
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-STILL-AUTH-A", display_name="Sec Still Auth A"
     )
     user = _register_active_tenant_user(services, "sec-still-auth-user", role_names=["viewer"])
@@ -210,11 +203,10 @@ def test_persisted_still_authorized_organization_is_restored(services):
 
 
 def test_user_with_a_and_b_access_restores_a_when_a_was_last_active(services):
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-MULTI-A", display_name="Sec Multi A"
     )
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="SEC-MULTI-B", display_name="Sec Multi B"
     )
     user = _register_active_tenant_user(services, "sec-multi-user", role_names=["viewer"])
@@ -231,11 +223,10 @@ def test_user_with_a_and_b_access_restores_a_when_a_was_last_active(services):
 
 def test_revoking_a_while_retaining_b_does_not_restore_a_and_resolves_via_existing_policy(services):
     access = services["access_service"]
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-MULTI-REVOKE-A", display_name="Sec Multi Revoke A"
     )
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="SEC-MULTI-REVOKE-B", display_name="Sec Multi Revoke B"
     )
     user = _register_active_tenant_user(services, "sec-multi-revoke-user", role_names=["viewer"])
@@ -275,11 +266,10 @@ def test_tenant_membership_alone_does_not_authorize_a_specific_previously_grante
     merely by virtue of remaining a tenant member, when the tenant has other organizations too
     (so the sole-enabled-org fallback cannot itself explain a restore)."""
     access = services["access_service"]
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-MEMBERSHIP-ONLY-A", display_name="Sec Membership Only A"
     )
-    organization_service.create_organization(
+    services["organization_commands"].create_organization(
         organization_code="SEC-MEMBERSHIP-ONLY-B", display_name="Sec Membership Only B"
     )
     user = _register_active_tenant_user(services, "sec-membership-only-user", role_names=["viewer"])
@@ -311,7 +301,7 @@ def test_single_enabled_organization_zero_grant_auto_select_still_works(services
     default_org = services["tenant_context_service"].get_active_organization()
     assert default_org is not None
 
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         "sec-single-org-zero-grant-user", "StrongPass123", role_names=["viewer"]
     )
 
@@ -331,8 +321,7 @@ def test_admin_role_restore_bypasses_organization_scoped_access_check(services):
     organization-scoped RoleBinding at all (their authority is role-based, not scope-based), so
     without this bypass their own persisted organization would be incorrectly rejected on every
     login."""
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-ADMIN-BYPASS-A", display_name="Sec Admin Bypass A"
     )
 
@@ -346,8 +335,7 @@ def test_admin_role_restore_bypasses_organization_scoped_access_check(services):
 
 
 def test_tenant_admin_role_restore_bypasses_organization_scoped_access_check(services):
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-TENANT-ADMIN-BYPASS-A", display_name="Sec Tenant Admin Bypass A"
     )
     user = _register_active_tenant_user(services, "sec-tenant-admin-user", role_names=["tenant_admin"])
@@ -382,7 +370,7 @@ def test_persisted_tenant_only_session_reauto_selects_sole_enabled_organization(
     default_org = services["tenant_context_service"].get_active_organization()
     assert default_org is not None
 
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         "sec-tenant-only-reheal-user", "StrongPass123", role_names=["viewer"]
     )
     login_as(services, "sec-tenant-only-reheal-user", "StrongPass123")
@@ -390,7 +378,7 @@ def test_persisted_tenant_only_session_reauto_selects_sole_enabled_organization(
 
     # Corrupt the persisted session the way a real one could end up: tenant
     # known, organization nulled out.
-    auth_session_repo = services["auth_service"]._auth_session_repo
+    auth_session_repo = services["auth_session_commands"]._auth_session_repo
     live_session_id = services["user_session"].principal.session_id
     auth_session = auth_session_repo.get(live_session_id)
     auth_session.last_active_organization_id = None
@@ -410,11 +398,10 @@ def test_non_admin_restore_is_not_granted_the_admin_bypass(services):
     in a MULTI-org tenant (so the sole-enabled-org fallback cannot itself explain a restore),
     must not have their persisted organization restored -- the bypass is role-specific, not a
     side effect of `scoped_access["organization"]` being empty."""
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="SEC-NON-ADMIN-A", display_name="Sec Non Admin A"
     )
-    organization_service.create_organization(
+    services["organization_commands"].create_organization(
         organization_code="SEC-NON-ADMIN-B", display_name="Sec Non Admin B"
     )
     user = _register_active_tenant_user(services, "sec-non-admin-user", role_names=["viewer"])

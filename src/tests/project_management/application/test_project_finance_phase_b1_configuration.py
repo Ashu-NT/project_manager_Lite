@@ -213,12 +213,11 @@ def test_create_cost_code_for_restricted_project_is_immediately_available(servic
 
 
 def test_financial_configuration_repositories_isolate_active_organization(services) -> None:
-    organization_service = services["organization_service"]
     configuration_service = services["financial_configuration_service"]
     original_organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project("Organization A finance")
     code = configuration_service.create_cost_code(code="ORG-A", name="Organization A")
-    other_organization = organization_service.create_organization(
+    other_organization = services["organization_commands"].create_organization(
         organization_code="PF-B1-OTHER",
         display_name="Project Finance Other",
         base_currency="USD",
@@ -237,8 +236,7 @@ def test_financial_configuration_repositories_isolate_active_organization(servic
 
 def test_financial_configuration_requires_global_and_project_manage_permissions(services) -> None:
     project = services["project_service"].create_project("Finance scope guard")
-    auth = services["auth_service"]
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "phase-b1-project-manager",
         "StrongPass123",
         role_names=["project_manager"],

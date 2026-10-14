@@ -4,6 +4,7 @@ from dataclasses import field
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -121,7 +122,7 @@ class FinancialChangeRequest:
 
     @field_validator("revision", "row_version", mode="before")
     @classmethod
-    def _positive_versions(cls, value: object, info) -> int:
+    def _positive_versions(cls, value: Any, info) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -132,7 +133,7 @@ class FinancialChangeRequest:
 
     @field_validator("applied_schedule_count", mode="before")
     @classmethod
-    def _schedule_count(cls, value: object) -> int:
+    def _schedule_count(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 0:
             raise ValidationError(
@@ -143,7 +144,7 @@ class FinancialChangeRequest:
 
     @field_validator("base_budget_revision", "base_forecast_revision", mode="before")
     @classmethod
-    def _optional_positive_revision(cls, value: object, info) -> int | None:
+    def _optional_positive_revision(cls, value: Any, info) -> int | None:
         if value is None:
             return None
         resolved = int(value)
@@ -365,7 +366,7 @@ class FinancialChangeImpact:
 
     @field_validator("row_version", mode="before")
     @classmethod
-    def _row_version(cls, value: object) -> int:
+    def _row_version(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -376,7 +377,7 @@ class FinancialChangeImpact:
 
     @field_validator("target_task_version", mode="before")
     @classmethod
-    def _target_version(cls, value: object) -> int | None:
+    def _target_version(cls, value: Any) -> int | None:
         if value is None:
             return None
         resolved = int(value)

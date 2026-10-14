@@ -4,6 +4,7 @@ import re
 from dataclasses import field
 from datetime import UTC, date, datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -108,7 +109,7 @@ class ProjectFinancialProfile:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -250,7 +251,7 @@ class ProjectCostCode:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(

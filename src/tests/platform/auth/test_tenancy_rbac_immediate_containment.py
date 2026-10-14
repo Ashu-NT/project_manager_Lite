@@ -5,7 +5,12 @@ from inspect import signature
 
 import pytest
 
-from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.security.auth import (
+    UserRegistrationHandler,
+)
+from src.core.platform.application.security.authorization.roles.commands import (
+    RoleAssignmentHandler,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.security.auth import UserAccount
@@ -19,29 +24,39 @@ from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
     UserTenantMembership,
 )
+from src.core.platform.infrastructure.composition.dependencies.repositories import (
+    build_platform_repositories,
+)
+from src.core.platform.infrastructure.composition.dependencies.security.auth import (
+    AuthComposition,
+)
+from src.core.platform.infrastructure.composition.dependencies.security.governance import (
+    build_role_assignment_handler,
+)
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
 )
+from src.tests.auth_test_support import standalone_auth
 
 
 def _customer_auth_service(
     services,
     *,
     username: str,
-) -> tuple[AuthService, object, str]:
-    auth = services["auth_service"]
+) -> tuple[AuthComposition, object, str]:
+    services["auth"]
     tenant_id = services["tenant_context_service"].get_active_tenant_id()
     organization_id = (
         services["tenant_context_service"].get_active_organization_id()
     )
     assert tenant_id is not None
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         username,
         "StrongPass123!",
         role_names=["tenant_admin"],
         tenant_id=tenant_id,
     )
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor,
         tenant_id=tenant_id,
         organization_id=organization_id,
@@ -49,38 +64,35 @@ def _customer_auth_service(
     context = UserSessionContext()
     context.set_principal(principal)
     return (
-        AuthService(
-            session=services["session"],
-            user_repo=auth._user_repo,
-            role_repo=auth._role_repo,
-            permission_repo=auth._permission_repo,
-            role_permission_repo=auth._role_permission_repo,
-            role_binding_repo=auth._role_binding_repo,
-            auth_session_repo=auth._auth_session_repo,
+        standalone_auth(
+            services["session"],
             user_session=context,
-            security_audit_repo=auth._security_audit_repo,
-            user_tenant_repo=auth._user_tenant_repo,
             tenant_context_service=services["tenant_context_service"],
-            transactional_dispatcher=auth._transactional_dispatcher,
-            post_commit_bus=auth._post_commit_bus,
-            clock=auth._clock,
-            uow_factory=auth._uow_factory,
-            session_write_lock=auth._session_write_lock,
-        ),
+        )[0],
         actor,
         tenant_id,
     )
 
 
+def _customer_role_assignment(services, customer_auth: AuthComposition) -> RoleAssignmentHandler:
+    return build_role_assignment_handler(
+        repositories=build_platform_repositories(services["session"]),
+        auth=customer_auth,
+        role_governance_service=services["role_governance_service"],
+        user_session=customer_auth.session_commands._user_session,
+        tenant_context_service=services["tenant_context_service"],
+    )
+
+
 def _cross_tenant_user(services, *, username: str):
-    auth = services["auth_service"]
+    services["auth"]
     tenant = Tenant.create(
         tenant_code=f"X-{username}",
         display_name=f"Cross {username}",
     )
     services["tenant_admin_service"]._tenant_repo.add(tenant)
     services["session"].flush()
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         username,
         "StrongPass123!",
         tenant_id=tenant.id,
@@ -91,33 +103,33 @@ def _cross_tenant_user(services, *, username: str):
 @pytest.mark.parametrize(
     "operation",
     [
-        lambda service, user, _session_id: service.force_user_password_reset(
+        lambda service, user, _session_id: service.passwords.force_user_password_reset(
             user.id
         ),
-        lambda service, user, _session_id: service.reset_user_password(
+        lambda service, user, _session_id: service.passwords.reset_user_password(
             user.id,
             "ChangedPass123!",
         ),
-        lambda service, user, _session_id: service.provision_mfa_secret(user.id),
-        lambda service, user, _session_id: service.enable_user_mfa(
+        lambda service, user, _session_id: service.mfa.provision_mfa_secret(user.id),
+        lambda service, user, _session_id: service.mfa.enable_user_mfa(
             user.id,
             "000000",
         ),
-        lambda service, user, _session_id: service.disable_user_mfa(user.id),
-        lambda service, user, _session_id: service.link_federated_identity(
+        lambda service, user, _session_id: service.mfa.disable_user_mfa(user.id),
+        lambda service, user, _session_id: service.federated_identities.link_federated_identity(
             user.id,
             identity_provider="oidc",
             federated_subject=f"subject-{user.id}",
         ),
-        lambda service, user, _session_id: service.set_user_session_policy(
+        lambda service, user, _session_id: service.session_commands.set_user_session_policy(
             user.id,
             session_timeout_minutes_override=30,
         ),
-        lambda service, user, _session_id: service.revoke_user_sessions(
+        lambda service, user, _session_id: service.session_commands.revoke_user_sessions(
             user.id
         ),
-        lambda service, user, _session_id: service.list_user_sessions(user.id),
-        lambda service, _user, session_id: service.revoke_session(session_id),
+        lambda service, user, _session_id: service.session_queries.list_user_sessions(user.id),
+        lambda service, _user, session_id: service.session_commands.revoke_session(session_id),
     ],
 )
 def test_customer_admin_sensitive_operations_deny_cross_tenant_target(
@@ -132,7 +144,7 @@ def test_customer_admin_sensitive_operations_deny_cross_tenant_target(
         services,
         username=f"containment-target-{abs(id(operation))}",
     )
-    authenticated_target = services["auth_service"].authenticate(
+    authenticated_target = services["authentication"].authenticate(
         target.username,
         "StrongPass123!",
     )
@@ -156,14 +168,14 @@ def test_change_password_rejects_a_different_target_user(services) -> None:
         services,
         username="containment-self-admin",
     )
-    target = services["auth_service"].register_user(
+    target = services["user_registration"].register_user(
         "containment-self-target",
         "StrongPass123!",
         tenant_id=tenant_id,
     )
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        customer_auth.change_password(
+        customer_auth.passwords.change_password(
             target.id,
             "StrongPass123!",
             "ChangedPass123!",
@@ -177,15 +189,15 @@ def test_sensitive_operation_denies_missing_tenant_context(services) -> None:
         services,
         username="containment-no-context-admin",
     )
-    target = services["auth_service"].register_user(
+    target = services["user_registration"].register_user(
         "containment-no-context-target",
         "StrongPass123!",
         tenant_id=tenant_id,
     )
-    principal = customer_auth._user_session.principal
+    principal = customer_auth.session_commands._user_session.principal
     assert principal is not None
-    customer_auth._user_session.clear()
-    customer_auth._user_session.set_principal(
+    customer_auth.session_commands._user_session.clear()
+    customer_auth.session_commands._user_session.set_principal(
         replace(
             principal,
             active_tenant_id=None,
@@ -194,14 +206,14 @@ def test_sensitive_operation_denies_missing_tenant_context(services) -> None:
     )
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        customer_auth.force_user_password_reset(target.id)
+        customer_auth.passwords.force_user_password_reset(target.id)
 
     assert actor.id == principal.user_id
     assert exc_info.value.code == "TENANT_CONTEXT_REQUIRED"
 
 
 def test_registration_has_no_public_permission_bypass() -> None:
-    assert "bypass_permission" not in signature(AuthService.register_user).parameters
+    assert "bypass_permission" not in signature(UserRegistrationHandler.register_user).parameters
 
 
 def test_customer_onboarding_creates_active_membership_and_safe_default_role(
@@ -212,14 +224,14 @@ def test_customer_onboarding_creates_active_membership_and_safe_default_role(
         username="containment-onboarding-admin",
     )
 
-    user = customer_auth.onboard_tenant_user(
+    user = customer_auth.registration.onboard_tenant_user(
         username="containment-onboarded-user",
         raw_password="StrongPass123!",
         display_name="Onboarded User",
     )
 
-    assert customer_auth._user_tenant_repo.is_active_member(user.id, tenant_id)
-    assert customer_auth.get_user_role_names(user.id) == {"viewer"}
+    assert customer_auth.target_users._user_tenant_repo.is_active_member(user.id, tenant_id)
+    assert customer_auth.queries.get_user_role_names(user.id) == {"viewer"}
     assert user.must_change_password is True
 
 
@@ -230,7 +242,7 @@ def test_customer_user_catalog_is_tenant_scoped_and_hides_platform_users(
         services,
         username="containment-catalog-admin",
     )
-    same_tenant_user = services["auth_service"].register_user(
+    same_tenant_user = services["user_registration"].register_user(
         "containment-catalog-member",
         "StrongPass123!",
         tenant_id=tenant_id,
@@ -239,11 +251,11 @@ def test_customer_user_catalog_is_tenant_scoped_and_hides_platform_users(
         username="containment-catalog-support",
         password_hash=hash_password("StrongPass123!"),
     )
-    customer_auth._user_repo.add(platform_support)
+    customer_auth.queries._user_repo.add(platform_support)
     services["session"].flush()
-    support_role = customer_auth._role_repo.get_by_name("support_admin")
+    support_role = customer_auth.queries._role_repo.get_by_name("support_admin")
     assert support_role is not None
-    customer_auth._role_binding_repo.add(
+    customer_auth.bootstrap._role_binding_repo.add(
         RoleBinding.create(
             principal_id=platform_support.id,
             role_id=support_role.id,
@@ -256,7 +268,7 @@ def test_customer_user_catalog_is_tenant_scoped_and_hides_platform_users(
         username="containment-catalog-cross",
     )
 
-    listed_user_ids = {user.id for user in customer_auth.list_users()}
+    listed_user_ids = {user.id for user in customer_auth.user_directory.list_users()}
 
     assert actor.id in listed_user_ids
     assert same_tenant_user.id in listed_user_ids
@@ -274,7 +286,7 @@ def test_customer_role_catalog_excludes_platform_and_explicit_scope_roles(
     )
 
     role_names = {
-        role.name for role in customer_auth.list_customer_assignable_roles()
+        role.name for role in customer_auth.user_directory.list_customer_assignable_roles()
     }
 
     assert "viewer" in role_names
@@ -302,20 +314,21 @@ def test_customer_role_api_rejects_non_tenant_assignable_roles(
         services,
         username=f"containment-role-denial-{role_name}",
     )
-    target = services["auth_service"].register_user(
+    target = services["user_registration"].register_user(
         f"containment-role-target-{role_name}",
         "StrongPass123!",
         tenant_id=tenant_id,
     )
 
+    customer_roles = _customer_role_assignment(services, customer_auth)
     for operation in (
-        customer_auth.assign_customer_role,
-        customer_auth.revoke_customer_role,
+        customer_roles.assign_customer_role,
+        customer_roles.revoke_customer_role,
     ):
         with pytest.raises(BusinessRuleError) as exc_info:
             operation(target.id, role_name)
         assert exc_info.value.code == expected_code
-    assert role_name not in customer_auth.get_user_role_names(target.id)
+    assert role_name not in customer_auth.queries.get_user_role_names(target.id)
 
 
 def test_customer_onboarding_denies_missing_explicit_tenant_context(
@@ -325,10 +338,10 @@ def test_customer_onboarding_denies_missing_explicit_tenant_context(
         services,
         username="containment-onboarding-no-context",
     )
-    principal = customer_auth._user_session.principal
+    principal = customer_auth.session_commands._user_session.principal
     assert principal is not None
-    customer_auth._user_session.clear()
-    customer_auth._user_session.set_principal(
+    customer_auth.session_commands._user_session.clear()
+    customer_auth.session_commands._user_session.set_principal(
         replace(
             principal,
             active_tenant_id=None,
@@ -337,14 +350,14 @@ def test_customer_onboarding_denies_missing_explicit_tenant_context(
     )
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        customer_auth.onboard_tenant_user(
+        customer_auth.registration.onboard_tenant_user(
             username="containment-onboarding-denied",
             raw_password="StrongPass123!",
         )
 
     assert exc_info.value.code == "TENANT_CONTEXT_REQUIRED"
     assert (
-        services["auth_service"]._user_repo.get_by_username(
+        services["auth_queries"]._user_repo.get_by_username(
             "containment-onboarding-denied"
         )
         is None
@@ -358,10 +371,14 @@ def test_customer_onboarding_denies_missing_context_authorization_service(
         services,
         username="containment-onboarding-no-policy",
     )
-    customer_auth._tenant_context_service = None
+    # Same customer session, but no tenant-context authorization service wired.
+    customer_auth = standalone_auth(
+        services["session"],
+        user_session=customer_auth.session_commands._user_session,
+    )[0]
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        customer_auth.onboard_tenant_user(
+        customer_auth.registration.onboard_tenant_user(
             username="containment-onboarding-no-policy-target",
             raw_password="StrongPass123!",
         )
@@ -371,7 +388,7 @@ def test_customer_onboarding_denies_missing_context_authorization_service(
 
 def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
     session = services["session"]
-    auth = services["auth_service"]
+    services["auth"]
     user_session = services["user_session"]
     tenant_context = services["tenant_context_service"]
     current_tenant_id = tenant_context.get_active_tenant_id()
@@ -392,9 +409,9 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
     current_organization = services["tenant_context_service"].get_active_organization()
     assert current_organization is not None
     session.flush()
-    org_viewer_role = auth._role_repo.get_by_name("org_viewer")
+    org_viewer_role = services["auth_queries"]._role_repo.get_by_name("org_viewer")
     assert org_viewer_role is not None
-    auth._role_binding_repo.add(
+    services["role_assignment_commands"]._role_binding_repo.add(
         RoleBinding.create(
             principal_id=current_user_id,
             role_id=org_viewer_role.id,
@@ -403,7 +420,7 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
             actual_scope_id=current_organization.id,
         )
     )
-    auth._role_binding_repo.add(
+    services["role_assignment_commands"]._role_binding_repo.add(
         RoleBinding.create(
             principal_id=current_user_id,
             role_id=org_viewer_role.id,
@@ -413,9 +430,9 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
         )
     )
     session.flush()
-    current_user = auth._require_user(current_user_id)
+    current_user = services["auth_queries"].require_user(current_user_id)
     user_session.set_principal(
-        auth.build_principal_for_context(
+        services["principal_builder"].build_for_context(
             current_user,
             tenant_id=current_tenant_id,
             organization_id=current_organization_id,
@@ -437,19 +454,19 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
 def test_tenant_switch_does_not_leak_canonical_tenant_admin_authority(
     services,
 ) -> None:
-    auth = services["auth_service"]
+    services["auth"]
     user_session = services["user_session"]
     tenant_context = services["tenant_context_service"]
     current_tenant_id = tenant_context.get_active_tenant_id()
     current_organization_id = tenant_context.get_active_organization_id()
     assert current_tenant_id is not None
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         "containment-ambiguous-admin",
         "StrongPass123!",
         role_names=["tenant_admin"],
         tenant_id=current_tenant_id,
     )
-    original = auth.build_principal_for_context(
+    original = services["principal_builder"].build_for_context(
         actor,
         tenant_id=current_tenant_id,
         organization_id=current_organization_id,
@@ -460,7 +477,7 @@ def test_tenant_switch_does_not_leak_canonical_tenant_admin_authority(
         display_name="Containment Ambiguous",
     )
     services["tenant_admin_service"]._tenant_repo.add(target_tenant)
-    auth._user_tenant_repo.add(
+    services["role_assignment_commands"]._user_tenant_repo.add(
         UserTenantMembership.create(
             user_id=actor.id,
             tenant_id=target_tenant.id,

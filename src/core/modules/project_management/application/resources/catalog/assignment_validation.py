@@ -121,7 +121,7 @@ class AssignmentSkillValidator:
         if not requirements:
             return result
 
-        p_start = planned_start or task.start_date or date.today()
+        p_start = planned_start or task.start_date or date.today()  # noqa: DTZ011
         p_finish = planned_finish or task.end_date or p_start
 
         resource_skills = {s.skill_code: s for s in self._skills.list_by_resource(resource_id)}

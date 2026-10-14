@@ -15,15 +15,14 @@ from src.core.platform.common.exceptions import (
 
 
 def _login(services, username: str, password: str):
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _login_eligible_reviewer(services):
     _login(services, "admin", "ChangeMe123!")
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "dependency-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "dependency-reviewer", "StrongPass123")
@@ -123,13 +122,12 @@ class TestUpdateOptimisticConcurrency:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "dependency.update")
         _login(services, "admin", "ChangeMe123!")
 
-        auth = services["auth_service"]
         approvals = services["approval_service"]
         ts = services["task_service"]
         project, a, b = _make_two_tasks(services)
         dep = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-        auth.register_user("planner-dep-update-toctou", "StrongPass123", role_names=["planner"])
+        services["user_registration"].register_user("planner-dep-update-toctou", "StrongPass123", role_names=["planner"])
         _login(services, "planner-dep-update-toctou", "StrongPass123")
 
         with pytest.raises(BusinessRuleError, match="Approval required"):
@@ -159,13 +157,12 @@ class TestUpdateGovernanceParity:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "dependency.update")
         _login(services, "admin", "ChangeMe123!")
 
-        auth = services["auth_service"]
         approvals = services["approval_service"]
         ts = services["task_service"]
         project, a, b = _make_two_tasks(services)
         dep = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-        auth.register_user("planner-dep-update", "StrongPass123", role_names=["planner"])
+        services["user_registration"].register_user("planner-dep-update", "StrongPass123", role_names=["planner"])
         _login(services, "planner-dep-update", "StrongPass123")
 
         with pytest.raises(BusinessRuleError, match="Approval required"):
@@ -253,12 +250,11 @@ class TestApprovalApplyToctou:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "dependency.add")
         _login(services, "admin", "ChangeMe123!")
 
-        auth = services["auth_service"]
         approvals = services["approval_service"]
         ts = services["task_service"]
         project, a, b = _make_two_tasks(services)
 
-        auth.register_user("planner-dep-toctou", "StrongPass123", role_names=["planner"])
+        services["user_registration"].register_user("planner-dep-toctou", "StrongPass123", role_names=["planner"])
         _login(services, "planner-dep-toctou", "StrongPass123")
 
         # b is still a leaf task at REQUEST time, so this passes validation

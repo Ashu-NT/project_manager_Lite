@@ -63,7 +63,7 @@ def _seed_single_project_workspace(services):
         start_date=today,
         duration_days=10,
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "Workspace Performance Resource",
         "Planner",
         hourly_rate=80.0,
@@ -85,8 +85,15 @@ def _seed_single_project_workspace(services):
 
     portfolio_api = build_project_management_portfolio_desktop_api(
         project_service=services["project_service"],
-        portfolio_service=services["portfolio_service"],
         portfolio_intake_query=services["portfolio_intake_query"],
+        portfolio_intake_commands=services["portfolio_intake_commands"],
+        portfolio_template_query=services["portfolio_template_query"],
+        portfolio_template_commands=services["portfolio_template_commands"],
+        portfolio_scenario_query=services["portfolio_scenario_query"],
+        portfolio_scenario_commands=services["portfolio_scenario_commands"],
+        portfolio_dependency_query=services["portfolio_dependency_query"],
+        portfolio_dependency_commands=services["portfolio_dependency_commands"],
+        portfolio_executive_query=services["portfolio_executive_query"],
         pool_service=services["portfolio_resource_pool_service"],
     )
     template = portfolio_api.create_scoring_template(
@@ -134,23 +141,30 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
     capsys,
 ) -> None:
     project, portfolio_api = _seed_single_project_workspace(services)
-    dashboard = services["dashboard_service"]
-    reporting = services["reporting_service"]
-    resources = services["resource_service"]
+    dashboard = services["project_dashboard_query"]
+    reporting = services["project_kpi_report"]
+    earned_value = services["earned_value_report"]
+    cost_reports = services["cost_breakdown_report"]
+    resources = services["resource_query"]
     registers = services["register_query"]
     baselines = services["baseline_service"]
-    collaboration = services["collaboration_service"]
+    collaboration = services["collaboration_inbox_query"]
     approvals = services["approval_service"]
-    portfolio = services["portfolio_service"]
+    portfolio_templates = services["portfolio_template_query"]
+    portfolio_intake = services["portfolio_intake_query"]
+    portfolio_scenarios = services["portfolio_scenario_query"]
+    portfolio_executive = services["portfolio_executive_query"]
+    portfolio_dependencies = services["portfolio_dependency_query"]
     pool = services["portfolio_resource_pool_service"]
     calendar_resolver = dashboard._sched._project_calendar_adapter._resolver
 
     dashboard_api = build_project_management_dashboard_desktop_api(
         project_service=services["project_service"],
-        dashboard_service=dashboard,
+        project_dashboard=dashboard,
+        portfolio_dashboard=services["portfolio_dashboard_query"],
         baseline_service=baselines,
-        reporting_service=reporting,
-        collaboration_service=collaboration,
+        earned_value_report=earned_value,
+        collaboration_inbox_query=collaboration,
         approval_service=approvals,
     )
     dashboard_presenter = ProjectDashboardWorkspacePresenter(desktop_api=dashboard_api)
@@ -161,12 +175,16 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
         (dashboard._sched, "recalculate_project_schedule", "schedule.recalculate"),
         (reporting, "get_project_kpis", "reporting.get_project_kpis"),
         (reporting, "get_resource_load_summary", "reporting.get_resource_load_summary"),
-        (reporting, "get_project_cost_source_breakdown", "reporting.get_cost_sources"),
-        (reporting, "get_earned_value", "reporting.get_earned_value"),
-        (reporting, "get_evm_series", "reporting.get_evm_series"),
+        (cost_reports, "get_project_cost_source_breakdown", "reporting.get_cost_sources"),
+        (earned_value, "get_earned_value", "reporting.get_earned_value"),
+        (earned_value, "get_evm_series", "reporting.get_evm_series"),
         (dashboard._task_lookup, "list_tasks_for_project", "tasks.list_for_project"),
         (dashboard._task_lookup, "list_assignments_for_tasks", "tasks.list_assignments_for_tasks"),
-        (dashboard._task_assignments, "list_assignments_for_task", "tasks.list_assignments_for_task"),
+        (
+            services["task_assignment_commands"],
+            "list_assignments_for_task",
+            "tasks.list_assignments_for_task",
+        ),
         (resources, "list_resources", "resources.list_resources"),
         (registers, "get_dashboard_snapshot", "register.get_dashboard_snapshot"),
         (baselines, "list_baselines", "baseline.list_baselines"),
@@ -192,16 +210,16 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
         dashboard_wall_time = time.perf_counter() - started
 
     portfolio_targets = [
-        (portfolio, "list_scoring_templates", "portfolio.list_templates"),
-        (portfolio, "list_intake_items", "portfolio.list_intake"),
-        (portfolio, "list_scenarios", "portfolio.list_scenarios"),
-        (portfolio, "list_portfolio_heatmap", "portfolio.list_heatmap"),
-        (portfolio, "list_project_dependencies", "portfolio.list_dependencies"),
-        (portfolio, "list_recent_pm_actions", "portfolio.list_recent_actions"),
-        (portfolio, "evaluate_scenario", "portfolio.evaluate_scenario"),
+        (portfolio_templates, "list_scoring_templates", "portfolio.list_templates"),
+        (portfolio_intake, "list_intake_items", "portfolio.list_intake"),
+        (portfolio_scenarios, "list_scenarios", "portfolio.list_scenarios"),
+        (portfolio_executive, "list_portfolio_heatmap", "portfolio.list_heatmap"),
+        (portfolio_dependencies, "list_project_dependencies", "portfolio.list_dependencies"),
+        (portfolio_executive, "list_recent_pm_actions", "portfolio.list_recent_actions"),
+        (portfolio_scenarios, "evaluate_scenario", "portfolio.evaluate_scenario"),
         (pool, "get_pool_report", "portfolio.capacity_pool"),
-        (portfolio._heatmap_reader, "read_facts", "portfolio_heatmap_reader.read_facts"),
-        (portfolio._scenario_reader, "read_facts", "portfolio_scenario_reader.read_facts"),
+        (portfolio_executive._heatmap_reader, "read_facts", "portfolio_heatmap_reader.read_facts"),
+        (portfolio_scenarios._scenario_reader, "read_facts", "portfolio_scenario_reader.read_facts"),
         (pool._reader, "read_facts", "portfolio_pool_reader.read_facts"),
     ]
     with measure_sql(services["session"]) as portfolio_sql, count_calls(
@@ -266,18 +284,22 @@ def test_dashboard_portfolio_scope_batches_shared_lookups_once_per_project(
         )
         projects.append(project)
 
-    dashboard = services["dashboard_service"]
-    resources = services["resource_service"]
+    dashboard = services["portfolio_dashboard_query"]
+    resources = services["resource_query"]
     scheduling_targets = [
         (dashboard._sched, "recalculate_project_schedule", "sched.recalculate"),
         (resources, "list_resources", "resources.list_resources"),
         (dashboard._task_lookup, "list_tasks_for_project", "tasks.list_for_project"),
         (dashboard._task_lookup, "list_assignments_for_tasks", "tasks.list_assignments_for_tasks"),
-        (dashboard._task_assignments, "list_assignments_for_task", "tasks.list_assignments_for_task"),
+        (
+            services["task_assignment_commands"],
+            "list_assignments_for_task",
+            "tasks.list_assignments_for_task",
+        ),
     ]
 
     with count_calls(scheduling_targets) as calls:
-        data = dashboard.get_portfolio_data()
+        data = services["portfolio_dashboard_query"].get_portfolio_data()
 
     assert data.portfolio.projects_total == project_count
     # Resources are fetched once for the whole portfolio, not once per project.

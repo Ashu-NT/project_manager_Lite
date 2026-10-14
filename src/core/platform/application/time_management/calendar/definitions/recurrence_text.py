@@ -26,6 +26,7 @@ the raw RRULE rather than guessing or silently dropping meaning.
 from __future__ import annotations
 
 from datetime import date
+from typing import Any, TypeAlias
 
 _WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
 _WEEKDAY_NAMES = {
@@ -40,7 +41,10 @@ _MONTH_NAMES = {
     7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December",
 }
 
-DEFAULT_EDITOR_STATE: dict[str, object] = {
+# JSON-shaped editor state exchanged with the QML recurrence builder.
+EditorState: TypeAlias = dict[str, Any]
+
+DEFAULT_EDITOR_STATE: EditorState = {
     "frequency": "WEEKLY",
     "interval": 1,
     "byDay": [],
@@ -63,7 +67,7 @@ def _sorted_days(codes: list[str]) -> list[str]:
     return sorted((c for c in codes if c in _WEEKDAY_ORDER), key=lambda c: _WEEKDAY_ORDER[c])
 
 
-def build_rrule_from_editor_state(state: dict[str, object]) -> str:
+def build_rrule_from_editor_state(state: EditorState) -> str:
     """Editor state -> RRULE. Never embeds UNTIL/COUNT -- "ends" is owned by
     the recurring event's own effective_from/effective_to fields, not the
     rule string, so there is exactly one authoritative end-date mapping."""
@@ -126,7 +130,7 @@ def _parse_rrule_parts(rrule: str) -> dict[str, str]:
 _RECOGNIZED_KEYS = {"FREQ", "INTERVAL", "BYDAY", "BYMONTHDAY", "BYSETPOS"}
 
 
-def parse_rrule_to_editor_state(rrule: str) -> dict[str, object] | None:
+def parse_rrule_to_editor_state(rrule: str) -> EditorState | None:
     """RRULE -> editor state, or None when the rule uses a shape this editor
     doesn't produce/understand (the caller must fall back to a read-only
     Advanced display rather than guessing)."""

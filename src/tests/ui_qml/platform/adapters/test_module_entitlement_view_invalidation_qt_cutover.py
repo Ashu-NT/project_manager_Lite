@@ -20,6 +20,9 @@ from src.core.platform.application.tenant.modules.event_handlers.view_invalidati
     build_module_entitlement_view_invalidation_handler,
 )
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
+)
 from src.core.platform.domain.tenant.modules.events import (
     ModuleDisabled,
     ModuleEnabled,
@@ -132,7 +135,7 @@ def test_settings_workspace_module_entitlements_refresh_on_real_mutation(service
     catalog.settingsWorkspace.refresh()
     org = services["tenant_context_service"].get_active_organization()
 
-    services["module_catalog_service"].disable_module(org.id, "project_management")
+    services["module_entitlement_commands"].disable_module(org.id, "project_management")
 
     items = {row["id"]: row for row in catalog.settingsWorkspace.moduleEntitlements["items"]}
     assert items["project_management"]["state"]["runtimeEnabled"] is False
@@ -148,7 +151,7 @@ def test_access_workspace_no_longer_reacts_to_module_mutations(services):
     catalog.adminAccessWorkspace.refresh = lambda: refresh_calls.append("refresh")
     org = services["tenant_context_service"].get_active_organization()
 
-    services["module_catalog_service"].disable_module(org.id, "qhse")
+    services["module_entitlement_commands"].disable_module(org.id, "qhse")
 
     assert refresh_calls == []
 
@@ -161,7 +164,7 @@ def test_control_workspace_no_longer_reacts_to_module_mutations(services):
     catalog.controlWorkspace.refresh = lambda: refresh_calls.append("refresh")
     org = services["tenant_context_service"].get_active_organization()
 
-    services["module_catalog_service"].disable_module(org.id, "project_management")
+    services["module_entitlement_commands"].disable_module(org.id, "project_management")
 
     assert refresh_calls == []
 
@@ -178,7 +181,7 @@ def test_no_refresh_before_commit_and_none_on_rollback(services, monkeypatch):
 
     monkeypatch.setattr(SqlAlchemyModuleEntitlementUnitOfWork, "commit", _fail_commit)
     with pytest.raises(RuntimeError):
-        services["module_catalog_service"].disable_module(org.id, "project_management")
+        services["module_entitlement_commands"].disable_module(org.id, "project_management")
 
     assert refresh_calls == []
 
@@ -190,12 +193,12 @@ def test_no_invalidation_on_no_op_command(services):
     catalog.settingsWorkspace.refresh_module_entitlements = lambda: refresh_calls.append("refresh") or None
     org = services["tenant_context_service"].get_active_organization()
 
-    services["module_catalog_service"].enable_module(org.id, "project_management")  # already enabled
+    services["module_entitlement_commands"].enable_module(org.id, "project_management")  # already enabled
 
     assert refresh_calls == []
 
     with pytest.raises(ValidationError):
-        services["module_catalog_service"].enable_module(org.id, "hr_management")  # unlicensed -> rejected
+        services["module_entitlement_commands"].enable_module(org.id, "hr_management")  # unlicensed -> rejected
     assert refresh_calls == []
 
 
@@ -205,17 +208,16 @@ def test_no_invalidation_on_no_op_command(services):
 
 
 def test_non_active_organization_mutation_does_not_refresh_active_org_ui(services):
-    organization_service = services["organization_service"]
     catalog = _catalog(services)
     catalog.settingsWorkspace.refresh()
     org_a1 = services["tenant_context_service"].get_active_organization()
-    org_a2 = organization_service.create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("QTCUT-A2"), display_name="Qt Cutover Org A2"
     )
     refresh_calls = []
     catalog.settingsWorkspace.refresh_module_entitlements = lambda: refresh_calls.append("refresh") or None
 
-    services["module_catalog_service"].disable_module(org_a2.id, "project_management")
+    services["module_entitlement_commands"].disable_module(org_a2.id, "project_management")
 
     assert services["tenant_context_service"].get_active_organization().id == org_a1.id
     assert refresh_calls == []
@@ -251,7 +253,7 @@ def test_command_against_a_foreign_tenant_organization_produces_no_invalidation(
     session.commit()
 
     with pytest.raises(NotFoundError):
-        services["module_catalog_service"].disable_module(foreign_org_id, "project_management")
+        services["module_entitlement_commands"].disable_module(foreign_org_id, "project_management")
 
     assert hints == []
 
@@ -263,10 +265,9 @@ def test_command_against_a_foreign_tenant_organization_produces_no_invalidation(
 
 def test_adapter_only_reacts_to_its_exact_active_organization(services):
     channel = services["platform_view_invalidation_channel"]
-    organization_service = services["organization_service"]
     tenant_id = _active_tenant(services)
     org_a1 = services["tenant_context_service"].get_active_organization()
-    org_a2 = organization_service.create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("QTCUT-SCOPE-A2"), display_name="Scope Org A2"
     )
 
@@ -274,10 +275,10 @@ def test_adapter_only_reacts_to_its_exact_active_organization(services):
     signal_calls = []
     adapter.moduleEntitlementsStale.connect(lambda: signal_calls.append("stale"))
 
-    services["module_catalog_service"].disable_module(org_a2.id, "project_management")
+    services["module_entitlement_commands"].disable_module(org_a2.id, "project_management")
     assert signal_calls == []
 
-    services["module_catalog_service"].disable_module(org_a1.id, "project_management")
+    services["module_entitlement_commands"].disable_module(org_a1.id, "project_management")
     assert signal_calls == ["stale"]
     adapter.dispose()
 
@@ -306,10 +307,9 @@ def test_adapter_never_subscribes_via_all_tenants_or_tenant_wide(services):
 
 def test_adapter_follows_an_organization_switch_with_no_stale_or_duplicate_subscription(services):
     channel = services["platform_view_invalidation_channel"]
-    organization_service = services["organization_service"]
     tenant_id = _active_tenant(services)
     org_a1 = services["tenant_context_service"].get_active_organization()
-    org_a2 = organization_service.create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("QTCUT-SWITCH-A2"), display_name="Switch Org A2"
     )
 
@@ -318,7 +318,7 @@ def test_adapter_follows_an_organization_switch_with_no_stale_or_duplicate_subsc
     adapter.moduleEntitlementsStale.connect(lambda: signal_calls.append("stale"))
     subscription_count_before = len(channel._subscriptions)
 
-    services["module_catalog_service"].disable_module(org_a1.id, "project_management")
+    services["module_entitlement_commands"].disable_module(org_a1.id, "project_management")
     assert signal_calls == ["stale"]
 
     services["tenant_context_service"].set_active_organization(org_a2.id)
@@ -329,10 +329,10 @@ def test_adapter_follows_an_organization_switch_with_no_stale_or_duplicate_subsc
 
     # A1 is no longer the active organization's mutation target from the UI's perspective, and
     # the adapter no longer watches it.
-    services["module_catalog_service"].enable_module(org_a1.id, "project_management")  # no-op anyway
+    services["module_entitlement_commands"].enable_module(org_a1.id, "project_management")  # no-op anyway
     assert signal_calls == ["stale"]
 
-    services["module_catalog_service"].disable_module(org_a2.id, "project_management")
+    services["module_entitlement_commands"].disable_module(org_a2.id, "project_management")
     assert signal_calls == ["stale", "stale"]
 
     adapter.dispose()
@@ -343,13 +343,12 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
     """True end-to-end proof through `PlatformWorkspaceCatalog.refreshCurrentPermissions()` (the
     real hook the QML shell calls after both a tenant and an organization switch), not a direct
     `adapter.set_active_scope(...)` call."""
-    organization_service = services["organization_service"]
     catalog = _catalog(services)
     channel = services["platform_view_invalidation_channel"]
     adapter = catalog._module_entitlement_view_invalidation_adapter
 
     org_a1 = services["tenant_context_service"].get_active_organization()
-    org_a2 = organization_service.create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("QTCUT-REALSWITCH-A2"), display_name="Real Switch Org A2"
     )
 
@@ -413,12 +412,11 @@ def test_provisioning_the_active_organization_produces_direct_invalidation_and_n
     from src.core.shared.events.view_invalidation import AnyOrganizationInTenant
 
     app_service = services["platform_runtime_application_service"]
-    catalog_service = services["module_catalog_service"]
     channel = services["platform_view_invalidation_channel"]
     tenant_id = _active_tenant(services)
 
     recorded = []
-    original_create = type(catalog_service._uow_factory).create
+    original_create = type(services["module_entitlement_commands"]._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
@@ -426,19 +424,13 @@ def test_provisioning_the_active_organization_produces_direct_invalidation_and_n
         uow.record_event = lambda event: (recorded.append(event), original_record_event(event))[1]
         return uow
 
-    monkeypatch.setattr(type(catalog_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(services["module_entitlement_commands"]._uow_factory), "create", _spy_create)
 
     hints = []
     channel.subscribe(AnyOrganizationInTenant(tenant_id), lambda hint: hints.append(hint))
 
     code = _unique_code("QTCUT-PROV-ACTIVE")
-    organization = app_service.provision_organization(
-        organization_code=code,
-        display_name="Provisioned Active Org",
-        timezone_name="UTC",
-        base_currency="EUR",
-        initial_module_codes=["project_management"],
-    )
+    organization = app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Provisioned Active Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"]))
 
     assert recorded == []
     module_hints = [h for h in hints if h.category == MODULE_ENTITLEMENT_CATEGORY]
@@ -448,11 +440,10 @@ def test_provisioning_the_active_organization_produces_direct_invalidation_and_n
 
 
 def test_read_time_default_seeding_produces_no_invalidation_and_no_events(services):
-    organization_service = services["organization_service"]
     catalog = services["module_catalog_service"]
     channel = services["platform_view_invalidation_channel"]
     tenant_id = _active_tenant(services)
-    new_org = organization_service.create_organization(
+    new_org = services["organization_commands"].create_organization(
         organization_code=_unique_code("QTCUT-SEED"), display_name="Qt Cutover Seed Org"
     )
     hints = []

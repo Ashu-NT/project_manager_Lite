@@ -28,23 +28,22 @@ def _active_tenant(services) -> str:
 
 
 def _tenant_scoped_binding_setup(services, *, suffix: str, role_name: str = "viewer"):
-    auth = services["auth_service"]
     tenant_id = _active_tenant(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code(f"p5closeout-actor-{suffix}"), "P5Closeout123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code(f"p5closeout-target-{suffix}"), "P5Closeout123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    target_role = auth._role_repo.get_by_name(role_name)
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    target_role = services["auth_queries"]._role_repo.get_by_name(role_name)
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=target_role.id,
         target_scope_type="tenant",
         tenant_id=tenant_id,
     )
-    principal = auth.build_principal_for_context(actor, tenant_id=tenant_id, organization_id=None)
+    principal = services["principal_builder"].build_for_context(actor, tenant_id=tenant_id, organization_id=None)
     services["user_session"].set_principal(
         replace(principal, session_id=None, permissions=frozenset({*principal.permissions, "auth.role.assign"}))
     )
@@ -179,17 +178,16 @@ def test_role_binding_events_stay_silent_on_rollback(services, monkeypatch):
 
 
 def test_current_principal_refresh_still_occurs_and_fails_closed_without_auth_changed(services, monkeypatch):
-    """Current-principal refresh is `role_assignment_service.py`'s own explicit, unconditional
+    """Current-principal refresh is RoleAssignmentHandler's own explicit, unconditional
     call to `refresh_current_session_if_user(...)`. Proven directly: it still happens, and still
     fails closed, on its own -- independent of any ViewInvalidation wiring."""
-    auth = services["auth_service"]
     tenant_id = _active_tenant(services)
     username = _unique_code("p5closeout-self-actor")
-    self_actor = auth.register_user(
+    self_actor = services["user_registration"].register_user(
         username, "P5CloseoutSelf123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    tenant_admin_role = auth._role_repo.get_by_name("tenant_admin")
-    viewer_role = auth._role_repo.get_by_name("viewer")
+    tenant_admin_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=tenant_admin_role.id,
         assignable_role_id=viewer_role.id,
@@ -202,17 +200,16 @@ def test_current_principal_refresh_still_occurs_and_fails_closed_without_auth_ch
     login_as(services, username, "P5CloseoutSelf123!")
     assert "viewer" not in services["user_session"].principal.role_names
 
-    auth.assign_role(self_actor.id, "viewer")
+    services["role_assignment_commands"].assign_role(self_actor.id, "viewer")
     assert "viewer" in services["user_session"].principal.role_names
 
     def _fail_build_principal(*_args, **_kwargs):
         raise RuntimeError("simulated build_principal failure")
 
     monkeypatch.setattr(
-        "src.core.platform.application.security.auth.session.session_service.build_principal",
-        _fail_build_principal,
+        services["auth_session_lifecycle"]._principals, "build", _fail_build_principal
     )
-    auth.revoke_role(self_actor.id, "viewer")  # must not raise -- fail-closed clears instead
+    services["role_assignment_commands"].revoke_role(self_actor.id, "viewer")  # must not raise -- fail-closed clears instead
 
     assert services["user_session"].principal is None
 
@@ -247,13 +244,13 @@ def test_membership_removal_refreshes_membership_and_role_binding_narrowly_with_
     membership_service = services["tenant_membership_service"]
     admin_principal = services["user_session"].principal
 
-    target = services["auth_service"].register_user(_unique_code("p5closeout-removal-target"), _PASSWORD)
+    target = services["user_registration"].register_user(_unique_code("p5closeout-removal-target"), _PASSWORD)
     issued = membership_service.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     services["user_session"].set_principal(
-        services["auth_service"].build_principal(
-            services["auth_service"].authenticate(target.username, _PASSWORD)
+        services["principal_builder"].build(
+            services["authentication"].authenticate(target.username, _PASSWORD)
         )
     )
     membership_service.accept_invitation(issued.token)

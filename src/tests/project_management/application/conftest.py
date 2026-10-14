@@ -17,9 +17,8 @@ def accounting_services(session):
     services = build_service_dict(
         session, accounting_adapter_ids=frozenset({"test_connector"})
     )
-    auth = services["auth_service"]
-    admin = auth.authenticate("admin", "ChangeMe123!")
-    services["user_session"].set_principal(auth.build_principal(admin))
+    admin = services["authentication"].authenticate("admin", "ChangeMe123!")
+    services["user_session"].set_principal(services["principal_builder"].build(admin))
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="seed connector"
     )

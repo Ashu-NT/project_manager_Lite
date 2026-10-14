@@ -1,19 +1,32 @@
 import ast
 from pathlib import Path
 
-from src.core.modules.project_management.application.collaboration import (
-    CollaborationService,
+from src.core.modules.project_management.application.collaboration.commands import (
+    CollaborationCommentCommandHandler,
 )
-from src.core.modules.project_management.application.dashboard import DashboardService
+from src.core.modules.project_management.application.collaboration.queries import (
+    CollaborationInboxQueryHandler,
+)
+from src.core.modules.project_management.application.dashboard import (
+    PortfolioDashboardQueryHandler,
+    ProjectDashboardQueryHandler,
+)
 from src.core.modules.project_management.application.financials import FinanceService
-from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.portfolio.commands import (
+    PortfolioIntakeCommandHandler,
+)
+from src.core.modules.project_management.application.portfolio.queries import (
+    PortfolioExecutiveQueryHandler,
+)
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.reporting import (
-    ReportingService,
+    EarnedValueReportBuilder,
+    ProjectKpiReportBuilder,
 )
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
-    ResourceService,
+    ResourceMasterCommandHandler,
+    ResourceQueryHandler,
 )
 from src.core.modules.project_management.application.risk import RegisterQueryHandler
 from src.core.modules.project_management.application.scheduling import (
@@ -24,7 +37,11 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
     BaselineService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.application.timesheets import TimesheetService
+from src.core.modules.project_management.application.timesheets import (
+    TimesheetReviewQueryHandler,
+    TimesheetWorkspaceCommandHandler,
+    TimesheetWorkspaceQueryHandler,
+)
 from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
 )
@@ -34,26 +51,49 @@ from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.master_data.data_exchange import (
     MasterDataExchangeService,
 )
-from src.core.platform.application.master_data.department.department_service import (
-    DepartmentService,
+from src.core.platform.application.master_data.department import (
+    DepartmentCommandHandler,
+    DepartmentQueryHandler,
 )
-from src.core.platform.application.master_data.documents.document_service import (
-    DocumentService,
+from src.core.platform.application.master_data.documents import (
+    DocumentAttachmentCommandHandler,
+    DocumentAttachmentQueryHandler,
+    DocumentCommandHandler,
+    DocumentQueryHandler,
+    DocumentStructureCommandHandler,
 )
-from src.core.platform.application.master_data.employee.employee_service import (
-    EmployeeService,
+from src.core.platform.application.master_data.employee import (
+    EmployeeCommandHandler,
+    EmployeeQueryHandler,
 )
-from src.core.platform.application.master_data.org.organization_service import (
-    OrganizationService,
+from src.core.platform.application.master_data.org import (
+    OrganizationCommandHandler,
+    OrganizationLifecycleCommandHandler,
+    OrganizationQueryHandler,
 )
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.party import (
+    PartyCommandHandler,
+    PartyQueryHandler,
+)
+from src.core.platform.application.master_data.site import (
+    SiteCommandHandler,
+    SiteQueryHandler,
+)
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
 )
-from src.core.platform.application.security.auth import AuthService
-from src.core.platform.application.tenant.modules import ModuleCatalogService
-from src.core.platform.application.time_management.time import TimeService
+from src.core.platform.application.security.auth import AuthenticationHandler
+from src.core.platform.application.security.authorization.roles.commands import (
+    RoleAssignmentHandler,
+)
+from src.core.platform.application.tenant.modules import (
+    ModuleCatalogQueryHandler,
+    ModuleEntitlementCommandHandler,
+)
+from src.core.platform.application.time_management.time import (
+    TimeEntryCommandHandler,
+    TimeEntryQueryHandler,
+)
 from src.core.platform.common.service_base import ServiceBase as LegacyServiceBase
 from src.infra.composition.app_container import ServiceGraph, build_service_graph
 from src.tests.path_rewrites import REPO_ROOT
@@ -64,61 +104,90 @@ def test_service_graph_builder_wires_all_services(session):
 
     assert isinstance(graph, ServiceGraph)
     assert isinstance(graph.platform_runtime_application_service, PlatformRuntimeApplicationService)
-    assert isinstance(graph.module_catalog_service, ModuleCatalogService)
-    assert isinstance(graph.time_service, TimeService)
+    assert isinstance(graph.module_catalog_service, ModuleCatalogQueryHandler)
+    assert isinstance(graph.module_entitlement_commands, ModuleEntitlementCommandHandler)
+    assert isinstance(graph.time_entry_commands, TimeEntryCommandHandler)
+    assert isinstance(graph.time_entry_queries, TimeEntryQueryHandler)
     assert isinstance(graph.approval_service, ApprovalService)
-    assert isinstance(graph.auth_service, AuthService)
-    assert isinstance(graph.organization_service, OrganizationService)
-    assert isinstance(graph.document_service, DocumentService)
-    assert isinstance(graph.party_service, PartyService)
-    assert isinstance(graph.department_service, DepartmentService)
-    assert isinstance(graph.site_service, SiteService)
-    assert isinstance(graph.employee_service, EmployeeService)
+    assert isinstance(graph.auth.authentication, AuthenticationHandler)
+    assert isinstance(graph.role_assignment_commands, RoleAssignmentHandler)
+    assert isinstance(graph.organization_commands, OrganizationCommandHandler)
+    assert isinstance(graph.organization_lifecycle, OrganizationLifecycleCommandHandler)
+    assert isinstance(graph.organization_query, OrganizationQueryHandler)
+    assert isinstance(graph.document_commands, DocumentCommandHandler)
+    assert isinstance(graph.document_structure_commands, DocumentStructureCommandHandler)
+    assert isinstance(graph.document_query, DocumentQueryHandler)
+    assert isinstance(graph.document_attachment_commands, DocumentAttachmentCommandHandler)
+    assert isinstance(graph.document_attachment_query, DocumentAttachmentQueryHandler)
+    assert isinstance(graph.party_commands, PartyCommandHandler)
+    assert isinstance(graph.party_query, PartyQueryHandler)
+    assert isinstance(graph.department_commands, DepartmentCommandHandler)
+    assert isinstance(graph.department_query, DepartmentQueryHandler)
+    assert isinstance(graph.site_commands, SiteCommandHandler)
+    assert isinstance(graph.site_query, SiteQueryHandler)
+    assert isinstance(graph.employee_commands, EmployeeCommandHandler)
+    assert isinstance(graph.employee_query, EmployeeQueryHandler)
     assert isinstance(graph.master_data_exchange_service, MasterDataExchangeService)
     assert isinstance(graph.access_service, AccessControlService)
     assert isinstance(graph.enterprise_audit_service, EnterpriseAuditService)
-    assert isinstance(graph.collaboration_service, CollaborationService)
+    assert isinstance(graph.collaboration_comment_commands, CollaborationCommentCommandHandler)
+    assert isinstance(graph.collaboration_inbox_query, CollaborationInboxQueryHandler)
     assert isinstance(graph.project_service, ProjectService)
     assert isinstance(graph.task_service, TaskService)
-    assert isinstance(graph.timesheet_service, TimesheetService)
-    assert isinstance(graph.resource_service, ResourceService)
+    assert isinstance(graph.timesheet_workspace_query, TimesheetWorkspaceQueryHandler)
+    assert isinstance(graph.timesheet_workspace_commands, TimesheetWorkspaceCommandHandler)
+    assert isinstance(graph.timesheet_review_query, TimesheetReviewQueryHandler)
+    assert isinstance(graph.resource_query, ResourceQueryHandler)
+    assert isinstance(graph.resource_master_commands, ResourceMasterCommandHandler)
     assert isinstance(graph.finance_service, FinanceService)
     # work_calendar_engine is now GlobalCalendarShim (enterprise-backed)
     assert hasattr(graph, "work_calendar_engine") and graph.work_calendar_engine is not None
     assert isinstance(graph.work_calendar_engine, CalendarProtocol)
     assert isinstance(graph.scheduling_engine, SchedulingEngine)
-    assert isinstance(graph.reporting_service, ReportingService)
+    assert isinstance(graph.project_kpi_report, ProjectKpiReportBuilder)
+    assert isinstance(graph.earned_value_report, EarnedValueReportBuilder)
     assert isinstance(graph.baseline_service, BaselineService)
-    assert isinstance(graph.dashboard_service, DashboardService)
-    assert isinstance(graph.portfolio_service, PortfolioService)
+    assert isinstance(graph.project_dashboard_query, ProjectDashboardQueryHandler)
+    assert isinstance(graph.portfolio_dashboard_query, PortfolioDashboardQueryHandler)
+    assert isinstance(graph.portfolio_intake_commands, PortfolioIntakeCommandHandler)
+    assert isinstance(graph.portfolio_executive_query, PortfolioExecutiveQueryHandler)
     assert isinstance(graph.register_query, RegisterQueryHandler)
     assert isinstance(graph.project_resource_service, ProjectResourceService)
     assert isinstance(graph.data_import_service, DataImportService)
 
     as_dict = graph.as_dict()
     assert as_dict["approval_service"] is graph.approval_service
-    assert as_dict["auth_service"] is graph.auth_service
+    assert as_dict["authentication"] is graph.auth.authentication
+    assert as_dict["principal_builder"] is graph.auth.principals
     assert as_dict["platform_runtime_application_service"] is graph.platform_runtime_application_service
-    assert as_dict["organization_service"] is graph.organization_service
-    assert as_dict["document_service"] is graph.document_service
-    assert as_dict["party_service"] is graph.party_service
-    assert as_dict["department_service"] is graph.department_service
-    assert as_dict["site_service"] is graph.site_service
-    assert as_dict["employee_service"] is graph.employee_service
+    assert as_dict["organization_query"] is graph.organization_query
+    assert as_dict["document_query"] is graph.document_query
+    assert as_dict["party_query"] is graph.party_query
+    assert as_dict["department_query"] is graph.department_query
+    assert as_dict["site_query"] is graph.site_query
+    assert as_dict["employee_query"] is graph.employee_query
     assert as_dict["master_data_exchange_service"] is graph.master_data_exchange_service
     assert as_dict["module_catalog_service"] is graph.module_catalog_service
-    assert as_dict["time_service"] is graph.time_service
+    assert as_dict["time_entry_commands"] is graph.time_entry_commands
+    assert as_dict["time_entry_queries"] is graph.time_entry_queries
     assert as_dict["access_service"] is graph.access_service
     assert as_dict["enterprise_audit_service"] is graph.enterprise_audit_service
-    assert as_dict["collaboration_service"] is graph.collaboration_service
-    assert as_dict["dashboard_service"] is graph.dashboard_service
+    assert as_dict["collaboration_comment_commands"] is graph.collaboration_comment_commands
+    assert as_dict["collaboration_inbox_query"] is graph.collaboration_inbox_query
+    assert as_dict["project_dashboard_query"] is graph.project_dashboard_query
+    assert as_dict["portfolio_dashboard_query"] is graph.portfolio_dashboard_query
+    assert as_dict["resource_query"] is graph.resource_query
+    assert as_dict["earned_value_report"] is graph.earned_value_report
     assert as_dict["finance_service"] is graph.finance_service
-    assert as_dict["portfolio_service"] is graph.portfolio_service
+    assert as_dict["portfolio_intake_commands"] is graph.portfolio_intake_commands
+    assert as_dict["portfolio_executive_query"] is graph.portfolio_executive_query
     assert as_dict["register_query"] is graph.register_query
     assert as_dict["project_resource_service"] is graph.project_resource_service
-    assert as_dict["timesheet_service"] is graph.timesheet_service
+    assert as_dict["timesheet_workspace_query"] is graph.timesheet_workspace_query
     assert as_dict["session"] is session
-    assert graph.time_service is graph.timesheet_service
+    assert graph.timesheet_workspace_commands._time_entries is graph.time_entry_commands
+    assert graph.timesheet_workspace_commands._entry_queries is graph.time_entry_queries
+    assert graph.timesheet_workspace_commands._period_transitions is graph.timesheet_period_transitions
 
 
 def test_project_management_legacy_service_roots_are_removed():

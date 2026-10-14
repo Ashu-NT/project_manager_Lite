@@ -1,17 +1,17 @@
 """Authenticate before parsing; retain bounded fingerprints, never raw ingress."""
 
 import json
-from dataclasses import dataclass
-from enum import StrEnum
 from hashlib import sha256
-from typing import Protocol
 
 from pydantic import SecretBytes, ValidationError
 
 from src.core.platform.contract.port.integration.accounting_outcomes import (
     AccountingIngressAuthenticator,
+    AccountingOutcomeConsumer,
     AuthenticatedAccountingConnection,
     ExternalAccountingOutcome,
+    IngressRejectionReason,
+    ValidatedAccountingIngress,
 )
 
 MAX_ACCOUNTING_OUTCOME_BYTES = 16_384
@@ -26,12 +26,6 @@ def _unique_object(pairs):
     return result
 
 
-class IngressRejectionReason(StrEnum):
-    MALFORMED = "malformed_outcome"
-    SCOPE_MISMATCH = "outcome_scope_mismatch"
-    ORDERING_MISMATCH = "outcome_ordering_mismatch"
-
-
 class AccountingIngressAuthenticationError(Exception):
     def __init__(self):
         super().__init__("Accounting ingress authentication failed.")
@@ -40,19 +34,6 @@ class AccountingIngressAuthenticationError(Exception):
 class AccountingIngressSizeError(Exception):
     def __init__(self):
         super().__init__("Accounting ingress exceeds the allowed size.")
-
-
-@dataclass(frozen=True)
-class ValidatedAccountingIngress:
-    connection: AuthenticatedAccountingConnection
-    body_sha256: str
-    byte_count: int
-    outcome: ExternalAccountingOutcome | None
-    rejection: IngressRejectionReason | None
-
-
-class AccountingOutcomeConsumer(Protocol):
-    def consume(self, ingress: ValidatedAccountingIngress) -> object: ...
 
 
 class AccountingOutcomeIngress:
@@ -82,7 +63,7 @@ class AccountingOutcomeIngress:
             )
             if not isinstance(connection, AuthenticatedAccountingConnection):
                 raise AccountingIngressAuthenticationError()
-        except Exception:
+        except Exception:  # noqa: BLE001
             raise AccountingIngressAuthenticationError() from None
         reason = None
         outcome = None

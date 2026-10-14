@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from typing import Protocol
 
 from src.core.platform.domain.history.audit import AuditEntry
+
+
+class PlatformAuditWriter(Protocol):
+    """The platform-scoped write slice of `AuditRepository`."""
+
+    def add_platform(self, entry: AuditEntry) -> None: ...
 
 
 class AuditRepository(ABC):
@@ -58,4 +65,7 @@ class AuditRepository(ABC):
         ...
 
 
-__all__ = ["AuditRepository"]
+__all__ = [
+    "AuditRepository",
+    "PlatformAuditWriter",
+]

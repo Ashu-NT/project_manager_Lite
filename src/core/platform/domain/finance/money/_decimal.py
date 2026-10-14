@@ -9,7 +9,7 @@ DecimalInput: TypeAlias = Decimal | int | str
 
 
 def decimal_value(value: DecimalInput, *, label: str = "Decimal value") -> Decimal:
-    if isinstance(value, bool) or isinstance(value, float):
+    if isinstance(value, (bool, float)):
         raise ValidationError(
             f"{label} must use Decimal, integer, or canonical decimal text; binary floats are forbidden.",
             code="DECIMAL_BINARY_FLOAT_FORBIDDEN",

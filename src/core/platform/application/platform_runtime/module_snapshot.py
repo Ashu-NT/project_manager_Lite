@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.tenant.modules import ModuleCatalogQueryHandler
 from src.core.platform.contract.use_cases.platform_runtime import (
     ModuleRuntimeSnapshot,
     RuntimeEntitlementFact,
@@ -38,7 +38,7 @@ def _entitlement_fact(entitlement: ModuleEntitlement) -> RuntimeEntitlementFact:
     )
 
 
-def build_module_runtime_snapshot(catalog_service: ModuleCatalogService) -> ModuleRuntimeSnapshot:
+def build_module_runtime_snapshot(catalog_service: ModuleCatalogQueryHandler) -> ModuleRuntimeSnapshot:
     return ModuleRuntimeSnapshot(
         platform_capabilities=tuple(
             RuntimePlatformCapabilityFact(

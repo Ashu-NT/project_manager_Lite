@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 from abc import ABC, abstractmethod
 from datetime import date
 
@@ -23,7 +24,7 @@ class ProjectRateCardRepository(ABC):
         *,
         project_id: str | None = None,
         include_inactive: bool = False,
-    ) -> list[ProjectRateCard]: ...
+    ) -> builtins.list[ProjectRateCard]: ...
 
     @abstractmethod
     def update(self, rate_card: ProjectRateCard) -> None: ...
@@ -53,7 +54,7 @@ class ProjectRateCardRepository(ABC):
         rate_card_id: str,
         *,
         include_inactive: bool = False,
-    ) -> list[RateCardLine]: ...
+    ) -> builtins.list[RateCardLine]: ...
 
     @abstractmethod
     def list_visible_for_project(
@@ -61,7 +62,7 @@ class ProjectRateCardRepository(ABC):
         project_id: str,
         *,
         include_inactive: bool = False,
-    ) -> list[ProjectRateCard]:
+    ) -> builtins.list[ProjectRateCard]:
         """Return organization-wide and project-specific cards visible to a project."""
         ...
 
@@ -73,7 +74,7 @@ class ProjectRateCardRepository(ABC):
         include_inactive: bool = False,
         offset: int = 0,
         limit: int = 50,
-    ) -> list[RateCardLine]:
+    ) -> builtins.list[RateCardLine]:
         """Return a stable page of lines for a bounded card set."""
         ...
 
@@ -94,7 +95,7 @@ class ProjectRateCardRepository(ABC):
         rate_type: RateType,
         unit: str,
         as_of: date,
-    ) -> list[tuple[RateCardLine, ProjectRateCard]]:
+    ) -> builtins.list[tuple[RateCardLine, ProjectRateCard]]:
         """Active, unit-matching, as-of-effective lines visible to a project
         scope (its own project-scoped card plus every organization-wide
         card), each paired with its owning card in the same query — callers
@@ -102,7 +103,7 @@ class ProjectRateCardRepository(ABC):
         ...
 
     @abstractmethod
-    def list_lines_in_scope(self, *, project_id: str | None) -> list[RateCardLine]:
+    def list_lines_in_scope(self, *, project_id: str | None) -> builtins.list[RateCardLine]:
         """Active lines from every card whose scope exactly equals
         ``project_id`` (``None`` selects organization-wide cards only, never
         a mix of scopes). Used for overlap detection, which must compare

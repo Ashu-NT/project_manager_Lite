@@ -340,7 +340,7 @@ def test_evm_reader_is_bounded_and_rejects_draft_baselines(services, session) ->
     )
 
     with _statement_count(session) as statements:
-        result = services["reporting_service"].get_earned_value(
+        result = services["earned_value_report"].get_earned_value(
             project.id, as_of=date(2026, 1, 31)
         )
 

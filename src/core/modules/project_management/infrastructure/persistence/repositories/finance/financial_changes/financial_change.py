@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult, Result
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.finance.financial_changes.financial_change import (
@@ -33,6 +36,12 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
 )
 from src.infra.persistence.db.optimistic import update_with_version_check
+
+
+def _affected_rows(result: Result[Any]) -> int:
+    # DML statements return a CursorResult at runtime; the Session.execute
+    # stub types the return value as the generic Result.
+    return cast(CursorResult[Any], result).rowcount
 
 
 class SqlAlchemyFinancialChangeRepository(FinancialChangeRepository):
@@ -233,7 +242,7 @@ class SqlAlchemyFinancialChangeRepository(FinancialChangeRepository):
                 FinancialChangeImpactORM.version == expected_row_version,
             )
         )
-        if result.rowcount != 1:
+        if _affected_rows(result) != 1:
             if self.get_impact(impact_id) is None:
                 raise NotFoundError(
                     "Financial change impact not found.",
@@ -264,7 +273,7 @@ class SqlAlchemyFinancialChangeRepository(FinancialChangeRepository):
                 applied_reference_id=applied_reference_id,
             )
         )
-        if result.rowcount != 1:
+        if _affected_rows(result) != 1:
             raise BusinessRuleError(
                 "Financial change impact was already applied or is unavailable.",
                 code="FINANCIAL_CHANGE_IMPACT_APPLICATION_CONFLICT",

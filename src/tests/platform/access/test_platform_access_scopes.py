@@ -7,6 +7,9 @@ from src.core.modules.project_management.access.policy import (
 )
 from src.core.platform.access.authorization import require_scope_permission
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.master_data.org.access_policy import (
     resolve_organization_scope_permissions,
 )
@@ -29,7 +32,7 @@ def _register_active_tenant_user(
     tenant_id = services["tenant_context_service"].require_active_tenant_id(
         operation_label="prepare scoped-access test user"
     )
-    return services["auth_service"].register_user(
+    return services["user_registration"].register_user(
         username,
         "StrongPass123",
         role_names=role_names,
@@ -97,14 +100,12 @@ def test_require_scope_permission_uses_generic_scope_model():
 
 
 def test_access_service_supports_organization_scope_grants_and_principal_hydration(services):
-    auth = services["auth_service"]
     access = services["access_service"]
-    organization_service = services["organization_service"]
 
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="ACCESS-ORG-A", display_name="Access Scope Org A",
     )
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="ACCESS-ORG-B", display_name="Access Scope Org B",
     )
     user = _register_active_tenant_user(
@@ -126,7 +127,7 @@ def test_access_service_supports_organization_scope_grants_and_principal_hydrati
     assert access.list_scope_role_choices("organization") == ("viewer", "member", "admin")
     assert "organization" in access.list_supported_scope_types()
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert principal.scoped_access["organization"][org_a.id] == frozenset(
         resolve_organization_scope_permissions("viewer")
     )
@@ -143,7 +144,7 @@ def test_access_service_supports_organization_scope_grants_and_principal_hydrati
     assert {row.id for row in listed_user_grants} == {grant_a.id, grant_b.id}
 
     access.remove_scope_grant(scope_type="organization", scope_id=org_a.id, user_id=user.id)
-    principal_after_revoke = auth.build_principal(user)
+    principal_after_revoke = services["principal_builder"].build(user)
     assert org_a.id not in principal_after_revoke.scoped_access.get("organization", {})
     assert org_b.id in principal_after_revoke.scoped_access.get("organization", {})
 
@@ -167,7 +168,7 @@ def test_access_service_rejects_organization_target_from_another_tenant(services
         display_name="Access Org Scope Foreign Organization",
         tenant_id=other_tenant.id,
     )
-    services["organization_service"]._organization_repo.add(foreign_org)
+    services["organization_query"]._organization_repo.add(foreign_org)
     services["session"].flush()
     target = _register_active_tenant_user(
         services,
@@ -188,12 +189,11 @@ def test_access_service_rejects_organization_target_from_another_tenant(services
 def test_access_service_allows_organization_scope_grant_to_a_disabled_organization(services):
 
     access = services["access_service"]
-    organization_service = services["organization_service"]
-    disabled_org = organization_service.create_organization(
+    disabled_org = services["organization_commands"].create_organization(
         organization_code="ACCESS-ORG-DISABLED",
         display_name="Access Scope Disabled Org",
     )
-    disabled_org = organization_service.deactivate_organization(disabled_org.id)
+    disabled_org = services["organization_lifecycle"].deactivate_organization(disabled_org.id)
     user = _register_active_tenant_user(
         services,
         "organization-scope-disabled-org-user",
@@ -208,7 +208,7 @@ def test_access_service_allows_organization_scope_grant_to_a_disabled_organizati
     )
 
     assert grant.scope_id == disabled_org.id
-    principal = services["auth_service"].build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert disabled_org.id in principal.scoped_access["organization"]
 
 
@@ -220,7 +220,7 @@ def test_access_service_rejects_target_from_another_tenant(services):
         "ACCESS-TARGET",
         "Access Target Tenant",
     )
-    target = services["auth_service"].register_user(
+    target = services["user_registration"].register_user(
         "cross-tenant-membership-target",
         "StrongPass123",
         role_names=["viewer"],
@@ -239,7 +239,6 @@ def test_access_service_rejects_target_from_another_tenant(services):
 
 
 def test_auth_build_principal_populates_generic_scoped_access_from_project_memberships(services):
-    auth = services["auth_service"]
     access = services["access_service"]
     project = services["project_service"].create_project("Scoped Principal Project")
     user = _register_active_tenant_user(
@@ -255,7 +254,7 @@ def test_auth_build_principal_populates_generic_scoped_access_from_project_membe
         scope_role="viewer",
     )
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
 
     assert principal.scoped_access["project"][project.id] == frozenset(
         resolve_project_scope_permissions("viewer")
@@ -264,20 +263,9 @@ def test_auth_build_principal_populates_generic_scoped_access_from_project_membe
 
 
 def test_access_service_supports_site_scope_grants_and_site_filtering(services):
-    auth = services["auth_service"]
     access = services["access_service"]
-    site_a = services["site_service"].create_site(
-        site_code="SITE-A",
-        name="Allowed Site",
-        city="Berlin",
-        currency_code="EUR",
-    )
-    services["site_service"].create_site(
-        site_code="SITE-B",
-        name="Blocked Site",
-        city="Munich",
-        currency_code="EUR",
-    )
+    site_a = services["site_commands"].create_site(SiteCreateCommand(site_code="SITE-A", name="Allowed Site", city="Berlin", currency_code="EUR"))
+    services["site_commands"].create_site(SiteCreateCommand(site_code="SITE-B", name="Blocked Site", city="Munich", currency_code="EUR"))
     user = _register_active_tenant_user(
         services,
         "site-scope-user",
@@ -292,11 +280,11 @@ def test_access_service_supports_site_scope_grants_and_site_filtering(services):
     )
 
     assert grant.permission_codes == sorted(resolve_site_scope_permissions("manager"))
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert principal.scoped_access["site"][site_a.id] == frozenset(resolve_site_scope_permissions("manager"))
 
     login_as(services, "site-scope-user", "StrongPass123")
-    visible_sites = services["site_service"].list_sites()
+    visible_sites = services["site_query"].list_sites()
 
     assert [site.id for site in visible_sites] == [site_a.id]
 

@@ -33,12 +33,10 @@ def _desktop_api(services):
 def _make_overload(services, name: str):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-
     project = ps.create_project(name, "")
     task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-    resource = rs.create_resource("Presenter Dev", "Developer", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource("Presenter Dev", "Developer", hourly_rate=100.0)
     ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
     ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
     return project, task_b, task_c
@@ -85,7 +83,6 @@ class TestBuildResourceLevelingState:
         api = _desktop_api(services)
         ps = services["project_service"]
         ts = services["task_service"]
-        rs = services["resource_service"]
         project = ps.create_project("Presenter Leveling Unresolved", "")
         task_1 = ts.create_task(
             project.id, "Pinned One", start_date=date(2026, 9, 7), duration_days=3,
@@ -95,7 +92,7 @@ class TestBuildResourceLevelingState:
             project.id, "Pinned Two", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
         )
-        resource = rs.create_resource("Presenter Unresolved Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource("Presenter Unresolved Dev", "Developer", hourly_rate=100.0)
         ts.assign_resource(task_1.id, resource.id, allocation_percent=70.0)
         ts.assign_resource(task_2.id, resource.id, allocation_percent=60.0)
 

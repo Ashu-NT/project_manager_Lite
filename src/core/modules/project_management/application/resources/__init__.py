@@ -19,8 +19,11 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
     AssignmentValidationResult,
     SkillViolation,
 )
-from src.core.modules.project_management.application.resources.catalog.resource_service import (
-    ResourceService,
+from src.core.modules.project_management.application.resources.commands.resource_commands import (
+    ResourceMasterCommandHandler,
+)
+from src.core.modules.project_management.application.resources.commands.skill_commands import (
+    ResourceCapabilityCommandHandler,
 )
 from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
     PortfolioResourcePoolReport,
@@ -31,6 +34,9 @@ from src.core.modules.project_management.application.resources.portfolio.resourc
 from src.core.modules.project_management.application.resources.project_resources.project_resource_service import (
     ProjectResourceService,
 )
+from src.core.modules.project_management.application.resources.queries.resource_queries import (
+    ResourceQueryHandler,
+)
 
 __all__ = [
     "AssignmentSkillValidator",
@@ -38,11 +44,13 @@ __all__ = [
     "PortfolioResourcePoolReport",
     "PortfolioResourcePoolService",
     "ProjectResourceService",
+    "ResourceCapabilityCommandHandler",
     "ResourceDemandEntry",
     "ResourceLoadEngine",
     "ResourceLoadMetric",
+    "ResourceMasterCommandHandler",
     "ResourcePoolSummary",
-    "ResourceService",
+    "ResourceQueryHandler",
     "ResourceUtilizationBand",
     "ResourceWorkloadDayFact",
     "ResourceWorkloadFact",

@@ -4,7 +4,8 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Any
+from enum import Enum
+from typing import Any, Final
 
 from sqlalchemy.orm import Session
 
@@ -48,7 +49,14 @@ from src.core.platform.common.exceptions import (
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
-_UNSET = object()
+
+class _Unset(Enum):
+    """Typed sentinel distinguishing "argument omitted" from an explicit None."""
+
+    TOKEN = 0
+
+
+_UNSET: Final = _Unset.TOKEN
 
 
 class ProjectRateCardService(ProjectManagementModuleGuardMixin):
@@ -251,12 +259,12 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         line_id: str,
         *,
         expected_version: int,
-        effective_from: date | None | object = _UNSET,
-        effective_to: date | None | object = _UNSET,
-        rate_amount: Decimal | object = _UNSET,
-        overtime_multiplier: Decimal | None | object = _UNSET,
-        weekend_multiplier: Decimal | None | object = _UNSET,
-        holiday_multiplier: Decimal | None | object = _UNSET,
+        effective_from: date | None | _Unset = _UNSET,
+        effective_to: date | None | _Unset = _UNSET,
+        rate_amount: Decimal | _Unset = _UNSET,
+        overtime_multiplier: Decimal | None | _Unset = _UNSET,
+        weekend_multiplier: Decimal | None | _Unset = _UNSET,
+        holiday_multiplier: Decimal | None | _Unset = _UNSET,
         expected_card_version: int | None = None,
     ) -> RateCardLine:
         current = self._require_line(line_id, for_update=True)
@@ -495,7 +503,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             )
         if (
             candidate.effective_to != current.effective_to
-            and (candidate.effective_to is None or candidate.effective_to < date.today())
+            and (candidate.effective_to is None or candidate.effective_to < date.today())  # noqa: DTZ011 -- naive local business date by design
         ):
                 raise BusinessRuleError(
                     "A consumed Rate Line may only be end-dated today or in the future.",

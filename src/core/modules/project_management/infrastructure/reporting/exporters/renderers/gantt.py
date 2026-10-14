@@ -88,7 +88,8 @@ class GanttPngRenderer:
         durations = [
             max(
                 self._BAR_MIN_WIDTH_DAYS,
-                (b.end - b.start).days,
+                # Bars were filtered above to those with both dates.
+                (b.end - b.start).days if b.start and b.end else 0,
             )
             for b in bars
         ]
@@ -156,7 +157,7 @@ class GanttPngRenderer:
         ax.set_xlim(min_start - 1.5, max_finish + 1.5)
         self._configure_timeline_axis(ax, min_start, max_finish)
 
-        today = date.today()
+        today = date.today()  # noqa: DTZ011
         today_num = date2num(today)
         ax.axvline(today_num, color="#DC2626", linestyle="--", linewidth=1.2, zorder=5)
         ax.text(

@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_precedence import (
     classify_line,
     select_within_level,
@@ -35,6 +34,7 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.domain.finance.money.money import Money
 from src.core.platform.domain.finance.money.quantity import MonetaryRate, normalize_unit
+from src.core.shared.time.clock import CalendarClock
 
 _PER_RESOURCE_FAILURE_CODES = frozenset(
     {"RATE_CARD_NO_APPLICABLE_RATE", "RATE_CARD_AMBIGUOUS_SELECTION"}
@@ -53,7 +53,7 @@ class RateCardResolver:
         *,
         reader: RateResolutionReader,
         tenant_context_service: TenantContextService,
-        clock: Clock,
+        clock: CalendarClock,
     ) -> None:
         self._reader = reader
         self._tenant_context_service = tenant_context_service

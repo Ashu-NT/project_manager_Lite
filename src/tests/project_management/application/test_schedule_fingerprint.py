@@ -82,13 +82,12 @@ class TestPlannerComputesItsOwnFingerprint:
         it against the one embedded in the proposal it is applying."""
         ps = services["project_service"]
         ts = services["task_service"]
-        rs = services["resource_service"]
         calendar = services["work_calendar_engine"]
 
         project = ps.create_project("Fingerprint Planner Wiring", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-        resource = rs.create_resource("Fingerprint Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource("Fingerprint Dev", "Developer", hourly_rate=100.0)
         ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
@@ -112,13 +111,12 @@ class TestPlannerComputesItsOwnFingerprint:
     def test_proposal_fingerprint_changes_after_an_unrelated_task_edit_bumps_its_version(self, services):
         ps = services["project_service"]
         ts = services["task_service"]
-        rs = services["resource_service"]
         calendar = services["work_calendar_engine"]
 
         project = ps.create_project("Fingerprint Staleness", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-        resource = rs.create_resource("Staleness Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource("Staleness Dev", "Developer", hourly_rate=100.0)
         ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 

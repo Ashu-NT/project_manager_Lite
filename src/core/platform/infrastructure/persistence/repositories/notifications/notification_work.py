@@ -2,16 +2,26 @@
 
 import json
 from datetime import UTC, datetime
+from typing import Any, cast
 from uuid import uuid4
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import Insert as PostgresInsert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import Insert as SqliteInsert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.engine import CursorResult, Result
 from sqlalchemy.orm import Session
 
 from src.core.platform.infrastructure.persistence.orm.notifications.notification_work import (
     NotificationWorkORM,
 )
+
+
+def _affected_rows(result: Result[Any]) -> int:
+    # DML statements return a CursorResult at runtime; the Session.execute
+    # stub types the return value as the generic Result.
+    return cast(CursorResult[Any], result).rowcount
 
 
 def enqueue_notification_work(
@@ -32,22 +42,23 @@ def enqueue_notification_work(
     if len(encoded) > 4096:
         raise ValueError("Notification metadata exceeds the safe bound")
     now = datetime.now(UTC)
-    values = dict(
-        id=str(uuid4()), tenant_id=tenant_id, organization_id=organization_id,
-        source_event_id=source_event_id, recipient_user_id=recipient_user_id,
-        category=category, title=title, body=body, metadata_json=encoded,
-        status="pending", attempt_count=0, available_at=now, created_at=now,
-    )
+    values = {
+        "id": str(uuid4()), "tenant_id": tenant_id, "organization_id": organization_id,
+        "source_event_id": source_event_id, "recipient_user_id": recipient_user_id,
+        "category": category, "title": title, "body": body, "metadata_json": encoded,
+        "status": "pending", "attempt_count": 0, "available_at": now, "created_at": now,
+    }
     dialect = session.get_bind().dialect.name
+    stmt: PostgresInsert | SqliteInsert
     if dialect == "postgresql":
         stmt = pg_insert(NotificationWorkORM).values(**values)
     elif dialect == "sqlite":
         stmt = sqlite_insert(NotificationWorkORM).values(**values)
     else:
         raise RuntimeError(f"Unsupported notification work backend: {dialect}")
-    inserted = session.execute(stmt.on_conflict_do_nothing(
+    inserted = _affected_rows(session.execute(stmt.on_conflict_do_nothing(
         index_elements=["tenant_id", "source_event_id", "category", "recipient_user_id"],
-    )).rowcount
+    )))
     if inserted:
         return
     existing = session.scalar(select(NotificationWorkORM).where(

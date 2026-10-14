@@ -34,6 +34,13 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+    EmployeeUpdateCommand,
+)
 
 _COUNTER = {"n": 0}
 
@@ -45,7 +52,7 @@ def _unique(prefix: str) -> str:
 
 def _spy_master_events(services):
     captured = []
-    services["resource_service"]._master_command._uow_factory._post_commit_bus.subscribe(
+    services["resource_master_commands"]._uow_factory._post_commit_bus.subscribe(
         ResourceMasterChanged, lambda event, context: captured.append(event)
     )
     return captured
@@ -53,7 +60,7 @@ def _spy_master_events(services):
 
 def _spy_capability_events(services):
     captured = []
-    services["resource_service"]._capability_command._uow_factory._post_commit_bus.subscribe(
+    services["resource_capability_commands"]._uow_factory._post_commit_bus.subscribe(
         ResourceCapabilityChanged, lambda event, context: captured.append(event)
     )
     return captured
@@ -67,7 +74,7 @@ def _spy_capability_events(services):
 def test_create_resource_produces_one_typed_event(services):
     master_events = _spy_master_events(services)
 
-    resource = services["resource_service"].create_resource(name=_unique("Create"))
+    resource = services["resource_master_commands"].create_resource(name=_unique("Create"))
 
     assert resource.version == 1
     assert len(master_events) == 1
@@ -78,11 +85,10 @@ def test_create_resource_produces_one_typed_event(services):
 
 
 def test_real_update_produces_one_typed_event_and_bumps_version(services):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("Update"), role="Old Role")
+    resource = services["resource_master_commands"].create_resource(name=_unique("Update"), role="Old Role")
     master_events = _spy_master_events(services)
 
-    updated = service.update_resource(
+    updated = services["resource_master_commands"].update_resource(
         resource_id=resource.id, expected_version=resource.version, name=resource.name,
         code=resource.code, kind=resource.kind, role="New Role", hourly_rate=resource.hourly_rate,
         cost_type=resource.cost_type, currency_code=resource.currency_code,
@@ -98,11 +104,10 @@ def test_real_update_produces_one_typed_event_and_bumps_version(services):
 
 
 def test_no_op_update_produces_zero_writes_zero_events(services):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("Noop"), role="Same Role")
+    resource = services["resource_master_commands"].create_resource(name=_unique("Noop"), role="Same Role")
     master_events = _spy_master_events(services)
 
-    result = service.update_resource(
+    result = services["resource_master_commands"].update_resource(
         resource_id=resource.id, expected_version=resource.version, name=resource.name,
         code=resource.code, kind=resource.kind, role=resource.role, hourly_rate=resource.hourly_rate,
         cost_type=resource.cost_type, currency_code=resource.currency_code,
@@ -115,15 +120,14 @@ def test_no_op_update_produces_zero_writes_zero_events(services):
 
 
 def test_deactivate_and_reactivate_produce_typed_events(services):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("Lifecycle"))
+    resource = services["resource_master_commands"].create_resource(name=_unique("Lifecycle"))
     master_events = _spy_master_events(services)
 
-    deactivated = service.deactivate_resource(resource_id=resource.id, expected_version=resource.version)
+    deactivated = services["resource_master_commands"].deactivate_resource(resource_id=resource.id, expected_version=resource.version)
     assert deactivated.is_active is False
     assert master_events[-1].change_type == ResourceMasterChangeType.DEACTIVATED
 
-    reactivated = service.reactivate_resource(
+    reactivated = services["resource_master_commands"].reactivate_resource(
         resource_id=deactivated.id, expected_version=deactivated.version
     )
     assert reactivated.is_active is True
@@ -132,13 +136,12 @@ def test_deactivate_and_reactivate_produce_typed_events(services):
 
 
 def test_deactivate_already_inactive_is_rejected_not_silently_written(services):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("AlreadyInactive"))
-    deactivated = service.deactivate_resource(resource_id=resource.id, expected_version=resource.version)
+    resource = services["resource_master_commands"].create_resource(name=_unique("AlreadyInactive"))
+    deactivated = services["resource_master_commands"].deactivate_resource(resource_id=resource.id, expected_version=resource.version)
     master_events = _spy_master_events(services)
 
     with pytest.raises(BusinessRuleError):
-        service.deactivate_resource(resource_id=deactivated.id, expected_version=deactivated.version)
+        services["resource_master_commands"].deactivate_resource(resource_id=deactivated.id, expected_version=deactivated.version)
 
     assert master_events == []
 
@@ -147,15 +150,14 @@ def test_activity_feed_entry_rides_the_same_transaction_as_the_mutation(services
     """Regression: activity-feed staging must ride the SAME fresh UoW Session as the mutation
     itself. A separately-scoped ActivityService bound to the old process-lifetime shared Session
     would stage an entry this UoW's own commit() never persists."""
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("ActivityAtomic"))
+    resource = services["resource_master_commands"].create_resource(name=_unique("ActivityAtomic"))
 
     activity = services["activity_service"].list_recent(
         limit=50, entity_type="resource", entity_id=resource.id
     )
     assert any(entry.action == "resource.created" for entry in activity)
 
-    service.add_resource_skill(resource.id, "PY", "Python")
+    services["resource_capability_commands"].add_resource_skill(resource.id, "PY", "Python")
     activity_after_skill = services["activity_service"].list_recent(
         limit=50, entity_type="resource", entity_id=resource.id
     )
@@ -163,24 +165,22 @@ def test_activity_feed_entry_rides_the_same_transaction_as_the_mutation(services
 
 
 def test_purge_produces_typed_event_and_deletes_row(services):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("Purge"))
+    resource = services["resource_master_commands"].create_resource(name=_unique("Purge"))
     master_events = _spy_master_events(services)
 
-    service.purge_resource(resource_id=resource.id, expected_version=resource.version)
+    services["resource_master_commands"].purge_resource(resource_id=resource.id, expected_version=resource.version)
 
     assert master_events[-1].change_type == ResourceMasterChangeType.PURGED
     with pytest.raises(NotFoundError):
-        service.get_resource(resource.id)
+        services["resource_query"].get_resource(resource.id)
 
 
 def test_stale_version_update_raises_and_produces_zero_events(services):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("Stale"))
+    resource = services["resource_master_commands"].create_resource(name=_unique("Stale"))
     master_events = _spy_master_events(services)
 
     with pytest.raises(ConcurrencyError):
-        service.update_resource(
+        services["resource_master_commands"].update_resource(
             resource_id=resource.id, expected_version=resource.version + 99, name="X",
             code=resource.code, kind=resource.kind, role="X", hourly_rate=resource.hourly_rate,
             cost_type=resource.cost_type, currency_code=resource.currency_code,
@@ -192,7 +192,6 @@ def test_stale_version_update_raises_and_produces_zero_events(services):
 
 
 def test_audit_failure_rolls_back_and_produces_zero_events(services, monkeypatch):
-    service = services["resource_service"]
     master_events = _spy_master_events(services)
 
     def _fail(self, **kwargs):
@@ -200,15 +199,14 @@ def test_audit_failure_rolls_back_and_produces_zero_events(services, monkeypatch
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail)
     with pytest.raises(RuntimeError, match="simulated audit failure"):
-        service.create_resource(name=_unique("AuditFail"))
+        services["resource_master_commands"].create_resource(name=_unique("AuditFail"))
     monkeypatch.undo()
 
     assert master_events == []
-    assert service.list_resources() == []
+    assert services["resource_query"].list_resources() == []
 
 
 def test_commit_failure_rolls_back_and_produces_zero_events(services, monkeypatch):
-    service = services["resource_service"]
     master_events = _spy_master_events(services)
 
     def _fail_commit(self):
@@ -216,7 +214,7 @@ def test_commit_failure_rolls_back_and_produces_zero_events(services, monkeypatc
 
     monkeypatch.setattr(SqlAlchemyResourceUnitOfWork, "commit", _fail_commit)
     with pytest.raises(RuntimeError, match="simulated commit failure"):
-        service.create_resource(name=_unique("CommitFail"))
+        services["resource_master_commands"].create_resource(name=_unique("CommitFail"))
     monkeypatch.undo()
 
     assert master_events == []
@@ -224,9 +222,8 @@ def test_commit_failure_rolls_back_and_produces_zero_events(services, monkeypatc
 
 def test_cross_org_resource_is_not_visible_or_mutable_from_another_organization(services):
     session = services["session"]
-    organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
-    other_org = organization_service.create_organization(
+    other_org = services["organization_commands"].create_organization(
         organization_code=_unique("OTHERORG"), display_name="Other Org",
         timezone_name="UTC", base_currency="USD",
     )
@@ -239,10 +236,9 @@ def test_cross_org_resource_is_not_visible_or_mutable_from_another_organization(
     session.add(other_resource)
     session.commit()
 
-    service = services["resource_service"]
-    assert service._resource_repo.get(other_resource.id) is None  # active-org-scoped read
+    assert services["resource_query"]._resource_repo.get(other_resource.id) is None  # active-org-scoped read
     with pytest.raises(NotFoundError):
-        service.update_resource(
+        services["resource_master_commands"].update_resource(
             resource_id=other_resource.id, expected_version=1, name="Hijacked",
             code="", kind="PERSON", role="", hourly_rate=0, cost_type=CostType.LABOR,
             currency_code=None, capacity_percent=100.0, address="", contact="",
@@ -256,68 +252,64 @@ def test_cross_org_resource_is_not_visible_or_mutable_from_another_organization(
 
 
 def test_add_update_remove_skill_each_produce_one_typed_capability_event(services):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("SkillOwner"))
+    resource = services["resource_master_commands"].create_resource(name=_unique("SkillOwner"))
     capability_events = _spy_capability_events(services)
 
-    skill = service.add_resource_skill(resource.id, "PY", "Python", proficiency="advanced")
+    skill = services["resource_capability_commands"].add_resource_skill(resource.id, "PY", "Python", proficiency="advanced")
     assert capability_events[-1].change_type == ResourceCapabilityChangeType.ADDED
     assert capability_events[-1].child_type == "ResourceSkill"
 
-    updated = service.update_resource_skill(
+    updated = services["resource_capability_commands"].update_resource_skill(
         skill_id=skill.id, expected_version=skill.version, skill_code="PY",
         skill_name="Python 3", proficiency="expert", notes="",
     )
     assert capability_events[-1].change_type == ResourceCapabilityChangeType.UPDATED
     assert updated.version == skill.version + 1
 
-    service.remove_resource_skill(updated.id, expected_version=updated.version)
+    services["resource_capability_commands"].remove_resource_skill(updated.id, expected_version=updated.version)
     assert capability_events[-1].change_type == ResourceCapabilityChangeType.REMOVED
     assert len(capability_events) == 3
 
 
 def test_add_update_remove_certification_each_produce_one_typed_capability_event(services):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("CertOwner"))
+    resource = services["resource_master_commands"].create_resource(name=_unique("CertOwner"))
     capability_events = _spy_capability_events(services)
 
-    cert = service.add_resource_certification(
+    cert = services["resource_capability_commands"].add_resource_certification(
         resource.id, "SAFETY-1", "Safety Certification",
         issued_date=date.today(), expiry_date=None,
     )
     assert capability_events[-1].change_type == ResourceCapabilityChangeType.ADDED
     assert capability_events[-1].child_type == "ResourceCertification"
 
-    updated = service.update_resource_certification(
+    updated = services["resource_capability_commands"].update_resource_certification(
         cert_id=cert.id, expected_version=cert.version, certification_code="SAFETY-1",
         certification_name="Safety Certification II",
     )
     assert capability_events[-1].change_type == ResourceCapabilityChangeType.UPDATED
 
-    service.remove_resource_certification(updated.id, expected_version=updated.version)
+    services["resource_capability_commands"].remove_resource_certification(updated.id, expected_version=updated.version)
     assert capability_events[-1].change_type == ResourceCapabilityChangeType.REMOVED
     assert len(capability_events) == 3
 
 
 def test_duplicate_skill_code_is_rejected_before_any_write(services):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("DupSkill"))
-    service.add_resource_skill(resource.id, "PY", "Python")
+    resource = services["resource_master_commands"].create_resource(name=_unique("DupSkill"))
+    services["resource_capability_commands"].add_resource_skill(resource.id, "PY", "Python")
     capability_events = _spy_capability_events(services)
 
     with pytest.raises(ValidationError):
-        service.add_resource_skill(resource.id, "PY", "Python Duplicate")
+        services["resource_capability_commands"].add_resource_skill(resource.id, "PY", "Python Duplicate")
 
     assert capability_events == []
 
 
 def test_no_op_skill_update_produces_zero_writes_zero_events(services):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("NoopSkill"))
-    skill = service.add_resource_skill(resource.id, "PY", "Python", proficiency="advanced", notes="x")
+    resource = services["resource_master_commands"].create_resource(name=_unique("NoopSkill"))
+    skill = services["resource_capability_commands"].add_resource_skill(resource.id, "PY", "Python", proficiency="advanced", notes="x")
     capability_events = _spy_capability_events(services)
 
-    result = service.update_resource_skill(
+    result = services["resource_capability_commands"].update_resource_skill(
         skill_id=skill.id, expected_version=skill.version, skill_code="PY",
         skill_name="Python", proficiency="advanced", notes="x",
     )
@@ -328,9 +320,8 @@ def test_no_op_skill_update_produces_zero_writes_zero_events(services):
 
 def test_skill_belongs_to_cross_org_resource_is_not_mutable(services):
     session = services["session"]
-    organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
-    other_org = organization_service.create_organization(
+    other_org = services["organization_commands"].create_organization(
         organization_code=_unique("SKILLORG"), display_name="Skill Other Org",
         timezone_name="UTC", base_currency="USD",
     )
@@ -343,14 +334,12 @@ def test_skill_belongs_to_cross_org_resource_is_not_mutable(services):
     session.add(other_resource)
     session.commit()
 
-    service = services["resource_service"]
     with pytest.raises(NotFoundError):
-        service.add_resource_skill(other_resource.id, "PY", "Python")
+        services["resource_capability_commands"].add_resource_skill(other_resource.id, "PY", "Python")
 
 
 def test_capability_audit_failure_rolls_back_and_produces_zero_events(services, monkeypatch):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("CapAuditFail"))
+    resource = services["resource_master_commands"].create_resource(name=_unique("CapAuditFail"))
     capability_events = _spy_capability_events(services)
 
     def _fail(self, **kwargs):
@@ -358,15 +347,14 @@ def test_capability_audit_failure_rolls_back_and_produces_zero_events(services, 
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail)
     with pytest.raises(RuntimeError, match="simulated audit failure"):
-        service.add_resource_skill(resource.id, "PY", "Python")
+        services["resource_capability_commands"].add_resource_skill(resource.id, "PY", "Python")
     monkeypatch.undo()
 
     assert capability_events == []
 
 
 def test_capability_commit_failure_rolls_back_and_produces_zero_events(services, monkeypatch):
-    service = services["resource_service"]
-    resource = service.create_resource(name=_unique("CapCommitFail"))
+    resource = services["resource_master_commands"].create_resource(name=_unique("CapCommitFail"))
     capability_events = _spy_capability_events(services)
 
     def _fail_commit(self):
@@ -374,7 +362,7 @@ def test_capability_commit_failure_rolls_back_and_produces_zero_events(services,
 
     monkeypatch.setattr(SqlAlchemyResourceUnitOfWork, "commit", _fail_commit)
     with pytest.raises(RuntimeError, match="simulated commit failure"):
-        service.add_resource_skill(resource.id, "PY", "Python")
+        services["resource_capability_commands"].add_resource_skill(resource.id, "PY", "Python")
     monkeypatch.undo()
 
     assert capability_events == []
@@ -407,9 +395,8 @@ def test_resource_events_are_plain_frozen_dataclasses_not_qt_signals():
 
 
 def test_two_independent_operations_use_two_independent_sessions(services):
-    service = services["resource_service"]
     sessions_seen = []
-    factory = service._master_command._uow_factory
+    factory = services["resource_master_commands"]._uow_factory
     original_create = factory.create
 
     def _spy_create(*, context):
@@ -418,8 +405,8 @@ def test_two_independent_operations_use_two_independent_sessions(services):
         return uow
 
     factory.create = _spy_create
-    service.create_resource(name=_unique("SessA"))
-    service.create_resource(name=_unique("SessB"))
+    services["resource_master_commands"].create_resource(name=_unique("SessA"))
+    services["resource_master_commands"].create_resource(name=_unique("SessB"))
 
     assert len(sessions_seen) == 2
     assert sessions_seen[0] is not sessions_seen[1]
@@ -431,7 +418,7 @@ def test_repos_and_audit_share_one_session_within_one_operation(services):
         SqlAlchemyResourceUnitOfWorkFactory,
     )
 
-    factory = services["resource_service"]._master_command._uow_factory
+    factory = services["resource_master_commands"]._uow_factory
     assert isinstance(factory, SqlAlchemyResourceUnitOfWorkFactory)
     from src.core.shared.events.domain_event_context import DomainEventContext
 
@@ -451,25 +438,17 @@ def test_repos_and_audit_share_one_session_within_one_operation(services):
 
 
 def test_employee_update_does_not_mutate_pm_resource_or_emit_pm_event(services):
-    employee_service = services["employee_service"]
-    resource_service = services["resource_service"]
-    department = services["department_service"].create_department(
-        department_code=_unique("DEPT"), name="Engineering"
-    )
-    employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="Alex Doe", title="Engineer", department_id=department.id
-    )
-    resource = resource_service.create_resource(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=_unique("DEPT"), name="Engineering"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique("EMP"), full_name="Alex Doe", title="Engineer", department_id=department.id))
+    resource = services["resource_master_commands"].create_resource(
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
     )
     master_events = _spy_master_events(services)
 
-    updated_employee = employee_service.update_employee(
-        employee.id, full_name="Alex Updated", title="Senior Engineer"
-    )
+    updated_employee = services["employee_commands"].update_employee(EmployeeUpdateCommand(employee_id=employee.id, full_name="Alex Updated", title="Senior Engineer"))
 
     assert updated_employee.full_name == "Alex Updated"
-    refreshed = resource_service.get_resource(resource.id)
+    refreshed = services["resource_query"].get_resource(resource.id)
     assert refreshed.employee_id == employee.id
     assert refreshed.name == resource.name
     assert refreshed.role == resource.role
@@ -478,16 +457,11 @@ def test_employee_update_does_not_mutate_pm_resource_or_emit_pm_event(services):
 
 
 def test_employee_update_with_no_linked_employee_resource_produces_zero_resource_events(services):
-    employee_service = services["employee_service"]
-    department = services["department_service"].create_department(
-        department_code=_unique("DEPT"), name="Engineering"
-    )
-    employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="No Resource Person", department_id=department.id
-    )
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=_unique("DEPT"), name="Engineering"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique("EMP"), full_name="No Resource Person", department_id=department.id))
     master_events = _spy_master_events(services)
 
-    employee_service.update_employee(employee.id, full_name="No Resource Person 2")
+    services["employee_commands"].update_employee(EmployeeUpdateCommand(employee_id=employee.id, full_name="No Resource Person 2"))
 
     assert master_events == []
 
@@ -500,15 +474,9 @@ def test_employee_update_and_resource_mutation_are_one_atomic_transaction(servic
         SqlAlchemyEmployeeUnitOfWork,
     )
 
-    employee_service = services["employee_service"]
-    resource_service = services["resource_service"]
-    department = services["department_service"].create_department(
-        department_code=_unique("DEPT"), name="Engineering"
-    )
-    employee = employee_service.create_employee(
-        employee_code=_unique("EMP"), full_name="Atomic Test", title="Engineer", department_id=department.id
-    )
-    resource = resource_service.create_resource(
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=_unique("DEPT"), name="Engineering"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique("EMP"), full_name="Atomic Test", title="Engineer", department_id=department.id))
+    resource = services["resource_master_commands"].create_resource(
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
     )
     master_events = _spy_master_events(services)
@@ -518,9 +486,9 @@ def test_employee_update_and_resource_mutation_are_one_atomic_transaction(servic
 
     monkeypatch.setattr(SqlAlchemyEmployeeUnitOfWork, "commit", _fail_commit)
     with pytest.raises(RuntimeError, match="simulated employee commit failure"):
-        employee_service.update_employee(employee.id, full_name="Should Not Persist", title="Should Not Persist")
+        services["employee_commands"].update_employee(EmployeeUpdateCommand(employee_id=employee.id, full_name="Should Not Persist", title="Should Not Persist"))
     monkeypatch.undo()
 
-    refreshed = resource_service.get_resource(resource.id)
+    refreshed = services["resource_query"].get_resource(resource.id)
     assert refreshed.name != "Should Not Persist"
     assert master_events == []

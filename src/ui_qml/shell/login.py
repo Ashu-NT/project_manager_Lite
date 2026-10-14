@@ -6,7 +6,10 @@ from dataclasses import dataclass
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.security.auth import AuthenticationHandler
+from src.core.platform.application.security.auth.session.principal_builder import (
+    PrincipalBuilder,
+)
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.security.auth import UserSessionContext
 
@@ -42,13 +45,15 @@ class ShellLoginController(QObject):
     def __init__(
         self,
         *,
-        auth_service: AuthService,
+        authentication: AuthenticationHandler,
+        principals: PrincipalBuilder,
         user_session: UserSessionContext,
         username: str = "admin",
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
-        self._auth_service = auth_service
+        self._authentication = authentication
+        self._principals = principals
         self._user_session = user_session
         self._username = username
         self._password = ""
@@ -102,8 +107,8 @@ class ShellLoginController(QObject):
         self._set_is_busy(True)
         self._set_error_message("")
         try:
-            user = self._auth_service.authenticate(username, password)
-            principal = self._auth_service.build_principal(user)
+            user = self._authentication.authenticate(username, password)
+            principal = self._principals.build(user)
         except ValidationError as exc:
             self._set_error_message(str(exc))
             self._set_is_busy(False)

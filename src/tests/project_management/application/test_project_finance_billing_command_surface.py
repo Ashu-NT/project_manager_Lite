@@ -8,7 +8,7 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.financials.commands.billing import (
+from src.core.modules.project_management.contracts.use_cases.financials.billing import (
     FinancialActivateBillingProfileCommand,
     FinancialAddApprovedTimeBillingSourceCommand,
     FinancialAddBillingScheduleLineCommand,
@@ -33,10 +33,9 @@ def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
 
 
 def _register_and_login(services, username: str, *, role_names: list[str]) -> None:
-    auth = services["auth_service"]
-    auth.register_user(username, "StrongPass123", role_names=role_names)
-    user = auth.authenticate(username, "StrongPass123")
-    services["user_session"].set_principal(auth.build_principal(user))
+    services["user_registration"].register_user(username, "StrongPass123", role_names=role_names)
+    user = services["authentication"].authenticate(username, "StrongPass123")
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def _setup_billable_project(services, *, name: str = "Billing Command Surface", create_period: bool = True):
@@ -167,7 +166,7 @@ def test_desktop_billing_preparation_fixed_price_lifecycle_through_delivery_requ
     assert Decimal(source_line.net_amount) == Decimal(24000)
 
     # Creator, requester, and approver are independent actors.
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "billing-independent-reviewer", "StrongPass123", role_names=["approver"]
     )
     _register_and_login(services, "billing-requester", role_names=["finance_controller"])
@@ -179,18 +178,17 @@ def test_desktop_billing_preparation_fixed_price_lifecycle_through_delivery_requ
     assert submitted.status == "submitted"
     assert Decimal(submitted.total_amount) == Decimal(24000)
 
-    reviewer = services["auth_service"].authenticate(
+    reviewer = services["authentication"].authenticate(
         "billing-independent-reviewer", "StrongPass123"
     )
     services["user_session"].set_principal(
-        services["auth_service"].build_principal(reviewer)
+        services["principal_builder"].build(reviewer)
     )
     request = services["approval_service"].list_pending(project_id=project.id)[0]
     services["approval_service"].approve_and_apply(request.id, note="Approved for delivery")
 
-    auth = services["auth_service"]
-    admin = auth.authenticate("admin", "ChangeMe123!")
-    services["user_session"].set_principal(auth.build_principal(admin))
+    admin = services["authentication"].authenticate("admin", "ChangeMe123!")
+    services["user_session"].set_principal(services["principal_builder"].build(admin))
 
     delivered_request = api.request_billing_delivery(
         FinancialVersionedBillingPreparationCommand(
@@ -296,11 +294,11 @@ def test_desktop_billing_project_scope_is_enforced(services) -> None:
     api = _build_api(services)
     tenant_id = services["user_session"].stored_active_tenant_id()
     organization_id = services["user_session"].stored_active_organization_id()
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "billing-scoped-to-a", "StrongPass123", role_names=["viewer"]
     )
-    user = services["auth_service"].authenticate("billing-scoped-to-a", "StrongPass123")
-    principal = services["auth_service"].build_principal(user)
+    user = services["authentication"].authenticate("billing-scoped-to-a", "StrongPass123")
+    principal = services["principal_builder"].build(user)
     services["user_session"].set_principal(
         UserSessionPrincipal(
             user_id=principal.user_id,

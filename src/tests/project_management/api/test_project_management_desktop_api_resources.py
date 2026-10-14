@@ -2,10 +2,12 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
+    build_project_management_resources_desktop_api,
+)
+from src.core.modules.project_management.contracts.use_cases.resources import (
     ResourceCreateCommand,
     ResourceLifecycleCommand,
     ResourceUpdateCommand,
-    build_project_management_resources_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import (
     CostType,
@@ -17,8 +19,8 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
     resource_service = _FakeResourceService()
     employee_service = _FakeEmployeeService()
     api = build_project_management_resources_desktop_api(
-        resource_service=resource_service,
-        employee_service=employee_service,
+        resource_query=resource_service, resource_master_commands=resource_service, resource_capability_commands=resource_service,
+        employee_query=employee_service,
     )
 
     worker_types = api.list_worker_types()

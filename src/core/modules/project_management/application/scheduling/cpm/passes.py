@@ -49,7 +49,7 @@ def run_forward_pass(
             for t in tasks_by_id.values()
             if getattr(t, "start_date", None) is not None
         ]
-        default_start: date = min(known_starts) if known_starts else date.today()
+        default_start: date = min(known_starts) if known_starts else date.today()  # noqa: DTZ011
 
         # Patch root tasks that have no start_date
         patched: dict[str, Task] = {}

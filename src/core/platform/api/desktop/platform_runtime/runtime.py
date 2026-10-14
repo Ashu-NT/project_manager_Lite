@@ -7,9 +7,7 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationCalendarSummaryDto,
     OrganizationCatalogPageDto,
     OrganizationDto,
-    OrganizationProvisionCommand,
     OrganizationStatisticsDto,
-    OrganizationUpdateCommand,
 )
 from src.core.platform.api.desktop.models.common import (
     DesktopApiError,
@@ -26,12 +24,17 @@ from src.core.platform.api.desktop.platform_runtime.models.runtime import (
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
 )
+from src.core.platform.application.tenant.modules import ModuleEntitlementCommandHandler
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     DomainError,
     NotFoundError,
     ValidationError,
+)
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
+    OrganizationUpdateCommand,
 )
 from src.core.shared.reference_data import COUNTRY_OPTIONS, TIMEZONE_OPTIONS
 
@@ -45,8 +48,10 @@ class PlatformRuntimeDesktopApi:
         self,
         *,
         platform_runtime_application_service: PlatformRuntimeApplicationService,
+        module_entitlement_commands: ModuleEntitlementCommandHandler,
     ) -> None:
         self._platform_runtime_application_service = platform_runtime_application_service
+        self._module_entitlement_commands = module_entitlement_commands
 
     def get_runtime_context(self) -> DesktopApiResult[PlatformRuntimeContextDto]:
         return self._execute(
@@ -144,14 +149,18 @@ class PlatformRuntimeDesktopApi:
     def license_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._execute(
             lambda: self._serialize_entitlement(
-                self._platform_runtime_application_service.license_module(module_code)
+                self._module_entitlement_commands.license_module(
+                    self._require_active_organization_id(), module_code
+                )
             )
         )
 
     def revoke_module_license(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._execute(
             lambda: self._serialize_entitlement(
-                self._platform_runtime_application_service.revoke_module_license(module_code)
+                self._module_entitlement_commands.revoke_module_license(
+                    self._require_active_organization_id(), module_code
+                )
             )
         )
 
@@ -160,9 +169,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._execute(
             lambda: self._serialize_entitlement(
-                self._platform_runtime_application_service.license_module_for_organization(
-                    organization_id, module_code
-                )
+                self._module_entitlement_commands.license_module(organization_id, module_code)
             )
         )
 
@@ -171,7 +178,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._execute(
             lambda: self._serialize_entitlement(
-                self._platform_runtime_application_service.revoke_module_license_for_organization(
+                self._module_entitlement_commands.revoke_module_license(
                     organization_id, module_code
                 )
             )
@@ -183,7 +190,7 @@ class PlatformRuntimeDesktopApi:
         return self._execute(
             lambda: tuple(
                 self._serialize_entitlement(entitlement)
-                for entitlement in self._platform_runtime_application_service.bulk_set_module_license(
+                for entitlement in self._module_entitlement_commands.bulk_set_module_license(
                     organization_module_pairs, licensed=licensed
                 )
             )
@@ -192,14 +199,18 @@ class PlatformRuntimeDesktopApi:
     def enable_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._execute(
             lambda: self._serialize_entitlement(
-                self._platform_runtime_application_service.enable_module(module_code)
+                self._module_entitlement_commands.enable_module(
+                    self._require_active_organization_id(), module_code
+                )
             )
         )
 
     def disable_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._execute(
             lambda: self._serialize_entitlement(
-                self._platform_runtime_application_service.disable_module(module_code)
+                self._module_entitlement_commands.disable_module(
+                    self._require_active_organization_id(), module_code
+                )
             )
         )
 
@@ -210,11 +221,19 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._execute(
             lambda: self._serialize_entitlement(
-                self._platform_runtime_application_service.transition_module_lifecycle(
-                    module_code, lifecycle_status
+                self._module_entitlement_commands.transition_module_lifecycle(
+                    self._require_active_organization_id(), module_code, lifecycle_status
                 )
             )
         )
+
+    def _require_active_organization_id(self) -> str:
+        """Active-organization module commands act on the caller's selected organization;
+        the `*_for_organization` variants take an explicit organization instead."""
+        active_organization = self._platform_runtime_application_service.get_active_organization()
+        if active_organization is None:
+            raise RuntimeError("Active organization is required to manage module entitlements.")
+        return active_organization.id
 
     def provision_organization(
         self,
@@ -222,25 +241,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
             lambda: self._serialize_organization(
-                self._platform_runtime_application_service.provision_organization(
-                    organization_code=command.organization_code,
-                    display_name=command.display_name,
-                    timezone_name=command.timezone_name,
-                    base_currency=command.base_currency,
-                    initial_module_codes=command.initial_module_codes,
-                    legal_name=command.legal_name,
-                    registration_number=command.registration_number,
-                    tax_id=command.tax_id,
-                    address_line_1=command.address_line_1,
-                    address_line_2=command.address_line_2,
-                    postal_code=command.postal_code,
-                    city=command.city,
-                    state_region=command.state_region,
-                    country_code=command.country_code,
-                    email=command.email,
-                    phone=command.phone,
-                    website=command.website,
-                )
+                self._platform_runtime_application_service.provision_organization(command)
             )
         )
 
@@ -250,26 +251,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
             lambda: self._serialize_organization(
-                self._platform_runtime_application_service.update_organization(
-                    command.organization_id,
-                    organization_code=command.organization_code,
-                    display_name=command.display_name,
-                    timezone_name=command.timezone_name,
-                    base_currency=command.base_currency,
-                    expected_version=command.expected_version,
-                    legal_name=command.legal_name,
-                    registration_number=command.registration_number,
-                    tax_id=command.tax_id,
-                    address_line_1=command.address_line_1,
-                    address_line_2=command.address_line_2,
-                    postal_code=command.postal_code,
-                    city=command.city,
-                    state_region=command.state_region,
-                    country_code=command.country_code,
-                    email=command.email,
-                    phone=command.phone,
-                    website=command.website,
-                )
+                self._platform_runtime_application_service.update_organization(command)
             )
         )
 

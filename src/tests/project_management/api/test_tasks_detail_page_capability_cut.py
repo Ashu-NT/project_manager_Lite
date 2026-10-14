@@ -3,15 +3,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.modules.project_management.api.desktop.tasks.commands.assignment_commands import (
-    TaskAssignmentHoursCommand,
-)
-from src.core.modules.project_management.api.desktop.tasks.commands.dependency_commands import (
-    TaskDependencyCreateCommand,
-    TaskDependencyUpdateCommand,
-)
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
+)
+from src.core.modules.project_management.contracts.use_cases.tasks.commands import (
+    TaskAssignmentHoursCommand,
+    TaskDependencyCreateCommand,
+    TaskDependencyUpdateCommand,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -22,7 +20,7 @@ def test_task_detail_pages_use_composed_query_handler(services) -> None:
     tasks = services["task_service"]
     predecessor = tasks.create_task(project.id, "Predecessor")
     task = tasks.create_task(project.id, "Delivery")
-    resource = services["resource_service"].create_resource("Planner")
+    resource = services["resource_master_commands"].create_resource("Planner")
     tasks.assign_resource(task.id, resource.id, allocation_percent=50)
     tasks.add_dependency(predecessor.id, task.id, DependencyType.FINISH_TO_START)
     api = build_project_management_tasks_desktop_api(

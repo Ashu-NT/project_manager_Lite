@@ -177,7 +177,6 @@ def test_schedule_actual_date_constraints_override_computed_dates(services):
 def test_gantt_data_matches_schedule_and_includes_unscheduled_tasks(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rp = services["reporting_service"]
     sched = services["scheduling_engine"]
 
     project = ps.create_project("Gantt Math", "")
@@ -189,7 +188,7 @@ def test_gantt_data_matches_schedule_and_includes_unscheduled_tasks(services):
     ts.add_dependency(t1.id, t3.id, DependencyType.FINISH_TO_START, lag_days=0)
 
     schedule = sched.recalculate_project_schedule(pid)
-    bars = rp.get_gantt_data(pid)
+    bars = services["project_kpi_report"].get_gantt_data(pid)
     by_id = _bar_map(bars)
 
     assert len(bars) == 3
@@ -207,7 +206,6 @@ def test_gantt_data_matches_schedule_and_includes_unscheduled_tasks(services):
 def test_gantt_reacts_to_new_dependency_constraints(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rp = services["reporting_service"]
     wc = services["work_calendar_engine"]
 
     project = ps.create_project("Gantt Dependency Shift", "")
@@ -216,12 +214,12 @@ def test_gantt_reacts_to_new_dependency_constraints(services):
     pred = ts.create_task(pid, "Predecessor", start_date=date(2023, 11, 6), duration_days=3)
     succ = ts.create_task(pid, "Successor", start_date=date(2023, 11, 6), duration_days=2)
 
-    before = {b.task_id: b for b in rp.get_gantt_data(pid)}
+    before = {b.task_id: b for b in services["project_kpi_report"].get_gantt_data(pid)}
     assert before[succ.id].start == date(2023, 11, 6)
 
     ts.add_dependency(pred.id, succ.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-    after = {b.task_id: b for b in rp.get_gantt_data(pid)}
+    after = {b.task_id: b for b in services["project_kpi_report"].get_gantt_data(pid)}
     expected_start = wc.next_working_day(after[pred.id].end, include_today=False)
     assert after[succ.id].start == expected_start
     assert after[succ.id].end == wc.add_working_days(expected_start, 2)

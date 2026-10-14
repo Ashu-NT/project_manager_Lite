@@ -140,6 +140,6 @@ def test_local_single_tenant_startup_retains_explicit_desktop_defaults(session) 
     assert repositories.organization_repo.list_for_tenant(tenant.id)
     assert bundle.user_session.active_tenant_id() == tenant.id
     assert bundle.user_session.active_organization_id() is not None
-    assert "auth.role.assign" in bundle.auth_service.build_principal(
+    assert "auth.role.assign" in bundle.auth.principals.build(
         admin
     ).permissions

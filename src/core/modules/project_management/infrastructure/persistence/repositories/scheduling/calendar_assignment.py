@@ -58,9 +58,7 @@ def _is_effective(effective_from, effective_to, at_date: date | None) -> bool:
         return True
     if effective_from is not None and at_date < effective_from:
         return False
-    if effective_to is not None and at_date > effective_to:
-        return False
-    return True
+    return not (effective_to is not None and at_date > effective_to)
 
 
 class SqlAlchemyProjectCalendarAssignmentRepository(

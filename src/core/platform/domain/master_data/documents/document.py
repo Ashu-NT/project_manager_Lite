@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 from enum import Enum
+from typing import Any, cast
 
 from pydantic import field_validator, model_validator
 
@@ -30,8 +31,6 @@ class DocumentStorageKind(str, Enum):
     EXTERNAL_URL = "EXTERNAL_URL"
     REFERENCE = "REFERENCE"
 
-
-DocumentClassification = DocumentType
 
 
 def _normalize_document_type(value: object) -> DocumentType:
@@ -84,7 +83,7 @@ def _normalize_optional_datetime(value: object) -> datetime | None:
     return value.astimezone(UTC)
 
 
-def _normalize_positive_int(value: object, *, code: str, message: str) -> int:
+def _normalize_positive_int(value: Any, *, code: str, message: str) -> int:
     try:
         resolved = int(value if value not in (None, "") else 1)
     except (TypeError, ValueError) as exc:
@@ -228,10 +227,10 @@ class Document:
         organization_id: str,
         document_code: str,
         title: str,
-        document_type: DocumentType = DocumentType.GENERAL,
+        document_type: DocumentType | str | None = DocumentType.GENERAL,
         document_structure_id: str | None = None,
-        storage_kind: DocumentStorageKind = DocumentStorageKind.FILE_PATH,
-        storage_uri: str = "",
+        storage_kind: DocumentStorageKind | str = DocumentStorageKind.FILE_PATH,
+        storage_uri: str | None = "",
         file_name: str = "",
         mime_type: str = "",
         source_system: str = "",
@@ -252,10 +251,11 @@ class Document:
             organization_id=organization_id,
             document_code=document_code,
             title=title,
-            document_type=document_type,
+            # Raw inputs are coerced/validated by the fields' "before" validators.
+            document_type=cast(DocumentType, document_type),
             document_structure_id=document_structure_id,
-            storage_kind=storage_kind,
-            storage_uri=storage_uri,
+            storage_kind=cast(DocumentStorageKind, storage_kind),
+            storage_uri=cast(str, storage_uri),
             file_name=file_name,
             mime_type=mime_type,
             source_system=source_system,
@@ -298,7 +298,6 @@ class Document:
 
 __all__ = [
     "Document",
-    "DocumentClassification",
     "DocumentStorageKind",
     "DocumentType",
 ]

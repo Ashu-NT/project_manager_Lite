@@ -42,7 +42,7 @@ def test_r5e_bounded_pages_at_long_lived_resource_scale(services, session) -> No
     user_session = services["user_session"]
     tenant_id = user_session.stored_active_tenant_id()
     organization_id = user_session.stored_active_organization_id()
-    resource = services["resource_service"].create_resource("R5E Scale Resource")
+    resource = services["resource_master_commands"].create_resource("R5E Scale Resource")
 
     project_count = 1_000
     assignment_count = 10_000

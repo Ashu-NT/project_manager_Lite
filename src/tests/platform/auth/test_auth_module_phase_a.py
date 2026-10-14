@@ -68,10 +68,9 @@ def test_session_principal_forced_revalidation_clears_revoked_session() -> None:
 
 
 def test_bootstrap_creates_admin_and_permissions(services):
-    auth = services["auth_service"]
 
-    admin = auth.authenticate("admin", "ChangeMe123!")
-    permissions = auth.get_user_permissions(admin.id)
+    admin = services["authentication"].authenticate("admin", "ChangeMe123!")
+    permissions = services["auth_queries"].get_user_permissions(admin.id)
 
     assert admin.must_change_password is True
     assert "auth.manage" in permissions
@@ -90,11 +89,10 @@ def test_bootstrap_requires_explicit_admin_password(session, monkeypatch):
 
 
 def test_register_user_creates_identity_without_customer_authority(services):
-    auth = services["auth_service"]
 
-    user = auth.register_user("alice", "StrongPass123")
-    authenticated = auth.authenticate("alice", "StrongPass123")
-    permissions = auth.get_user_permissions(user.id)
+    user = services["user_registration"].register_user("alice", "StrongPass123")
+    authenticated = services["authentication"].authenticate("alice", "StrongPass123")
+    permissions = services["auth_queries"].get_user_permissions(user.id)
 
     assert authenticated.id == user.id
     assert "project.read" not in permissions
@@ -102,42 +100,39 @@ def test_register_user_creates_identity_without_customer_authority(services):
 
 
 def test_assign_role_elevates_permissions(services):
-    auth = services["auth_service"]
     tenant_id = services["tenant_context_service"].require_active_tenant_id(
         operation_label="test canonical role assignment"
     )
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "planner-user",
         "StrongPass123",
         role_names=[],
         tenant_id=tenant_id,
     )
 
-    auth.assign_role(user.id, "planner")
-    permissions = auth.get_user_permissions(user.id)
+    services["role_assignment_commands"].assign_role(user.id, "planner")
+    permissions = services["auth_queries"].get_user_permissions(user.id)
 
     assert "task.manage" in permissions
     assert "baseline.manage" in permissions
 
 
 def test_register_user_rejects_weak_password(services):
-    auth = services["auth_service"]
 
     with pytest.raises(ValidationError):
-        auth.register_user("weak-pass-user", "123")
+        services["user_registration"].register_user("weak-pass-user", "123")
 
     with pytest.raises(ValidationError, match="uppercase"):
-        auth.register_user("weak-pass-user-2", "alllowercase123")
+        services["user_registration"].register_user("weak-pass-user-2", "alllowercase123")
 
     with pytest.raises(ValidationError, match="digit"):
-        auth.register_user("weak-pass-user-3", "NoDigitsHere")
+        services["user_registration"].register_user("weak-pass-user-3", "NoDigitsHere")
 
 
 def test_register_user_rejects_invalid_email(services):
-    auth = services["auth_service"]
 
     with pytest.raises(ValidationError, match="Invalid email format"):
-        auth.register_user(
+        services["user_registration"].register_user(
             "email-invalid-user",
             "StrongPass123",
             email="not-an-email",
@@ -145,9 +140,8 @@ def test_register_user_rejects_invalid_email(services):
 
 
 def test_register_user_normalizes_email(services):
-    auth = services["auth_service"]
 
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "email-normalized-user",
         "StrongPass123",
         email="  USER.Name@Example.COM  ",
@@ -157,42 +151,39 @@ def test_register_user_normalizes_email(services):
 
 
 def test_register_user_rolls_back_when_role_is_invalid(services):
-    auth = services["auth_service"]
 
     with pytest.raises(NotFoundError):
-        auth.register_user(
+        services["user_registration"].register_user(
             "transient-user",
             "StrongPass123",
             role_names=["missing-role"],
         )
 
-    created = auth.register_user("transient-user", "StrongPass123")
+    created = services["user_registration"].register_user("transient-user", "StrongPass123")
     assert created.username == "transient-user"
 
 
 def test_admin_can_reset_other_user_password(services):
-    auth = services["auth_service"]
-    user = auth.register_user("reset-target", "StrongPass123")
+    user = services["user_registration"].register_user("reset-target", "StrongPass123")
 
-    auth.reset_user_password(user.id, "NewStrongPass123")
+    services["password_commands"].reset_user_password(user.id, "NewStrongPass123")
 
-    authenticated = auth.authenticate("reset-target", "NewStrongPass123")
+    authenticated = services["authentication"].authenticate("reset-target", "NewStrongPass123")
     assert authenticated.id == user.id
     assert authenticated.must_change_password is True
     with pytest.raises(ValidationError, match="Invalid credentials"):
-        auth.authenticate("reset-target", "StrongPass123")
+        services["authentication"].authenticate("reset-target", "StrongPass123")
 
 
 def test_admin_can_edit_user_profile_without_touching_password(services):
-    auth = services["auth_service"]
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "profile-target",
         "StrongPass123",
         display_name="Old Name",
         email="old@example.com",
     )
 
-    updated = auth.update_user_profile(
+    updated = services["user_administration_commands"].update_user_profile(
         user.id,
         username="profile-target-updated",
         display_name="New Name",
@@ -202,34 +193,33 @@ def test_admin_can_edit_user_profile_without_touching_password(services):
     assert updated.username == "profile-target-updated"
     assert updated.display_name == "New Name"
     assert updated.email == "new@example.com"
-    assert auth.authenticate("profile-target-updated", "StrongPass123").id == user.id
+    assert services["authentication"].authenticate("profile-target-updated", "StrongPass123").id == user.id
 
 
 def test_auth_service_supports_federated_identity_and_mfa_hooks(services):
-    auth = services["auth_service"]
-    user = auth.register_user("federated-user", "StrongPass123", role_names=["viewer"])
+    user = services["user_registration"].register_user("federated-user", "StrongPass123", role_names=["viewer"])
 
-    linked = auth.link_federated_identity(
+    linked = services["federated_identity_commands"].link_federated_identity(
         user.id,
         identity_provider="AzureAD",
         federated_subject="oidc-user-123",
     )
-    secret = auth.provision_mfa_secret(user.id)
-    auth.enable_user_mfa(user.id, generate_totp_code(secret))
+    secret = services["mfa_commands"].provision_mfa_secret(user.id)
+    services["mfa_commands"].enable_user_mfa(user.id, generate_totp_code(secret))
 
     assert linked.identity_provider == "azuread"
     assert linked.federated_subject == "oidc-user-123"
 
     with pytest.raises(ValidationError, match="Multi-factor authentication code is required"):
-        auth.authenticate("federated-user", "StrongPass123")
+        services["authentication"].authenticate("federated-user", "StrongPass123")
 
-    password_login = auth.authenticate(
+    password_login = services["authentication"].authenticate(
         "federated-user",
         "StrongPass123",
         mfa_code=generate_totp_code(secret),
         device_label="QA Laptop",
     )
-    federated_login = auth.authenticate_federated(
+    federated_login = services["authentication"].authenticate_federated(
         identity_provider="azuread",
         federated_subject="oidc-user-123",
         mfa_code=generate_totp_code(secret),
@@ -244,26 +234,24 @@ def test_auth_service_supports_federated_identity_and_mfa_hooks(services):
 
 
 def test_auth_service_enforces_separation_of_duties_for_conflicting_roles(services):
-    auth = services["auth_service"]
 
     with pytest.raises(ValidationError, match="separation of duties"):
-        auth.register_user(
+        services["user_registration"].register_user(
             "sod-conflict-user",
             "StrongPass123",
             role_names=["planner", "approver"],
         )
 
-    access_user = auth.register_user("sod-access-user", "StrongPass123", role_names=["access_admin"])
+    access_user = services["user_registration"].register_user("sod-access-user", "StrongPass123", role_names=["access_admin"])
     with pytest.raises(ValidationError, match="separation of duties"):
-        auth.assign_role(access_user.id, "security_admin")
+        services["role_assignment_commands"].assign_role(access_user.id, "security_admin")
 
 
 def test_auth_service_supports_per_user_session_timeout_policy(services):
-    auth = services["auth_service"]
-    user = auth.register_user("session-policy-user", "StrongPass123", role_names=["viewer"])
+    user = services["user_registration"].register_user("session-policy-user", "StrongPass123", role_names=["viewer"])
 
-    auth.set_user_session_policy(user.id, session_timeout_minutes_override=30)
-    authenticated = auth.authenticate("session-policy-user", "StrongPass123")
+    services["auth_session_commands"].set_user_session_policy(user.id, session_timeout_minutes_override=30)
+    authenticated = services["authentication"].authenticate("session-policy-user", "StrongPass123")
 
     assert authenticated.session_expires_at is not None
     assert authenticated.last_login_at is not None
@@ -272,41 +260,37 @@ def test_auth_service_supports_per_user_session_timeout_policy(services):
 
 
 def test_edit_user_profile_rejects_duplicate_username(services):
-    auth = services["auth_service"]
-    auth.register_user("profile-alpha", "StrongPass123")
-    target = auth.register_user("profile-beta", "StrongPass123")
+    services["user_registration"].register_user("profile-alpha", "StrongPass123")
+    target = services["user_registration"].register_user("profile-beta", "StrongPass123")
 
     with pytest.raises(ValidationError, match="Username already exists"):
-        auth.update_user_profile(target.id, username="profile-alpha")
+        services["user_administration_commands"].update_user_profile(target.id, username="profile-alpha")
 
 
 def test_auth_service_persists_sessions_and_supports_single_session_revocation(services):
-    auth = services["auth_service"]
-    user = auth.register_user("session-persist-user", "StrongPass123", role_names=["viewer"])
+    user = services["user_registration"].register_user("session-persist-user", "StrongPass123", role_names=["viewer"])
 
-    desktop_login = auth.authenticate("session-persist-user", "StrongPass123", device_label="Desktop")
-    desktop_principal = auth.build_principal(desktop_login)
-    browser_login = auth.authenticate("session-persist-user", "StrongPass123", device_label="Browser")
-    browser_principal = auth.build_principal(browser_login)
-    sessions = auth.list_user_sessions(user.id)
+    desktop_login = services["authentication"].authenticate("session-persist-user", "StrongPass123", device_label="Desktop")
+    desktop_principal = services["principal_builder"].build(desktop_login)
+    browser_login = services["authentication"].authenticate("session-persist-user", "StrongPass123", device_label="Browser")
+    browser_principal = services["principal_builder"].build(browser_login)
+    sessions = services["auth_session_query"].list_user_sessions(user.id)
 
     assert desktop_principal.session_id is not None
     assert browser_principal.session_id is not None
     assert desktop_principal.session_id != browser_principal.session_id
     assert len(sessions) == 2
 
-    auth.revoke_session(desktop_principal.session_id, note="Revoke one device")
+    services["auth_session_commands"].revoke_session(desktop_principal.session_id, note="Revoke one device")
 
-    assert auth.validate_session_principal(desktop_principal) is None
-    assert auth.validate_session_principal(browser_principal) is not None
+    assert services["auth_session_commands"].validate_session_principal(desktop_principal) is None
+    assert services["auth_session_commands"].validate_session_principal(browser_principal) is not None
 
 
 def test_auth_service_restores_last_active_context_on_reauthentication(services):
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    organization_service = services["organization_service"]
 
-    restored_org = organization_service.create_organization(
+    restored_org = services["organization_commands"].create_organization(
         organization_code="RESTORE-ORG",
         display_name="Restore Org",
         timezone_name="UTC",
@@ -320,13 +304,13 @@ def test_auth_service_restores_last_active_context_on_reauthentication(services)
 
     persisted_current_session = next(
         session
-        for session in auth.list_user_sessions(current_principal.user_id)
+        for session in services["auth_session_query"].list_user_sessions(current_principal.user_id)
         if session.id == current_principal.session_id
     )
     assert persisted_current_session.last_active_organization_id == restored_org.id
 
-    reauthenticated_user = auth.authenticate("admin", "ChangeMe123!", device_label="Runtime Reauth")
-    reauthenticated_principal = auth.build_principal(reauthenticated_user)
+    reauthenticated_user = services["authentication"].authenticate("admin", "ChangeMe123!", device_label="Runtime Reauth")
+    reauthenticated_principal = services["principal_builder"].build(reauthenticated_user)
 
     assert reauthenticated_principal.active_organization_id == restored_org.id
     assert reauthenticated_principal.active_tenant_id == user_session.active_tenant_id()
@@ -339,7 +323,6 @@ def test_auth_service_restores_last_active_context_on_reauthentication(services)
 
 
 def test_validate_session_principal_updates_last_validated_at(services):
-    auth = services["auth_service"]
     principal = services["user_session"].principal
 
     assert principal is not None
@@ -352,7 +335,7 @@ def test_validate_session_principal_updates_last_validated_at(services):
     auth_session.updated_at = stale_validation_time
     services["session"].commit()
 
-    validated_principal = auth.validate_session_principal(principal)
+    validated_principal = services["auth_session_commands"].validate_session_principal(principal)
 
     assert validated_principal is not None
 

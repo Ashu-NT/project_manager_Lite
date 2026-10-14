@@ -6,20 +6,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.modules.project_management.application.portfolio.commands.portfolio_dependencies import (
-    PortfolioDependencyCommandMixin,
+from src.core.modules.project_management.application.portfolio.commands import (
+    PortfolioDependencyCommandHandler,
+    PortfolioIntakeCommandHandler,
+    PortfolioScenarioCommandHandler,
+    PortfolioTemplateCommandHandler,
 )
-from src.core.modules.project_management.application.portfolio.commands.portfolio_intake import (
-    PortfolioIntakeCommandMixin,
-)
-from src.core.modules.project_management.application.portfolio.commands.portfolio_scenarios import (
-    PortfolioScenarioCommandMixin,
-)
-from src.core.modules.project_management.application.portfolio.commands.portfolio_templates import (
-    PortfolioTemplateCommandMixin,
-)
-from src.core.modules.project_management.application.portfolio.utils.portfolio_support import (
-    PortfolioSupportMixin,
+from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
+    PortfolioPolicy,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.portfolio import (
@@ -215,17 +209,10 @@ class _FakePortfolioUnitOfWorkFactory:
         )
 
 
-class _PortfolioHarness(
-    PortfolioIntakeCommandMixin,
-    PortfolioDependencyCommandMixin,
-    PortfolioScenarioCommandMixin,
-    PortfolioSupportMixin,
-    PortfolioTemplateCommandMixin,
-):
-    DEFAULT_TEMPLATE_NAME = "Balanced PMO"
-    DEFAULT_TEMPLATE_SUMMARY = (
-        "Balanced template for strategic fit, value, urgency, and delivery risk."
-    )
+class _PortfolioHarness:
+    """Wires the real portfolio command handlers + shared PortfolioPolicy over
+    in-memory fakes. The UoW factory shares the SAME fake repo instances the
+    handlers read from directly."""
 
     def __init__(self, *, project_ids: list[str] | None = None) -> None:
         self._session = _FakeSession()
@@ -234,9 +221,9 @@ class _PortfolioHarness(
         self._scoring_template_repo = _FakeTemplateRepo()
         self._dependency_repo = _FakeDependencyRepo()
         self._project_repo = _FakeProjectRepo(project_ids=project_ids)
-        self._tenant_context_service = _FakeTenantContext()
-        self._user_session = object()
-        self._uow_factory = _FakePortfolioUnitOfWorkFactory(
+        tenant_context = _FakeTenantContext()
+        user_session = object()
+        uow_factory = _FakePortfolioUnitOfWorkFactory(
             session=self._session,
             repos={
                 "intake": self._intake_repo,
@@ -245,14 +232,23 @@ class _PortfolioHarness(
                 "dependencies": self._dependency_repo,
             },
         )
-
-    def _require_uow_factory(self) -> _FakePortfolioUnitOfWorkFactory:
-        return self._uow_factory
-
-    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
-        from src.core.platform.common.ids import generate_id
-
-        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
+        policy = PortfolioPolicy(
+            tenant_context_service=tenant_context,
+            project_repo=self._project_repo,
+            intake_repo=self._intake_repo,
+            scoring_template_repo=self._scoring_template_repo,
+            uow_factory=uow_factory,
+            user_session=user_session,
+        )
+        common = {"policy": policy, "uow_factory": uow_factory, "user_session": user_session}
+        self.intake = PortfolioIntakeCommandHandler(intake_repo=self._intake_repo, **common)
+        self.scenarios = PortfolioScenarioCommandHandler(scenario_repo=self._scenario_repo, **common)
+        self.templates = PortfolioTemplateCommandHandler(
+            scoring_template_repo=self._scoring_template_repo, **common
+        )
+        self.dependencies = PortfolioDependencyCommandHandler(
+            dependency_repo=self._dependency_repo, **common
+        )
 
 
 def _make_service(
@@ -281,7 +277,7 @@ def _make_service(
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.modules.project_management.application.portfolio.utils.portfolio_support.filter_project_rows",
+        "src.core.modules.project_management.application.portfolio.utils.portfolio_policy.filter_project_rows",
         lambda projects, *_args, **_kwargs: list(projects),
     )
     return _PortfolioHarness(project_ids=project_ids)
@@ -439,7 +435,7 @@ def test_portfolio_dependency_entity_normalizes_local_fields():
 def test_portfolio_intake_service_update_validates_final_state(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
 
-    created = service.create_intake_item(
+    created = service.intake.create_intake_item(
         title="  ERP Modernization  ",
         sponsor_name="  PMO  ",
         requested_budget=1200.0,
@@ -449,7 +445,7 @@ def test_portfolio_intake_service_update_validates_final_state(monkeypatch: pyte
         urgency_score=2,
         risk_score=1,
     )
-    risk_template = service.create_scoring_template(
+    risk_template = service.templates.create_scoring_template(
         name="  Risk First  ",
         strategic_weight=1,
         value_weight=1,
@@ -458,7 +454,7 @@ def test_portfolio_intake_service_update_validates_final_state(monkeypatch: pyte
         activate=False,
     )
 
-    updated = service.update_intake_item(
+    updated = service.intake.update_intake_item(
         created.id,
         title="  ERP Modernization Phase 2  ",
         sponsor_name="  Strategy Office  ",
@@ -485,15 +481,15 @@ def test_portfolio_intake_service_update_validates_final_state(monkeypatch: pyte
     assert updated.version == 2
     assert updated.target_start_date == date(2026, 11, 1)
 
-    cleared = service.update_intake_item(created.id, target_start_date=None)
+    cleared = service.intake.update_intake_item(created.id, target_start_date=None)
     assert cleared.target_start_date is None
 
     with pytest.raises(ValidationError) as exc:
-        service.update_intake_item(created.id, title=" ")
+        service.intake.update_intake_item(created.id, title=" ")
     assert exc.value.code == "PORTFOLIO_INTAKE_TITLE_REQUIRED"
 
     with pytest.raises(TypeError):
-        service.update_intake_item(created.id, unknown_field="ignored")
+        service.intake.update_intake_item(created.id, unknown_field="ignored")
 
 
 def test_portfolio_scenario_service_normalizes_ids_and_enforces_scope(
@@ -501,11 +497,11 @@ def test_portfolio_scenario_service_normalizes_ids_and_enforces_scope(
 ):
     service = _make_service(monkeypatch, project_ids=["proj-1", "proj-2"])
 
-    intake = service.create_intake_item(
+    intake = service.intake.create_intake_item(
         title="Portfolio Intake",
         sponsor_name="PMO",
     )
-    scenario = service.create_scenario(
+    scenario = service.scenarios.create_scenario(
         name="  Selective Plan  ",
         budget_limit="900",
         capacity_limit_percent="70",
@@ -519,7 +515,7 @@ def test_portfolio_scenario_service_normalizes_ids_and_enforces_scope(
     assert scenario.intake_item_ids == [intake.id]
     assert scenario.notes == "Focus on delivery confidence."
 
-    updated = service.update_scenario(
+    updated = service.scenarios.update_scenario(
         scenario.id,
         budget_limit=None,
         capacity_limit_percent="55",
@@ -533,11 +529,11 @@ def test_portfolio_scenario_service_normalizes_ids_and_enforces_scope(
     assert updated.notes == "Rephase into a single wave."
 
     with pytest.raises(ValidationError) as exc:
-        service.update_scenario(scenario.id, project_ids=["proj-unknown"])
+        service.scenarios.update_scenario(scenario.id, project_ids=["proj-unknown"])
     assert exc.value.code == "PORTFOLIO_PROJECT_SCOPE_INVALID"
 
     with pytest.raises(TypeError):
-        service.update_scenario(scenario.id, unknown_field="ignored")
+        service.scenarios.update_scenario(scenario.id, unknown_field="ignored")
 
 
 def test_portfolio_dependency_service_keeps_scope_and_duplicate_rules_in_service(
@@ -545,7 +541,7 @@ def test_portfolio_dependency_service_keeps_scope_and_duplicate_rules_in_service
 ):
     service = _make_service(monkeypatch, project_ids=["proj-1", "proj-2"])
 
-    created = service.create_project_dependency(
+    created = service.dependencies.create_project_dependency(
         predecessor_project_id="  proj-1  ",
         successor_project_id="  proj-2  ",
         dependency_type="fs",
@@ -558,7 +554,7 @@ def test_portfolio_dependency_service_keeps_scope_and_duplicate_rules_in_service
     assert created.summary == "Alpha gates Beta launch."
 
     with pytest.raises(ValidationError) as exc_duplicate:
-        service.create_project_dependency(
+        service.dependencies.create_project_dependency(
             predecessor_project_id="proj-1",
             successor_project_id="proj-2",
             dependency_type="FS",
@@ -566,7 +562,7 @@ def test_portfolio_dependency_service_keeps_scope_and_duplicate_rules_in_service
     assert exc_duplicate.value.code == "PORTFOLIO_DEPENDENCY_DUPLICATE"
 
     with pytest.raises(ValidationError) as exc_scope:
-        service.create_project_dependency(
+        service.dependencies.create_project_dependency(
             predecessor_project_id="proj-1",
             successor_project_id="proj-9",
         )
@@ -578,7 +574,7 @@ def test_portfolio_template_service_keeps_duplicate_check_in_service(
 ):
     service = _make_service(monkeypatch)
 
-    created = service.create_scoring_template(
+    created = service.templates.create_scoring_template(
         name="  Value First  ",
         summary="  Push value ahead of urgency.  ",
         strategic_weight=1,
@@ -592,16 +588,16 @@ def test_portfolio_template_service_keeps_duplicate_check_in_service(
     assert created.organization_id == "org-1"
     assert created.is_active is True
 
-    activated = service.activate_scoring_template(created.id)
+    activated = service.templates.activate_scoring_template(created.id)
     assert activated.id == created.id
     assert activated.is_active is True
 
     with pytest.raises(ValidationError) as exc_duplicate:
-        service.create_scoring_template(name="value first")
+        service.templates.create_scoring_template(name="value first")
     assert exc_duplicate.value.code == "PORTFOLIO_TEMPLATE_DUPLICATE"
 
     with pytest.raises(ValidationError) as exc_mix:
-        service.create_scoring_template(
+        service.templates.create_scoring_template(
             name="Zero Delivery Mix",
             strategic_weight=0,
             value_weight=0,

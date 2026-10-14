@@ -75,7 +75,6 @@ from src.core.modules.project_management.application.tasks.queries.task_workspac
 from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
     TaskUowScope,
 )
-from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.infrastructure.composition.context import (
     ProjectManagementRepositoryContext,
 )
@@ -88,6 +87,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.tasks 
 from src.core.modules.project_management.infrastructure.persistence.uow.tasks.task_unit_of_work import (
     SqlAlchemyTaskUnitOfWorkFactory,
 )
+from src.core.platform.application.time_management.time import TimeEntryQueryHandler
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
@@ -99,7 +99,7 @@ def build_task_capabilities(
     repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
-    timesheet_service: TimesheetService,
+    time_entry_queries: TimeEntryQueryHandler,
     work_calendar_engine: CalendarProtocol,
     scheduling_engine: SchedulingEngine,
     assignment_skill_validator: AssignmentSkillValidator,
@@ -218,7 +218,7 @@ def build_task_capabilities(
         overallocation_policy="strict" if overallocation_policy == "strict" else "warn",
     )
     time_entry_handler = TaskTimeEntryHandler(
-        timesheet_service=timesheet_service,
+        time_queries=time_entry_queries,
         task_repo=repositories.pm.task_repo,
         assignment_repo=repositories.pm.assignment_repo,
         user_session=platform_services.user_session,

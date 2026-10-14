@@ -38,8 +38,7 @@ def test_master_data_exchange_service_imports_and_exports_shared_sites_and_parti
 
 
 def test_master_data_exchange_service_requires_settings_manage_for_imports(services, tmp_path):
-    auth = services["auth_service"]
-    auth.register_user("inventory-master-export", "StrongPass123", role_names=["inventory_manager"])
+    services["user_registration"].register_user("inventory-master-export", "StrongPass123", role_names=["inventory_manager"])
     login_as(services, "inventory-master-export", "StrongPass123")
 
     service = services["master_data_exchange_service"]

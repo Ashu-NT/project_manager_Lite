@@ -118,10 +118,9 @@ def _portfolio_hints(hints):
 
 
 def test_create_intake_item_produces_one_hint_and_atomic_audit(services):
-    portfolio = services["portfolio_service"]
     hints = _spy_hints(services)
 
-    item = portfolio.create_intake_item(title="P42 intake", sponsor_name="Sponsor")
+    item = services["portfolio_intake_commands"].create_intake_item(title="P42 intake", sponsor_name="Sponsor")
 
     assert len(_portfolio_hints(hints)) == 1
     assert item.status.value == "PROPOSED"
@@ -139,59 +138,55 @@ def test_create_intake_item_produces_one_hint_and_atomic_audit(services):
 
 
 def test_update_intake_item_produces_one_hint(services):
-    portfolio = services["portfolio_service"]
-    item = portfolio.create_intake_item(title="P42 intake 2", sponsor_name="Sponsor")
+    item = services["portfolio_intake_commands"].create_intake_item(title="P42 intake 2", sponsor_name="Sponsor")
     hints = _spy_hints(services)
 
-    updated = portfolio.update_intake_item(item.id, title="P42 intake 2 renamed")
+    updated = services["portfolio_intake_commands"].update_intake_item(item.id, title="P42 intake 2 renamed")
 
     assert len(_portfolio_hints(hints)) == 1
     assert updated.title == "P42 intake 2 renamed"
 
 
 def test_create_and_update_scenario_produce_hints(services):
-    portfolio = services["portfolio_service"]
     hints = _spy_hints(services)
 
-    scenario = portfolio.create_scenario(name="P42 scenario")
+    scenario = services["portfolio_scenario_commands"].create_scenario(name="P42 scenario")
     assert len(_portfolio_hints(hints)) == 1
 
-    updated = portfolio.update_scenario(scenario.id, name="P42 scenario renamed")
+    updated = services["portfolio_scenario_commands"].update_scenario(scenario.id, name="P42 scenario renamed")
     assert len(_portfolio_hints(hints)) == 2
     assert updated.name == "P42 scenario renamed"
 
 
 def test_create_and_remove_dependency_produce_hints(services):
-    portfolio = services["portfolio_service"]
     project_service = services["project_service"]
     project_a = project_service.create_project("P42 dependency A")
     project_b = project_service.create_project("P42 dependency B")
     hints = _spy_hints(services)
 
-    dependency = portfolio.create_project_dependency(
+    dependency = services["portfolio_dependency_commands"].create_project_dependency(
         predecessor_project_id=project_a.id, successor_project_id=project_b.id
     )
     assert len(_portfolio_hints(hints)) == 1
 
-    portfolio.remove_project_dependency(dependency.id)
+    services["portfolio_dependency_commands"].remove_project_dependency(dependency.id)
     assert len(_portfolio_hints(hints)) == 2
-    assert portfolio._dependency_repo.get(dependency.id) is None
+    assert services["portfolio_dependency_commands"]._dependency_repo.get(dependency.id) is None
 
 
 def test_create_scoring_template_and_activate_produce_hints_including_deactivation(services):
     """`activate_scoring_template` mutates TWO rows -- the newly-activated one AND the
     previously-active one -- so it must record (and stale-notify for) both real facts, not hide
     the deactivation behind a single broad event."""
-    portfolio = services["portfolio_service"]
-    first = portfolio.create_scoring_template(name="P42 template A", activate=True)
+    first = services["portfolio_template_commands"].create_scoring_template(name="P42 template A", activate=True)
     hints = _spy_hints(services)
 
-    second = portfolio.create_scoring_template(name="P42 template B", activate=False)
+    second = services["portfolio_template_commands"].create_scoring_template(name="P42 template B", activate=False)
     assert len(_portfolio_hints(hints)) == 1
 
-    activated = portfolio.activate_scoring_template(second.id)
+    activated = services["portfolio_template_commands"].activate_scoring_template(second.id)
     assert activated.is_active is True
-    reloaded_first = portfolio._scoring_template_repo.get(first.id)
+    reloaded_first = services["portfolio_template_commands"]._scoring_template_repo.get(first.id)
     assert reloaded_first.is_active is False
     # Two rows genuinely changed in one transaction -> two hints notified for that transaction,
     # both coalescing to the same one workspace target (verified structurally above); here we
@@ -207,11 +202,10 @@ def test_create_scoring_template_and_activate_produce_hints_including_deactivati
 def test_dependency_creation_across_organizations_is_rejected_with_zero_write(services):
     """A project outside the active organization must never be attachable to a portfolio
     dependency -- zero mutation, zero audit, zero event."""
-    portfolio = services["portfolio_service"]
     hints = _spy_hints(services)
 
     with pytest.raises(ValidationError):
-        portfolio.create_project_dependency(
+        services["portfolio_dependency_commands"].create_project_dependency(
             predecessor_project_id="not-a-real-project-id",
             successor_project_id="also-not-a-real-project-id",
         )

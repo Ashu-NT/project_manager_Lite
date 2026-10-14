@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
+from typing import Any, cast
 
 from pydantic import field_validator, model_validator
 
@@ -138,7 +139,7 @@ class ProjectRateCard:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -315,7 +316,7 @@ class RateCardLine:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -397,7 +398,7 @@ class RateCardLine:
             tenant_id=tenant_id,
             organization_id=organization_id,
             rate_card_id=rate_card_id,
-            rate_type=rate_type,
+            rate_type=cast(RateType, rate_type),  # coerced by the field's before-validator
             unit=unit,
             rate_amount=rate_amount,
             rate_currency=rate_currency,

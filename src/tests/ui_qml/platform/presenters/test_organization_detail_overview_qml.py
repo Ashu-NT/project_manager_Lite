@@ -143,7 +143,7 @@ def test_inactive_organization_actions_menu_offers_activate_not_deactivate():
 
 
 def test_archived_organization_has_no_lifecycle_actions_in_the_menu():
-    """Archived is terminal (OrganizationService._require_valid_organization_
+    """Archived is terminal (the Organization handlers._require_valid_organization_
     transition rejects every transition out of it) -- the Actions menu must
     not offer a reactivation/deactivation command that would only be
     rejected by the backend. The whole menu trigger is hidden rather than

@@ -27,6 +27,19 @@ from src.ui_qml.modules.project_management.context import (
 )
 
 
+def _collaboration_api(service):
+    """Feed one fake (implementing every collaboration handler method) to each handler slot."""
+    return build_project_management_collaboration_desktop_api(
+        inbox_query=service,
+        comment_query=service,
+        document_query=service,
+        presence_query=service,
+        comment_commands=service,
+        comment_engagement=service,
+        presence_commands=service,
+    )
+
+
 class _FakePmRuntimeApi:
     def __init__(self, organization_id: str | None = "org-1") -> None:
         self._organization_id = organization_id
@@ -744,7 +757,7 @@ def build_task_controller_bundle(tmp_path: Path) -> dict:
             if project_id == "proj-1"
             else []
         ),
-        resource_service=SimpleNamespace(
+        resource_query=SimpleNamespace(
             list_for_task_workspace=lambda **_kwargs: [
                 SimpleNamespace(
                     id="res-1",
@@ -757,9 +770,7 @@ def build_task_controller_bundle(tmp_path: Path) -> dict:
         ),
     )
     collaboration_service = _FakeCollaborationService()
-    collaboration_api = build_project_management_collaboration_desktop_api(
-        collaboration_service=collaboration_service
-    )
+    collaboration_api = _collaboration_api(collaboration_service)
     timesheets_api = _FakeTaskTimesheetsDesktopApi()
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(

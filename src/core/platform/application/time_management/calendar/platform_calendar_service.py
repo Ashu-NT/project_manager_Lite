@@ -373,7 +373,7 @@ class PlatformCalendarService:
 
         # The calendar's own working-time interpretation is local to its
         # configured timezone, not UTC -- prefer the organization's own
-        # configured timezone (same as OrganizationService's own
+        # configured timezone (same as the Organization handlers' own
         # _add_default_calendar_rows, which creates this same shape of
         # calendar transactionally at organization-creation time; this path
         # only runs for organizations that predate that invariant).
@@ -448,7 +448,7 @@ class PlatformCalendarService:
             # compute_hours() would silently read as only 7 net hours the
             # moment hours_override is ever cleared).
             start_total_minutes = 8 * 60
-            end_total_minutes = start_total_minutes + int(round(hours * 60)) + break_minutes
+            end_total_minutes = start_total_minutes + round(hours * 60) + break_minutes
             end_hour = min(end_total_minutes // 60, 23)
             end_minute = end_total_minutes % 60
             for weekday in range(7):

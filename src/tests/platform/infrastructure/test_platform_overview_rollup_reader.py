@@ -8,7 +8,7 @@ branching and a platform-role exclusion computed via per-user role lookups that 
 would not safely replicate).
 
 Sites additionally carries row-level scope restriction on top of the permission check
-(`SiteService.list_sites()` applies `filter_scope_rows()`) -- `get_site_rollup_summary()`
+(`SiteQueryHandler.list_sites()` applies `filter_scope_rows()`) -- `get_site_rollup_summary()`
 replicates that restriction by passing the caller's `allowed_site_ids` into the reader.
 
 Structure: reader-level unit tests (exact query count + tenancy/organization scoping, isolated
@@ -23,6 +23,18 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.party.commands import (
+    PartyCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.master_data.party import PartyLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
@@ -459,84 +471,78 @@ def test_document_summary_issues_exactly_one_sql_statement(reader_session):
 
 
 def test_organization_service_get_organization_count_reflects_writes(services):
-    organization_service = services["organization_service"]
 
-    baseline = organization_service.get_organization_count()
-    organization_service.create_organization(
+    baseline = services["organization_query"].get_organization_count()
+    services["organization_commands"].create_organization(
         organization_code="ROLLUP-ORG-1",
         display_name="Rollup Org 1",
         timezone_name="UTC",
         base_currency="USD",
     )
 
-    assert organization_service.get_organization_count() == baseline + 1
+    assert services["organization_query"].get_organization_count() == baseline + 1
 
 
 def test_site_service_get_site_rollup_summary_reflects_writes(services):
-    site_service = services["site_service"]
 
-    baseline = site_service.get_site_rollup_summary()
-    site_service.create_site(site_code="ROLLUP-S1", name="Rollup Site 1")
-    inactive_site = site_service.create_site(site_code="ROLLUP-S2", name="Rollup Site 2")
-    site_service.deactivate_site(inactive_site.id)
+    baseline = services["site_query"].get_site_rollup_summary()
+    services["site_commands"].create_site(SiteCreateCommand(site_code="ROLLUP-S1", name="Rollup Site 1"))
+    inactive_site = services["site_commands"].create_site(SiteCreateCommand(site_code="ROLLUP-S2", name="Rollup Site 2"))
+    services["site_commands"].deactivate_site(inactive_site.id)
 
-    updated = site_service.get_site_rollup_summary()
+    updated = services["site_query"].get_site_rollup_summary()
     assert updated.total == baseline.total + 2
     assert updated.active == baseline.active + 1
 
 
 def test_department_service_get_department_rollup_summary_reflects_writes(services):
-    department_service = services["department_service"]
 
-    baseline = department_service.get_department_rollup_summary()
-    department_service.create_department(department_code="ROLLUP-D1", name="Rollup Dept 1")
-    inactive_department = department_service.create_department(department_code="ROLLUP-D2", name="Rollup Dept 2")
-    department_service.deactivate_department(inactive_department.id)
+    baseline = services["department_query"].get_department_rollup_summary()
+    services["department_commands"].create_department(DepartmentCreateCommand(department_code="ROLLUP-D1", name="Rollup Dept 1"))
+    inactive_department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="ROLLUP-D2", name="Rollup Dept 2"))
+    services["department_commands"].deactivate_department(inactive_department.id)
 
-    updated = department_service.get_department_rollup_summary()
+    updated = services["department_query"].get_department_rollup_summary()
     assert updated.total == baseline.total + 2
     assert updated.active == baseline.active + 1
 
 
 def test_party_service_get_party_rollup_summary_reflects_writes(services):
-    party_service = services["party_service"]
 
-    baseline = party_service.get_party_rollup_summary()
-    party_service.create_party(party_code="ROLLUP-P1", party_name="Rollup Party 1")
-    inactive_party = party_service.create_party(party_code="ROLLUP-P2", party_name="Rollup Party 2")
-    party_service.deactivate_party(inactive_party.id)
+    baseline = services["party_query"].get_party_rollup_summary()
+    services["party_commands"].create_party(PartyCreateCommand(party_code="ROLLUP-P1", party_name="Rollup Party 1"))
+    inactive_party = services["party_commands"].create_party(PartyCreateCommand(party_code="ROLLUP-P2", party_name="Rollup Party 2"))
+    services["party_commands"].deactivate_party(inactive_party.id)
 
-    updated = party_service.get_party_rollup_summary()
+    updated = services["party_query"].get_party_rollup_summary()
     assert updated.total == baseline.total + 2
     assert updated.active == baseline.active + 1
 
 
 def test_document_service_get_document_rollup_summary_reflects_writes(services):
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
+    document_query = services["document_query"]
 
-    baseline = document_service.get_document_rollup_summary()
-    document_service.create_document(document_code="ROLLUP-DOC1", title="Rollup Doc 1", storage_uri="/docs/rollup-doc1.pdf", is_current=True)
-    document_service.create_document(document_code="ROLLUP-DOC2", title="Rollup Doc 2", storage_uri="/docs/rollup-doc2.pdf", is_current=False)
+    baseline = document_query.get_document_rollup_summary()
+    document_commands.create_document(DocumentCreateCommand(document_code="ROLLUP-DOC1", title="Rollup Doc 1", storage_uri="/docs/rollup-doc1.pdf", is_current=True))
+    document_commands.create_document(DocumentCreateCommand(document_code="ROLLUP-DOC2", title="Rollup Doc 2", storage_uri="/docs/rollup-doc2.pdf", is_current=False))
 
-    updated = document_service.get_document_rollup_summary()
+    updated = document_query.get_document_rollup_summary()
     assert updated.total == baseline.total + 2
     assert updated.current == baseline.current + 1
 
 
 def test_rollup_summaries_isolated_per_organization(services):
-    organization_service = services["organization_service"]
-    site_service = services["site_service"]
-    department_service = services["department_service"]
-    party_service = services["party_service"]
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
+    document_query = services["document_query"]
 
     default_organization = services["tenant_context_service"].get_active_organization()
-    site_service.create_site(site_code="ISO-S1", name="Iso Site 1")
-    department_service.create_department(department_code="ISO-D1", name="Iso Dept 1")
-    party_service.create_party(party_code="ISO-P1", party_name="Iso Party 1")
-    document_service.create_document(document_code="ISO-DOC1", title="Iso Doc 1", storage_uri="/docs/iso-doc1.pdf", is_current=True)
+    services["site_commands"].create_site(SiteCreateCommand(site_code="ISO-S1", name="Iso Site 1"))
+    services["department_commands"].create_department(DepartmentCreateCommand(department_code="ISO-D1", name="Iso Dept 1"))
+    services["party_commands"].create_party(PartyCreateCommand(party_code="ISO-P1", party_name="Iso Party 1"))
+    document_commands.create_document(DocumentCreateCommand(document_code="ISO-DOC1", title="Iso Doc 1", storage_uri="/docs/iso-doc1.pdf", is_current=True))
 
-    second_organization = organization_service.create_organization(
+    second_organization = services["organization_commands"].create_organization(
         organization_code="ISO-SECOND",
         display_name="Second Org",
         timezone_name="UTC",
@@ -544,20 +550,20 @@ def test_rollup_summaries_isolated_per_organization(services):
     )
     services["tenant_context_service"].set_active_organization(second_organization.id)
 
-    assert site_service.get_site_rollup_summary().total == 0
-    assert department_service.get_department_rollup_summary().total == 0
-    assert party_service.get_party_rollup_summary().total == 0
-    assert document_service.get_document_rollup_summary().total == 0
+    assert services["site_query"].get_site_rollup_summary().total == 0
+    assert services["department_query"].get_department_rollup_summary().total == 0
+    assert services["party_query"].get_party_rollup_summary().total == 0
+    assert document_query.get_document_rollup_summary().total == 0
 
     services["tenant_context_service"].set_active_organization(default_organization.id)
-    assert site_service.get_site_rollup_summary().total >= 1
-    assert department_service.get_department_rollup_summary().total >= 1
-    assert party_service.get_party_rollup_summary().total >= 1
-    assert document_service.get_document_rollup_summary().total >= 1
+    assert services["site_query"].get_site_rollup_summary().total >= 1
+    assert services["department_query"].get_department_rollup_summary().total >= 1
+    assert services["party_query"].get_party_rollup_summary().total >= 1
+    assert document_query.get_document_rollup_summary().total >= 1
 
 
 def test_site_rollup_summary_respects_scope_restriction(services):
-    """SiteService.list_sites() restricts rows to the caller's site-scope
+    """SiteQueryHandler.list_sites() restricts rows to the caller's site-scope
     grants via filter_scope_rows() when the caller is scope-restricted for
     the "site" scope type -- get_site_rollup_summary() must reflect the
     same restricted view, not the full organization's sites."""
@@ -565,12 +571,11 @@ def test_site_rollup_summary_respects_scope_restriction(services):
         get_authorization_engine,
     )
 
-    site_service = services["site_service"]
-    site_a = site_service.create_site(site_code="SCOPE-A", name="Scope Site A")
-    site_service.create_site(site_code="SCOPE-B", name="Scope Site B")
+    site_a = services["site_commands"].create_site(SiteCreateCommand(site_code="SCOPE-A", name="Scope Site A"))
+    services["site_commands"].create_site(SiteCreateCommand(site_code="SCOPE-B", name="Scope Site B"))
 
     engine = get_authorization_engine()
-    unrestricted_summary = site_service.get_site_rollup_summary()
+    unrestricted_summary = services["site_query"].get_site_rollup_summary()
     assert unrestricted_summary.total >= 2
 
     original_is_scope_restricted = type(engine).is_scope_restricted
@@ -589,7 +594,7 @@ def test_site_rollup_summary_respects_scope_restriction(services):
     type(engine).is_scope_restricted = _fake_is_scope_restricted
     type(engine).scope_ids_for = _fake_scope_ids_for
     try:
-        restricted_summary = site_service.get_site_rollup_summary()
+        restricted_summary = services["site_query"].get_site_rollup_summary()
     finally:
         type(engine).is_scope_restricted = original_is_scope_restricted
         type(engine).scope_ids_for = original_scope_ids_for
@@ -621,30 +626,27 @@ def _instrument(cls, method_name):
 
 
 def test_rollup_summaries_never_call_write_repository_list_methods(services):
-    organization_service = services["organization_service"]
-    site_service = services["site_service"]
-    department_service = services["department_service"]
-    party_service = services["party_service"]
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
+    document_query = services["document_query"]
 
     for i in range(20):
-        sql_site = site_service.create_site(site_code=f"SQL-S{i}", name=f"SQL Site {i}")
+        sql_site = services["site_commands"].create_site(SiteCreateCommand(site_code=f"SQL-S{i}", name=f"SQL Site {i}"))
         if i % 2 != 0:
-            site_service.deactivate_site(sql_site.id)
-        sql_department = department_service.create_department(department_code=f"SQL-D{i}", name=f"SQL Dept {i}")
+            services["site_commands"].deactivate_site(sql_site.id)
+        sql_department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"SQL-D{i}", name=f"SQL Dept {i}"))
         if i % 2 != 0:
-            department_service.deactivate_department(sql_department.id)
-        sql_party = party_service.create_party(party_code=f"SQL-P{i}", party_name=f"SQL Party {i}")
+            services["department_commands"].deactivate_department(sql_department.id)
+        sql_party = services["party_commands"].create_party(PartyCreateCommand(party_code=f"SQL-P{i}", party_name=f"SQL Party {i}"))
         if i % 2 != 0:
-            party_service.deactivate_party(sql_party.id)
-        document_service.create_document(document_code=f"SQL-DOC{i}", title=f"SQL Doc {i}", storage_uri=f"/docs/sql-doc{i}.pdf", is_current=(i % 2 == 0))
+            services["party_commands"].deactivate_party(sql_party.id)
+        document_commands.create_document(DocumentCreateCommand(document_code=f"SQL-DOC{i}", title=f"SQL Doc {i}", storage_uri=f"/docs/sql-doc{i}.pdf", is_current=i % 2 == 0))
 
     instrumented = [
-        (type(organization_service._organization_repo), "list_all"),
-        (type(site_service._site_repo), "list_for_organization"),
-        (type(department_service._department_repo), "list_for_organization"),
-        (type(party_service._party_repo), "list_for_organization"),
-        (type(document_service._document_repo), "list_for_organization"),
+        (type(services["organization_query"]._organization_repo), "list_all"),
+        (type(services["site_query"]._site_repo), "list_for_organization"),
+        (type(services["department_query"]._department_repo), "list_for_organization"),
+        (type(services["party_query"]._party_repo), "list_for_organization"),
+        (type(services["document_query"]._document_repo), "list_for_organization"),
     ]
     counters = []
     restores = []
@@ -654,11 +656,11 @@ def test_rollup_summaries_never_call_write_repository_list_methods(services):
         restores.append(restore)
 
     try:
-        organization_service.get_organization_count()
-        site_service.get_site_rollup_summary()
-        department_service.get_department_rollup_summary()
-        party_service.get_party_rollup_summary()
-        document_service.get_document_rollup_summary()
+        services["organization_query"].get_organization_count()
+        services["site_query"].get_site_rollup_summary()
+        services["department_query"].get_department_rollup_summary()
+        services["party_query"].get_party_rollup_summary()
+        document_query.get_document_rollup_summary()
     finally:
         for restore in restores:
             restore()
@@ -677,39 +679,36 @@ def test_admin_overview_never_lists_full_master_data_collections(services):
     from src.application.runtime import build_desktop_api_registry
     from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
-    organization_service = services["organization_service"]
-    site_service = services["site_service"]
-    department_service = services["department_service"]
-    party_service = services["party_service"]
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
+    document_query = services["document_query"]
 
     for i in range(15):
-        ov_site = site_service.create_site(site_code=f"OV-S{i}", name=f"Overview Site {i}")
+        ov_site = services["site_commands"].create_site(SiteCreateCommand(site_code=f"OV-S{i}", name=f"Overview Site {i}"))
         if i % 3 != 0:
-            site_service.deactivate_site(ov_site.id)
-        ov_department = department_service.create_department(department_code=f"OV-D{i}", name=f"Overview Dept {i}")
+            services["site_commands"].deactivate_site(ov_site.id)
+        ov_department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"OV-D{i}", name=f"Overview Dept {i}"))
         if i % 3 != 0:
-            department_service.deactivate_department(ov_department.id)
-        ov_party = party_service.create_party(party_code=f"OV-P{i}", party_name=f"Overview Party {i}")
+            services["department_commands"].deactivate_department(ov_department.id)
+        ov_party = services["party_commands"].create_party(PartyCreateCommand(party_code=f"OV-P{i}", party_name=f"Overview Party {i}"))
         if i % 3 != 0:
-            party_service.deactivate_party(ov_party.id)
-        document_service.create_document(document_code=f"OV-DOC{i}", title=f"Overview Doc {i}", storage_uri=f"/docs/ov-doc{i}.pdf", is_current=(i % 3 == 0))
+            services["party_commands"].deactivate_party(ov_party.id)
+        document_commands.create_document(DocumentCreateCommand(document_code=f"OV-DOC{i}", title=f"Overview Doc {i}", storage_uri=f"/docs/ov-doc{i}.pdf", is_current=i % 3 == 0))
 
-    expected_organization_count = organization_service.get_organization_count()
-    expected_site_summary = site_service.get_site_rollup_summary()
-    expected_department_summary = department_service.get_department_rollup_summary()
-    expected_party_summary = party_service.get_party_rollup_summary()
-    expected_document_summary = document_service.get_document_rollup_summary()
+    expected_organization_count = services["organization_query"].get_organization_count()
+    expected_site_summary = services["site_query"].get_site_rollup_summary()
+    expected_department_summary = services["department_query"].get_department_rollup_summary()
+    expected_party_summary = services["party_query"].get_party_rollup_summary()
+    expected_document_summary = document_query.get_document_rollup_summary()
 
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
 
     instrumented = [
-        (type(organization_service._organization_repo), "list_all"),
-        (type(site_service._site_repo), "list_for_organization"),
-        (type(department_service._department_repo), "list_for_organization"),
-        (type(party_service._party_repo), "list_for_organization"),
-        (type(document_service._document_repo), "list_for_organization"),
+        (type(services["organization_query"]._organization_repo), "list_all"),
+        (type(services["site_query"]._site_repo), "list_for_organization"),
+        (type(services["department_query"]._department_repo), "list_for_organization"),
+        (type(services["party_query"]._party_repo), "list_for_organization"),
+        (type(services["document_query"]._document_repo), "list_for_organization"),
     ]
     counters = []
     restores = []

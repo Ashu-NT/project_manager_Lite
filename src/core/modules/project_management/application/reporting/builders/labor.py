@@ -1,12 +1,15 @@
-"""Labor mixin — thin reporting delegate.
+"""Labor report builder -- thin reporting delegate.
 
-Business logic lives in financials/costs/labor_cost.py.
+Business logic lives in financials/cost/engines/labor_cost.py.
 """
 
 from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
     LaborCostEngine,
 )
@@ -14,22 +17,14 @@ from src.core.modules.project_management.application.financials.models.finance_m
     LaborDetailsResult,
     LaborResourceRow,
 )
-from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
-    ProjectFinancialProfileRepository,
+from src.core.modules.project_management.application.reporting.builders.access import (
+    ReportingAccessPolicy,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
+    FinanceSnapshotReader,
 )
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
-)
-from src.core.modules.project_management.contracts.repositories.projects.project import (
-    ProjectRepository,
-    ProjectResourceRepository,
-)
-from src.core.modules.project_management.contracts.repositories.resources.resource import (
-    ResourceRepository,
-)
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    AssignmentRepository,
-    TaskRepository,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
@@ -37,15 +32,22 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 from src.core.platform.common.exceptions import NotFoundError
 
 
-class ReportingLaborMixin:
-    _project_repo: ProjectRepository
-    _task_repo: TaskRepository
-    _assignment_repo: AssignmentRepository
-    _resource_repo: ResourceRepository
-    _project_resource_repo: ProjectResourceRepository
-    _rate_resolver: LaborRateResolver
-    _tenant_context_service: TenantContextService
-    _financial_profile_repo: ProjectFinancialProfileRepository
+class LaborReportBuilder(ProjectManagementModuleGuardMixin):
+    def __init__(
+        self,
+        *,
+        access: ReportingAccessPolicy,
+        rate_resolver: LaborRateResolver,
+        tenant_context_service: TenantContextService,
+        finance_snapshot_reader: FinanceSnapshotReader,
+        module_catalog_service=None,
+    ) -> None:
+        self._access = access
+        self._rate_resolver = rate_resolver
+        self._tenant_context_service = tenant_context_service
+        self._finance_snapshot_reader = finance_snapshot_reader
+        self._user_session = access.user_session
+        self._module_catalog_service = module_catalog_service
 
     def _make_labor_engine(self) -> LaborCostEngine:
         return LaborCostEngine.for_facts(
@@ -58,8 +60,8 @@ class ReportingLaborMixin:
     ) -> LaborDetailsResult:
         # Resource-identified rate/cost rows require the finance.read_sensitive tier,
         # matching FinanceService's own redaction policy.
-        self._require_finance_sensitive_view("view labor details", project_id=project_id)
-        resolved_as_of = as_of or date.today()
+        self._access.require_finance_sensitive_view("view labor details", project_id=project_id)
+        resolved_as_of = as_of or date.today()  # noqa: DTZ011
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="read labor reporting facts"
         )
@@ -77,3 +79,6 @@ class ReportingLaborMixin:
         self, project_id: str, as_of: date | None = None
     ) -> list[LaborResourceRow]:
         return list(self.calculate_project_labor_details(project_id, as_of).rows)
+
+
+__all__ = ["LaborReportBuilder"]

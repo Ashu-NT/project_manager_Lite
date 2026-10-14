@@ -3,9 +3,11 @@ from __future__ import annotations
 import calendar
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import Date, and_, case, cast, func, or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement, SQLCoreOperations
 
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetEntryCriteria,
@@ -75,8 +77,8 @@ class SqlAlchemyTimesheetWorkspaceReader:
         self._resource_identity_reader = resource_identity_reader
 
     @staticmethod
-    def _eligibility_filters(*, include_inactive: bool = False) -> list[object]:
-        filters: list[object] = [
+    def _eligibility_filters(*, include_inactive: bool = False) -> list[ColumnElement[bool]]:
+        filters: list[ColumnElement[bool]] = [
             ResourceORM.kind.in_(tuple(TimeReportingEligibilityPolicy.ELIGIBLE_KINDS)),
             ResourceORM.worker_type.in_(tuple(TimeReportingEligibilityPolicy.ELIGIBLE_WORKER_TYPES)),
             ResourceORM.cost_type.in_(tuple(TimeReportingEligibilityPolicy.ELIGIBLE_COST_TYPES)),
@@ -153,6 +155,7 @@ class SqlAlchemyTimesheetWorkspaceReader:
         organization_id: str,
     ):
         """One scoped month aggregate; no date materialization or per-month reads."""
+        month: ColumnElement[date]
         if self._session.get_bind().dialect.name == "postgresql":
             month = cast(func.date_trunc("month", TimeEntryORM.entry_date), Date)
         else:
@@ -253,7 +256,7 @@ class SqlAlchemyTimesheetWorkspaceReader:
         if resource_id:
             stmt = stmt.where(ResourceORM.id == resource_id)
         if scope == TimesheetScope.TEAM:
-            team_predicates: list[object] = [ProjectORM.manager_user_id == actor_user_id]
+            team_predicates: list[ColumnElement[bool]] = [ProjectORM.manager_user_id == actor_user_id]
             if explicit_team_project_ids:
                 team_predicates.append(ProjectORM.id.in_(explicit_team_project_ids))
             stmt = (
@@ -384,7 +387,7 @@ class SqlAlchemyTimesheetWorkspaceReader:
     @staticmethod
     def _entry_joined(stmt, *, resource: TimesheetResourceFact):
         allocation_id = func.coalesce(TimeEntryORM.assignment_id, TimeEntryORM.work_allocation_id)
-        owner_filters: list[object] = [TaskAssignmentORM.resource_id == resource.resource_id]
+        owner_filters: list[ColumnElement[bool]] = [TaskAssignmentORM.resource_id == resource.resource_id]
         if resource.employee_id:
             owner_filters.append(TimeEntryORM.employee_id == resource.employee_id)
         return (
@@ -518,12 +521,12 @@ class SqlAlchemyTimesheetWorkspaceReader:
             )
             or 0
         )
-        output_project_id = project_id
-        output_project_code = func.coalesce(ProjectORM.project_code, "")
-        output_project_name = func.coalesce(ProjectORM.name, "General")
-        output_task_id = TaskORM.id
-        output_task_code = func.coalesce(TaskORM.task_code, "")
-        output_task_name = func.coalesce(TaskORM.name, "Project Work")
+        output_project_id: ColumnElement[Any] = project_id
+        output_project_code: ColumnElement[Any] = func.coalesce(ProjectORM.project_code, "")
+        output_project_name: ColumnElement[Any] = func.coalesce(ProjectORM.name, "General")
+        output_task_id: SQLCoreOperations[Any] = TaskORM.id
+        output_task_code: ColumnElement[Any] = func.coalesce(TaskORM.task_code, "")
+        output_task_name: ColumnElement[Any] = func.coalesce(TaskORM.name, "Project Work")
         if visible is not None:
             output_project_id = case((visible, project_id), else_=None)
             output_project_code = case((visible, output_project_code), else_="")
@@ -608,7 +611,7 @@ class SqlAlchemyTimesheetWorkspaceReader:
     ) -> TimesheetHistoryReadPage:
         project_id = self._project_id_expression()
         allocation_id = func.coalesce(TimeEntryORM.assignment_id, TimeEntryORM.work_allocation_id)
-        owner_filters: list[object] = [TaskAssignmentORM.resource_id == resource.resource_id]
+        owner_filters: list[ColumnElement[bool]] = [TaskAssignmentORM.resource_id == resource.resource_id]
         if resource.employee_id:
             owner_filters.append(TimeEntryORM.employee_id == resource.employee_id)
         base = (

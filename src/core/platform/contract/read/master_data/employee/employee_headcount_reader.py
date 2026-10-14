@@ -6,7 +6,7 @@ query instead of fetching every ``Employee`` row and summing in Python.
 
 ``get_department_breakdown``/``get_site_breakdown`` return per-department/per-site aggregate
 buckets (GROUP BY, one query each) for the cross-entity overview -- a different shape from
-``EmployeeService.list_employees(department_id=...)``'s single-entity row-level fetch. Employees
+``EmployeeQueryHandler.list_employees(department_id=...)``'s single-entity row-level fetch. Employees
 with no department/site assigned are bucketed under a ``None`` id labeled "Unassigned".
 """
 

@@ -37,6 +37,6 @@ __all__ = [
     "DomainError",
     "NotFoundError",
     "OperationNotPermittedError",
-    "ValidationError",
     "UnsupportedOperationError",
+    "ValidationError",
 ]

@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
@@ -93,6 +92,7 @@ from src.core.platform.domain.finance import (
 from src.core.platform.integration.canonical_json import canonical_json_sha256
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.time.clock import CalendarClock
 
 if TYPE_CHECKING:
     from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
@@ -124,7 +124,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         task_repo: TaskRepository,
         party_repo: PartyRepository,
         site_repo: SiteRepository,
-        clock: Clock,
+        clock: CalendarClock,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,

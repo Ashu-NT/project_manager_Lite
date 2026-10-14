@@ -5,14 +5,16 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop.financials import (
-    FinancialAddBudgetLineCommand,
-    FinancialCreateBudgetVersionCommand,
-    FinancialVersionedBudgetCommand,
     ProjectManagementFinancialsDesktopApi,
 )
 from src.core.modules.project_management.application.financials.budgets import (
     BudgetApprovalOutcome,
     BudgetApprovalResult,
+)
+from src.core.modules.project_management.contracts.use_cases.financials import (
+    FinancialAddBudgetLineCommand,
+    FinancialCreateBudgetVersionCommand,
+    FinancialVersionedBudgetCommand,
 )
 from src.core.modules.project_management.domain.financials.budget import BudgetStatus
 

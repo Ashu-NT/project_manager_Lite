@@ -183,7 +183,7 @@ class _FakeEmployeeService:
 
 def test_project_management_workspace_catalog_exposes_typed_resources_controller() -> None:
     resources_api = build_project_management_resources_desktop_api(
-        resource_service=_FakeResourceService(
+        resource_query=(_resources := _FakeResourceService(
             [
                 SimpleNamespace(
                     id="res-1",
@@ -216,8 +216,10 @@ def test_project_management_workspace_catalog_exposes_typed_resources_controller
                     employee_id="emp-1",
                 ),
             ]
-        ),
-        employee_service=_FakeEmployeeService(),
+        )),
+        resource_master_commands=_resources,
+        resource_capability_commands=_resources,
+        employee_query=_FakeEmployeeService(),
     )
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(project_management_resources=resources_api)

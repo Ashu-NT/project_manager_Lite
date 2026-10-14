@@ -9,6 +9,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QCoreApplication, qInstallMessageHandler
@@ -42,25 +49,18 @@ def _load_detail_page(engine, organization: dict, workspace_controller, platform
 
 
 def test_employees_tab_loads_real_paginated_data_for_a_non_active_organization(services, qapp) -> None:
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     catalog, admin = _build_admin_workspace(services)
 
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="QML-EMP-A", display_name="QML Emp Org A", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_a.id)
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    department = department_service.create_department(department_code="QML-EMP-A-DEPT", name="QML Emp Org A Dept")
-    employee_service.create_employee(
-        employee_code="QEMP-1", full_name="Alpha Employee", department_id=department.id
-    )
-    employee_service.create_employee(
-        employee_code="QEMP-2", full_name="Beta Employee", department_id=department.id
-    )
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="QML-EMP-A-DEPT", name="QML Emp Org A Dept"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="QEMP-1", full_name="Alpha Employee", department_id=department.id))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="QEMP-2", full_name="Beta Employee", department_id=department.id))
 
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="QML-EMP-B", display_name="QML Emp Org B", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_b.id)  # active org is now B, not A
@@ -126,24 +126,17 @@ def test_employees_tab_controller_slot_applies_status_filter_server_side(service
     (rather than synthesizing a ComboBox interaction) to prove the filter
     argument actually reaches the tenant-scoped service call through the
     full Controller -> Presenter -> Desktop API -> Service chain."""
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     _catalog, admin = _build_admin_workspace(services)
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="QML-EMP-FILTER", display_name="QML Emp Filter Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    department = department_service.create_department(department_code="QML-EMP-FILTER-DEPT", name="QML Emp Filter Dept")
-    employee_service.create_employee(
-        employee_code="FIL-ACT-EMP", full_name="Filter Active Employee", department_id=department.id
-    )
-    inactive = employee_service.create_employee(
-        employee_code="FIL-INA-EMP", full_name="Filter Inactive Employee", department_id=department.id
-    )
-    employee_service.deactivate_employee(inactive.id)
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="QML-EMP-FILTER-DEPT", name="QML Emp Filter Dept"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="FIL-ACT-EMP", full_name="Filter Active Employee", department_id=department.id))
+    inactive = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="FIL-INA-EMP", full_name="Filter Inactive Employee", department_id=department.id))
+    services["employee_commands"].deactivate_employee(inactive.id)
 
     result = admin.organizationEmployeesPage(org.id, 1, 25, "", "active")
     names = [item["title"] for item in result["items"]]

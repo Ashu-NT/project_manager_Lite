@@ -16,7 +16,8 @@ class _CanonicalFinancialPayload(BaseModel):
     @staticmethod
     def _decimal_text(value: object, *, field_name: str) -> str:
         if not isinstance(value, str):
-            raise ValueError(f"{field_name} must be canonical decimal text")
+            # Pydantic only converts ValueError into a validation error.
+            raise ValueError(f"{field_name} must be canonical decimal text")  # noqa: TRY004
         try:
             return canonical_decimal_text(value)
         except ValidationError as exc:
@@ -25,7 +26,7 @@ class _CanonicalFinancialPayload(BaseModel):
     @staticmethod
     def _currency_text(value: object) -> str:
         if not isinstance(value, str):
-            raise ValueError("currency must be an ISO 4217 string")
+            raise ValueError("currency must be an ISO 4217 string")  # noqa: TRY004
         try:
             return CurrencyCode(value).code
         except ValidationError as exc:

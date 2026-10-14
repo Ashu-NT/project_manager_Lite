@@ -1,5 +1,7 @@
 ﻿from __future__ import annotations
 
+import inspect
+
 from src.tests.path_rewrites import REPO_ROOT
 
 ROOT = REPO_ROOT
@@ -62,62 +64,108 @@ def test_register_composition_exposes_handlers_without_service():
     assert "def delete_entry" not in query
 
 
-def test_resource_service_is_orchestrator_only():
-    service_path = (
-        ROOT / "src" / "core" / "modules" / "project_management" / "application" / "resources"
-        / "catalog" / "resource_service.py"
+def test_resource_forwarding_facade_is_removed_and_handlers_are_fed_directly():
+    pm_root = ROOT / "src" / "core" / "modules" / "project_management"
+    assert not (pm_root / "application" / "resources" / "catalog" / "resource_service.py").exists()
+    composition = (
+        pm_root / "infrastructure" / "composition" / "dependencies" / "resources" / "services.py"
+    ).read_text(encoding="utf-8")
+    assert "query = ResourceQueryHandler(" in composition
+    assert "master_commands = ResourceMasterCommandHandler(" in composition
+    assert "capability_commands = ResourceCapabilityCommandHandler(" in composition
+    api = (pm_root / "api" / "desktop" / "resources" / "api.py").read_text(encoding="utf-8")
+    # Command handlers are not module-guarded themselves; the adapter checks
+    # the PM entitlement before every command dispatch.
+    assert api.count("require_module_enabled(") >= 4
+    assert "ResourceService" not in api
+
+
+def test_reporting_and_dashboard_facades_are_removed():
+    pm_app = ROOT / "src" / "core" / "modules" / "project_management" / "application"
+    assert not (pm_app / "reporting" / "services").exists()
+    assert not (pm_app / "dashboard" / "services" / "dashboard_service.py").exists()
+    for path in (pm_app / "reporting" / "builders").glob("*.py"):
+        assert "Mixin" not in path.read_text(encoding="utf-8").replace(
+            "ProjectManagementModuleGuardMixin", ""
+        ), path.name
+    for path in (pm_app / "dashboard").rglob("*.py"):
+        assert "Mixin(" not in path.read_text(encoding="utf-8").replace(
+            "ProjectManagementModuleGuardMixin", ""
+        ), path.name
+
+
+def test_collaboration_and_portfolio_facades_are_removed():
+    pm_app = ROOT / "src" / "core" / "modules" / "project_management" / "application"
+    for feature in ("collaboration", "portfolio"):
+        assert not (pm_app / feature / "services").exists()
+        for path in (pm_app / feature).rglob("*.py"):
+            text = path.read_text(encoding="utf-8").replace("ProjectManagementModuleGuardMixin", "")
+            assert "Mixin" not in text, path.name
+    assert not (pm_app / "collaboration" / "utils" / "support.py").exists()
+    assert not (pm_app / "collaboration" / "utils" / "principal.py").exists()
+    assert not (pm_app / "portfolio" / "utils" / "portfolio_support.py").exists()
+
+
+def test_collaboration_writes_and_reads_are_separate_guarded_handlers():
+    from src.core.modules.project_management.application.collaboration.commands import (
+        CollaborationCommentCommandHandler,
+        CollaborationCommentEngagementHandler,
+        CollaborationPresenceCommandHandler,
     )
-    text = service_path.read_text(encoding="utf-8", errors="ignore")
+    from src.core.modules.project_management.application.collaboration.queries import (
+        CollaborationCommentQueryHandler,
+        CollaborationDocumentQueryHandler,
+        CollaborationInboxQueryHandler,
+        CollaborationPresenceQueryHandler,
+    )
+    from src.core.modules.project_management.application.common.module_guard import (
+        ProjectManagementModuleGuardMixin,
+    )
 
-    assert "from src.core.modules.project_management.application.resources.commands.resource_commands import (" in text
-    assert "from src.core.modules.project_management.application.resources.queries.resource_queries import (" in text
-    assert "return self._master_command.create_resource(" in text
-    assert "return self._master_command.update_resource(" in text
-    assert "def delete_resource" not in text
-    assert "def list_resources" not in text
-    assert "def get_resource" not in text
-
-
-def test_collaboration_service_is_orchestrator_only():
-    service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "collaboration" / "services" / "collaboration_service.py"
-    text = service_path.read_text(encoding="utf-8", errors="ignore")
-
-    for snippet in (
-        "from src.core.modules.project_management.application.collaboration.commands.collaboration_comments import (",
-        "CollaborationCommentCommandMixin,",
-        "from src.core.modules.project_management.application.collaboration.commands.collaboration_presence import (",
-        "CollaborationPresenceCommandMixin,",
-        "from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (",
-        "CollaborationInboxQueryMixin,",
-        "from src.core.modules.project_management.application.collaboration.utils.support import (",
-        "CollaborationSupportMixin,",
-    ):
-        assert snippet in text
-    assert "class CollaborationService(" in text
-    assert "def post_comment" not in text
-    assert "def list_notifications" not in text
-    assert "def list_active_presence" not in text
+    writes = (
+        CollaborationCommentCommandHandler,
+        CollaborationCommentEngagementHandler,
+        CollaborationPresenceCommandHandler,
+    )
+    reads = (
+        CollaborationCommentQueryHandler,
+        CollaborationDocumentQueryHandler,
+        CollaborationInboxQueryHandler,
+        CollaborationPresenceQueryHandler,
+    )
+    for handler in writes + reads:
+        assert issubclass(handler, ProjectManagementModuleGuardMixin), handler.__name__
+    for handler in reads:
+        source = inspect.getsource(handler)
+        assert "_uow_factory" not in source, handler.__name__
+        assert "record_audit_entry" not in source, handler.__name__
 
 
-def test_portfolio_service_is_orchestrator_only():
-    service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "portfolio" / "services" / "portfolio_service.py"
-    text = service_path.read_text(encoding="utf-8", errors="ignore")
+def test_portfolio_handlers_are_guarded_and_share_one_policy():
+    from src.core.modules.project_management.application.common.module_guard import (
+        ProjectManagementModuleGuardMixin,
+    )
+    from src.core.modules.project_management.application.portfolio import (
+        commands,
+        queries,
+    )
 
-    for snippet in (
-        "from src.core.modules.project_management.application.portfolio.commands.portfolio_dependencies import",
-        "PortfolioDependencyCommandMixin,",
-        "from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import",
-        "PortfolioExecutiveQueryMixin,",
-        "from src.core.modules.project_management.application.portfolio.utils.portfolio_support import",
-        "PortfolioSupportMixin,",
-        "from src.core.modules.project_management.application.portfolio.commands.portfolio_templates import",
-        "PortfolioTemplateCommandMixin,",
-    ):
-        assert snippet in text
-    assert "class PortfolioService(" in text
-    assert "def create_intake_item" not in text
-    assert "def compare_scenarios" not in text
-    assert "def list_portfolio_heatmap" not in text
+    for name in commands.__all__ + queries.__all__:
+        handler = getattr(commands, name, None) or getattr(queries, name)
+        assert issubclass(handler, ProjectManagementModuleGuardMixin), name
+    policy_text = (
+        ROOT / "src" / "core" / "modules" / "project_management" / "application"
+        / "portfolio" / "utils" / "portfolio_policy.py"
+    ).read_text(encoding="utf-8")
+    assert "def ensure_scoring_templates" in policy_text
+    for path in (
+        ROOT / "src" / "core" / "modules" / "project_management" / "application" / "portfolio"
+    ).rglob("*.py"):
+        if path.name == "portfolio_policy.py":
+            continue
+        assert "PortfolioScoringTemplate.create(" not in path.read_text(encoding="utf-8") or (
+            path.name == "portfolio_templates.py"
+        ), path.name
 
 
 def test_scheduling_engine_is_orchestrator_only():
@@ -164,13 +212,14 @@ def test_main_qt_uses_qml_shell_entrypoint():
 def test_known_large_modules_have_growth_budgets():
     budgets = {
         **_LARGE_MODULE_BUDGETS,
-        "src/core/modules/project_management/application/reporting/services/reporting_service.py": 180,
+        "src/core/modules/project_management/application/dashboard/services/project_dashboard_query.py": 180,
+        "src/core/modules/project_management/application/reporting/builders/kpi.py": 300,
         "src/core/modules/project_management/application/scheduling/services/scheduling_engine.py": 410,
         "src/core/modules/project_management/application/scheduling/cpm/passes.py": 260,
         # The command handler already exceeds the previous historical cap (431 lines).
         "src/core/modules/project_management/application/resources/commands/project_resource_commands.py": 440,
         "src/core/modules/project_management/application/tasks/commands/lifecycle.py": 360,
-        "src/core/platform/application/master_data/site/site_service.py": 360,
+        "src/core/platform/application/master_data/site/queries/site_queries.py": 360,
     }
 
     breaches = []

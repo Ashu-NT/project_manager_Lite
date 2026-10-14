@@ -1,9 +1,9 @@
-"""Dashboard analytics — burndown, EVM, and performance analysis."""
+"""Dashboard analytics — burndown and EVM widgets."""
 from src.core.modules.project_management.application.dashboard.analytics.burndown import (
-    DashboardBurndownMixin,
+    DashboardBurndownBuilder,
 )
 from src.core.modules.project_management.application.dashboard.analytics.evm import (
-    DashboardEvmMixin,
+    DashboardEvmWidget,
 )
 
-__all__ = ["DashboardBurndownMixin", "DashboardEvmMixin"]
+__all__ = ["DashboardBurndownBuilder", "DashboardEvmWidget"]

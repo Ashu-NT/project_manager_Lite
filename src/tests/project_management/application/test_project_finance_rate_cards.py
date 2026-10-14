@@ -100,7 +100,7 @@ def _create_project_and_resource(services, *, name: str) -> tuple[str, str]:
     project = services["project_service"].create_project(
         f"{name} project", financial_currency_code="USD"
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         f"{name} resource",
         role="engineer",
         hourly_rate=0.0,
@@ -264,7 +264,7 @@ def test_resolver_raises_on_ambiguous_equal_specificity_different_dimensions(ser
     # genuine resolver-level ambiguity the equal-specificity check exists
     # for, distinct from the create-time overlap check above.
     project_id, resource_id = _create_project_and_resource(services, name="ambiguous")
-    services["resource_service"].add_resource_skill(resource_id, "python", "Python")
+    services["resource_capability_commands"].add_resource_skill(resource_id, "python", "Python")
     rate_card_service = services["rate_card_service"]
     resolver = services["rate_card_resolver"]
     tenant_id, organization_id = _context_ids(services)
@@ -407,12 +407,10 @@ def test_resource_rate_metadata_does_not_manufacture_finance_rate_lines(services
     from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
         RateCardLineORM,
     )
-
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "Operational Rate Metadata", role="Developer", hourly_rate=80.0, currency_code="eur"
     )
-    resource_service.update_resource(
+    services["resource_master_commands"].update_resource(
         resource_id=resource.id,
         expected_version=resource.version,
         name=resource.name,

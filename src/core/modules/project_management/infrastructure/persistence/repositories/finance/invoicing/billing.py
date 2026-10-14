@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.engine import CursorResult, Result
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
@@ -48,6 +51,12 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.infra.persistence.db.optimistic import update_with_version_check
+
+
+def _affected_rows(result: Result[Any]) -> int:
+    # DML statements return a CursorResult at runtime; the Session.execute
+    # stub types the return value as the generic Result.
+    return cast(CursorResult[Any], result).rowcount
 
 
 class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
@@ -374,12 +383,12 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
             ProjectBillingSourceLockORM.organization_id == context.organization_id,
             ProjectBillingSourceLockORM.status == "reserved",
         )
-        if self.session.execute(delete(ProjectBillingSourceLockORM).where(*lock_filters)).rowcount != 1:
+        if _affected_rows(self.session.execute(delete(ProjectBillingSourceLockORM).where(*lock_filters))) != 1:
             raise BusinessRuleError(
                 "The draft source reservation is unavailable.",
                 code="BILLING_SOURCE_RESERVATION_MISSING",
             )
-        if self.session.execute(delete(ProjectBillingPreparationLineORM).where(*filters)).rowcount != 1:
+        if _affected_rows(self.session.execute(delete(ProjectBillingPreparationLineORM).where(*filters))) != 1:
             raise NotFoundError("Billing preparation line not found.", code="BILLING_LINE_NOT_FOUND")
 
     def get_source_lock(
@@ -426,7 +435,7 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
                 released_at=source_lock.released_at,
             )
         )
-        if result.rowcount != 1:
+        if _affected_rows(result) != 1:
             raise NotFoundError(
                 "Billable source lock not found.", code="BILLING_SOURCE_LOCK_NOT_FOUND"
             )

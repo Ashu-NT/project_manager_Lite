@@ -16,6 +16,9 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.ui_qml.platform.controllers.calendars.context import site_calendar_summary
 from src.ui_qml.platform.presenters.sites.site_catalog_presenter import (
     PlatformSiteCatalogPresenter,
@@ -72,8 +75,7 @@ def _fake_controller(registry) -> SimpleNamespace:
 
 
 def test_site_calendar_summary_is_inherited_from_organization_when_no_override(services) -> None:
-    site_service = services["site_service"]
-    site = site_service.create_site(site_code="CAL-1", name="Calendar Site One")
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="CAL-1", name="Calendar Site One"))
     organization_id = site.organization_id
 
     registry = build_desktop_api_registry(services)
@@ -87,8 +89,7 @@ def test_site_calendar_summary_is_inherited_from_organization_when_no_override(s
 
 
 def test_site_calendar_summary_is_override_when_site_has_its_own_assignment(services) -> None:
-    site_service = services["site_service"]
-    site = site_service.create_site(site_code="CAL-2", name="Calendar Site Two")
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="CAL-2", name="Calendar Site Two"))
     organization_id = site.organization_id
 
     registry = build_desktop_api_registry(services)

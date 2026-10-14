@@ -23,9 +23,9 @@ _OBSERVED_SQL: list[list[str]] = []
 
 
 def _login(services, username: str, password: str) -> None:
-    user = services["auth_service"].authenticate(username, password)
+    user = services["authentication"].authenticate(username, password)
     services["user_session"].set_principal(
-        services["auth_service"].build_principal(user)
+        services["principal_builder"].build(user)
     )
 
 
@@ -183,7 +183,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
             budget.id, expected_version=budget.row_version
         ),
     )
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "r6cf-budget-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "r6cf-budget-reviewer", "StrongPass123")
@@ -250,7 +250,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
             forecast.id, expected_version=forecast.row_version
         ),
     )
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "r6cf-forecast-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "r6cf-forecast-reviewer", "StrongPass123")
@@ -281,7 +281,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
     change_project, change_code, _budget, budget_line, _forecast, _forecast_line = (
         _seed_approved_bases(services, suffix="A")
     )
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "r6cf-change-requester", "StrongPass123", role_names=["planner"]
     )
     _login(services, "r6cf-change-requester", "StrongPass123")
@@ -336,7 +336,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
         project_id=change_project.id
     )[0]
     _login(services, "admin", "ChangeMe123!")
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "sql-change-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "sql-change-reviewer", "StrongPass123")

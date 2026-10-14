@@ -39,7 +39,7 @@ def approved_preparation(services):
     _, line = _ready_schedule_line(services, project)
     submitted = _submitted_preparation(services, project, line)
     approval = services["approval_service"].list_pending(project_id=project.id)[0]
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "handoff-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "handoff-reviewer", "StrongPass123")

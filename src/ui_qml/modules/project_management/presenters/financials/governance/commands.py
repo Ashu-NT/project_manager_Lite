@@ -3,13 +3,15 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
+    ProjectManagementFinancialsDesktopApi,
+)
+from src.core.modules.project_management.contracts.use_cases.financials import (
     FinancialChangeCostCodeStatusCommand,
     FinancialCostCodeRestrictionCommand,
     FinancialCreateCostCodeCommand,
     FinancialTransitionProfileCommand,
     FinancialUpdateCostCodeCommand,
     FinancialUpdateProfileCommand,
-    ProjectManagementFinancialsDesktopApi,
 )
 from src.ui_qml.modules.project_management.presenters.financials.shared.commands import (
     _optional_date,

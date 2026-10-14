@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from typing import Any, TypeAlias
+
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     ActiveScopeIds,
@@ -10,11 +13,15 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 _ScopeIds = ActiveScopeIds | TenantContext
+# (join target, ON clause) pairs passed straight to ``Select.join``.
+_JoinSpec: TypeAlias = tuple[tuple[Any, Any], ...]
 
 
 class TenantScopedRepositorySupport:
     _repository_label = "Repository"
     _tenant_context_service: TenantContextService | None
+    # Provided by the concrete repository.
+    session: Session
 
     def _context(self, *, operation_label: str) -> ActiveScopeIds:
         if self._tenant_context_service is None:
@@ -109,7 +116,7 @@ class TenantParentScopedRepositorySupport(TenantScopedRepositorySupport):
         row_model,
         anchor_model,
         *,
-        joins: tuple[tuple[object, object], ...],
+        joins: _JoinSpec,
         operation_label: str,
     ):
         ctx = self._context(operation_label=operation_label)
@@ -123,7 +130,7 @@ class TenantParentScopedRepositorySupport(TenantScopedRepositorySupport):
         row_model,
         anchor_model,
         *,
-        joins: tuple[tuple[object, object], ...],
+        joins: _JoinSpec,
         record_id: str,
         operation_label: str,
     ):
@@ -140,7 +147,7 @@ class TenantParentScopedRepositorySupport(TenantScopedRepositorySupport):
         row_model,
         anchor_model,
         *,
-        joins: tuple[tuple[object, object], ...],
+        joins: _JoinSpec,
         record_id: str,
         operation_label: str,
         not_found_message: str,
@@ -163,7 +170,7 @@ class TenantParentScopedRepositorySupport(TenantScopedRepositorySupport):
         *,
         operation_label: str,
         not_found_message: str,
-        joins: tuple[tuple[object, object], ...] = (),
+        joins: _JoinSpec = (),
         scope_model=None,
     ):
         ctx = self._context(operation_label=operation_label)

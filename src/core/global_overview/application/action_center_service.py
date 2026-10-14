@@ -70,7 +70,7 @@ class ActionCenterService:
         identities = {(item.module, item.kind, item.id) for item in merged_items}
         if len(identities) != len(merged_items):
             raise ValueError("Duplicate Action Center ownership: action contributed more than once.")
-        ordered = sort_action_center_items(merged_items, today=today or date.today())
+        ordered = sort_action_center_items(merged_items, today=today or date.today())  # noqa: DTZ011
         items = ordered[:limit]
         cursor = None
         if items and len(ordered) > limit:

@@ -8,8 +8,6 @@ from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 def _create_entry_context(services):
     projects = services["project_service"]
     tasks = services["task_service"]
-    resources = services["resource_service"]
-
     project = projects.create_project("R5H TimeEntry Project")
     task = tasks.create_task(
         project.id,
@@ -17,15 +15,15 @@ def _create_entry_context(services):
         start_date=date(2026, 8, 24),
         duration_days=3,
     )
-    resource = resources.create_resource("R5H TimeEntry Resource")
+    resource = services["resource_master_commands"].create_resource("R5H TimeEntry Resource")
     assignment = tasks.assign_resource(task.id, resource.id, allocation_percent=100.0)
-    entry = services["timesheet_service"].add_time_entry(
+    entry = services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 8, 24),
         hours=4.0,
         note="Initial work",
     )
-    return services["timesheet_service"], assignment, entry
+    return services["time_entry_commands"], assignment, entry
 
 
 def test_time_entry_update_and_delete_reject_stale_versions(services) -> None:
@@ -50,7 +48,7 @@ def test_time_entry_update_and_delete_reject_stale_versions(services) -> None:
 
     timesheets.delete_time_entry(entry.id, expected_version=updated.version)
     with pytest.raises(NotFoundError, match="not found"):
-        timesheets.get_time_entry(entry.id)
+        services["time_entry_queries"].get_time_entry(entry.id)
 
 
 def test_time_entry_update_rolls_back_when_required_audit_fails(
@@ -72,7 +70,7 @@ def test_time_entry_update_rolls_back_when_required_audit_fails(
             note="Must roll back",
         )
 
-    persisted = timesheets.get_time_entry(entry.id)
+    persisted = services["time_entry_queries"].get_time_entry(entry.id)
     assert persisted.hours == 4.0
     assert persisted.note == "Initial work"
     assert persisted.version == 1

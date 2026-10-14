@@ -2,7 +2,10 @@
 
 from uuid import uuid4
 
-from src.core.platform.application.integration.accounting.outcome_ingress import (
+from pydantic import JsonValue
+
+from src.core.platform.contract.port.integration.accounting_outcomes import (
+    IngressRejectionReason,
     ValidatedAccountingIngress,
 )
 from src.core.platform.contract.repositories.integration import (
@@ -38,14 +41,11 @@ class AccountingOutcomeQuarantine:
         from src.core.modules.project_management.domain.financials.accounting.outcome_policy import (
             OutcomeRejectionReason,
         )
-        from src.core.platform.application.integration.accounting.outcome_ingress import (
-            IngressRejectionReason,
-        )
-
         if not isinstance(reason, (IngressRejectionReason, OutcomeRejectionReason)):
-            raise ValueError("A typed Accounting quarantine reason is required.")
+            # ValueError is the established contract for this guard; keep it stable.
+            raise ValueError("A typed Accounting quarantine reason is required.")  # noqa: TRY004
         connection = ingress.connection
-        payload = {
+        payload: dict[str, JsonValue] = {
             "adapter_id": connection.adapter_id,
             "connection_id": connection.connection_id,
             "body_sha256": ingress.body_sha256,

@@ -3,7 +3,43 @@
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.financials.commands import (
+from src.core.modules.project_management.api.desktop.financials.factories.financials_api_factory import (
+    build_project_management_financials_desktop_api,
+)
+from src.core.modules.project_management.api.desktop.financials.models import (
+    BaselineVarianceRecordDto,
+    FinancialAccountingStatusPageDto,
+    FinancialBaselineVersionDto,
+    FinancialBillingPreparationDto,
+    FinancialBillingPreparationLineDto,
+    FinancialBillingProfileDto,
+    FinancialBillingScheduleLineDto,
+    FinancialBillingSourceOptionDto,
+    FinancialBillingSourcePageDto,
+    FinancialBudgetLineMutationDto,
+    FinancialBudgetMutationDto,
+    FinancialChangeMutationDto,
+    FinancialCommercialProjectionDto,
+    FinancialCommitmentSummaryDto,
+    FinancialConfigurationFieldDto,
+    FinancialConfigurationRecordDto,
+    FinancialConfigurationWorkspaceDto,
+    FinancialCostCodeOptionDescriptor,
+    FinancialCostEntryApprovalDto,
+    FinancialCostEntryDto,
+    FinancialCostEntryPageDto,
+    FinancialForecastMutationDto,
+    FinancialLookupOptionDto,
+    FinancialLookupPageDto,
+    FinancialManualActualOptionsDto,
+    FinancialPeriodRowDto,
+    FinancialProfileDto,
+    FinancialRateCardDetailDto,
+    FinancialRateMutationDto,
+    FinancialRateTableRecordDto,
+    FinancialRateWorkspaceDto,
+)
+from src.core.modules.project_management.contracts.use_cases.financials import (
     FinancialActivateBillingProfileCommand,
     FinancialAddApprovedTimeBillingSourceCommand,
     FinancialAddBillingScheduleLineCommand,
@@ -49,42 +85,6 @@ from src.core.modules.project_management.api.desktop.financials.commands import 
     FinancialVersionedForecastCommand,
     FinancialVersionedRateCardCommand,
     FinancialVersionedRateLineCommand,
-)
-from src.core.modules.project_management.api.desktop.financials.factories.financials_api_factory import (
-    build_project_management_financials_desktop_api,
-)
-from src.core.modules.project_management.api.desktop.financials.models import (
-    BaselineVarianceRecordDto,
-    FinancialAccountingStatusPageDto,
-    FinancialBaselineVersionDto,
-    FinancialBillingPreparationDto,
-    FinancialBillingPreparationLineDto,
-    FinancialBillingProfileDto,
-    FinancialBillingScheduleLineDto,
-    FinancialBillingSourceOptionDto,
-    FinancialBillingSourcePageDto,
-    FinancialBudgetLineMutationDto,
-    FinancialBudgetMutationDto,
-    FinancialChangeMutationDto,
-    FinancialCommercialProjectionDto,
-    FinancialCommitmentSummaryDto,
-    FinancialConfigurationFieldDto,
-    FinancialConfigurationRecordDto,
-    FinancialConfigurationWorkspaceDto,
-    FinancialCostCodeOptionDescriptor,
-    FinancialCostEntryApprovalDto,
-    FinancialCostEntryDto,
-    FinancialCostEntryPageDto,
-    FinancialForecastMutationDto,
-    FinancialLookupOptionDto,
-    FinancialLookupPageDto,
-    FinancialManualActualOptionsDto,
-    FinancialPeriodRowDto,
-    FinancialProfileDto,
-    FinancialRateCardDetailDto,
-    FinancialRateMutationDto,
-    FinancialRateTableRecordDto,
-    FinancialRateWorkspaceDto,
 )
 
 __all__ = [

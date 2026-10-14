@@ -15,10 +15,10 @@ from src.core.modules.project_management.infrastructure.composition.context impo
     ProjectManagementRepositoryContext,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.collaboration.services import (
-    build_collaboration_service,
+    build_collaboration_capabilities,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.dashboard.services import (
-    build_dashboard_service,
+    build_dashboard_capabilities,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.billing import (
     build_billing_services,
@@ -63,9 +63,8 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_data_import_service,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.portfolio.services import (
-    build_portfolio_intake_query,
+    build_portfolio_capabilities,
     build_portfolio_resource_pool_service,
-    build_portfolio_service,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.projects.services import (
     build_project_capabilities,
@@ -74,7 +73,7 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_register_capabilities,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.reporting.services import (
-    build_reporting_service,
+    build_reporting_capabilities,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.repositories import (
     build_project_management_repositories,
@@ -93,7 +92,7 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_task_capabilities,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.timesheets.services import (
-    build_timesheet_service,
+    build_timesheet_capabilities,
 )
 from src.core.modules.project_management.infrastructure.composition.events.collaboration.registration import (
     register_collaboration_view_invalidation,
@@ -155,7 +154,6 @@ from src.core.modules.project_management.infrastructure.importers.tasks.capabili
     TaskImportCapabilities,
 )
 from src.core.platform.application.integration import IntegrationOutboxService
-from src.core.platform.application.time_management.time import TimeService
 from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 from src.core.platform.infrastructure.composition.dependencies.repositories import (
     PlatformRepositories,
@@ -212,13 +210,12 @@ def build_project_management_service_bundle(
     )
     project_service = project_capabilities.service
 
-    timesheet_service = build_timesheet_service(
+    timesheet_capabilities = build_timesheet_capabilities(
         session,
         repositories,
         platform_services,
         approved_time_outbox_service=approved_time_outbox_service,
     )
-    time_service: TimeService = timesheet_service
     register_timesheet_view_invalidation(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
@@ -253,7 +250,7 @@ def build_project_management_service_bundle(
         session,
         repositories,
         platform_services,
-        timesheet_service=timesheet_service,
+        time_entry_queries=timesheet_capabilities.time_entry_queries,
         work_calendar_engine=work_calendar_engine,
         scheduling_engine=scheduling_engine,
         assignment_skill_validator=assignment_skill_validator,
@@ -272,7 +269,6 @@ def build_project_management_service_bundle(
         repositories,
         platform_services,
     )
-    resource_service = resource_capabilities.service
     financial_configuration_service = build_financial_configuration_service(
         session,
         repositories,
@@ -302,7 +298,7 @@ def build_project_management_service_bundle(
         platform_services,
         accounting_adapter_ids=accounting_adapter_ids,
     )
-    reporting_service = build_reporting_service(
+    reporting = build_reporting_capabilities(
         session,
         repositories,
         platform_services,
@@ -422,19 +418,17 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
-    collaboration_service = build_collaboration_service(session, repositories, platform_services)
+    collaboration = build_collaboration_capabilities(session, repositories, platform_services)
     register_portfolio_view_invalidation(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
-    portfolio_service = build_portfolio_service(
+    portfolio = build_portfolio_capabilities(
         session,
         repositories,
         platform_services,
         project_calendar_adapter=_pre_project_calendar_adapter,
-        rate_resolver=rate_card_resolver,
     )
-    portfolio_intake_query = build_portfolio_intake_query(repositories, platform_services)
     register_baseline_view_invalidation(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
@@ -449,16 +443,15 @@ def build_project_management_service_bundle(
         session,
         platform_services,
         performance_reader=finance_performance_reader,
-        reporting_service=reporting_service,
+        earned_value_report=reporting.earned_value,
         baseline_service=baseline_service,
     )
-    dashboard_service = build_dashboard_service(
+    dashboard = build_dashboard_capabilities(
         platform_services,
-        reporting_service=reporting_service,
+        reporting=reporting,
         task_lookup=task_capabilities.lookup,
-        task_assignments=task_capabilities.assignment,
-        project_service=project_service,
-        resource_service=resource_service,
+        project_query=project_capabilities.query,
+        resource_query=resource_capabilities.query,
         register_query=register_query,
         scheduling_engine=scheduling_engine,
     )
@@ -471,7 +464,8 @@ def build_project_management_service_bundle(
             hierarchy=task_capabilities.hierarchy,
             progress=task_capabilities.progress,
         ),
-        resource_service=resource_service,
+        resource_query=resource_capabilities.query,
+        resource_master_commands=resource_capabilities.master_commands,
     )
     project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine
     resource_capacity_calculator, resource_workload_service = build_resource_planning_services(
@@ -502,8 +496,16 @@ def build_project_management_service_bundle(
         (perf_counter() - started) * 1000,
     )
     return ProjectManagementServiceBundle(
-        time_service=time_service,
-        collaboration_service=collaboration_service,
+        time_entry_commands=timesheet_capabilities.time_entries,
+        time_entry_queries=timesheet_capabilities.time_entry_queries,
+        timesheet_period_transitions=timesheet_capabilities.period_transitions,
+        collaboration_comment_commands=collaboration.comment_commands,
+        collaboration_comment_engagement=collaboration.comment_engagement,
+        collaboration_presence_commands=collaboration.presence_commands,
+        collaboration_comment_query=collaboration.comment_query,
+        collaboration_document_query=collaboration.document_query,
+        collaboration_inbox_query=collaboration.inbox_query,
+        collaboration_presence_query=collaboration.presence_query,
         project_service=project_service,
         project_query=project_capabilities.query,
         task_service=task_service,
@@ -513,8 +515,13 @@ def build_project_management_service_bundle(
         task_lookup_query=task_capabilities.lookup,
         task_assignment_commands=task_capabilities.assignment,
         task_time_entries=task_capabilities.time_entries,
-        timesheet_service=timesheet_service,
-        resource_service=resource_service,
+        timesheet_workspace_query=timesheet_capabilities.workspace_queries,
+        timesheet_workspace_commands=timesheet_capabilities.workspace_commands,
+        timesheet_review_query=timesheet_capabilities.review_queries,
+        timesheet_period_query=timesheet_capabilities.period_queries,
+        resource_query=resource_capabilities.query,
+        resource_master_commands=resource_capabilities.master_commands,
+        resource_capability_commands=resource_capabilities.capability_commands,
         resource_capability_query=resource_capabilities.capability_query,
         resource_context_query=resource_capabilities.context_query,
         finance_governance_commands=finance_governance_commands,
@@ -538,11 +545,25 @@ def build_project_management_service_bundle(
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
         scheduling_engine=scheduling_engine,
-        reporting_service=reporting_service,
+        project_kpi_report=reporting.kpi,
+        earned_value_report=reporting.earned_value,
+        cost_breakdown_report=reporting.cost_breakdown,
+        baseline_compare_report=reporting.baseline_compare,
+        schedule_variance_report=reporting.schedule_variance,
+        profitability_report=reporting.profitability,
+        labor_report=reporting.labor,
         baseline_service=baseline_service,
-        dashboard_service=dashboard_service,
-        portfolio_service=portfolio_service,
-        portfolio_intake_query=portfolio_intake_query,
+        project_dashboard_query=dashboard.project,
+        portfolio_dashboard_query=dashboard.portfolio,
+        portfolio_intake_query=portfolio.intake_query,
+        portfolio_intake_commands=portfolio.intake_commands,
+        portfolio_template_query=portfolio.template_query,
+        portfolio_template_commands=portfolio.template_commands,
+        portfolio_scenario_query=portfolio.scenario_query,
+        portfolio_scenario_commands=portfolio.scenario_commands,
+        portfolio_dependency_query=portfolio.dependency_query,
+        portfolio_dependency_commands=portfolio.dependency_commands,
+        portfolio_executive_query=portfolio.executive_query,
         register_query=register_query,
         register_lifecycle_commands=register_capabilities.lifecycle,
         project_resource_service=project_resource_service,

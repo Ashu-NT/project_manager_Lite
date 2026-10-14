@@ -51,25 +51,28 @@ def build_rate_card_view_invalidation_handler(channel: ViewInvalidationChannel):
     def _notify_list(
         *, tenant_id: str, organization_id: str, rate_card_id: str, project_id: str | None
     ) -> None:
+        scope: OrganizationScope | ResourceScope
         if project_id is None:
-            scope: OrganizationScope | ResourceScope = OrganizationScope(tenant_id, organization_id)
-            target = _org_scope_target(RATE_CARD_LIST_SCOPE_CODE, scope)
-            if target in notified_org_targets:
+            org_scope = OrganizationScope(tenant_id, organization_id)
+            org_target = _org_scope_target(RATE_CARD_LIST_SCOPE_CODE, org_scope)
+            if org_target in notified_org_targets:
                 return
-            notified_org_targets.add(target)
+            notified_org_targets.add(org_target)
+            scope = org_scope
             hint_entity_id = rate_card_id
         else:
-            scope = ResourceScope(
+            detail_scope = ResourceScope(
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 module_code=RATE_CARD_MODULE_CODE,
                 entity_type=RATE_CARD_PROJECT_ENTITY_TYPE,
                 entity_id=project_id,
             )
-            target = _detail_scope_target(RATE_CARD_LIST_SCOPE_CODE, scope)
-            if target in notified_detail_targets:
+            detail_target = _detail_scope_target(RATE_CARD_LIST_SCOPE_CODE, detail_scope)
+            if detail_target in notified_detail_targets:
                 return
-            notified_detail_targets.add(target)
+            notified_detail_targets.add(detail_target)
+            scope = detail_scope
             hint_entity_id = project_id
         channel.notify(
             ViewInvalidationHint(

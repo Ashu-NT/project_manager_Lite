@@ -10,6 +10,26 @@ from __future__ import annotations
 from src.core.platform.api.desktop.history.activity.activity import (
     PlatformActivityDesktopApi,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+    DepartmentUpdateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+    DocumentStructureCreateCommand,
+    DocumentUpdateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+    EmployeeUpdateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationUpdateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+    SiteUpdateCommand,
+)
 
 _COUNTER = {"n": 0}
 
@@ -20,56 +40,40 @@ def _unique(prefix: str) -> str:
 
 
 def test_curated_feed_covers_organization_site_department_employee_document_events(services):
-    organization_service = services["organization_service"]
-    site_service = services["site_service"]
-    department_service = services["department_service"]
-    employee_service = services["employee_service"]
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
     activity_api = PlatformActivityDesktopApi(activity_service=services["activity_service"])
 
-    org = organization_service.list_organizations()[0]
+    org = services["organization_query"].list_organizations()[0]
 
     # Organization: create + update + deactivate + enable, all on a SECOND
     # org (not the session's active one) -- Organization Detail must be
     # able to show activity for an organization it hasn't switched into.
-    other_org = organization_service.create_organization(
+    other_org = services["organization_commands"].create_organization(
         organization_code=_unique("ORG-"), display_name="Secondary Org"
     )
-    organization_service.update_organization(
-        other_org.id, display_name="Secondary Org Renamed", expected_version=other_org.version
-    )
-    organization_service.deactivate_organization(other_org.id)
-    organization_service.activate_organization(other_org.id)
+    services["organization_commands"].update_organization(OrganizationUpdateCommand(organization_id=other_org.id, display_name="Secondary Org Renamed", expected_version=other_org.version))
+    services["organization_lifecycle"].deactivate_organization(other_org.id)
+    services["organization_lifecycle"].activate_organization(other_org.id)
 
     # Site: create + update.
-    site = site_service.create_site(site_code=_unique("SITE-"), name="Main Warehouse")
-    site_service.update_site(site.id, name="Main Warehouse Renamed", expected_version=site.version)
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique("SITE-"), name="Main Warehouse"))
+    services["site_commands"].update_site(SiteUpdateCommand(site_id=site.id, name="Main Warehouse Renamed", expected_version=site.version))
 
     # Department: create + update.
-    department = department_service.create_department(department_code=_unique("DEPT-"), name="Operations")
-    department_service.update_department(
-        department.id, name="Operations Renamed", expected_version=department.version
-    )
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=_unique("DEPT-"), name="Operations"))
+    services["department_commands"].update_department(DepartmentUpdateCommand(department_id=department.id, name="Operations Renamed", expected_version=department.version))
 
     # Employee: create (assigned) + a NOISE profile update (must be excluded)
     # + deactivate (removed).
-    employee = employee_service.create_employee(
-        employee_code=_unique("EMP-"), full_name="Jane Doe", department_id=department.id
-    )
-    employee = employee_service.update_employee(
-        employee.id, title="Senior Engineer", expected_version=employee.version
-    )
-    employee_service.deactivate_employee(employee.id)
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique("EMP-"), full_name="Jane Doe", department_id=department.id))
+    employee = services["employee_commands"].update_employee(EmployeeUpdateCommand(employee_id=employee.id, title="Senior Engineer", expected_version=employee.version))
+    services["employee_commands"].deactivate_employee(employee.id)
 
     # Document: create (added) + a NOISE profile update (must be excluded)
     # + deactivate (removed).
-    document = document_service.create_document(
-        document_code=_unique("DOC-"), title="Policy Manual", storage_uri="C:/docs/policy.pdf"
-    )
-    document = document_service.update_document(
-        document.id, notes="Reviewed annually", expected_version=document.version
-    )
-    document_service.update_document(document.id, is_active=False, expected_version=document.version)
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique("DOC-"), title="Policy Manual", storage_uri="C:/docs/policy.pdf"))
+    document = document_commands.update_document(DocumentUpdateCommand(document_id=document.id, notes="Reviewed annually", expected_version=document.version))
+    document_commands.update_document(DocumentUpdateCommand(document_id=document.id, is_active=False, expected_version=document.version))
 
     org_items = activity_api.list_for_organization_overview(other_org.id, limit=25)
     org_titles = [item.human_message for item in org_items]
@@ -104,21 +108,14 @@ def test_curated_feed_respects_limit_even_with_noise_ahead_of_it(services):
     """A wide raw fetch window (or, here, the fact that noise entries are
     never even written to Activity) must never starve the curated result
     below the requested limit."""
-    organization_service = services["organization_service"]
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
     activity_api = PlatformActivityDesktopApi(activity_service=services["activity_service"])
-    org = organization_service.list_organizations()[0]
+    org = services["organization_query"].list_organizations()[0]
 
-    department = department_service.create_department(department_code=_unique("DEPT-"), name="Operations")
-    employee = employee_service.create_employee(
-        employee_code=_unique("EMP-"), full_name="Noise Test", department_id=department.id
-    )
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=_unique("DEPT-"), name="Operations"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique("EMP-"), full_name="Noise Test", department_id=department.id))
     for i in range(10):
-        employee = employee_service.update_employee(
-            employee.id, title=f"Title {i}", expected_version=employee.version
-        )
-    employee_service.deactivate_employee(employee.id)
+        employee = services["employee_commands"].update_employee(EmployeeUpdateCommand(employee_id=employee.id, title=f"Title {i}", expected_version=employee.version))
+    services["employee_commands"].deactivate_employee(employee.id)
 
     items = activity_api.list_for_organization_overview(org.id, limit=5)
     titles = [item.human_message for item in items]
@@ -126,19 +123,14 @@ def test_curated_feed_respects_limit_even_with_noise_ahead_of_it(services):
 
 
 def test_curated_feed_shows_document_structure_creation_as_its_own_event(services):
-    document_service = services["document_service"]
-    organization_service = services["organization_service"]
+    document_commands = services["document_commands"]
+    document_structure_commands = services["document_structure_commands"]
     activity_api = PlatformActivityDesktopApi(activity_service=services["activity_service"])
-    org = organization_service.list_organizations()[0]
+    org = services["organization_query"].list_organizations()[0]
 
     structure_code = _unique("STRUCT-")
-    structure = document_service.create_document_structure(structure_code=structure_code, name="General Filing")
-    document = document_service.create_document(
-        document_code=_unique("DOC-"),
-        title="Linked Doc",
-        document_structure_id=structure.id,
-        storage_uri="C:/docs/linked.pdf",
-    )
+    structure = document_structure_commands.create_document_structure(DocumentStructureCreateCommand(structure_code=structure_code, name="General Filing"))
+    document = document_commands.create_document(DocumentCreateCommand(document_code=_unique("DOC-"), title="Linked Doc", document_structure_id=structure.id, storage_uri="C:/docs/linked.pdf"))
 
     items = activity_api.list_for_organization_overview(org.id, limit=25)
     titles = [item.human_message for item in items]

@@ -79,12 +79,10 @@ def test_dependency_cross_project_and_duplicate_rules(services):
 def test_assignment_allocation_and_resource_validation(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-
     project = ps.create_project("Assign Rules", "")
     pid = project.id
     task = ts.create_task(pid, "Assignable Task", start_date=date(2023, 11, 6), duration_days=2)
-    resource = rs.create_resource("Assignable Dev", "Developer", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource("Assignable Dev", "Developer", hourly_rate=100.0)
 
     with pytest.raises(ValidationError):
         ts.assign_resource(task.id, resource.id, allocation_percent=0.0)
@@ -123,8 +121,6 @@ def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services
     ps = services["project_service"]
     ts = services["task_service"]
     bs = services["baseline_service"]
-    rp = services["reporting_service"]
-
     no_task_project = ps.create_project("No Tasks Baseline", "")
     with pytest.raises(ValidationError):
         bs.create_baseline(no_task_project.id, "BL-Empty", rate_as_of=date.today())
@@ -139,7 +135,7 @@ def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services
     ts.create_task(pid, "Budgeted Task", start_date=date(2023, 11, 6), duration_days=3)
     baseline = bs.create_baseline(pid, "BL-Budget", rate_as_of=date.today())
 
-    evm = rp.get_earned_value(project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30))
+    evm = services["earned_value_report"].get_earned_value(project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30))
     assert evm.availability == "baseline_unavailable"
     assert evm.BAC is None
 
@@ -147,13 +143,11 @@ def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services
 def test_reporting_earned_value_reports_unavailable_without_baseline(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rp = services["reporting_service"]
-
     project = ps.create_project("No Baseline EVM", "")
     pid = project.id
     ts.create_task(pid, "Any Task", start_date=date(2023, 11, 6), duration_days=1)
 
-    evm = rp.get_earned_value(pid)
+    evm = services["earned_value_report"].get_earned_value(pid)
     assert evm.availability == "baseline_unavailable"
     assert evm.BAC is None
 
@@ -161,34 +155,29 @@ def test_reporting_earned_value_reports_unavailable_without_baseline(services):
 def test_dashboard_returns_none_evm_without_baseline(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    ds = services["dashboard_service"]
-
     project = ps.create_project("Dashboard No Baseline", "")
     pid = project.id
     ts.create_task(pid, "Dash Task", start_date=date(2023, 11, 6), duration_days=2)
 
-    data = ds.get_dashboard_data(pid)
+    data = services["project_dashboard_query"].get_dashboard_data(pid)
     assert data.evm is None
 
 
 def test_resource_load_summary_sorted_descending(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-    rp = services["reporting_service"]
-
     project = ps.create_project("Resource Load Sort", "")
     pid = project.id
     t1 = ts.create_task(pid, "Task One", start_date=date(2023, 11, 6), duration_days=2)
     t2 = ts.create_task(pid, "Task Two", start_date=date(2023, 11, 6), duration_days=2)
 
-    r1 = rs.create_resource("Res One", "Dev", hourly_rate=100.0)
-    r2 = rs.create_resource("Res Two", "QA", hourly_rate=100.0)
+    r1 = services["resource_master_commands"].create_resource("Res One", "Dev", hourly_rate=100.0)
+    r2 = services["resource_master_commands"].create_resource("Res Two", "QA", hourly_rate=100.0)
 
     ts.assign_resource(t1.id, r1.id, allocation_percent=20.0)
     ts.assign_resource(t2.id, r2.id, allocation_percent=80.0)
 
-    rows = rp.get_resource_load_summary(pid)
+    rows = services["project_kpi_report"].get_resource_load_summary(pid)
     assert len(rows) == 2
     assert rows[0].total_allocation_percent >= rows[1].total_allocation_percent
 

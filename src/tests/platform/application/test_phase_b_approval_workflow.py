@@ -9,16 +9,14 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def _login(services, username: str, password: str):
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _become_independent_admin_decider(services) -> None:
-    auth = services["auth_service"]
-    user = auth.register_user("independent-decider", "StrongPass123", role_names=["approver"])
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["user_registration"].register_user("independent-decider", "StrongPass123", role_names=["approver"])
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def _submitted_cost_entry(services, name: str):
@@ -47,12 +45,11 @@ def test_cost_entry_requester_can_lack_approve_and_admin_can_approve(services, m
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _login(services, "admin", "ChangeMe123!")
 
-    auth = services["auth_service"]
     cost_entries = services["cost_entry_service"]
     approvals = services["approval_service"]
 
     project, item = _submitted_cost_entry(services, "Governed Cost Project")
-    auth.register_user("planner-req", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user("planner-req", "StrongPass123", role_names=["planner"])
     _login(services, "planner-req", "StrongPass123")
 
     result = cost_entries.approve(item.id, expected_version=item.row_version)
@@ -78,7 +75,6 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "dependency.add")
     _login(services, "admin", "ChangeMe123!")
 
-    auth = services["auth_service"]
     ps = services["project_service"]
     ts = services["task_service"]
     approvals = services["approval_service"]
@@ -86,7 +82,7 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
     project = ps.create_project("Governed Dependency Project")
     a = ts.create_task(project.id, "Task Alpha", start_date=date(2026, 2, 24), duration_days=1)
     b = ts.create_task(project.id, "Task Beta", start_date=date(2026, 2, 25), duration_days=1)
-    auth.register_user("planner-dep", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user("planner-dep", "StrongPass123", role_names=["planner"])
     _login(services, "planner-dep", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="Approval required"):
@@ -129,9 +125,8 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _login(services, "admin", "ChangeMe123!")
 
-    auth = services["auth_service"]
     project, item = _submitted_cost_entry(services, "Atomic approval")
-    auth.register_user("atomic-requester", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user("atomic-requester", "StrongPass123", role_names=["planner"])
     _login(services, "atomic-requester", "StrongPass123")
     result = services["cost_entry_service"].approve(
         item.id, expected_version=item.row_version
@@ -171,9 +166,8 @@ def test_approval_apply_rolls_back_handler_when_required_audit_fails(
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _login(services, "admin", "ChangeMe123!")
 
-    auth = services["auth_service"]
     project, item = _submitted_cost_entry(services, "Atomic approval audit")
-    auth.register_user("audit-requester", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user("audit-requester", "StrongPass123", role_names=["planner"])
     _login(services, "audit-requester", "StrongPass123")
     result = services["cost_entry_service"].approve(
         item.id, expected_version=item.row_version

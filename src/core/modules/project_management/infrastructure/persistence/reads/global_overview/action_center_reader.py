@@ -103,7 +103,7 @@ class SqlAlchemyProjectManagementActionCenterReader:
 
         timesheet_items, timesheet_count = self._submissions(context, limit, after)
         items.extend(timesheet_items)
-        return ActionCenterContribution(sort_action_center_items(items, today=date.today())[:limit],
+        return ActionCenterContribution(sort_action_center_items(items, today=date.today())[:limit],  # noqa: DTZ011
             ActionCenterSummaryDto(task_count + baseline_count + timesheet_count, baseline_count, task_count, timesheet_count))
 
     def _submissions(self, context, limit, after):

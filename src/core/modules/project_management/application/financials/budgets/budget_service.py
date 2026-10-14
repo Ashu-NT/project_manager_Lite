@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from enum import Enum
+from typing import Any, Final
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -11,7 +12,6 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
@@ -68,8 +68,16 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.time.clock import CalendarClock
 
-_UNSET = object()
+
+class _Unset(Enum):
+    """Typed sentinel distinguishing "argument omitted" from an explicit None."""
+
+    TOKEN = 0
+
+
+_UNSET: Final = _Unset.TOKEN
 
 _OPEN_VERSION_CONSTRAINT = "uq_pf_budgets_one_open_per_project"
 _APPROVED_CONSTRAINT = "uq_pf_budgets_one_approved_per_project"
@@ -95,7 +103,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         financial_profile_repo: ProjectFinancialProfileRepository,
         cost_code_repo: ProjectCostCodeRepository,
         task_repo: TaskRepository,
-        clock: Clock,
+        clock: CalendarClock,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,
@@ -194,6 +202,12 @@ class BudgetService(ProjectManagementModuleGuardMixin):
                 code="PROJECT_FINANCIAL_PROFILE_NOT_FOUND",
             )
         context = self._require_context("create project budget")
+        organization_id = context.organization_id
+        if organization_id is None:  # require_organization_context guarantees this
+            raise BusinessRuleError(
+                "Active organization context is required to create project budget.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         if self._budget_repo.has_open_for_project(project_id):
             raise BusinessRuleError(
                 "A draft or submitted budget already exists for this project.",
@@ -204,7 +218,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         now = self._clock.now()
         budget = ProjectBudget.create(
             tenant_id=context.tenant_id,
-            organization_id=context.organization_id,
+            organization_id=organization_id,
             project_id=project_id,
             name=name,
             currency_code=currency_code or profile.currency_code,
@@ -639,7 +653,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         expected_line_version: int,
         expected_budget_version: int,
         cost_code_id: str | None = None,
-        task_id: str | None | object = _UNSET,
+        task_id: str | None | _Unset = _UNSET,
         description: str | None = None,
         amount: Decimal | None = None,
         currency_code: str | None = None,

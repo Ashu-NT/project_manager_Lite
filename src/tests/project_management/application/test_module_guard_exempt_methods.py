@@ -13,17 +13,22 @@ from src.core.modules.project_management.api.desktop.resources.api import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.dashboard.services.dashboard_service import (
-    DashboardService,
+from src.core.modules.project_management.application.dashboard import (
+    PortfolioDashboardQueryHandler,
+    ProjectDashboardQueryHandler,
 )
 from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
     PortfolioIntakeQueryHandler,
 )
-from src.core.modules.project_management.application.resources.catalog.resource_service import (
-    ResourceService,
+from src.core.modules.project_management.application.reporting import (
+    EarnedValueReportBuilder,
+    ReportingAccessPolicy,
 )
 from src.core.modules.project_management.application.resources.project_resources.project_resource_service import (
     ProjectResourceService,
+)
+from src.core.modules.project_management.application.resources.queries.resource_queries import (
+    ResourceQueryHandler,
 )
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleHandler,
@@ -122,10 +127,27 @@ def test_task_detail_query_facade_checks_module_before_handler() -> None:
 
 
 def test_dashboard_capability_consumer_keeps_module_gate() -> None:
-    dashboard = DashboardService.__new__(DashboardService)
+    dashboard = ProjectDashboardQueryHandler.__new__(ProjectDashboardQueryHandler)
     dashboard._module_catalog_service = _module_catalog(runtime_enabled=False)
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         dashboard.get_dashboard_data("project-1")
+    portfolio = PortfolioDashboardQueryHandler.__new__(PortfolioDashboardQueryHandler)
+    portfolio._module_catalog_service = _module_catalog(runtime_enabled=False)
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        portfolio.get_portfolio_data()
+
+
+def test_report_builder_fed_directly_checks_module_before_reading() -> None:
+    builder = EarnedValueReportBuilder(
+        access=ReportingAccessPolicy(user_session=None),
+        cost_policy=object(),  # type: ignore[arg-type]
+        evm_series_reader=object(),  # type: ignore[arg-type]
+        tenant_context_service=object(),  # type: ignore[arg-type]
+        calendar=object(),  # type: ignore[arg-type]
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        builder.get_earned_value("project-1")
 
 
 def test_csv_import_capability_consumer_keeps_module_gate() -> None:
@@ -135,17 +157,30 @@ def test_csv_import_capability_consumer_keeps_module_gate() -> None:
         imports.get_import_schema("tasks")
 
 
-def test_resource_commands_facade_checks_module_before_handler() -> None:
-    service = ResourceService(
-        resource_repo=object(),
-        master_command_handler=object(),
-        capability_command_handler=object(),
+def test_resource_query_handler_checks_module_before_repository() -> None:
+    query = ResourceQueryHandler(
+        resource_repo=object(),  # type: ignore[arg-type]
         module_catalog_service=_module_catalog(runtime_enabled=False),
     )
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
-        service.add_resource_skill("resource-1", "planning", "Planning")
+        query.list_resources()
+
+
+def test_resource_command_desktop_boundary_checks_module_before_handler() -> None:
+    api = ProjectManagementResourcesDesktopApi(
+        resource_master_commands=object(),  # type: ignore[arg-type]
+        resource_capability_commands=object(),  # type: ignore[arg-type]
+        module_catalog_service=_module_catalog(runtime_enabled=False),
+    )
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
-        service.create_resource("Resource")
+        api.add_resource_skill(
+            SimpleNamespace(
+                resource_id="resource-1", skill_code="planning", skill_name="Planning",
+                proficiency="intermediate", notes="",
+            )
+        )
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        api.create_resource(SimpleNamespace(name="Resource"))
 
 
 def test_resource_query_desktop_boundary_checks_module_before_handler() -> None:

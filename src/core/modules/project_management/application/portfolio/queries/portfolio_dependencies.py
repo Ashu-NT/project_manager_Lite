@@ -2,12 +2,30 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.common.pagination import (
     PaginatedResult,
+)
+from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
+    PortfolioExecutiveQueryHandler,
+)
+from src.core.modules.project_management.application.portfolio.utils.portfolio_heatmap import (
+    PortfolioHeatmapCalculator,
+)
+from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
+    PortfolioPolicy,
+)
+from src.core.modules.project_management.contracts.reads.portfolio.heatmap_reader import (
+    PortfolioHeatmapReader,
 )
 from src.core.modules.project_management.contracts.reads.sorting import (
     ReadSort,
     ReadSortDirection,
+)
+from src.core.modules.project_management.contracts.repositories.portfolio.portfolio import (
+    PortfolioProjectDependencyRepository,
 )
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,
@@ -15,6 +33,9 @@ from src.core.modules.project_management.domain.portfolio import (
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 
 _DEPENDENCY_BROWSE_SORT_KEYS = {
@@ -26,22 +47,66 @@ _DEPENDENCY_BROWSE_SORT_KEYS = {
 }
 
 
-class PortfolioDependencyQueryMixin:
+def _combine_dependency_pressure(predecessor_pressure: str, successor_pressure: str) -> str:
+    labels = {str(predecessor_pressure or "").strip(), str(successor_pressure or "").strip()}
+    if "Hot" in labels:
+        return "Hot"
+    if "Watch" in labels:
+        return "Watch"
+    if "Needs Schedule" in labels:
+        return "Needs Schedule"
+    return "Stable"
+
+
+def _dependency_pressure_rank(label: str) -> int:
+    if label == "Hot":
+        return 3
+    if label == "Watch":
+        return 2
+    if label == "Needs Schedule":
+        return 1
+    return 0
+
+
+class PortfolioDependencyQueryHandler(ProjectManagementModuleGuardMixin):
+    """Cross-project dependency reads enriched with heatmap pressure."""
+
+    def __init__(
+        self,
+        *,
+        dependency_repo: PortfolioProjectDependencyRepository,
+        heatmap_reader: PortfolioHeatmapReader,
+        heatmap_calculator: PortfolioHeatmapCalculator,
+        executive_query: PortfolioExecutiveQueryHandler,
+        policy: PortfolioPolicy,
+        tenant_context_service: TenantContextService,
+        user_session=None,
+        module_catalog_service=None,
+    ) -> None:
+        self._dependency_repo = dependency_repo
+        self._heatmap_reader = heatmap_reader
+        self._heatmap_calculator = heatmap_calculator
+        self._executive_query = executive_query
+        self._policy = policy
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
+
     def list_project_dependencies(
         self,
         *,
         heatmap_rows: list[PortfolioExecutiveRow] | None = None,
     ) -> list[PortfolioProjectDependencyView]:
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio project dependencies")
-        accessible_projects = {project.id: project for project in self._accessible_projects()}
+        accessible_projects = {project.id: project for project in self._policy.accessible_projects()}
         if not accessible_projects:
             return []
         heatmap_by_project = {
             row.project_id: row
-            for row in (heatmap_rows if heatmap_rows is not None else self.list_portfolio_heatmap())
+            for row in (heatmap_rows if heatmap_rows is not None else self._executive_query.list_portfolio_heatmap())
         }
         rows: list[PortfolioProjectDependencyView] = []
-        self._active_portfolio_organization_id(operation_label="view portfolio dependencies")
+        self._policy.organization_id(operation_label="view portfolio dependencies")
         for dependency in self._dependency_repo.list():
             predecessor = accessible_projects.get(dependency.predecessor_project_id)
             successor = accessible_projects.get(dependency.successor_project_id)
@@ -60,7 +125,7 @@ class PortfolioDependencyQueryMixin:
                     successor_project_status=getattr(successor.status, "value", str(successor.status)),
                     dependency_type=dependency.dependency_type,
                     summary=dependency.summary,
-                    pressure_label=self._combine_dependency_pressure(
+                    pressure_label=_combine_dependency_pressure(
                         predecessor_heat.pressure_label if predecessor_heat is not None else "Stable",
                         successor_heat.pressure_label if successor_heat is not None else "Stable",
                     ),
@@ -70,7 +135,7 @@ class PortfolioDependencyQueryMixin:
         return sorted(
             rows,
             key=lambda row: (
-                -self._dependency_pressure_rank(row.pressure_label),
+                -_dependency_pressure_rank(row.pressure_label),
                 row.successor_project_name.lower(),
                 row.predecessor_project_name.lower(),
                 row.created_at,
@@ -91,9 +156,9 @@ class PortfolioDependencyQueryMixin:
         SQL join (no second unbounded project fetch). Pressure is display-
         only and is computed only for the projects referenced on this page —
         never a full-heatmap-scope computation, and never a sortable key
-        here (see PortfolioExecutiveQueryMixin.list_portfolio_heatmap_page)."""
+        here (see PortfolioExecutiveQueryHandler.list_portfolio_heatmap_page)."""
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio project dependencies")
-        self._active_portfolio_organization_id(operation_label="view portfolio dependencies")
+        self._policy.organization_id(operation_label="view portfolio dependencies")
         sort = ReadSort.normalize(
             key=sort_key,
             direction=sort_direction,
@@ -126,10 +191,10 @@ class PortfolioDependencyQueryMixin:
                 tenant_id=scope.tenant_id,
                 organization_id=scope.organization_id,
                 project_ids=referenced_project_ids,
-                as_of=date.today(),
+                as_of=date.today(),  # noqa: DTZ011 - local business date (unchanged)
             )
             pressure_by_project = {
-                row.project_id: row.pressure_label for row in self._compute_heatmap_rows(facts)
+                row.project_id: row.pressure_label for row in self._heatmap_calculator.compute_rows(facts)
             }
         views = [
             PortfolioProjectDependencyView(
@@ -142,7 +207,7 @@ class PortfolioDependencyQueryMixin:
                 successor_project_status=item.successor_project_status,
                 dependency_type=item.dependency.dependency_type,
                 summary=item.dependency.summary,
-                pressure_label=self._combine_dependency_pressure(
+                pressure_label=_combine_dependency_pressure(
                     pressure_by_project.get(item.dependency.predecessor_project_id, "Stable"),
                     pressure_by_project.get(item.dependency.successor_project_id, "Stable"),
                 ),
@@ -157,26 +222,5 @@ class PortfolioDependencyQueryMixin:
             total=page_result.total,
         )
 
-    @staticmethod
-    def _combine_dependency_pressure(predecessor_pressure: str, successor_pressure: str) -> str:
-        labels = {str(predecessor_pressure or "").strip(), str(successor_pressure or "").strip()}
-        if "Hot" in labels:
-            return "Hot"
-        if "Watch" in labels:
-            return "Watch"
-        if "Needs Schedule" in labels:
-            return "Needs Schedule"
-        return "Stable"
 
-    @staticmethod
-    def _dependency_pressure_rank(label: str) -> int:
-        if label == "Hot":
-            return 3
-        if label == "Watch":
-            return 2
-        if label == "Needs Schedule":
-            return 1
-        return 0
-
-
-__all__ = ["PortfolioDependencyQueryMixin"]
+__all__ = ["PortfolioDependencyQueryHandler"]

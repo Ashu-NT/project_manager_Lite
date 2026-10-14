@@ -41,7 +41,7 @@ def serialize_entry(
         due_date_label=entry.due_date.isoformat() if entry.due_date else "No due date",
         impact_summary=entry.impact_summary or "",
         response_plan=entry.response_plan or "",
-        is_overdue=entry.is_overdue_on(date.today()),
+        is_overdue=entry.is_overdue_on(date.today()),  # noqa: DTZ011
         version=int(entry.version or 1),
     )
 

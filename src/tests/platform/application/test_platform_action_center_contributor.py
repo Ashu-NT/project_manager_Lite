@@ -35,19 +35,17 @@ def _context(services) -> ActionCenterContext:
 
 
 def _become_decider(services) -> None:
-    auth = services["auth_service"]
-    reviewer = auth.register_user(
+    reviewer = services["user_registration"].register_user(
         "action-reviewer", "StrongPass123", role_names=["approver"]
     )
-    services["user_session"].set_principal(auth.build_principal(reviewer))
+    services["user_session"].set_principal(services["principal_builder"].build(reviewer))
 
 
 def _become_non_decider(services) -> None:
     """Holds approval.request (so ApprovalService.list_requests/count_pending
     would still succeed if called) but not approval.decide."""
-    auth = services["auth_service"]
-    viewer = auth.register_user("action-viewer", "StrongPass123", role_names=["viewer"])
-    services["user_session"].set_principal(auth.build_principal(viewer))
+    viewer = services["user_registration"].register_user("action-viewer", "StrongPass123", role_names=["viewer"])
+    services["user_session"].set_principal(services["principal_builder"].build(viewer))
 
 
 def _create_pending_approval(services, *, entity_id: str = "org-request-1"):

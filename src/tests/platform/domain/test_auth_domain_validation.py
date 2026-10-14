@@ -1,10 +1,28 @@
 from __future__ import annotations
 
 from datetime import datetime
+from types import SimpleNamespace
 
 import pytest
 
-from src.core.platform.application.security.auth.auth_service import AuthService
+from src.core.platform.application.security.auth import (
+    AuthenticationHandler,
+    AuthSessionCommandHandler,
+    AuthSessionQueryHandler,
+    AuthTransactionScope,
+    AuthValidationPolicy,
+    UserAdministrationCommandHandler,
+    UserRegistrationHandler,
+)
+from src.core.platform.application.security.auth.credentials.authentication_transactions import (
+    AuthenticationTransactions,
+)
+from src.core.platform.application.security.auth.session.principal_builder import (
+    PrincipalBuilder,
+)
+from src.core.platform.application.security.auth.session.session_lifecycle import (
+    AuthSessionLifecycle,
+)
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.security.auth import (
     AuthSession,
@@ -16,11 +34,17 @@ from src.core.platform.domain.security.auth import (
 from src.core.platform.domain.security.auth.user import (
     normalize_auth_session_timeout_override,
 )
+from src.core.platform.infrastructure.composition.dependencies.security.auth import (
+    build_auth_query_handler,
+)
 from src.core.platform.infrastructure.persistence.uow.security.auth_unit_of_work import (
     SqlAlchemyAuthUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.uow.security.session_write_lock import (
-    SqlAlchemySessionWriteLock,
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
+from src.infra.events.in_process_transactional_event_dispatcher import (
+    InProcessTransactionalEventDispatcher,
 )
 from src.infra.time.system_clock import SystemClock
 
@@ -182,84 +206,139 @@ class _FakeAuthSessionRepo:
         auth_session.updated_at = validated_at
         return True
 
+AUTH = "src.core.platform.application.security.auth"
 
-def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
+
+class _NoopAudit:
+    def add_atomic_security_audit(self, **_kwargs) -> None:
+        return None
+
+    def add_atomic_system_security_audit(self, **_kwargs) -> None:
+        return None
+
+    def add_atomic_auth_event(self, **_kwargs) -> None:
+        return None
+
+
+class _OpenTargetUsers:
+    def require_target_user_in_active_tenant(self, *_args, **_kwargs) -> str:
+        return ""
+
+    def require_actor_active_tenant(self, *_args, **_kwargs) -> str:
+        return ""
+
+    def is_platform_operator(self) -> bool:
+        return True
+
+
+class _NoSod:
+    def enforce(self, _role_names) -> None:
+        return None
+
+
+def _make_auth_handlers(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+    for module in ("commands.registration", "commands.user_administration"):
+        monkeypatch.setattr(f"src.core.platform.application.security.auth.{module}.require_permission", lambda *args, **kwargs: None)
+    for module in ("commands.user_administration", "commands.sessions", "queries.sessions"):
+        monkeypatch.setattr(
+            f"src.core.platform.application.security.auth.{module}.require_any_permission", lambda *args, **kwargs: None
+        )
     monkeypatch.setattr(
-        "src.core.platform.application.security.auth.provisioning.registration_service.require_permission",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.provisioning.user_admin_service.require_permission",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.provisioning.user_admin_service.require_any_permission",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.session.session_service.require_any_permission",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.provisioning.user_admin_service.require_target_user_in_active_tenant",
-        lambda *args, **kwargs: "",
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.session.session_service.require_target_user_in_active_tenant",
-        lambda *args, **kwargs: "",
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.provisioning.registration_service.add_atomic_security_audit",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.provisioning.user_admin_service.add_atomic_security_audit",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.credentials.authentication_transactions.add_atomic_auth_event",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.session.session_service.add_atomic_security_audit",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.provisioning.registration_service.enforce_separation_of_duties",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.provisioning.registration_service.hash_password",
+        "src.core.platform.application.security.auth.commands.registration.hash_password",
         lambda raw_password: f"hash::{raw_password}",
     )
     monkeypatch.setattr(
-        "src.core.platform.application.security.auth.credentials.authentication_service.verify_password",
+        "src.core.platform.application.security.auth.commands.authentication.verify_password",
         lambda raw_password, password_hash: password_hash == f"hash::{raw_password}",
     )
 
-    from src.infra.events.in_process_post_commit_event_bus import (
-        InProcessPostCommitEventBus,
-    )
-    from src.infra.events.in_process_transactional_event_dispatcher import (
-        InProcessTransactionalEventDispatcher,
-    )
-
-    return AuthService(
-        session=_FakeSession(),
-        user_repo=_FakeUserRepo(),
-        role_repo=_FakeRoleRepo(),
+    user_repo = _FakeUserRepo()
+    role_repo = _FakeRoleRepo()
+    auth_session_repo = _FakeAuthSessionRepo()
+    auth_queries = build_auth_query_handler(
+        user_repo=user_repo,
+        role_repo=role_repo,
         permission_repo=_FakePermissionRepo(),
         role_permission_repo=_FakeRolePermissionRepo(),
-        auth_session_repo=_FakeAuthSessionRepo(),
-        user_session=None,
-        enterprise_audit_service=None,
-        sod_policy=None,
-        user_tenant_repo=None,
+        role_binding_repo=None,
+    )
+    tx = AuthTransactionScope(
+        session=_FakeSession(),
+        uow_factory=SqlAlchemyAuthUnitOfWorkFactory(),
         transactional_dispatcher=InProcessTransactionalEventDispatcher(),
         post_commit_bus=InProcessPostCommitEventBus(),
-        clock=SystemClock(),
-        uow_factory=SqlAlchemyAuthUnitOfWorkFactory(),
-        session_write_lock=SqlAlchemySessionWriteLock(),
+        tenant_context_service=None,
+    )
+    audit = _NoopAudit()
+    target_users = _OpenTargetUsers()
+    principals = PrincipalBuilder(
+        auth_queries=auth_queries,
+        auth_session_repo=auth_session_repo,
+        tenant_context_service=None,
+    )
+    lifecycle = AuthSessionLifecycle(
+        user_repo=user_repo,
+        auth_session_repo=auth_session_repo,
+        user_session=None,
+        principals=principals,
+    )
+    account_change = dict(
+        tx=tx,
+        auth_queries=auth_queries,
+        user_repo=user_repo,
+        user_session=None,
+        target_users=target_users,
+        audit=audit,
+        lifecycle=lifecycle,
+    )
+    return SimpleNamespace(
+        registration=UserRegistrationHandler(
+            tx=tx,
+            clock=SystemClock(),
+            auth_queries=auth_queries,
+            user_repo=user_repo,
+            role_repo=role_repo,
+            role_binding_repo=None,
+            security_audit_repo=None,
+            user_session=None,
+            tenant_context_service=None,
+            user_tenant_repo=None,
+            validation_policy=AuthValidationPolicy(),
+            audit=audit,
+            sod=_NoSod(),
+            target_users=target_users,
+        ),
+        user_administration=UserAdministrationCommandHandler(**account_change),
+        session_commands=AuthSessionCommandHandler(
+            tx=tx,
+            auth_queries=auth_queries,
+            user_repo=user_repo,
+            auth_session_repo=auth_session_repo,
+            user_session=None,
+            target_users=target_users,
+            audit=audit,
+            lifecycle=lifecycle,
+            principals=principals,
+        ),
+        session_queries=AuthSessionQueryHandler(
+            auth_queries=auth_queries,
+            auth_session_repo=auth_session_repo,
+            user_session=None,
+            target_users=target_users,
+        ),
+        authentication=AuthenticationHandler(
+            user_repo=user_repo,
+            transactions=AuthenticationTransactions(
+                tx=tx,
+                user_repo=user_repo,
+                auth_session_repo=auth_session_repo,
+                user_session=None,
+                tenant_context_service=None,
+                principals=principals,
+                lifecycle=lifecycle,
+                audit=audit,
+            ),
+        ),
     )
 
 
@@ -381,9 +460,9 @@ def test_auth_rbac_dtos_normalize_and_validate_fields():
 def test_auth_service_uses_entity_validation_for_user_and_session_models(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    auth = _make_auth_service(monkeypatch)
+    auth = _make_auth_handlers(monkeypatch)
 
-    user = auth.register_user(
+    user = auth.registration.register_user(
         "  Alice  ",
         "StrongPass123",
         display_name="  Alice Admin  ",
@@ -403,7 +482,7 @@ def test_auth_service_uses_entity_validation_for_user_and_session_models(
     assert user.session_timeout_minutes_override == 30
     assert user.must_change_password is True
 
-    updated = auth.update_user_profile(
+    updated = auth.user_administration.update_user_profile(
         user.id,
         username="  Alice-Prime  ",
         display_name="  Alice Prime  ",
@@ -413,13 +492,13 @@ def test_auth_service_uses_entity_validation_for_user_and_session_models(
     assert updated.display_name == "Alice Prime"
     assert updated.email == "alice.prime@example.com"
 
-    policy_user = auth.set_user_session_policy(
+    policy_user = auth.session_commands.set_user_session_policy(
         user.id,
         session_timeout_minutes_override="45",
     )
     assert policy_user.session_timeout_minutes_override == 45
 
-    authenticated = auth.authenticate(
+    authenticated = auth.authentication.authenticate(
         "alice-prime",
         "StrongPass123",
         device_label="  Office Laptop  ",
@@ -428,14 +507,14 @@ def test_auth_service_uses_entity_validation_for_user_and_session_models(
     assert authenticated.last_login_auth_method == "password"
     assert authenticated.active_session_id is not None
 
-    sessions = auth.list_user_sessions(user.id)
+    sessions = auth.session_queries.list_user_sessions(user.id)
     assert len(sessions) == 1
     assert sessions[0].device_label == "Office Laptop"
     assert sessions[0].auth_method == "password"
     assert sessions[0].session_revision == authenticated.session_revision
 
     with pytest.raises(ValidationError) as exc_email:
-        auth.register_user(
+        auth.registration.register_user(
             "invalid-email-user",
             "StrongPass123",
             email="not-an-email",

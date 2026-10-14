@@ -42,7 +42,7 @@ def test_mark_mentions_read_queries_only_recipient_rows_in_bounded_batches(servi
 
     event.listen(session.bind, "before_cursor_execute", record)
     try:
-        services["collaboration_service"].mark_task_mentions_read(task.id)
+        services["collaboration_comment_engagement"].mark_task_mentions_read(task.id)
     finally:
         event.remove(session.bind, "before_cursor_execute", record)
 

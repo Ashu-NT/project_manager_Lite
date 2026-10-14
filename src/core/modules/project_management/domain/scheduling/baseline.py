@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -47,7 +48,7 @@ def _coerce_optional_date(value: object, *, code: str) -> date | None:
     )
 
 
-def _coerce_non_negative_int(value: object, *, message: str, code: str) -> int:
+def _coerce_non_negative_int(value: Any, *, message: str, code: str) -> int:
     try:
         resolved = int(value if value not in (None, "") else 0)
     except (TypeError, ValueError) as exc:
@@ -193,7 +194,7 @@ class ProjectBaseline:
             )
         return self
 
-    def _apply_validated_changes(self, **changes: object) -> None:
+    def _apply_validated_changes(self, **changes: Any) -> None:
         candidate = replace(self, **changes)
         for field_name in self.__dataclass_fields__:
             object.__setattr__(self, field_name, getattr(candidate, field_name))
@@ -216,7 +217,7 @@ class ProjectBaseline:
             id=generate_id(),
             project_id=project_id,
             name=name.strip() or "Baseline",
-            created_at=date.today(),
+            created_at=date.today(),  # noqa: DTZ011 -- naive local calendar date by design
             status=BaselineStatus.DRAFT,
             version=1,
         )
@@ -230,7 +231,7 @@ class ProjectBaseline:
         changes: dict[str, object] = {
             "status": BaselineStatus.SUBMITTED,
             "submitted_by": submitted_by,
-            "submitted_at": date.today(),
+            "submitted_at": date.today(),  # noqa: DTZ011 -- naive local calendar date by design
         }
         normalized_notes = normalize_optional_text(notes)
         if normalized_notes:
@@ -246,7 +247,7 @@ class ProjectBaseline:
         changes: dict[str, object] = {
             "status": BaselineStatus.APPROVED,
             "approved_by": approved_by,
-            "approved_at": date.today(),
+            "approved_at": date.today(),  # noqa: DTZ011 -- naive local calendar date by design
         }
         normalized_notes = normalize_optional_text(notes)
         if normalized_notes:
@@ -455,7 +456,7 @@ class BaselineVarianceRecord:
 
     @field_validator("start_variance_days", mode="before")
     @classmethod
-    def _validate_start_variance_days(cls, value: object) -> int:
+    def _validate_start_variance_days(cls, value: Any) -> int:
         try:
             return int(value if value not in (None, "") else 0)
         except (TypeError, ValueError) as exc:
@@ -466,7 +467,7 @@ class BaselineVarianceRecord:
 
     @field_validator("finish_variance_days", mode="before")
     @classmethod
-    def _validate_finish_variance_days(cls, value: object) -> int:
+    def _validate_finish_variance_days(cls, value: Any) -> int:
         try:
             return int(value if value not in (None, "") else 0)
         except (TypeError, ValueError) as exc:
@@ -514,7 +515,7 @@ class BaselineVarianceRecord:
             start_variance_days=start_variance_days,
             finish_variance_days=finish_variance_days,
             cost_variance=cost_variance,
-            created_at=date.today(),
+            created_at=date.today(),  # noqa: DTZ011 -- naive local calendar date by design
         )
 
 

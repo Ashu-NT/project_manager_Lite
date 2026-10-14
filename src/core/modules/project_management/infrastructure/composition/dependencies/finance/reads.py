@@ -8,7 +8,9 @@ from src.core.modules.project_management.application.financials import (
     ProjectFinanceWorkspaceQuery,
     RateCardResolver,
 )
-from src.core.modules.project_management.application.reporting import ReportingService
+from src.core.modules.project_management.application.reporting import (
+    EarnedValueReportBuilder,
+)
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
@@ -85,13 +87,13 @@ def build_finance_performance_query(
     platform_services: PlatformServiceBundle,
     *,
     performance_reader: SqlAlchemyFinancePerformanceReader,
-    reporting_service: ReportingService,
+    earned_value_report: EarnedValueReportBuilder,
     baseline_service: BaselineService,
 ) -> ProjectFinancePerformanceQuery:
     return ProjectFinancePerformanceQuery(
         performance_reader=performance_reader,
         overview_reader=SqlAlchemyFinanceSnapshotReader(session=session),
-        earned_value_authority=reporting_service,
+        earned_value_authority=earned_value_report,
         baseline_variance_authority=baseline_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,

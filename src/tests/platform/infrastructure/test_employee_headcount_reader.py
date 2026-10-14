@@ -14,6 +14,12 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
 from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
@@ -152,35 +158,28 @@ def test_reader_empty_summary_when_no_rows(reader_session):
 
 
 def test_employee_service_headcount_summary_reflects_writes(services):
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
 
-    dept = department_service.create_department(department_code="P6-D1", name="Headcount Dept")
-    baseline = employee_service.get_headcount_summary()
+    dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code="P6-D1", name="Headcount Dept"))
+    baseline = services["employee_query"].get_headcount_summary()
 
-    employee_service.create_employee(employee_code="P6-E1", full_name="Employee One", department_id=dept.id)
-    inactive = employee_service.create_employee(employee_code="P6-E2", full_name="Employee Two", department_id=dept.id)
-    employee_service.deactivate_employee(inactive.id)
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="P6-E1", full_name="Employee One", department_id=dept.id))
+    inactive = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="P6-E2", full_name="Employee Two", department_id=dept.id))
+    services["employee_commands"].deactivate_employee(inactive.id)
 
-    updated = employee_service.get_headcount_summary()
+    updated = services["employee_query"].get_headcount_summary()
     assert updated.total == baseline.total + 2
     assert updated.active == baseline.active + 1
 
 
 def test_employee_headcount_is_isolated_per_organization(services):
-    organization_service = services["organization_service"]
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
 
     default_organization = services["tenant_context_service"].get_active_organization()
-    default_dept = department_service.create_department(department_code="P6-DEF-D", name="Default Org Dept")
-    employee_service.create_employee(
-        employee_code="P6-DEF-1", full_name="Default Org Employee", department_id=default_dept.id
-    )
-    default_summary = employee_service.get_headcount_summary()
+    default_dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code="P6-DEF-D", name="Default Org Dept"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="P6-DEF-1", full_name="Default Org Employee", department_id=default_dept.id))
+    default_summary = services["employee_query"].get_headcount_summary()
     assert default_summary.total >= 1
 
-    second_organization = organization_service.create_organization(
+    second_organization = services["organization_commands"].create_organization(
         organization_code="P6-SECOND",
         display_name="Second Org",
         timezone_name="UTC",
@@ -188,17 +187,15 @@ def test_employee_headcount_is_isolated_per_organization(services):
     )
     services["tenant_context_service"].set_active_organization(second_organization.id)
 
-    fresh_org_summary = employee_service.get_headcount_summary()
+    fresh_org_summary = services["employee_query"].get_headcount_summary()
     assert (fresh_org_summary.total, fresh_org_summary.active) == (0, 0)
 
-    second_dept = department_service.create_department(department_code="P6-SEC-D", name="Second Org Dept")
-    employee_service.create_employee(
-        employee_code="P6-SEC-1", full_name="Second Org Employee", department_id=second_dept.id
-    )
-    assert employee_service.get_headcount_summary().total == 1
+    second_dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code="P6-SEC-D", name="Second Org Dept"))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="P6-SEC-1", full_name="Second Org Employee", department_id=second_dept.id))
+    assert services["employee_query"].get_headcount_summary().total == 1
 
     services["tenant_context_service"].set_active_organization(default_organization.id)
-    assert employee_service.get_headcount_summary().total == default_summary.total
+    assert services["employee_query"].get_headcount_summary().total == default_summary.total
 
 
 # ---------------------------------------------------------------------------
@@ -225,23 +222,19 @@ def _instrument_list_for_organization(employee_repo):
 
 
 def test_get_headcount_summary_never_calls_list_for_organization(services, session):
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    employee_repo = employee_service._employee_repo
+    employee_repo = services["employee_query"]._employee_repo
     engine = session.get_bind()
 
-    dept = department_service.create_department(department_code="P6-BULK-D", name="Bulk Dept")
+    dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code="P6-BULK-D", name="Bulk Dept"))
     for i in range(50):
-        employee = employee_service.create_employee(
-            employee_code=f"P6-BULK-{i}", full_name=f"Bulk Employee {i}", department_id=dept.id
-        )
+        employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=f"P6-BULK-{i}", full_name=f"Bulk Employee {i}", department_id=dept.id))
         if i % 2 != 0:
-            employee_service.deactivate_employee(employee.id)
+            services["employee_commands"].deactivate_employee(employee.id)
 
     counts, restore = _instrument_list_for_organization(employee_repo)
     try:
         _, selects = _count_employee_selects(
-            engine, lambda: employee_service.get_headcount_summary()
+            engine, lambda: services["employee_query"].get_headcount_summary()
         )
     finally:
         restore()
@@ -261,18 +254,14 @@ def test_admin_overview_never_lists_full_employee_collection(services):
     from src.application.runtime import build_desktop_api_registry
     from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    employee_repo = employee_service._employee_repo
+    employee_repo = services["employee_query"]._employee_repo
 
-    dept = department_service.create_department(department_code="P6-ADMIN-D", name="Admin Overview Dept")
+    dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code="P6-ADMIN-D", name="Admin Overview Dept"))
     for i in range(20):
-        employee = employee_service.create_employee(
-            employee_code=f"P6-ADMIN-{i}", full_name=f"Admin Overview Employee {i}", department_id=dept.id
-        )
+        employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=f"P6-ADMIN-{i}", full_name=f"Admin Overview Employee {i}", department_id=dept.id))
         if i % 3 != 0:
-            employee_service.deactivate_employee(employee.id)
-    expected = employee_service.get_headcount_summary()
+            services["employee_commands"].deactivate_employee(employee.id)
+    expected = services["employee_query"].get_headcount_summary()
 
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)

@@ -4,6 +4,7 @@ from dataclasses import field
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -114,7 +115,7 @@ class ProjectBillingProfile:
 
     @field_validator("contract_value", mode="before")
     @classmethod
-    def _contract_value(cls, value: object) -> Decimal:
+    def _contract_value(cls, value: Any) -> Decimal:
         amount = MONEY_STORAGE.validate(value)
         if amount < 0:
             raise ValidationError(
@@ -125,7 +126,7 @@ class ProjectBillingProfile:
 
     @field_validator("cost_plus_markup_percent", mode="before")
     @classmethod
-    def _markup(cls, value: object) -> Decimal:
+    def _markup(cls, value: Any) -> Decimal:
         markup = PERCENTAGE_STORAGE.validate(value)
         if markup < 0 or markup > Decimal(1000):
             raise ValidationError(
@@ -136,7 +137,7 @@ class ProjectBillingProfile:
 
     @field_validator("payment_terms_days", mode="before")
     @classmethod
-    def _payment_terms(cls, value: object) -> int:
+    def _payment_terms(cls, value: Any) -> int:
         days = int(value)
         if days < 0 or days > 3650:
             raise ValidationError(
@@ -147,7 +148,7 @@ class ProjectBillingProfile:
 
     @field_validator("retention_years", mode="before")
     @classmethod
-    def _retention_years(cls, value: object) -> int:
+    def _retention_years(cls, value: Any) -> int:
         years = int(value)
         if years < 7 or years > 100:
             raise ValidationError(
@@ -158,7 +159,7 @@ class ProjectBillingProfile:
 
     @field_validator("row_version", mode="before")
     @classmethod
-    def _version(cls, value: object) -> int:
+    def _version(cls, value: Any) -> int:
         version = int(value)
         if version < 1:
             raise ValidationError(
@@ -300,7 +301,7 @@ class ProjectBillingScheduleLine:
 
     @field_validator("amount", mode="before")
     @classmethod
-    def _amount(cls, value: object) -> Decimal:
+    def _amount(cls, value: Any) -> Decimal:
         amount = MONEY_STORAGE.validate(value)
         if amount <= 0:
             raise ValidationError(
@@ -318,7 +319,7 @@ class ProjectBillingScheduleLine:
 
     @field_validator("row_version", mode="before")
     @classmethod
-    def _version(cls, value: object) -> int:
+    def _version(cls, value: Any) -> int:
         version = int(value)
         if version < 1:
             raise ValidationError(

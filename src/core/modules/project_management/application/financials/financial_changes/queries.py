@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -22,8 +24,27 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_permission,
 )
 
+if TYPE_CHECKING:
+    from src.core.modules.project_management.contracts.reads.financials.finance_change_reader import (
+        FinanceChangeReader,
+    )
+    from src.core.modules.project_management.contracts.reads.financials.finance_lookup_reader import (
+        FinanceLookupReader,
+    )
+    from src.core.platform.application.tenant.tenancy.tenant_context import (
+        TenantContextService,
+    )
+    from src.core.platform.domain.security.auth.session import UserSessionContext
+
 
 class FinancialChangesWorkspaceQueries:
+    # Host attributes supplied by ``ProjectFinanceWorkspaceQuery`` (declared for type checking only).
+    _change_reader: FinanceChangeReader | None
+    _tenant_context_service: TenantContextService | None
+    _user_session: UserSessionContext | None
+    _has_project_permission: Callable[[str, str], bool]
+    _require_lookup_reader: Callable[[], FinanceLookupReader]
+
     def search_financial_change_target_lines(
         self,
         project_id: str,

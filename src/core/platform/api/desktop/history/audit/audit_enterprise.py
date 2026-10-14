@@ -47,7 +47,7 @@ class PlatformEnterpriseAuditDesktopApi:
         """Entries for a contextual admin-overview audit preview."""
         try:
             entries = self._service.list_recent(limit=limit)
-        except Exception:
+        except Exception:  # noqa: BLE001
             return ()
         return tuple(self._to_dto(entry) for entry in entries)
 

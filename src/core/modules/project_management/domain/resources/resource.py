@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
+from typing import Any, cast
 
 from pydantic import field_validator, model_validator
 
@@ -79,7 +80,7 @@ class Resource:
 
     @field_validator("capacity_percent", mode="before")
     @classmethod
-    def _validate_capacity_percent(cls, value: object) -> float:
+    def _validate_capacity_percent(cls, value: Any) -> float:
         resolved = float(value if value not in (None, "") else 100.0)
         if resolved <= 0.0:
             raise ValidationError(
@@ -148,7 +149,7 @@ class Resource:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         resolved = int(value if value not in (None, "") else 1)
         if resolved < 1:
             raise ValidationError(
@@ -199,10 +200,10 @@ class Resource:
         return Resource(
             id=generate_id(),
             name=name,
-            kind=kind,
+            kind=cast(ResourceKind, kind),  # coerced by the field's before-validator
             code=code,
             role=role,
-            hourly_rate=hourly_rate,
+            hourly_rate=cast(Decimal, hourly_rate),  # coerced by the field's before-validator
             is_active=is_active,
             cost_type=cost_type,
             currency_code=currency_code,

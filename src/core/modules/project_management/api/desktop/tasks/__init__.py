@@ -3,26 +3,6 @@ from __future__ import annotations
 from src.core.modules.project_management.api.desktop.tasks.api import (
     ProjectManagementTasksDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.tasks.commands.assignment_commands import (
-    TaskAssignmentAllocationCommand,
-    TaskAssignmentCreateCommand,
-    TaskAssignmentHoursCommand,
-    TaskAssignmentPlannedHoursCommand,
-)
-from src.core.modules.project_management.api.desktop.tasks.commands.bulk_commands import (
-    TaskBulkStatusCommand,
-)
-from src.core.modules.project_management.api.desktop.tasks.commands.dependency_commands import (
-    TaskDependencyCreateCommand,
-    TaskDependencyUpdateCommand,
-)
-from src.core.modules.project_management.api.desktop.tasks.commands.task_commands import (
-    TaskConstraintUpdateCommand,
-    TaskCreateCommand,
-    TaskProgressCommand,
-    TaskUpdateCommand,
-    TaskWbsMoveCommand,
-)
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
 )
@@ -56,6 +36,20 @@ from src.core.modules.project_management.api.desktop.tasks.models.time_summary i
 from src.core.modules.project_management.api.desktop.tasks.models.validation import (
     AssignmentPreviewDesktopDto,
     AssignmentValidationDesktopDto,
+)
+from src.core.modules.project_management.contracts.use_cases.tasks.commands import (
+    TaskAssignmentAllocationCommand,
+    TaskAssignmentCreateCommand,
+    TaskAssignmentHoursCommand,
+    TaskAssignmentPlannedHoursCommand,
+    TaskBulkStatusCommand,
+    TaskConstraintUpdateCommand,
+    TaskCreateCommand,
+    TaskDependencyCreateCommand,
+    TaskDependencyUpdateCommand,
+    TaskProgressCommand,
+    TaskUpdateCommand,
+    TaskWbsMoveCommand,
 )
 
 __all__ = [

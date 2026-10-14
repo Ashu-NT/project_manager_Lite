@@ -52,13 +52,12 @@ def _tenant_id(services) -> str:
 
 
 def _register_user(services, username: str):
-    return services["auth_service"].register_user(username, _PASSWORD, display_name=username)
+    return services["user_registration"].register_user(username, _PASSWORD, display_name=username)
 
 
 def _set_user_principal(services, username: str):
-    auth = services["auth_service"]
-    user = auth.authenticate(username, _PASSWORD)
-    principal = auth.build_principal(user)
+    user = services["authentication"].authenticate(username, _PASSWORD)
+    principal = services["principal_builder"].build(user)
     services["user_session"].set_principal(principal)
     return user
 
@@ -395,7 +394,7 @@ def test_post_commit_handler_failure_does_not_block_a_sibling_handler_or_the_com
 def test_membership_event_carries_tenant_scope_only_no_organization_id(services):
     tenant_id = _tenant_id(services)
     tenant_context = services["tenant_context_service"]
-    other_org = services["organization_service"].create_organization(
+    other_org = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5D2-ORG"), display_name="P5D-2 Org"
     )
 
@@ -422,7 +421,6 @@ def test_cross_tenant_actor_cannot_mutate_another_tenants_membership(services):
 
     membership_service = services["tenant_membership_service"]
     tenant_context = services["tenant_context_service"]
-    auth = services["auth_service"]
     admin_principal = services["user_session"].principal
     home_tenant_id = _tenant_id(services)
 
@@ -430,7 +428,7 @@ def test_cross_tenant_actor_cannot_mutate_another_tenants_membership(services):
     other_tenant = admin_svc.create_tenant(_unique_code("P5D2-OTHER"), "P5D-2 Other Tenant")
     services["session"].flush()
     other_username = _unique_code("p5d2-other-tenant-actor")
-    auth.register_user(
+    services["user_registration"].register_user(
         other_username,
         _PASSWORD,
         role_names=["tenant_admin"],

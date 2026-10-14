@@ -320,7 +320,7 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
             return []
         started = perf_counter()
         requested_day_count = (end - start).days + 1
-        far_future_year = date.today().year + 20
+        far_future_year = date.today().year + 20  # noqa: DTZ011
         if requested_day_count > 5000 or end.year > far_future_year:
             logger.warning(
                 "Calendar range is suspicious organization_id=%s start=%s end=%s day_count=%s project_id=%s resource_id=%s",

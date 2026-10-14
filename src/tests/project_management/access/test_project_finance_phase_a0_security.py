@@ -18,9 +18,8 @@ from src.core.platform.domain.security.authorization.roles.role_permission_catal
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
-    user = auth.authenticate(username, password)
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def _seed_labor_finance_project(services) -> str:
@@ -35,7 +34,7 @@ def _seed_labor_finance_project(services) -> str:
         start_date=date(2026, 1, 5),
         duration_days=2,
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "Sensitive Engineer",
         "Engineer",
         hourly_rate=125.0,
@@ -103,8 +102,8 @@ def test_finance_permissions_are_registered_and_granted_only_to_intended_roles()
 def test_finance_export_requires_distinct_export_permission(services):
     tenant_id = services["user_session"].stored_active_tenant_id()
     organization_id = services["user_session"].stored_active_organization_id()
-    services["module_catalog_service"].license_module(organization_id, "project_management")
-    services["module_catalog_service"].enable_module(organization_id, "project_management")
+    services["module_entitlement_commands"].license_module(organization_id, "project_management")
+    services["module_entitlement_commands"].enable_module(organization_id, "project_management")
     user_session = services["user_session"]
     user_session.set_principal(
         UserSessionPrincipal(
@@ -126,7 +125,7 @@ def test_finance_export_requires_distinct_export_permission(services):
 
 def test_report_view_without_finance_read_cannot_view_finance_snapshot(services):
     project_id = _seed_labor_finance_project(services)
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "report-only-finance",
         "StrongPass123",
         role_names=["viewer"],
@@ -139,8 +138,7 @@ def test_report_view_without_finance_read_cannot_view_finance_snapshot(services)
 
 def test_sensitive_labor_detail_is_redacted_without_sensitive_permission(services):
     project_id = _seed_labor_finance_project(services)
-    auth = services["auth_service"]
-    auth.register_user(
+    services["user_registration"].register_user(
         "project-finance-reader",
         "StrongPass123",
         role_names=["project_manager"],
@@ -158,8 +156,7 @@ def test_sensitive_labor_detail_is_redacted_without_sensitive_permission(service
 
 def test_finance_controller_can_view_sensitive_labor_detail(services):
     project_id = _seed_labor_finance_project(services)
-    auth = services["auth_service"]
-    auth.register_user(
+    services["user_registration"].register_user(
         "sensitive-finance-reader",
         "StrongPass123",
         role_names=["finance_controller"],
@@ -283,7 +280,7 @@ def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monk
 
 
 # ---------------------------------------------------------------------------
-# ReportingService / DashboardService authorization boundary
+# Report builder / project dashboard authorization boundary
 #
 # report.view is a general reporting permission. It must never, by itself,
 # expose Project Finance authority data (EVM, cost breakdown, cost source
@@ -294,7 +291,7 @@ def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monk
 
 
 def _register_and_login(services, username: str, *, role_names: list[str]) -> None:
-    services["auth_service"].register_user(username, "StrongPass123", role_names=role_names)
+    services["user_registration"].register_user(username, "StrongPass123", role_names=role_names)
     _login(services, username, "StrongPass123")
 
 
@@ -304,41 +301,39 @@ def test_report_view_alone_allows_non_financial_reporting(services):
     project_id = _seed_labor_finance_project(services)
     _register_and_login(services, "report-only-general", role_names=["viewer"])
 
-    reporting = services["reporting_service"]
-    assert reporting.get_gantt_data(project_id) is not None
-    assert reporting.get_resource_load_summary(project_id) is not None
-    assert reporting.get_critical_path(project_id) is not None
+    assert services["project_kpi_report"].get_gantt_data(project_id) is not None
+    assert services["project_kpi_report"].get_resource_load_summary(project_id) is not None
+    assert services["project_kpi_report"].get_critical_path(project_id) is not None
 
 
 def test_report_view_alone_cannot_obtain_finance_authority_reports(services):
     """Case A (deny half): report.view without finance.read must not return
     EVM, cost breakdown, cost source breakdown, or labor cost data through
-    ReportingService, regardless of caller."""
+    the report builders, regardless of caller."""
     project_id = _seed_labor_finance_project(services)
     _register_and_login(services, "report-only-finance-2", role_names=["viewer"])
-    reporting = services["reporting_service"]
 
     with pytest.raises(BusinessRuleError, match="finance.read") as exc:
-        reporting.get_cost_breakdown(project_id)
+        services["cost_breakdown_report"].get_cost_breakdown(project_id)
     assert exc.value.code == "PERMISSION_DENIED"
 
     with pytest.raises(BusinessRuleError, match="finance.read"):
-        reporting.get_project_cost_source_breakdown(project_id)
+        services["cost_breakdown_report"].get_project_cost_source_breakdown(project_id)
 
     with pytest.raises(BusinessRuleError, match="finance.read"):
-        reporting.get_project_cost_control_totals(project_id)
+        services["cost_breakdown_report"].get_project_cost_control_totals(project_id)
 
     with pytest.raises(BusinessRuleError, match="finance.read"):
-        reporting.get_earned_value(project_id)
+        services["earned_value_report"].get_earned_value(project_id)
 
     with pytest.raises(BusinessRuleError, match="finance.read"):
-        reporting.get_evm_series(project_id)
+        services["earned_value_report"].get_evm_series(project_id)
 
     with pytest.raises(BusinessRuleError, match="finance.read"):
-        reporting.get_project_labor_details(project_id)
+        services["labor_report"].get_project_labor_details(project_id)
 
     with pytest.raises(BusinessRuleError, match="finance.read"):
-        reporting.calculate_project_labor_details(project_id)
+        services["labor_report"].calculate_project_labor_details(project_id)
 
 
 def test_report_view_alone_gets_redacted_kpis_not_a_denial(services):
@@ -348,9 +343,8 @@ def test_report_view_alone_gets_redacted_kpis_not_a_denial(services):
     (None), not a denial of the whole call."""
     project_id = _seed_labor_finance_project(services)
     _register_and_login(services, "report-only-kpi", role_names=["viewer"])
-    reporting = services["reporting_service"]
 
-    kpi = reporting.get_project_kpis(project_id)
+    kpi = services["project_kpi_report"].get_project_kpis(project_id)
 
     assert kpi.financial_detail_included is False
     assert kpi.total_planned_cost is None
@@ -375,9 +369,8 @@ def test_report_view_alone_gets_redacted_baseline_comparison_not_a_denial(servic
     baseline_1 = baseline_service.create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
     baseline_2 = baseline_service.create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
     _register_and_login(services, "report-only-baseline", role_names=["viewer"])
-    reporting = services["reporting_service"]
 
-    comparison = reporting.compare_baselines(
+    comparison = services["baseline_compare_report"].compare_baselines(
         project_id=project_id,
         baseline_a_id=baseline_1.id,
         baseline_b_id=baseline_2.id,
@@ -400,9 +393,8 @@ def test_finance_read_allows_baseline_comparison_cost_detail(services):
     baseline_1 = baseline_service.create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
     baseline_2 = baseline_service.create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
     _register_and_login(services, "finance-reader-baseline", role_names=["project_manager"])
-    reporting = services["reporting_service"]
 
-    comparison = reporting.compare_baselines(
+    comparison = services["baseline_compare_report"].compare_baselines(
         project_id=project_id,
         baseline_a_id=baseline_1.id,
         baseline_b_id=baseline_2.id,
@@ -414,13 +406,13 @@ def test_finance_read_allows_baseline_comparison_cost_detail(services):
 
 
 def test_dashboard_data_redacts_finance_without_failing_for_report_view_only(services):
-    """DashboardService.get_dashboard_data must keep working for a
+    """ProjectDashboardQueryHandler.get_dashboard_data must keep working for a
     report.view-only caller, with cost_sources/EVM/KPI-cost fields absent
     rather than the whole dashboard call failing."""
     project_id = _seed_labor_finance_project(services)
     _register_and_login(services, "report-only-dashboard", role_names=["viewer"])
 
-    dashboard_data = services["dashboard_service"].get_dashboard_data(
+    dashboard_data = services["project_dashboard_query"].get_dashboard_data(
         project_id, include_evm=True
     )
 
@@ -438,12 +430,11 @@ def test_finance_read_without_sensitive_allows_cost_breakdown_and_kpis(services)
     project_id = _seed_labor_finance_project(services)
     _register_and_login(services, "finance-reader-nonsensitive", role_names=["project_manager"])
     assert "finance.read_sensitive" not in DEFAULT_ROLE_PERMISSIONS["project_manager"]
-    reporting = services["reporting_service"]
 
-    breakdown = reporting.get_cost_breakdown(project_id)
+    breakdown = services["cost_breakdown_report"].get_cost_breakdown(project_id)
     assert breakdown is not None
 
-    kpi = reporting.get_project_kpis(project_id)
+    kpi = services["project_kpi_report"].get_project_kpis(project_id)
     assert kpi.financial_detail_included is True
     assert kpi.total_planned_cost is not None
 
@@ -452,25 +443,23 @@ def test_finance_read_without_sensitive_denies_identified_labor_detail(services)
     """Case B (redact/deny half): individually resource-identified labor
     rate/cost detail requires finance.read_sensitive, matching the existing
     FinanceService labor redaction convention. There is no non-sensitive
-    aggregate variant of this ReportingService method, so the established
+    aggregate variant of this report builder method, so the established
     convention is enforced as a denial rather than a silent redaction."""
     project_id = _seed_labor_finance_project(services)
     _register_and_login(services, "finance-reader-nonsensitive-2", role_names=["project_manager"])
-    reporting = services["reporting_service"]
 
     with pytest.raises(BusinessRuleError, match="finance.read_sensitive") as exc:
-        reporting.get_project_labor_details(project_id)
+        services["labor_report"].get_project_labor_details(project_id)
     assert exc.value.code == "PERMISSION_DENIED"
 
 
 def test_finance_read_sensitive_allows_identified_labor_detail(services):
     """Case C: finance.read_sensitive grants access to resource-identified
-    labor detail through ReportingService, matching FinanceService."""
+    labor detail through LaborReportBuilder, matching FinanceService."""
     project_id = _seed_labor_finance_project(services)
     _register_and_login(services, "finance-reader-sensitive", role_names=["finance_controller"])
-    reporting = services["reporting_service"]
 
-    rows = reporting.get_project_labor_details(project_id)
+    rows = services["labor_report"].get_project_labor_details(project_id)
 
     assert rows
     assert any(row.resource_id is not None for row in rows)
@@ -523,20 +512,18 @@ def test_finance_project_scope_does_not_leak_across_projects(services):
             active_organization_id=organization_id,
         )
     )
-    reporting = services["reporting_service"]
 
-    assert reporting.get_cost_breakdown(project_a_id) is not None
+    assert services["cost_breakdown_report"].get_cost_breakdown(project_a_id) is not None
 
     with pytest.raises(BusinessRuleError, match="finance.read"):
-        reporting.get_cost_breakdown(project_b.id)
+        services["cost_breakdown_report"].get_cost_breakdown(project_b.id)
 
 
 def test_finance_reporting_isolated_across_organizations(services):
-    organization_service = services["organization_service"]
     original_organization = services["tenant_context_service"].get_active_organization()
     project_id = _seed_labor_finance_project(services)
 
-    other_organization = organization_service.create_organization(
+    other_organization = services["organization_commands"].create_organization(
         organization_code="F0-REPORTING-ISOLATION",
         display_name="F0 Reporting Isolation Org",
         base_currency="USD",
@@ -544,9 +531,9 @@ def test_finance_reporting_isolated_across_organizations(services):
     services["tenant_context_service"].set_active_organization(other_organization.id)
     try:
         with pytest.raises(NotFoundError, match="not found"):
-            services["reporting_service"].get_cost_breakdown(project_id)
+            services["cost_breakdown_report"].get_cost_breakdown(project_id)
     finally:
         services["tenant_context_service"].set_active_organization(original_organization.id)
 
     # Visibility (and finance authorization) returns once back in-scope.
-    assert services["reporting_service"].get_cost_breakdown(project_id) is not None
+    assert services["cost_breakdown_report"].get_cost_breakdown(project_id) is not None

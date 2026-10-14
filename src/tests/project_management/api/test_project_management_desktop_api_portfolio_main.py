@@ -33,8 +33,15 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
     portfolio_service = _FakePortfolioService(project_service)
     api = build_project_management_portfolio_desktop_api(
         project_service=project_service,
-        portfolio_service=portfolio_service,
         portfolio_intake_query=portfolio_service,
+        portfolio_intake_commands=portfolio_service,
+        portfolio_template_query=portfolio_service,
+        portfolio_template_commands=portfolio_service,
+        portfolio_scenario_query=portfolio_service,
+        portfolio_scenario_commands=portfolio_service,
+        portfolio_dependency_query=portfolio_service,
+        portfolio_dependency_commands=portfolio_service,
+        portfolio_executive_query=portfolio_service,
     )
 
     assert [option.label for option in api.list_projects()] == [

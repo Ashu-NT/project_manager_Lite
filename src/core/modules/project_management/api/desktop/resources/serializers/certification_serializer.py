@@ -8,7 +8,7 @@ from src.core.modules.project_management.api.desktop.resources.models.certificat
 
 
 def serialize_certification(certification) -> ResourceCertificationDesktopDto:
-    today = date.today()
+    today = date.today()  # noqa: DTZ011
     expiry = getattr(certification, "expiry_date", None)
     issued = getattr(certification, "issued_date", None)
     status = certification.status_on(today).value

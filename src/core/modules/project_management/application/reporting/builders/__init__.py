@@ -1,45 +1,49 @@
-"""Report builder mixins — each mixin owns one reporting domain."""
+"""Report builders -- each builder owns one reporting domain.
 
+All builders share one ``ReportingAccessPolicy`` and one ``ReportingCostPolicy``
+(the single reporting financial authority) injected by composition.
+"""
+
+from src.core.modules.project_management.application.reporting.builders.access import (
+    ReportingAccessPolicy,
+)
 from src.core.modules.project_management.application.reporting.builders.baseline_compare import (
-    ReportingBaselineCompareMixin,
+    BaselineCompareReportBuilder,
 )
 from src.core.modules.project_management.application.reporting.builders.cost_breakdown import (
-    ReportingCostBreakdownMixin,
+    CostBreakdownReportBuilder,
 )
 from src.core.modules.project_management.application.reporting.builders.cost_policy import (
     CostControlTotals,
     CostPolicySnapshot,
-    ReportingCostPolicyMixin,
+    ReportingCostPolicy,
 )
 from src.core.modules.project_management.application.reporting.builders.evm import (
-    ReportingEvmMixin,
-)
-from src.core.modules.project_management.application.reporting.builders.evm_core import (
-    ReportingEvmCoreMixin,
-)
-from src.core.modules.project_management.application.reporting.builders.evm_series import (
-    ReportingEvmSeriesMixin,
+    EarnedValueReportBuilder,
 )
 from src.core.modules.project_management.application.reporting.builders.kpi import (
-    ReportingKpiMixin,
+    ProjectKpiReportBuilder,
 )
 from src.core.modules.project_management.application.reporting.builders.labor import (
-    ReportingLaborMixin,
+    LaborReportBuilder,
+)
+from src.core.modules.project_management.application.reporting.builders.profitability import (
+    ProfitabilityReportBuilder,
 )
 from src.core.modules.project_management.application.reporting.builders.variance import (
-    ReportingVarianceMixin,
+    ScheduleVarianceReportBuilder,
 )
 
 __all__ = [
+    "BaselineCompareReportBuilder",
+    "CostBreakdownReportBuilder",
     "CostControlTotals",
     "CostPolicySnapshot",
-    "ReportingBaselineCompareMixin",
-    "ReportingCostBreakdownMixin",
-    "ReportingCostPolicyMixin",
-    "ReportingEvmCoreMixin",
-    "ReportingEvmMixin",
-    "ReportingEvmSeriesMixin",
-    "ReportingKpiMixin",
-    "ReportingLaborMixin",
-    "ReportingVarianceMixin",
+    "EarnedValueReportBuilder",
+    "LaborReportBuilder",
+    "ProfitabilityReportBuilder",
+    "ProjectKpiReportBuilder",
+    "ReportingAccessPolicy",
+    "ReportingCostPolicy",
+    "ScheduleVarianceReportBuilder",
 ]

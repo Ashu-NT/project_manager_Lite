@@ -64,9 +64,7 @@ def _also_touches_actuals(event: _CostEntryEvent) -> bool:
         return event.status == ProjectCostEntryStatus.POSTED
     if isinstance(event, CostEntryStatusChanged):
         return event.change_type == CostEntryStatusChangeType.POSTED
-    if isinstance(event, CostEntryReversed):
-        return True
-    return False
+    return isinstance(event, CostEntryReversed)
 
 
 def build_cost_entry_view_invalidation_handler(channel: ViewInvalidationChannel):

@@ -65,12 +65,12 @@ def resolve_mentions(
             canonical_mentions.add(token)
             mentioned_user_ids.update(candidate.user_id for candidate in candidates)
             continue
-        candidate = handle_map.get(token)
-        if candidate is None:
+        resolved = handle_map.get(token)
+        if resolved is None:
             unresolved.add(token)
             continue
-        canonical_mentions.add(candidate.handle)
-        mentioned_user_ids.add(candidate.user_id)
+        canonical_mentions.add(resolved.handle)
+        mentioned_user_ids.add(resolved.user_id)
 
     return sorted(canonical_mentions), sorted(mentioned_user_ids), sorted(unresolved)
 

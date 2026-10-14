@@ -136,7 +136,7 @@ def _setup(services):
     project = services["project_service"].create_project(
         "P40B Timesheet project", financial_currency_code=organization.base_currency
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "P40B Timesheet Engineer", hourly_rate=0, currency_code=organization.base_currency
     )
     task = services["task_service"].create_task(
@@ -145,7 +145,7 @@ def _setup(services):
     assignment = services["task_service"].assign_resource(
         task.id, resource.id, allocation_percent=100
     )
-    services["timesheet_service"].add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 6, 4), hours=4
     )
     return organization, project, resource
@@ -155,7 +155,7 @@ def test_submit_produces_workspace_resource_and_project_hints_and_zero_legacy_si
     _, project, resource = _setup(services)
     hints = _spy_hints(services)
 
-    submitted = services["timesheet_service"].submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id, period_start=date(2026, 6, 1)
     )
 
@@ -175,11 +175,10 @@ def test_submit_produces_workspace_resource_and_project_hints_and_zero_legacy_si
 
 def test_approve_then_reject_each_record_exactly_one_typed_event_per_transition(services):
     _, _project, resource = _setup(services)
-    time = services["timesheet_service"]
-    submitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 6, 1))
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 6, 1))
     hints = _spy_hints(services)
 
-    approved = time.approve_timesheet_period(
+    approved = services["timesheet_period_transitions"].approve_timesheet_period(
         submitted.period_id, expected_version=submitted.version, note="Approved"
     )
 
@@ -190,12 +189,11 @@ def test_approve_then_reject_each_record_exactly_one_typed_event_per_transition(
 
 def test_stale_version_raises_and_produces_zero_hints(services):
     _, _project, resource = _setup(services)
-    time = services["timesheet_service"]
-    submitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 6, 1))
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 6, 1))
     hints = _spy_hints(services)
 
     with pytest.raises(ConcurrencyError):
-        time.approve_timesheet_period(
+        services["timesheet_period_transitions"].approve_timesheet_period(
             submitted.period_id, expected_version=submitted.version + 1, note="stale"
         )
 

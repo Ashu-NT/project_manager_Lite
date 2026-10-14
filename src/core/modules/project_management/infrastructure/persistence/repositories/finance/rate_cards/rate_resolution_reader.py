@@ -12,6 +12,7 @@ from datetime import date
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     RateResolutionCandidate,
@@ -118,7 +119,7 @@ class SqlAlchemyRateResolutionReader:
         unit: str,
         as_of: date,
     ) -> tuple[RateResolutionCandidate, ...]:
-        card_scope = ProjectRateCardORM.project_id.is_(None)
+        card_scope: ColumnElement[bool] = ProjectRateCardORM.project_id.is_(None)
         if project_id is not None:
             card_scope = or_(card_scope, ProjectRateCardORM.project_id == project_id)
 
@@ -167,7 +168,7 @@ class SqlAlchemyRateResolutionReader:
         starts_on: date,
         ends_on: date,
     ) -> tuple[RateResolutionCandidate, ...]:
-        card_scope = ProjectRateCardORM.project_id.is_(None)
+        card_scope: ColumnElement[bool] = ProjectRateCardORM.project_id.is_(None)
         if project_id is not None:
             card_scope = or_(card_scope, ProjectRateCardORM.project_id == project_id)
 

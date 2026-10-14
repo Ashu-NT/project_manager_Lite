@@ -16,7 +16,7 @@ from src.tests.project_management._sql_measurement_helpers import measure_sql
 
 
 def _active_scope(services):
-    return services["portfolio_service"]._tenant_context_service.require_active_scope_ids(
+    return services["portfolio_scenario_query"]._tenant_context_service.require_active_scope_ids(
         operation_label="test scoping"
     )
 
@@ -61,11 +61,10 @@ def _seed_intake_rows(services, count: int, *, title_prefix: str = "Intake") -> 
 
 def test_intake_page_reaches_page_two_and_total_is_authoritative(services) -> None:
     _seed_intake_rows(services, 25)
-    portfolio = services["portfolio_intake_query"]
 
-    page1 = portfolio.list_intake_items_page(page=1, page_size=10, sort_key="title", sort_direction="asc")
-    page2 = portfolio.list_intake_items_page(page=2, page_size=10, sort_key="title", sort_direction="asc")
-    page3 = portfolio.list_intake_items_page(page=3, page_size=10, sort_key="title", sort_direction="asc")
+    page1 = services["portfolio_intake_query"].list_intake_items_page(page=1, page_size=10, sort_key="title", sort_direction="asc")
+    page2 = services["portfolio_intake_query"].list_intake_items_page(page=2, page_size=10, sort_key="title", sort_direction="asc")
+    page3 = services["portfolio_intake_query"].list_intake_items_page(page=3, page_size=10, sort_key="title", sort_direction="asc")
 
     assert page1.total == 25
     assert page2.total == 25
@@ -94,8 +93,7 @@ def test_intake_filter_applies_before_pagination(services) -> None:
     services["session"].flush()
     _seed_intake_rows(services, 5, title_prefix="Proposed")
 
-    portfolio = services["portfolio_intake_query"]
-    result = portfolio.list_intake_items_page(status=PortfolioIntakeStatus.APPROVED, page=1, page_size=10)
+    result = services["portfolio_intake_query"].list_intake_items_page(status=PortfolioIntakeStatus.APPROVED, page=1, page_size=10)
 
     assert result.total == 1
     assert [item.id for item in result.items] == ["intake-approved-1"]
@@ -122,9 +120,8 @@ def test_intake_sort_is_stable_with_id_tiebreaker(services) -> None:
     services["session"].add_all(rows)
     services["session"].flush()
 
-    portfolio = services["portfolio_intake_query"]
-    first = portfolio.list_intake_items_page(sort_key="title", sort_direction="asc", page=1, page_size=10)
-    second = portfolio.list_intake_items_page(sort_key="title", sort_direction="asc", page=1, page_size=10)
+    first = services["portfolio_intake_query"].list_intake_items_page(sort_key="title", sort_direction="asc", page=1, page_size=10)
+    second = services["portfolio_intake_query"].list_intake_items_page(sort_key="title", sort_direction="asc", page=1, page_size=10)
 
     assert [item.id for item in first.items] == [item.id for item in second.items]
     assert [item.id for item in first.items] == sorted(item.id for item in first.items)
@@ -160,8 +157,7 @@ def test_intake_tenant_scope_is_enforced(services, session) -> None:
     session.flush()
     _seed_intake_rows(services, 3, title_prefix="Own")
 
-    portfolio = services["portfolio_intake_query"]
-    result = portfolio.list_intake_items_page(page=1, page_size=50)
+    result = services["portfolio_intake_query"].list_intake_items_page(page=1, page_size=50)
 
     assert result.total == 3
     assert "intake-other-org" not in {item.id for item in result.items}
@@ -175,10 +171,9 @@ def test_intake_page_scales_to_ten_thousand_rows_without_full_materialization(se
     SCALABLE Portfolio collections: only the requested page is materialized
     and the query count stays fixed regardless of total row count."""
     _seed_intake_rows(services, 10_000)
-    portfolio = services["portfolio_intake_query"]
 
     with measure_sql(services["session"]) as stats:
-        page = portfolio.list_intake_items_page(page=1, page_size=25, sort_key="title", sort_direction="asc")
+        page = services["portfolio_intake_query"].list_intake_items_page(page=1, page_size=25, sort_key="title", sort_direction="asc")
     assert page.total == 10_000
     assert len(page.items) == 25
     # A COUNT + a SELECT ... LIMIT/OFFSET plus fixed per-call authorization
@@ -187,7 +182,7 @@ def test_intake_page_scales_to_ten_thousand_rows_without_full_materialization(se
     assert stats.total_statements < 10
 
     with measure_sql(services["session"]) as stats_deep:
-        deep_page = portfolio.list_intake_items_page(
+        deep_page = services["portfolio_intake_query"].list_intake_items_page(
             page=400, page_size=25, sort_key="title", sort_direction="asc"
         )
     assert deep_page.total == 10_000
@@ -228,11 +223,10 @@ def _seed_projects_with_financial_profile(services, count: int, *, late_task_cou
 
 def test_heatmap_page_paginates_authoritatively_and_covers_all_projects(services) -> None:
     projects = _seed_projects_with_financial_profile(services, 5)
-    portfolio = services["portfolio_service"]
 
-    page1 = portfolio.list_portfolio_heatmap_page(page=1, page_size=2, sort_key="projectName", sort_direction="asc")
-    page2 = portfolio.list_portfolio_heatmap_page(page=2, page_size=2, sort_key="projectName", sort_direction="asc")
-    page3 = portfolio.list_portfolio_heatmap_page(page=3, page_size=2, sort_key="projectName", sort_direction="asc")
+    page1 = services["portfolio_executive_query"].list_portfolio_heatmap_page(page=1, page_size=2, sort_key="projectName", sort_direction="asc")
+    page2 = services["portfolio_executive_query"].list_portfolio_heatmap_page(page=2, page_size=2, sort_key="projectName", sort_direction="asc")
+    page3 = services["portfolio_executive_query"].list_portfolio_heatmap_page(page=3, page_size=2, sort_key="projectName", sort_direction="asc")
 
     assert page1.total == len(projects)
     seen_ids = {row.project_id for row in (*page1.items, *page2.items, *page3.items)}
@@ -244,12 +238,11 @@ def test_heatmap_page_paginates_authoritatively_and_covers_all_projects(services
 
 def test_heatmap_page_rejects_pressure_as_a_sortable_key(services) -> None:
     _seed_projects_with_financial_profile(services, 3)
-    portfolio = services["portfolio_service"]
 
     # pressureScore/pressureLabel are display-only on the paginated browse --
     # requesting them as a sort key must fall back to the SQL-authoritative
     # default rather than silently re-sorting the page locally in Python.
-    page = portfolio.list_portfolio_heatmap_page(
+    page = services["portfolio_executive_query"].list_portfolio_heatmap_page(
         page=1, page_size=10, sort_key="pressureScore", sort_direction="desc"
     )
     names = [row.project_name for row in page.items]
@@ -276,8 +269,7 @@ def test_top_at_risk_projects_ranks_full_scope_before_truncating(services) -> No
             duration_days=5,
         )
 
-    portfolio = services["portfolio_service"]
-    top = portfolio.list_top_at_risk_projects()
+    top = services["portfolio_executive_query"].list_top_at_risk_projects()
 
     assert len(top) == TOP_AT_RISK_PROJECTS_LIMIT
     top_ids = {row.project_id for row in top}
@@ -286,12 +278,11 @@ def test_top_at_risk_projects_ranks_full_scope_before_truncating(services) -> No
 
 def test_top_at_risk_projects_is_independent_of_heatmap_page_size(services) -> None:
     _seed_projects_with_financial_profile(services, 6, late_task_count=2)
-    portfolio = services["portfolio_service"]
 
-    before = portfolio.list_top_at_risk_projects()
-    portfolio.list_portfolio_heatmap_page(page=1, page_size=1)
-    portfolio.list_portfolio_heatmap_page(page=2, page_size=1)
-    after = portfolio.list_top_at_risk_projects()
+    before = services["portfolio_executive_query"].list_top_at_risk_projects()
+    services["portfolio_executive_query"].list_portfolio_heatmap_page(page=1, page_size=1)
+    services["portfolio_executive_query"].list_portfolio_heatmap_page(page=2, page_size=1)
+    after = services["portfolio_executive_query"].list_top_at_risk_projects()
 
     assert [row.project_id for row in before] == [row.project_id for row in after]
 
@@ -301,17 +292,16 @@ def test_top_at_risk_projects_is_independent_of_heatmap_page_size(services) -> N
 
 def test_dependencies_page_paginates_and_total_is_authoritative(services) -> None:
     projects = _seed_projects_with_financial_profile(services, 6)
-    portfolio = services["portfolio_service"]
     for predecessor, successor in zip(projects, projects[1:]):
-        portfolio.create_project_dependency(
+        services["portfolio_dependency_commands"].create_project_dependency(
             predecessor_project_id=predecessor.id,
             successor_project_id=successor.id,
             summary="chain",
         )
 
     total_deps = len(projects) - 1
-    page1 = portfolio.list_project_dependencies_page(page=1, page_size=2)
-    page2 = portfolio.list_project_dependencies_page(page=2, page_size=2)
+    page1 = services["portfolio_dependency_query"].list_project_dependencies_page(page=1, page_size=2)
+    page2 = services["portfolio_dependency_query"].list_project_dependencies_page(page=2, page_size=2)
 
     assert page1.total == total_deps
     assert page2.total == total_deps
@@ -321,19 +311,18 @@ def test_dependencies_page_paginates_and_total_is_authoritative(services) -> Non
 
 def test_dependencies_page_search_filters_before_pagination(services) -> None:
     projects = _seed_projects_with_financial_profile(services, 3)
-    portfolio = services["portfolio_service"]
-    portfolio.create_project_dependency(
+    services["portfolio_dependency_commands"].create_project_dependency(
         predecessor_project_id=projects[0].id,
         successor_project_id=projects[1].id,
         summary="uniquely-searchable-token",
     )
-    portfolio.create_project_dependency(
+    services["portfolio_dependency_commands"].create_project_dependency(
         predecessor_project_id=projects[1].id,
         successor_project_id=projects[2].id,
         summary="unrelated",
     )
 
-    result = portfolio.list_project_dependencies_page(search_text="uniquely-searchable-token", page=1, page_size=10)
+    result = services["portfolio_dependency_query"].list_project_dependencies_page(search_text="uniquely-searchable-token", page=1, page_size=10)
 
     assert result.total == 1
     assert result.items[0].summary == "uniquely-searchable-token"
@@ -341,17 +330,16 @@ def test_dependencies_page_search_filters_before_pagination(services) -> None:
 
 def test_dependencies_page_rejects_pressure_as_a_sortable_key(services) -> None:
     projects = _seed_projects_with_financial_profile(services, 3)
-    portfolio = services["portfolio_service"]
-    portfolio.create_project_dependency(
+    services["portfolio_dependency_commands"].create_project_dependency(
         predecessor_project_id=projects[0].id,
         successor_project_id=projects[1].id,
     )
-    portfolio.create_project_dependency(
+    services["portfolio_dependency_commands"].create_project_dependency(
         predecessor_project_id=projects[1].id,
         successor_project_id=projects[2].id,
     )
 
-    page = portfolio.list_project_dependencies_page(sort_key="pressureLabel", sort_direction="desc", page=1, page_size=10)
+    page = services["portfolio_dependency_query"].list_project_dependencies_page(sort_key="pressureLabel", sort_direction="desc", page=1, page_size=10)
     # Falls back to the default (updatedAt) rather than raising or silently
     # local-sorting by the unsupported computed field.
     assert page.total == 2
@@ -367,7 +355,6 @@ def test_desktop_api_intake_page_passes_through_and_serializes(services) -> None
 
     _seed_intake_rows(services, 15)
     api = build_project_management_portfolio_desktop_api(
-        portfolio_service=services["portfolio_service"],
         portfolio_intake_query=services["portfolio_intake_query"],
     )
 
@@ -386,7 +373,10 @@ def test_desktop_api_heatmap_page_and_top_at_risk_are_distinct(services) -> None
     )
 
     projects = _seed_projects_with_financial_profile(services, 3)
-    api = build_project_management_portfolio_desktop_api(portfolio_service=services["portfolio_service"])
+    api = build_project_management_portfolio_desktop_api(
+        portfolio_executive_query=services["portfolio_executive_query"],
+        portfolio_dependency_query=services["portfolio_dependency_query"],
+    )
 
     page = api.list_heatmap_page(page=1, page_size=25, sort_key="projectName", sort_direction="asc")
     top_at_risk = api.list_top_at_risk_projects()
@@ -402,13 +392,15 @@ def test_desktop_api_dependencies_page_serializes_project_labels(services) -> No
     )
 
     projects = _seed_projects_with_financial_profile(services, 2)
-    portfolio = services["portfolio_service"]
-    portfolio.create_project_dependency(
+    services["portfolio_dependency_commands"].create_project_dependency(
         predecessor_project_id=projects[0].id,
         successor_project_id=projects[1].id,
         summary="api-level check",
     )
-    api = build_project_management_portfolio_desktop_api(portfolio_service=services["portfolio_service"])
+    api = build_project_management_portfolio_desktop_api(
+        portfolio_executive_query=services["portfolio_executive_query"],
+        portfolio_dependency_query=services["portfolio_dependency_query"],
+    )
 
     page = api.list_dependencies_page(page=1, page_size=10)
 

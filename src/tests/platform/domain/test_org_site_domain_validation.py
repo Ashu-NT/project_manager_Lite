@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 
-from src.core.platform.application.master_data.org.organization_service import (
-    OrganizationService,
-)
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.site import SiteCommandHandler
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationUpdateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+    SiteUpdateCommand,
+)
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.site import Site
+from src.tests.master_data_test_support import organization_handlers_for
 
 
 class _FakeSession:
@@ -108,15 +114,15 @@ class _FakeOrganizationRepo:
 
 class _FakeOrganizationUnitOfWork:
     """A minimal stand-in for `SqlAlchemyOrganizationUnitOfWork` -- this file tests
-    `OrganizationService`'s domain-validation/final-state logic against fully in-memory fakes
+    `the Organization handlers`'s domain-validation/final-state logic against fully in-memory fakes
     with no real SQLAlchemy Session. Wraps the SAME `organization_repo`/`enterprise_audit_service`
-    instances passed to `OrganizationService`'s constructor (not a fresh repo per call), since
+    instances passed to `the Organization handlers`'s constructor (not a fresh repo per call), since
     callers assert against `service._organization_repo` directly across sequential calls."""
 
     def __init__(self, organization_repo: _FakeOrganizationRepo, enterprise_audit_service) -> None:
         self.organizations = organization_repo
         self._enterprise_audit_service = enterprise_audit_service
-        # OrganizationService.create_organization() seeds the org's default
+        # the Organization handlers.create_organization() seeds the org's default
         # calendar directly via uow.session (see _add_default_calendar_rows)
         # rather than through a repository -- needs .add()/.flush() only.
         self.session = _FakeSession()
@@ -222,9 +228,13 @@ class _FakeSiteRepo:
         return sorted(rows, key=lambda row: row.name)
 
 
-def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationService:
+def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.org.organization_service.require_permission",
+        "src.core.platform.application.master_data.org.commands.organization_commands.require_permission",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "src.core.platform.application.master_data.org.commands.organization_lifecycle.require_permission",
         lambda *args, **kwargs: None,
     )
     organization_repo = _FakeOrganizationRepo()
@@ -234,7 +244,7 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
         def add_default_calendar(self, session, organization) -> None:
             pass
 
-    return OrganizationService(
+    handlers = organization_handlers_for(
         session=_FakeSession(),
         organization_repo=organization_repo,
         uow_factory=_FakeOrganizationUnitOfWorkFactory(organization_repo, enterprise_audit_service),
@@ -243,23 +253,25 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
         enterprise_audit_service=enterprise_audit_service,
         default_calendar_writer=_FakeDefaultCalendarWriter(),
     )
+    handlers.organization_repo = organization_repo
+    return handlers
 
 
-def _make_site_service(monkeypatch: pytest.MonkeyPatch) -> tuple[SiteService, Organization]:
+def _make_site_service(monkeypatch: pytest.MonkeyPatch) -> tuple[SiteCommandHandler, Organization]:
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.site.site_commands.require_permission",
+        "src.core.platform.application.master_data.site.commands.site_commands.require_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.site.site_service.require_any_permission",
+        "src.core.platform.application.master_data.site.queries.site_queries.require_any_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.site.site_service.require_scope_permission",
+        "src.core.platform.application.master_data.site.queries.site_queries.require_scope_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.site.site_service.filter_scope_rows",
+        "src.core.platform.application.master_data.site.queries.site_queries.filter_scope_rows",
         lambda rows, *_args, **_kwargs: list(rows),
     )
 
@@ -275,12 +287,8 @@ def _make_site_service(monkeypatch: pytest.MonkeyPatch) -> tuple[SiteService, Or
 
     site_repo = _FakeSiteRepo()
     enterprise_audit_service = _FakeEnterpriseAuditService()
-    service = SiteService(
-        session=_FakeSession(),
-        site_repo=site_repo,
-        organization_repo=organization_repo,
+    service = SiteCommandHandler(
         user_session=object(),
-        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=_FakeTenantContext(organization_repo, organization.id),
         uow_factory=_FakeSiteUnitOfWorkFactory(site_repo, enterprise_audit_service),
         clock=_FakeClock(),
@@ -353,27 +361,19 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
     assert second.display_name == "North Division"
     assert second.base_currency == "USD"
 
-    renamed = service.update_organization(
-        second.id,
-        expected_version=second.version,
-        display_name="  North Ops  ",
-    )
+    renamed = service.update_organization(OrganizationUpdateCommand(organization_id=second.id, expected_version=second.version, display_name="  North Ops  "))
     activated = service.activate_organization(renamed.id)
 
     assert activated.display_name == "North Ops"
     assert activated.status == "active"
     assert activated.version == 4
     # Activating `second` never deactivates `created` -- no mutual exclusion.
-    reloaded_first = service._organization_repo.get(created.id)
+    reloaded_first = service.organization_repo.get(created.id)
     assert reloaded_first is not None
     assert reloaded_first.status == "active"
 
     with pytest.raises(ValidationError) as exc_name:
-        service.update_organization(
-            activated.id,
-            expected_version=activated.version,
-            display_name=" ",
-        )
+        service.update_organization(OrganizationUpdateCommand(organization_id=activated.id, expected_version=activated.version, display_name=" "))
     assert exc_name.value.code == "ORGANIZATION_NAME_REQUIRED"
 
 
@@ -432,15 +432,7 @@ def test_site_dto_normalizes_and_validates_fields():
 def test_site_service_uses_entity_validation_and_final_state(monkeypatch: pytest.MonkeyPatch):
     service, organization = _make_site_service(monkeypatch)
 
-    created = service.create_site(
-        site_code="  hq  ",
-        name="  Headquarters  ",
-        city="  Lagos  ",
-        country="  Nigeria  ",
-        timezone_name=" ",
-        currency_code=" ",
-        default_calendar_id=" ",
-    )
+    created = service.create_site(SiteCreateCommand(site_code="  hq  ", name="  Headquarters  ", city="  Lagos  ", country="  Nigeria  ", timezone_name=" ", currency_code=" ", default_calendar_id=" "))
 
     assert created.organization_id == organization.id
     assert created.site_code == "HQ"
@@ -452,14 +444,7 @@ def test_site_service_uses_entity_validation_and_final_state(monkeypatch: pytest
     assert created.default_calendar_id == "default"
     assert created.status == "active"
 
-    updated = service.update_site(
-        created.id,
-        expected_version=created.version,
-        name="  North Hub  ",
-        city="  Berlin  ",
-        country="  Germany  ",
-        site_type="  warehouse  ",
-    )
+    updated = service.update_site(SiteUpdateCommand(site_id=created.id, expected_version=created.version, name="  North Hub  ", city="  Berlin  ", country="  Germany  ", site_type="  warehouse  "))
 
     assert updated.name == "North Hub"
     assert updated.city == "Berlin"
@@ -478,11 +463,7 @@ def test_site_service_uses_entity_validation_and_final_state(monkeypatch: pytest
     assert reopened.version == 4
 
     with pytest.raises(ValidationError) as exc_name:
-        service.update_site(
-            reopened.id,
-            expected_version=reopened.version,
-            name=" ",
-        )
+        service.update_site(SiteUpdateCommand(site_id=reopened.id, expected_version=reopened.version, name=" "))
     assert exc_name.value.code == "SITE_NAME_REQUIRED"
 
     archived = service.archive_site(reopened.id)

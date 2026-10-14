@@ -5,7 +5,6 @@ import json
 import pytest
 from sqlalchemy import func, select
 
-from src.core.platform.application.security.auth import AuthService
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.domain.security.auth import UserAccount
 from src.core.platform.domain.security.auth.credentials.passwords import hash_password
@@ -15,19 +14,15 @@ from src.core.platform.domain.security.authorization.roles import (
 )
 from src.core.platform.infrastructure.composition.dependencies.repositories import (
     PlatformRepositories,
-    build_platform_repositories,
+)
+from src.core.platform.infrastructure.composition.dependencies.security.auth import (
+    AuthComposition,
 )
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
-from src.core.platform.infrastructure.persistence.uow.security.auth_unit_of_work import (
-    SqlAlchemyAuthUnitOfWorkFactory,
-)
-from src.core.platform.infrastructure.persistence.uow.security.session_write_lock import (
-    SqlAlchemySessionWriteLock,
-)
-from src.infra.time.system_clock import SystemClock
+from src.tests.auth_test_support import standalone_auth
 
 
 class _FailingPlatformAuditWriter:
@@ -35,39 +30,14 @@ class _FailingPlatformAuditWriter:
         raise RuntimeError("audit unavailable")
 
 
-def _build_auth_service(session) -> tuple[AuthService, PlatformRepositories]:
-    from src.infra.events.in_process_post_commit_event_bus import (
-        InProcessPostCommitEventBus,
-    )
-    from src.infra.events.in_process_transactional_event_dispatcher import (
-        InProcessTransactionalEventDispatcher,
-    )
-
-    repositories = build_platform_repositories(session)
-    return (
-        AuthService(
-            session=session,
-            user_repo=repositories.user_repo,
-            role_repo=repositories.role_repo,
-            permission_repo=repositories.permission_repo,
-            role_permission_repo=repositories.role_permission_repo,
-            role_binding_repo=repositories.role_binding_repo,
-            auth_session_repo=repositories.auth_session_repo,
-            user_tenant_repo=repositories.user_tenant_repo,
-            transactional_dispatcher=InProcessTransactionalEventDispatcher(),
-            post_commit_bus=InProcessPostCommitEventBus(),
-            clock=SystemClock(),
-            uow_factory=SqlAlchemyAuthUnitOfWorkFactory(),
-            session_write_lock=SqlAlchemySessionWriteLock(),
-        ),
-        repositories,
-    )
+def _build_auth_service(session) -> tuple[AuthComposition, PlatformRepositories]:
+    return standalone_auth(session)
 
 
 def test_provision_platform_owner_creates_audited_owner_without_membership(session) -> None:
     auth_service, repositories = _build_auth_service(session)
 
-    result = auth_service.provision_platform_owner(
+    result = auth_service.platform_owner.provision_platform_owner(
         username="platform-owner",
         raw_password="OwnerStrong123!",
         audit_writer=repositories.audit_entry_repo,
@@ -78,7 +48,7 @@ def test_provision_platform_owner_creates_audited_owner_without_membership(sessi
 
     assert result.created is True
     assert result.username == "platform-owner"
-    assert auth_service.get_user_role_names(result.user_id) == {"admin"}
+    assert auth_service.queries.get_user_role_names(result.user_id) == {"admin"}
     assert repositories.user_tenant_repo.list_tenant_ids_for_user(result.user_id) == []
     owner_role = repositories.role_repo.get_by_name("admin")
     bootstrap_permission = repositories.permission_repo.get_by_code(
@@ -89,7 +59,7 @@ def test_provision_platform_owner_creates_audited_owner_without_membership(sessi
     assert repositories.role_permission_repo.list_permission_ids(
         owner_role.id
     ) == [bootstrap_permission.id]
-    assert auth_service.build_principal(
+    assert auth_service.principals.build(
         repositories.user_repo.get(result.user_id)
     ).permissions == frozenset({"platform.admin"})
 
@@ -111,13 +81,13 @@ def test_provision_platform_owner_creates_audited_owner_without_membership(sessi
 
 def test_provision_platform_owner_is_idempotent_for_same_username(session) -> None:
     auth_service, repositories = _build_auth_service(session)
-    first = auth_service.provision_platform_owner(
+    first = auth_service.platform_owner.provision_platform_owner(
         username="platform-owner",
         raw_password="OwnerStrong123!",
         audit_writer=repositories.audit_entry_repo,
     )
 
-    second = auth_service.provision_platform_owner(
+    second = auth_service.platform_owner.provision_platform_owner(
         username="platform-owner",
         raw_password="UnusedStrong123!",
         audit_writer=repositories.audit_entry_repo,
@@ -141,7 +111,7 @@ def test_existing_owner_missing_bootstrap_authority_requires_recovery(
     session,
 ) -> None:
     auth_service, repositories = _build_auth_service(session)
-    result = auth_service.provision_platform_owner(
+    result = auth_service.platform_owner.provision_platform_owner(
         username="platform-owner",
         raw_password="OwnerStrong123!",
         audit_writer=repositories.audit_entry_repo,
@@ -159,7 +129,7 @@ def test_existing_owner_missing_bootstrap_authority_requires_recovery(
     session.commit()
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        auth_service.provision_platform_owner(
+        auth_service.platform_owner.provision_platform_owner(
             username=result.username,
             raw_password="UnusedStrong123!",
             audit_writer=repositories.audit_entry_repo,
@@ -180,19 +150,19 @@ def test_provision_platform_owner_never_promotes_existing_username(session) -> N
     session.commit()
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        auth_service.provision_platform_owner(
+        auth_service.platform_owner.provision_platform_owner(
             username="existing-user",
             raw_password="OwnerStrong123!",
             audit_writer=repositories.audit_entry_repo,
         )
 
     assert exc_info.value.code == "PLATFORM_OWNER_USERNAME_EXISTS"
-    assert auth_service.get_user_role_names(ordinary_user.id) == set()
+    assert auth_service.queries.get_user_role_names(ordinary_user.id) == set()
 
 
 def test_platform_principal_cannot_enter_customer_context(session) -> None:
     auth_service, repositories = _build_auth_service(session)
-    result = auth_service.provision_platform_owner(
+    result = auth_service.platform_owner.provision_platform_owner(
         username="platform-owner",
         raw_password="OwnerStrong123!",
         audit_writer=repositories.audit_entry_repo,
@@ -201,7 +171,7 @@ def test_platform_principal_cannot_enter_customer_context(session) -> None:
     assert owner is not None
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        auth_service.build_principal_for_context(
+        auth_service.principals.build_for_context(
             owner,
             tenant_id="customer-tenant",
             organization_id=None,
@@ -211,10 +181,10 @@ def test_platform_principal_cannot_enter_customer_context(session) -> None:
 
 
 def test_ordinary_registration_cannot_create_platform_admin(services) -> None:
-    auth_service = services["auth_service"]
+    auth_service = services["auth"]
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        auth_service.register_user(
+        auth_service.registration.register_user(
             "second-platform-admin",
             "OwnerStrong123!",
             role_names=["admin"],
@@ -222,21 +192,21 @@ def test_ordinary_registration_cannot_create_platform_admin(services) -> None:
 
     assert exc_info.value.code == "PLATFORM_ROLE_ASSIGNMENT_DENIED"
     assert (
-        auth_service._user_repo.get_by_username("second-platform-admin")
+        auth_service.queries._user_repo.get_by_username("second-platform-admin")
         is None
     )
 
 
 def test_provision_platform_owner_rejects_a_second_owner(session) -> None:
     auth_service, repositories = _build_auth_service(session)
-    auth_service.provision_platform_owner(
+    auth_service.platform_owner.provision_platform_owner(
         username="first-owner",
         raw_password="OwnerStrong123!",
         audit_writer=repositories.audit_entry_repo,
     )
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        auth_service.provision_platform_owner(
+        auth_service.platform_owner.provision_platform_owner(
             username="second-owner",
             raw_password="OtherStrong123!",
             audit_writer=repositories.audit_entry_repo,
@@ -248,7 +218,7 @@ def test_provision_platform_owner_rejects_a_second_owner(session) -> None:
 
 def test_provision_platform_owner_rejects_ambiguous_existing_owners(session) -> None:
     auth_service, repositories = _build_auth_service(session)
-    first = auth_service.provision_platform_owner(
+    first = auth_service.platform_owner.provision_platform_owner(
         username="first-owner",
         raw_password="OwnerStrong123!",
         audit_writer=repositories.audit_entry_repo,
@@ -270,7 +240,7 @@ def test_provision_platform_owner_rejects_ambiguous_existing_owners(session) -> 
     session.commit()
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        auth_service.provision_platform_owner(
+        auth_service.platform_owner.provision_platform_owner(
             username=first.username,
             raw_password="OwnerStrong123!",
             audit_writer=repositories.audit_entry_repo,
@@ -283,7 +253,7 @@ def test_provision_platform_owner_rolls_back_when_audit_write_fails(session) -> 
     auth_service, repositories = _build_auth_service(session)
 
     with pytest.raises(RuntimeError, match="audit unavailable"):
-        auth_service.provision_platform_owner(
+        auth_service.platform_owner.provision_platform_owner(
             username="platform-owner",
             raw_password="OwnerStrong123!",
             audit_writer=_FailingPlatformAuditWriter(),
@@ -297,7 +267,7 @@ def test_provision_platform_owner_rejects_weak_password_without_side_effects(ses
     auth_service, repositories = _build_auth_service(session)
 
     with pytest.raises(ValidationError):
-        auth_service.provision_platform_owner(
+        auth_service.platform_owner.provision_platform_owner(
             username="platform-owner",
             raw_password="weak",
             audit_writer=repositories.audit_entry_repo,

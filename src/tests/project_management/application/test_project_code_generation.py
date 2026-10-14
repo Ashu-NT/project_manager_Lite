@@ -30,9 +30,8 @@ def test_create_project_rejects_duplicate_manual_code(services):
 
 def test_create_project_rejects_duplicate_manual_code_across_organizations(services):
     ps = services["project_service"]
-    organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
-    other_org = organization_service.create_organization(
+    other_org = services["organization_commands"].create_organization(
         organization_code="PM-OPS",
         display_name="PM Operations",
         timezone_name="Europe/Berlin",

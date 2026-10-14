@@ -3,7 +3,7 @@
 `ApprovalService.approve_and_apply`/`reject` require only the GLOBAL permission
 `approval.decide` -- there is no per-organization "decide" grant. The organization boundary is
 enforced entirely by the repository's ambient tenant-scoping filter, which requires the SESSION's
-active organization (`TenantContextService`, not `OrganizationService.get_active_organization()`'s
+active organization (`TenantContextService`, not `the Organization handlers.get_active_organization()`'s
 separate "business-active org" flag) to match the request's own `organization_id`. Switching the
 active organization itself requires only the global `settings.manage` permission, not per-org
 membership.
@@ -34,15 +34,14 @@ def _unique(prefix: str) -> str:
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _session_active_organization_id(services) -> str | None:
     """The session-scoped active organization used for Approval scoping -- distinct from
-    `OrganizationService.get_active_organization()`'s separate "business-active org" DB flag."""
+    `the Organization handlers.get_active_organization()`'s separate "business-active org" DB flag."""
     return services["tenant_context_service"].get_active_organization_id()
 
 
@@ -50,12 +49,11 @@ def _create_second_org_in_same_tenant(services):
     """Org A2's mere creation never touches the session's real active organization (Org A1) --
     `create_organization` has no session side effect at all; only an explicit
     `set_active_organization` call changes it."""
-    organization_service = services["organization_service"]
     org_a1_session_id = _session_active_organization_id(services)
     assert org_a1_session_id is not None
     org_a1 = services["tenant_context_service"].get_active_organization()
     assert org_a1.id == org_a1_session_id
-    org_a2 = organization_service.create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique("XORG-A2"), display_name="Same-Tenant Org A2"
     )
     assert _session_active_organization_id(services) == org_a1_session_id
@@ -95,13 +93,13 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
     org_a1, org_a2 = _create_second_org_in_same_tenant(services)
 
     requester_username = _unique("xorg-requester")
-    services["auth_service"].register_user(requester_username, "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user(requester_username, "StrongPass123", role_names=["planner"])
     _login(services, requester_username, "StrongPass123")
     request = _request_pending_approval_in_org_a1(services, org_a1_id=org_a1.id)
 
     _login(services, "admin", "ChangeMe123!")
     approver_username = _unique("xorg-approver")
-    services["auth_service"].register_user(approver_username, "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user(approver_username, "StrongPass123", role_names=["approver"])
 
     # Org A2 becomes -- and stays -- the session's active organization for the remainder of this
     # test (`set_active_organization` is the ONLY production path that changes this).
@@ -177,7 +175,7 @@ def test_actor_gains_authority_only_after_switching_active_organization_to_the_t
     request = _submitted_budget_in_org_a1(services, org_a1_id=org_a1.id)
 
     approver_username = _unique("xorg2-approver")
-    services["auth_service"].register_user(approver_username, "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user(approver_username, "StrongPass123", role_names=["approver"])
     services["tenant_context_service"].set_active_organization(org_a2.id)
 
     _login(services, approver_username, "StrongPass123")

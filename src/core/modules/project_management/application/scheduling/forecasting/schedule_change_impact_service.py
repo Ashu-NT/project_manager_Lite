@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Protocol
 
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintValidator,
@@ -25,6 +24,9 @@ from src.core.modules.project_management.application.scheduling.forecasting.task
     build_successors_by_task_id,
     compute_downstream_exposure,
     compute_free_float_days,
+)
+from src.core.modules.project_management.contracts.reads.scheduling.approved_baseline_lookup import (
+    ApprovedBaselineLookup,
 )
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     DependencyRepository,
@@ -75,10 +77,6 @@ class ScheduleChangeImpactReport:
     dependency_conflicts: list[DependencyConstraintConflict] = field(default_factory=list)
     blocked_by_deadline: bool = False
     blocked_reason: str = ""
-
-
-class ApprovedBaselineLookup(Protocol):
-    def get_approved_baseline(self, project_id: str) -> object | None: ...
 
 
 class ScheduleChangeImpactService:
@@ -426,7 +424,6 @@ class ScheduleChangeImpactService:
 
 
 __all__ = [
-    "ApprovedBaselineLookup",
     "ScheduleChangeImpactReport",
     "ScheduleChangeImpactService",
     "TaskImpact",

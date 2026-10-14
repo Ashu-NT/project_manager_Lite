@@ -33,7 +33,7 @@ def split_human_message(message: str) -> tuple[str, str]:
     Every create/update/lifecycle human_message recorded for Organization/
     Site/Department/Employee/Document activity is written as "<verb
     phrase> — <subject>" (see site_commands.py/department_commands.py/
-    employee_service.py/organization_service.py/document_commands.py).
+    employee/commands/employee_commands.py, org/commands/organization_commands.py and document_commands.py).
     Falls back to the whole message as the title when the separator isn't
     present, rather than guessing at a split that isn't there."""
     if " — " in message:

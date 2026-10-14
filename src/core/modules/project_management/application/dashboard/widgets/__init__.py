@@ -1,12 +1,12 @@
 """Dashboard widget data providers."""
 from src.core.modules.project_management.application.dashboard.widgets.professional import (
-    DashboardProfessionalMixin,
+    DashboardScheduleHealthWidget,
 )
 from src.core.modules.project_management.application.dashboard.widgets.register import (
-    DashboardRegisterMixin,
+    DashboardRegisterWidget,
 )
 from src.core.modules.project_management.application.dashboard.widgets.upcoming import (
-    DashboardUpcomingMixin,
+    DashboardUpcomingWidget,
 )
 
-__all__ = ["DashboardProfessionalMixin", "DashboardRegisterMixin", "DashboardUpcomingMixin"]
+__all__ = ["DashboardRegisterWidget", "DashboardScheduleHealthWidget", "DashboardUpcomingWidget"]

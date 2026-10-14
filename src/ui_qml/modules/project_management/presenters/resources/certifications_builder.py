@@ -4,6 +4,8 @@ from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
+)
+from src.core.modules.project_management.contracts.use_cases.resources import (
     ResourceAddCertificationCommand,
     ResourceRemoveCertificationCommand,
     ResourceUpdateCertificationCommand,

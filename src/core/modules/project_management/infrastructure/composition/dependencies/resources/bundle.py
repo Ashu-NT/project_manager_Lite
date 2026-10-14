@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.modules.project_management.application.resources.catalog.resource_service import (
-    ResourceService,
+from src.core.modules.project_management.application.resources.commands.resource_commands import (
+    ResourceMasterCommandHandler,
+)
+from src.core.modules.project_management.application.resources.commands.skill_commands import (
+    ResourceCapabilityCommandHandler,
 )
 from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
     ResourceContextQueryHandler,
+)
+from src.core.modules.project_management.application.resources.queries.resource_queries import (
+    ResourceQueryHandler,
 )
 from src.core.modules.project_management.application.resources.queries.skill_queries import (
     ResourceCapabilityQueryHandler,
@@ -15,6 +21,8 @@ from src.core.modules.project_management.application.resources.queries.skill_que
 
 @dataclass(frozen=True)
 class ResourceComposition:
-    service: ResourceService
+    query: ResourceQueryHandler
+    master_commands: ResourceMasterCommandHandler
+    capability_commands: ResourceCapabilityCommandHandler
     capability_query: ResourceCapabilityQueryHandler
     context_query: ResourceContextQueryHandler

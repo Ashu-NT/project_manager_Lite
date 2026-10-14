@@ -1,5 +1,6 @@
 """External Accounting business outcomes, never transport or monetary authority."""
 
+from dataclasses import dataclass
 from datetime import UTC
 from enum import StrEnum
 from typing import Annotated, Literal, Protocol
@@ -88,3 +89,33 @@ class AccountingIngressAuthenticator(Protocol):
     def authenticate(
         self, *, body: bytes, authentication: SecretBytes
     ) -> AuthenticatedAccountingConnection: ...
+
+
+class IngressRejectionReason(StrEnum):
+    MALFORMED = "malformed_outcome"
+    SCOPE_MISMATCH = "outcome_scope_mismatch"
+    ORDERING_MISMATCH = "outcome_ordering_mismatch"
+
+
+@dataclass(frozen=True)
+class ValidatedAccountingIngress:
+    connection: AuthenticatedAccountingConnection
+    body_sha256: str
+    byte_count: int
+    outcome: ExternalAccountingOutcome | None
+    rejection: IngressRejectionReason | None
+
+
+class AccountingOutcomeConsumer(Protocol):
+    def consume(self, ingress: ValidatedAccountingIngress) -> object: ...
+
+
+__all__ = [
+    "AccountingIngressAuthenticator",
+    "AccountingOutcomeConsumer",
+    "AccountingOutcomeKind",
+    "AuthenticatedAccountingConnection",
+    "ExternalAccountingOutcome",
+    "IngressRejectionReason",
+    "ValidatedAccountingIngress",
+]

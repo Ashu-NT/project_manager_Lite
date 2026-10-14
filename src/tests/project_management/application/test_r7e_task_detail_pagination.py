@@ -28,8 +28,6 @@ def test_task_detail_comment_pages_remain_bounded_and_stably_ordered(services) -
         for index in range(1000)
     )
     session.commit()
-
-    service = services["collaboration_service"]
     statements: list[str] = []
 
     def record_statement(_connection, _cursor, statement, _parameters, _context, _many):
@@ -38,10 +36,10 @@ def test_task_detail_comment_pages_remain_bounded_and_stably_ordered(services) -
 
     event.listen(session.bind, "before_cursor_execute", record_statement)
     try:
-        first = service.query_task_comments_page(task.id, page=1, page_size=25)
+        first = services["collaboration_comment_query"].query_task_comments_page(task.id, page=1, page_size=25)
         first_query_count = len(statements)
         statements.clear()
-        last = service.query_task_comments_page(task.id, page=40, page_size=25)
+        last = services["collaboration_comment_query"].query_task_comments_page(task.id, page=40, page_size=25)
         last_query_count = len(statements)
     finally:
         event.remove(session.bind, "before_cursor_execute", record_statement)
@@ -57,8 +55,6 @@ def test_task_detail_comment_pages_remain_bounded_and_stably_ordered(services) -
 
 def test_task_detail_comment_page_rejects_foreign_task(services) -> None:
     seeded = _seed_priority_pm_rows(services)
-    service = services["collaboration_service"]
-
-    assert service.query_task_comments_page(seeded["task_a1"]).total >= 1
+    assert services["collaboration_comment_query"].query_task_comments_page(seeded["task_a1"]).total >= 1
     with pytest.raises(NotFoundError):
-        service.query_task_comments_page(seeded["task_b1"])
+        services["collaboration_comment_query"].query_task_comments_page(seeded["task_b1"])

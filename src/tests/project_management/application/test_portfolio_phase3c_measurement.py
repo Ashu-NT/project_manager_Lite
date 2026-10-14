@@ -22,9 +22,8 @@ _SIZES = {
 def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
     project_service = services["project_service"]
     task_service = services["task_service"]
-    resource_service = services["resource_service"]
     project_resource_service = services["project_resource_service"]
-    portfolio = services["portfolio_service"]
+    scenario_commands = services["portfolio_scenario_commands"]
 
     project_ids: list[str] = []
     for index in range(project_count):
@@ -40,7 +39,7 @@ def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
             start_date=date(2024, 1, 8),
             duration_days=10,
         )
-        resource = resource_service.create_resource(
+        resource = services["resource_master_commands"].create_resource(
             f"Phase 3C Resource {index}",
             "Developer",
             hourly_rate=75.0,
@@ -62,14 +61,14 @@ def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
         project_ids.append(project.id)
 
     split = max(1, (project_count + 1) // 2)
-    base = portfolio.create_scenario(
+    base = scenario_commands.create_scenario(
         name="Phase 3C Base",
         budget_limit=1_000_000.0,
         capacity_limit_percent=10_000.0,
         project_ids=project_ids[:split],
         intake_item_ids=[],
     )
-    candidate = portfolio.create_scenario(
+    candidate = scenario_commands.create_scenario(
         name="Phase 3C Candidate",
         budget_limit=1_000_000.0,
         capacity_limit_percent=10_000.0,
@@ -83,22 +82,25 @@ def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
 def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) -> None:
     project_count = _SIZES[size_name]
     base_id, candidate_id = _seed_portfolio(services, project_count=project_count)
-    portfolio = services["portfolio_service"]
-    reporting = services["reporting_service"]
+    executive = services["portfolio_executive_query"]
+    scenario_query = services["portfolio_scenario_query"]
+    policy = scenario_query._policy
+    assert executive._policy is policy
+    reporting = services["project_kpi_report"]
     pool = services["portfolio_resource_pool_service"]
 
     targets = [
-        (portfolio, "_accessible_projects", "portfolio._accessible_projects"),
+        (policy, "accessible_projects", "portfolio._accessible_projects"),
         (reporting, "get_project_kpis", "reporting.get_project_kpis"),
         (
             reporting,
             "get_resource_load_summary",
             "reporting.get_resource_load_summary",
         ),
-        (portfolio._project_repo, "list", "project_repo.list"),
-        (portfolio._project_repo, "get", "project_repo.get"),
-        (portfolio._scenario_repo, "get", "scenario_repo.get"),
-        (portfolio._intake_repo, "list", "intake_repo.list"),
+        (policy._project_repo, "list", "project_repo.list"),
+        (policy._project_repo, "get", "project_repo.get"),
+        (scenario_query._scenario_repo, "get", "scenario_repo.get"),
+        (policy._intake_repo, "list", "intake_repo.list"),
         (reporting._task_repo, "list_by_project", "task_repo.list_by_project"),
         (reporting._task_repo, "get", "task_repo.get"),
         (reporting._assignment_repo, "list_by_tasks", "assignment_repo.list_by_tasks"),
@@ -110,14 +112,13 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
         (reporting._resource_repo, "list", "resource_repo.list"),
         (reporting._resource_repo, "get", "resource_repo.get"),
         (pool._reader, "read_facts", "portfolio_pool_reader.read_facts"),
-        (portfolio._scenario_reader, "read_facts", "portfolio_scenario_reader.read_facts"),
-        (portfolio._heatmap_reader, "read_facts", "portfolio_heatmap_reader.read_facts"),
+        (scenario_query._scenario_reader, "read_facts", "portfolio_scenario_reader.read_facts"),
+        (executive._heatmap_reader, "read_facts", "portfolio_heatmap_reader.read_facts"),
         (
-            portfolio._project_calendar_adapter,
+            executive._heatmap_calculator._project_calendar_adapter,
             "working_day_dates_between",
             "project_calendar.working_day_dates_between",
         ),
-        (portfolio._rate_resolver, "resolve_many", "rate_resolver.resolve_many"),
         (
             pool._calendar,
             "working_day_dates_between",
@@ -125,10 +126,10 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
         ),
     ]
     operations = (
-        ("heatmap", portfolio.list_portfolio_heatmap),
+        ("heatmap", executive.list_portfolio_heatmap),
         (
             "scenario_comparison",
-            lambda: portfolio.compare_scenarios(base_id, candidate_id),
+            lambda: scenario_query.compare_scenarios(base_id, candidate_id),
         ),
         (
             "capacity_pool",
@@ -189,7 +190,6 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
             assert sql_stats.total_statements == expected_sql
             assert calls["portfolio_heatmap_reader.read_facts"] == 1
             assert calls["project_calendar.working_day_dates_between"] == project_count
-            assert calls["rate_resolver.resolve_many"] == 0
             assert calls["portfolio._accessible_projects"] == 1
             assert calls["project_repo.list"] == 1
             assert calls["reporting.get_project_kpis"] == 0

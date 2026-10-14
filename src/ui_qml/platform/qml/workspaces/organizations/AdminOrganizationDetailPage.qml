@@ -492,7 +492,7 @@ Item {
     }
 
     // -- Documents tab: same tenant-scoped + paginated pattern as Sites/
-    // Departments/Employees for the LIST (DocumentService.
+    // Departments/Employees for the LIST (DocumentQueryHandler.
     // list_documents_page_for_organization) -- works correctly regardless
     // of which organization is active in the caller's session, and remains
     // readable for inactive/archived organizations. Row activation to the
@@ -510,7 +510,7 @@ Item {
     readonly property var _documentsStatusFilterOptions: DocumentsColumns.statusFilterOptions()
     readonly property var _documentsColumns: DocumentsColumns.columns()
     // Only your own currently-active organization can receive new documents
-    // today (DocumentService.create_document() -- an existing, unchanged
+    // today (DocumentQueryHandler.create_document() -- an existing, unchanged
     // domain rule; this read-only phase does not add an explicit-
     // organization create path). Viewing another organization's documents
     // stays fully supported; creating into it from here does not.

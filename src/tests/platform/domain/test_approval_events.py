@@ -38,15 +38,14 @@ def _unique(prefix: str) -> str:
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _login_as_fresh_requester(services) -> str:
     username = _unique("evt-requester")
-    services["auth_service"].register_user(username, "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user(username, "StrongPass123", role_names=["planner"])
     _login(services, username, "StrongPass123")
     return username
 
@@ -108,8 +107,8 @@ def _submitted_budget(services, session):
 
 def _request_budget_approval_as_a_different_user(services, budget):
     active_organization_id = services["tenant_context_service"].get_active_organization_id()
-    admin = services["auth_service"].authenticate("admin", "ChangeMe123!")
-    services["auth_service"].assign_role(admin.id, "approver")
+    admin = services["authentication"].authenticate("admin", "ChangeMe123!")
+    services["role_assignment_commands"].assign_role(admin.id, "approver")
     _login_as_fresh_requester(services)
     if active_organization_id:
         services["user_session"].set_active_organization_id(active_organization_id)
@@ -694,9 +693,8 @@ def test_cross_org_decision_denial_emits_zero_approval_approved_or_rejected(serv
     """Same tenant, request belongs to Org A1, active org = A2: decide denial emits zero
     `ApprovalApproved`/`ApprovalRejected`."""
     _login(services, "admin", "ChangeMe123!")
-    organization_service = services["organization_service"]
     org_a1 = services["tenant_context_service"].get_active_organization()
-    org_a2 = organization_service.create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique("EVT-XORG-A2"), display_name="Events Org A2"
     )
 
@@ -705,7 +703,7 @@ def test_cross_org_decision_denial_emits_zero_approval_approved_or_rejected(serv
     assert request.organization_id == org_a1.id
 
     approver_username = _unique("evt-xorg-approver")
-    services["auth_service"].register_user(approver_username, "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user(approver_username, "StrongPass123", role_names=["approver"])
     services["tenant_context_service"].set_active_organization(org_a2.id)
 
     _login(services, approver_username, "StrongPass123")

@@ -1,44 +1,45 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
-from decimal import Decimal
+from datetime import date, datetime
+from typing import cast
 
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.common.pagination import (
     PaginatedResult,
 )
-from src.core.modules.project_management.application.resources.capacity.resource_load_engine import (
-    ResourceLoadEngine,
+from src.core.modules.project_management.application.portfolio.utils.portfolio_heatmap import (
+    PortfolioHeatmapCalculator,
 )
-from src.core.modules.project_management.application.scheduling.calendars.working_day_snapshot import (
-    WorkingDaySnapshotCalendar,
+from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
+    PortfolioPolicy,
 )
-from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
-    run_cpm,
+from src.core.modules.project_management.contracts.reads.portfolio.heatmap_reader import (
+    PortfolioHeatmapReader,
 )
-from src.core.modules.project_management.contracts.reads.portfolio.models.heatmap_facts import (
-    HeatmapProjectFacts,
-    PortfolioHeatmapFacts,
+from src.core.modules.project_management.contracts.reads.projects.catalog_reader import (
+    ProjectCatalogReader,
 )
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.domain.enums import (
-    DependencyType,
     ProjectStatus,
-    TaskStatus,
 )
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,
     PortfolioRecentAction,
 )
-from src.core.modules.project_management.domain.tasks.hierarchy import (
-    select_leaf_dependencies,
-    select_leaf_tasks,
-)
-from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.repositories.history.audit.contracts import (
+    AuditRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,49 @@ TOP_AT_RISK_PROJECTS_LIMIT = 8
 _HEATMAP_BROWSE_SORT_KEYS = {"projectName", "statusLabel"}
 
 
-class PortfolioExecutiveQueryMixin:
+def _audit_action_label(action: str) -> str:
+    action_name = str(action or "").strip()
+    if not action_name:
+        return "Update"
+    return action_name.replace(".", " ").replace("_", " ").title()
+
+
+def _audit_summary(row) -> str:
+    details = dict(getattr(row, "details", {}) or {})
+    for key in ("note", "status", "title", "summary", "message"):
+        value = str(details.get(key) or "").strip()
+        if value:
+            return value
+    entity_type = str(getattr(row, "entity_type", "") or "record").replace("_", " ")
+    return f"{entity_type.title()} updated."
+
+
+
+class PortfolioExecutiveQueryHandler(ProjectManagementModuleGuardMixin):
+    """Executive heatmap / top-at-risk / recent-action reads over the
+    authorized project scope."""
+
+    def __init__(
+        self,
+        *,
+        heatmap_reader: PortfolioHeatmapReader,
+        heatmap_calculator: PortfolioHeatmapCalculator,
+        audit_repo: AuditRepository,
+        policy: PortfolioPolicy,
+        tenant_context_service: TenantContextService,
+        project_catalog_reader: ProjectCatalogReader | None = None,
+        user_session=None,
+        module_catalog_service=None,
+    ) -> None:
+        self._heatmap_reader = heatmap_reader
+        self._heatmap_calculator = heatmap_calculator
+        self._audit_repo = audit_repo
+        self._policy = policy
+        self._tenant_context_service = tenant_context_service
+        self._project_catalog_reader = project_catalog_reader
+        self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
+
     def list_portfolio_heatmap(self, *, limit: int | None = None) -> list[PortfolioExecutiveRow]:
         """Authoritative heatmap ranking over the COMPLETE accessible project
         scope. With limit=None (default) this returns every accessible
@@ -64,15 +107,15 @@ class PortfolioExecutiveQueryMixin:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view portfolio executive heatmap"
         )
-        accessible_project_ids = tuple(project.id for project in self._accessible_projects())
+        accessible_project_ids = tuple(project.id for project in self._policy.accessible_projects())
         facts = self._heatmap_reader.read_facts(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             project_ids=accessible_project_ids,
-            as_of=date.today(),
+            as_of=date.today(),  # noqa: DTZ011 - local business date (unchanged)
         )
         rows = sorted(
-            self._compute_heatmap_rows(facts),
+            self._heatmap_calculator.compute_rows(facts),
             key=lambda row: (-row.pressure_score, -row.late_tasks, row.project_name.lower()),
         )
         if limit is not None:
@@ -142,9 +185,9 @@ class PortfolioExecutiveQueryMixin:
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             project_ids=page_project_ids,
-            as_of=date.today(),
+            as_of=date.today(),  # noqa: DTZ011 - local business date (unchanged)
         )
-        rows_by_id = {row.project_id: row for row in self._compute_heatmap_rows(facts)}
+        rows_by_id = {row.project_id: row for row in self._heatmap_calculator.compute_rows(facts)}
         # Preserve the SQL-determined order — never re-sort by pressure here.
         ordered_rows = [rows_by_id[project_id] for project_id in page_project_ids if project_id in rows_by_id]
         return PaginatedResult(
@@ -154,181 +197,9 @@ class PortfolioExecutiveQueryMixin:
             total=project_page.filtered_total,
         )
 
-    def _compute_heatmap_rows(self, facts: PortfolioHeatmapFacts) -> list[PortfolioExecutiveRow]:
-        rows: list[PortfolioExecutiveRow] = []
-        for project in facts.projects:
-            try:
-                calendar = self._heatmap_calendar(project)
-                critical_tasks, late_tasks = self._heatmap_schedule_counts(
-                    project,
-                    calendar=calendar,
-                )
-                peak_utilization = self._heatmap_peak_utilization(
-                    project,
-                    facts=facts,
-                    calendar=calendar,
-                )
-                cost_variance = self._heatmap_cost_variance(project)
-                pressure = 0
-                if late_tasks > 0:
-                    pressure += 2
-                if critical_tasks > 0:
-                    pressure += 1
-                if peak_utilization >= 120.0:
-                    pressure += 2
-                elif peak_utilization >= 100.0:
-                    pressure += 1
-                if cost_variance > 0:
-                    pressure += 1
-                rows.append(
-                    PortfolioExecutiveRow(
-                        project_id=project.project_id,
-                        project_name=project.project_name,
-                        project_status=project.project_status,
-                        critical_tasks=critical_tasks,
-                        late_tasks=late_tasks,
-                        peak_utilization_percent=round(peak_utilization, 1),
-                        cost_variance=cost_variance,
-                        pressure_score=pressure,
-                        pressure_label=self._pressure_label(pressure),
-                    )
-                )
-            except Exception:
-                logger.warning(
-                    "Portfolio heatmap calculation failed project_id=%s",
-                    project.project_id,
-                    exc_info=True,
-                )
-                rows.append(
-                    PortfolioExecutiveRow(
-                        project_id=project.project_id,
-                        project_name=project.project_name,
-                        project_status=project.project_status,
-                        critical_tasks=0,
-                        late_tasks=0,
-                        peak_utilization_percent=0.0,
-                        cost_variance=Decimal(0),
-                        pressure_score=0,
-                        pressure_label="Stable",
-                    )
-                )
-        return rows
-
-    def _heatmap_schedule_counts(
-        self,
-        project: HeatmapProjectFacts,
-        *,
-        calendar: WorkingDaySnapshotCalendar,
-    ) -> tuple[int, int]:
-        tasks = select_leaf_tasks(self._heatmap_domain_tasks(project))
-        if not tasks:
-            return 0, 0
-        dependencies = select_leaf_dependencies(
-            self._heatmap_domain_dependencies(project),
-            tasks,
-        )
-        schedule = run_cpm(
-            calendar,
-            {task.id: task for task in tasks},
-            dependencies,
-        ).schedule
-        return (
-            sum(1 for info in schedule.values() if info.is_critical),
-            sum(1 for info in schedule.values() if (info.late_by_days or 0) > 0),
-        )
-
-    def _heatmap_peak_utilization(
-        self,
-        project: HeatmapProjectFacts,
-        *,
-        facts: PortfolioHeatmapFacts,
-        calendar: WorkingDaySnapshotCalendar,
-    ) -> float:
-        metrics = ResourceLoadEngine.calculate(
-            tasks=project.tasks,
-            assignments=project.assignments,
-            resources=facts.resources,
-            working_dates=calendar.working_dates,
-        )
-        return max((row.utilization_percent for row in metrics), default=0.0)
-
-    def _heatmap_cost_variance(self, project: HeatmapProjectFacts) -> Decimal:
-        eac = project.finance.control.estimate_at_completion
-        if eac is None:
-            return Decimal(0)
-        return eac - project.finance.control.approved_budget
-
-    def _heatmap_calendar(self, project: HeatmapProjectFacts) -> WorkingDaySnapshotCalendar:
-        values = [
-            value
-            for task in project.tasks
-            for value in (
-                task.start_date,
-                task.end_date,
-                task.actual_start,
-                task.actual_end,
-                task.deadline,
-            )
-            if value is not None
-        ]
-        values.extend(
-            value
-            for value in (project.finance.project.start_date, project.finance.project.end_date)
-            if value is not None
-        )
-        anchor = min(values) if values else project.finance.as_of
-        ceiling = max(values) if values else project.finance.as_of
-        work_units = sum(max(int(task.duration_days or 0), 1) for task in project.tasks)
-        work_units += sum(abs(row.lag_days) + 2 for row in project.dependencies)
-        margin = max(366, work_units * 3 + 30)
-        start = anchor - timedelta(days=margin)
-        end = ceiling + timedelta(days=margin)
-        working_dates = self._project_calendar_adapter.working_day_dates_between(
-            project.project_id,
-            start,
-            end,
-        )
-        return WorkingDaySnapshotCalendar(start, end, working_dates, self._calendar)
-
-    @staticmethod
-    def _heatmap_domain_tasks(project: HeatmapProjectFacts) -> list[Task]:
-        return [
-            Task(
-                id=row.id,
-                project_id=row.project_id,
-                name=row.name,
-                parent_task_id=row.parent_task_id,
-                wbs_code=row.wbs_code,
-                sort_order=row.sort_order,
-                start_date=row.start_date,
-                end_date=row.end_date,
-                duration_days=row.duration_days,
-                status=TaskStatus(row.status),
-                priority=row.priority,
-                percent_complete=row.percent_complete,
-                actual_start=row.actual_start,
-                actual_end=row.actual_end,
-                deadline=row.deadline,
-            )
-            for row in project.tasks
-        ]
-
-    @staticmethod
-    def _heatmap_domain_dependencies(project: HeatmapProjectFacts) -> list[TaskDependency]:
-        return [
-            TaskDependency(
-                id=row.id,
-                predecessor_task_id=row.predecessor_task_id,
-                successor_task_id=row.successor_task_id,
-                dependency_type=DependencyType(row.dependency_type),
-                lag_days=row.lag_days,
-            )
-            for row in project.dependencies
-        ]
-
     def list_recent_pm_actions(self, *, limit: int = 12) -> list[PortfolioRecentAction]:
         require_permission(self._user_session, "portfolio.read", operation_label="view recent pm actions")
-        accessible_projects = {project.id: project for project in self._accessible_projects()}
+        accessible_projects = {project.id: project for project in self._policy.accessible_projects()}
         if not accessible_projects:
             return []
         _PM_ENTITY_TYPES = {
@@ -356,11 +227,14 @@ class PortfolioExecutiveQueryMixin:
             )
             rows.append(
                 PortfolioRecentAction(
-                    occurred_at=getattr(row, "occurred_at", None) or getattr(row, "timestamp", None),
+                    occurred_at=cast(
+                        datetime,
+                        getattr(row, "occurred_at", None) or getattr(row, "timestamp", None),
+                    ),
                     project_name=project.name,
-                    action_label=self._audit_action_label(action),
+                    action_label=_audit_action_label(action),
                     actor_username=str(getattr(row, "actor_username", "") or ""),
-                    summary=self._audit_summary(row),
+                    summary=_audit_summary(row),
                 )
             )
             if len(rows) >= limit:
@@ -368,4 +242,7 @@ class PortfolioExecutiveQueryMixin:
         return rows
 
 
-__all__ = ["PortfolioExecutiveQueryMixin"]
+__all__ = [
+    "TOP_AT_RISK_PROJECTS_LIMIT",
+    "PortfolioExecutiveQueryHandler",
+]

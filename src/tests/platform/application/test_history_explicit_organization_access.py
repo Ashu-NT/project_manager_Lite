@@ -9,18 +9,17 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 def test_explicit_history_reads_require_organization_membership_and_permission(services) -> None:
-    organizations = services["organization_service"]
     context = services["tenant_context_service"]
     activity = services["activity_service"]
     audit = services["enterprise_audit_service"]
 
-    allowed = organizations.create_organization(
+    allowed = services["organization_commands"].create_organization(
         organization_code="HIST-ALLOWED",
         display_name="History Allowed",
         timezone_name="UTC",
         base_currency="USD",
     )
-    denied = organizations.create_organization(
+    denied = services["organization_commands"].create_organization(
         organization_code="HIST-DENIED",
         display_name="History Denied",
         timezone_name="UTC",
@@ -60,9 +59,8 @@ def test_explicit_history_reads_require_organization_membership_and_permission(s
 
 
 def test_explicit_audit_read_requires_audit_permission_in_member_organization(services) -> None:
-    organizations = services["organization_service"]
     context = services["tenant_context_service"]
-    org = organizations.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="HIST-SCOPE-ONLY",
         display_name="History Scope Only",
         timezone_name="UTC",

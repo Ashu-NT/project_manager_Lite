@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import field_validator
 
 from src.core.platform.common.exceptions import ValidationError
@@ -68,7 +70,7 @@ class Tenant:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         try:
             resolved = int(value if value not in (None, "") else 1)
         except (TypeError, ValueError) as exc:

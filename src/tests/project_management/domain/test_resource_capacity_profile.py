@@ -36,9 +36,7 @@ def test_resource_utilization_policy_has_canonical_boundaries(
 
 
 def test_resource_profile_fields_roundtrip(services):
-    rs = services["resource_service"]
-
-    created = rs.create_resource(
+    created = services["resource_master_commands"].create_resource(
         "Capacity Resource",
         role="Developer",
         hourly_rate=90.0,
@@ -50,7 +48,7 @@ def test_resource_profile_fields_roundtrip(services):
     assert created.address == "Berlin Office"
     assert created.contact == "cap.resource@example.com"
 
-    updated = rs.update_resource(
+    updated = services["resource_master_commands"].update_resource(
         resource_id=created.id,
         expected_version=created.version,
         name=created.name,
@@ -72,7 +70,7 @@ def test_resource_profile_fields_roundtrip(services):
     assert updated.address == "Remote"
     assert updated.contact == "updated@example.com"
 
-    fetched = rs.get_resource(created.id)
+    fetched = services["resource_query"].get_resource(created.id)
     assert fetched.capacity_percent == pytest.approx(120.0)
     assert fetched.address == "Remote"
     assert fetched.contact == "updated@example.com"
@@ -87,12 +85,10 @@ def test_assignment_overallocation_uses_resource_capacity(services):
     capacity authority (docs §44), not just carried as inert metadata."""
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-
     project = ps.create_project("Capacity Allocation Rules", "")
     t1 = ts.create_task(project.id, "Task One", start_date=date(2024, 1, 2), duration_days=2)
     t2 = ts.create_task(project.id, "Task Two", start_date=date(2024, 1, 2), duration_days=2)
-    resource = rs.create_resource("Capacity Dev", "Developer", capacity_percent=80.0)
+    resource = services["resource_master_commands"].create_resource("Capacity Dev", "Developer", capacity_percent=80.0)
 
     ts.assign_resource(t1.id, resource.id, allocation_percent=60.0)
     ts.assign_resource(t2.id, resource.id, allocation_percent=30.0)
@@ -104,18 +100,15 @@ def test_assignment_overallocation_uses_resource_capacity(services):
 def test_resource_load_summary_reports_capacity_and_utilization(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-    rp = services["reporting_service"]
-
     project = ps.create_project("Capacity Load Summary", "")
     t1 = ts.create_task(project.id, "Task A", start_date=date(2024, 1, 2), duration_days=2)
     t2 = ts.create_task(project.id, "Task B", start_date=date(2024, 1, 2), duration_days=2)
-    resource = rs.create_resource("Load Resource", "Dev", capacity_percent=80.0)
+    resource = services["resource_master_commands"].create_resource("Load Resource", "Dev", capacity_percent=80.0)
 
     ts.assign_resource(t1.id, resource.id, allocation_percent=50.0)
     ts.assign_resource(t2.id, resource.id, allocation_percent=30.0)
 
-    rows = rp.get_resource_load_summary(project.id)
+    rows = services["project_kpi_report"].get_resource_load_summary(project.id)
     row = next(r for r in rows if r.resource_id == resource.id)
     assert row.capacity_percent == pytest.approx(80.0)
     assert row.total_allocation_percent == pytest.approx(80.0)
@@ -125,18 +118,15 @@ def test_resource_load_summary_reports_capacity_and_utilization(services):
 def test_resource_load_summary_uses_peak_concurrent_allocation(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-    rp = services["reporting_service"]
-
     project = ps.create_project("Peak Resource Load", "")
     t1 = ts.create_task(project.id, "Seq A", start_date=date(2024, 1, 2), duration_days=2)
     t2 = ts.create_task(project.id, "Seq B", start_date=date(2024, 1, 8), duration_days=2)
-    resource = rs.create_resource("Peak Dev", "Dev", capacity_percent=100.0)
+    resource = services["resource_master_commands"].create_resource("Peak Dev", "Dev", capacity_percent=100.0)
 
     ts.assign_resource(t1.id, resource.id, allocation_percent=60.0)
     ts.assign_resource(t2.id, resource.id, allocation_percent=60.0)
 
-    rows = rp.get_resource_load_summary(project.id)
+    rows = services["project_kpi_report"].get_resource_load_summary(project.id)
     row = next(r for r in rows if r.resource_id == resource.id)
     assert row.total_allocation_percent == pytest.approx(60.0)
     assert row.utilization_percent == pytest.approx(60.0)
@@ -145,12 +135,11 @@ def test_resource_load_summary_uses_peak_concurrent_allocation(services):
 def test_resource_load_summary_batches_resource_lookup(services, monkeypatch):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
-    reporting = services["reporting_service"]
+    reporting = services["project_kpi_report"]
 
     project = ps.create_project("Batched Resource Load", "")
     task = ts.create_task(project.id, "Work", start_date=date(2024, 1, 2), duration_days=2)
-    resources = [rs.create_resource(f"Batch {index}", "Dev") for index in range(2)]
+    resources = [services["resource_master_commands"].create_resource(f"Batch {index}", "Dev") for index in range(2)]
     for resource in resources:
         ts.assign_resource(task.id, resource.id, allocation_percent=25.0)
 
@@ -169,7 +158,7 @@ def test_resource_load_summary_batches_resource_lookup(services, monkeypatch):
         lambda _resource_id: pytest.fail("Resource load must not query per resource"),
     )
 
-    rows = reporting.get_resource_load_summary(project.id)
+    rows = services["project_kpi_report"].get_resource_load_summary(project.id)
 
     assert {row.resource_id for row in rows} == {resource.id for resource in resources}
     assert len(batches) == 1

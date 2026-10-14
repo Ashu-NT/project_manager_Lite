@@ -13,7 +13,7 @@ def test_financial_report_export_passes_canonical_services_and_basis(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    reporting_service = object()
+    report_sources = object()
     finance_service = object()
     captured: dict[str, object] = {}
 
@@ -31,7 +31,7 @@ def test_financial_report_export_passes_canonical_services_and_basis(
         export_excel,
     )
     api = ProjectManagementFinancialsDesktopApi(
-        reporting_service=reporting_service,
+        report_sources=report_sources,  # type: ignore[arg-type]
         finance_service=finance_service,
     )
     output_path = tmp_path / "finance.xlsx"
@@ -45,7 +45,7 @@ def test_financial_report_export_passes_canonical_services_and_basis(
 
     assert result == str(output_path)
     assert captured == {
-        "service": reporting_service,
+        "service": report_sources,
         "project_id": "project-1",
         "output_path": str(output_path),
         "finance_service": finance_service,
@@ -55,7 +55,7 @@ def test_financial_report_export_passes_canonical_services_and_basis(
 
 def test_financial_report_rejects_unknown_format() -> None:
     api = ProjectManagementFinancialsDesktopApi(
-        reporting_service=object(),
+        report_sources=object(),  # type: ignore[arg-type]
         finance_service=object(),
     )
 

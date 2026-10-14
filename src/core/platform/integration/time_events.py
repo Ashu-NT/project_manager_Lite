@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from typing import Any
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, field_validator
 
@@ -51,7 +52,7 @@ class ApprovedTimeEntryEventPayload(BaseModel):
 
     @field_validator("source_revision", mode="before")
     @classmethod
-    def _revision(cls, value: object) -> int:
+    def _revision(cls, value: Any) -> int:
         revision = int(value)
         if revision < 1:
             raise ValueError("Approved Time source revision must be positive")
@@ -59,7 +60,7 @@ class ApprovedTimeEntryEventPayload(BaseModel):
 
     @field_validator("correction_of_revision", mode="before")
     @classmethod
-    def _correction(cls, value: object) -> int | None:
+    def _correction(cls, value: Any) -> int | None:
         if value in (None, ""):
             return None
         revision = int(value)

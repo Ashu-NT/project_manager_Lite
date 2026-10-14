@@ -17,6 +17,16 @@ from pathlib import Path
 
 import pytest
 
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QT_QPA_FONTDIR", "C:/Windows/Fonts")
 
@@ -165,17 +175,12 @@ def test_organization_employees_toolbar_responsive(qapp, services, theme) -> Non
     messages: list[str] = []
     previous_handler = qInstallMessageHandler(lambda t, c, m: messages.append(str(m)))
     try:
-        organization_service = services["organization_service"]
-        org = organization_service.create_organization(
+        org = services["organization_commands"].create_organization(
             organization_code=f"VQATB-ORG-{theme}", display_name="VQA Toolbar Org", timezone_name="UTC", base_currency="USD"
         )
         services["tenant_context_service"].set_active_organization(org.id)
-        department = services["department_service"].create_department(
-            department_code=f"VQATB-OD1-{theme}", name="VQA Toolbar Org Dept"
-        )
-        services["employee_service"].create_employee(
-            employee_code="VQATB-OE1", full_name="VQA Toolbar Org Employee", department_id=department.id
-        )
+        department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"VQATB-OD1-{theme}", name="VQA Toolbar Org Dept"))
+        services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="VQATB-OE1", full_name="VQA Toolbar Org Employee", department_id=department.id))
 
         api_registry = build_desktop_api_registry(services)
         root, platform_catalog, engine, shell_context, pm_catalog = _new_shell(api_registry)
@@ -225,14 +230,9 @@ def test_site_employees_and_departments_toolbar_responsive(qapp, services, theme
     messages: list[str] = []
     previous_handler = qInstallMessageHandler(lambda t, c, m: messages.append(str(m)))
     try:
-        site_service = services["site_service"]
-        site = site_service.create_site(site_code=f"VQATB-SITE-{theme}", name="VQA Toolbar Site")
-        department = services["department_service"].create_department(
-            department_code=f"VQATB-D1-{theme}", name="VQA Toolbar Dept", site_id=site.id
-        )
-        services["employee_service"].create_employee(
-            employee_code="VQATB-E1", full_name="VQA Toolbar Site Employee", site_id=site.id, department_id=department.id
-        )
+        site = services["site_commands"].create_site(SiteCreateCommand(site_code=f"VQATB-SITE-{theme}", name="VQA Toolbar Site"))
+        department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"VQATB-D1-{theme}", name="VQA Toolbar Dept", site_id=site.id))
+        services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="VQATB-E1", full_name="VQA Toolbar Site Employee", site_id=site.id, department_id=department.id))
 
         api_registry = build_desktop_api_registry(services)
         root, platform_catalog, engine, shell_context, pm_catalog = _new_shell(api_registry)

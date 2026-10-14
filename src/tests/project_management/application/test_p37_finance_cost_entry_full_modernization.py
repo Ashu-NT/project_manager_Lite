@@ -82,9 +82,8 @@ def _create_draft(services, project, cost_code, *, command_id="p37-manual-1", am
 
 
 def _become_independent_decider(services) -> None:
-    auth = services["auth_service"]
-    user = auth.register_user("p37-independent-finance-decider", "StrongPass123", role_names=["finance_controller"])
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["user_registration"].register_user("p37-independent-finance-decider", "StrongPass123", role_names=["finance_controller"])
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 # ---------------------------------------------------------------------------

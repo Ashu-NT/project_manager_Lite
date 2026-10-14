@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
+from enum import Enum
+from typing import Final
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -10,7 +12,6 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
@@ -67,11 +68,18 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.time.clock import CalendarClock
 
 _OPEN_CONSTRAINT = "uq_pf_forecasts_one_open_per_project"
 _APPROVED_CONSTRAINT = "uq_pf_forecasts_one_approved_per_project"
 _REVISION_CONSTRAINT = "uq_pf_forecast_project_revision"
-_UNSET = object()
+class _Unset(Enum):
+    """Typed sentinel distinguishing "argument omitted" from an explicit None."""
+
+    TOKEN = 0
+
+
+_UNSET: Final = _Unset.TOKEN
 
 
 class ForecastVersionService(ProjectManagementModuleGuardMixin):
@@ -86,7 +94,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         financial_profile_repo: ProjectFinancialProfileRepository,
         cost_code_repo: ProjectCostCodeRepository,
         task_repo: TaskRepository,
-        clock: Clock,
+        clock: CalendarClock,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,
@@ -287,11 +295,11 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         expected_line_version: int,
         expected_forecast_version: int,
         cost_code_id: str | None = None,
-        task_id: str | None | object = _UNSET,
+        task_id: str | None | _Unset = _UNSET,
         description: str | None = None,
         amount: Decimal | None = None,
-        period_start: date | None | object = _UNSET,
-        period_end: date | None | object = _UNSET,
+        period_start: date | None | _Unset = _UNSET,
+        period_end: date | None | _Unset = _UNSET,
     ) -> ForecastLine:
         line = self._require_line(line_id)
         forecast = self._require_mutable_forecast(

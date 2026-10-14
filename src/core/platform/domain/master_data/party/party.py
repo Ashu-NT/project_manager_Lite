@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Any, cast
 
 from pydantic import field_validator
 
@@ -94,7 +95,7 @@ def _coerce_single_role(value: PartyRole | str) -> PartyRole:
         ) from exc
 
 
-def coerce_party_roles(value: object) -> tuple[PartyRole, ...]:
+def coerce_party_roles(value: Any) -> tuple[PartyRole, ...]:
     """Accepts None, a single role, or any iterable of roles/strings
     (comma-separated string also accepted for CSV import convenience).
     Deduplicates and returns roles in the enum's own declaration order,
@@ -103,7 +104,7 @@ def coerce_party_roles(value: object) -> tuple[PartyRole, ...]:
     if value is None or value == "":
         return ()
     if isinstance(value, (PartyRole, str)):
-        items: list[object] = [part for part in str(value.value if isinstance(value, PartyRole) else value).split(",")]
+        items: list[Any] = [part for part in str(value.value if isinstance(value, PartyRole) else value).split(",")]
     else:
         items = list(value)
     resolved = {_coerce_single_role(item) for item in items if str(item).strip()}
@@ -242,7 +243,7 @@ class Party:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         resolved = int(value if value not in (None, "") else 1)
         if resolved < 1:
             raise ValidationError(
@@ -290,8 +291,9 @@ class Party:
             organization_id=organization_id,
             party_code=party_code,
             party_name=party_name,
-            party_type=party_type,
-            roles=roles,
+            # Raw inputs are coerced by the fields' "before" validators.
+            party_type=cast(PartyType, party_type),
+            roles=cast("tuple[PartyRole, ...]", roles),
             legal_name=legal_name,
             contact_name=contact_name,
             email=email,

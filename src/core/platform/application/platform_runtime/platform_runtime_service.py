@@ -4,9 +4,11 @@ from dataclasses import dataclass
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.application.master_data.org.organization_service import (
+from src.core.platform.application.master_data.org import (
+    OrganizationCommandHandler,
+    OrganizationLifecycleCommandHandler,
     OrganizationPage,
-    OrganizationService,
+    OrganizationQueryHandler,
 )
 from src.core.platform.application.platform_runtime.module_access_policy import (
     is_module_accessible,
@@ -17,12 +19,19 @@ from src.core.platform.application.platform_runtime.module_snapshot import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.tenant.modules import (
+    ModuleCatalogQueryHandler,
+    ModuleEntitlementProvisioningHandler,
+)
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.uow.provisioning.platform_provisioning_unit_of_work import (
     PlatformProvisioningUnitOfWorkFactory,
+)
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
+    OrganizationUpdateCommand,
 )
 from src.core.platform.contract.use_cases.platform_runtime import ModuleRuntimeSnapshot
 from src.core.platform.domain.master_data.org import Organization
@@ -46,25 +55,31 @@ class PlatformRuntimeApplicationService:
     def __init__(
         self,
         *,
-        module_catalog_service: ModuleCatalogService,
-        organization_service: OrganizationService | None = None,
+        module_catalog_service: ModuleCatalogQueryHandler,
+        module_entitlement_provisioning: ModuleEntitlementProvisioningHandler | None = None,
+        organization_query: OrganizationQueryHandler | None = None,
+        organization_commands: OrganizationCommandHandler | None = None,
+        organization_lifecycle: OrganizationLifecycleCommandHandler | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session: UserSessionContext | None = None,
         provisioning_uow_factory: PlatformProvisioningUnitOfWorkFactory | None = None,
     ) -> None:
         self._module_catalog_service = module_catalog_service
-        self._organization_service = organization_service
+        self._module_entitlement_provisioning = module_entitlement_provisioning
+        self._organization_query = organization_query
+        self._organization_commands = organization_commands
+        self._organization_lifecycle = organization_lifecycle
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
         self._provisioning_uow_factory = provisioning_uow_factory
 
     @property
-    def module_catalog_service(self) -> ModuleCatalogService:
+    def module_catalog_service(self) -> ModuleCatalogQueryHandler:
         return self._module_catalog_service
 
     @property
-    def organization_service(self) -> OrganizationService | None:
-        return self._organization_service
+    def organization_query(self) -> OrganizationQueryHandler | None:
+        return self._organization_query
 
     @property
     def tenant_context_service(self) -> TenantContextService | None:
@@ -135,34 +150,6 @@ class PlatformRuntimeApplicationService:
     def get_entitlement(self, module_code: str):
         return self._module_catalog_service.get_entitlement(module_code)
 
-    def license_module(self, module_code: str):
-        active_organization = self._require_active_organization_for_module_mutation()
-        return self._module_catalog_service.license_module(active_organization.id, module_code)
-
-    def revoke_module_license(self, module_code: str):
-        active_organization = self._require_active_organization_for_module_mutation()
-        return self._module_catalog_service.revoke_module_license(active_organization.id, module_code)
-
-    def enable_module(self, module_code: str):
-        active_organization = self._require_active_organization_for_module_mutation()
-        return self._module_catalog_service.enable_module(active_organization.id, module_code)
-
-    def disable_module(self, module_code: str):
-        active_organization = self._require_active_organization_for_module_mutation()
-        return self._module_catalog_service.disable_module(active_organization.id, module_code)
-
-    def transition_module_lifecycle(self, module_code: str, lifecycle_status: str):
-        active_organization = self._require_active_organization_for_module_mutation()
-        return self._module_catalog_service.transition_module_lifecycle(
-            active_organization.id, module_code, lifecycle_status
-        )
-
-    def _require_active_organization_for_module_mutation(self):
-        active_organization = self.get_active_organization()
-        if active_organization is None:
-            raise RuntimeError("Active organization is required to manage module entitlements.")
-        return active_organization
-
     def shell_summary(self) -> str:
         return self._module_catalog_service.shell_summary()
 
@@ -177,9 +164,9 @@ class PlatformRuntimeApplicationService:
         )
 
     def list_organizations(self, *, status: str | None = None) -> list[Organization]:
-        if self._organization_service is None:
+        if self._organization_query is None:
             return []
-        return self._organization_service.list_organizations(status=status)
+        return self._organization_query.list_organizations(status=status)
 
     def list_organizations_page(
         self,
@@ -189,39 +176,39 @@ class PlatformRuntimeApplicationService:
         search: str | None = None,
         status: str | None = None,
     ) -> OrganizationPage:
-        if self._organization_service is None:
+        if self._organization_query is None:
             return OrganizationPage(page=page, page_size=page_size)
-        return self._organization_service.list_organizations_page(
+        return self._organization_query.list_organizations_page(
             page=page, page_size=page_size, search=search, status=status
         )
 
     def get_organization_statistics(self, organization_id: str):
-        from src.core.platform.application.master_data.org.organization_service import (
+        from src.core.platform.application.master_data.org import (
             OrganizationStatistics,
         )
 
-        if self._organization_service is None:
+        if self._organization_query is None:
             return OrganizationStatistics()
-        return self._organization_service.get_organization_statistics(organization_id)
+        return self._organization_query.get_organization_statistics(organization_id)
 
     def get_organization_calendar_summary(self, organization_id: str):
-        from src.core.platform.application.master_data.org.organization_service import (
+        from src.core.platform.application.master_data.org import (
             OrganizationCalendarSummary,
         )
 
-        if self._organization_service is None:
+        if self._organization_query is None:
             return OrganizationCalendarSummary()
-        return self._organization_service.get_organization_calendar_summary(organization_id)
+        return self._organization_query.get_organization_calendar_summary(organization_id)
 
     def get_organization_recent_activity(self, organization_id: str, *, limit: int = 5):
-        if self._organization_service is None:
+        if self._organization_query is None:
             return []
-        return self._organization_service.get_organization_recent_activity(organization_id, limit=limit)
+        return self._organization_query.get_organization_recent_activity(organization_id, limit=limit)
 
     def get_organization_count(self) -> int:
-        if self._organization_service is None:
+        if self._organization_query is None:
             return 0
-        return self._organization_service.get_organization_count()
+        return self._organization_query.get_organization_count()
 
     def get_active_organization(self) -> Organization | None:
         if self._tenant_context_service is not None:
@@ -248,9 +235,9 @@ class PlatformRuntimeApplicationService:
         phone: str = "",
         website: str = "",
     ) -> Organization:
-        if self._organization_service is None:
+        if self._organization_commands is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.create_organization(
+        return self._organization_commands.create_organization(
             organization_code=organization_code,
             display_name=display_name,
             timezone_name=timezone_name,
@@ -269,86 +256,29 @@ class PlatformRuntimeApplicationService:
             website=website,
         )
 
-    def update_organization(
-        self,
-        organization_id: str,
-        *,
-        organization_code: str | None = None,
-        display_name: str | None = None,
-        timezone_name: str | None = None,
-        base_currency: str | None = None,
-        expected_version: int | None = None,
-        legal_name: str | None = None,
-        registration_number: str | None = None,
-        tax_id: str | None = None,
-        address_line_1: str | None = None,
-        address_line_2: str | None = None,
-        postal_code: str | None = None,
-        city: str | None = None,
-        state_region: str | None = None,
-        country_code: str | None = None,
-        email: str | None = None,
-        phone: str | None = None,
-        website: str | None = None,
-    ) -> Organization:
-        if self._organization_service is None:
+    def update_organization(self, command: OrganizationUpdateCommand) -> Organization:
+        if self._organization_commands is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.update_organization(
-            organization_id,
-            organization_code=organization_code,
-            display_name=display_name,
-            timezone_name=timezone_name,
-            base_currency=base_currency,
-            expected_version=expected_version,
-            legal_name=legal_name,
-            registration_number=registration_number,
-            tax_id=tax_id,
-            address_line_1=address_line_1,
-            address_line_2=address_line_2,
-            postal_code=postal_code,
-            city=city,
-            state_region=state_region,
-            country_code=country_code,
-            email=email,
-            phone=phone,
-            website=website,
-        )
+        return self._organization_commands.update_organization(command)
 
-    def provision_organization(
-        self,
-        *,
-        organization_code: str,
-        display_name: str,
-        timezone_name: str,
-        base_currency: str,
-        initial_module_codes: list[str] | tuple[str, ...] | set[str] | None = None,
-        legal_name: str = "",
-        registration_number: str = "",
-        tax_id: str = "",
-        address_line_1: str = "",
-        address_line_2: str = "",
-        postal_code: str = "",
-        city: str = "",
-        state_region: str = "",
-        country_code: str = "",
-        email: str = "",
-        phone: str = "",
-        website: str = "",
-    ) -> Organization:
-        if self._organization_service is None:
+    def provision_organization(self, command: OrganizationProvisionCommand) -> Organization:
+        if self._organization_commands is None or self._organization_query is None:
             raise RuntimeError("Organization service is not configured.")
         if self._provisioning_uow_factory is None:
             raise RuntimeError("Provisioning UnitOfWork factory is not configured.")
+        if self._module_entitlement_provisioning is None:
+            raise RuntimeError("Module entitlement provisioning is not configured.")
+        module_entitlement_provisioning = self._module_entitlement_provisioning
 
         require_permission(self._user_session, "settings.manage", operation_label="provision organization")
-        tenant_id = self._organization_service.require_current_tenant_id(
+        tenant_id = self._organization_query.require_current_tenant_id(
             operation_label="provision organization"
         )
         self._require_settings_manage("set active organization context")
 
         selected_module_codes = (
-            set(initial_module_codes)
-            if initial_module_codes is not None
+            set(command.initial_module_codes)
+            if command.initial_module_codes is not None
             else {
                 module.code
                 for module in self._module_catalog_service.list_modules()
@@ -359,42 +289,32 @@ class PlatformRuntimeApplicationService:
         context = DomainEventContext(correlation_id=generate_id())
         with self._provisioning_uow_factory.create(context=context) as uow:
             try:
-                organization = self._organization_service._create_organization_using(
+                organization = self._organization_commands.create_organization_using(
                     uow.organizations,
                     uow,
-                    organization_code=organization_code,
-                    display_name=display_name,
-                    timezone_name=timezone_name,
-                    base_currency=base_currency,
+                    organization_code=command.organization_code,
+                    display_name=command.display_name,
+                    timezone_name=command.timezone_name,
+                    base_currency=command.base_currency,
                     tenant_id=tenant_id,
-                    legal_name=legal_name,
-                    registration_number=registration_number,
-                    tax_id=tax_id,
-                    address_line_1=address_line_1,
-                    address_line_2=address_line_2,
-                    postal_code=postal_code,
-                    city=city,
-                    state_region=state_region,
-                    country_code=country_code,
-                    email=email,
-                    phone=phone,
-                    website=website,
+                    legal_name=command.legal_name,
+                    registration_number=command.registration_number,
+                    tax_id=command.tax_id,
+                    address_line_1=command.address_line_1,
+                    address_line_2=command.address_line_2,
+                    postal_code=command.postal_code,
+                    city=command.city,
+                    state_region=command.state_region,
+                    country_code=command.country_code,
+                    email=command.email,
+                    phone=command.phone,
+                    website=command.website,
                 )
-                provisioning_module_catalog_service = ModuleCatalogService(
-                    modules=self._module_catalog_service.list_modules(),
-                    enabled_codes=None,
-                    licensed_codes=None,
-                    platform_capabilities=self._module_catalog_service.list_platform_capabilities(),
-                    entitlement_repo=uow.entitlements,
-                    session=uow._session,
-                    user_session=self._user_session,
-                    enterprise_audit_service=uow._enterprise_audit_service,
-                )
-                provisioning_module_catalog_service.provision_organization_entitlements(
+                module_entitlement_provisioning.provision_organization_entitlements_using(
+                    uow,
                     organization.id,
                     licensed_module_codes=selected_module_codes,
                     enabled_module_codes=selected_module_codes,
-                    commit=False,
                 )
                 uow.commit()
             except IntegrityError as exc:
@@ -404,78 +324,61 @@ class PlatformRuntimeApplicationService:
         if self._tenant_context_service is None:
             raise RuntimeError("Tenant context service is not configured.")
         self._tenant_context_service.set_active_organization(organization.id)
-        self._module_catalog_service.notify_module_entitlements_stale(organization.id)
+        module_entitlement_provisioning.notify_module_entitlements_stale(organization.id)
         return organization
 
     def activate_organization(self, organization_id: str) -> Organization:
         # Lifecycle mutation only -- never touches session/tenant context. Selecting this
         # organization as the acting user's working context is a separate action
         # (`TenantContextService.set_active_organization`).
-        if self._organization_service is None:
+        if self._organization_lifecycle is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.activate_organization(organization_id)
+        return self._organization_lifecycle.activate_organization(organization_id)
 
     def deactivate_organization(self, organization_id: str) -> Organization:
-        if self._organization_service is None:
+        if self._organization_lifecycle is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.deactivate_organization(organization_id)
+        return self._organization_lifecycle.deactivate_organization(organization_id)
 
     def archive_organization(self, organization_id: str) -> Organization:
-        if self._organization_service is None:
+        if self._organization_lifecycle is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.archive_organization(organization_id)
+        return self._organization_lifecycle.archive_organization(organization_id)
 
     def bulk_activate_organizations(
         self, organization_ids: list[str] | tuple[str, ...]
     ) -> list[Organization]:
-        if self._organization_service is None:
+        if self._organization_lifecycle is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.bulk_activate_organizations(organization_ids)
+        return self._organization_lifecycle.bulk_activate_organizations(organization_ids)
 
     def bulk_deactivate_organizations(
         self, organization_ids: list[str] | tuple[str, ...]
     ) -> list[Organization]:
-        if self._organization_service is None:
+        if self._organization_lifecycle is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.bulk_deactivate_organizations(organization_ids)
+        return self._organization_lifecycle.bulk_deactivate_organizations(organization_ids)
 
     def bulk_archive_organizations(
         self, organization_ids: list[str] | tuple[str, ...]
     ) -> list[Organization]:
-        if self._organization_service is None:
+        if self._organization_lifecycle is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.bulk_archive_organizations(organization_ids)
+        return self._organization_lifecycle.bulk_archive_organizations(organization_ids)
 
     def bulk_update_organization_currency(
         self, organization_ids: list[str] | tuple[str, ...], base_currency: str
     ) -> list[Organization]:
-        if self._organization_service is None:
+        if self._organization_commands is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.bulk_update_organization_currency(organization_ids, base_currency)
+        return self._organization_commands.bulk_update_organization_currency(organization_ids, base_currency)
 
     def bulk_update_organization_timezone(
         self, organization_ids: list[str] | tuple[str, ...], timezone_name: str
     ) -> list[Organization]:
-        if self._organization_service is None:
+        if self._organization_commands is None:
             raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.bulk_update_organization_timezone(organization_ids, timezone_name)
-
-    def license_module_for_organization(self, organization_id: str, module_code: str):
-        """Grants a module license for an explicit organization -- unlike license_module()
-        above, not limited to the caller's currently active organization. Needed for admin
-        flows (e.g. Organizations bulk module assignment) that act on organizations other
-        than whichever one the acting user happens to have selected."""
-        return self._module_catalog_service.license_module(organization_id, module_code)
-
-    def revoke_module_license_for_organization(self, organization_id: str, module_code: str):
-        return self._module_catalog_service.revoke_module_license(organization_id, module_code)
-
-    def bulk_set_module_license(
-        self, organization_module_pairs: list[tuple[str, str]] | tuple[tuple[str, str], ...], *, licensed: bool
-    ):
-        return self._module_catalog_service.bulk_set_module_license(
-            organization_module_pairs, licensed=licensed
-        )
+        return self._organization_commands.bulk_update_organization_timezone(organization_ids, timezone_name)
 
     def _require_settings_manage(self, operation_label: str) -> None:
         require_permission(
@@ -489,38 +392,37 @@ def resolve_platform_runtime_application_service(
     *,
     platform_runtime_application_service: object | None,
     module_catalog_service: object | None,
-    organization_service: OrganizationService | None = None,
+    organization_query: OrganizationQueryHandler | None = None,
     tenant_context_service: TenantContextService | None = None,
     user_session: UserSessionContext | None = None,
 ) -> object | None:
-    if isinstance(platform_runtime_application_service, PlatformRuntimeApplicationService):
-        if (
-            module_catalog_service is None
-            or (
-                platform_runtime_application_service.module_catalog_service
-                is module_catalog_service
-                and (
-                    organization_service is None
-                    or platform_runtime_application_service.organization_service
-                    is organization_service
-                )
-                and (
-                    tenant_context_service is None
-                    or platform_runtime_application_service.tenant_context_service
-                    is tenant_context_service
-                )
-                and (
-                    user_session is None
-                    or platform_runtime_application_service.user_session is user_session
-                )
+    if isinstance(platform_runtime_application_service, PlatformRuntimeApplicationService) and (
+        module_catalog_service is None
+        or (
+            platform_runtime_application_service.module_catalog_service
+            is module_catalog_service
+            and (
+                organization_query is None
+                or platform_runtime_application_service.organization_query
+                is organization_query
             )
-        ):
-            return platform_runtime_application_service
+            and (
+                tenant_context_service is None
+                or platform_runtime_application_service.tenant_context_service
+                is tenant_context_service
+            )
+            and (
+                user_session is None
+                or platform_runtime_application_service.user_session is user_session
+            )
+        )
+    ):
+        return platform_runtime_application_service
 
-    if isinstance(module_catalog_service, ModuleCatalogService):
+    if isinstance(module_catalog_service, ModuleCatalogQueryHandler):
         return PlatformRuntimeApplicationService(
             module_catalog_service=module_catalog_service,
-            organization_service=organization_service,
+            organization_query=organization_query,
             tenant_context_service=tenant_context_service,
             user_session=user_session,
         )

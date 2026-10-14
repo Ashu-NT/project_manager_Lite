@@ -44,13 +44,12 @@ def _tenant_id(services) -> str:
 
 
 def _register_user(services, username: str):
-    return services["auth_service"].register_user(username, _PASSWORD, display_name=username)
+    return services["user_registration"].register_user(username, _PASSWORD, display_name=username)
 
 
 def _set_user_principal(services, username: str):
-    auth = services["auth_service"]
-    user = auth.authenticate(username, _PASSWORD)
-    principal = auth.build_principal(user)
+    user = services["authentication"].authenticate(username, _PASSWORD)
+    principal = services["principal_builder"].build(user)
     services["user_session"].set_principal(principal)
     return user
 
@@ -302,8 +301,7 @@ def test_suspend_and_reactivate_never_emit_a_role_binding_event(services):
 def test_last_admin_suspend_and_remove_fail_atomically_with_zero_side_effects(services):
     membership_service = services["tenant_membership_service"]
     tenant_id = _tenant_id(services)
-    auth = services["auth_service"]
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code("p5d1-last-admin"),
         _PASSWORD,
         role_names=("tenant_admin",),

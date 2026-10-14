@@ -12,11 +12,10 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 def test_capacity_reader_preserves_cross_project_demand_and_utilization(services) -> None:
     project_service = services["project_service"]
     task_service = services["task_service"]
-    resource_service = services["resource_service"]
     project_resource_service = services["project_resource_service"]
     pool_service = services["portfolio_resource_pool_service"]
 
-    resource = resource_service.create_resource(
+    resource = services["resource_master_commands"].create_resource(
         "Shared Capacity",
         "Engineer",
         capacity_percent=100.0,

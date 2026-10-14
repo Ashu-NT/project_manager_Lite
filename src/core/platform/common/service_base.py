@@ -10,9 +10,9 @@ class ServiceBase:
     def commit(self) -> None:
         try:
             self._session.commit()
-        except Exception as exc:
+        except Exception:
             self._session.rollback()
-            raise exc
+            raise
 
 
 __all__ = ["ServiceBase"]

@@ -186,9 +186,7 @@ def _date_ranges_overlap(
     (None, None), i.e. unbounded on both ends, and overlaps everything."""
     if a_from is not None and b_to is not None and a_from > b_to:
         return False
-    if b_from is not None and a_to is not None and b_from > a_to:
-        return False
-    return True
+    return not (b_from is not None and a_to is not None and b_from > a_to)
 
 
 def _assert_no_overlapping_assignment(
@@ -862,9 +860,7 @@ class SqlAlchemyCalendarAssignmentRepository(
             return True
         if effective_from is not None and at_date < effective_from:
             return False
-        if effective_to is not None and at_date > effective_to:
-            return False
-        return True
+        return not (effective_to is not None and at_date > effective_to)
 
     def get_site_assignment(
         self, site_id: str, *, at_date: date | None = None

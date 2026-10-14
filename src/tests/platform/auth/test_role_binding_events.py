@@ -13,6 +13,9 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.security.authorization.roles.events import (
     RoleBindingAssigned,
     RoleBindingRevoked,
@@ -55,10 +58,9 @@ class _FixedClock:
 
 
 def _switch_session_to_actor(services, actor, *, tenant_id, organization_id=None, extra_permissions=()):
-    auth = services["auth_service"]
     if organization_id is None:
         organization_id = services["tenant_context_service"].get_active_organization_id()
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         actor, tenant_id=tenant_id, organization_id=organization_id
     )
     services["user_session"].set_principal(
@@ -71,16 +73,15 @@ def _switch_session_to_actor(services, actor, *, tenant_id, organization_id=None
 
 
 def _tenant_scoped_binding_setup(services, *, suffix: str, role_name: str = "viewer"):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         f"p5c2-actor-{suffix}", "P5C2Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         f"p5c2-target-{suffix}", "P5C2Target123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    target_role = auth._role_repo.get_by_name(role_name)
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    target_role = services["auth_queries"]._role_repo.get_by_name(role_name)
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=target_role.id,
@@ -94,16 +95,15 @@ def _tenant_scoped_binding_setup(services, *, suffix: str, role_name: str = "vie
 
 
 def _resource_scoped_binding_setup(services, *, suffix, scope_type, role_name, organization_id=None):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         f"p5c2-actor-{suffix}", "P5C2Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         f"p5c2-target-{suffix}", "P5C2Target123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    target_role = auth._role_repo.get_by_name(role_name)
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    target_role = services["auth_queries"]._role_repo.get_by_name(role_name)
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=target_role.id,
@@ -224,7 +224,7 @@ def test_access_facade_does_not_record_role_binding_events():
 
 
 def test_tenant_role_facade_does_not_record_role_binding_events():
-    import src.core.platform.application.security.authorization.roles.role_assignment_service as facade_module
+    import src.core.platform.application.security.authorization.roles.commands.role_assignment as facade_module
 
     source = inspect.getsource(facade_module)
     for forbidden in ("RoleBindingAssigned", "RoleBindingRevoked", "record_event"):
@@ -353,15 +353,14 @@ def test_platform_scope_assignment_is_denied_by_the_legitimate_canonical_path_an
     """Platform-role assignment is denied by an existing business rule
     (`PLATFORM_ROLE_ASSIGNMENT_DENIED`) before scope resolution is even reached -- proven through
     the real canonical service, not weakened to manufacture a platform-scoped event."""
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code("p5c2-platform-actor"), "P5C2Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code("p5c2-platform-target"), "P5C2Target123!", role_names=[], tenant_id=tenant_id
     )
-    platform_role = auth._role_repo.get_by_name("admin")
+    platform_role = services["auth_queries"]._role_repo.get_by_name("admin")
     assert platform_role is not None and platform_role.allowed_scope_type == "platform"
     _switch_session_to_actor(
         services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",)
@@ -380,11 +379,9 @@ def test_resource_scope_assignment_in_a_non_active_organization_carries_the_auth
     services, monkeypatch
 ):
     tenant_context_service = services["tenant_context_service"]
-    site_a1 = services["site_service"].create_site(
-        site_code=_unique_code("P5C2-A1-SITE"), name="A1 Site", city="Berlin", currency_code="EUR"
-    )
+    site_a1 = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique_code("P5C2-A1-SITE"), name="A1 Site", city="Berlin", currency_code="EUR"))
     org_a1_id = site_a1.organization_id
-    org_a2 = services["organization_service"].create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C2-A2"), display_name="P5C-2 Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
@@ -416,11 +413,9 @@ def test_resource_scope_revocation_preserves_the_same_authoritative_binding_scop
     services, monkeypatch
 ):
     tenant_context_service = services["tenant_context_service"]
-    site_a1 = services["site_service"].create_site(
-        site_code=_unique_code("P5C2-REV-A1-SITE"), name="A1 Site", city="Berlin", currency_code="EUR"
-    )
+    site_a1 = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique_code("P5C2-REV-A1-SITE"), name="A1 Site", city="Berlin", currency_code="EUR"))
     org_a1_id = site_a1.organization_id
-    org_a2 = services["organization_service"].create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C2-REV-A2"), display_name="P5C-2 Revoke Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
@@ -453,7 +448,7 @@ def test_project_scope_event_carries_the_authoritative_organization_from_the_cor
     tenant_context_service = services["tenant_context_service"]
     project_a1 = services["project_service"].create_project("P5C-2 Non-Active Org Project")
     org_a1_id = project_a1.organization_id
-    org_a2 = services["organization_service"].create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C2-PROJ-A2"), display_name="P5C-2 Project Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
@@ -479,11 +474,9 @@ def test_site_scope_event_carries_the_authoritative_organization_from_the_correc
     services, monkeypatch
 ):
     tenant_context_service = services["tenant_context_service"]
-    site_a1 = services["site_service"].create_site(
-        site_code=_unique_code("P5C2-SITE-A1"), name="A1 Site", city="Berlin", currency_code="EUR"
-    )
+    site_a1 = services["site_commands"].create_site(SiteCreateCommand(site_code=_unique_code("P5C2-SITE-A1"), name="A1 Site", city="Berlin", currency_code="EUR"))
     org_a1_id = site_a1.organization_id
-    org_a2 = services["organization_service"].create_organization(
+    org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C2-SITE-A2"), display_name="P5C-2 Site Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
@@ -564,15 +557,14 @@ def test_cross_tenant_site_assignment_attempt_emits_zero_events(services, monkey
 
 
 def test_delegation_denied_produces_zero_mutation_zero_audit_zero_event(services, monkeypatch):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code("p5c2-nodeleg-actor"), "P5C2Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code("p5c2-nodeleg-target"), "P5C2Target123!", role_names=[], tenant_id=tenant_id
     )
-    viewer_role = auth._role_repo.get_by_name("viewer")
+    viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
     # No delegation policy created -- the actor has no authority to grant "viewer".
     _switch_session_to_actor(
         services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",)
@@ -597,18 +589,17 @@ def test_separation_of_duties_conflict_produces_zero_mutation_zero_audit_zero_ev
         SeparationOfDutiesRule,
     )
 
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code("p5c2-sod-actor"), "P5C2Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    grantor_role = auth._role_repo.get_by_name("access_admin")
-    security_role = auth._role_repo.get_by_name("security_admin")
+    grantor_role = services["auth_queries"]._role_repo.get_by_name("access_admin")
+    security_role = services["auth_queries"]._role_repo.get_by_name("security_admin")
     assert grantor_role is not None and security_role is not None
-    target = auth.register_user(
+    target = services["user_registration"].register_user(
         _unique_code("p5c2-sod-target"), "P5C2Target123!", role_names=[grantor_role.name], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id, assignable_role_id=security_role.id,
         target_scope_type="tenant", tenant_id=tenant_id,
@@ -727,20 +718,19 @@ def test_current_principal_self_refresh_unaffected_by_a_broken_role_binding_even
     post-commit refresh flow must keep working even when a RoleBindingRevoked subscriber raises."""
     from src.tests.ui_runtime_helpers import login_as
 
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
     username = _unique_code("p5c2-self-actor")
-    self_actor = auth.register_user(
+    self_actor = services["user_registration"].register_user(
         username, "P5C2SelfActor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    tenant_admin_role = auth._role_repo.get_by_name("tenant_admin")
-    viewer_role = auth._role_repo.get_by_name("viewer")
+    tenant_admin_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=tenant_admin_role.id, assignable_role_id=viewer_role.id,
         target_scope_type="tenant", tenant_id=tenant_id,
     )
     login_as(services, username, "P5C2SelfActor123!")
-    auth.assign_role(self_actor.id, "viewer")
+    services["role_assignment_commands"].assign_role(self_actor.id, "viewer")
     assert "viewer" in services["user_session"].principal.role_names
 
     role_governance_service = services["role_governance_service"]
@@ -751,7 +741,7 @@ def test_current_principal_self_refresh_unaffected_by_a_broken_role_binding_even
 
     bus.subscribe(RoleBindingRevoked, _failing_handler)
 
-    auth.revoke_role(self_actor.id, "viewer")
+    services["role_assignment_commands"].revoke_role(self_actor.id, "viewer")
 
     assert "viewer" not in services["user_session"].principal.role_names
 
@@ -772,10 +762,9 @@ def test_only_the_typed_event_fires_for_role_binding_mutations(services, monkeyp
 
 
 def test_delegation_policy_lifecycle_emits_no_role_binding_events(services, monkeypatch):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    viewer_role = auth._role_repo.get_by_name("viewer")
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
     role_governance_service = services["role_governance_service"]
     recorded = _spy_recorded_events(role_governance_service, monkeypatch)
 
@@ -794,19 +783,18 @@ def test_delegation_policy_lifecycle_emits_no_role_binding_events(services, monk
 
 
 def test_sequence_of_assign_assign_revoke_produces_events_in_committed_order(services, monkeypatch):
-    auth = services["auth_service"]
     tenant_id = _tenant_id(services)
-    actor = auth.register_user(
+    actor = services["user_registration"].register_user(
         _unique_code("p5c2-seq-actor"), "P5C2Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
-    target_a = auth.register_user(
+    target_a = services["user_registration"].register_user(
         _unique_code("p5c2-seq-target-a"), "P5C2Target123!", role_names=[], tenant_id=tenant_id
     )
-    target_b = auth.register_user(
+    target_b = services["user_registration"].register_user(
         _unique_code("p5c2-seq-target-b"), "P5C2Target123!", role_names=[], tenant_id=tenant_id
     )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    viewer_role = auth._role_repo.get_by_name("viewer")
+    actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id, assignable_role_id=viewer_role.id,
         target_scope_type="tenant", tenant_id=tenant_id,

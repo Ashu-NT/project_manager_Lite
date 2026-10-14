@@ -18,7 +18,7 @@ class PortfolioHeatmapDesktopDto:
 @dataclass(frozen=True)
 class PortfolioHeatmapPageDto:
     """Authoritative server-paginated Heatmap browse page. Pressure is
-    display-only here (see PortfolioService.list_portfolio_heatmap_page) --
+    display-only here (see PortfolioExecutiveQueryHandler.list_portfolio_heatmap_page) --
     sort_key can never be a pressure field."""
 
     items: tuple[PortfolioHeatmapDesktopDto, ...] = ()

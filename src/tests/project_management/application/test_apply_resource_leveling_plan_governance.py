@@ -18,15 +18,14 @@ from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyEr
 
 
 def _login(services, username: str, password: str):
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _login_eligible_reviewer(services):
     _login(services, "admin", "ChangeMe123!")
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "leveling-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "leveling-reviewer", "StrongPass123")
@@ -43,13 +42,12 @@ def _snapshot(ts, project_id):
 def _build_overload_proposal(services, name: str):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
     calendar = services["work_calendar_engine"]
 
     project = ps.create_project(name, "")
     task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-    resource = rs.create_resource("Governance Dev", "Developer", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource("Governance Dev", "Developer", hourly_rate=100.0)
     ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
     ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
@@ -71,7 +69,6 @@ class TestGovernanceParity:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "scheduling.leveling.apply")
         _login(services, "admin", "ChangeMe123!")
 
-        auth = services["auth_service"]
         approvals = services["approval_service"]
         ts = services["task_service"]
         project, task_b, task_c, proposal = _build_overload_proposal(services, "Leveling Governance Apply")
@@ -79,7 +76,7 @@ class TestGovernanceParity:
         moved_task_id = proposal.moves[0].task_id
         expected_start = proposal.moves[0].new_start
 
-        auth.register_user("planner-leveling-governed", "StrongPass123", role_names=["planner"])
+        services["user_registration"].register_user("planner-leveling-governed", "StrongPass123", role_names=["planner"])
         _login(services, "planner-leveling-governed", "StrongPass123")
 
         with pytest.raises(BusinessRuleError, match="Approval required"):
@@ -122,14 +119,13 @@ class TestGovernanceParity:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "scheduling.leveling.apply")
         _login(services, "admin", "ChangeMe123!")
 
-        auth = services["auth_service"]
         approvals = services["approval_service"]
         ts = services["task_service"]
         project, task_b, task_c, proposal = _build_overload_proposal(services, "Leveling Governance TOCTOU")
         assert len(proposal.moves) >= 1
         moved_task_id = proposal.moves[0].task_id
 
-        auth.register_user("planner-leveling-toctou", "StrongPass123", role_names=["planner"])
+        services["user_registration"].register_user("planner-leveling-toctou", "StrongPass123", role_names=["planner"])
         _login(services, "planner-leveling-toctou", "StrongPass123")
 
         with pytest.raises(BusinessRuleError, match="Approval required"):

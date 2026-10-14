@@ -4,11 +4,13 @@ from decimal import Decimal
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
+    ProjectManagementPortfolioDesktopApi,
+)
+from src.core.modules.project_management.contracts.use_cases.portfolio import (
     PortfolioDependencyCreateCommand,
     PortfolioIntakeCreateCommand,
     PortfolioScenarioCreateCommand,
     PortfolioTemplateCreateCommand,
-    ProjectManagementPortfolioDesktopApi,
 )
 
 from .validation import (

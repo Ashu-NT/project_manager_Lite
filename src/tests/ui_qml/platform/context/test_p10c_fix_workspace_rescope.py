@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
 )
@@ -24,9 +27,8 @@ def _wire_like_app_py(platform_catalog, pm_catalog) -> None:
 
 
 def test_pm_projects_workspace_no_longer_shows_org_a_data_after_switching_to_org_b(services):
-    organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="RESCOPE-PM-B", display_name="Rescope PM Org B"
     )
     project_a = services["project_service"].create_project(
@@ -52,14 +54,11 @@ def test_pm_projects_workspace_no_longer_shows_org_a_data_after_switching_to_org
 
 
 def test_platform_sites_workspace_no_longer_shows_org_a_data_after_switching_to_org_b(services):
-    organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="RESCOPE-PLAT-B", display_name="Rescope Platform Org B"
     )
-    site_a = services["site_service"].create_site(
-        site_code="RESCOPE-SITE-A", name="Rescope Site A", city="Berlin", currency_code="EUR"
-    )
+    site_a = services["site_commands"].create_site(SiteCreateCommand(site_code="RESCOPE-SITE-A", name="Rescope Site A", city="Berlin", currency_code="EUR"))
 
     platform_catalog = _catalog(services)
     # `refreshAllWorkspaces` only refreshes ALREADY-LOADED (`_loaded`) workspaces -- ensure the
@@ -123,13 +122,12 @@ def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_access_
     is cleared."""
     from src.tests.ui_runtime_helpers import login_as
 
-    organization_service = services["organization_service"]
     access = services["access_service"]
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="RESCOPE-REVOKE-ORG", display_name="Rescope Revoke Org"
     )
     tenant_id = services["tenant_context_service"].require_active_tenant_id(operation_label="test")
-    user = services["auth_service"].register_user(
+    user = services["user_registration"].register_user(
         "rescope-revoke-user", "StrongPass123", role_names=["viewer", "project_manager"], tenant_id=tenant_id
     )
     access.assign_scope_grant(scope_type="organization", scope_id=org.id, user_id=user.id, scope_role="viewer")
@@ -154,9 +152,8 @@ def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_access_
 def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_is_disabled(services):
     """Disabling the CURRENT session's active organization clears `active_organization_id`.
     Same proof shape as the revocation test above."""
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="RESCOPE-DISABLE-ORG", display_name="Rescope Disable Org"
     )
     tenant_context_service.set_active_organization(org.id)
@@ -168,7 +165,7 @@ def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_is_disa
     pm_catalog.projectsWorkspace.refresh()
     assert project_a.id in str(pm_catalog.projectsWorkspace.projects)
 
-    organization_service.deactivate_organization(org.id)
+    services["organization_lifecycle"].deactivate_organization(org.id)
     assert tenant_context_service.get_active_organization_id() is None
 
     pm_catalog.projectsWorkspace.refresh()

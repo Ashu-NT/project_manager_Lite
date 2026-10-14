@@ -194,7 +194,7 @@ class SqlAlchemyFinanceRateReader:
         rate_card_id: str,
         request: RateLineRequest,
     ) -> FinancePageFacts[RateLineFact]:
-        as_of = request.as_of or date.today()
+        as_of = request.as_of or date.today()  # noqa: DTZ011
         conditions = self._line_conditions(
             tenant_id=tenant_id,
             organization_id=organization_id,

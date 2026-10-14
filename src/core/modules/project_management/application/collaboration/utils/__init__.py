@@ -1,1 +1,1 @@
-"""Collaboration utilities — principal resolution and common helpers."""
+"""Collaboration utilities — shared visibility/principal policy."""

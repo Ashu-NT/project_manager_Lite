@@ -52,8 +52,8 @@ def _unique(prefix: str) -> str:
 
 
 def _login(services, username: str, password: str) -> None:
-    user = services["auth_service"].authenticate(username, password)
-    services["user_session"].set_principal(services["auth_service"].build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def _pm_catalog(services) -> ProjectManagementWorkspaceCatalog:
@@ -376,7 +376,7 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
     _login(services, "admin", "ChangeMe123!")
     project, code, forecast, forecast_line = _seed_approved_finance_for_change(services)
     requester = _unique("p19-change-requester")
-    services["auth_service"].register_user(requester, "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user(requester, "StrongPass123", role_names=["planner"])
     _login(services, requester, "StrongPass123")
 
     changes = services["financial_change_service"]
@@ -398,7 +398,7 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
 
     _login(services, "admin", "ChangeMe123!")
     reviewer = _unique("p19-change-reviewer")
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         reviewer, "StrongPass123", role_names=["approver"]
     )
     _login(services, reviewer, "StrongPass123")

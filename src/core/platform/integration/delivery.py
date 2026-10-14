@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import field
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -90,7 +91,7 @@ class IntegrationOutboxRecord:
 
     @field_validator("attempt_count", mode="before")
     @classmethod
-    def _validate_attempt_count(cls, value: object) -> int:
+    def _validate_attempt_count(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 0:
             raise ValidationError(
@@ -101,7 +102,7 @@ class IntegrationOutboxRecord:
 
     @field_validator("max_attempts", "row_version", mode="before")
     @classmethod
-    def _validate_positive(cls, value: object, info) -> int:
+    def _validate_positive(cls, value: Any, info) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -213,7 +214,7 @@ class IntegrationInboxReceipt:
 
     @field_validator("attempt_count", "max_attempts", "row_version", mode="before")
     @classmethod
-    def _validate_positive(cls, value: object, info) -> int:
+    def _validate_positive(cls, value: Any, info) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(

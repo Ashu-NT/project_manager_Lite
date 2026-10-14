@@ -1,4 +1,4 @@
-"""`OrganizationService`'s transaction-owning commands (`create_organization`,
+"""`the Organization handlers`'s transaction-owning commands (`create_organization`,
 `update_organization`, `activate_organization`, `bootstrap_defaults`) use a fresh-session
 `OrganizationUnitOfWork`. `create_organization` records `OrganizationCreated`;
 `update_organization`/`activate_organization`/`deactivate_organization` record
@@ -7,20 +7,16 @@ organization's lifecycle status changes independently, with no sibling side effe
 
 from __future__ import annotations
 
-import inspect
-
 import pytest
 
-from src.core.platform.application.master_data.org import (
-    organization_service as organization_service_module,
-)
 from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
     ORGANIZATION_LIST_SCOPE_CODE,
 )
-from src.core.platform.application.master_data.org.organization_service import (
-    OrganizationService,
-)
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
+    OrganizationUpdateCommand,
+)
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,
@@ -32,6 +28,10 @@ from src.core.platform.infrastructure.persistence.uow.master_data.organization_u
     SqlAlchemyOrganizationUnitOfWork,
 )
 from src.core.shared.events.view_invalidation import AllTenants, TenantScope
+from src.tests.master_data_test_support import (
+    organization_handlers_for,
+    organization_source,
+)
 
 _COUNTER = {"n": 0}
 
@@ -44,33 +44,31 @@ def _unique_code(prefix: str) -> str:
 def test_two_independent_create_organization_calls_use_genuinely_different_sessions(
     services, monkeypatch
 ):
-    organization_service = services["organization_service"]
     created_sessions = []
-    original_create = type(organization_service._uow_factory).create
+    original_create = type(services["organization_commands"]._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         created_sessions.append(uow._session)
         return uow
 
-    monkeypatch.setattr(type(organization_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(services["organization_commands"]._uow_factory), "create", _spy_create)
 
-    organization_service.create_organization(
+    services["organization_commands"].create_organization(
         organization_code=_unique_code("FRESH-A"), display_name="Fresh Session A"
     )
-    organization_service.create_organization(
+    services["organization_commands"].create_organization(
         organization_code=_unique_code("FRESH-B"), display_name="Fresh Session B"
     )
 
     assert len(created_sessions) == 2
     assert created_sessions[0] is not created_sessions[1]
-    assert all(s is not organization_service._session for s in created_sessions)
+    assert all(s is not services["session"] for s in created_sessions)
 
 
 def test_create_organization_repository_and_audit_share_the_uow_session(services, monkeypatch):
-    organization_service = services["organization_service"]
     seen = {}
-    original_create = type(organization_service._uow_factory).create
+    original_create = type(services["organization_commands"]._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
@@ -79,9 +77,9 @@ def test_create_organization_repository_and_audit_share_the_uow_session(services
         seen["audit_session"] = uow._enterprise_audit_service._session
         return uow
 
-    monkeypatch.setattr(type(organization_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(services["organization_commands"]._uow_factory), "create", _spy_create)
 
-    organization_service.create_organization(
+    services["organization_commands"].create_organization(
         organization_code=_unique_code("SHARE"), display_name="Shared Session Org"
     )
 
@@ -94,13 +92,12 @@ def test_successful_create_organization_commits_and_publishes_view_invalidation_
 ):
     """Organization creation produces exactly one `OrganizationCreated` -> `ViewInvalidationHint`
     for the tenant-wide organization-list target, published only after commit."""
-    organization_service = services["organization_service"]
     channel = services["platform_view_invalidation_channel"]
     hints = []
     channel.subscribe(AllTenants(), lambda hint: hints.append(hint))
 
     code = _unique_code("SUCCESS")
-    organization = organization_service.create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=code, display_name="Success Org"
     )
 
@@ -108,28 +105,27 @@ def test_successful_create_organization_commits_and_publishes_view_invalidation_
     list_hints = [h for h in hints if h.scope_code == ORGANIZATION_LIST_SCOPE_CODE]
     assert len(list_hints) == 1
     assert isinstance(list_hints[0].scope, TenantScope)
-    reloaded = organization_service._organization_repo.get(organization.id)
+    reloaded = services["organization_query"]._organization_repo.get(organization.id)
     assert reloaded is not None
     assert reloaded.organization_code == code
 
 
 def test_duplicate_code_validation_failure_rolls_back(services, monkeypatch):
-    organization_service = services["organization_service"]
     code = _unique_code("DUPE")
-    organization_service.create_organization(organization_code=code, display_name="First")
+    services["organization_commands"].create_organization(organization_code=code, display_name="First")
 
     captured_uow = {}
-    original_create = type(organization_service._uow_factory).create
+    original_create = type(services["organization_commands"]._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         captured_uow["uow"] = uow
         return uow
 
-    monkeypatch.setattr(type(organization_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(services["organization_commands"]._uow_factory), "create", _spy_create)
 
     with pytest.raises(ValidationError, match="Organization code already exists"):
-        organization_service.create_organization(organization_code=code, display_name="Second")
+        services["organization_commands"].create_organization(organization_code=code, display_name="Second")
 
     uow = captured_uow["uow"]
     assert uow._committed is False
@@ -137,17 +133,16 @@ def test_duplicate_code_validation_failure_rolls_back(services, monkeypatch):
 
 
 def test_commit_failure_leaves_no_partial_state(services, monkeypatch):
-    organization_service = services["organization_service"]
 
     captured_uow = {}
-    original_create = type(organization_service._uow_factory).create
+    original_create = type(services["organization_commands"]._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         captured_uow["uow"] = uow
         return uow
 
-    monkeypatch.setattr(type(organization_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(services["organization_commands"]._uow_factory), "create", _spy_create)
 
     def _fail_commit(self):
         raise RuntimeError("simulated database commit failure")
@@ -156,20 +151,19 @@ def test_commit_failure_leaves_no_partial_state(services, monkeypatch):
 
     code = _unique_code("COMMITFAIL")
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
-        organization_service.create_organization(organization_code=code, display_name="Commit Fail Org")
+        services["organization_commands"].create_organization(organization_code=code, display_name="Commit Fail Org")
 
     uow = captured_uow["uow"]
     assert uow._committed is False, "commit() failing must never mark the UoW committed"
     assert uow._closed is True, "the UoW's own __exit__ must still roll back and close"
-    assert organization_service._organization_repo.get_by_code(code) is None
+    assert services["organization_query"]._organization_repo.get_by_code(code) is None
 
 
 def test_no_global_mutation_session_touch_during_migrated_create(services):
-    organization_service = services["organization_service"]
-    legacy_session = organization_service._session
+    legacy_session = services["session"]
     legacy_session.commit()  # settle any pending state from fixture setup
 
-    organization_service.create_organization(
+    services["organization_commands"].create_organization(
         organization_code=_unique_code("ISOLATED"), display_name="Isolated Org"
     )
 
@@ -180,75 +174,64 @@ def test_no_global_mutation_session_touch_during_migrated_create(services):
 
 
 def test_update_organization_uses_a_fresh_uow_and_stages_audit_atomically(services, monkeypatch):
-    organization_service = services["organization_service"]
-    organization = organization_service.create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=_unique_code("UPDATE"), display_name="Before Update"
     )
 
     seen = {}
-    original_create = type(organization_service._uow_factory).create
+    original_create = type(services["organization_commands"]._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         seen["uow_session"] = uow._session
         return uow
 
-    monkeypatch.setattr(type(organization_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(services["organization_commands"]._uow_factory), "create", _spy_create)
 
-    updated = organization_service.update_organization(
-        organization.id,
-        expected_version=organization.version,
-        display_name="After Update",
-    )
+    updated = services["organization_commands"].update_organization(OrganizationUpdateCommand(organization_id=organization.id, expected_version=organization.version, display_name="After Update"))
 
     assert updated.display_name == "After Update"
-    assert seen["uow_session"] is not organization_service._session
-    reloaded = organization_service._organization_repo.get(organization.id)
+    assert seen["uow_session"] is not services["session"]
+    reloaded = services["organization_query"]._organization_repo.get(organization.id)
     assert reloaded.display_name == "After Update"
 
 
 def test_update_organization_stale_version_raises_and_does_not_mutate(services):
-    organization_service = services["organization_service"]
-    organization = organization_service.create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=_unique_code("STALE"), display_name="Stale Org"
     )
 
     from src.core.platform.common.exceptions import ConcurrencyError
 
     with pytest.raises(ConcurrencyError):
-        organization_service.update_organization(
-            organization.id,
-            expected_version=organization.version + 1,
-            display_name="Should Not Apply",
-        )
+        services["organization_commands"].update_organization(OrganizationUpdateCommand(organization_id=organization.id, expected_version=organization.version + 1, display_name="Should Not Apply"))
 
-    reloaded = organization_service._organization_repo.get(organization.id)
+    reloaded = services["organization_query"]._organization_repo.get(organization.id)
     assert reloaded.display_name == "Stale Org"
 
 
 def test_activate_organization_default_mode_uses_a_fresh_uow(services, monkeypatch):
-    organization_service = services["organization_service"]
-    organization = organization_service.create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=_unique_code("ACTIVATE"), display_name="Activate Org"
     )
-    organization_service.deactivate_organization(organization.id)
+    services["organization_lifecycle"].deactivate_organization(organization.id)
 
     seen_sessions = []
-    original_create = type(organization_service._uow_factory).create
+    original_create = type(services["organization_commands"]._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         seen_sessions.append(uow._session)
         return uow
 
-    monkeypatch.setattr(type(organization_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(services["organization_commands"]._uow_factory), "create", _spy_create)
 
-    activated = organization_service.activate_organization(organization.id)
+    activated = services["organization_lifecycle"].activate_organization(organization.id)
 
     assert len(seen_sessions) == 1
-    assert seen_sessions[0] is not organization_service._session
+    assert seen_sessions[0] is not services["session"]
     assert activated.status == "active"
-    reloaded = organization_service._organization_repo.get(organization.id)
+    reloaded = services["organization_query"]._organization_repo.get(organization.id)
     assert reloaded.status == "active"
 
 
@@ -256,22 +239,21 @@ def test_activate_organization_is_rejected_when_already_active_and_stages_no_wri
     """A past-tense state-transition write must represent an actual transition -- activating an
     already-active organization is rejected outright (not silently no-op'd), performs no write,
     no audit, and no `OrganizationActivated` event."""
-    organization_service = services["organization_service"]
     channel = services["platform_view_invalidation_channel"]
-    organization = organization_service.create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=_unique_code("NOOP-ACTIVATE"), display_name="Already Active Org"
     )
     assert organization.status == "active"
 
     seen_sessions = []
-    original_create = type(organization_service._uow_factory).create
+    original_create = type(services["organization_commands"]._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         seen_sessions.append(uow._session)
         return uow
 
-    monkeypatch.setattr(type(organization_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(services["organization_commands"]._uow_factory), "create", _spy_create)
 
     hints = []
     channel.subscribe(AllTenants(), lambda hint: hints.append(hint))
@@ -279,7 +261,7 @@ def test_activate_organization_is_rejected_when_already_active_and_stages_no_wri
     from src.core.platform.common.exceptions import BusinessRuleError
 
     with pytest.raises(BusinessRuleError, match="already active"):
-        organization_service.activate_organization(organization.id)
+        services["organization_lifecycle"].activate_organization(organization.id)
 
     assert len(seen_sessions) == 1, "a UoW still opens (to look the organization up), but stages no write"
     assert hints == []
@@ -287,20 +269,19 @@ def test_activate_organization_is_rejected_when_already_active_and_stages_no_wri
 
 def test_deactivate_organization_does_not_touch_sibling_organizations(services):
     """Deactivating one organization must never change any other organization's row."""
-    organization_service = services["organization_service"]
-    organization_a = organization_service.create_organization(
+    organization_a = services["organization_commands"].create_organization(
         organization_code=_unique_code("SIBLING-A"), display_name="Sibling A"
     )
-    organization_b = organization_service.create_organization(
+    organization_b = services["organization_commands"].create_organization(
         organization_code=_unique_code("SIBLING-B"), display_name="Sibling B"
     )
     assert organization_a.status == "active"
     assert organization_b.status == "active"
 
-    organization_service.deactivate_organization(organization_a.id)
+    services["organization_lifecycle"].deactivate_organization(organization_a.id)
 
-    reloaded_a = organization_service._organization_repo.get(organization_a.id)
-    reloaded_b = organization_service._organization_repo.get(organization_b.id)
+    reloaded_a = services["organization_query"]._organization_repo.get(organization_a.id)
+    reloaded_b = services["organization_query"]._organization_repo.get(organization_b.id)
     assert reloaded_a.status == "inactive"
     assert reloaded_b.status == "active"
 
@@ -309,16 +290,15 @@ def test_create_and_activate_organization_no_longer_accept_a_commit_argument(ser
     """Neither method accepts a `commit=False` transaction switch -- `provision_organization`
     expresses its own transaction participation structurally via a
     `PlatformProvisioningUnitOfWork`, never a boolean."""
-    organization_service = services["organization_service"]
-    organization = organization_service.create_organization(
+    organization = services["organization_commands"].create_organization(
         organization_code=_unique_code("NOCOMMITARG"), display_name="No Commit Arg Org"
     )
     with pytest.raises(TypeError):
-        organization_service.create_organization(
+        services["organization_commands"].create_organization(
             organization_code=_unique_code("NOCOMMITARG2"), display_name="x", commit=False
         )
     with pytest.raises(TypeError):
-        organization_service.activate_organization(organization.id, commit=False)
+        services["organization_lifecycle"].activate_organization(organization.id, commit=False)
 
 
 def test_provision_organization_still_commits_organization_and_entitlements_atomically(services):
@@ -327,34 +307,26 @@ def test_provision_organization_still_commits_organization_and_entitlements_atom
     `PlatformProvisioningUnitOfWork` transaction."""
     app_service = services["platform_runtime_application_service"]
 
-    created = app_service.provision_organization(
-        organization_code=_unique_code("PROVISION"),
-        display_name="Provisioned Org",
-        timezone_name="UTC",
-        base_currency="EUR",
-        initial_module_codes=[],
-    )
+    created = app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("PROVISION"), display_name="Provisioned Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert created.organization_code.startswith("PROVISION")
-    reloaded = services["organization_service"]._organization_repo.get(created.id)
+    reloaded = services["organization_query"]._organization_repo.get(created.id)
     assert reloaded is not None
 
 
 def test_bootstrap_defaults_is_a_noop_when_organizations_already_exist(services):
-    organization_service = services["organization_service"]
-    before = organization_service.list_organizations()
-    organization_service.bootstrap_defaults()
-    after = organization_service.list_organizations()
+    before = services["organization_query"].list_organizations()
+    services["organization_commands"].bootstrap_defaults()
+    after = services["organization_query"].list_organizations()
     assert len(before) == len(after)
 
 
 def test_migrated_create_and_update_remain_tenant_isolated(services):
     """Tenant B must not be able to see or update an organization created via the migrated,
     fresh-UoW `create_organization`/`update_organization` under Tenant A."""
-    organization_service = services["organization_service"]
     session = services["session"]
 
-    organization_a = organization_service.create_organization(
+    organization_a = services["organization_commands"].create_organization(
         organization_code=_unique_code("TENANT-A-ORG"), display_name="Tenant A Org"
     )
 
@@ -375,26 +347,26 @@ def test_migrated_create_and_update_remain_tenant_isolated(services):
         )
     )
     ctx_b.set_active_tenant_id(tenant_b_id)
-    service_as_b = OrganizationService(
-        session=organization_service._session,
-        organization_repo=organization_service._organization_repo,
-        uow_factory=organization_service._uow_factory,
-        clock=organization_service._clock,
-        default_calendar_writer=organization_service._default_calendar_writer,
+    service_as_b = organization_handlers_for(
+        session=services["session"],
+        organization_repo=services["organization_query"]._organization_repo,
+        uow_factory=services["organization_commands"]._uow_factory,
+        clock=services["organization_commands"]._clock,
+        default_calendar_writer=services["organization_commands"]._default_calendar_writer,
         user_session=ctx_b,
-        enterprise_audit_service=organization_service._enterprise_audit_service,
+        enterprise_audit_service=services["organization_query"]._enterprise_audit_service,
         tenant_context_service=None,
-        overview_rollup_reader=organization_service._overview_rollup_reader,
+        overview_rollup_reader=services["organization_query"]._overview_rollup_reader,
     )
 
     assert organization_a.id not in {org.id for org in service_as_b.list_organizations()}
     with pytest.raises(NotFoundError):
-        service_as_b.update_organization(organization_a.id, display_name="Hijacked")
+        service_as_b.update_organization(OrganizationUpdateCommand(organization_id=organization_a.id, display_name="Hijacked"))
 
 
 def test_organization_service_never_references_another_capabilitys_event_vocabulary():
     """No other capability's DomainEvent classes belong in this module."""
-    source = inspect.getsource(organization_service_module)
+    source = organization_source()
     for forbidden in (
         "ModuleLicensed",
         "ModuleEnabled",

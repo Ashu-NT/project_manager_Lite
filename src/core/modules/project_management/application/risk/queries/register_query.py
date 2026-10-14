@@ -15,6 +15,7 @@ from src.core.modules.project_management.application.common.pagination import (
 )
 from src.core.modules.project_management.application.risk.dto.register_summary import (
     RegisterDashboardSnapshot,
+    RegisterHighRiskItem,
     RegisterProjectSummary,
     RegisterUrgentItem,
 )
@@ -127,7 +128,7 @@ class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
             allowed_project_ids = tuple(
                 sorted(self._user_session.project_ids_for("register.read"))
             )
-        effective_as_of = as_of or date.today()
+        effective_as_of = as_of or date.today()  # noqa: DTZ011
 
         def read_page(page_number: int) -> RegisterCatalogReadPage:
             assert self._register_catalog_reader is not None
@@ -198,7 +199,7 @@ class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
             permission_code="register.read",
             project_id_getter=lambda entry: entry.project_id,
         )
-        triage_date = as_of or date.today()
+        triage_date = as_of or date.today()  # noqa: DTZ011
         return sorted(scoped_rows, key=lambda entry: entry.triage_key(triage_date))
 
     def get_project_summary(self, project_id: str) -> RegisterProjectSummary:
@@ -206,7 +207,7 @@ class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
             project_id,
             operation_label="view register summary",
         )
-        today = date.today()
+        today = date.today()  # noqa: DTZ011
         return self._build_project_summary(items, today=today)
 
     def get_dashboard_snapshot(
@@ -219,10 +220,10 @@ class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
             project_id,
             operation_label="view dashboard register",
         )
-        today = as_of or date.today()
+        today = as_of or date.today()  # noqa: DTZ011
         ordered = sorted(items, key=lambda item: item.triage_key(today))
         high_risks = tuple(
-            item
+            RegisterHighRiskItem.from_entry(item)
             for item in ordered
             if item.entry_type == RegisterEntryType.RISK
             and item.severity in {

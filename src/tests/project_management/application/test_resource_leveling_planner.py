@@ -28,13 +28,12 @@ class TestBasicOverloadResolution:
     def test_single_overload_between_two_independent_tasks_is_resolved(self, services):
         ps = services["project_service"]
         ts = services["task_service"]
-        rs = services["resource_service"]
         calendar = services["work_calendar_engine"]
 
         project = ps.create_project("Leveling Planner Single Overload", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-        resource = rs.create_resource("Overload Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource("Overload Dev", "Developer", hourly_rate=100.0)
         ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
@@ -83,13 +82,12 @@ class TestPreviewNeverPersists:
         after building a proposal and asserting nothing changed."""
         ps = services["project_service"]
         ts = services["task_service"]
-        rs = services["resource_service"]
         calendar = services["work_calendar_engine"]
 
         project = ps.create_project("Leveling Planner No Persist", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-        resource = rs.create_resource("No Persist Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource("No Persist Dev", "Developer", hourly_rate=100.0)
         ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
@@ -128,7 +126,6 @@ class TestDependencyAwarePropagation:
         interesting case for THIS test but not what it's checking."""
         ps = services["project_service"]
         ts = services["task_service"]
-        rs = services["resource_service"]
         calendar = services["work_calendar_engine"]
 
         project = ps.create_project("Leveling Planner Propagation", "")
@@ -140,7 +137,7 @@ class TestDependencyAwarePropagation:
         task_b = ts.create_task(project.id, "Task B (successor)", duration_days=2)
         ts.add_dependency(task_a.id, task_b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-        resource = rs.create_resource("Propagation Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource("Propagation Dev", "Developer", hourly_rate=100.0)
         ts.assign_resource(task_a.id, resource.id, allocation_percent=70.0)
         ts.assign_resource(task_other.id, resource.id, allocation_percent=60.0)
 
@@ -174,7 +171,6 @@ class TestMovabilityRespectedByPlanner:
     def test_must_start_on_task_is_never_moved_another_candidate_is_used_instead(self, services):
         ps = services["project_service"]
         ts = services["task_service"]
-        rs = services["resource_service"]
         calendar = services["work_calendar_engine"]
 
         project = ps.create_project("Leveling Planner MSO Respected", "")
@@ -183,7 +179,7 @@ class TestMovabilityRespectedByPlanner:
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
         )
         task_flexible = ts.create_task(project.id, "Flexible Task", start_date=date(2026, 9, 7), duration_days=3)
-        resource = rs.create_resource("MSO Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource("MSO Dev", "Developer", hourly_rate=100.0)
         ts.assign_resource(task_pinned.id, resource.id, allocation_percent=70.0)
         ts.assign_resource(task_flexible.id, resource.id, allocation_percent=60.0)
 
@@ -210,7 +206,6 @@ class TestUnresolvedConflictWhenNoLegalMoveExists:
         conflict, never silently claim success."""
         ps = services["project_service"]
         ts = services["task_service"]
-        rs = services["resource_service"]
         calendar = services["work_calendar_engine"]
 
         project = ps.create_project("Leveling Planner Unresolved", "")
@@ -222,7 +217,7 @@ class TestUnresolvedConflictWhenNoLegalMoveExists:
             project.id, "Pinned Two", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
         )
-        resource = rs.create_resource("Unresolved Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource("Unresolved Dev", "Developer", hourly_rate=100.0)
         ts.assign_resource(task_1.id, resource.id, allocation_percent=70.0)
         ts.assign_resource(task_2.id, resource.id, allocation_percent=60.0)
 
@@ -251,7 +246,6 @@ class TestMultiResourceTaskCandidatePlacement:
         which task_multi is also assigned to."""
         ps = services["project_service"]
         ts = services["task_service"]
-        rs = services["resource_service"]
         calendar = services["work_calendar_engine"]
 
         project = ps.create_project("Leveling Planner Multi-Resource", "")
@@ -259,8 +253,8 @@ class TestMultiResourceTaskCandidatePlacement:
         task_multi = ts.create_task(project.id, "Task Multi", start_date=date(2026, 9, 7), duration_days=3)
         task_y = ts.create_task(project.id, "Task Y", start_date=date(2026, 9, 14), duration_days=3)
 
-        resource_x = rs.create_resource("Resource X", "Developer", hourly_rate=100.0)
-        resource_y = rs.create_resource("Resource Y", "Developer", hourly_rate=100.0)
+        resource_x = services["resource_master_commands"].create_resource("Resource X", "Developer", hourly_rate=100.0)
+        resource_y = services["resource_master_commands"].create_resource("Resource Y", "Developer", hourly_rate=100.0)
         ts.assign_resource(task_x.id, resource_x.id, allocation_percent=70.0)
         ts.assign_resource(task_multi.id, resource_x.id, allocation_percent=60.0)
         ts.assign_resource(task_multi.id, resource_y.id, allocation_percent=60.0)

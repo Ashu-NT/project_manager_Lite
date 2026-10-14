@@ -23,10 +23,10 @@ from src.core.modules.project_management.domain.enums import (
     WorkerType,
 )
 from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.platform.application.master_data.department.department_service import (
-    DepartmentService,
+from src.core.platform.application.master_data.department import (
+    DepartmentQueryHandler,
 )
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.site import SiteQueryHandler
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -60,16 +60,16 @@ class ResourceMasterCommandHandler:
         *,
         resource_repo: ResourceRepository,
         employee_repo: EmployeeRepository | None,
-        department_service: DepartmentService | None,
-        site_service: SiteService | None,
+        department_query: DepartmentQueryHandler | None,
+        site_query: SiteQueryHandler | None,
         user_session: UserSessionContext | None,
         tenant_context_service: TenantContextService | None,
         uow_factory: ResourceUnitOfWorkFactory | None,
     ) -> None:
         self._resource_repo = resource_repo
         self._employee_repo = employee_repo
-        self._department_service = department_service
-        self._site_service = site_service
+        self._department_query = department_query
+        self._site_query = site_query
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
         self._uow_factory = uow_factory
@@ -197,13 +197,13 @@ class ResourceMasterCommandHandler:
             )
 
         if department_id:
-            department_service = getattr(self, "_department_service", None)
-            if department_service is None:
+            department_query = getattr(self, "_department_query", None)
+            if department_query is None:
                 raise BusinessRuleError(
                     "The department directory is not configured.",
                     code="DEPARTMENT_DIRECTORY_REQUIRED",
                 )
-            department = department_service.get_department(department_id)
+            department = department_query.get_department(department_id)
             if not getattr(department, "is_active", True):
                 raise ValidationError(
                     "Selected department is inactive.",
@@ -217,13 +217,13 @@ class ResourceMasterCommandHandler:
                 )
 
         if site_id:
-            site_service = getattr(self, "_site_service", None)
-            if site_service is None:
+            site_query = getattr(self, "_site_query", None)
+            if site_query is None:
                 raise BusinessRuleError(
                     "The site directory is not configured.",
                     code="SITE_DIRECTORY_REQUIRED",
                 )
-            site = site_service.get_site(site_id)
+            site = site_query.get_site(site_id)
             if not getattr(site, "is_active", True):
                 raise ValidationError("Selected site is inactive.", code="SITE_INACTIVE")
 

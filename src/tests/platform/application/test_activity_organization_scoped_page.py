@@ -13,25 +13,29 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 
 
 def test_viewing_a_non_active_organization_returns_its_own_activity_correctly(services) -> None:
-    organization_service = services["organization_service"]
-    site_service = services["site_service"]
     activity_service = services["activity_service"]
     tenant_context_service = services["tenant_context_service"]
 
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="ACT-ORG-A", display_name="Activity Org A", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_a.id)
-    site_service.create_site(site_code="ACT-A-SITE", name="Activity A Site")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="ACT-A-SITE", name="Activity A Site"))
 
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="ACT-ORG-B", display_name="Activity Org B", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_b.id)
-    site_service.create_site(site_code="ACT-B-SITE", name="Activity B Site")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="ACT-B-SITE", name="Activity B Site"))
 
     # Session-active org is now B; ask for A's activity anyway.
     page = activity_service.list_recent_page_for_organization(org_a.id, page=1, page_size=25)
@@ -43,22 +47,20 @@ def test_viewing_a_non_active_organization_returns_its_own_activity_correctly(se
 
 
 def test_no_leakage_from_the_active_organization_into_the_viewed_organization(services) -> None:
-    organization_service = services["organization_service"]
-    site_service = services["site_service"]
     activity_service = services["activity_service"]
     tenant_context_service = services["tenant_context_service"]
 
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="ACT-LEAK-A", display_name="Leak A", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_a.id)
-    site_service.create_site(site_code="LEAK-A-SITE", name="Leak A Site")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="LEAK-A-SITE", name="Leak A Site"))
 
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="ACT-LEAK-B", display_name="Leak B", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_b.id)
-    site_service.create_site(site_code="LEAK-B-SITE", name="Leak B Site")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="LEAK-B-SITE", name="Leak B Site"))
 
     page = activity_service.list_recent_page_for_organization(org_b.id, page=1, page_size=25)
     messages = [entry.human_message for entry in page.items]
@@ -84,44 +86,39 @@ def test_cross_tenant_organization_id_is_rejected(services) -> None:
 
 
 def test_inactive_and_archived_organizations_still_have_readable_activity_history(services) -> None:
-    organization_service = services["organization_service"]
-    site_service = services["site_service"]
     activity_service = services["activity_service"]
     tenant_context_service = services["tenant_context_service"]
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="ACT-HIST", display_name="History Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
-    site_service.create_site(site_code="HIST-SITE", name="History Site")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="HIST-SITE", name="History Site"))
 
-    other = organization_service.create_organization(
+    other = services["organization_commands"].create_organization(
         organization_code="ACT-HIST-OTHER", display_name="History Other", timezone_name="UTC", base_currency="USD"
     )
-    organization_service.deactivate_organization(org.id)
+    services["organization_lifecycle"].deactivate_organization(org.id)
     tenant_context_service.set_active_organization(other.id)
 
     page = activity_service.list_recent_page_for_organization(org.id, page=1, page_size=25)
     assert any("History Site" in entry.human_message for entry in page.items)
 
-    organization_service.archive_organization(org.id)
+    services["organization_lifecycle"].archive_organization(org.id)
     page = activity_service.list_recent_page_for_organization(org.id, page=1, page_size=25)
     assert any("History Site" in entry.human_message for entry in page.items)
 
 
 def test_search_filters_server_side_by_human_message(services) -> None:
-    organization_service = services["organization_service"]
-    site_service = services["site_service"]
-    department_service = services["department_service"]
     activity_service = services["activity_service"]
     tenant_context_service = services["tenant_context_service"]
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="ACT-SEARCH", display_name="Search Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
-    site_service.create_site(site_code="SEARCH-SITE", name="Findable Site")
-    department_service.create_department(department_code="SEARCH-DEPT", name="Other Department")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="SEARCH-SITE", name="Findable Site"))
+    services["department_commands"].create_department(DepartmentCreateCommand(department_code="SEARCH-DEPT", name="Other Department"))
 
     page = activity_service.list_recent_page_for_organization(
         org.id, page=1, page_size=25, search="Findable"
@@ -133,16 +130,14 @@ def test_search_filters_server_side_by_human_message(services) -> None:
 
 
 def test_since_cutoff_excludes_older_entries(services) -> None:
-    organization_service = services["organization_service"]
-    site_service = services["site_service"]
     activity_service = services["activity_service"]
     tenant_context_service = services["tenant_context_service"]
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="ACT-SINCE", display_name="Since Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
-    site_service.create_site(site_code="SINCE-SITE", name="Since Site")
+    services["site_commands"].create_site(SiteCreateCommand(site_code="SINCE-SITE", name="Since Site"))
 
     future_cutoff = datetime.now(UTC) + timedelta(days=1)
     page = activity_service.list_recent_page_for_organization(

@@ -34,12 +34,12 @@ def _setup_resource_with_open_periods(services, *, month_count: int):
     task = services["task_service"].create_task(
         project.id, "Parity task", start_date=date(2026, 1, 1), duration_days=2
     )
-    resource = services["resource_service"].create_resource("Parity Resource")
+    resource = services["resource_master_commands"].create_resource("Parity Resource")
     assignment = services["task_service"].assign_resource(
         task.id, resource.id, allocation_percent=50.0
     )
     for month in range(1, month_count + 1):
-        services["timesheet_service"].add_time_entry(
+        services["time_entry_commands"].add_time_entry(
             assignment.id, entry_date=date(2026, month, 4), hours=2
         )
     return resource, tenant_id, organization_id
@@ -91,7 +91,7 @@ def test_open_period_count_is_unaffected_by_a_smaller_preview_limit(services, se
 
 def test_open_period_count_and_list_agree_on_zero_when_none_are_open(services, session):
     tenant_id, organization_id = _tenant_org(services)
-    resource = services["resource_service"].create_resource("No Entries Resource")
+    resource = services["resource_master_commands"].create_resource("No Entries Resource")
     reader = _reader(session)
     resource_fact = _resource_fact(reader, resource, tenant_id, organization_id)
 

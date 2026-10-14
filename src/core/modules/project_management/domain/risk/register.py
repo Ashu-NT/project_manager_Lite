@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator
 
@@ -141,17 +142,17 @@ class RegisterEntry:
 
     @field_validator("entry_type", mode="before")
     @classmethod
-    def _validate_entry_type(cls, value: object) -> RegisterEntryType:
+    def _validate_entry_type(cls, value: Any) -> RegisterEntryType:
         return as_register_entry_type(value)
 
     @field_validator("severity", mode="before")
     @classmethod
-    def _validate_severity(cls, value: object) -> RegisterEntrySeverity:
+    def _validate_severity(cls, value: Any) -> RegisterEntrySeverity:
         return as_register_entry_severity(value)
 
     @field_validator("status", mode="before")
     @classmethod
-    def _validate_status(cls, value: object) -> RegisterEntryStatus:
+    def _validate_status(cls, value: Any) -> RegisterEntryStatus:
         return as_register_entry_status(value)
 
     @field_validator("code", "description", "impact_summary", "response_plan", mode="before")

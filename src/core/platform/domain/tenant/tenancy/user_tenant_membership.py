@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from pydantic import field_validator, model_validator
 
@@ -188,7 +189,7 @@ class UserTenantMembership:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         try:
             normalized = int(value if value not in (None, "") else 1)
         except (TypeError, ValueError) as exc:
@@ -334,7 +335,8 @@ class UserTenantMembership:
     def invitation_is_expired(self, *, at: datetime | None = None) -> bool:
         if self.invitation_expires_at is None:
             return False
-        evaluated_at = ensure_utc_datetime(at or datetime.now(UTC))
+        # ensure_utc_datetime only returns None for a None input.
+        evaluated_at = cast(datetime, ensure_utc_datetime(at or datetime.now(UTC)))
         return evaluated_at >= self.invitation_expires_at
 
     def accept_invitation(

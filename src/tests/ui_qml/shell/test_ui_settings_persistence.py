@@ -317,8 +317,14 @@ def test_main_qt_skip_login_does_not_bypass_unauthenticated_services(
             calls.append(("exec", None, None))
             return 0
 
-    def _fake_prompt_for_login_qml(*, auth_service, user_session):
-        calls.append(("login", auth_service is anonymous_services["auth_service"], user_session.is_authenticated()))
+    def _fake_prompt_for_login_qml(*, services, user_session):
+        calls.append(
+            (
+                "login",
+                services["authentication"] is anonymous_services["authentication"],
+                user_session.is_authenticated(),
+            )
+        )
         return False
 
     monkeypatch.setenv("PM_SKIP_LOGIN", "1")

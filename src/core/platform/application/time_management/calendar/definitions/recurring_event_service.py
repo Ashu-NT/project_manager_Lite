@@ -28,7 +28,8 @@ def _validate_rrule(rule_str: str) -> None:
 
         from dateutil.rrule import rrulestr
 
-        rrulestr(rule_str, dtstart=datetime(2024, 1, 1))
+        # Fixed naive probe date: only checks that the rule parses.
+        rrulestr(rule_str, dtstart=datetime(2024, 1, 1))  # noqa: DTZ001
     except Exception as exc:
         raise ValidationError(f"Invalid recurrence_rule: {exc}") from exc
 
@@ -180,7 +181,7 @@ class RecurringEventService:
             range_start = datetime.combine(start, time(0, 0))
             range_end = datetime.combine(end, time(23, 59, 59))
             return [dt.date() for dt in rule.between(range_start, range_end, inc=True)]
-        except Exception:
+        except Exception:  # noqa: BLE001
             return []
 
     def _invalidate_resolver_cache(self) -> None:

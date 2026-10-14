@@ -160,7 +160,7 @@ def _build_service(
 
 
 def test_authorized_caller_receives_pool_report(services) -> None:
-    resource = services["resource_service"].create_resource("Pool Resource", "Developer", hourly_rate=75.0)
+    resource = services["resource_master_commands"].create_resource("Pool Resource", "Developer", hourly_rate=75.0)
     pool_service = services["portfolio_resource_pool_service"]
     assert isinstance(pool_service, PortfolioResourcePoolService)
 
@@ -177,7 +177,7 @@ def test_authorized_caller_receives_pool_report(services) -> None:
 
 
 def test_caller_without_portfolio_read_permission_is_denied(services) -> None:
-    services["resource_service"].create_resource("Pool Resource", "Developer", hourly_rate=75.0)
+    services["resource_master_commands"].create_resource("Pool Resource", "Developer", hourly_rate=75.0)
     services["user_session"].set_principal(
         UserSessionPrincipal(
             user_id="u-no-portfolio",
@@ -304,7 +304,7 @@ def test_cross_organization_resource_never_returned() -> None:
 
 
 def test_desktop_dto_unchanged_for_authorized_caller(services) -> None:
-    resource = services["resource_service"].create_resource("Pool Resource", "Developer", hourly_rate=75.0)
+    resource = services["resource_master_commands"].create_resource("Pool Resource", "Developer", hourly_rate=75.0)
     pool_service = services["portfolio_resource_pool_service"]
     today = date.today()
     to_date = today + timedelta(days=90)

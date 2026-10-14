@@ -1,7 +1,7 @@
 """RegisterLifecycleHandler.bulk_set_entry_status() must persist the same per-entry
 audit/activity/event work as update_entry(status=...), but for every
 selected entry inside ONE UnitOfWork/commit instead of one per entry (same
-reasoning as OrganizationService.bulk_update_organization_currency()).
+reasoning as the Organization handlers.bulk_update_organization_currency()).
 
 Also covers a real pre-existing bug this replaces: the old bulk-status
 handler called update_entry({"id": i, "status": status}), but update_entry()

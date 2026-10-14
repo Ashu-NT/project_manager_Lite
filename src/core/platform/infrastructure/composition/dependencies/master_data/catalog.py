@@ -1,4 +1,4 @@
-"""Build Platform document, party, site, and department services."""
+"""Build the Platform document, party, site and department handlers."""
 
 from __future__ import annotations
 
@@ -7,15 +7,26 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.master_data.department.department_service import (
-    DepartmentService,
+from src.core.platform.application.master_data.department import (
+    DepartmentCommandHandler,
+    DepartmentQueryHandler,
 )
 from src.core.platform.application.master_data.documents import (
-    DocumentIntegrationService,
-    DocumentService,
+    DocumentAttachmentCommandHandler,
+    DocumentAttachmentQueryHandler,
+    DocumentCommandHandler,
+    DocumentQueryHandler,
+    DocumentStructureCommandHandler,
+    PermissionDocumentAccessPolicy,
 )
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.party import (
+    PartyCommandHandler,
+    PartyQueryHandler,
+)
+from src.core.platform.application.master_data.site import (
+    SiteCommandHandler,
+    SiteQueryHandler,
+)
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.infrastructure.composition.dependencies.repositories import (
@@ -47,11 +58,18 @@ from src.infra.time.system_clock import SystemClock
 
 @dataclass(frozen=True)
 class MasterDataDependencies:
-    document_service: DocumentService
-    document_integration_service: DocumentIntegrationService
-    party_service: PartyService
-    site_service: SiteService
-    department_service: DepartmentService
+    document_access_policy: PermissionDocumentAccessPolicy
+    document_commands: DocumentCommandHandler
+    document_structure_commands: DocumentStructureCommandHandler
+    document_query: DocumentQueryHandler
+    document_attachment_commands: DocumentAttachmentCommandHandler
+    document_attachment_query: DocumentAttachmentQueryHandler
+    party_commands: PartyCommandHandler
+    party_query: PartyQueryHandler
+    site_commands: SiteCommandHandler
+    site_query: SiteQueryHandler
+    department_commands: DepartmentCommandHandler
+    department_query: DepartmentQueryHandler
 
 
 def build_master_data_dependencies(
@@ -72,30 +90,45 @@ def build_master_data_dependencies(
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
-    document_service = DocumentService(
-        session=session,
+    # One policy per runtime: modules register RESTRICTED-document rules on it.
+    document_access_policy = PermissionDocumentAccessPolicy(user_session=user_session)
+    document_commands = DocumentCommandHandler(
+        uow_factory=document_uow_factory,
+        clock=SystemClock(),
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        access_policy=document_access_policy,
+    )
+    document_structure_commands = DocumentStructureCommandHandler(
+        uow_factory=document_uow_factory,
+        clock=SystemClock(),
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
+    document_query = DocumentQueryHandler(
         document_repo=repositories.document_repo,
         link_repo=repositories.document_link_repo,
         structure_repo=repositories.document_structure_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
+        access_policy=document_access_policy,
+    )
+    document_attachment_commands = DocumentAttachmentCommandHandler(
+        structure_repo=repositories.document_structure_repo,
         uow_factory=document_uow_factory,
         clock=SystemClock(),
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        access_policy=document_access_policy,
     )
-    document_integration_service = DocumentIntegrationService(
-        session=session,
+    document_attachment_query = DocumentAttachmentQueryHandler(
         document_repo=repositories.document_repo,
         link_repo=repositories.document_link_repo,
-        structure_repo=repositories.document_structure_repo,
-        organization_repo=repositories.organization_repo,
         user_session=user_session,
-        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
-        uow_factory=document_uow_factory,
-        clock=SystemClock(),
+        access_policy=document_access_policy,
     )
     party_uow_factory = SqlAlchemyPartyUnitOfWorkFactory(
         session_factory=sessionmaker(bind=session.bind, future=True),
@@ -104,16 +137,18 @@ def build_master_data_dependencies(
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
-    party_service = PartyService(
-        session=session,
+    party_commands = PartyCommandHandler(
+        uow_factory=party_uow_factory,
+        clock=SystemClock(),
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
+    party_query = PartyQueryHandler(
         party_repo=repositories.party_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
-        uow_factory=party_uow_factory,
-        clock=SystemClock(),
     )
     site_uow_factory = SqlAlchemySiteUnitOfWorkFactory(
         session_factory=sessionmaker(bind=session.bind, future=True),
@@ -122,16 +157,18 @@ def build_master_data_dependencies(
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
-    site_service = SiteService(
-        session=session,
+    site_commands = SiteCommandHandler(
+        uow_factory=site_uow_factory,
+        clock=SystemClock(),
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
+    site_query = SiteQueryHandler(
         site_repo=repositories.site_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
-        uow_factory=site_uow_factory,
-        clock=SystemClock(),
     )
     department_uow_factory = SqlAlchemyDepartmentUnitOfWorkFactory(
         session_factory=sessionmaker(bind=session.bind, future=True),
@@ -140,23 +177,30 @@ def build_master_data_dependencies(
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
-    department_service = DepartmentService(
-        session=session,
-        department_repo=repositories.department_repo,
-        organization_repo=repositories.organization_repo,
-        site_repo=repositories.site_repo,
-        employee_repo=repositories.employee_repo,
-        user_session=user_session,
-        enterprise_audit_service=enterprise_audit_service,
-        tenant_context_service=tenant_context_service,
-        overview_rollup_reader=overview_rollup_reader,
+    department_commands = DepartmentCommandHandler(
         uow_factory=department_uow_factory,
         clock=SystemClock(),
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
+    department_query = DepartmentQueryHandler(
+        department_repo=repositories.department_repo,
+        organization_repo=repositories.organization_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        overview_rollup_reader=overview_rollup_reader,
     )
     return MasterDataDependencies(
-        document_service=document_service,
-        document_integration_service=document_integration_service,
-        party_service=party_service,
-        site_service=site_service,
-        department_service=department_service,
+        document_access_policy=document_access_policy,
+        document_commands=document_commands,
+        document_structure_commands=document_structure_commands,
+        document_query=document_query,
+        document_attachment_commands=document_attachment_commands,
+        document_attachment_query=document_attachment_query,
+        party_commands=party_commands,
+        party_query=party_query,
+        site_commands=site_commands,
+        site_query=site_query,
+        department_commands=department_commands,
+        department_query=department_query,
     )

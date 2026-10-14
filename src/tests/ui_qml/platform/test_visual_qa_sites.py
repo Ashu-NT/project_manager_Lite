@@ -18,6 +18,15 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
     SiteCalendarAssignCommand,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
 )
@@ -73,25 +82,23 @@ def _grab(app, item, path: Path) -> bool:
 
 
 def _seed_sites(services, *, count: int, prefix: str) -> None:
-    site_service = services["site_service"]
     for i in range(count):
-        site_service.create_site(site_code=f"{prefix}{i:03d}", name=f"{prefix} Site {i:03d}")
+        services["site_commands"].create_site(SiteCreateCommand(site_code=f"{prefix}{i:03d}", name=f"{prefix} Site {i:03d}"))
 
 
 def _seed_mixed_lifecycle_sites(services, *, prefix: str) -> None:
-    site_service = services["site_service"]
-    active = site_service.create_site(site_code=f"{prefix}-ACT", name=f"{prefix} Active Site")
-    inactive = site_service.create_site(site_code=f"{prefix}-INA", name=f"{prefix} Inactive Site")
-    archived = site_service.create_site(site_code=f"{prefix}-ARC", name=f"{prefix} Archived Site")
-    site_service.deactivate_site(inactive.id)
-    site_service.deactivate_site(archived.id)
-    site_service.archive_site(archived.id)
+    active = services["site_commands"].create_site(SiteCreateCommand(site_code=f"{prefix}-ACT", name=f"{prefix} Active Site"))
+    inactive = services["site_commands"].create_site(SiteCreateCommand(site_code=f"{prefix}-INA", name=f"{prefix} Inactive Site"))
+    archived = services["site_commands"].create_site(SiteCreateCommand(site_code=f"{prefix}-ARC", name=f"{prefix} Archived Site"))
+    services["site_commands"].deactivate_site(inactive.id)
+    services["site_commands"].deactivate_site(archived.id)
+    services["site_commands"].archive_site(archived.id)
 
 
 def _seed_sparse_site(services, *, code: str, name: str) -> str:
     """A site with no address, no departments, no employees, no calendar
     override -- exercises every blank-value convention and empty state."""
-    site = services["site_service"].create_site(site_code=code, name=name)
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code=code, name=name))
     return site.id
 
 
@@ -99,27 +106,9 @@ def _seed_full_site(services, *, code: str, name: str) -> tuple[str, str]:
     """A site with real address fields, a department, an employee, and its
     own calendar override -- exercises populated Overview cards, real Key
     Statistics counts, and the "Site override" calendar state."""
-    site_service = services["site_service"]
-    site = site_service.create_site(
-        site_code=code,
-        name=name,
-        description="Full VQA site",
-        city="Douala",
-        country="Cameroon",
-        region="Littoral",
-        address_line_1="12 Rue de la Paix",
-        address_line_2="Building B",
-        postal_code="00237",
-        timezone_name="Africa/Douala",
-        currency_code="XAF",
-        site_type="Plant",
-    )
-    department = services["department_service"].create_department(
-        department_code=f"{code}-DEPT-1", name="VQA Department One", site_id=site.id
-    )
-    services["employee_service"].create_employee(
-        employee_code=f"{code}-EMP-1", full_name="VQA Employee One", site_id=site.id, department_id=department.id
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code=code, name=name, description="Full VQA site", city="Douala", country="Cameroon", region="Littoral", address_line_1="12 Rue de la Paix", address_line_2="Building B", postal_code="00237", timezone_name="Africa/Douala", currency_code="XAF", site_type="Plant"))
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"{code}-DEPT-1", name="VQA Department One", site_id=site.id))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=f"{code}-EMP-1", full_name="VQA Employee One", site_id=site.id, department_id=department.id))
 
     registry = build_desktop_api_registry(services)
     calendars_result = registry.platform_calendar.list_calendars()

@@ -11,19 +11,24 @@ from src.core.modules.project_management.api.desktop.timesheets.models.options i
 from src.core.modules.project_management.api.desktop.timesheets.utils.period_utils import (
     period_start,
 )
+from src.core.platform.application.time_management.time import (
+    TimeEntryQueryHandler,
+    TimesheetPeriodQueryHandler,
+)
 
 
 def build_period_options(
     assignment_id: str,
     *,
     resource_id: str,
-    timesheet_service,
+    time_entry_queries: TimeEntryQueryHandler,
+    period_queries: TimesheetPeriodQueryHandler,
 ) -> tuple[TimesheetPeriodOptionDescriptor, ...]:
-    entries = timesheet_service.list_time_entries_for_assignment(assignment_id)
+    entries = time_entry_queries.list_time_entries_for_assignment(assignment_id)
     known_periods = {period_start(entry.entry_date) for entry in entries}
     known_periods.update(
         period.period_start
-        for period in timesheet_service.list_timesheet_periods_for_resource(resource_id)
+        for period in period_queries.list_timesheet_periods_for_resource(resource_id)
     )
     ordered_periods = sorted(known_periods, reverse=True)
     return tuple(
@@ -38,10 +43,10 @@ def build_period_options(
 def default_period_start(
     assignment_id: str,
     *,
-    timesheet_service,
+    time_entry_queries: TimeEntryQueryHandler,
 ) -> date:
-    entries = timesheet_service.list_time_entries_for_assignment(assignment_id)
-    target_date = max((entry.entry_date for entry in entries), default=date.today())
+    entries = time_entry_queries.list_time_entries_for_assignment(assignment_id)
+    target_date = max((entry.entry_date for entry in entries), default=date.today())  # noqa: DTZ011
     return period_start(target_date)
 
 

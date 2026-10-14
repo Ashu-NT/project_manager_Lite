@@ -299,7 +299,7 @@ class PlatformSupportDesktopApi:
             incidents_dir = user_data_dir() / "incidents"
             incidents_dir.mkdir(parents=True, exist_ok=True)
             output_path = incidents_dir / (
-                f"pm_incident_{normalized_trace}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+                f"pm_incident_{normalized_trace}_{datetime.now().astimezone().strftime('%Y%m%d_%H%M%S')}.zip"
             )
             self._emit_event(
                 trace_id=normalized_trace,
@@ -577,7 +577,7 @@ class PlatformSupportDesktopApi:
     def _default_diagnostics_output_path() -> Path:
         out_dir = user_data_dir()
         out_dir.mkdir(parents=True, exist_ok=True)
-        return out_dir / f"pm_diagnostics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        return out_dir / f"pm_diagnostics_{datetime.now().astimezone().strftime('%Y%m%d_%H%M%S')}.zip"
 
     @staticmethod
     def _resolve_relaunch_command() -> tuple[str, list[str]]:
@@ -607,12 +607,13 @@ class PlatformSupportDesktopApi:
     @staticmethod
     def _runtime_error(
         exc: Exception, *, code: str, safe_message: str
-    ) -> DesktopApiResult[object]:
+    ) -> DesktopApiResult[Any]:
         """Log the real exception, return a UI-safe result. A `DomainError`'s
         message is always developer-authored, user-facing text by this
         codebase's convention, so it passes through; anything else (a raw
         filesystem/network/driver error) is replaced by the caller-supplied
         safe_message -- its original text never reaches the UI, only the log."""
+        # Error results carry no data, so they fit any operation's result type.
         logger.exception("Platform support operation failed code=%s", code)
         message = str(exc) if isinstance(exc, DomainError) else safe_message
         return DesktopApiResult(
@@ -625,7 +626,8 @@ class PlatformSupportDesktopApi:
         )
 
     @staticmethod
-    def _validation_error(*, code: str, message: str) -> DesktopApiResult[object]:
+    def _validation_error(*, code: str, message: str) -> DesktopApiResult[Any]:
+        # Error results carry no data, so they fit any operation's result type.
         return DesktopApiResult(
             ok=False,
             error=DesktopApiError(

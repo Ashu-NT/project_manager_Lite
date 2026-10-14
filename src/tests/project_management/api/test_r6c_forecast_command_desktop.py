@@ -7,7 +7,7 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.financials.commands.forecasts import (
+from src.core.modules.project_management.contracts.use_cases.financials.forecasts import (
     FinancialGenerateForecastCommand,
     FinancialManualEtcCommand,
     FinancialRiskContingencyCommand,

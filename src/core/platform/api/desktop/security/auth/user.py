@@ -10,7 +10,17 @@ from src.core.platform.api.desktop.security.auth.models.user import (
     UserUpdateCommand,
 )
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.security.auth import (
+    AuthQueryHandler,
+    AuthSessionCommandHandler,
+    PasswordCommandHandler,
+    UserAdministrationCommandHandler,
+    UserDirectoryQueryHandler,
+    UserRegistrationHandler,
+)
+from src.core.platform.application.security.authorization.roles.commands import (
+    RoleAssignmentHandler,
+)
 from src.core.platform.domain.security.auth import (
     Role,
     UserAccount,
@@ -20,21 +30,37 @@ from src.core.platform.domain.security.auth import (
 class PlatformUserDesktopApi:
     """Desktop-facing adapter for platform user administration flows."""
 
-    def __init__(self, *, auth_service: AuthService) -> None:
-        self._auth_service = auth_service
+    def __init__(
+        self,
+        *,
+        auth_queries: AuthQueryHandler,
+        user_directory: UserDirectoryQueryHandler,
+        registration: UserRegistrationHandler,
+        user_administration: UserAdministrationCommandHandler,
+        passwords: PasswordCommandHandler,
+        session_commands: AuthSessionCommandHandler,
+        role_assignment: RoleAssignmentHandler,
+    ) -> None:
+        self._auth_queries = auth_queries
+        self._user_directory = user_directory
+        self._registration = registration
+        self._user_administration = user_administration
+        self._passwords = passwords
+        self._session_commands = session_commands
+        self._role_assignment = role_assignment
 
     def list_users(self) -> DesktopApiResult[tuple[UserDto, ...]]:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_user(user)
-                for user in self._auth_service.list_users()
+                for user in self._user_directory.list_users()
             )
         )
 
     def get_user_rollup_summary(self) -> DesktopApiResult[UserRollupSummaryDto]:
         return execute_desktop_operation(
             lambda: self._serialize_user_rollup_summary(
-                self._auth_service.get_user_rollup_summary()
+                self._user_directory.get_user_rollup_summary()
             )
         )
 
@@ -42,14 +68,14 @@ class PlatformUserDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_role(role)
-                for role in self._auth_service.list_customer_assignable_roles()
+                for role in self._user_directory.list_customer_assignable_roles()
             )
         )
 
     def create_user(self, command: UserCreateCommand) -> DesktopApiResult[UserDto]:
         return execute_desktop_operation(
             lambda: self._serialize_user(
-                self._auth_service.onboard_tenant_user(
+                self._registration.onboard_tenant_user(
                     username=command.username,
                     raw_password=command.password,
                     display_name=command.display_name,
@@ -62,7 +88,7 @@ class PlatformUserDesktopApi:
     def update_user(self, command: UserUpdateCommand) -> DesktopApiResult[UserDto]:
         return execute_desktop_operation(
             lambda: self._serialize_user(
-                self._auth_service.update_user_profile(
+                self._user_administration.update_user_profile(
                     command.user_id,
                     username=command.username,
                     display_name=command.display_name,
@@ -84,7 +110,7 @@ class PlatformUserDesktopApi:
     def set_user_active(self, user_id: str, is_active: bool) -> DesktopApiResult[UserDto]:
         return execute_desktop_operation(
             lambda: self._serialize_user(
-                self._auth_service.set_user_active(user_id, is_active)
+                self._user_administration.set_user_active(user_id, is_active)
             )
         )
 
@@ -96,13 +122,13 @@ class PlatformUserDesktopApi:
     def unlock_user_account(self, user_id: str) -> DesktopApiResult[UserDto]:
         return execute_desktop_operation(
             lambda: self._serialize_user(
-                self._auth_service.unlock_user_account(user_id)
+                self._user_administration.unlock_user_account(user_id)
             )
         )
 
     def force_user_password_reset(self, user_id: str) -> DesktopApiResult[None]:
         return execute_desktop_operation(
-            lambda: self._auth_service.force_user_password_reset(user_id)
+            lambda: self._passwords.force_user_password_reset(user_id)
         )
 
     def revoke_user_sessions(
@@ -113,7 +139,7 @@ class PlatformUserDesktopApi:
     ) -> DesktopApiResult[UserDto]:
         return execute_desktop_operation(
             lambda: self._serialize_user(
-                self._auth_service.revoke_user_sessions(user_id, note=note)
+                self._session_commands.revoke_user_sessions(user_id, note=note)
             )
         )
 
@@ -148,23 +174,23 @@ class PlatformUserDesktopApi:
             session_timeout_minutes_override=user.session_timeout_minutes_override,
             must_change_password=user.must_change_password,
             version=user.version,
-            role_names=tuple(sorted(self._auth_service.get_user_role_names(user.id))),
+            role_names=tuple(sorted(self._auth_queries.get_user_role_names(user.id))),
             account_type=getattr(user, "account_type", "human"),
         )
 
     def _assign_role_and_get_user(self, *, user_id: str, role_name: str) -> UserDto:
         return self._serialize_user(
-            self._auth_service.assign_customer_role(user_id, role_name)
+            self._role_assignment.assign_customer_role(user_id, role_name)
         )
 
     def _revoke_role_and_get_user(self, *, user_id: str, role_name: str) -> UserDto:
         return self._serialize_user(
-            self._auth_service.revoke_customer_role(user_id, role_name)
+            self._role_assignment.revoke_customer_role(user_id, role_name)
         )
 
     def _reset_password_and_get_user(self, command: UserPasswordResetCommand) -> UserDto:
         return self._serialize_user(
-            self._auth_service.reset_user_password(command.user_id, command.new_password)
+            self._passwords.reset_user_password(command.user_id, command.new_password)
         )
 
 

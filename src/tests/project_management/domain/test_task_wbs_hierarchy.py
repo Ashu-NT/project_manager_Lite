@@ -5,9 +5,11 @@ from datetime import date
 import pytest
 
 from src.core.modules.project_management.api.desktop import (
+    build_project_management_tasks_desktop_api,
+)
+from src.core.modules.project_management.contracts.use_cases.tasks import (
     TaskCreateCommand,
     TaskWbsMoveCommand,
-    build_project_management_tasks_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.modules.project_management.infrastructure.importers.tasks.csv.task_csv_importer import (
@@ -153,7 +155,7 @@ def test_task_wbs_rejects_cross_project_parent_and_summary_execution(services) -
         )
     assert exc.value.code == "TASK_WBS_SUMMARY_EXECUTION_FORBIDDEN"
 
-    resource = services["resource_service"].create_resource("WBS Crew", "Planner")
+    resource = services["resource_master_commands"].create_resource("WBS Crew", "Planner")
     with pytest.raises(BusinessRuleError) as exc:
         tasks.assign_resource(summary.id, resource.id)
     assert exc.value.code == "TASK_WBS_SUMMARY_EXECUTION_FORBIDDEN"

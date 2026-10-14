@@ -22,12 +22,6 @@ import inspect
 
 import pytest
 
-from src.core.platform.application.master_data.org import (
-    organization_service as organization_service_module,
-)
-from src.core.platform.application.master_data.org.organization_service import (
-    OrganizationService,
-)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
@@ -43,6 +37,10 @@ from src.core.platform.domain.master_data.org import (
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,
+)
+from src.tests.master_data_test_support import (
+    organization_has_attr,
+    organization_source,
 )
 
 _COUNTER = {"n": 0}
@@ -75,13 +73,13 @@ def _production_source_files():
 
 
 def test_organization_service_has_no_set_active_organization_method():
-    assert not hasattr(OrganizationService, "set_active_organization")
+    assert not organization_has_attr("set_active_organization")
 
 
 def test_organization_service_has_no_get_active_organization_method():
-    """`OrganizationService.get_active_organization()` (a singular-designee lookup superseded by
+    """`the Organization handlers.get_active_organization()` (a singular-designee lookup superseded by
     `TenantContextService.get_active_organization()`) is deleted, not kept as unused dead code."""
-    assert not hasattr(OrganizationService, "get_active_organization")
+    assert not organization_has_attr("get_active_organization")
 
 
 def test_organization_service_has_no_sibling_deactivation_helpers():
@@ -91,17 +89,17 @@ def test_organization_service_has_no_sibling_deactivation_helpers():
         "_has_other_active_organizations_using",
         "_activate_organization_using",
     ):
-        assert not hasattr(OrganizationService, legacy_name), (
+        assert not organization_has_attr(legacy_name), (
             f"{legacy_name} is legacy mutual-exclusion machinery and must not exist, "
             "renamed or otherwise"
         )
 
 
 def test_organization_service_has_activate_deactivate_archive_organization_methods():
-    assert hasattr(OrganizationService, "activate_organization")
-    assert hasattr(OrganizationService, "deactivate_organization")
-    assert hasattr(OrganizationService, "archive_organization")
-    assert hasattr(OrganizationService, "_transition_organization_status")
+    assert organization_has_attr("activate_organization")
+    assert organization_has_attr("deactivate_organization")
+    assert organization_has_attr("archive_organization")
+    assert organization_has_attr("_transition_organization_status")
 
 
 def test_organization_repository_contract_has_no_singular_active_lookup():
@@ -119,7 +117,7 @@ def test_organization_domain_field_is_status_not_is_enabled():
 
 
 def test_no_mutual_exclusion_vocabulary_remains_in_organization_service_source():
-    source = _strip_strings_and_comments(inspect.getsource(organization_service_module))
+    source = _strip_strings_and_comments(organization_source())
     for forbidden in (
         "ORGANIZATION_ACTIVE_REQUIRED",
         "_deactivate_other_organizations",
@@ -173,20 +171,19 @@ def test_tenant_context_service_switch_checks_status_not_is_enabled():
 
 
 def test_creating_organization_b_does_not_disable_organization_a(services):
-    organization_service = services["organization_service"]
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code=_unique_code("MULTI-A"), display_name="Multi Org A"
     )
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code=_unique_code("MULTI-B"), display_name="Multi Org B"
     )
-    org_c = organization_service.create_organization(
+    org_c = services["organization_commands"].create_organization(
         organization_code=_unique_code("MULTI-C"), display_name="Multi Org C"
     )
 
     reloaded = {
         org.id: org.status
-        for org in organization_service.list_organizations()
+        for org in services["organization_query"].list_organizations()
     }
     assert reloaded[org_a.id] == ORGANIZATION_STATUS_ACTIVE
     assert reloaded[org_b.id] == ORGANIZATION_STATUS_ACTIVE
@@ -194,23 +191,22 @@ def test_creating_organization_b_does_not_disable_organization_a(services):
 
 
 def test_disabled_organization_cannot_be_selected_but_others_remain_unaffected(services):
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
 
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code=_unique_code("DISABLED-A"), display_name="Disabled Test A"
     )
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code=_unique_code("DISABLED-B"), display_name="Disabled Test B"
     )
-    org_b = organization_service.deactivate_organization(org_b.id)
+    org_b = services["organization_lifecycle"].deactivate_organization(org_b.id)
 
     with pytest.raises(BusinessRuleError):
         tenant_context_service.set_active_organization(org_b.id)
 
     # The denied switch must not have mutated either organization's row.
-    reloaded_a = organization_service._organization_repo.get(org_a.id)
-    reloaded_b = organization_service._organization_repo.get(org_b.id)
+    reloaded_a = services["organization_query"]._organization_repo.get(org_a.id)
+    reloaded_b = services["organization_query"]._organization_repo.get(org_b.id)
     assert reloaded_a.status == ORGANIZATION_STATUS_ACTIVE
     assert reloaded_b.status == ORGANIZATION_STATUS_INACTIVE
 
@@ -218,14 +214,13 @@ def test_disabled_organization_cannot_be_selected_but_others_remain_unaffected(s
 def test_independent_sessions_select_different_organizations_simultaneously(services):
     """Two users, both with access to two organizations in the same tenant, may have their own
     sessions independently pointed at different organizations at the same time."""
-    organization_service = services["organization_service"]
     real_tenant_context_service = services["tenant_context_service"]
     tenant_id = real_tenant_context_service.get_active_tenant_id()
 
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code=_unique_code("TWOUSER-A"), display_name="Two-User Org A"
     )
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code=_unique_code("TWOUSER-B"), display_name="Two-User Org B"
     )
 
@@ -262,8 +257,8 @@ def test_independent_sessions_select_different_organizations_simultaneously(serv
     # Bob selecting Org B must not have changed Alice's own session selection, and neither
     # selection touched any Organization row's availability.
     assert alice_context.get_active_organization_id() == org_a.id
-    reloaded_a = organization_service._organization_repo.get(org_a.id)
-    reloaded_b = organization_service._organization_repo.get(org_b.id)
+    reloaded_a = services["organization_query"]._organization_repo.get(org_a.id)
+    reloaded_b = services["organization_query"]._organization_repo.get(org_b.id)
     assert reloaded_a.status == ORGANIZATION_STATUS_ACTIVE
     assert reloaded_b.status == ORGANIZATION_STATUS_ACTIVE
 
@@ -271,16 +266,15 @@ def test_independent_sessions_select_different_organizations_simultaneously(serv
 def test_activating_organization_never_switches_any_session_context(services):
     """Availability and session selection are fully decoupled -- activating an organization must
     never, as a side effect, change what any session's current organization is."""
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
 
     before_id = tenant_context_service.get_active_organization_id()
 
-    newly_created = organization_service.create_organization(
+    newly_created = services["organization_commands"].create_organization(
         organization_code=_unique_code("NOSIDEEFFECT"),
         display_name="No Side Effect Org",
     )
-    organization_service.deactivate_organization(newly_created.id)
-    organization_service.activate_organization(newly_created.id)
+    services["organization_lifecycle"].deactivate_organization(newly_created.id)
+    services["organization_lifecycle"].activate_organization(newly_created.id)
 
     assert tenant_context_service.get_active_organization_id() == before_id

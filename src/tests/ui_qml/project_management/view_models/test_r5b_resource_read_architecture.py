@@ -63,10 +63,9 @@ def test_resource_read_facts_are_frozen_scalar_contracts() -> None:
 
 
 def test_resource_inspector_and_summary_are_scoped_bounded_independent_reads(services) -> None:
-    resource_service = services["resource_service"]
-    first = resource_service.create_resource(name="Alpha Planner", role="Planner")
-    second = resource_service.create_resource(name="Zulu Planner", role="Planner")
-    page = resource_service.query_catalog_page(page=1, page_size=1)
+    first = services["resource_master_commands"].create_resource(name="Alpha Planner", role="Planner")
+    second = services["resource_master_commands"].create_resource(name="Zulu Planner", role="Planner")
+    page = services["resource_query"].query_catalog_page(page=1, page_size=1)
     assert [item.resource_id for item in page.items] == [first.id]
 
     session = services["project_service"]._session
@@ -78,10 +77,10 @@ def test_resource_inspector_and_summary_are_scoped_bounded_independent_reads(ser
 
     event.listen(engine, "before_cursor_execute", count_statement)
     try:
-        inspector = resource_service.get_resource_inspector(second.id)
+        inspector = services["resource_query"].get_resource_inspector(second.id)
         inspector_statements = len(statements)
         statements.clear()
-        summary = resource_service.get_resource_summary(second.id)
+        summary = services["resource_query"].get_resource_summary(second.id)
         summary_statements = len(statements)
     finally:
         event.remove(engine, "before_cursor_execute", count_statement)
@@ -97,10 +96,9 @@ def test_resource_inspector_and_summary_are_scoped_bounded_independent_reads(ser
 
 
 def test_resource_inspector_and_summary_fail_closed_after_organization_switch(services) -> None:
-    resource = services["resource_service"].create_resource(name="Scoped Planner")
-    organization_service = services["organization_service"]
+    resource = services["resource_master_commands"].create_resource(name="Scoped Planner")
     original = services["tenant_context_service"].get_active_organization()
-    other = organization_service.create_organization(
+    other = services["organization_commands"].create_organization(
         organization_code="R5B-OTHER",
         display_name="R5B Other Organization",
         base_currency="EUR",
@@ -108,24 +106,24 @@ def test_resource_inspector_and_summary_fail_closed_after_organization_switch(se
     services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError):
-            services["resource_service"].get_resource_inspector(resource.id)
+            services["resource_query"].get_resource_inspector(resource.id)
         with pytest.raises(NotFoundError):
-            services["resource_service"].get_resource_summary(resource.id)
+            services["resource_query"].get_resource_summary(resource.id)
     finally:
         services["tenant_context_service"].set_active_organization(original.id)
 
 
 def test_resource_inspector_and_summary_fail_closed_after_tenant_switch(services) -> None:
-    resource = services["resource_service"].create_resource(name="Tenant Scoped Planner")
-    resource_service = services["resource_service"]
+    resource = services["resource_master_commands"].create_resource(name="Tenant Scoped Planner")
+    resource_query = services["resource_query"]
     organization_id = services["user_session"].stored_active_organization_id()
 
-    inspector = resource_service._resource_inspector_reader.read_inspector(
+    inspector = resource_query._resource_inspector_reader.read_inspector(
         tenant_id="r5b-other-tenant",
         organization_id=organization_id,
         resource_id=resource.id,
     )
-    summary = resource_service._resource_summary_reader.read_summary(
+    summary = resource_query._resource_summary_reader.read_summary(
         tenant_id="r5b-other-tenant",
         organization_id=organization_id,
         resource_id=resource.id,
@@ -136,7 +134,7 @@ def test_resource_inspector_and_summary_fail_closed_after_tenant_switch(services
 
 
 def test_resource_inspector_and_summary_require_resource_read(services) -> None:
-    resource = services["resource_service"].create_resource(name="Protected Planner")
+    resource = services["resource_master_commands"].create_resource(name="Protected Planner")
     user_session = services["user_session"]
     original = user_session.principal
     assert original is not None
@@ -154,9 +152,9 @@ def test_resource_inspector_and_summary_require_resource_read(services) -> None:
     )
     try:
         with pytest.raises(BusinessRuleError) as inspector_error:
-            services["resource_service"].get_resource_inspector(resource.id)
+            services["resource_query"].get_resource_inspector(resource.id)
         with pytest.raises(BusinessRuleError) as summary_error:
-            services["resource_service"].get_resource_summary(resource.id)
+            services["resource_query"].get_resource_summary(resource.id)
         assert inspector_error.value.code == "PERMISSION_DENIED"
         assert summary_error.value.code == "PERMISSION_DENIED"
     finally:
@@ -164,14 +162,13 @@ def test_resource_inspector_and_summary_require_resource_read(services) -> None:
 
 
 def test_inactive_resource_inspector_exposes_reactivate_only(services) -> None:
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource(name="Inactive Planner")
-    resource = resource_service.deactivate_resource(
+    resource = services["resource_master_commands"].create_resource(name="Inactive Planner")
+    resource = services["resource_master_commands"].deactivate_resource(
         resource_id=resource.id,
         expected_version=resource.version,
     )
 
-    inspector = resource_service.get_resource_inspector(resource.id)
+    inspector = services["resource_query"].get_resource_inspector(resource.id)
 
     assert inspector.is_active is False
     assert inspector.can_deactivate is False
@@ -179,18 +176,17 @@ def test_inactive_resource_inspector_exposes_reactivate_only(services) -> None:
 
 
 def test_resource_catalog_search_excludes_contact_and_address_pii(services) -> None:
-    resource_service = services["resource_service"]
-    resource_service.create_resource(
+    services["resource_master_commands"].create_resource(
         name="Operational Planner",
         role="Scheduler",
         contact="private.search@example.com",
         address="Confidential Residence",
     )
 
-    assert resource_service.query_catalog_page(search_text="Operational").filtered_total == 1
-    assert resource_service.query_catalog_page(search_text="Scheduler").filtered_total == 1
-    assert resource_service.query_catalog_page(search_text="private.search").filtered_total == 0
-    assert resource_service.query_catalog_page(search_text="Confidential").filtered_total == 0
+    assert services["resource_query"].query_catalog_page(search_text="Operational").filtered_total == 1
+    assert services["resource_query"].query_catalog_page(search_text="Scheduler").filtered_total == 1
+    assert services["resource_query"].query_catalog_page(search_text="private.search").filtered_total == 0
+    assert services["resource_query"].query_catalog_page(search_text="Confidential").filtered_total == 0
 
 
 def test_stale_inspector_result_cannot_replace_newer_selection() -> None:

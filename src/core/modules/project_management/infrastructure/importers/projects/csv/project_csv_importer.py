@@ -49,7 +49,7 @@ def preview_projects(
                 preview.created_count += 1
             else:
                 preview.updated_count += 1
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to preview project row at line %s: %s", line_no, exc)
             preview.rows.append(
                 ImportPreviewRow(line_no=line_no, status="ERROR", action="ERROR", message=str(exc), row=row)
@@ -92,7 +92,7 @@ def import_projects(
                 )
                 summary.updated_count += 1
             existing = build_project_lookup(project_service)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to import project row at line %s: %s", line_no, exc)
             summary.add_row_error(line_no=line_no, message=str(exc))
     return summary

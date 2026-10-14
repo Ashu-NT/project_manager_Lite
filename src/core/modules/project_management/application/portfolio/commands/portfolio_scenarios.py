@@ -2,11 +2,25 @@ from __future__ import annotations
 
 from dataclasses import replace
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioScenarioChanged,
     PortfolioScenarioChangeType,
+)
+from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
+    PortfolioPolicy,
+    new_portfolio_context,
+    utc_now,
+)
+from src.core.modules.project_management.contracts.repositories.portfolio.portfolio import (
+    PortfolioScenarioRepository,
+)
+from src.core.modules.project_management.contracts.uow.portfolio.portfolio_unit_of_work import (
+    PortfolioUnitOfWorkFactory,
 )
 from src.core.modules.project_management.domain.portfolio import PortfolioScenario
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -19,7 +33,23 @@ from src.core.shared.audit import record_audit_entry
 _SCENARIO_UNSET = object()
 
 
-class PortfolioScenarioCommandMixin:
+class PortfolioScenarioCommandHandler(ProjectManagementModuleGuardMixin):
+    """Governed scenario writes (create/update) with project/intake scope validation."""
+
+    def __init__(
+        self,
+        *,
+        scenario_repo: PortfolioScenarioRepository,
+        policy: PortfolioPolicy,
+        uow_factory: PortfolioUnitOfWorkFactory,
+        user_session=None,
+        module_catalog_service=None,
+    ) -> None:
+        self._scenario_repo = scenario_repo
+        self._policy = policy
+        self._uow_factory = uow_factory
+        self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
     def create_scenario(
         self,
@@ -32,8 +62,8 @@ class PortfolioScenarioCommandMixin:
         notes: str = "",
     ) -> PortfolioScenario:
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio scenario")
-        organization_id = self._active_portfolio_organization_id(operation_label="create portfolio scenario")
-        scope = self._active_portfolio_scope(operation_label="create portfolio scenario")
+        organization_id = self._policy.organization_id(operation_label="create portfolio scenario")
+        scope = self._policy.scope(operation_label="create portfolio scenario")
         scenario = PortfolioScenario.create(
             organization_id=organization_id,
             name=name,
@@ -45,10 +75,10 @@ class PortfolioScenarioCommandMixin:
         )
         scenario = replace(
             scenario,
-            project_ids=self._validate_project_ids(scenario.project_ids),
-            intake_item_ids=self._validate_intake_ids(scenario.intake_item_ids),
+            project_ids=self._policy.validate_project_ids(scenario.project_ids),
+            intake_item_ids=self._policy.validate_intake_ids(scenario.intake_item_ids),
         )
-        with self._require_uow_factory().create(context=self._new_context()) as uow:
+        with self._uow_factory.create(context=new_portfolio_context()) as uow:
             uow.scenarios.add(scenario)
             record_audit_entry(
                 uow,
@@ -80,7 +110,7 @@ class PortfolioScenarioCommandMixin:
                     organization_id=scope.organization_id,
                     scenario_id=scenario.id,
                     change_type=PortfolioScenarioChangeType.CREATED,
-                    occurred_at=self._utc_now(),
+                    occurred_at=utc_now(),
                 )
             )
             uow.commit()
@@ -92,14 +122,14 @@ class PortfolioScenarioCommandMixin:
         *,
         name: str | None = None,
         budget_limit: Decimal | int | str | None | object = _SCENARIO_UNSET,
-        capacity_limit_percent: float | int | str | None | object = _SCENARIO_UNSET,
+        capacity_limit_percent: float | str | None | object = _SCENARIO_UNSET,
         project_ids: list[str] | None = None,
         intake_item_ids: list[str] | None = None,
         notes: str | None = None,
     ) -> PortfolioScenario:
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio scenario")
-        self._active_portfolio_organization_id(operation_label="update portfolio scenario")
-        scope = self._active_portfolio_scope(operation_label="update portfolio scenario")
+        self._policy.organization_id(operation_label="update portfolio scenario")
+        scope = self._policy.scope(operation_label="update portfolio scenario")
         scenario = self._scenario_repo.get(scenario_id)
         if scenario is None:
             raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
@@ -109,12 +139,12 @@ class PortfolioScenarioCommandMixin:
             budget_limit=(
                 scenario.budget_limit
                 if budget_limit is _SCENARIO_UNSET
-                else cast(Decimal | int | str | None, budget_limit)
+                else cast(Any, budget_limit)
             ),
             capacity_limit_percent=(
                 scenario.capacity_limit_percent
                 if capacity_limit_percent is _SCENARIO_UNSET
-                else cast(float | int | str | None, capacity_limit_percent)
+                else cast(Any, capacity_limit_percent)
             ),
             project_ids=(
                 scenario.project_ids
@@ -127,19 +157,19 @@ class PortfolioScenarioCommandMixin:
                 else intake_item_ids
             ),
             notes=scenario.notes if notes is None else notes,
-            updated_at=self._utc_now(),
+            updated_at=utc_now(),
         )
         if project_ids is not None:
             candidate = replace(
                 candidate,
-                project_ids=self._validate_project_ids(candidate.project_ids),
+                project_ids=self._policy.validate_project_ids(candidate.project_ids),
             )
         if intake_item_ids is not None:
             candidate = replace(
                 candidate,
-                intake_item_ids=self._validate_intake_ids(candidate.intake_item_ids),
+                intake_item_ids=self._policy.validate_intake_ids(candidate.intake_item_ids),
             )
-        with self._require_uow_factory().create(context=self._new_context()) as uow:
+        with self._uow_factory.create(context=new_portfolio_context()) as uow:
             uow.scenarios.update(candidate)
             record_audit_entry(
                 uow,
@@ -170,11 +200,11 @@ class PortfolioScenarioCommandMixin:
                     organization_id=scope.organization_id,
                     scenario_id=candidate.id,
                     change_type=PortfolioScenarioChangeType.UPDATED,
-                    occurred_at=self._utc_now(),
+                    occurred_at=utc_now(),
                 )
             )
             uow.commit()
         return candidate
 
 
-__all__ = ["PortfolioScenarioCommandMixin"]
+__all__ = ["PortfolioScenarioCommandHandler"]

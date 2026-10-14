@@ -12,6 +12,9 @@ from src.core.platform.application.platform_runtime import (
     platform_runtime_service as platform_runtime_service_module,
 )
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.contract.use_cases.master_data.org.commands import (
+    OrganizationProvisionCommand,
+)
 from src.core.platform.infrastructure.persistence.uow.provisioning.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWork,
 )
@@ -28,18 +31,11 @@ def test_successful_provisioning_persists_organization_and_entitlements_atomical
     services,
 ):
     app_service = services["platform_runtime_application_service"]
-    organization_service = services["organization_service"]
 
     code = _unique_code("SUCCESS-PROV")
-    organization = app_service.provision_organization(
-        organization_code=code,
-        display_name="Success Provisioned Org",
-        timezone_name="UTC",
-        base_currency="EUR",
-        initial_module_codes=["project_management"],
-    )
+    organization = app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Success Provisioned Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"]))
 
-    reloaded = organization_service._organization_repo.get(organization.id)
+    reloaded = services["organization_query"]._organization_repo.get(organization.id)
     assert reloaded is not None
     assert reloaded.organization_code == code
     # Entitlement rows proven durable via the service surface: the provisioned organization
@@ -60,14 +56,8 @@ def test_fresh_session_per_provisioning_call(services, monkeypatch):
 
     monkeypatch.setattr(type(app_service._provisioning_uow_factory), "create", _spy_create)
 
-    app_service.provision_organization(
-        organization_code=_unique_code("FRESH-A"), display_name="Fresh A", timezone_name="UTC",
-        base_currency="EUR", initial_module_codes=[],
-    )
-    app_service.provision_organization(
-        organization_code=_unique_code("FRESH-B"), display_name="Fresh B", timezone_name="UTC",
-        base_currency="EUR", initial_module_codes=[],
-    )
+    app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("FRESH-A"), display_name="Fresh A", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
+    app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("FRESH-B"), display_name="Fresh B", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert len(seen_sessions) == 2
     assert seen_sessions[0] is not seen_sessions[1]
@@ -88,10 +78,7 @@ def test_provisioning_participants_share_the_same_uow_session(services, monkeypa
 
     monkeypatch.setattr(type(app_service._provisioning_uow_factory), "create", _spy_create)
 
-    app_service.provision_organization(
-        organization_code=_unique_code("SHARE-PROV"), display_name="Shared Session Prov",
-        timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"],
-    )
+    app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("SHARE-PROV"), display_name="Shared Session Prov", timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"]))
 
     assert seen["uow_session"] is seen["organizations_repo_session"]
     assert seen["uow_session"] is seen["entitlements_repo_session"]
@@ -103,10 +90,7 @@ def test_no_global_session_touch_during_provisioning(services):
     legacy_session = services["session"]
     legacy_session.commit()  # settle any pending fixture-setup state
 
-    app_service.provision_organization(
-        organization_code=_unique_code("ISOLATED-PROV"), display_name="Isolated Prov",
-        timezone_name="UTC", base_currency="EUR", initial_module_codes=[],
-    )
+    app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("ISOLATED-PROV"), display_name="Isolated Prov", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert len(legacy_session.new) == 0
     assert len(legacy_session.dirty) == 0
@@ -117,24 +101,16 @@ def test_late_step_failure_rolls_back_organization_and_entitlements_together(ser
     entitlement provisioning) must roll back the ALREADY-staged organization row too -- proving
     the two writes share one transaction, not two."""
     app_service = services["platform_runtime_application_service"]
-    organization_service = services["organization_service"]
     code = _unique_code("LATEFAIL")
 
     with pytest.raises(NotFoundError):
-        app_service.provision_organization(
-            organization_code=code,
-            display_name="Late Failure Org",
-            timezone_name="UTC",
-            base_currency="EUR",
-            initial_module_codes=["definitely-not-a-real-module-code"],
-        )
+        app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Late Failure Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=["definitely-not-a-real-module-code"]))
 
-    assert organization_service._organization_repo.get_by_code(code) is None
+    assert services["organization_query"]._organization_repo.get_by_code(code) is None
 
 
 def test_commit_failure_leaves_no_partial_provisioning_state(services, monkeypatch):
     app_service = services["platform_runtime_application_service"]
-    organization_service = services["organization_service"]
 
     captured_uow = {}
     original_create = type(app_service._provisioning_uow_factory).create
@@ -153,15 +129,12 @@ def test_commit_failure_leaves_no_partial_provisioning_state(services, monkeypat
 
     code = _unique_code("COMMITFAIL-PROV")
     with pytest.raises(RuntimeError, match="simulated provisioning commit failure"):
-        app_service.provision_organization(
-            organization_code=code, display_name="Commit Fail Prov", timezone_name="UTC",
-            base_currency="EUR", initial_module_codes=[],
-        )
+        app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Commit Fail Prov", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     uow = captured_uow["uow"]
     assert uow._committed is False
     assert uow._closed is True
-    assert organization_service._organization_repo.get_by_code(code) is None
+    assert services["organization_query"]._organization_repo.get_by_code(code) is None
 
 
 def test_runtime_active_organization_context_changes_only_after_successful_commit(services):
@@ -170,10 +143,7 @@ def test_runtime_active_organization_context_changes_only_after_successful_commi
     default_active_id = tenant_context_service.get_active_organization().id
 
     code = _unique_code("ACTIVATE-PROV")
-    organization = app_service.provision_organization(
-        organization_code=code, display_name="Activate Prov Org", timezone_name="UTC",
-        base_currency="EUR", initial_module_codes=[],
-    )
+    organization = app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Activate Prov Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert tenant_context_service.get_active_organization().id == organization.id
     assert organization.id != default_active_id
@@ -181,17 +151,13 @@ def test_runtime_active_organization_context_changes_only_after_successful_commi
 
 def test_provisioning_remains_tenant_scoped(services):
     app_service = services["platform_runtime_application_service"]
-    organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     tenant_id = tenant_context_service.get_active_tenant_id()
 
     code = _unique_code("TENANT-PROV")
-    organization = app_service.provision_organization(
-        organization_code=code, display_name="Tenant Prov Org", timezone_name="UTC",
-        base_currency="EUR", initial_module_codes=[],
-    )
+    organization = app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Tenant Prov Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
-    reloaded = organization_service._organization_repo.get_for_tenant(organization.id, tenant_id)
+    reloaded = services["organization_query"]._organization_repo.get_for_tenant(organization.id, tenant_id)
     assert reloaded is not None
 
 

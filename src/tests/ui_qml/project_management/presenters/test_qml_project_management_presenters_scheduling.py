@@ -178,7 +178,7 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
                 ]
             }
         ),
-        reporting_service=_FakeReportingService(
+        baseline_compare_report=_FakeReportingService(
             {
                 ("proj-1", "base-1", "base-2", False): [
                     SimpleNamespace(

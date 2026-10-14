@@ -26,6 +26,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.cost_ent
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import (
     ProjectFinanceInboxORM,
 )
+from src.core.platform.contract.use_cases.master_data.party.commands import (
+    PartyCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
@@ -61,14 +67,8 @@ def _setup(services):
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
     )
-    site = services["site_service"].create_site(
-        site_code="PROC-DELIVERY", name="Procurement delivery site",
-        currency_code=organization.base_currency,
-    )
-    supplier = services["party_service"].create_party(
-        party_code="PROC-DELIVERY", party_name="Procurement supplier",
-        roles=["SUPPLIER"],
-    )
+    site = services["site_commands"].create_site(SiteCreateCommand(site_code="PROC-DELIVERY", name="Procurement delivery site", currency_code=organization.base_currency))
+    supplier = services["party_commands"].create_party(PartyCreateCommand(party_code="PROC-DELIVERY", party_name="Procurement supplier", roles=["SUPPLIER"]))
     services["financial_period_service"].create_period(
         code="PROC-2026-08", name="August 2026", fiscal_year=2026,
         period_number=8, start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),

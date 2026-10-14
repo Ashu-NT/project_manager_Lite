@@ -36,13 +36,13 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
     profile, schedule = _ready_schedule_line(services, project, amount=Decimal(24000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="30000")
     billing = services["billing_preparation_service"]
-    reporting = services["reporting_service"]
+    reporting = services["profitability_report"]
     cutoff = date(2026, 8, 31)
     original = _submitted_preparation(services, project, schedule)
     request = services["approval_service"].list_pending(project_id=project.id)[0]
     with pytest.raises(BusinessRuleError):
         services["approval_service"].approve_and_apply(request.id)
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "golden-independent-reviewer", "StrongPass123", role_names=["approver"]
     )
 
@@ -66,7 +66,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
             line_id=saved_lines[0].id,
             expected_row_version=approved.row_version,
         )
-    initial = reporting.get_project_commercial_projection(project.id, as_of_date=cutoff)
+    initial = services["profitability_report"].get_project_commercial_projection(project.id, as_of_date=cutoff)
     assert initial.approved_preparation_amount == Decimal(24000)
     assert (
         initial.forecast_revenue_at_completion
@@ -142,7 +142,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
     approve(correction.id)
     assert billing.get_preparation(parent.id) == parent
     assert billing.list_lines(parent.id) == saved_lines
-    result = reporting.get_project_commercial_projection(project.id, as_of_date=cutoff)
+    result = services["profitability_report"].get_project_commercial_projection(project.id, as_of_date=cutoff)
     assert result.approved_preparation_amount == Decimal(25000)
     assert (
         result.forecast_revenue_at_completion == initial.forecast_revenue_at_completion
@@ -151,7 +151,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
     assert result.projected_margin_percent == initial.projected_margin_percent
     assert result.revenue_availability is CommercialMetricAvailability.AVAILABLE
     dto = ProjectManagementFinancialsDesktopApi(
-        reporting_service=reporting
+        profitability_report=reporting
     ).get_commercial_projection(project.id, as_of_date=cutoff)
     assert (
         Decimal(dto.forecast_revenue_at_completion)

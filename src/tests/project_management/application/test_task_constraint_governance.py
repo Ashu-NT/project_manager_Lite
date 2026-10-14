@@ -15,15 +15,14 @@ from src.core.platform.common.exceptions import (
 
 
 def _login(services, username: str, password: str):
-    auth = services["auth_service"]
     user_session = services["user_session"]
-    user = auth.authenticate(username, password)
-    user_session.set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    user_session.set_principal(services["principal_builder"].build(user))
 
 
 def _login_eligible_reviewer(services):
     _login(services, "admin", "ChangeMe123!")
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "constraint-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "constraint-reviewer", "StrongPass123")
@@ -156,12 +155,11 @@ class TestGovernanceParity:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "task.constraint.update")
         _login(services, "admin", "ChangeMe123!")
 
-        auth = services["auth_service"]
         approvals = services["approval_service"]
         ts = services["task_service"]
         project, task = _make_task(services)
 
-        auth.register_user("planner-constraint-governed", "StrongPass123", role_names=["planner"])
+        services["user_registration"].register_user("planner-constraint-governed", "StrongPass123", role_names=["planner"])
         _login(services, "planner-constraint-governed", "StrongPass123")
 
         with pytest.raises(BusinessRuleError, match="Approval required"):
@@ -210,12 +208,11 @@ class TestGovernanceParity:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "task.constraint.update")
         _login(services, "admin", "ChangeMe123!")
 
-        auth = services["auth_service"]
         approvals = services["approval_service"]
         ts = services["task_service"]
         project, task = _make_task(services)
 
-        auth.register_user("planner-constraint-toctou", "StrongPass123", role_names=["planner"])
+        services["user_registration"].register_user("planner-constraint-toctou", "StrongPass123", role_names=["planner"])
         _login(services, "planner-constraint-toctou", "StrongPass123")
 
         with pytest.raises(BusinessRuleError, match="Approval required"):

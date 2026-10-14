@@ -7,13 +7,15 @@ from pathlib import Path
 import pytest
 
 from src.core.modules.project_management.api.desktop.financials import (
+    ProjectManagementFinancialsDesktopApi,
+)
+from src.core.modules.project_management.contracts.use_cases.financials import (
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
-    ProjectManagementFinancialsDesktopApi,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
@@ -26,9 +28,8 @@ def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
 
 
 def _become_independent_decider(services) -> None:
-    auth = services["auth_service"]
-    user = auth.register_user("desktop-independent-cost-decider", "StrongPass123", role_names=["finance_controller"])
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["user_registration"].register_user("desktop-independent-cost-decider", "StrongPass123", role_names=["finance_controller"])
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def _setup_project(services):

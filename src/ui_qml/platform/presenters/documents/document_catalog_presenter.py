@@ -6,15 +6,21 @@ from src.core.platform.api.desktop.master_data.documents.document import (
     PlatformDocumentDesktopApi,
 )
 from src.core.platform.api.desktop.master_data.documents.models.document import (
-    DocumentCreateCommand,
     DocumentDto,
     DocumentStructureDto,
-    DocumentUpdateCommand,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+    DocumentUpdateCommand,
+)
 from src.core.platform.domain.master_data.documents import (
+    DocumentClassification,
     DocumentStorageKind,
     DocumentType,
+)
+from src.core.platform.domain.master_data.documents.classification import (
+    stored_document_classification,
 )
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
@@ -168,6 +174,15 @@ class PlatformDocumentCatalogPresenter:
             for storage_kind in DocumentStorageKind
         )
 
+    def build_confidentiality_options(self) -> tuple[dict[str, str], ...]:
+        return tuple(
+            option_item(
+                label=title_case_code(classification),
+                value=classification.value,
+            )
+            for classification in DocumentClassification
+        )
+
     def build_structure_options(self) -> tuple[dict[str, str], ...]:
         if self._document_api is None:
             return ()
@@ -314,7 +329,7 @@ class PlatformDocumentCatalogPresenter:
                 "fileName": row.file_name,
                 "mimeType": row.mime_type,
                 "sourceSystem": row.source_system,
-                "confidentialityLevel": row.confidentiality_level,
+                "confidentialityLevel": stored_document_classification(row.confidentiality_level).value,
                 "businessVersionLabel": row.business_version_label,
                 "isCurrent": row.is_current,
                 "notes": row.notes,

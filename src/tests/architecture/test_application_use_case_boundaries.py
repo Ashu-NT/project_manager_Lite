@@ -45,37 +45,52 @@ def test_runtime_use_case_facts_do_not_contain_domain_aggregates(services) -> No
     assert all(not isinstance(item, EnterpriseModule) for item in snapshot.enabled_modules)
 
 
+_HANDLER_FACADES = (
+    "modules/project_management/application/projects/service.py",
+    "modules/project_management/application/resources/project_resources/project_resource_service.py",
+    "modules/project_management/application/tasks/service.py",
+)
+
+
+def _handler_modules() -> tuple[Path, ...]:
+    roots = (
+        SRC_ROOT / "modules/project_management/application",
+        SRC_ROOT / "platform/application",
+    )
+    modules = {
+        path
+        for root in roots
+        for path in root.rglob("*.py")
+        if {"commands", "queries"} & set(path.relative_to(root).parts[:-1])
+    }
+    modules.update(SRC_ROOT / relative for relative in _HANDLER_FACADES)
+    return tuple(sorted(modules))
+
+
 def test_pm_handler_facades_leave_handler_construction_to_composition() -> None:
-    for relative_path in (
-        "modules/project_management/application/projects/service.py",
-        "modules/project_management/application/risk/queries/register_query.py",
-        "modules/project_management/application/resources/catalog/resource_service.py",
-        "modules/project_management/application/resources/project_resources/project_resource_service.py",
-        "modules/project_management/application/tasks/service.py",
-    ):
-        path = SRC_ROOT / relative_path
+    modules = _handler_modules()
+    assert modules
+    for path in modules:
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
-        constructors = (
+        constructors = tuple(
             node.func.id
             for node in ast.walk(tree)
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
             and node.func.id.endswith("Handler")
         )
-        assert not tuple(constructors), relative_path
+        assert not constructors, (str(path.relative_to(SRC_ROOT)), constructors)
 
 
 def test_migrated_platform_services_do_not_import_concrete_infrastructure() -> None:
-    for relative_path in (
-        "platform/application/master_data/org/organization_service.py",
-        "platform/application/security/auth/auth_service.py",
-        "platform/application/security/auth/provisioning/registration_service.py",
-        "platform/application/security/auth/session/context_switch_service.py",
-        "platform/application/security/authorization/roles/tenant_role_administration_service.py",
-        "platform/application/security/authorization/roles/role_policy_reconciliation_service.py",
-        "platform/application/time_management/time/timesheet_entries.py",
-        "platform/application/time_management/time/timesheet_periods.py",
-    ):
-        path = SRC_ROOT / relative_path
+    migrated = (
+        *(SRC_ROOT / "platform/application/master_data/org").rglob("*.py"),
+        SRC_ROOT / "platform/application/security/authorization/roles/tenant_role_administration_service.py",
+        SRC_ROOT / "platform/application/security/authorization/roles/role_policy_reconciliation_service.py",
+        *(SRC_ROOT / "platform/application/security/auth").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/security/authorization/roles/commands").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/time_management/time").rglob("*.py"),
+    )
+    for path in migrated:
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
         imports = (
             node.module or ""
@@ -85,4 +100,39 @@ def test_migrated_platform_services_do_not_import_concrete_infrastructure() -> N
         assert not any(
             ".infrastructure." in imported or imported.startswith("src.infra.")
             for imported in imports
-        ), relative_path
+        ), str(path.relative_to(SRC_ROOT))
+
+
+def test_pm_shared_command_inputs_live_in_use_case_contracts() -> None:
+    desktop_root = SRC_ROOT / "modules/project_management/api/desktop"
+    legacy = sorted(
+        str(path.relative_to(SRC_ROOT))
+        for path in desktop_root.glob("*/commands")
+        if any(path.rglob("*.py"))
+    )
+    assert not legacy, legacy
+    use_cases = SRC_ROOT / "modules/project_management/contracts/use_cases"
+    for feature in (
+        "collaboration",
+        "financials",
+        "portfolio",
+        "projects",
+        "register",
+        "resources",
+        "scheduling",
+        "tasks",
+        "timesheets",
+    ):
+        assert (use_cases / feature / "__init__.py").is_file(), feature
+
+
+def test_register_dashboard_snapshot_exposes_scalar_risk_facts() -> None:
+    from dataclasses import fields
+
+    from src.core.modules.project_management.application.risk import (
+        RegisterDashboardSnapshot,
+    )
+
+    high_risks = next(f for f in fields(RegisterDashboardSnapshot) if f.name == "high_risks")
+    assert "RegisterHighRiskItem" in str(high_risks.type)
+    assert "RegisterEntry," not in str(high_risks.type)

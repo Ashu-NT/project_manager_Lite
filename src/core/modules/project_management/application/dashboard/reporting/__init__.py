@@ -1,6 +1,6 @@
-"""Dashboard executive reporting — portfolio summaries and report generation."""
+"""Dashboard executive reporting — portfolio summaries."""
 from src.core.modules.project_management.application.dashboard.reporting.portfolio import (
-    DashboardPortfolioMixin,
+    PortfolioDashboardQueryHandler,
 )
 
-__all__ = ["DashboardPortfolioMixin"]
+__all__ = ["PortfolioDashboardQueryHandler"]

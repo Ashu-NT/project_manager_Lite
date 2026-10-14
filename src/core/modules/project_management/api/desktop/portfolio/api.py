@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TypeVar
 
 from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
     coerce_dependency_type,
@@ -14,18 +15,6 @@ from src.core.modules.project_management.api.desktop.portfolio.builders.option_b
     build_dependency_type_options,
     build_intake_status_options,
     build_project_options,
-)
-from src.core.modules.project_management.api.desktop.portfolio.commands.create_dependency import (
-    PortfolioDependencyCreateCommand,
-)
-from src.core.modules.project_management.api.desktop.portfolio.commands.create_intake import (
-    PortfolioIntakeCreateCommand,
-)
-from src.core.modules.project_management.api.desktop.portfolio.commands.create_scenario import (
-    PortfolioScenarioCreateCommand,
-)
-from src.core.modules.project_management.api.desktop.portfolio.commands.create_template import (
-    PortfolioTemplateCreateCommand,
 )
 from src.core.modules.project_management.api.desktop.portfolio.models.capacity import (
     PortfolioCapacityResourceDto,
@@ -83,16 +72,31 @@ from src.core.modules.project_management.api.desktop.portfolio.serializers.templ
 from src.core.modules.project_management.api.desktop.portfolio.utils.intake_status_utils import (
     coerce_intake_status,
 )
-from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.portfolio.commands import (
+    PortfolioDependencyCommandHandler,
+    PortfolioIntakeCommandHandler,
+    PortfolioScenarioCommandHandler,
+    PortfolioTemplateCommandHandler,
+)
+from src.core.modules.project_management.application.portfolio.queries import (
+    PortfolioDependencyQueryHandler,
+    PortfolioExecutiveQueryHandler,
+    PortfolioIntakeQueryHandler,
+    PortfolioScenarioQueryHandler,
+    PortfolioTemplateQueryHandler,
+)
 from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
     TOP_AT_RISK_PROJECTS_LIMIT,
-)
-from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import (
-    PortfolioIntakeQueryHandler,
 )
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     PortfolioResourcePoolService,
+)
+from src.core.modules.project_management.contracts.use_cases.portfolio.commands import (
+    PortfolioDependencyCreateCommand,
+    PortfolioIntakeCreateCommand,
+    PortfolioScenarioCreateCommand,
+    PortfolioTemplateCreateCommand,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus
 
@@ -102,13 +106,27 @@ class ProjectManagementPortfolioDesktopApi:
         self,
         *,
         project_service: ProjectService | None = None,
-        portfolio_service: PortfolioService | None = None,
         portfolio_intake_query: PortfolioIntakeQueryHandler | None = None,
+        portfolio_intake_commands: PortfolioIntakeCommandHandler | None = None,
+        portfolio_template_query: PortfolioTemplateQueryHandler | None = None,
+        portfolio_template_commands: PortfolioTemplateCommandHandler | None = None,
+        portfolio_scenario_query: PortfolioScenarioQueryHandler | None = None,
+        portfolio_scenario_commands: PortfolioScenarioCommandHandler | None = None,
+        portfolio_dependency_query: PortfolioDependencyQueryHandler | None = None,
+        portfolio_dependency_commands: PortfolioDependencyCommandHandler | None = None,
+        portfolio_executive_query: PortfolioExecutiveQueryHandler | None = None,
         pool_service: PortfolioResourcePoolService | None = None,
     ) -> None:
         self._project_service = project_service
-        self._portfolio_service = portfolio_service
         self._portfolio_intake_query = portfolio_intake_query
+        self._portfolio_intake_commands = portfolio_intake_commands
+        self._portfolio_template_query = portfolio_template_query
+        self._portfolio_template_commands = portfolio_template_commands
+        self._portfolio_scenario_query = portfolio_scenario_query
+        self._portfolio_scenario_commands = portfolio_scenario_commands
+        self._portfolio_dependency_query = portfolio_dependency_query
+        self._portfolio_dependency_commands = portfolio_dependency_commands
+        self._portfolio_executive_query = portfolio_executive_query
         self._pool_service = pool_service
 
     def list_projects(self) -> tuple[PortfolioProjectOptionDescriptor, ...]:
@@ -121,7 +139,7 @@ class ProjectManagementPortfolioDesktopApi:
         return build_dependency_type_options()
 
     def list_templates(self) -> tuple[PortfolioTemplateDesktopDto, ...]:
-        service = self._portfolio_service
+        service = self._portfolio_template_query
         if service is None:
             return ()
         templates = sorted(
@@ -185,7 +203,7 @@ class ProjectManagementPortfolioDesktopApi:
         sort_key: str = "updatedAt",
         sort_direction: str = "desc",
     ) -> PortfolioDependencyPageDto:
-        service = self._portfolio_service
+        service = self._portfolio_dependency_query
         if service is None:
             return PortfolioDependencyPageDto(
                 page=page, page_size=page_size, sort_key=sort_key,
@@ -209,7 +227,7 @@ class ProjectManagementPortfolioDesktopApi:
         )
 
     def list_scenarios(self) -> tuple[PortfolioScenarioDesktopDto, ...]:
-        service = self._portfolio_service
+        service = self._portfolio_scenario_query
         if service is None:
             return ()
         rows = sorted(
@@ -220,21 +238,21 @@ class ProjectManagementPortfolioDesktopApi:
 
     def evaluate_scenario(self, scenario_id: str) -> PortfolioScenarioEvaluationDesktopDto:
         return serialize_evaluation(
-            self._require_portfolio_service().evaluate_scenario(str(scenario_id or "").strip())
+            _require(self._portfolio_scenario_query).evaluate_scenario(str(scenario_id or "").strip())
         )
 
     def compare_scenarios(
         self, base_scenario_id: str, candidate_scenario_id: str
     ) -> PortfolioScenarioComparisonDesktopDto:
         return serialize_comparison(
-            self._require_portfolio_service().compare_scenarios(
+            _require(self._portfolio_scenario_query).compare_scenarios(
                 str(base_scenario_id or "").strip(),
                 str(candidate_scenario_id or "").strip(),
             )
         )
 
     def list_heatmap(self) -> tuple[PortfolioHeatmapDesktopDto, ...]:
-        service = self._portfolio_service
+        service = self._portfolio_executive_query
         if service is None:
             return ()
         return tuple(serialize_heatmap_row(row) for row in service.list_portfolio_heatmap())
@@ -242,8 +260,8 @@ class ProjectManagementPortfolioDesktopApi:
     def list_top_at_risk_projects(self) -> tuple[PortfolioHeatmapDesktopDto, ...]:
         """Bounded/top_n analytical projection -- ranks pressure across the
         complete authorized project scope. Never derived from a paginated
-        Heatmap page; see PortfolioService.list_top_at_risk_projects."""
-        service = self._portfolio_service
+        Heatmap page; see PortfolioExecutiveQueryHandler.list_top_at_risk_projects."""
+        service = self._portfolio_executive_query
         if service is None:
             return ()
         return tuple(serialize_heatmap_row(row) for row in service.list_top_at_risk_projects())
@@ -258,7 +276,7 @@ class ProjectManagementPortfolioDesktopApi:
         sort_key: str = "projectName",
         sort_direction: str = "asc",
     ) -> PortfolioHeatmapPageDto:
-        service = self._portfolio_service
+        service = self._portfolio_executive_query
         if service is None:
             return PortfolioHeatmapPageDto(
                 page=page, page_size=page_size, sort_key=sort_key,
@@ -288,11 +306,12 @@ class ProjectManagementPortfolioDesktopApi:
         accessible-scope heatmap once and derives both the bounded Top At-Risk
         ranking and the hot-project count from that single scan -- see
         PortfolioExecutiveDesktopSnapshot."""
-        service = self._portfolio_service
-        if service is None:
+        executive = self._portfolio_executive_query
+        dependencies = self._portfolio_dependency_query
+        if executive is None or dependencies is None:
             return PortfolioExecutiveDesktopSnapshot()
-        heatmap_rows = service.list_portfolio_heatmap()
-        dependency_rows = service.list_project_dependencies(heatmap_rows=heatmap_rows)
+        heatmap_rows = executive.list_portfolio_heatmap()
+        dependency_rows = dependencies.list_project_dependencies(heatmap_rows=heatmap_rows)
         hot_count = sum(1 for row in heatmap_rows if row.pressure_label == "Hot")
         return PortfolioExecutiveDesktopSnapshot(
             heatmap=tuple(serialize_heatmap_row(row) for row in heatmap_rows),
@@ -305,20 +324,20 @@ class ProjectManagementPortfolioDesktopApi:
         )
 
     def list_dependencies(self) -> tuple[PortfolioDependencyDesktopDto, ...]:
-        service = self._portfolio_service
+        service = self._portfolio_dependency_query
         if service is None:
             return ()
         return tuple(serialize_dependency(row) for row in service.list_project_dependencies())
 
     def list_recent_actions(self, *, limit: int = 12) -> tuple[PortfolioRecentActionDesktopDto, ...]:
-        service = self._portfolio_service
+        service = self._portfolio_executive_query
         if service is None:
             return ()
         return tuple(serialize_recent_action(row) for row in service.list_recent_pm_actions(limit=limit))
 
     def create_scoring_template(self, command: PortfolioTemplateCreateCommand) -> PortfolioTemplateDesktopDto:
         return serialize_template(
-            self._require_portfolio_service().create_scoring_template(
+            _require(self._portfolio_template_commands).create_scoring_template(
                 name=command.name,
                 summary=command.summary,
                 strategic_weight=command.strategic_weight,
@@ -331,12 +350,12 @@ class ProjectManagementPortfolioDesktopApi:
 
     def activate_scoring_template(self, template_id: str) -> PortfolioTemplateDesktopDto:
         return serialize_template(
-            self._require_portfolio_service().activate_scoring_template(str(template_id or "").strip())
+            _require(self._portfolio_template_commands).activate_scoring_template(str(template_id or "").strip())
         )
 
     def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeDesktopDto:
         return serialize_intake_item(
-            self._require_portfolio_service().create_intake_item(
+            _require(self._portfolio_intake_commands).create_intake_item(
                 title=command.title,
                 sponsor_name=command.sponsor_name,
                 summary=command.summary,
@@ -354,7 +373,7 @@ class ProjectManagementPortfolioDesktopApi:
 
     def create_scenario(self, command: PortfolioScenarioCreateCommand) -> PortfolioScenarioDesktopDto:
         return serialize_scenario(
-            self._require_portfolio_service().create_scenario(
+            _require(self._portfolio_scenario_commands).create_scenario(
                 name=command.name,
                 budget_limit=command.budget_limit,
                 capacity_limit_percent=command.capacity_limit_percent,
@@ -365,8 +384,7 @@ class ProjectManagementPortfolioDesktopApi:
         )
 
     def create_project_dependency(self, command: PortfolioDependencyCreateCommand) -> PortfolioDependencyDesktopDto:
-        service = self._require_portfolio_service()
-        dependency = service.create_project_dependency(
+        dependency = _require(self._portfolio_dependency_commands).create_project_dependency(
             predecessor_project_id=command.predecessor_project_id,
             successor_project_id=command.successor_project_id,
             dependency_type=coerce_dependency_type(command.dependency_type),
@@ -374,8 +392,8 @@ class ProjectManagementPortfolioDesktopApi:
         )
         normalized_summary = (command.summary or "").strip()
         for row in sorted(
-            service.list_project_dependencies(),
-            key=lambda item: getattr(item, "created_at", datetime.min),
+            _require(self._portfolio_dependency_query).list_project_dependencies(),
+            key=lambda item: getattr(item, "created_at", datetime.min),  # noqa: DTZ901 - fallback only
             reverse=True,
         ):
             if (
@@ -388,11 +406,11 @@ class ProjectManagementPortfolioDesktopApi:
         raise RuntimeError("The created portfolio dependency could not be reloaded.")
 
     def remove_project_dependency(self, dependency_id: str) -> None:
-        self._require_portfolio_service().remove_project_dependency(str(dependency_id or "").strip())
+        _require(self._portfolio_dependency_commands).remove_project_dependency(str(dependency_id or "").strip())
 
     def update_intake_item_status(self, item_id: str, status: str) -> PortfolioIntakeDesktopDto:
         return serialize_intake_item(
-            self._require_portfolio_service().update_intake_item(
+            _require(self._portfolio_intake_commands).update_intake_item(
                 str(item_id or "").strip(),
                 status=coerce_intake_status(status),
             )
@@ -401,10 +419,15 @@ class ProjectManagementPortfolioDesktopApi:
     def build_capacity_pool(self) -> tuple[PortfolioCapacityResourceDto, ...]:
         return build_capacity_pool(self._pool_service)
 
-    def _require_portfolio_service(self) -> PortfolioService:
-        if self._portfolio_service is None:
-            raise RuntimeError("Project management portfolio desktop API is not connected.")
-        return self._portfolio_service
+
+
+_HandlerT = TypeVar("_HandlerT")
+
+
+def _require(handler: _HandlerT | None) -> _HandlerT:
+    if handler is None:
+        raise RuntimeError("Project management portfolio desktop API is not connected.")
+    return handler
 
 
 def _coerce_project_status(value: str | None) -> ProjectStatus | None:

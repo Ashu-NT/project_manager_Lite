@@ -21,6 +21,15 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 
 
 def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
@@ -72,21 +81,17 @@ def test_project_and_task_detail_activity_decode_canonical_payloads(services) ->
 
 def test_project_catalog_site_department_manager_and_date_filters_compose(services) -> None:
     project_service = services["project_service"]
-    site_service = services["site_service"]
-    department_service = services["department_service"]
     # A real FK-valid user id (manager_user_id references users.id) -- the
     # admin principal authenticated by the `services` fixture.
     manager_id = services["user_session"].principal.user_id
 
-    site_a = site_service.create_site(site_code="SITE-A", name="Hamburg Yard")
-    site_b = site_service.create_site(site_code="SITE-B", name="Rotterdam Yard")
-    dept_a = department_service.create_department(department_code="DEPT-A", name="Engineering")
-    dept_b = department_service.create_department(department_code="DEPT-B", name="Operations")
-    manager_employee = services["employee_service"].create_employee(
-        employee_code="MANAGER-EMP", full_name="Project Manager", department_id=dept_a.id
-    )
-    services["employee_service"].link_employee_user_account(manager_employee.id, manager_id)
-    services["resource_service"].create_resource(
+    site_a = services["site_commands"].create_site(SiteCreateCommand(site_code="SITE-A", name="Hamburg Yard"))
+    site_b = services["site_commands"].create_site(SiteCreateCommand(site_code="SITE-B", name="Rotterdam Yard"))
+    dept_a = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-A", name="Engineering"))
+    dept_b = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-B", name="Operations"))
+    manager_employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="MANAGER-EMP", full_name="Project Manager", department_id=dept_a.id))
+    services["employee_commands"].link_employee_user_account(manager_employee.id, manager_id)
+    services["resource_master_commands"].create_resource(
         name="Project Manager", worker_type=WorkerType.EMPLOYEE,
         employee_id=manager_employee.id,
     )
@@ -170,13 +175,12 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
 
 def test_project_resource_activity_is_queryable_by_parent_project_id(services) -> None:
     project_service = services["project_service"]
-    resource_service = services["resource_service"]
     project_resource_service = services["project_resource_service"]
     activity_service = services["activity_service"]
 
     project_a = project_service.create_project("Parent Entity Activity A")
     project_b = project_service.create_project("Parent Entity Activity B")
-    resource = resource_service.create_resource("Parent Entity Test Resource", "Planner")
+    resource = services["resource_master_commands"].create_resource("Parent Entity Test Resource", "Planner")
 
     project_resource_service.add_to_project(
         project_id=project_a.id, resource_id=resource.id, planned_hours=10,
@@ -221,8 +225,7 @@ def test_project_resource_activity_is_queryable_by_parent_project_id(services) -
 
 def test_project_catalog_project_name_and_client_name_filters_compose(services) -> None:
     project_service = services["project_service"]
-    site_service = services["site_service"]
-    site_a = site_service.create_site(site_code="SITE-N1", name="Name Filter Site")
+    site_a = services["site_commands"].create_site(SiteCreateCommand(site_code="SITE-N1", name="Name Filter Site"))
 
     hamburg = project_service.create_project(
         "Hamburg Refit", client_name="Northwind Shipping", site_id=site_a.id
@@ -254,10 +257,9 @@ def test_project_catalog_project_name_and_client_name_filters_compose(services) 
 
 def test_project_department_id_round_trips_through_create_and_update(services) -> None:
     project_service = services["project_service"]
-    department_service = services["department_service"]
 
-    dept_a = department_service.create_department(department_code="DEPT-RT-A", name="Engineering")
-    dept_b = department_service.create_department(department_code="DEPT-RT-B", name="Operations")
+    dept_a = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-RT-A", name="Engineering"))
+    dept_b = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-RT-B", name="Operations"))
 
     created = project_service.create_project("Round Trip Project", department_id=dept_a.id)
     assert created.department_id == dept_a.id
@@ -280,12 +282,11 @@ def test_project_update_records_actor_and_field_level_activity_diff(services) ->
     resolved from the authenticated principal) and a before/after diff for
     every field that actually changed -- not just the final snapshot."""
     project_service = services["project_service"]
-    department_service = services["department_service"]
     activity_service = services["activity_service"]
     actor_id = services["user_session"].principal.user_id
 
-    dept_a = department_service.create_department(department_code="DEPT-ACT-A", name="Engineering")
-    dept_b = department_service.create_department(department_code="DEPT-ACT-B", name="Operations")
+    dept_a = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-ACT-A", name="Engineering"))
+    dept_b = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-ACT-B", name="Operations"))
 
     created = project_service.create_project(
         "Activity Diff Project", department_id=dept_a.id, status=ProjectStatus.PLANNED
@@ -503,20 +504,9 @@ def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
 
 
 def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> None:
-    resource_service = services["resource_service"]
-    delivery_department = services["department_service"].create_department(
-        department_code="DEPT-DELIVERY", name="Delivery"
-    )
-    employee = services["employee_service"].create_employee(
-        employee_code="EMP-RPAGE",
-        full_name="Alex Database",
-        title="Planner",
-        department_id=delivery_department.id,
-        department="Delivery",
-        site_name="Berlin",
-        email="alex.database@example.com",
-    )
-    employee_resource = resource_service.create_resource(
+    delivery_department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-DELIVERY", name="Delivery"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-RPAGE", full_name="Alex Database", title="Planner", department_id=delivery_department.id, department="Delivery", site_name="Berlin", email="alex.database@example.com"))
+    employee_resource = services["resource_master_commands"].create_resource(
         name="Alex Database",
         role="Planner",
         worker_type=WorkerType.EMPLOYEE,
@@ -524,7 +514,7 @@ def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> 
         capacity_percent=80.0,
         cost_type=CostType.LABOR,
     )
-    vendor_resource = resource_service.create_resource(
+    vendor_resource = services["resource_master_commands"].create_resource(
         name="Vendor Crane",
         role="Equipment Operator",
         worker_type=WorkerType.EXTERNAL,
@@ -533,14 +523,14 @@ def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> 
         is_active=False,
     )
 
-    first_page = resource_service.query_catalog_page(page=1, page_size=1)
-    second_page = resource_service.query_catalog_page(page=2, page_size=1)
-    employee_search = resource_service.query_catalog_page(
+    first_page = services["resource_query"].query_catalog_page(page=1, page_size=1)
+    second_page = services["resource_query"].query_catalog_page(page=2, page_size=1)
+    employee_search = services["resource_query"].query_catalog_page(
         search_text="planner",
         page=1,
         page_size=25,
     )
-    inactive_equipment = resource_service.query_catalog_page(
+    inactive_equipment = services["resource_query"].query_catalog_page(
         active=False,
         category=CostType.EQUIPMENT,
         page=1,
@@ -560,27 +550,26 @@ def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> 
 
 
 def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
-    resource_service = services["resource_service"]
-    alpha = resource_service.create_resource(name="Alpha Resource", role="Planner")
-    beta = resource_service.create_resource(name="Beta Resource", role="Planner")
-    gamma = resource_service.create_resource(name="Gamma Resource", role="Planner")
+    alpha = services["resource_master_commands"].create_resource(name="Alpha Resource", role="Planner")
+    beta = services["resource_master_commands"].create_resource(name="Beta Resource", role="Planner")
+    gamma = services["resource_master_commands"].create_resource(name="Gamma Resource", role="Planner")
 
-    ascending_first = resource_service.query_catalog_page(
+    ascending_first = services["resource_query"].query_catalog_page(
         sort_key="title", sort_direction="asc", page=1, page_size=2
     )
-    ascending_second = resource_service.query_catalog_page(
+    ascending_second = services["resource_query"].query_catalog_page(
         sort_key="title", sort_direction="asc", page=2, page_size=2
     )
-    first = resource_service.query_catalog_page(
+    first = services["resource_query"].query_catalog_page(
         sort_key="title", sort_direction="desc", page=1, page_size=2
     )
-    second = resource_service.query_catalog_page(
+    second = services["resource_query"].query_catalog_page(
         sort_key="title", sort_direction="desc", page=2, page_size=2
     )
-    unsupported = resource_service.query_catalog_page(
+    unsupported = services["resource_query"].query_catalog_page(
         sort_key="unsafe_sql", sort_direction="desc", page=1, page_size=3
     )
-    beyond_last = resource_service.query_catalog_page(
+    beyond_last = services["resource_query"].query_catalog_page(
         sort_key="title", sort_direction="asc", page=99, page_size=2
     )
 
@@ -745,7 +734,7 @@ def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> No
         start_date=date(2026, 6, 1),
         duration_days=5,
     )
-    resource = services["resource_service"].create_resource(
+    resource = services["resource_master_commands"].create_resource(
         name="Database Reviewer",
         role="Engineer",
     )
@@ -754,19 +743,18 @@ def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> No
         resource.id,
         allocation_percent=100.0,
     )
-    timesheets = services["timesheet_service"]
-    timesheets.add_time_entry(
+    services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 6, 2),
         hours=7.5,
         note="Database-backed review",
     )
-    submitted = timesheets.submit_timesheet_period(
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
         resource.id,
         period_start=date(2026, 6, 1),
     )
 
-    page = timesheets.query_review_queue_page(page=1, page_size=1)
+    page = services["timesheet_review_query"].query_review_queue_page(page=1, page_size=1)
 
     assert page.total == 1
     assert page.page == 1
@@ -781,8 +769,6 @@ def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> No
 def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None:
     project_service = services["project_service"]
     task_service = services["task_service"]
-    resource_service = services["resource_service"]
-    timesheets = services["timesheet_service"]
     alpha_project = project_service.create_project("Alpha Review Project")
     beta_project = project_service.create_project("Beta Review Project")
 
@@ -793,44 +779,44 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
         ("Zoe Reviewer", beta_project, 8),
     ):
         task = task_service.create_task(project.id, f"{name} Task")
-        resource = resource_service.create_resource(name=name, role="Engineer")
+        resource = services["resource_master_commands"].create_resource(name=name, role="Engineer")
         assignment = task_service.assign_resource(task.id, resource.id)
         period_start = date(2026, month, 1)
-        timesheets.add_time_entry(
+        services["time_entry_commands"].add_time_entry(
             assignment.id,
             entry_date=date(2026, month, 2),
             hours=8,
             note=f"{name} database review",
         )
-        period = timesheets.submit_timesheet_period(
+        period = services["timesheet_period_transitions"].submit_timesheet_period(
             resource.id,
             period_start=period_start,
         )
         created.append((resource, period))
 
-    ascending_first = timesheets.query_review_queue_page(
+    ascending_first = services["timesheet_review_query"].query_review_queue_page(
         sort_key="title", sort_direction="asc", page=1, page_size=2
     )
-    ascending_second = timesheets.query_review_queue_page(
+    ascending_second = services["timesheet_review_query"].query_review_queue_page(
         sort_key="title", sort_direction="asc", page=2, page_size=2
     )
-    first = timesheets.query_review_queue_page(
+    first = services["timesheet_review_query"].query_review_queue_page(
         sort_key="title", sort_direction="desc", page=1, page_size=2
     )
-    second = timesheets.query_review_queue_page(
+    second = services["timesheet_review_query"].query_review_queue_page(
         sort_key="title", sort_direction="desc", page=2, page_size=2
     )
-    project_page = timesheets.query_review_queue_page(project_id=alpha_project.id)
-    resource_page = timesheets.query_review_queue_page(resource_id=created[1][0].id)
-    date_page = timesheets.query_review_queue_page(
+    project_page = services["timesheet_review_query"].query_review_queue_page(project_id=alpha_project.id)
+    resource_page = services["timesheet_review_query"].query_review_queue_page(resource_id=created[1][0].id)
+    date_page = services["timesheet_review_query"].query_review_queue_page(
         period_start_from=date(2026, 7, 1),
         period_start_to=date(2026, 7, 31),
     )
-    search_page = timesheets.query_review_queue_page(search_text="Zoe Reviewer")
-    unsupported = timesheets.query_review_queue_page(
+    search_page = services["timesheet_review_query"].query_review_queue_page(search_text="Zoe Reviewer")
+    unsupported = services["timesheet_review_query"].query_review_queue_page(
         sort_key="unsafe_sql", sort_direction="asc"
     )
-    beyond_last = timesheets.query_review_queue_page(
+    beyond_last = services["timesheet_review_query"].query_review_queue_page(
         sort_key="title", sort_direction="asc", page=99, page_size=2
     )
 
@@ -877,9 +863,9 @@ def test_workspace_page_query_budgets_are_constant(services, session) -> None:
         for query in (
             lambda: projects_api.list_project_page(),
             lambda: tasks_api.list_task_page(),
-            lambda: services["resource_service"].query_catalog_page(),
+            lambda: services["resource_query"].query_catalog_page(),
             lambda: services["register_query"].query_catalog_page(),
-            lambda: services["timesheet_service"].query_review_queue_page(),
+            lambda: services["timesheet_review_query"].query_review_queue_page(),
         ):
             statement_count = 0
             query()

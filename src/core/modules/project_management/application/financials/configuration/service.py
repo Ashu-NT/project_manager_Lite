@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, date, datetime
-from typing import Any
+from enum import Enum
+from typing import Any, Final
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -55,7 +56,14 @@ from src.core.platform.common.exceptions import (
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
-_UNSET = object()
+
+class _Unset(Enum):
+    """Typed sentinel distinguishing "argument omitted" from an explicit None."""
+
+    TOKEN = 0
+
+
+_UNSET: Final = _Unset.TOKEN
 
 
 class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
@@ -103,20 +111,20 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         project_id: str,
         *,
         expected_version: int,
-        currency_code: str | object = _UNSET,
-        billing_method: BillingMethod | str | object = _UNSET,
-        budget_control_mode: BudgetControlMode | str | object = _UNSET,
-        cost_code_policy: CostCodePolicy | str | object = _UNSET,
-        financial_start_date: date | None | object = _UNSET,
-        financial_end_date: date | None | object = _UNSET,
-        is_funded: bool | object = _UNSET,
-        is_billable: bool | object = _UNSET,
-        default_cost_code_id: str | None | object = _UNSET,
+        currency_code: str | _Unset = _UNSET,
+        billing_method: BillingMethod | str | _Unset = _UNSET,
+        budget_control_mode: BudgetControlMode | str | _Unset = _UNSET,
+        cost_code_policy: CostCodePolicy | str | _Unset = _UNSET,
+        financial_start_date: date | None | _Unset = _UNSET,
+        financial_end_date: date | None | _Unset = _UNSET,
+        is_funded: bool | _Unset = _UNSET,
+        is_billable: bool | _Unset = _UNSET,
+        default_cost_code_id: str | None | _Unset = _UNSET,
     ) -> ProjectFinancialProfile:
         self._require_project(project_id, "finance.manage", "configure financial profile")
         current = self._require_profile(project_id)
         self._require_expected_version(current.version, expected_version, "Financial profile")
-        values = {
+        values: dict[str, Any] = {
             "currency_code": current.currency_code if currency_code is _UNSET else currency_code,
             "billing_method": current.billing_method if billing_method is _UNSET else billing_method,
             "budget_control_mode": (
@@ -148,7 +156,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         candidate = replace(current, **values)
         if candidate.default_cost_code_id:
             default_cost_code = self._require_cost_code(candidate.default_cost_code_id)
-            if not default_cost_code.is_effective_on(date.today()):
+            if not default_cost_code.is_effective_on(date.today()):  # noqa: DTZ011 -- naive local business date by design
                 raise BusinessRuleError(
                     "The default cost code must be active and effective today.",
                     code="PROJECT_DEFAULT_COST_CODE_NOT_EFFECTIVE",
@@ -235,7 +243,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
                 row.cost_code_id for row in self._cost_code_repo.list_restrictions(project_id)
             }
             rows = [row for row in rows if row.id in allowed_ids]
-        as_of = effective_on or date.today()
+        as_of = effective_on or date.today()  # noqa: DTZ011 -- naive local business date by design
         return [row for row in rows if row.is_effective_on(as_of)]
 
     def create_cost_code(
@@ -322,14 +330,14 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         cost_code_id: str,
         *,
         expected_version: int,
-        code: str | object = _UNSET,
-        name: str | object = _UNSET,
-        description: str | object = _UNSET,
-        parent_id: str | None | object = _UNSET,
-        external_system: str | None | object = _UNSET,
-        external_reference: str | None | object = _UNSET,
-        effective_from: date | None | object = _UNSET,
-        effective_to: date | None | object = _UNSET,
+        code: str | _Unset = _UNSET,
+        name: str | _Unset = _UNSET,
+        description: str | _Unset = _UNSET,
+        parent_id: str | None | _Unset = _UNSET,
+        external_system: str | None | _Unset = _UNSET,
+        external_reference: str | None | _Unset = _UNSET,
+        effective_from: date | None | _Unset = _UNSET,
+        effective_to: date | None | _Unset = _UNSET,
     ) -> ProjectCostCode:
         require_permission(
             self._user_session,

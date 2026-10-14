@@ -24,7 +24,7 @@ def period_cutoff_date(selected_period_key: str) -> date | None:
     days = days_by_key.get((selected_period_key or "").strip().lower())
     if days is None:
         return None
-    return date.today() - timedelta(days=days)
+    return date.today() - timedelta(days=days)  # noqa: DTZ011
 
 
 def period_cutoff_datetime(selected_period_key: str) -> datetime | None:

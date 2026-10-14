@@ -1,4 +1,4 @@
-"""Narrow UoW `ModuleCatalogService.set_module_state` uses."""
+"""Narrow UoW `ModuleEntitlementCommandHandler` uses."""
 
 from __future__ import annotations
 

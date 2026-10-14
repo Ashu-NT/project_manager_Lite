@@ -11,12 +11,6 @@ from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QTest
 
 from src.core.modules.project_management.api.desktop.financials import (
-    FinancialChangeCostCodeStatusCommand,
-    FinancialCostCodeRestrictionCommand,
-    FinancialCreateCostCodeCommand,
-    FinancialTransitionProfileCommand,
-    FinancialUpdateCostCodeCommand,
-    FinancialUpdateProfileCommand,
     ProjectManagementFinancialsDesktopApi,
 )
 from src.core.modules.project_management.application.financials.configuration.event_handlers.view_invalidation import (
@@ -27,6 +21,14 @@ from src.core.modules.project_management.application.financials.configuration.ev
 from src.core.modules.project_management.application.financials.configuration.events import (
     CostCodeProfileUpdated,
     ProjectCostCodeRestrictionAdded,
+)
+from src.core.modules.project_management.contracts.use_cases.financials import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
+    FinancialCreateCostCodeCommand,
+    FinancialTransitionProfileCommand,
+    FinancialUpdateCostCodeCommand,
+    FinancialUpdateProfileCommand,
 )
 from src.core.modules.project_management.domain.financials.configuration import (
     CostCodePolicy,

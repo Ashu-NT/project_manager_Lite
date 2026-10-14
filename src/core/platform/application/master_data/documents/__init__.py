@@ -1,11 +1,21 @@
-from src.core.platform.application.master_data.documents.document_integration_service import (
-    DocumentIntegrationService,
+from src.core.platform.application.master_data.documents.commands import (
+    DocumentAttachmentCommandHandler,
+    DocumentCommandHandler,
+    DocumentStructureCommandHandler,
 )
-from src.core.platform.application.master_data.documents.document_service import (
-    DocumentService,
+from src.core.platform.application.master_data.documents.document_access import (
+    PermissionDocumentAccessPolicy,
+)
+from src.core.platform.application.master_data.documents.queries import (
+    DocumentAttachmentQueryHandler,
+    DocumentQueryHandler,
 )
 
 __all__ = [
-    "DocumentIntegrationService",
-    "DocumentService",
+    "DocumentAttachmentCommandHandler",
+    "DocumentAttachmentQueryHandler",
+    "DocumentCommandHandler",
+    "DocumentQueryHandler",
+    "DocumentStructureCommandHandler",
+    "PermissionDocumentAccessPolicy",
 ]

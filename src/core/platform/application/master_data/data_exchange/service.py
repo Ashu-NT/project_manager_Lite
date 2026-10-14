@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import csv
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.core.platform.application.data_operations.exporting import (
     ExportDefinitionRegistry,
@@ -15,8 +15,23 @@ from src.core.platform.application.data_operations.importing import (
     CsvImportRuntime,
     ImportDefinitionRegistry,
 )
-from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.party import (
+    PartyCommandHandler,
+    PartyQueryHandler,
+)
+from src.core.platform.application.master_data.site import (
+    SiteCommandHandler,
+    SiteQueryHandler,
+)
+from src.core.platform.contract.use_cases.master_data.party.commands import (
+    PartyCreateCommand,
+    PartyUpdateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+    SiteUpdateCommand,
+)
+from src.core.platform.domain.data_operations.exporting import ExportArtifact
 from src.core.platform.domain.data_operations.importing import (
     ImportFieldSpec,
     ImportPreview,
@@ -147,7 +162,9 @@ class MasterDataExportRequest:
     active_only: bool | None = None
 
 
-@dataclass(frozen=True)
+# Not frozen: the ImportDefinition/ExportDefinition protocols declare plain
+# (settable) attributes, which read-only frozen fields do not satisfy.
+@dataclass
 class _CallbackImportDefinition:
     operation_key: str
     field_specs_value: tuple[ImportFieldSpec, ...]
@@ -159,14 +176,14 @@ class _CallbackImportDefinition:
     def field_specs(self) -> tuple[ImportFieldSpec, ...]:
         return self.field_specs_value
 
-    def preview(self, rows: list[ImportSourceRow]) -> ImportPreview:
+    def preview(self, rows: Sequence[ImportSourceRow]) -> ImportPreview:
         return self.preview_handler(list(rows))
 
-    def execute(self, rows: list[ImportSourceRow]) -> ImportSummary:
+    def execute(self, rows: Sequence[ImportSourceRow]) -> ImportSummary:
         return self.execute_handler(list(rows))
 
 
-@dataclass(frozen=True)
+@dataclass
 class _CallbackExportDefinition:
     operation_key: str
     permission_code: str
@@ -183,12 +200,16 @@ class MasterDataExchangeService:
     def __init__(
         self,
         *,
-        site_service: SiteService,
-        party_service: PartyService,
+        site_commands: SiteCommandHandler,
+        site_query: SiteQueryHandler,
+        party_commands: PartyCommandHandler,
+        party_query: PartyQueryHandler,
         user_session: UserSessionContext | None = None,
     ) -> None:
-        self._site_service = site_service
-        self._party_service = party_service
+        self._site_commands = site_commands
+        self._site_query = site_query
+        self._party_commands = party_commands
+        self._party_query = party_query
         self._user_session = user_session
 
         import_registry = ImportDefinitionRegistry()
@@ -268,7 +289,7 @@ class MasterDataExchangeService:
         output_path: str | Path,
         *,
         active_only: bool | None = None,
-    ) -> Path:
+    ) -> ExportArtifact:
         return self._export_runtime.export(
             entity_type,
             MasterDataExportRequest(output_path=Path(output_path), active_only=active_only),
@@ -287,9 +308,9 @@ class MasterDataExchangeService:
                 preview.rows.append(self._preview_error_row(row, "Missing name."))
                 continue
             try:
-                existing = self._site_service.find_site_by_code(code)
+                existing = self._site_query.find_site_by_code(code)
                 self._parse_site_payload(row.values, require_name=True)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 preview.rows.append(self._preview_error_row(row, str(exc)))
                 continue
             preview.rows.append(
@@ -319,9 +340,9 @@ class MasterDataExchangeService:
                 preview.rows.append(self._preview_error_row(row, "Missing party_name."))
                 continue
             try:
-                existing = self._party_service.find_party_by_code(code)
+                existing = self._party_query.find_party_by_code(code)
                 self._parse_party_payload(row.values, require_name=True)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 preview.rows.append(self._preview_error_row(row, str(exc)))
                 continue
             preview.rows.append(
@@ -353,15 +374,15 @@ class MasterDataExchangeService:
             try:
                 payload = self._parse_site_payload(row.values, require_name=True)
                 requested_status = _optional_text(row.values.get("status"))
-                existing = self._site_service.find_site_by_code(code)
+                existing = self._site_query.find_site_by_code(code)
                 if existing is None:
-                    site = self._site_service.create_site(site_code=code, **payload)
+                    site = self._site_commands.create_site(SiteCreateCommand(site_code=code, **payload))
                     summary.created_count += 1
                 else:
-                    site = self._site_service.update_site(existing.id, expected_version=existing.version, **payload)
+                    site = self._site_commands.update_site(SiteUpdateCommand(site_id=existing.id, expected_version=existing.version, **payload))
                     summary.updated_count += 1
                 self._reconcile_site_status(site, requested_status)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 summary.add_row_error(line_no=row.line_no, message=str(exc))
         return summary
 
@@ -378,20 +399,20 @@ class MasterDataExchangeService:
                 continue
             try:
                 payload = self._parse_party_payload(row.values, require_name=True)
-                existing = self._party_service.find_party_by_code(code)
+                existing = self._party_query.find_party_by_code(code)
                 if existing is None:
-                    party = self._party_service.create_party(party_code=code, **payload)
+                    party = self._party_commands.create_party(PartyCreateCommand(party_code=code, **payload))
                     summary.created_count += 1
                 else:
-                    party = self._party_service.update_party(existing.id, expected_version=existing.version, **payload)
+                    party = self._party_commands.update_party(PartyUpdateCommand(party_id=existing.id, expected_version=existing.version, **payload))
                     summary.updated_count += 1
                 self._reconcile_party_status(party, row.values.get("status"), row.values.get("is_active"))
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 summary.add_row_error(line_no=row.line_no, message=str(exc))
         return summary
 
     def _export_sites(self, request: MasterDataExportRequest) -> Path:
-        rows = self._site_service.list_sites(active_only=request.active_only)
+        rows = self._site_query.list_sites(active_only=request.active_only)
         output_path = ensure_output_path(request.output_path)
         with output_path.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=[field.key for field in _SITE_FIELDS])
@@ -420,7 +441,7 @@ class MasterDataExchangeService:
         return output_path
 
     def _export_parties(self, request: MasterDataExportRequest) -> Path:
-        rows = self._party_service.list_parties(active_only=request.active_only)
+        rows = self._party_query.list_parties(active_only=request.active_only)
         output_path = ensure_output_path(request.output_path)
         with output_path.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=[field.key for field in _PARTY_FIELDS])
@@ -461,12 +482,13 @@ class MasterDataExchangeService:
             row=dict(row.values),
         )
 
-    def _parse_site_payload(self, values: dict[str, str], *, require_name: bool) -> dict[str, object]:
+    def _parse_site_payload(self, values: dict[str, str], *, require_name: bool) -> dict[str, Any]:
         """Pure profile fields only -- lifecycle (status) is never part of
         create_site/update_site's payload; see _reconcile_site_status, which
         applies the CSV's status column afterward through the guarded
         activate_site/deactivate_site/archive_site transitions."""
-        payload: dict[str, object] = {}
+        # Keyword bag for SiteCommandHandler.create_site/update_site.
+        payload: dict[str, Any] = {}
         name = _text(values.get("name"))
         if require_name or name:
             payload["name"] = name
@@ -501,14 +523,15 @@ class MasterDataExchangeService:
         if target == site.status:
             return
         if target == SITE_STATUS_ACTIVE:
-            self._site_service.activate_site(site.id)
+            self._site_commands.activate_site(site.id)
         elif target == SITE_STATUS_INACTIVE:
-            self._site_service.deactivate_site(site.id)
+            self._site_commands.deactivate_site(site.id)
         elif target == SITE_STATUS_ARCHIVED:
-            self._site_service.archive_site(site.id)
+            self._site_commands.archive_site(site.id)
 
-    def _parse_party_payload(self, values: dict[str, str], *, require_name: bool) -> dict[str, object]:
-        payload: dict[str, object] = {}
+    def _parse_party_payload(self, values: dict[str, str], *, require_name: bool) -> dict[str, Any]:
+        # Heterogeneous keyword bag for PartyCommandHandler.create_party/update_party.
+        payload: dict[str, Any] = {}
         party_name = _text(values.get("party_name"))
         if require_name or party_name:
             payload["party_name"] = party_name
@@ -571,9 +594,9 @@ class MasterDataExchangeService:
         if target is None or target == party.status:
             return
         if target == PartyLifecycleStatus.ACTIVE:
-            self._party_service.activate_party(party.id)
+            self._party_commands.activate_party(party.id)
         else:
-            self._party_service.deactivate_party(party.id)
+            self._party_commands.deactivate_party(party.id)
 
 
 __all__ = ["MasterDataExchangeService", "MasterDataExportRequest"]

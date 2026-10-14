@@ -30,9 +30,8 @@ from src.core.platform.infrastructure.persistence.orm.time_management.calendar.e
 
 def _seed_calendar_scope_rows(services) -> dict[str, str]:
     session = services["session"]
-    org_svc = services["organization_service"]
     cur_org = services["tenant_context_service"].get_active_organization()
-    oth_org = org_svc.create_organization(
+    oth_org = services["organization_commands"].create_organization(
         organization_code="OPS", display_name="Operations Hub",
         timezone_name="UTC", base_currency="USD",    )
     assert cur_org is not None and oth_org is not None

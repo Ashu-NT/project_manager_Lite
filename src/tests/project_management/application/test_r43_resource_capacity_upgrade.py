@@ -14,9 +14,6 @@ from decimal import Decimal
 
 import pytest
 
-from src.core.modules.project_management.api.desktop.projects.commands.resource_commands import (
-    ProjectResourceUpdateCommand,
-)
 from src.core.modules.project_management.api.desktop.projects.factories.projects_api_factory import (
     build_project_management_projects_desktop_api,
 )
@@ -32,6 +29,9 @@ from src.core.modules.project_management.application.resources.capacity.enterpri
 from src.core.modules.project_management.application.resources.capacity.resource_workload_service import (
     ResourceWorkloadService,
 )
+from src.core.modules.project_management.contracts.use_cases.projects.commands import (
+    ProjectResourceUpdateCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -43,10 +43,10 @@ from src.tests.ui_runtime_helpers import login_as
 def _setup_project_resource(services, *, planned_hours: float = 40.0):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
+    rs = services["resource_query"]
     prs = services["project_resource_service"]
     project = ps.create_project("Capacity Upgrade Project")
-    resource = rs.create_resource("Capacity Upgrade Resource", hourly_rate=70.0)
+    resource = services["resource_master_commands"].create_resource("Capacity Upgrade Resource", hourly_rate=70.0)
     project_resource = prs.add_to_project(
         project.id, resource.id, hourly_rate=70.0, currency_code="USD", planned_hours=planned_hours
     )
@@ -152,9 +152,9 @@ def test_project_resource_usage_reconciles_planned_allocated_actual_remaining(se
         expected_assignment_version=assignment_c.version,
         expected_project_resource_version=prs.get(project_resource.id).version,
     )
-    services["timesheet_service"].add_time_entry(assignment_a.id, entry_date=date(2026, 6, 1), hours=18.0, note="A")
-    services["timesheet_service"].add_time_entry(assignment_b.id, entry_date=date(2026, 6, 1), hours=42.0, note="B")
-    services["timesheet_service"].add_time_entry(assignment_c.id, entry_date=date(2026, 6, 1), hours=12.0, note="C")
+    services["time_entry_commands"].add_time_entry(assignment_a.id, entry_date=date(2026, 6, 1), hours=18.0, note="A")
+    services["time_entry_commands"].add_time_entry(assignment_b.id, entry_date=date(2026, 6, 1), hours=42.0, note="B")
+    services["time_entry_commands"].add_time_entry(assignment_c.id, entry_date=date(2026, 6, 1), hours=12.0, note="C")
 
     usage = prs.get_usage(project_resource.id)
 
@@ -175,7 +175,7 @@ def test_project_resource_usage_is_task_page_independent(services):
     assignment = ts.assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
-    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 1), hours=5.0, note="x")
+    services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 6, 1), hours=5.0, note="x")
 
     # Even though nothing about a "current page" is passed here, the usage
     # fact still reflects the complete, authoritative assignment set.
@@ -203,7 +203,7 @@ def test_desktop_api_exposes_project_resource_usage_and_version(services):
         expected_project_resource_version=project_resource.version,
     )
     api = build_project_management_projects_desktop_api(
-        project_service=ps, project_resource_service=prs, resource_service=rs,
+        project_service=ps, project_resource_service=prs, resource_query=rs,
     )
 
     dtos = api.list_project_resources(project.id)
@@ -219,7 +219,7 @@ def test_desktop_api_exposes_project_resource_usage_and_version(services):
 def test_desktop_api_update_project_resource_forwards_expected_version_and_conflicts(services):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
     api = build_project_management_projects_desktop_api(
-        project_service=ps, project_resource_service=prs, resource_service=rs,
+        project_service=ps, project_resource_service=prs, resource_query=rs,
     )
 
     api.update_project_resource(
@@ -252,9 +252,9 @@ def test_desktop_api_update_project_resource_forwards_expected_version_and_confl
 def _overlapping_overallocation_setup(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
+    rs = services["resource_query"]
     project = ps.create_project("Overallocation Policy Project")
-    resource = rs.create_resource("Overallocation Policy Resource", hourly_rate=60.0)
+    resource = services["resource_master_commands"].create_resource("Overallocation Policy Resource", hourly_rate=60.0)
     task_a = ts.create_task(
         project.id, "Overallocation Task A", start_date=date(2026, 7, 6), duration_days=5
     )
@@ -312,7 +312,7 @@ def test_overallocation_strict_policy_still_allows_non_conflicting_allocation(se
 
 def test_assign_project_resource_rejects_inactive_resource(services):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
-    rs.deactivate_resource(resource_id=resource.id, expected_version=resource.version)
+    services["resource_master_commands"].deactivate_resource(resource_id=resource.id, expected_version=resource.version)
 
     with pytest.raises(BusinessRuleError) as exc:
         ts.assign_project_resource(
@@ -331,7 +331,7 @@ def test_delete_project_resource_with_historical_actuals_is_blocked(services):
     assignment = ts.assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
-    services["timesheet_service"].add_time_entry(assignment.id, entry_date=date(2026, 6, 1), hours=3.0, note="worked")
+    services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 6, 1), hours=3.0, note="worked")
 
     with pytest.raises(BusinessRuleError) as exc:
         prs.delete(project_resource.id)
@@ -373,21 +373,19 @@ def test_assign_resource_requires_project_resource_repository(services, monkeypa
 
 
 def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
-    auth = services["auth_service"]
     access = services["access_service"]
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
 
     project_alpha = ps.create_project("Time Scope Alpha")
     project_beta = ps.create_project("Time Scope Beta")
     task_alpha = ts.create_task(project_alpha.id, "Alpha Task")
     task_beta = ts.create_task(project_beta.id, "Beta Task")
-    resource = rs.create_resource("Time Scope Resource", hourly_rate=90.0)
+    resource = services["resource_master_commands"].create_resource("Time Scope Resource", hourly_rate=90.0)
     assignment_alpha = ts.assign_resource(task_alpha.id, resource.id, allocation_percent=50.0)
     assignment_beta = ts.assign_resource(task_beta.id, resource.id, allocation_percent=50.0)
 
-    scoped_user = auth.register_user("time-scoped-manager", "StrongPass123", role_names=["viewer"])
+    scoped_user = services["user_registration"].register_user("time-scoped-manager", "StrongPass123", role_names=["viewer"])
     access.assign_scope_grant(
         scope_type="project",
         scope_id=project_alpha.id,
@@ -398,12 +396,12 @@ def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
     login_as(services, "time-scoped-manager", "StrongPass123")
 
     # Authorized on Alpha: succeeds.
-    services["timesheet_service"].add_time_entry(assignment_alpha.id, entry_date=date(2026, 6, 2), hours=2.0, note="alpha work")
+    services["time_entry_commands"].add_time_entry(assignment_alpha.id, entry_date=date(2026, 6, 2), hours=2.0, note="alpha work")
 
     # Not authorized on Beta: the global time.manage/task.manage grant from
     # project_alpha's "owner" scope role must not leak into project_beta.
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        services["timesheet_service"].add_time_entry(assignment_beta.id, entry_date=date(2026, 6, 2), hours=2.0, note="beta work")
+        services["time_entry_commands"].add_time_entry(assignment_beta.id, entry_date=date(2026, 6, 2), hours=2.0, note="beta work")
 
 
 # ---------------------------------------------------------------------------
@@ -443,11 +441,11 @@ def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_au
 
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
+    rs = services["resource_query"]
     prs = services["project_resource_service"]
 
     project = ps.create_project("Preview Wiring Project")
-    resource = rs.create_resource("Preview Wiring Resource", hourly_rate=80.0)
+    resource = services["resource_master_commands"].create_resource("Preview Wiring Resource", hourly_rate=80.0)
     project_resource = prs.add_to_project(project.id, resource.id, planned_hours=1000.0)
     task_a = ts.create_task(
         project.id, "Preview Task A", start_date=window_start, duration_days=5
@@ -472,7 +470,7 @@ def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_au
         project_service=ps,
         task_service=ts,
         project_resource_service=prs,
-        resource_service=rs,
+        resource_query=rs,
         assignment_skill_validator=None,
     )
 
@@ -494,10 +492,10 @@ def test_resource_availability_display_returns_real_data_not_none(services):
     implement the method being called on it."""
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
+    rs = services["resource_query"]
 
     project = ps.create_project("Availability Display Project")
-    resource = rs.create_resource("Availability Display Resource", hourly_rate=65.0)
+    resource = services["resource_master_commands"].create_resource("Availability Display Resource", hourly_rate=65.0)
     window_start = date.today()
     window_end = window_start + timedelta(days=29)
     task = ts.create_task(
@@ -509,7 +507,7 @@ def test_resource_availability_display_returns_real_data_not_none(services):
     ts.assign_resource(task.id, resource.id, allocation_percent=60.0)
 
     api = build_project_management_resources_desktop_api(
-        resource_service=rs,
+        resource_query=rs,
         workload_service=services["resource_workload_service"],
     )
 
@@ -562,10 +560,9 @@ def test_resource_workload_uses_bounded_reader_not_repository_wide_task_lookup(s
 
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
 
     project = ps.create_project("Availability Query Count Project")
-    resource = rs.create_resource("Availability Query Count Resource", hourly_rate=55.0)
+    resource = services["resource_master_commands"].create_resource("Availability Query Count Resource", hourly_rate=55.0)
     window_start = date.today() + timedelta(days=1)
     for i in range(4):
         task = ts.create_task(

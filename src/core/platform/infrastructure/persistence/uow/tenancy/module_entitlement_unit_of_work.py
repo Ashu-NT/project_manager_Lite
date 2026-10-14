@@ -32,7 +32,7 @@ from src.infra.persistence.db.unit_of_work import (
 
 class SqlAlchemyModuleEntitlementUnitOfWork(SqlAlchemyUnitOfWorkBase, ModuleEntitlementUnitOfWork):
     """Owns a fresh Session per instance, distinct from the shared session
-    `ModuleCatalogService`'s lazy default-entitlement seeding still uses."""
+    `ModuleCatalogContext`'s lazy default-entitlement seeding still uses."""
 
     def __init__(
         self,

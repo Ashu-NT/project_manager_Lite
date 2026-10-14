@@ -16,6 +16,19 @@ from src.ui_qml.modules.project_management.presenters.collaboration import (
 )
 
 
+def _collaboration_api(service):
+    """Feed one fake (implementing every collaboration handler method) to each handler slot."""
+    return build_project_management_collaboration_desktop_api(
+        inbox_query=service,
+        comment_query=service,
+        document_query=service,
+        presence_query=service,
+        comment_commands=service,
+        comment_engagement=service,
+        presence_commands=service,
+    )
+
+
 class _FakeCollaborationService:
     def __init__(self) -> None:
         self.marked_task_ids: list[str] = []
@@ -268,9 +281,7 @@ class _FakeCollaborationService:
 def test_project_management_workspace_catalog_exposes_typed_collaboration_controller() -> (
     None
 ):
-    collaboration_api = build_project_management_collaboration_desktop_api(
-        collaboration_service=_FakeCollaborationService()
-    )
+    collaboration_api = _collaboration_api(_FakeCollaborationService())
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(
             project_management_collaboration=collaboration_api
@@ -331,9 +342,7 @@ def test_collaboration_presenter_skips_null_approval_rows() -> None:
             )
 
     presenter = ProjectCollaborationWorkspacePresenter(
-        desktop_api=build_project_management_collaboration_desktop_api(
-            collaboration_service=_FakeCollaborationService()
-        ),
+        desktop_api=_collaboration_api(_FakeCollaborationService()),
         approval_api=_FakeApprovalApi(),
     )
 

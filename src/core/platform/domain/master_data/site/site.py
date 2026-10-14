@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from pydantic import field_validator, model_validator
 
@@ -155,7 +156,7 @@ class Site:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         resolved = int(value if value not in (None, "") else 1)
         if resolved < 1:
             raise ValidationError(
@@ -182,7 +183,7 @@ class Site:
     def create(
         organization_id: str,
         site_code: str,
-        name: str,
+        name: str | None,
         *,
         description: str = "",
         country: str = "",
@@ -208,7 +209,8 @@ class Site:
             id=generate_id(),
             organization_id=organization_id,
             site_code=site_code,
-            name=name,
+            # A missing name is rejected by the field's "before" validator.
+            name=cast(str, name),
             description=description,
             country=country,
             region=region,

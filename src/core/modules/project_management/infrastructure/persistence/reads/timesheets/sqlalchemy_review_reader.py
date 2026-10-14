@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import and_, case, func, or_, select, union
 from sqlalchemy.orm import Session, aliased
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetReviewCriteria,
@@ -223,7 +224,7 @@ class SqlAlchemyTimesheetReviewReader:
                 select(visibility_ids.c.period_id)
             )
 
-        filters = []
+        filters: list[ColumnElement[bool]] = []
         if visibility_filter is not None:
             filters.append(visibility_filter)
         if criteria.item_id:

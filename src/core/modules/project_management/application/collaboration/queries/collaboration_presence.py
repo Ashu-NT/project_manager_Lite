@@ -1,9 +1,22 @@
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime, timedelta
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
+)
+from src.core.modules.project_management.application.collaboration.utils.visibility import (
+    CollaborationVisibilityPolicy,
+)
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.contracts.reads.collaboration import (
+    CollaborationWorkspaceReader,
+)
+from src.core.modules.project_management.contracts.repositories.collaboration.collaboration import (
+    TaskPresenceRepository,
 )
 from src.core.modules.project_management.domain.collaboration import (
     TaskPresenceStatusItem,
@@ -13,9 +26,31 @@ from src.core.platform.application.security.authorization.enforcement.permission
 )
 
 
-class CollaborationPresenceQueryMixin:
+class CollaborationPresenceQueryHandler(ProjectManagementModuleGuardMixin):
+    """Bounded task / workspace presence reads within the presence TTL."""
+
+    def __init__(
+        self,
+        *,
+        workspace_reader: CollaborationWorkspaceReader,
+        policy: CollaborationVisibilityPolicy,
+        tenant_context_service,
+        user_session=None,
+        module_catalog_service=None,
+        presence_repo: TaskPresenceRepository,
+    ) -> None:
+        self._workspace_reader = workspace_reader
+        self._policy = policy
+        self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
+        self._presence_repo = presence_repo
+        self._presence_ttl_seconds = max(
+            int(os.getenv("PM_TASK_PRESENCE_TTL_SECONDS", "900") or 900), 60
+        )
+
     def list_task_presence(self, task_id: str) -> list[TaskPresenceStatusItem]:
-        task = self._require_task(task_id)
+        task = self._policy.require_task(task_id)
         require_permission(self._user_session, "collaboration.read", operation_label="view task presence")
         require_project_permission(
             self._user_session,
@@ -23,16 +58,15 @@ class CollaborationPresenceQueryMixin:
             "collaboration.read",
             operation_label="view task presence",
         )
-        project = self._project_repo.get(task.project_id)
         return self._presence_items_for_tasks(
             tasks=[task],
-            project_name_by_id={task.project_id: project.name if project is not None else ""},
+            project_name_by_id={task.project_id: self._policy.project_name(task.project_id)},
             limit=50,
         )
 
     def list_active_presence(self) -> list[TaskPresenceStatusItem]:
         require_permission(self._user_session, "collaboration.read", operation_label="view active task presence")
-        scope, project_names = self._collaboration_scope(
+        scope, project_names = self._policy.collaboration_scope(
             operation_label="view active task presence"
         )
         rows = self._workspace_reader.read_active_presence(
@@ -45,7 +79,7 @@ class CollaborationPresenceQueryMixin:
         return self._presence_items_from_facts(rows)
 
     def _presence_items_from_facts(self, rows) -> list[TaskPresenceStatusItem]:
-        principal = self._user_session.principal if self._user_session is not None else None
+        principal = self._policy.principal
         principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
         return [
             TaskPresenceStatusItem(
@@ -76,7 +110,7 @@ class CollaborationPresenceQueryMixin:
             since=datetime.now(UTC) - timedelta(seconds=self._presence_ttl_seconds),
             limit=limit,
         )
-        principal = self._user_session.principal if self._user_session is not None else None
+        principal = self._policy.principal
         principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
         items: list[TaskPresenceStatusItem] = []
         for row in rows:
@@ -100,4 +134,4 @@ class CollaborationPresenceQueryMixin:
         return items
 
 
-__all__ = ["CollaborationPresenceQueryMixin"]
+__all__ = ["CollaborationPresenceQueryHandler"]

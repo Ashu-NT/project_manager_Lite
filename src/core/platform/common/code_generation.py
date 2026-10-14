@@ -200,7 +200,7 @@ class CodeGenerator:
         elif name:
             segment = sanitize_token(name, max_length=token_length)
         if not segment and (use_year or year is not None):
-            segment = str(year if year is not None else date.today().year)
+            segment = str(year if year is not None else date.today().year)  # noqa: DTZ011
         return generate_unique_code(
             prefix, exists=exists, segment=segment, width=width, start=start
         )

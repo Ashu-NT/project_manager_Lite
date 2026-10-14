@@ -32,6 +32,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.project 
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskORM,
 )
+from src.core.platform.contract.port.master_data.documents.document_access_policy import (
+    DocumentVisibility,
+)
 from src.core.platform.domain.master_data.documents import (
     DocumentStorageKind,
     DocumentType,
@@ -47,6 +50,9 @@ from src.core.platform.infrastructure.persistence.orm.master_data.org.org import
     OrganizationORM,
 )
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
+from src.core.platform.infrastructure.persistence.repositories.master_data.documents.visibility import (
+    document_visibility_condition,
+)
 
 
 def _utc(value: datetime) -> datetime:
@@ -77,6 +83,7 @@ class SqlAlchemyCollaborationWorkspaceReader:
         *,
         tenant_id: str,
         organization_id: str,
+        visibility: DocumentVisibility,
         query: str = "",
         limit: int = 50,
     ) -> tuple[TaskDocumentOptionFact, ...]:
@@ -87,6 +94,7 @@ class SqlAlchemyCollaborationWorkspaceReader:
                 OrganizationORM.tenant_id == tenant_id,
                 OrganizationORM.id == organization_id,
                 DocumentORM.is_active.is_(True),
+                document_visibility_condition(visibility),
             )
         )
         if query:
@@ -243,6 +251,7 @@ class SqlAlchemyCollaborationWorkspaceReader:
         organization_id: str,
         task_id: str,
         comment_ids: tuple[str, ...],
+        visibility: DocumentVisibility,
     ) -> dict[str, tuple[TaskDetailLinkedDocumentFact, ...]]:
         ids = tuple(dict.fromkeys(comment_ids))
         if not ids:
@@ -260,6 +269,7 @@ class SqlAlchemyCollaborationWorkspaceReader:
                 DocumentLinkORM.organization_id == organization_id,
                 DocumentORM.organization_id == organization_id,
                 DocumentORM.is_active.is_(True),
+                document_visibility_condition(visibility),
                 TaskCommentORM.task_id == task_id,
                 TaskCommentORM.deleted_at.is_(None),
                 ProjectORM.tenant_id == tenant_id,

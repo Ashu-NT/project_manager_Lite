@@ -39,7 +39,7 @@ def build_charts_from_dashboard_data(
     dashboard_data: Any,
     selected_period_key: str,
     portfolio_mode: bool,
-    reporting_service=None,
+    earned_value_report=None,
 ) -> tuple[ProjectDashboardChartDescriptor, ...]:
     if portfolio_mode:
         return (
@@ -53,7 +53,7 @@ def build_charts_from_dashboard_data(
         project_id=project_id,
         baseline_id=baseline_id,
         selected_period_key=selected_period_key,
-        reporting_service=reporting_service,
+        earned_value_report=earned_value_report,
     )
     return (
         _build_schedule_trend_chart(
@@ -70,14 +70,14 @@ def build_charts_from_dashboard_data(
     )
 
 
-def _filtered_evm_series(*, project_id: str, baseline_id: str | None, selected_period_key: str, reporting_service=None) -> tuple[Any, ...]:
-    if reporting_service is None or not project_id:
+def _filtered_evm_series(*, project_id: str, baseline_id: str | None, selected_period_key: str, earned_value_report=None) -> tuple[Any, ...]:
+    if earned_value_report is None or not project_id:
         return ()
     try:
-        get_series = getattr(reporting_service, "get_evm_series", None)
+        get_series = getattr(earned_value_report, "get_evm_series", None)
         if not callable(get_series):
             return ()
-        series = tuple(get_series(project_id, baseline_id=baseline_id or None, as_of=date.today()) or ())
+        series = tuple(get_series(project_id, baseline_id=baseline_id or None, as_of=date.today()) or ())  # noqa: DTZ011
     except Exception:
         logger.exception("Failed to load EVM series for project_id=%s, baseline_id=%s, period=%s", project_id, baseline_id, selected_period_key,)
         return ()

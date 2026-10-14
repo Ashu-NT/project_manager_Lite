@@ -14,8 +14,6 @@ def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services
     ps = services["project_service"]
     ts = services["task_service"]
     bs = services["baseline_service"]
-    rp = services["reporting_service"]
-
     project = ps.create_project("Baseline Compare", "")
     pid = project.id
 
@@ -28,7 +26,7 @@ def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services
     task_c = ts.create_task(pid, "Task C", start_date=date(2024, 1, 8), duration_days=1)
     baseline_2 = bs.create_baseline(pid, "BL2", rate_as_of=date.today())
 
-    comparison = rp.compare_baselines(
+    comparison = services["baseline_compare_report"].compare_baselines(
         project_id=pid,
         baseline_a_id=baseline_1.id,
         baseline_b_id=baseline_2.id,
@@ -58,8 +56,6 @@ def test_compare_baselines_filters_out_unchanged_rows_when_requested(services):
     ps = services["project_service"]
     ts = services["task_service"]
     bs = services["baseline_service"]
-    rp = services["reporting_service"]
-
     project = ps.create_project("Baseline Compare Filter", "")
     pid = project.id
     ts.create_task(pid, "Task Stable", start_date=date(2024, 2, 5), duration_days=2)
@@ -67,7 +63,7 @@ def test_compare_baselines_filters_out_unchanged_rows_when_requested(services):
     baseline_1 = bs.create_baseline(pid, "Stable-1", rate_as_of=date.today())
     baseline_2 = bs.create_baseline(pid, "Stable-2", rate_as_of=date.today())
 
-    comparison = rp.compare_baselines(
+    comparison = services["baseline_compare_report"].compare_baselines(
         project_id=pid,
         baseline_a_id=baseline_1.id,
         baseline_b_id=baseline_2.id,
@@ -83,19 +79,17 @@ def test_compare_baselines_validates_input_and_missing_ids(services):
     ps = services["project_service"]
     ts = services["task_service"]
     bs = services["baseline_service"]
-    rp = services["reporting_service"]
-
     project = ps.create_project("Baseline Compare Validation", "")
     pid = project.id
     ts.create_task(pid, "Task 1", start_date=date(2024, 3, 4), duration_days=1)
     baseline = bs.create_baseline(pid, "Only", rate_as_of=date.today())
 
     with pytest.raises(ValidationError) as same_exc:
-        rp.compare_baselines(pid, baseline.id, baseline.id)
+        services["baseline_compare_report"].compare_baselines(pid, baseline.id, baseline.id)
     assert same_exc.value.code == "BASELINE_COMPARE_SAME_BASELINE"
 
     with pytest.raises(NotFoundError) as missing_exc:
-        rp.compare_baselines(pid, baseline.id, "missing-id")
+        services["baseline_compare_report"].compare_baselines(pid, baseline.id, "missing-id")
     assert missing_exc.value.code == "BASELINE_B_NOT_FOUND"
 
 

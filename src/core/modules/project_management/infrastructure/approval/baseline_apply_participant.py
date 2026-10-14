@@ -44,7 +44,7 @@ class BaselineApprovalParticipant:
         baseline = deps.baseline_service._apply_baseline_creation_decision(
             project_id=project_id,
             name=request.payload.get("name") or "Baseline",
-            rate_as_of=date.today(),
+            rate_as_of=date.today(),  # noqa: DTZ011
         )
         context = deps.baseline_service._require_context("create baseline")
         return ApprovalHandlerResult(

@@ -4,6 +4,8 @@ from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementSchedulingDesktopApi,
+)
+from src.core.modules.project_management.contracts.use_cases.scheduling import (
     SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
     SchedulingBaselineRejectCommand,

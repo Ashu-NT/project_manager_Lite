@@ -48,10 +48,11 @@ def _build_dashboard_api(services):
 
     return build_project_management_dashboard_desktop_api(
         project_service=services["project_service"],
-        dashboard_service=services["dashboard_service"],
+        project_dashboard=services["project_dashboard_query"],
+        portfolio_dashboard=services["portfolio_dashboard_query"],
         baseline_service=services["baseline_service"],
-        reporting_service=services["reporting_service"],
-        collaboration_service=services["collaboration_service"],
+        earned_value_report=services["earned_value_report"],
+        collaboration_inbox_query=services["collaboration_inbox_query"],
         task_workspace_query=services["task_workspace_query"],
         module_catalog_service=services["module_catalog_service"],
     )
@@ -169,13 +170,12 @@ def test_dashboard_portfolio_kpi_is_independent_of_delayed_tasks_page_state(serv
     scalable operational tab must never change what the KPI strip shows."""
     project = _seed_project(services)
     _seed_overdue_tasks(services, project.id, 30)
-    dashboard = services["dashboard_service"]
     api = _build_dashboard_api(services)
 
-    before = dashboard.get_portfolio_data()
+    before = services["portfolio_dashboard_query"].get_portfolio_data()
     api.list_delayed_tasks_page(project_id=project.id, page=1, page_size=5)
     api.list_delayed_tasks_page(project_id=project.id, page=3, page_size=5)
-    after = dashboard.get_portfolio_data()
+    after = services["portfolio_dashboard_query"].get_portfolio_data()
 
     assert before.portfolio.projects_total == after.portfolio.projects_total
     assert before.kpi.tasks_total == after.kpi.tasks_total

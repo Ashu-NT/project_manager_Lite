@@ -25,7 +25,7 @@ def business_today(timezone_name: str | None, *, now: datetime | None = None) ->
     name = (timezone_name or "").strip() or "UTC"
     try:
         zone = ZoneInfo(name)
-    except Exception:
+    except Exception:  # noqa: BLE001
         zone = ZoneInfo("UTC")
     return instant.astimezone(zone).date()
 

@@ -5,24 +5,25 @@ from decimal import Decimal
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
     DashboardEVM,
 )
-from src.core.modules.project_management.application.dashboard.reporting.query import (
-    DashboardReportingQuery,
-)
 from src.core.modules.project_management.application.financials.models import (
     EarnedValueMetrics,
+)
+from src.core.modules.project_management.contracts.ports.dashboard.dashboard_queries import (
+    DashboardEarnedValueQuery,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
-class DashboardEvmMixin:
-    _reporting: DashboardReportingQuery
+class DashboardEvmWidget:
+    def __init__(self, earned_value: DashboardEarnedValueQuery) -> None:
+        self._earned_value = earned_value
 
-    def _build_evm(self, project_id: str, baseline_id: str | None = None) -> DashboardEVM | None:
+    def build(self, project_id: str, baseline_id: str | None = None) -> DashboardEVM | None:
         try:
-            evm = self._reporting.get_earned_value(project_id, baseline_id=baseline_id)
+            evm = self._earned_value.get_earned_value(project_id, baseline_id=baseline_id)
             if evm.availability == "baseline_unavailable":
                 return None
-            status = self._interpret_evm(evm)
+            status = self.interpret(evm)
             return DashboardEVM(
                 as_of=evm.as_of,
                 baseline_id=evm.baseline_id,
@@ -41,7 +42,8 @@ class DashboardEvmMixin:
         except BusinessRuleError:
             return None
 
-    def _interpret_evm(self, evm: EarnedValueMetrics) -> str:
+    @staticmethod
+    def interpret(evm: EarnedValueMetrics) -> str:
         parts = []
 
         if evm.CPI is None:
@@ -83,3 +85,6 @@ class DashboardEvmMixin:
             parts.append("TCPI(BAC): total planned budget exceeded.")
 
         return " ".join(parts)
+
+
+__all__ = ["DashboardEvmWidget"]

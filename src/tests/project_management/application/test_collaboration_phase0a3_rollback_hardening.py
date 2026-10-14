@@ -68,16 +68,15 @@ def _comment_hints(hints):
 
 
 def test_post_comment_repository_failure_rolls_back_with_no_partial_row(services, monkeypatch):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
     hints = _spy_hints(services)
     monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "add", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.post_comment(task_id=task.id, body="Hello")
+        services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Hello")
 
     monkeypatch.undo()
-    assert collaboration._comment_repo.list_recent_for_tasks([task.id]) == []
+    assert services["collaboration_comment_commands"]._comment_repo.list_recent_for_tasks([task.id]) == []
     assert _comment_hints(hints) == []
 
 
@@ -88,23 +87,22 @@ def test_post_comment_repository_failure_removes_physical_attachment(
         collaboration_attachments,
     )
 
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
     source = tmp_path / "evidence.txt"
     source.write_text("evidence")
     storage_root = Path.cwd() / ".pytest_workspaces" / f"r7e-{uuid4().hex[:8]}"
     monkeypatch.setattr(collaboration_attachments, "user_data_dir", lambda: storage_root)
-    collaboration._attachment_store = collaboration_attachments.store_task_comment_attachments
-    collaboration._attachment_cleanup = collaboration_attachments.cleanup_task_comment_attachments
+    services["collaboration_comment_commands"]._attachment_store = collaboration_attachments.store_task_comment_attachments
+    services["collaboration_comment_commands"]._attachment_cleanup = collaboration_attachments.cleanup_task_comment_attachments
     monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "add", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.post_comment(
+        services["collaboration_comment_commands"].post_comment(
             task_id=task.id, body="See evidence", attachments=[str(source)]
         )
 
     monkeypatch.undo()
-    assert collaboration._comment_repo.list_recent_for_tasks([task.id]) == []
+    assert services["collaboration_comment_commands"]._comment_repo.list_recent_for_tasks([task.id]) == []
     assert list(storage_root.rglob("evidence.txt")) == []
 
 
@@ -115,39 +113,37 @@ def test_post_comment_real_attachment_is_stored_and_registered(
         collaboration_attachments,
     )
 
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
     source = tmp_path / "evidence.txt"
     source.write_text("approved evidence")
     storage_root = Path.cwd() / ".pytest_workspaces" / f"r7e-{uuid4().hex[:8]}"
     monkeypatch.setattr(collaboration_attachments, "user_data_dir", lambda: storage_root)
-    collaboration._attachment_store = collaboration_attachments.store_task_comment_attachments
-    collaboration._attachment_cleanup = collaboration_attachments.cleanup_task_comment_attachments
+    services["collaboration_comment_commands"]._attachment_store = collaboration_attachments.store_task_comment_attachments
+    services["collaboration_comment_commands"]._attachment_cleanup = collaboration_attachments.cleanup_task_comment_attachments
 
-    comment = collaboration.post_comment(
+    comment = services["collaboration_comment_commands"].post_comment(
         task_id=task.id, body="See evidence", attachments=[str(source)]
     )
 
     assert len(comment.attachments) == 1
     assert Path(comment.attachments[0]).read_text() == "approved evidence"
     assert len(
-        collaboration.list_comment_documents_for_ids(task.id, (comment.id,))[comment.id]
+        services["collaboration_document_query"].list_comment_documents_for_ids(task.id, (comment.id,))[comment.id]
     ) == 1
     collaboration_attachments.cleanup_task_comment_attachments(comment.attachments)
 
 
 def test_post_comment_missing_attachment_never_creates_comment(services, tmp_path: Path):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
 
     with pytest.raises(FileNotFoundError):
-        collaboration.post_comment(
+        services["collaboration_comment_commands"].post_comment(
             task_id=task.id,
             body="Missing evidence",
             attachments=[str(tmp_path / "not-here.txt")],
         )
 
-    assert collaboration._comment_repo.list_recent_for_tasks([task.id]) == []
+    assert services["collaboration_comment_commands"]._comment_repo.list_recent_for_tasks([task.id]) == []
 
 
 def test_post_comment_commit_failure_rolls_back_with_no_partial_row(services, monkeypatch):
@@ -155,43 +151,40 @@ def test_post_comment_commit_failure_rolls_back_with_no_partial_row(services, mo
         EnterpriseAuditService,
     )
 
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
     hints = _spy_hints(services)
     monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.post_comment(task_id=task.id, body="Hello")
+        services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Hello")
 
     monkeypatch.undo()
-    assert collaboration._comment_repo.list_recent_for_tasks([task.id]) == []
+    assert services["collaboration_comment_commands"]._comment_repo.list_recent_for_tasks([task.id]) == []
     assert _comment_hints(hints) == []
 
 
 def test_session_remains_usable_after_post_comment_repository_failure(services, monkeypatch):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
     monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "add", _boom)
     with pytest.raises(_Boom):
-        collaboration.post_comment(task_id=task.id, body="Hello")
+        services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Hello")
     monkeypatch.undo()
 
-    created = collaboration.post_comment(task_id=task.id, body="Hello again")
+    created = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Hello again")
 
     assert created is not None
-    assert [c.id for c in collaboration._comment_repo.list_recent_for_tasks([task.id])] == [created.id]
+    assert [c.id for c in services["collaboration_comment_commands"]._comment_repo.list_recent_for_tasks([task.id])] == [created.id]
 
 
 def test_post_comment_successful_write_produces_a_durable_hint(services):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
     hints = _spy_hints(services)
 
-    created = collaboration.post_comment(task_id=task.id, body="Hello")
+    created = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Hello")
 
     assert created is not None
     assert created.body == "Hello"
-    assert [c.id for c in collaboration._comment_repo.list_recent_for_tasks([task.id])] == [created.id]
+    assert [c.id for c in services["collaboration_comment_commands"]._comment_repo.list_recent_for_tasks([task.id])] == [created.id]
     assert len(_comment_hints(hints)) == 2, "task-scoped + org-wide workspace target"
 
 
@@ -202,19 +195,18 @@ def test_post_comment_successful_write_produces_a_durable_hint(services):
 
 
 def test_mark_task_mentions_read_rolls_back_on_repository_failure(services, monkeypatch):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
     principal = services["user_session"].principal
     mention_username = principal.username
-    comment = collaboration.post_comment(task_id=task.id, body=f"Hey @{mention_username}")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body=f"Hey @{mention_username}")
     hints = _spy_hints(services)
     monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "update", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.mark_task_mentions_read(task.id)
+        services["collaboration_comment_engagement"].mark_task_mentions_read(task.id)
 
     monkeypatch.undo()
-    reloaded = collaboration._comment_repo.get(comment.id)
+    reloaded = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert reloaded.read_by_user_ids == []
     assert _comment_hints(hints) == []
 
@@ -226,22 +218,21 @@ def test_mark_task_mentions_read_rolls_back_on_commit_failure_and_session_stays_
         EnterpriseAuditService,
     )
 
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
     principal = services["user_session"].principal
     mention_username = principal.username
-    comment = collaboration.post_comment(task_id=task.id, body=f"Hey @{mention_username}")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body=f"Hey @{mention_username}")
     monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.mark_task_mentions_read(task.id)
+        services["collaboration_comment_engagement"].mark_task_mentions_read(task.id)
 
     monkeypatch.undo()
-    reloaded = collaboration._comment_repo.get(comment.id)
+    reloaded = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert reloaded.read_by_user_ids == []
 
-    collaboration.mark_task_mentions_read(task.id)
-    reloaded_again = collaboration._comment_repo.get(comment.id)
+    services["collaboration_comment_engagement"].mark_task_mentions_read(task.id)
+    reloaded_again = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert principal.user_id in reloaded_again.read_by_user_ids
 
 
@@ -252,59 +243,55 @@ def test_mark_task_mentions_read_rolls_back_on_commit_failure_and_session_stays_
 
 
 def test_edit_comment_rolls_back_on_repository_failure(services, monkeypatch):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
-    comment = collaboration.post_comment(task_id=task.id, body="Original body")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Original body")
     monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "update", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.edit_comment(comment.id, "Changed body", expected_revision=comment.version)
+        services["collaboration_comment_commands"].edit_comment(comment.id, "Changed body", expected_revision=comment.version)
 
     monkeypatch.undo()
-    reloaded = collaboration._comment_repo.get(comment.id)
+    reloaded = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert reloaded.body == "Original body"
 
 
 def test_delete_comment_rolls_back_on_repository_failure(services, monkeypatch):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
-    comment = collaboration.post_comment(task_id=task.id, body="Do not delete me")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Do not delete me")
     monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "update", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.delete_comment(comment.id, expected_revision=comment.version)
+        services["collaboration_comment_commands"].delete_comment(comment.id, expected_revision=comment.version)
 
     monkeypatch.undo()
-    reloaded = collaboration._comment_repo.get(comment.id)
+    reloaded = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert reloaded.is_deleted is False
 
 
 def test_react_to_comment_rolls_back_on_repository_failure(services, monkeypatch):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
-    comment = collaboration.post_comment(task_id=task.id, body="React to me")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="React to me")
     monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "update", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.react_to_comment(comment.id, "👍")
+        services["collaboration_comment_engagement"].react_to_comment(comment.id, "👍")
 
     monkeypatch.undo()
-    reloaded = collaboration._comment_repo.get(comment.id)
+    reloaded = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert reloaded.reactions == {}
 
 
 def test_remove_reaction_rolls_back_on_repository_failure(services, monkeypatch):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
-    comment = collaboration.post_comment(task_id=task.id, body="Unreact from me")
-    collaboration.react_to_comment(comment.id, "👍")
+    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Unreact from me")
+    services["collaboration_comment_engagement"].react_to_comment(comment.id, "👍")
     monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "update", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.remove_reaction(comment.id, "👍")
+        services["collaboration_comment_engagement"].remove_reaction(comment.id, "👍")
 
     monkeypatch.undo()
-    reloaded = collaboration._comment_repo.get(comment.id)
+    reloaded = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert "👍" in reloaded.reactions
 
 
@@ -314,52 +301,49 @@ def test_remove_reaction_rolls_back_on_repository_failure(services, monkeypatch)
 # ---------------------------------------------------------------------------
 
 
-def _presence_count(collaboration, task_id):
+def _presence_count(services, task_id):
     since = datetime.now(UTC) - timedelta(days=1)
-    return len(collaboration._presence_repo.list_recent_for_tasks([task_id], since=since))
+    return len(services["collaboration_presence_query"]._presence_repo.list_recent_for_tasks([task_id], since=since))
 
 
 def test_touch_task_presence_rolls_back_on_repository_failure(services, monkeypatch):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
-    before = _presence_count(collaboration, task.id)
+    before = _presence_count(services, task.id)
     monkeypatch.setattr(SqlAlchemyTaskPresenceRepository, "touch", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.touch_task_presence(task.id)
+        services["collaboration_presence_commands"].touch_task_presence(task.id)
 
     monkeypatch.undo()
-    assert _presence_count(collaboration, task.id) == before
+    assert _presence_count(services, task.id) == before
 
 
 def test_touch_task_presence_rolls_back_on_commit_failure_and_session_stays_usable(
     services, monkeypatch
 ):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
-    before = _presence_count(collaboration, task.id)
+    before = _presence_count(services, task.id)
     monkeypatch.setattr(SqlAlchemyCollaborationUnitOfWork, "commit", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.touch_task_presence(task.id)
+        services["collaboration_presence_commands"].touch_task_presence(task.id)
 
     monkeypatch.undo()
-    assert _presence_count(collaboration, task.id) == before
+    assert _presence_count(services, task.id) == before
 
-    collaboration.touch_task_presence(task.id)
-    assert _presence_count(collaboration, task.id) == before + 1
+    services["collaboration_presence_commands"].touch_task_presence(task.id)
+    assert _presence_count(services, task.id) == before + 1
 
 
 def test_clear_task_presence_rolls_back_on_repository_failure(services, monkeypatch):
-    collaboration = services["collaboration_service"]
     task = _make_task(services)
-    collaboration.touch_task_presence(task.id)
-    before = _presence_count(collaboration, task.id)
+    services["collaboration_presence_commands"].touch_task_presence(task.id)
+    before = _presence_count(services, task.id)
     assert before > 0
     monkeypatch.setattr(SqlAlchemyTaskPresenceRepository, "clear", _boom)
 
     with pytest.raises(_Boom):
-        collaboration.clear_task_presence(task.id)
+        services["collaboration_presence_commands"].clear_task_presence(task.id)
 
     monkeypatch.undo()
-    assert _presence_count(collaboration, task.id) == before
+    assert _presence_count(services, task.id) == before

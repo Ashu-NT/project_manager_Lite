@@ -101,14 +101,15 @@ class CsvImportRuntime:
             user_session=user_session,
             module_catalog_service=module_catalog_service,
         )
+        tracker = self._runtime_execution_service
         execution = (
-            self._runtime_execution_service.start_execution(
+            tracker.start_execution(
                 operation_type="import",
                 operation_key=normalized,
                 module_code=definition.module_code,
                 input_path=file_path,
             )
-            if self._runtime_execution_service is not None
+            if tracker is not None
             else None
         )
         try:
@@ -119,8 +120,8 @@ class CsvImportRuntime:
             )
             summary = definition.execute(rows)
             summary.entity_type = normalized
-            if execution is not None:
-                self._runtime_execution_service.complete_execution(
+            if execution is not None and tracker is not None:
+                tracker.complete_execution(
                     execution,
                     created_count=getattr(summary, "created_count", 0),
                     updated_count=getattr(summary, "updated_count", 0),
@@ -128,8 +129,8 @@ class CsvImportRuntime:
                 )
             return summary
         except Exception as exc:
-            if execution is not None:
-                self._runtime_execution_service.fail_execution(execution, error_message=str(exc))
+            if execution is not None and tracker is not None:
+                tracker.fail_execution(execution, error_message=str(exc))
             raise
 
     def _prepare_rows(

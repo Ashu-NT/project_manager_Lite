@@ -130,7 +130,7 @@ def build_global_overview_service_bundle(
                 platform_runtime_application_service=(
                     platform_services.platform_runtime_application_service
                 ),
-                dashboard_service=project_management_services.dashboard_service,
+                portfolio_dashboard=project_management_services.portfolio_dashboard_query,
                 project_service=project_management_services.project_service,
             ),
         ) if project_management_services is not None else (

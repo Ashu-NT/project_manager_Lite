@@ -1,4 +1,4 @@
-"""`DocumentService.list_documents_page_for_organization` -- a tenant-scoped
+"""`DocumentQueryHandler.list_documents_page_for_organization` -- a tenant-scoped
 (not active-organization-scoped) paginated read, added for Organization
 Detail's Documents tab so an admin can view ANY organization's documents
 regardless of which organization is currently active in their own session.
@@ -14,6 +14,9 @@ from datetime import UTC, datetime
 import pytest
 
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import (
     DocumentORM,
 )
@@ -26,25 +29,25 @@ from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant impo
 
 
 def test_viewing_a_non_active_organization_returns_its_own_documents_correctly(services) -> None:
-    organization_service = services["organization_service"]
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
+    document_query = services["document_query"]
     tenant_context_service = services["tenant_context_service"]
 
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="ORG-A", display_name="Org A", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_a.id)
-    document_service.create_document(document_code="A-DOC-1", title="A Document One", storage_uri="C:/docs/a1.pdf")
-    document_service.create_document(document_code="A-DOC-2", title="A Document Two", storage_uri="C:/docs/a2.pdf")
+    document_commands.create_document(DocumentCreateCommand(document_code="A-DOC-1", title="A Document One", storage_uri="C:/docs/a1.pdf"))
+    document_commands.create_document(DocumentCreateCommand(document_code="A-DOC-2", title="A Document Two", storage_uri="C:/docs/a2.pdf"))
 
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="ORG-B", display_name="Org B", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_b.id)
-    document_service.create_document(document_code="B-DOC-1", title="B Document One", storage_uri="C:/docs/b1.pdf")
+    document_commands.create_document(DocumentCreateCommand(document_code="B-DOC-1", title="B Document One", storage_uri="C:/docs/b1.pdf"))
 
     # Session-active org is now B; ask for A's documents anyway.
-    page = document_service.list_documents_page_for_organization(org_a.id, page=1, page_size=25)
+    page = document_query.list_documents_page_for_organization(org_a.id, page=1, page_size=25)
 
     titles = sorted(document.title for document in page.items)
     assert titles == ["A Document One", "A Document Two"]
@@ -55,26 +58,26 @@ def test_viewing_a_non_active_organization_returns_its_own_documents_correctly(s
 
 
 def test_no_leakage_from_the_active_organization_into_the_viewed_organization(services) -> None:
-    organization_service = services["organization_service"]
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
+    document_query = services["document_query"]
     tenant_context_service = services["tenant_context_service"]
 
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="LEAK-A", display_name="Leak A", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_a.id)
-    document_service.create_document(document_code="LEAK-A-1", title="Leak A Document", storage_uri="C:/docs/la.pdf")
+    document_commands.create_document(DocumentCreateCommand(document_code="LEAK-A-1", title="Leak A Document", storage_uri="C:/docs/la.pdf"))
 
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="LEAK-B", display_name="Leak B", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_b.id)
-    document_service.create_document(document_code="LEAK-B-1", title="Leak B Document", storage_uri="C:/docs/lb.pdf")
+    document_commands.create_document(DocumentCreateCommand(document_code="LEAK-B-1", title="Leak B Document", storage_uri="C:/docs/lb.pdf"))
 
     # Still active in B; explicitly ask for B's own documents -- must not
     # also include anything from A, proving the query is genuinely
     # org-filtered and not accidentally returning the whole tenant.
-    page = document_service.list_documents_page_for_organization(org_b.id, page=1, page_size=25)
+    page = document_query.list_documents_page_for_organization(org_b.id, page=1, page_size=25)
     titles = {document.title for document in page.items}
     assert titles == {"Leak B Document"}
     assert "Leak A Document" not in titles
@@ -82,7 +85,7 @@ def test_no_leakage_from_the_active_organization_into_the_viewed_organization(se
 
 def test_cross_tenant_organization_id_is_rejected_not_visible(services) -> None:
     session = services["session"]
-    document_service = services["document_service"]
+    document_query = services["document_query"]
     tenant_context_service = services["tenant_context_service"]
     caller_tenant_id = tenant_context_service.require_active_tenant_id(operation_label="test setup")
 
@@ -131,31 +134,31 @@ def test_cross_tenant_organization_id_is_rejected_not_visible(services) -> None:
 
     assert foreign_tenant_id != caller_tenant_id
     with pytest.raises(NotFoundError):
-        document_service.list_documents_page_for_organization(foreign_org_id, page=1, page_size=25)
+        document_query.list_documents_page_for_organization(foreign_org_id, page=1, page_size=25)
 
 
 def test_inactive_and_archived_organizations_still_have_readable_document_history(services) -> None:
-    organization_service = services["organization_service"]
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
+    document_query = services["document_query"]
     tenant_context_service = services["tenant_context_service"]
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="HIST-DOC", display_name="History Org", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org.id)
-    document_service.create_document(document_code="HIST-DOC-1", title="History Document", storage_uri="C:/docs/hist.pdf")
+    document_commands.create_document(DocumentCreateCommand(document_code="HIST-DOC-1", title="History Document", storage_uri="C:/docs/hist.pdf"))
 
-    other = organization_service.create_organization(
+    other = services["organization_commands"].create_organization(
         organization_code="HIST-DOC-OTHER", display_name="History Other", timezone_name="UTC", base_currency="USD"
     )
-    organization_service.deactivate_organization(org.id)
+    services["organization_lifecycle"].deactivate_organization(org.id)
     tenant_context_service.set_active_organization(other.id)
 
-    page = document_service.list_documents_page_for_organization(org.id, page=1, page_size=25)
+    page = document_query.list_documents_page_for_organization(org.id, page=1, page_size=25)
     assert [document.title for document in page.items] == ["History Document"]
 
-    organization_service.archive_organization(org.id)
-    page = document_service.list_documents_page_for_organization(org.id, page=1, page_size=25)
+    services["organization_lifecycle"].archive_organization(org.id)
+    page = document_query.list_documents_page_for_organization(org.id, page=1, page_size=25)
     assert [document.title for document in page.items] == ["History Document"]
 
 
@@ -163,24 +166,22 @@ def test_mutation_paths_still_use_the_active_organization_not_the_viewed_one(ser
     """create_document()/update_document() are unaffected by this read-only
     addition -- they keep using the caller's active organization, the
     existing, unchanged domain rule (do not weaken mutation scoping)."""
-    organization_service = services["organization_service"]
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
+    document_query = services["document_query"]
     tenant_context_service = services["tenant_context_service"]
 
-    org_a = organization_service.create_organization(
+    org_a = services["organization_commands"].create_organization(
         organization_code="MUT-DOC-A", display_name="Mutation A", timezone_name="UTC", base_currency="USD"
     )
-    org_b = organization_service.create_organization(
+    org_b = services["organization_commands"].create_organization(
         organization_code="MUT-DOC-B", display_name="Mutation B", timezone_name="UTC", base_currency="USD"
     )
     tenant_context_service.set_active_organization(org_b.id)
 
-    created = document_service.create_document(
-        document_code="MUT-DOC", title="Mutation Document", storage_uri="C:/docs/mut.pdf"
-    )
+    created = document_commands.create_document(DocumentCreateCommand(document_code="MUT-DOC", title="Mutation Document", storage_uri="C:/docs/mut.pdf"))
     assert created.organization_id == org_b.id
 
-    page_a = document_service.list_documents_page_for_organization(org_a.id, page=1, page_size=25)
+    page_a = document_query.list_documents_page_for_organization(org_a.id, page=1, page_size=25)
     assert page_a.items == []
-    page_b = document_service.list_documents_page_for_organization(org_b.id, page=1, page_size=25)
+    page_b = document_query.list_documents_page_for_organization(org_b.id, page=1, page_size=25)
     assert [d.title for d in page_b.items] == ["Mutation Document"]

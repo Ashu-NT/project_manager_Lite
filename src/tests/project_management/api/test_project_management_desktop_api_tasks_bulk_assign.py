@@ -111,7 +111,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
         task_service=task_service,
         task_assignment_commands=task_service,
         project_resource_service=project_resource_service,
-        resource_service=resource_service,
+        resource_query=resource_service,
     )
 
     assert api.list_project_resources(project.id)[0].label == "Alex Taylor (90.00 EUR/hr)"
@@ -219,7 +219,7 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
         project_service=project_service,
         task_service=task_service,
         project_resource_service=project_resource_service,
-        resource_service=_TaskScopedResourceService([resource]),
+        resource_query=_TaskScopedResourceService([resource]),
     )
 
     assert api.list_project_resources(project.id)[0].label == "Alex Taylor (90.00 EUR/hr)"

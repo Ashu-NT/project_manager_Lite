@@ -146,7 +146,7 @@ class ShiftPatternService:
         require_permission(
             self._user_session, "calendar.manage", operation_label="delete shift pattern"
         )
-        pattern = self._require_pattern_in_active_organization(pattern_id)
+        self._require_pattern_in_active_organization(pattern_id)
         self._pattern_repo.delete(pattern_id)
         self._session.commit()
         self._invalidate_resolver_cache()

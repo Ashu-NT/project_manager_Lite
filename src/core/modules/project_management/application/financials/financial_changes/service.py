@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
@@ -30,7 +29,7 @@ from src.core.modules.project_management.application.financials.shared.successor
 from src.core.modules.project_management.contracts.approval import (
     pm_reviewer_permission,
 )
-from src.core.modules.project_management.contracts.ports.schedule_change import (
+from src.core.modules.project_management.contracts.ports.scheduling.schedule_change import (
     ApprovedScheduleChangePort,
     ApprovedTaskScheduleChange,
 )
@@ -53,7 +52,10 @@ from src.core.modules.project_management.contracts.repositories.projects.project
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     TaskRepository,
 )
-from src.core.modules.project_management.domain.financials.budget import ProjectBudget
+from src.core.modules.project_management.domain.financials.budget import (
+    BudgetLine,
+    ProjectBudget,
+)
 from src.core.modules.project_management.domain.financials.configuration import (
     CostCodePolicy,
 )
@@ -64,6 +66,7 @@ from src.core.modules.project_management.domain.financials.financial_change impo
     FinancialChangeStatus,
 )
 from src.core.modules.project_management.domain.financials.forecast import (
+    ForecastLine,
     ProjectForecast,
 )
 from src.core.platform.application.approval.approval_mutation_participant import (
@@ -86,6 +89,7 @@ from src.core.platform.contract.repositories.approval.contracts import (
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.time.clock import CalendarClock
 
 _REVISION_CONSTRAINT = "uq_pf_change_project_revision"
 
@@ -108,7 +112,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         budget_authority: BudgetService | None = None,
         forecast_authority: ForecastVersionService | None = None,
         approval_service: ApprovalService | None,
-        clock: Clock,
+        clock: CalendarClock,
         approval_repo: ApprovalRepository | None = None,
         record_event: Callable[[object], None] | None = None,
         user_session=None,
@@ -754,20 +758,23 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
     ) -> None:
         if not impact.target_line_id:
             return
+        line: BudgetLine | ForecastLine
         if impact.impact_type is FinancialChangeImpactType.BUDGET:
-            line = self._budget_repo.get_line(impact.target_line_id)
-            if line is None or line.budget_id != change.base_budget_id:
+            budget_line = self._budget_repo.get_line(impact.target_line_id)
+            if budget_line is None or budget_line.budget_id != change.base_budget_id:
                 raise NotFoundError(
                     "Target approved budget line not found.",
                     code="FINANCIAL_CHANGE_BUDGET_TARGET_NOT_FOUND",
                 )
+            line = budget_line
         elif impact.impact_type is FinancialChangeImpactType.FORECAST:
-            line = self._forecast_repo.get_line(impact.target_line_id)
-            if line is None or line.forecast_id != change.base_forecast_id:
+            forecast_line = self._forecast_repo.get_line(impact.target_line_id)
+            if forecast_line is None or forecast_line.forecast_id != change.base_forecast_id:
                 raise NotFoundError(
                     "Target approved forecast line not found.",
                     code="FINANCIAL_CHANGE_FORECAST_TARGET_NOT_FOUND",
                 )
+            line = forecast_line
         else:
             raise BusinessRuleError(
                 "Only budget and forecast impacts may target canonical financial lines.",

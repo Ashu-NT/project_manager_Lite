@@ -33,9 +33,8 @@ from src.infra.persistence.orm.base import Base
 
 
 def _login(services, username: str, password: str) -> None:
-    auth = services["auth_service"]
-    user = auth.authenticate(username, password)
-    services["user_session"].set_principal(auth.build_principal(user))
+    user = services["authentication"].authenticate(username, password)
+    services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
 def _submitted_forecast(services, session):
@@ -205,7 +204,7 @@ def test_platform_approval_request_enforces_separation_of_duties(
         services["approval_service"].reject(result.approval_request_id)
     assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
 
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "forecast-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "forecast-reviewer", "StrongPass123")
@@ -262,7 +261,7 @@ def test_platform_approval_rolls_back_forecast_when_participant_fails(
         forecast.id,
         expected_version=forecast.row_version,
     )
-    services["auth_service"].register_user(
+    services["user_registration"].register_user(
         "forecast-rollback-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "forecast-rollback-reviewer", "StrongPass123")

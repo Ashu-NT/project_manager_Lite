@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import field
 from datetime import UTC, datetime
+from typing import cast
 
 from pydantic import field_validator
 
@@ -48,7 +49,8 @@ def normalize_access_permission_codes(value: Iterable[object] | object | None) -
         items = [value]
     else:
         try:
-            items = list(value)
+            # Non-iterables raise TypeError and are wrapped below.
+            items = list(cast(Iterable[object], value))
         except TypeError:
             items = [value]
     return sorted(
@@ -121,7 +123,7 @@ class ScopedAccessGrant:
             scope_id=scope_id,
             user_id=user_id,
             scope_role=scope_role,
-            permission_codes=permission_codes,
+            permission_codes=normalize_access_permission_codes(permission_codes),
         )
 
 

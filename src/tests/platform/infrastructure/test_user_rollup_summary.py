@@ -1,9 +1,9 @@
 """Users Overview rollup -- SQL replacement for `list_users()` + Python aggregation on the
 Admin Overview, avoiding the tenant-caller path's former per-user N+1
-(`_canonical_platform_authority`) to compute total/active/locked counts.
+(`AuthQueryHandler.canonical_platform_authority`) to compute total/active/locked counts.
 
 `list_users()` itself is unchanged and still backs the paginated Users workspace page. The
-SQL predicate reproduces `_canonical_platform_authority`'s full platform-authority check
+SQL predicate reproduces `AuthQueryHandler.canonical_platform_authority`'s full platform-authority check
 (`actual_scope_type='platform'`, `role.status='active'`, and `role.name` in
 {"admin", "support_admin"}) rather than inferring it from `tenant_id IS NULL` alone.
 """
@@ -30,6 +30,7 @@ from src.core.platform.infrastructure.persistence.read.overview.platform_overvie
     SqlAlchemyPlatformOverviewRollupReader,
 )
 from src.infra.persistence.orm import Base
+from src.tests.auth_test_support import standalone_auth
 
 # ---------------------------------------------------------------------------
 # Reader-level unit tests: isolated db, full control over every scenario.
@@ -514,25 +515,24 @@ def test_platform_operator_path_issues_exactly_one_statement(reader_session):
 def test_service_platform_operator_path_matches_list_all_semantics(services):
     """The default `services` fixture's authenticated principal is the
     bootstrap "admin" user -- a platform operator."""
-    auth_service = services["auth_service"]
+    services["auth"]
 
-    baseline = auth_service.get_user_rollup_summary()
-    auth_service.onboard_tenant_user(
+    baseline = services["user_directory_query"].get_user_rollup_summary()
+    services["user_registration"].onboard_tenant_user(
         username="rollup-service-user-1",
         raw_password="StrongPass123!",
         display_name="Rollup Service User",
         is_active=True,
     )
 
-    updated = auth_service.get_user_rollup_summary()
+    updated = services["user_directory_query"].get_user_rollup_summary()
     assert updated.total == baseline.total + 1
 
 
 def test_desktop_api_get_user_rollup_summary(services):
-    from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+    from src.tests.auth_test_support import platform_user_api
 
-    auth_service = services["auth_service"]
-    api = PlatformUserDesktopApi(auth_service=auth_service)
+    api = platform_user_api(services)
 
     result = api.get_user_rollup_summary()
 
@@ -541,7 +541,6 @@ def test_desktop_api_get_user_rollup_summary(services):
 
 
 def _make_tenant_caller_session(services, *, tenant_id: str):
-    from src.core.platform.application.security.auth.auth_service import AuthService
     from src.core.platform.application.tenant.tenancy.tenant_context import (
         TenantContextService,
     )
@@ -550,8 +549,8 @@ def _make_tenant_caller_session(services, *, tenant_id: str):
         UserSessionPrincipal,
     )
 
-    auth = services["auth_service"]
-    viewer = auth.register_user(
+    services["auth"]
+    viewer = services["user_registration"].register_user(
         f"rollup-tenant-viewer-{tenant_id}", "StrongPass123!", role_names=["viewer"]
     )
     from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
@@ -579,37 +578,24 @@ def _make_tenant_caller_session(services, *, tenant_id: str):
     viewer_session.set_active_tenant_id(tenant_id)
 
     # A fresh TenantContextService bound to viewer_session -- reusing the
-    # shared services["auth_service"]._tenant_context_service would validate
+    # shared services["tenant_context_service"] would validate
     # against the ADMIN session's active tenant, not the viewer's, and
     # raise TENANT_CONTEXT_MISMATCH.
     viewer_tenant_context_service = TenantContextService(
-        tenant_repo=auth._tenant_context_service._tenant_repo,
-        organization_repo=auth._tenant_context_service._organization_repo,
+        tenant_repo=services["tenant_context_service"]._tenant_repo,
+        organization_repo=services["tenant_context_service"]._organization_repo,
         user_session=viewer_session,
         user_tenant_repo=user_tenant_repo,
-        context_policy=auth._tenant_context_service._context_policy,
+        context_policy=services["tenant_context_service"]._context_policy,
     )
 
-    return AuthService(
-        session=session,
-        user_repo=auth._user_repo,
-        role_repo=auth._role_repo,
-        permission_repo=auth._permission_repo,
-        role_permission_repo=auth._role_permission_repo,
-        auth_session_repo=auth._auth_session_repo,
+    viewer_auth = standalone_auth(
+        session,
+        overview_rollup_reader=services["user_directory_query"]._overview_rollup_reader,
         user_session=viewer_session,
-        enterprise_audit_service=auth._enterprise_audit_service,
-        security_audit_repo=auth._security_audit_repo,
-        user_tenant_repo=auth._user_tenant_repo,
         tenant_context_service=viewer_tenant_context_service,
-        role_binding_repo=auth._role_binding_repo,
-        overview_rollup_reader=auth._overview_rollup_reader,
-        transactional_dispatcher=auth._transactional_dispatcher,
-        post_commit_bus=auth._post_commit_bus,
-        clock=auth._clock,
-        uow_factory=auth._uow_factory,
-        session_write_lock=auth._session_write_lock,
-    ), viewer.id
+    )[0]
+    return viewer_auth, viewer.id
 
 
 def test_service_tenant_caller_path_excludes_platform_users_and_scopes_by_tenant(services):
@@ -626,12 +612,11 @@ def test_service_tenant_caller_path_excludes_platform_users_and_scopes_by_tenant
 
     tenant_auth, viewer_id = _make_tenant_caller_session(services, tenant_id=tenant.id)
 
-    baseline = tenant_auth.get_user_rollup_summary()
+    baseline = tenant_auth.user_directory.get_user_rollup_summary()
     assert baseline.total == 1  # just the viewer registered into this tenant
 
     # Register a platform-authority user and add them to the SAME tenant --
     # they must not be counted, matching list_users()'s own exclusion.
-    admin_service = services["auth_service"]
     from src.core.platform.domain.security.authorization.roles import RoleBinding
     from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
         UserTenantMembership,
@@ -640,11 +625,11 @@ def test_service_tenant_caller_path_excludes_platform_users_and_scopes_by_tenant
         SqlAlchemyUserTenantMembershipRepository,
     )
 
-    platform_role = admin_service._role_repo.get_by_name("admin")
-    platform_user = admin_service.register_user(
+    platform_role = services["auth_queries"]._role_repo.get_by_name("admin")
+    platform_user = services["user_registration"].register_user(
         "rollup-platform-user", "StrongPass123!", role_names=[]
     )
-    admin_service._role_binding_repo.add(
+    services["role_assignment_commands"]._role_binding_repo.add(
         RoleBinding.create(
             principal_id=platform_user.id,
             role_id=platform_role.id,
@@ -655,19 +640,18 @@ def test_service_tenant_caller_path_excludes_platform_users_and_scopes_by_tenant
     user_tenant_repo.add(UserTenantMembership.create(user_id=platform_user.id, tenant_id=tenant.id))
     session.flush()
 
-    updated = tenant_auth.get_user_rollup_summary()
+    updated = tenant_auth.user_directory.get_user_rollup_summary()
     assert updated.total == 1  # platform_user excluded, still just the viewer
 
 
 def test_service_tenant_caller_requires_permission(services):
-    from src.core.platform.application.security.auth.auth_service import AuthService
     from src.core.platform.common.exceptions import BusinessRuleError
     from src.core.platform.domain.security.auth.session import (
         UserSessionContext,
         UserSessionPrincipal,
     )
 
-    auth = services["auth_service"]
+    services["auth"]
     no_perms_session = UserSessionContext()
     no_perms_session.set_principal(
         UserSessionPrincipal(
@@ -678,23 +662,14 @@ def test_service_tenant_caller_requires_permission(services):
             permissions=frozenset(),
         )
     )
-    stripped_auth = AuthService(
-        session=services["session"],
-        user_repo=auth._user_repo,
-        role_repo=auth._role_repo,
-        permission_repo=auth._permission_repo,
-        role_permission_repo=auth._role_permission_repo,
+    stripped_auth = standalone_auth(
+        services["session"],
+        overview_rollup_reader=services["user_directory_query"]._overview_rollup_reader,
         user_session=no_perms_session,
-        overview_rollup_reader=auth._overview_rollup_reader,
-        transactional_dispatcher=auth._transactional_dispatcher,
-        post_commit_bus=auth._post_commit_bus,
-        clock=auth._clock,
-        uow_factory=auth._uow_factory,
-        session_write_lock=auth._session_write_lock,
-    )
+    )[0]
 
     with pytest.raises(BusinessRuleError):
-        stripped_auth.get_user_rollup_summary()
+        stripped_auth.user_directory.get_user_rollup_summary()
 
 
 # ---------------------------------------------------------------------------
@@ -704,21 +679,21 @@ def test_service_tenant_caller_requires_permission(services):
 
 
 def test_parity_with_list_users_platform_operator(services):
-    auth_service = services["auth_service"]
+    services["auth"]
 
-    auth_service.onboard_tenant_user(
+    services["user_registration"].onboard_tenant_user(
         username="parity-user-1", raw_password="StrongPass123!", display_name="Parity One", is_active=True
     )
-    auth_service.onboard_tenant_user(
+    services["user_registration"].onboard_tenant_user(
         username="parity-user-2", raw_password="StrongPass123!", display_name="Parity Two", is_active=False
     )
 
-    expected_users = auth_service.list_users()
+    expected_users = services["user_directory_query"].list_users()
     expected_total = len(expected_users)
     expected_active = sum(1 for u in expected_users if u.is_active)
     expected_locked = sum(1 for u in expected_users if u.locked_until is not None)
 
-    rollup = auth_service.get_user_rollup_summary()
+    rollup = services["user_directory_query"].get_user_rollup_summary()
 
     assert rollup.total == expected_total
     assert rollup.active == expected_active
@@ -744,15 +719,14 @@ def test_parity_with_list_users_tenant_caller_excludes_same_users(services):
     tenant_repo.add(tenant)
     session.flush()
 
-    admin_service = services["auth_service"]
     user_tenant_repo = SqlAlchemyUserTenantMembershipRepository(session)
 
-    ordinary = admin_service.register_user("parity-ordinary", "StrongPass123!", role_names=["viewer"])
+    ordinary = services["user_registration"].register_user("parity-ordinary", "StrongPass123!", role_names=["viewer"])
     user_tenant_repo.add(UserTenantMembership.create(user_id=ordinary.id, tenant_id=tenant.id))
 
-    platform_role = admin_service._role_repo.get_by_name("admin")
-    platform_user = admin_service.register_user("parity-platform-user", "StrongPass123!", role_names=[])
-    admin_service._role_binding_repo.add(
+    platform_role = services["auth_queries"]._role_repo.get_by_name("admin")
+    platform_user = services["user_registration"].register_user("parity-platform-user", "StrongPass123!", role_names=[])
+    services["role_assignment_commands"]._role_binding_repo.add(
         RoleBinding.create(
             principal_id=platform_user.id,
             role_id=platform_role.id,
@@ -767,11 +741,11 @@ def test_parity_with_list_users_tenant_caller_excludes_same_users(services):
     # tenant, so the tenant now has: its own viewer + `ordinary` + the
     # excluded `platform_user`.
 
-    expected_users = tenant_auth.list_users()
+    expected_users = tenant_auth.user_directory.list_users()
     expected_total = len(expected_users)
     assert all(u.id != platform_user.id for u in expected_users)
 
-    rollup = tenant_auth.get_user_rollup_summary()
+    rollup = tenant_auth.user_directory.get_user_rollup_summary()
     assert rollup.total == expected_total
 
 
@@ -782,11 +756,13 @@ def test_parity_with_list_users_tenant_caller_excludes_same_users(services):
 
 
 def test_overview_path_never_calls_canonical_platform_authority_or_list_all_permissions(services):
-    from src.core.platform.application.security.auth.auth_query import AuthQueryMixin
+    from src.core.platform.application.security.auth.queries.auth_queries import (
+        AuthQueryHandler,
+    )
 
-    auth_service = services["auth_service"]
+    services["auth"]
     for i in range(15):
-        auth_service.onboard_tenant_user(
+        services["user_registration"].onboard_tenant_user(
             username=f"guardrail-user-{i}",
             raw_password="StrongPass123!",
             display_name=f"Guardrail User {i}",
@@ -794,8 +770,8 @@ def test_overview_path_never_calls_canonical_platform_authority_or_list_all_perm
         )
 
     counts = {"canonical_platform_authority": 0, "permission_list_all": 0}
-    real_canonical = AuthQueryMixin._canonical_platform_authority
-    real_permission_list_all = type(auth_service._permission_repo).list_all
+    real_canonical = AuthQueryHandler.canonical_platform_authority
+    real_permission_list_all = type(services["platform_owner_provisioning"]._permission_repo).list_all
 
     def counting_canonical(self, user_id):
         counts["canonical_platform_authority"] += 1
@@ -805,13 +781,13 @@ def test_overview_path_never_calls_canonical_platform_authority_or_list_all_perm
         counts["permission_list_all"] += 1
         return real_permission_list_all(self)
 
-    AuthQueryMixin._canonical_platform_authority = counting_canonical
-    type(auth_service._permission_repo).list_all = counting_permission_list_all
+    AuthQueryHandler.canonical_platform_authority = counting_canonical
+    type(services["platform_owner_provisioning"]._permission_repo).list_all = counting_permission_list_all
     try:
-        auth_service.get_user_rollup_summary()
+        services["user_directory_query"].get_user_rollup_summary()
     finally:
-        AuthQueryMixin._canonical_platform_authority = real_canonical
-        type(auth_service._permission_repo).list_all = real_permission_list_all
+        AuthQueryHandler.canonical_platform_authority = real_canonical
+        type(services["platform_owner_provisioning"]._permission_repo).list_all = real_permission_list_all
 
     assert counts["canonical_platform_authority"] == 0
     assert counts["permission_list_all"] == 0
@@ -819,35 +795,37 @@ def test_overview_path_never_calls_canonical_platform_authority_or_list_all_perm
 
 def test_admin_overview_user_metrics_match_rollup_not_full_list(services):
     from src.application.runtime import build_desktop_api_registry
-    from src.core.platform.application.security.auth.auth_query import AuthQueryMixin
+    from src.core.platform.application.security.auth.queries.auth_queries import (
+        AuthQueryHandler,
+    )
     from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
-    auth_service = services["auth_service"]
+    services["auth"]
     for i in range(10):
-        auth_service.onboard_tenant_user(
+        services["user_registration"].onboard_tenant_user(
             username=f"overview-user-{i}",
             raw_password="StrongPass123!",
             display_name=f"Overview User {i}",
             is_active=(i % 2 == 0),
         )
 
-    expected = auth_service.get_user_rollup_summary()
+    expected = services["user_directory_query"].get_user_rollup_summary()
 
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
 
     counts = {"canonical_platform_authority": 0}
-    real_canonical = AuthQueryMixin._canonical_platform_authority
+    real_canonical = AuthQueryHandler.canonical_platform_authority
 
     def counting_canonical(self, user_id):
         counts["canonical_platform_authority"] += 1
         return real_canonical(self, user_id)
 
-    AuthQueryMixin._canonical_platform_authority = counting_canonical
+    AuthQueryHandler.canonical_platform_authority = counting_canonical
     try:
         admin = catalog.adminOverview()
     finally:
-        AuthQueryMixin._canonical_platform_authority = real_canonical
+        AuthQueryHandler.canonical_platform_authority = real_canonical
 
     assert counts["canonical_platform_authority"] == 0
     metrics_by_label = {m["label"]: m["value"] for m in admin["metrics"]}

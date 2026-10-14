@@ -10,6 +10,9 @@ Covers:
 """
 from __future__ import annotations
 
+from src.core.platform.contract.use_cases.master_data.site.commands import (
+    SiteCreateCommand,
+)
 from src.core.platform.domain.security.authorization.roles import RoleBinding
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
@@ -27,10 +30,9 @@ def _active_context_ids(services) -> tuple[str, str]:
 
 
 def _bind_site_role(services, user_id: str, site_id: str, role_name: str) -> None:
-    auth = services["auth_service"]
-    role = auth._role_repo.get_by_name(role_name)
+    role = services["auth_queries"]._role_repo.get_by_name(role_name)
     assert role is not None
-    auth._role_binding_repo.add(
+    services["role_assignment_commands"]._role_binding_repo.add(
         RoleBinding.create(
             principal_id=user_id,
             role_id=role.id,
@@ -43,12 +45,7 @@ def _bind_site_role(services, user_id: str, site_id: str, role_name: str) -> Non
 
 
 def _create_site(services, site_code: str):
-    return services["site_service"].create_site(
-        site_code=site_code,
-        name=f"Phase 2C {site_code}",
-        city="Berlin",
-        currency_code="EUR",
-    )
+    return services["site_commands"].create_site(SiteCreateCommand(site_code=site_code, name=f"Phase 2C {site_code}", city="Berlin", currency_code="EUR"))
 
 
 # ---------------------------------------------------------------------------
@@ -87,9 +84,8 @@ def test_all_site_scope_permissions_are_registered():
 # ---------------------------------------------------------------------------
 
 def test_site_scope_roles_are_seeded_in_db(services):
-    auth = services["auth_service"]
     for role_name in ("site_viewer", "site_operator", "site_manager"):
-        role = auth._role_repo.get_by_name(role_name)
+        role = services["auth_queries"]._role_repo.get_by_name(role_name)
         assert role is not None, f"{role_name} role was not seeded"
         assert role.allowed_scope_type == "site"
 
@@ -99,11 +95,10 @@ def test_site_scope_roles_are_seeded_in_db(services):
 # ---------------------------------------------------------------------------
 
 def test_user_assigned_site_manager_gets_correct_permissions(services):
-    auth = services["auth_service"]
     tenant_id, _ = _active_context_ids(services)
 
     site = _create_site(services, "P2C-MGR")
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2c-assign-smanager",
         "StrongPass123!",
         role_names=["viewer"],
@@ -111,18 +106,17 @@ def test_user_assigned_site_manager_gets_correct_permissions(services):
     )
     _bind_site_role(services, user.id, site.id, "site_manager")
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert "site_manager" in principal.role_names
     assert "inventory.manage" in principal.permissions
     assert site.id in principal.scoped_access.get("site", {})
 
 
 def test_user_assigned_site_viewer_gets_read_only_permissions(services):
-    auth = services["auth_service"]
     tenant_id, _ = _active_context_ids(services)
 
     site = _create_site(services, "P2C-VWR")
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2c-assign-sviewer",
         "StrongPass123!",
         role_names=["viewer"],
@@ -130,7 +124,7 @@ def test_user_assigned_site_viewer_gets_read_only_permissions(services):
     )
     _bind_site_role(services, user.id, site.id, "site_viewer")
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     assert "site_viewer" in principal.role_names
     assert "site.read" in principal.permissions
     assert "inventory.read" not in principal.permissions
@@ -142,12 +136,11 @@ def test_user_assigned_site_viewer_gets_read_only_permissions(services):
 # ---------------------------------------------------------------------------
 
 def test_site_role_binding_is_scoped_to_its_own_site(services):
-    auth = services["auth_service"]
     tenant_id, organization_id = _active_context_ids(services)
 
     site_a = _create_site(services, "P2C-SCOPE-A")
     site_b = _create_site(services, "P2C-SCOPE-B")
-    user = auth.register_user(
+    user = services["user_registration"].register_user(
         "p2c-site-scope",
         "StrongPass123!",
         role_names=["viewer"],
@@ -155,7 +148,7 @@ def test_site_role_binding_is_scoped_to_its_own_site(services):
     )
     _bind_site_role(services, user.id, site_a.id, "site_manager")
 
-    principal = auth.build_principal_for_context(
+    principal = services["principal_builder"].build_for_context(
         user,
         tenant_id=tenant_id,
         organization_id=organization_id,

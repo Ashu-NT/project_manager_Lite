@@ -93,8 +93,13 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
         project_service=project_service,
         task_lookup_query=task_service,
         task_assignment_commands=task_service,
-        resource_service=resource_service,
-        timesheet_service=timesheet_service,
+        resource_query=resource_service,
+        # The fake implements every Time capability the adapter uses.
+        timesheet_review_query=timesheet_service,
+        time_entry_commands=timesheet_service,
+        time_entry_queries=timesheet_service,
+        timesheet_period_query=timesheet_service,
+        timesheet_period_transitions=timesheet_service,
     )
 
     assert api.list_projects()[0].label == "Plant Upgrade"

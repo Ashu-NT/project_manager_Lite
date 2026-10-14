@@ -1,11 +1,41 @@
-from src.core.platform.application.security.auth.auth_query import AuthQueryMixin
-from src.core.platform.application.security.auth.auth_service import AuthService
-from src.core.platform.application.security.auth.auth_validation import (
-    AuthValidationMixin,
+from src.core.platform.application.security.auth.auth_transaction_scope import (
+    AuthTransactionScope,
+)
+from src.core.platform.application.security.auth.auth_validation_policy import (
+    AuthValidationPolicy,
+)
+from src.core.platform.application.security.auth.commands import (
+    AuthBootstrapHandler,
+    AuthenticationHandler,
+    AuthSessionCommandHandler,
+    ContextSwitchCommandHandler,
+    FederatedIdentityCommandHandler,
+    MfaCommandHandler,
+    PasswordCommandHandler,
+    PlatformOwnerProvisioningHandler,
+    UserAdministrationCommandHandler,
+    UserRegistrationHandler,
+)
+from src.core.platform.application.security.auth.queries import (
+    AuthQueryHandler,
+    AuthSessionQueryHandler,
+    UserDirectoryQueryHandler,
 )
 
 __all__ = [
-    "AuthQueryMixin",
-    "AuthService",
-    "AuthValidationMixin",
+    "AuthBootstrapHandler",
+    "AuthQueryHandler",
+    "AuthSessionCommandHandler",
+    "AuthSessionQueryHandler",
+    "AuthTransactionScope",
+    "AuthValidationPolicy",
+    "AuthenticationHandler",
+    "ContextSwitchCommandHandler",
+    "FederatedIdentityCommandHandler",
+    "MfaCommandHandler",
+    "PasswordCommandHandler",
+    "PlatformOwnerProvisioningHandler",
+    "UserAdministrationCommandHandler",
+    "UserDirectoryQueryHandler",
+    "UserRegistrationHandler",
 ]

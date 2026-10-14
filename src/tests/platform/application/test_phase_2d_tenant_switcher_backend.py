@@ -48,13 +48,12 @@ def _make_regular_user_svc(
 ) -> tuple[TenantAdminService, TenantContextService, UserSessionContext]:
     """Build TenantAdminService + TenantContextService scoped to a fresh regular user."""
     session = services["session"]
-    auth = services["auth_service"]
     try:
-        user = auth.register_user(username, "StrongPass123!", role_names=["viewer"])
+        user = services["user_registration"].register_user(username, "StrongPass123!", role_names=["viewer"])
     except Exception:
-        user = auth.authenticate(username, "StrongPass123!")
+        user = services["authentication"].authenticate(username, "StrongPass123!")
 
-    principal = auth.build_principal(user)
+    principal = services["principal_builder"].build(user)
     ctx = UserSessionContext()
     ctx.set_principal(principal)
 

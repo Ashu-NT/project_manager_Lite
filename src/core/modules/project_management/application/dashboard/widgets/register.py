@@ -7,13 +7,11 @@ from src.core.modules.project_management.application.risk import (
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
-class DashboardRegisterMixin:
-    _registers: RegisterQueryHandler | None
+class DashboardRegisterWidget:
+    def __init__(self, register_query: RegisterQueryHandler | None) -> None:
+        self._registers = register_query
 
-    def _build_register_snapshot(
-        self,
-        project_id: str,
-    ) -> RegisterDashboardSnapshot | None:
+    def build_snapshot(self, project_id: str) -> RegisterDashboardSnapshot | None:
         if self._registers is None:
             return None
         try:
@@ -22,4 +20,4 @@ class DashboardRegisterMixin:
             return None
 
 
-__all__ = ["DashboardRegisterMixin"]
+__all__ = ["DashboardRegisterWidget"]

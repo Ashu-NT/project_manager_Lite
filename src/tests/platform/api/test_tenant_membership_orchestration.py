@@ -52,7 +52,7 @@ def _auth_session_repo(services):
 
 
 def _register_user(services, username: str):
-    return services["auth_service"].register_user(
+    return services["user_registration"].register_user(
         username,
         _PASSWORD,
         display_name=username,
@@ -60,9 +60,8 @@ def _register_user(services, username: str):
 
 
 def _set_user_principal(services, username: str):
-    auth = services["auth_service"]
-    user = auth.authenticate(username, _PASSWORD)
-    principal = auth.build_principal(user)
+    user = services["authentication"].authenticate(username, _PASSWORD)
+    principal = services["principal_builder"].build(user)
     services["user_session"].set_principal(principal)
     return user
 
@@ -335,7 +334,7 @@ def test_invitation_rejects_an_existing_canonical_tenant_member(
     tenant_id = services["tenant_context_service"].require_active_tenant_id(
         operation_label="test existing canonical member"
     )
-    target = services["auth_service"].register_user(
+    target = services["user_registration"].register_user(
         "ambiguous_role_target",
         _PASSWORD,
         role_names=("planner",),
@@ -496,7 +495,7 @@ def test_last_effective_tenant_administrator_cannot_be_suspended(
     tenant_id = services["tenant_context_service"].require_active_tenant_id(
         operation_label="test last tenant administrator"
     )
-    target = services["auth_service"].register_user(
+    target = services["user_registration"].register_user(
         "last_tenant_admin",
         _PASSWORD,
         role_names=("tenant_admin",),

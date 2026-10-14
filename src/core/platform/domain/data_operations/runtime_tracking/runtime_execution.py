@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import field
 from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import field_validator
 
@@ -61,7 +62,7 @@ def _normalize_metadata(value: object) -> dict[str, object]:
 
 
 def _normalize_non_negative_int(
-    value: object,
+    value: Any,
     *,
     code: str,
     message: str,
@@ -77,7 +78,7 @@ def _normalize_non_negative_int(
 
 
 def _normalize_positive_int(
-    value: object,
+    value: Any,
     *,
     code: str,
     message: str,

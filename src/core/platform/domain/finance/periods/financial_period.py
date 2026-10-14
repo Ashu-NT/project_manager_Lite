@@ -6,6 +6,7 @@ import re
 from dataclasses import field
 from datetime import UTC, date, datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator, model_validator
 
@@ -124,7 +125,7 @@ class FinancialPeriod:
 
     @field_validator("fiscal_year", mode="before")
     @classmethod
-    def _validate_fiscal_year(cls, value: object) -> int:
+    def _validate_fiscal_year(cls, value: Any) -> int:
         try:
             normalized = int(value)
         except (TypeError, ValueError) as exc:
@@ -141,7 +142,7 @@ class FinancialPeriod:
 
     @field_validator("period_number", mode="before")
     @classmethod
-    def _validate_period_number(cls, value: object) -> int:
+    def _validate_period_number(cls, value: Any) -> int:
         try:
             normalized = int(value)
         except (TypeError, ValueError) as exc:
@@ -168,7 +169,7 @@ class FinancialPeriod:
 
     @field_validator("version", mode="before")
     @classmethod
-    def _validate_version(cls, value: object) -> int:
+    def _validate_version(cls, value: Any) -> int:
         try:
             normalized = int(value)
         except (TypeError, ValueError) as exc:

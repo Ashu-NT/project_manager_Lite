@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import date
+from typing import TYPE_CHECKING
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
     CostPhasingFacts,
@@ -9,10 +11,23 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
+if TYPE_CHECKING:
+    from src.core.modules.project_management.contracts.reads.financials.finance_performance_reader import (
+        FinancePerformanceReader,
+    )
+    from src.core.platform.application.tenant.tenancy.tenant_context import (
+        TenantContextService,
+    )
+
 logger = logging.getLogger(__name__)
 
 
 class CostPhasingQueries:
+    # Host attributes supplied by ``ProjectFinancePerformanceQuery`` (declared for type checking only).
+    _performance_reader: FinancePerformanceReader
+    _tenant_context_service: TenantContextService
+    _authorize_finance: Callable[[str, str], None]
+
     def get_cost_phasing(
         self,
         project_id: str,

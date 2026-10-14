@@ -4,6 +4,7 @@ from dataclasses import field
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Any
 
 from pydantic import field_validator
 
@@ -141,7 +142,7 @@ class ProjectBudget:
 
     @field_validator("revision", "row_version", mode="before")
     @classmethod
-    def _validate_positive_int(cls, value: object, info) -> int:
+    def _validate_positive_int(cls, value: Any, info) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(
@@ -343,7 +344,7 @@ class BudgetLine:
 
     @field_validator("row_version", mode="before")
     @classmethod
-    def _validate_row_version(cls, value: object) -> int:
+    def _validate_row_version(cls, value: Any) -> int:
         resolved = int(value or 0)
         if resolved < 1:
             raise ValidationError(

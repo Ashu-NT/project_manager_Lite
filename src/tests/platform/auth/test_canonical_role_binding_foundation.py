@@ -74,11 +74,10 @@ def test_role_binding_domain_accepts_platform_tenant_and_resource_scopes() -> No
 
 
 def test_system_role_catalog_persists_explicit_scope_metadata(services) -> None:
-    auth = services["auth_service"]
 
-    platform_admin = auth._role_repo.get_by_name("admin")
-    tenant_admin = auth._role_repo.get_by_name("tenant_admin")
-    organization_admin = auth._role_repo.get_by_name("org_admin")
+    platform_admin = services["auth_queries"]._role_repo.get_by_name("admin")
+    tenant_admin = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
+    organization_admin = services["auth_queries"]._role_repo.get_by_name("org_admin")
 
     assert platform_admin is not None
     assert platform_admin.allowed_scope_type == ROLE_SCOPE_PLATFORM

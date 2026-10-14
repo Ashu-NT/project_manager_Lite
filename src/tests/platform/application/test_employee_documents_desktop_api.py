@@ -1,25 +1,27 @@
 """PlatformEmployeeDesktopApi's Employee Documents surface -- the thin
-desktop-facing adapter over EmployeeService's own explicit employee_id
+desktop-facing adapter over the Employee handlers' own explicit employee_id
 boundary (see employee_documents.py)."""
 
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.contract.use_cases.master_data.department.commands import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.documents.commands import (
+    DocumentCreateCommand,
+)
+from src.core.platform.contract.use_cases.master_data.employee.commands import (
+    EmployeeCreateCommand,
+)
 
 
 def test_desktop_api_links_lists_and_unlinks_employee_documents(services) -> None:
-    employee_service = services["employee_service"]
-    department_service = services["department_service"]
-    document_service = services["document_service"]
+    document_commands = services["document_commands"]
 
-    department = department_service.create_department(department_code="EDAPI-D1", name="API Docs Dept")
-    employee = employee_service.create_employee(
-        employee_code="EDAPI-E1", full_name="API Doc Employee", department_id=department.id
-    )
-    document = document_service.create_document(
-        document_code="EDAPI-DOC-1", title="API Contract", document_type="POLICY",
-        storage_kind="FILE_PATH", storage_uri="C:/docs/api-contract.pdf",
-    )
+    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EDAPI-D1", name="API Docs Dept"))
+    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EDAPI-E1", full_name="API Doc Employee", department_id=department.id))
+    document = document_commands.create_document(DocumentCreateCommand(document_code="EDAPI-DOC-1", title="API Contract", document_type="POLICY", storage_kind="FILE_PATH", storage_uri="C:/docs/api-contract.pdf"))
 
     registry = build_desktop_api_registry(services)
     link_result = registry.platform_employee.link_employee_document(employee.id, document.id)

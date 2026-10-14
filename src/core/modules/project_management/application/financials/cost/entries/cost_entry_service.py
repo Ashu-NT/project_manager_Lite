@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
@@ -110,6 +109,7 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.platform.domain.finance import EXCHANGE_RATE_STORAGE, Money
+from src.core.shared.time.clock import CalendarClock
 
 if TYPE_CHECKING:
     from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
@@ -134,7 +134,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         task_repo: TaskRepository,
         resource_repo: ResourceRepository,
         financial_period_service: FinancialPeriodService,
-        clock: Clock,
+        clock: CalendarClock,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,
@@ -345,7 +345,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         self._entry_repo.flush()
         self._labor_posting_repo.flush()
         events: list[object] = []
-        if reversal is not None:
+        if reversal is not None and latest is not None and original is not None:
             self._record_approved_time_audit(
                 "create_approved_time_reversal",
                 reversal,

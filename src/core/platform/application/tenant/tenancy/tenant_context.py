@@ -10,12 +10,14 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.application.tenant.tenancy.context_policy import (
     LocalSingleTenantContextPolicy,
     TenancyMode,
-    TenantContextPolicy,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     DomainError,
     NotFoundError,
+)
+from src.core.platform.contract.read.tenant.tenancy.tenant_context_policy import (
+    TenantContextPolicy,
 )
 from src.core.platform.contract.repositories.master_data.org.contracts import (
     OrganizationRepository,

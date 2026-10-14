@@ -3,8 +3,9 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import Row, func, select
 from sqlalchemy.orm import Session, aliased
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
@@ -218,11 +219,11 @@ class SqlAlchemyPortfolioHeatmapReader:
         )
         latest_version_ids: dict[str, str] = {}
         version_as_of: dict[str, date] = {}
-        for row in version_rows:
-            project_id = str(row.project_id)
+        for version_row in version_rows:
+            project_id = str(version_row.project_id)
             if project_id not in latest_version_ids:
-                latest_version_ids[project_id] = str(row.id)
-                version_as_of[str(row.id)] = row.as_of
+                latest_version_ids[project_id] = str(version_row.id)
+                version_as_of[str(version_row.id)] = version_row.as_of
         planned_rows = tuple(
             self._session.execute(
                 select(
@@ -264,9 +265,9 @@ class SqlAlchemyPortfolioHeatmapReader:
                 )
             )
         )
-        forecast_by_project = {}
-        for row in forecast_rows:
-            forecast_by_project.setdefault(str(row.project_id), row)
+        forecast_by_project: dict[str, Row[Any]] = {}
+        for forecast_row in forecast_rows:
+            forecast_by_project.setdefault(str(forecast_row.project_id), forecast_row)
         selected_forecasts = tuple(forecast_by_project.values())
         forecast_ids = tuple(str(row.id) for row in selected_forecasts)
         forecast_line_rows = tuple(
@@ -373,15 +374,15 @@ class SqlAlchemyPortfolioHeatmapReader:
             )
         )
 
-        grouped: dict[str, dict[str, list[object]]] = defaultdict(lambda: defaultdict(list))
-        for key, rows in (
+        grouped: dict[str, dict[str, list[Row[Any]]]] = defaultdict(lambda: defaultdict(list))
+        for group_key, group_rows in (
             ("tasks", task_rows),
             ("dependencies", dependency_rows),
             ("project_resources", project_resource_rows),
             ("assignments", assignment_rows),
         ):
-            for row in rows:
-                grouped[str(row.project_id)][key].append(row)
+            for group_row in group_rows:
+                grouped[str(group_row.project_id)][group_key].append(group_row)
 
         ledger_by_project: dict[str, list[ProjectFinanceLedgerFact]] = defaultdict(list)
         for row in planned_rows:
@@ -472,7 +473,7 @@ class SqlAlchemyPortfolioHeatmapReader:
         projects: list[HeatmapProjectFacts] = []
         for project_row in project_rows:
             project_id = str(project_row.id)
-            rows = grouped[project_id]
+            project_groups = grouped[project_id]
             tasks = tuple(
                 HeatmapTaskFact(
                     id=str(row.id),
@@ -491,7 +492,7 @@ class SqlAlchemyPortfolioHeatmapReader:
                     actual_end=row.actual_end,
                     deadline=row.deadline,
                 )
-                for row in rows["tasks"]
+                for row in project_groups["tasks"]
             )
             ledger_entries = tuple(ledger_by_project[project_id])
             aggregate_values: dict[tuple[str, str, str | None], tuple[Decimal, int]] = {}
@@ -533,7 +534,8 @@ class SqlAlchemyPortfolioHeatmapReader:
                     TaskFact(
                         task_id=task.id,
                         name=task.name,
-                        percent_complete=task.percent_complete,
+                        # TaskFact's contract is Decimal (as in the finance snapshot reader).
+                        percent_complete=Decimal(str(task.percent_complete)),
                         start_date=task.start_date,
                         end_date=task.end_date,
                         actual_start=task.actual_start,
@@ -559,7 +561,7 @@ class SqlAlchemyPortfolioHeatmapReader:
                         planned_hours=row.planned_hours or Decimal(0),
                         is_active=bool(row.is_active),
                     )
-                    for row in rows["project_resources"]
+                    for row in project_groups["project_resources"]
                 ),
                 assignments=tuple(
                     LaborAssignmentFact(
@@ -568,7 +570,7 @@ class SqlAlchemyPortfolioHeatmapReader:
                         resource_id=str(row.resource_id),
                         hours_logged=row.hours_logged or Decimal(0),
                     )
-                    for row in rows["assignments"]
+                    for row in project_groups["assignments"]
                 ),
                 resources=finance_resources,
             )
@@ -588,7 +590,7 @@ class SqlAlchemyPortfolioHeatmapReader:
                             dependency_type=getattr(row.dependency_type, "value", str(row.dependency_type)),
                             lag_days=int(row.lag_days or 0),
                         )
-                        for row in rows["dependencies"]
+                        for row in project_groups["dependencies"]
                     ),
                     assignments=tuple(
                         HeatmapAssignmentFact(
@@ -596,7 +598,7 @@ class SqlAlchemyPortfolioHeatmapReader:
                             resource_id=str(row.resource_id),
                             allocation_percent=float(row.allocation_percent or 0.0),
                         )
-                        for row in rows["assignments"]
+                        for row in project_groups["assignments"]
                     ),
                 )
             )

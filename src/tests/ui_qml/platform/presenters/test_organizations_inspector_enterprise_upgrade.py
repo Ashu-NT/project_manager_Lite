@@ -24,10 +24,9 @@ def _build_admin_workspace(services):
 
 
 def test_inspector_renders_grouped_layout_compact_width_and_lifecycle_menu(services, qapp) -> None:
-    organization_service = services["organization_service"]
     catalog, admin = _build_admin_workspace(services)
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="INSP-ORG",
         display_name="Inspector Org",
         timezone_name="UTC",
@@ -95,10 +94,9 @@ def test_inspector_renders_grouped_layout_compact_width_and_lifecycle_menu(servi
 
 
 def test_inspector_menu_action_deactivate_and_archive_route_through_confirmation(services, qapp) -> None:
-    organization_service = services["organization_service"]
     catalog, admin = _build_admin_workspace(services)
 
-    org = organization_service.create_organization(
+    org = services["organization_commands"].create_organization(
         organization_code="INSP-LIFECYCLE",
         display_name="Inspector Lifecycle Org",
         timezone_name="UTC",
@@ -138,7 +136,7 @@ def test_inspector_menu_action_deactivate_and_archive_route_through_confirmation
         assert pending["action"] == "deactivate"
         assert pending["orgId"] == org.id
 
-        refreshed = next(o for o in organization_service.list_organizations() if o.id == org.id)
+        refreshed = next(o for o in services["organization_query"].list_organizations() if o.id == org.id)
         assert refreshed.status == "active"  # not mutated yet -- confirmation pending
     finally:
         for root_object in engine.rootObjects():

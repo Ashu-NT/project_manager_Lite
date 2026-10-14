@@ -29,13 +29,12 @@ def _snapshot(ts, project_id):
 def _build_overload_proposal(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    rs = services["resource_service"]
     calendar = services["work_calendar_engine"]
 
     project = ps.create_project("Apply Leveling Plan", "")
     task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-    resource = rs.create_resource("Apply Dev", "Developer", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource("Apply Dev", "Developer", hourly_rate=100.0)
     ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
     ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 

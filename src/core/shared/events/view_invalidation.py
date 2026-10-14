@@ -60,11 +60,11 @@ class ViewInvalidationHint:
     entity_id: str | None = None
 
 
-H = TypeVar("H", bound=ViewInvalidationHint, contravariant=True)
+H_contra = TypeVar("H_contra", bound=ViewInvalidationHint, contravariant=True)
 
 
-class ViewInvalidationHandler(Protocol[H]):
-    def __call__(self, hint: H) -> None: ...
+class ViewInvalidationHandler(Protocol[H_contra]):
+    def __call__(self, hint: H_contra) -> None: ...
 
 
 class ScopeFilter(Protocol):

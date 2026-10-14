@@ -27,13 +27,12 @@ def test_fresh_baseline_contains_time_entry_version(tmp_path) -> None:
 
 
 def test_resource_skills_are_server_paged_filtered_sorted_and_scoped(services) -> None:
-    resource_service = services["resource_service"]
     capability_query = services["resource_capability_query"]
-    resource = resource_service.create_resource("Capability Reader")
-    resource_service.add_resource_skill(
+    resource = services["resource_master_commands"].create_resource("Capability Reader")
+    services["resource_capability_commands"].add_resource_skill(
         resource.id, "z-plan", "Zulu Planning", proficiency="beginner"
     )
-    resource_service.add_resource_skill(
+    services["resource_capability_commands"].add_resource_skill(
         resource.id, "a-build", "Alpha Building", proficiency="expert"
     )
 
@@ -74,24 +73,23 @@ def test_resource_skills_are_server_paged_filtered_sorted_and_scoped(services) -
 
 
 def test_resource_certifications_use_authoritative_status_filter_and_sort(services) -> None:
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource("Certification Reader")
+    resource = services["resource_master_commands"].create_resource("Certification Reader")
     today = date.today()
-    resource_service.add_resource_certification(
+    services["resource_capability_commands"].add_resource_certification(
         resource.id,
         "VALID",
         "Valid Credential",
         expiry_date=today + timedelta(days=60),
         issuer="Authority Z",
     )
-    resource_service.add_resource_certification(
+    services["resource_capability_commands"].add_resource_certification(
         resource.id,
         "EXPIRING",
         "Expiring Credential",
         expiry_date=today + timedelta(days=10),
         issuer="Authority A",
     )
-    resource_service.add_resource_certification(
+    services["resource_capability_commands"].add_resource_certification(
         resource.id,
         "OPEN",
         "No Expiry Credential",

@@ -12,6 +12,7 @@ AppWidgets.EntityDialog {
     property var typeOptions: []
     property var structureOptions: []
     property var storageKindOptions: []
+    property var confidentialityOptions: []
     property var workspaceController: null
     property string documentCode: ""
 
@@ -52,7 +53,7 @@ AppWidgets.EntityDialog {
         fileName: fileNameField.text.trim(),
         mimeType: mimeTypeField.text.trim(),
         sourceSystem: sourceSystemField.text.trim(),
-        confidentialityLevel: confidentialityField.text.trim(),
+        confidentialityLevel: _currentValue(confidentialityModel, confidentialityCombo) || "INTERNAL",
         businessVersionLabel: versionField.text.trim(),
         isCurrent: currentCheck.checked,
         isActive: activeCheck.checked,
@@ -79,9 +80,11 @@ AppWidgets.EntityDialog {
         root.typeOptions = options.typeOptions || []
         root.structureOptions = options.structureOptions || []
         root.storageKindOptions = options.storageKindOptions || []
+        root.confidentialityOptions = options.confidentialityOptions || []
         _reloadOptionModel(typeModel, root.typeOptions, "")
         _reloadOptionModel(structureModel, root.structureOptions, "Unstructured")
         _reloadOptionModel(storageKindModel, root.storageKindOptions, "")
+        _reloadOptionModel(confidentialityModel, root.confidentialityOptions, "")
     }
 
     function _reloadOptionModel(model, options, firstLabel) {
@@ -105,7 +108,6 @@ AppWidgets.EntityDialog {
         fileNameField.text = root.draft.fileName || ""
         mimeTypeField.text = root.draft.mimeType || ""
         sourceSystemField.text = root.draft.sourceSystem || ""
-        confidentialityField.text = root.draft.confidentialityLevel || ""
         versionField.text = root.draft.businessVersionLabel || ""
         notesField.text = root.draft.notes || ""
         currentCheck.checked = root.draft.isCurrent !== undefined ? root.draft.isCurrent : true
@@ -113,6 +115,7 @@ AppWidgets.EntityDialog {
         _setCurrentIndex(typeModel, typeCombo, root.draft.documentType || "GENERAL")
         _setCurrentIndex(structureModel, structureCombo, root.draft.documentStructureId || "")
         _setCurrentIndex(storageKindModel, storageKindCombo, root.draft.storageKind || "FILE_PATH")
+        _setCurrentIndex(confidentialityModel, confidentialityCombo, root.draft.confidentialityLevel || "INTERNAL")
     }
 
     function _setCurrentIndex(model, combo, value) {
@@ -135,6 +138,7 @@ AppWidgets.EntityDialog {
     ListModel { id: typeModel }
     ListModel { id: structureModel }
     ListModel { id: storageKindModel }
+    ListModel { id: confidentialityModel }
 
     AppWidgets.CodeFieldRow {
         Layout.fillWidth: true
@@ -260,10 +264,11 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             label: "Confidentiality"
 
-            AppControls.TextField {
-                id: confidentialityField
+            AppControls.ComboBox {
+                id: confidentialityCombo
                 Layout.fillWidth: true
-                placeholderText: "e.g. Internal"
+                model: confidentialityModel
+                textRole: "label"
             }
         }
     }

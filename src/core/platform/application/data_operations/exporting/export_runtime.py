@@ -49,29 +49,30 @@ class ExportRuntime:
             permission_code=definition.permission_code,
             operation_label=f"export {self._humanize_key(definition.operation_key)}",
         )
+        tracker = self._runtime_execution_service
         execution = (
-            self._runtime_execution_service.start_execution(
+            tracker.start_execution(
                 operation_type="export",
                 operation_key=definition.operation_key,
                 module_code=definition.module_code,
                 output_path=getattr(request, "output_path", None),
             )
-            if self._runtime_execution_service is not None
+            if tracker is not None
             else None
         )
         try:
             artifact = finalize_artifact(definition.export(request))
-            if execution is not None:
+            if execution is not None and tracker is not None:
                 artifact = ExportArtifact(
                     file_path=artifact.file_path,
                     file_name=artifact.file_name,
                     media_type=artifact.media_type,
-                    metadata=self._runtime_execution_service.artifact_metadata(
+                    metadata=tracker.artifact_metadata(
                         execution,
                         dict(artifact.metadata or {}),
                     ),
                 )
-                self._runtime_execution_service.complete_execution(
+                tracker.complete_execution(
                     execution,
                     output_path=getattr(artifact, "file_path", None),
                     output_file_name=getattr(artifact, "file_name", None),
@@ -80,8 +81,8 @@ class ExportRuntime:
                 )
             return artifact
         except Exception as exc:
-            if execution is not None:
-                self._runtime_execution_service.fail_execution(execution, error_message=str(exc))
+            if execution is not None and tracker is not None:
+                tracker.fail_execution(execution, error_message=str(exc))
             raise
 
     @staticmethod

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import builtins
 from datetime import date
 
 from sqlalchemy import exists, func, literal, or_, select, text
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import (
     ProjectRateCardRepository,
@@ -108,7 +110,7 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
         *,
         project_id: str | None = None,
         include_inactive: bool = False,
-    ) -> list[ProjectRateCard]:
+    ) -> builtins.list[ProjectRateCard]:
         context = self._context(operation_label="list rate cards")
         stmt = select(ProjectRateCardORM).where(
             ProjectRateCardORM.tenant_id == context.tenant_id,
@@ -244,7 +246,7 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
         rate_card_id: str,
         *,
         include_inactive: bool = False,
-    ) -> list[RateCardLine]:
+    ) -> builtins.list[RateCardLine]:
         context = self._context(operation_label="list rate card lines")
         stmt = select(RateCardLineORM).where(
             RateCardLineORM.rate_card_id == rate_card_id,
@@ -261,7 +263,7 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
         project_id: str,
         *,
         include_inactive: bool = False,
-    ) -> list[ProjectRateCard]:
+    ) -> builtins.list[ProjectRateCard]:
         context = self._context(operation_label="list project-visible rate cards")
         stmt = select(ProjectRateCardORM).where(
             ProjectRateCardORM.tenant_id == context.tenant_id,
@@ -285,7 +287,7 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
         include_inactive: bool = False,
         offset: int = 0,
         limit: int = 50,
-    ) -> list[RateCardLine]:
+    ) -> builtins.list[RateCardLine]:
         if not rate_card_ids:
             return []
         context = self._context(operation_label="list project-visible rate card lines")
@@ -335,9 +337,9 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
         rate_type: RateType,
         unit: str,
         as_of: date,
-    ) -> list[tuple[RateCardLine, ProjectRateCard]]:
+    ) -> builtins.list[tuple[RateCardLine, ProjectRateCard]]:
         context = self._context(operation_label="resolve rate card lines")
-        card_scope = ProjectRateCardORM.project_id.is_(None)
+        card_scope: ColumnElement[bool] = ProjectRateCardORM.project_id.is_(None)
         if project_id is not None:
             card_scope = or_(card_scope, ProjectRateCardORM.project_id == project_id)
         stmt = (
@@ -370,7 +372,7 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
             for line_row, card_row in rows
         ]
 
-    def list_lines_in_scope(self, *, project_id: str | None) -> list[RateCardLine]:
+    def list_lines_in_scope(self, *, project_id: str | None) -> builtins.list[RateCardLine]:
         context = self._context(operation_label="check rate card line overlap")
         stmt = (
             select(RateCardLineORM)
