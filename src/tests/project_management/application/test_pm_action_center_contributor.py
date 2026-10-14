@@ -86,7 +86,7 @@ def _setup_user_employee_resource(services, *, suffix: str):
 
 def test_tasks_resolve_through_resource_identity_and_include_only_open_states(services):
     organization, user, resource = _setup_user_employee_resource(services, suffix="tasks")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Action Center Tasks Project", financial_currency_code=organization.base_currency
     )
     other_resource = services["resource_master_commands"].create_resource("Unrelated Resource")
@@ -144,10 +144,10 @@ def test_baselines_include_only_submitted_across_accessible_projects_regardless_
     services,
 ):
     organization, user, resource = _setup_user_employee_resource(services, suffix="baselines")
-    active_project = services["project_service"].create_project(
+    active_project = services['project_create'].create_project(
         "Active Baseline Project", financial_currency_code=organization.base_currency
     )
-    on_hold_project = services["project_service"].create_project(
+    on_hold_project = services['project_create'].create_project(
         "On Hold Baseline Project", financial_currency_code=organization.base_currency
     )
     services["task_service"].create_task(
@@ -216,7 +216,7 @@ def _reviewer_context_and_contributor(services, *, project_id: str, permissions:
 
 def test_submitted_baseline_with_authorized_reviewer_is_included(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Authorized Reviewer Project", financial_currency_code=organization.base_currency
     )
     services["task_service"].create_task(
@@ -244,7 +244,7 @@ def test_submitted_baseline_with_unauthorized_user_is_excluded(services):
     """Project read/list visibility alone (project.read) must not be
     treated as authorization to review -- baseline.approve is required."""
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Unauthorized Reviewer Project", financial_currency_code=organization.base_currency
     )
     services["task_service"].create_task(
@@ -268,7 +268,7 @@ def test_submitted_baseline_with_unauthorized_user_is_excluded(services):
 
 def test_non_submitted_baseline_with_authorized_reviewer_is_excluded(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Draft With Authorized Reviewer Project",
         financial_currency_code=organization.base_currency,
     )
@@ -298,7 +298,7 @@ def test_non_submitted_baseline_with_authorized_reviewer_is_excluded(services):
 
 def test_timesheets_include_open_and_rejected_but_not_approved_or_locked(services):
     organization, user, resource = _setup_user_employee_resource(services, suffix="timesheets")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Action Center Timesheet Project", financial_currency_code=organization.base_currency
     )
     task = services["task_service"].create_task(
@@ -351,7 +351,7 @@ def test_timesheets_include_open_and_rejected_but_not_approved_or_locked(service
 
 def test_all_action_items_equals_the_sum_of_the_three_pm_categories(services):
     organization, user, resource = _setup_user_employee_resource(services, suffix="parity")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Action Center Parity Project", financial_currency_code=organization.base_currency
     )
     task = services["task_service"].create_task(

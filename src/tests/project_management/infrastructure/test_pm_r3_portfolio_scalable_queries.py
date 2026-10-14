@@ -204,7 +204,7 @@ def _seed_projects_with_financial_profile(services, count: int, *, late_task_cou
     today = date.today()
     projects = []
     for index in range(count):
-        project = services["project_service"].create_project(
+        project = services['project_create'].create_project(
             f"Heatmap Scale Project {index:03d}",
             start_date=today - timedelta(days=30),
             end_date=today + timedelta(days=30),

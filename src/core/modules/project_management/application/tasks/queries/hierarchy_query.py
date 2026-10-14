@@ -5,6 +5,9 @@ from __future__ import annotations
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     TaskRepository,
 )
@@ -25,14 +28,16 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class TaskHierarchyQueryHandler:
+class TaskHierarchyQueryHandler(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
+        module_catalog_service=None,
         task_repo: TaskRepository,
         work_calendar_engine: CalendarProtocol,
         user_session: UserSessionContext | None,
     ) -> None:
+        self._module_catalog_service = module_catalog_service
         self._task_repo = task_repo
         self._work_calendar_engine = work_calendar_engine
         self._user_session = user_session

@@ -27,11 +27,11 @@ def _snapshot(ts, project_id):
 
 
 def _build_overload_proposal(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     calendar = services["work_calendar_engine"]
 
-    project = ps.create_project("Apply Leveling Plan", "")
+    project = services['project_create'].create_project("Apply Leveling Plan", "")
     task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
     resource = services["resource_master_commands"].create_resource("Apply Dev", "Developer", hourly_rate=100.0)
@@ -106,11 +106,11 @@ class TestApplyHappyPath:
         )
 
     def test_applying_an_empty_proposal_is_a_no_op(self, services):
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
 
-        project = ps.create_project("Apply Leveling No Conflicts", "")
+        project = services['project_create'].create_project("Apply Leveling No Conflicts", "")
         task = ts.create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
         before_version = ts.get_task(task.id).version
 

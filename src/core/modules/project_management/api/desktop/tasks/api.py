@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from typing import TypeVar
+
+_CapabilityT = TypeVar('_CapabilityT')
+
 import logging
 from datetime import date
 from decimal import Decimal
@@ -117,7 +121,17 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
 )
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks import (
+    TaskDeletionCommandHandler,
+    TaskDependencyCommandHandler,
+    TaskDependencyQueryHandler,
+    TaskHierarchyCommandHandler,
+    TaskHierarchyQueryHandler,
+    TaskLifecycleCommandHandler,
+    TaskLookupQueryHandler,
+    TaskProgressCommandHandler,
+    TaskSchedulingConstraintHandler,
+)
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
 )
@@ -154,7 +168,6 @@ from src.core.modules.project_management.gateway.task.reservation import (
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,
 )
-from src.core.platform.common.exceptions import UnsupportedOperationError
 from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
     SupportsModuleEntitlements,
 )
@@ -167,7 +180,15 @@ class ProjectManagementTasksDesktopApi:
         self,
         *,
         project_service: ProjectQueryHandler | None = None,
-        task_service: TaskService | None = None,
+        task_lookup_query: TaskLookupQueryHandler | None = None,
+        task_hierarchy_query: TaskHierarchyQueryHandler | None = None,
+        task_deletion_commands: TaskDeletionCommandHandler | None = None,
+        task_progress_commands: TaskProgressCommandHandler | None = None,
+        task_hierarchy_commands: TaskHierarchyCommandHandler | None = None,
+        task_constraint_commands: TaskSchedulingConstraintHandler | None = None,
+        task_lifecycle_commands: TaskLifecycleCommandHandler | None = None,
+        task_dependency_commands: TaskDependencyCommandHandler | None = None,
+        task_dependency_query: TaskDependencyQueryHandler | None = None,
         task_workspace_query: TaskWorkspacePageQueryHandler | None = None,
         task_detail_query: TaskDetailPageQueryHandler | None = None,
         task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler | None = None,
@@ -181,7 +202,15 @@ class ProjectManagementTasksDesktopApi:
         schedule_change_impact_query: ScheduleChangeImpactQueryHandler | None = None,
     ) -> None:
         self._project_service = project_service
-        self._task_service = task_service
+        self._task_lookup_query = task_lookup_query
+        self._task_hierarchy_query = task_hierarchy_query
+        self._task_deletion_commands = task_deletion_commands
+        self._task_progress_commands = task_progress_commands
+        self._task_hierarchy_commands = task_hierarchy_commands
+        self._task_constraint_commands = task_constraint_commands
+        self._task_lifecycle_commands = task_lifecycle_commands
+        self._task_dependency_commands = task_dependency_commands
+        self._task_dependency_query = task_dependency_query
         self._task_workspace_query = task_workspace_query
         self._task_detail_query = task_detail_query
         self._task_dependency_diagnostics = task_dependency_diagnostics
@@ -215,8 +244,7 @@ class ProjectManagementTasksDesktopApi:
     def get_task(self, task_id: str) -> TaskDesktopDto | None:
         if not task_id:
             return None
-        service = self._require_task_service()
-        task = service.get_task(task_id)
+        task = self._require_task_capability(self._task_detail_query).get_task(task_id)
         if task is None:
             return None
         rows = self._serialize_project_tasks(
@@ -230,9 +258,8 @@ class ProjectManagementTasksDesktopApi:
         project_id: str,
         project_name: str,
     ) -> tuple[TaskDesktopDto, ...]:
-        service = self._require_task_service()
-        list_hierarchy = getattr(service, "list_task_hierarchy", None)
-        list_rollups = getattr(service, "list_task_hierarchy_rollups", None)
+        list_hierarchy = getattr(self._task_hierarchy_query, "list_task_hierarchy", None)
+        list_rollups = getattr(self._task_hierarchy_query, "list_task_hierarchy_rollups", None)
         if callable(list_hierarchy) and callable(list_rollups):
             nodes = list_hierarchy(project_id)
             rollups = list_rollups(project_id)
@@ -246,7 +273,7 @@ class ProjectManagementTasksDesktopApi:
                 for node in nodes
             )
         tasks = sorted(
-            service.list_tasks_for_project(project_id),
+            self._require_task_capability(self._task_lookup_query).list_tasks_for_project(project_id),
             key=lambda task: (
                 task.start_date or date.max,
                 -int(task.priority or 0),
@@ -344,8 +371,7 @@ class ProjectManagementTasksDesktopApi:
         )
 
     def create_task(self, command: TaskCreateCommand) -> TaskDesktopDto:
-        service = self._require_task_service()
-        task = service.create_task(
+        task = self._require_task_capability(self._task_lifecycle_commands).create_task(
             project_id=command.project_id,
             name=command.name,
             code=getattr(command, "code", ""),
@@ -363,8 +389,8 @@ class ProjectManagementTasksDesktopApi:
         )
         desired_status = coerce_task_status(command.status)
         if desired_status != task.status:
-            service.set_status(task.id, desired_status)
-            task = service.get_task(task.id) or task
+            self._require_task_capability(self._task_progress_commands).set_status(task.id, desired_status)
+            task = self._require_task_capability(self._task_detail_query).get_task(task.id) or task
         return serialize_task(
             task,
             project_name=self._project_name_by_id().get(task.project_id, ""),
@@ -386,8 +412,7 @@ class ProjectManagementTasksDesktopApi:
     def update_task_scheduling_constraint(
         self, command: TaskConstraintUpdateCommand
     ) -> TaskDesktopDto:
-        service = self._require_task_service()
-        task = service.update_task_scheduling_constraint(
+        task = self._require_task_capability(self._task_constraint_commands).update_task_scheduling_constraint(
             command.task_id,
             constraint_type=coerce_constraint_type(command.constraint_type),
             constraint_date=command.constraint_date,
@@ -399,7 +424,7 @@ class ProjectManagementTasksDesktopApi:
         )
 
     def move_task(self, command: TaskWbsMoveCommand) -> TaskDesktopDto:
-        task = self._require_task_service().move_task(
+        task = self._require_task_capability(self._task_hierarchy_commands).move_task(
             command.task_id,
             parent_task_id=command.parent_task_id,
             wbs_code=command.wbs_code,
@@ -412,12 +437,11 @@ class ProjectManagementTasksDesktopApi:
         return refreshed
 
     def update_task(self, command: TaskUpdateCommand) -> TaskDesktopDto:
-        service = self._require_task_service()
-        current_task = service.get_task(command.task_id)
+        current_task = self._require_task_capability(self._task_detail_query).get_task(command.task_id)
         if current_task is None:
             raise RuntimeError("Task could not be loaded for update.")
         desired_status = coerce_task_status(command.status)
-        task = service.update_task(
+        task = self._require_task_capability(self._task_lifecycle_commands).update_task(
             command.task_id,
             name=command.name,
             code=getattr(command, "code", ""),
@@ -431,15 +455,15 @@ class ProjectManagementTasksDesktopApi:
             is_milestone=getattr(command, "is_milestone", None),
         )
         if desired_status != current_task.status:
-            service.set_status(task.id, desired_status)
-            task = service.get_task(task.id) or task
+            self._require_task_capability(self._task_progress_commands).set_status(task.id, desired_status)
+            task = self._require_task_capability(self._task_detail_query).get_task(task.id) or task
         return serialize_task(
             task,
             project_name=self._project_name_by_id().get(task.project_id, ""),
         )
 
     def update_progress(self, command: TaskProgressCommand) -> TaskDesktopDto:
-        task = self._require_task_service().update_progress(
+        task = self._require_task_capability(self._task_progress_commands).update_progress(
             command.task_id,
             percent_complete=command.percent_complete,
             actual_start=command.actual_start,
@@ -474,8 +498,7 @@ class ProjectManagementTasksDesktopApi:
     def list_assignments(self, task_id: str) -> tuple[TaskAssignmentDesktopDto, ...]:
         if not task_id:
             return ()
-        service = self._require_task_service()
-        list_assignments_for_task = getattr(service, "list_assignments_for_task", None)
+        list_assignments_for_task = getattr(self._task_assignment_commands, "list_assignments_for_task", None)
         if not callable(list_assignments_for_task):
             return ()
         assignments = list(list_assignments_for_task(task_id))
@@ -496,8 +519,8 @@ class ProjectManagementTasksDesktopApi:
                 -float(getattr(assignment, "allocation_percent", 0.0) or 0.0),
             ),
         )
-        action_context_method = getattr(service, "get_assignment_action_context", None)
-        preview_capacity_method = getattr(service, "preview_assignment_capacity", None)
+        action_context_method = getattr(self._task_assignment_commands, "get_assignment_action_context", None)
+        preview_capacity_method = getattr(self._task_assignment_commands, "preview_assignment_capacity", None)
         rows: list[TaskAssignmentDesktopDto] = []
         for assignment in assignments:
             action_context = None
@@ -610,7 +633,7 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskAssignmentCreateCommand,
     ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_method("assign_project_resource")(
+        assignment = self._require_task_capability(self._task_assignment_commands).assign_project_resource(
             task_id=command.task_id,
             project_resource_id=command.project_resource_id,
             allocation_percent=command.allocation_percent,
@@ -629,7 +652,7 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskAssignmentAllocationCommand,
     ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_method("set_assignment_allocation")(
+        assignment = self._require_task_capability(self._task_assignment_commands).set_assignment_allocation(
             assignment_id=command.assignment_id,
             allocation_percent=command.allocation_percent,
             expected_version=getattr(command, "expected_version", None),
@@ -647,7 +670,7 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskAssignmentPlannedHoursCommand,
     ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_method("update_assignment_planned_hours")(
+        assignment = self._require_task_capability(self._task_assignment_commands).update_assignment_planned_hours(
             assignment_id=command.assignment_id,
             allocated_planned_hours=command.allocated_planned_hours,
             expected_assignment_version=command.expected_assignment_version,
@@ -682,10 +705,10 @@ class ProjectManagementTasksDesktopApi:
         )
 
     def delete_assignment(self, assignment_id: str) -> None:
-        self._require_task_method("unassign_resource")(assignment_id)
+        self._require_task_capability(self._task_assignment_commands).unassign_resource(assignment_id)
 
     def accept_assignment(self, assignment_id: str) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_method("accept_assignment")(assignment_id)
+        assignment = self._require_task_capability(self._task_assignment_commands).accept_assignment(assignment_id)
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
@@ -696,7 +719,7 @@ class ProjectManagementTasksDesktopApi:
         )
 
     def decline_assignment(self, assignment_id: str, reason: str = "") -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_method("decline_assignment")(assignment_id, reason or None)
+        assignment = self._require_task_capability(self._task_assignment_commands).decline_assignment(assignment_id, reason or None)
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
@@ -709,10 +732,9 @@ class ProjectManagementTasksDesktopApi:
     def list_dependencies(self, task_id: str) -> tuple[TaskDependencyDesktopDto, ...]:
         if not task_id:
             return ()
-        service = self._require_task_service()
-        list_dependencies_for_task = getattr(service, "list_dependencies_for_task", None)
-        get_task = getattr(service, "get_task", None)
-        list_tasks_for_project = getattr(service, "list_tasks_for_project", None)
+        list_dependencies_for_task = getattr(self._task_dependency_query, "list_dependencies_for_task", None)
+        get_task = getattr(self._task_detail_query, "get_task", None)
+        list_tasks_for_project = getattr(self._task_lookup_query, "list_tasks_for_project", None)
         if (
             not callable(list_dependencies_for_task)
             or not callable(get_task)
@@ -802,15 +824,15 @@ class ProjectManagementTasksDesktopApi:
             if relationship_direction == "PREDECESSOR"
             else command.linked_task_id
         )
-        dependency = self._require_task_method("add_dependency")(
+        dependency = self._require_task_capability(self._task_dependency_commands).add_dependency(
             predecessor_id=predecessor_id,
             successor_id=successor_id,
             dependency_type=coerce_dependency_type(command.dependency_type),
             lag_days=command.lag_days,
         )
-        current_task = self._require_task_method("get_task")(command.task_id)
+        current_task = self._require_task_capability(self._task_detail_query).get_task(command.task_id)
         tasks_by_id: dict[str, object] = {}
-        list_tasks_for_project = getattr(self._task_service, "list_tasks_for_project", None)
+        list_tasks_for_project = getattr(self._task_lookup_query, "list_tasks_for_project", None)
         if current_task is not None and callable(list_tasks_for_project):
             tasks_by_id = {
                 task.id: task
@@ -829,7 +851,7 @@ class ProjectManagementTasksDesktopApi:
         normalized_id = (command.dependency_id or "").strip()
         if not normalized_id:
             raise ValueError("Dependency ID is required.")
-        self._require_task_method("update_dependency")(
+        self._require_task_capability(self._task_dependency_commands).update_dependency(
             normalized_id,
             dependency_type=coerce_dependency_type(command.dependency_type),
             lag_days=command.lag_days,
@@ -837,7 +859,7 @@ class ProjectManagementTasksDesktopApi:
         )
 
     def delete_dependency(self, dependency_id: str) -> None:
-        self._require_task_method("remove_dependency")(dependency_id)
+        self._require_task_capability(self._task_dependency_commands).remove_dependency(dependency_id)
 
     def preview_create_dependency(
         self,
@@ -868,9 +890,8 @@ class ProjectManagementTasksDesktopApi:
         command: TaskDependencyUpdateCommand,
     ) -> TaskDependencyImpactPreviewDesktopDto | None:
         """Non-persisting impact preview for a proposed UPDATE."""
-        service = self._require_task_service()
         diagnostics = self._require_dependency_diagnostics()
-        get_dependency = getattr(service, "get_dependency", None)
+        get_dependency = getattr(self._task_dependency_query, "get_dependency", None)
         if not callable(get_dependency):
             return None
         normalized_id = (command.dependency_id or "").strip()
@@ -899,16 +920,15 @@ class ProjectManagementTasksDesktopApi:
         return serialize_dependency_impact_preview(diagnostic)
 
     def delete_task(self, task_id: str) -> None:
-        self._require_task_service().delete_task(task_id)
+        self._require_task_capability(self._task_deletion_commands).delete_task(task_id)
 
     def apply_bulk_status(
         self,
         command: TaskBulkStatusCommand,
     ) -> tuple[TaskDesktopDto, ...]:
-        service = self._require_task_service()
         desired_status = coerce_task_status(command.status)
         task_ids = normalize_task_ids(command.task_ids)
-        changed = service.set_tasks_status(
+        changed = self._require_task_capability(self._task_progress_commands).set_tasks_status(
             task_ids,
             desired_status,
             reopen_percent_complete=command.reopen_percent_complete,
@@ -924,8 +944,7 @@ class ProjectManagementTasksDesktopApi:
 
     def delete_tasks(self, task_ids: tuple[str, ...]) -> tuple[str, ...]:
         normalized_ids = normalize_task_ids(task_ids)
-        service = self._require_task_service()
-        return tuple(service.delete_tasks(normalized_ids))
+        return tuple(self._require_task_capability(self._task_deletion_commands).delete_tasks(normalized_ids))
 
     def list_task_skill_requirements(
         self,
@@ -951,7 +970,7 @@ class ProjectManagementTasksDesktopApi:
         return build_assignment_validation(
             task_id,
             project_resource_id,
-            task_service=self._task_service,
+            task_query=self._task_detail_query,
             project_resource_query=self._project_resource_query,
             assignment_skill_validator=self._assignment_skill_validator,
         )
@@ -967,7 +986,8 @@ class ProjectManagementTasksDesktopApi:
         return build_assignment_preview(
             task_id,
             project_resource_id,
-            task_service=self._task_service,
+            task_query=self._task_detail_query,
+            assignment_commands=self._task_assignment_commands,
             project_resource_query=self._project_resource_query,
             assignment_skill_validator=self._assignment_skill_validator,
             proposed_allocation_percent=proposed_allocation_percent,
@@ -1043,12 +1063,12 @@ class ProjectManagementTasksDesktopApi:
         if (
             not normalized_task_id
             or not normalized_project_id
-            or self._task_service is None
+            or self._task_detail_query is None
             or self._schedule_change_impact_query is None
         ):
             return unavailable
         try:
-            task = self._task_service.get_task(normalized_task_id)
+            task = self._require_task_capability(self._task_detail_query).get_task(normalized_task_id)
             if task is None or task.start_date is None:
                 logger.debug(
                     "preview_task_schedule_impact unavailable: task=%s start_date=%s",
@@ -1077,10 +1097,11 @@ class ProjectManagementTasksDesktopApi:
             report=report,
         )
 
-    def _require_task_service(self) -> TaskService:
-        if self._task_service is None:
-            raise RuntimeError("Project management tasks desktop API is not connected.")
-        return self._task_service
+
+    def _require_task_capability(self, capability: _CapabilityT | None) -> _CapabilityT:
+        if capability is None:
+            raise RuntimeError('Project management tasks desktop API is not connected.')
+        return capability
 
     def _require_task_detail_query(self) -> TaskDetailPageQueryHandler:
         if self._task_detail_query is None:
@@ -1124,14 +1145,6 @@ class ProjectManagementTasksDesktopApi:
         )
         return self._task_time_entries
 
-    def _require_task_method(self, method_name: str):
-        service = self._require_task_service()
-        method = getattr(service, method_name, None)
-        if not callable(method):
-            raise UnsupportedOperationError(
-                f"Project management tasks desktop API does not support {method_name}."
-            )
-        return method
 
     def _project_name_by_id(self) -> dict[str, str]:
         return {

@@ -62,7 +62,6 @@ from src.core.modules.project_management.application.portfolio.queries import (
     PortfolioScenarioQueryHandler,
     PortfolioTemplateQueryHandler,
 )
-from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.projects.commands.create import (
     ProjectCreateHandler,
 )
@@ -128,7 +127,20 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
 )
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks import (
+    ApprovedScheduleChangeHandler,
+    ResourceLevelingCommandHandler,
+    TaskDeletionCommandHandler,
+    TaskDependencyCommandHandler,
+    TaskDependencyQueryHandler,
+    TaskHierarchyCommandHandler,
+    TaskHierarchyQueryHandler,
+    TaskLifecycleCommandHandler,
+    TaskProgressCommandHandler,
+    TaskSchedulingConstraintHandler,
+    TaskService,
+    TaskUowScope,
+)
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
 )
@@ -386,13 +398,23 @@ class ServiceGraph:
     collaboration_document_query: CollaborationDocumentQueryHandler
     collaboration_inbox_query: CollaborationInboxQueryHandler
     collaboration_presence_query: CollaborationPresenceQueryHandler
-    project_service: ProjectService
     project_query: ProjectQueryHandler
     project_create: ProjectCreateHandler
     project_update: ProjectUpdateHandler
     project_status: ProjectStatusHandler
     project_deletion: ProjectDeletionHandler
     task_service: TaskService
+    task_hierarchy_query: TaskHierarchyQueryHandler
+    task_deletion_commands: TaskDeletionCommandHandler
+    task_progress_commands: TaskProgressCommandHandler
+    task_schedule_changes: ApprovedScheduleChangeHandler
+    task_hierarchy_commands: TaskHierarchyCommandHandler
+    task_constraint_commands: TaskSchedulingConstraintHandler
+    task_leveling_commands: ResourceLevelingCommandHandler
+    task_lifecycle_commands: TaskLifecycleCommandHandler
+    task_dependency_commands: TaskDependencyCommandHandler
+    task_dependency_query: TaskDependencyQueryHandler
+    task_uow_scope: TaskUowScope
     task_workspace_query: TaskWorkspacePageQueryHandler
     task_detail_query: TaskDetailPageQueryHandler
     task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler
@@ -563,13 +585,23 @@ class ServiceGraph:
             "collaboration_document_query": self.collaboration_document_query,
             "collaboration_inbox_query": self.collaboration_inbox_query,
             "collaboration_presence_query": self.collaboration_presence_query,
-            "project_service": self.project_service,
             "project_query": self.project_query,
             "project_create": self.project_create,
             "project_update": self.project_update,
             "project_status": self.project_status,
             "project_deletion": self.project_deletion,
             "task_service": self.task_service,
+            "task_hierarchy_query": self.task_hierarchy_query,
+            "task_deletion_commands": self.task_deletion_commands,
+            "task_progress_commands": self.task_progress_commands,
+            "task_schedule_changes": self.task_schedule_changes,
+            "task_hierarchy_commands": self.task_hierarchy_commands,
+            "task_constraint_commands": self.task_constraint_commands,
+            "task_leveling_commands": self.task_leveling_commands,
+            "task_lifecycle_commands": self.task_lifecycle_commands,
+            "task_dependency_commands": self.task_dependency_commands,
+            "task_dependency_query": self.task_dependency_query,
+            "task_uow_scope": self.task_uow_scope,
             "task_workspace_query": self.task_workspace_query,
             "task_detail_query": self.task_detail_query,
             "task_dependency_diagnostics": self.task_dependency_diagnostics,

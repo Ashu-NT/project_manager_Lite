@@ -293,7 +293,7 @@ def _prepare_project_canonical_assignment(
 
 def test_project_role_assignment_is_scoped_and_audited(services) -> None:
     tenant_id = _tenant_id(services)
-    project = services["project_service"].create_project("Governance Project A")
+    project = services['project_create'].create_project("Governance Project A")
     _, target, target_role = _prepare_project_canonical_assignment(
         services,
         target_role_name="project_viewer",
@@ -312,7 +312,7 @@ def test_project_role_assignment_is_scoped_and_audited(services) -> None:
 
 
 def test_project_role_assignment_rejects_unresolvable_project(services) -> None:
-    project = services["project_service"].create_project("Governance Project B")
+    project = services['project_create'].create_project("Governance Project B")
     _, target, target_role = _prepare_project_canonical_assignment(
         services,
         target_role_name="project_viewer",

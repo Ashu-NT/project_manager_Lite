@@ -59,7 +59,7 @@ def _baseline_hints(hints):
 
 
 def _project_with_tasks(services, name: str | None = None):
-    project = services["project_service"].create_project(name or _unique("P23 Baseline Project"), "")
+    project = services['project_create'].create_project(name or _unique("P23 Baseline Project"), "")
     task_service = services["task_service"]
     task_service.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
     task_service.create_task(project.id, "Task B", start_date=date(2024, 1, 3), duration_days=2)

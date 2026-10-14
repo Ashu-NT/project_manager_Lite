@@ -52,44 +52,44 @@ def test_resource_desktop_dto_uses_current_platform_employee_profile(services):
 
 
 def test_project_client_party_is_platform_owned_and_scope_checked(services):
-    project_service = services["project_service"]
+    project_service = services['project_query']
     client = services["party_commands"].create_party(PartyCreateCommand(party_code="CUST-BOUNDARY", party_name="Client"))
 
-    project = project_service.create_project(
+    project = services['project_create'].create_project(
         name="Party reference project", client_party_id=client.id
     )
     assert project.client_party_id == client.id
 
     services["party_commands"].deactivate_party(client.id)
-    project_service.update_project(project.id, name="Renamed project")
+    services['project_update'].update_project(project.id, name="Renamed project")
     with pytest.raises(ValidationError, match="inactive"):
-        project_service.create_project(
+        services['project_create'].create_project(
             name="New party link", client_party_id=client.id
         )
     with pytest.raises(ValidationError, match="not found"):
-        project_service.create_project(
+        services['project_create'].create_project(
             name="Foreign party link", client_party_id="not-a-party"
         )
 
 
 def test_project_department_reference_is_optional_and_platform_owned(services):
-    project_service = services["project_service"]
-    project = project_service.create_project(name="No department project")
+    project_service = services['project_query']
+    project = services['project_create'].create_project(name="No department project")
     assert project.department_id is None
 
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEP-PROJECT", name="Project Department"))
-    linked = project_service.create_project(
+    linked = services['project_create'].create_project(
         name="Linked department project", department_id=department.id
     )
     assert linked.department_id == department.id
     services["department_commands"].deactivate_department(department.id)
-    project_service.update_project(linked.id, name="Historical department project")
+    services['project_update'].update_project(linked.id, name="Historical department project")
     with pytest.raises(ValidationError, match="inactive"):
-        project_service.create_project(
+        services['project_create'].create_project(
             name="New department project", department_id=department.id
         )
     with pytest.raises(ValidationError, match="not found"):
-        project_service.create_project(
+        services['project_create'].create_project(
             name="Unknown department project", department_id="not-a-department"
         )
 

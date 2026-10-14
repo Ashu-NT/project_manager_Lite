@@ -55,7 +55,7 @@ def _setup(services):
         initial_role_name="viewer",
     )
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Procurement delivery", financial_currency_code=organization.base_currency
     )
     cost_code = services["financial_configuration_service"].create_cost_code(

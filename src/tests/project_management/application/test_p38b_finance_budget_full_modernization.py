@@ -67,7 +67,7 @@ def _unique(prefix: str) -> str:
 
 
 def _setup(services):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         _unique("P38B Budget project"), financial_currency_code="USD"
     )
     cost_code = services["financial_configuration_service"].create_cost_code(

@@ -48,7 +48,7 @@ def _measure_statements(session, operation):
 
 
 def _project_resource(services):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6D-B governed rates", financial_currency_code="XAF"
     )
     resource = services["resource_master_commands"].create_resource(

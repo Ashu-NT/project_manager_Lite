@@ -57,7 +57,7 @@ SECTION_PATH = Path(
 
 
 def test_setup_reader_pages_filters_sorts_and_projects_capabilities(services) -> None:
-    project = services["project_service"].create_project("R6C-E Setup")
+    project = services['project_create'].create_project("R6C-E Setup")
     setup = services["financial_configuration_service"]
     profile = setup.get_profile(project.id)
     setup.configure_profile(
@@ -98,7 +98,7 @@ def test_setup_reader_pages_filters_sorts_and_projects_capabilities(services) ->
 def test_setup_service_rejects_stale_edits_inactive_default_and_duplicate_restriction(
     services,
 ) -> None:
-    project = services["project_service"].create_project("R6C-E Rules")
+    project = services['project_create'].create_project("R6C-E Rules")
     setup = services["financial_configuration_service"]
     code = setup.create_cost_code(code="R6CE.RULE", name="Rules")
     inactive = setup.deactivate_cost_code(code.id, expected_version=code.version)
@@ -126,8 +126,8 @@ def test_setup_service_rejects_stale_edits_inactive_default_and_duplicate_restri
 def test_setup_authorization_denies_hidden_project_and_missing_manage_permission(
     services,
 ) -> None:
-    visible = services["project_service"].create_project("Visible Setup project")
-    hidden = services["project_service"].create_project("Hidden Setup project")
+    visible = services['project_create'].create_project("Visible Setup project")
+    hidden = services['project_create'].create_project("Hidden Setup project")
     current = services["user_session"].principal
     assert current is not None
     tenant_id = services["user_session"].stored_active_tenant_id()

@@ -32,7 +32,7 @@ def _login_as_fresh_requester(services) -> None:
 
 def _make_project(services):
     _REQUESTER_COUNTER["n"] += 1
-    return services["project_service"].create_project(
+    return services['project_create'].create_project(
         f"UoW Cutover Project {_REQUESTER_COUNTER['n']}", financial_currency_code="USD"
     )
 

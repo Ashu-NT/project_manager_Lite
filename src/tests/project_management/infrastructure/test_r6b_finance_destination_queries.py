@@ -229,7 +229,7 @@ def test_planning_forecast_tab_uses_bounded_reader_facade_only() -> None:
 
 
 def test_budget_reader_pages_versions_and_selected_lines_authoritatively(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B budget reader",
         financial_currency_code="USD",
     )
@@ -318,7 +318,7 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(service
 def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
     services,
 ) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B planned-cost reader",
         financial_currency_code="USD",
     )
@@ -428,7 +428,7 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
 
 
 def _seed_forecast_reader(services):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B forecast reader",
         financial_currency_code="USD",
     )
@@ -1216,7 +1216,7 @@ def test_enterprise_audit_projection_filters_module_workspace_and_operation(serv
 
 
 def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B bounded overview",
         financial_currency_code="USD",
     )

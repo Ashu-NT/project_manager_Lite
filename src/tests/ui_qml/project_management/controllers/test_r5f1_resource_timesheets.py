@@ -35,7 +35,7 @@ def _build_resource_timesheet(services):
         worker_type=WorkerType.EMPLOYEE,
         employee_id=employee.id,
     )
-    project = services["project_service"].create_project("R5F1 Delivery")
+    project = services['project_create'].create_project("R5F1 Delivery")
     task = services["task_service"].create_task(
         project.id,
         "Owner Workflow",
@@ -102,7 +102,7 @@ def test_resource_mutations_deny_another_resource_and_enforce_selected_period(se
         name="Another Resource",
         role="Engineer",
     )
-    project = services["project_service"].create_project("Other Work")
+    project = services['project_create'].create_project("Other Work")
     task = services["task_service"].create_task(project.id, "Other Task")
     other_assignment = services["task_service"].assign_resource(task.id, other.id)
 
@@ -277,7 +277,7 @@ def test_external_without_login_supports_governed_delegated_lifecycle(services) 
         kind=ResourceKind.PERSON,
         worker_type=WorkerType.EXTERNAL,
     )
-    project = services["project_service"].create_project("Delegated Delivery")
+    project = services['project_create'].create_project("Delegated Delivery")
     task = services["task_service"].create_task(project.id, "Consulting")
     assignment = services["task_service"].assign_resource(task.id, external.id)
 
@@ -316,8 +316,8 @@ def test_team_selector_uses_explicit_project_scope(services) -> None:
     out_team = services["resource_master_commands"].create_resource(
         name="Out Team", role="Engineer", kind=ResourceKind.PERSON
     )
-    team_project = services["project_service"].create_project("Team Project")
-    other_project = services["project_service"].create_project("Other Project")
+    team_project = services['project_create'].create_project("Team Project")
+    other_project = services['project_create'].create_project("Other Project")
     team_task = services["task_service"].create_task(team_project.id, "Team Task")
     other_task = services["task_service"].create_task(other_project.id, "Other Task")
     services["task_service"].assign_resource(team_task.id, in_team.id)

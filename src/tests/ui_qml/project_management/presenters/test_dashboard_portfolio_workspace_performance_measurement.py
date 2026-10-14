@@ -51,7 +51,7 @@ def _measure_call_time(targets: list[tuple[object, str, str]]):
 
 def _seed_single_project_workspace(services):
     today = date.today()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Workspace Performance Project",
         start_date=today,
         end_date=today + timedelta(days=30),
@@ -84,7 +84,7 @@ def _seed_single_project_workspace(services):
     )
 
     portfolio_api = build_project_management_portfolio_desktop_api(
-        project_service=services["project_service"],
+        project_service=services['project_query'],
         portfolio_intake_query=services["portfolio_intake_query"],
         portfolio_intake_commands=services["portfolio_intake_commands"],
         portfolio_template_query=services["portfolio_template_query"],
@@ -159,7 +159,7 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
     calendar_resolver = dashboard._sched._project_calendar_adapter._resolver
 
     dashboard_api = build_project_management_dashboard_desktop_api(
-        project_service=services["project_service"],
+        project_service=services['project_query'],
         project_dashboard=dashboard,
         portfolio_dashboard=services["portfolio_dashboard_query"],
         baseline_service=baselines,
@@ -270,7 +270,7 @@ def test_dashboard_portfolio_scope_batches_shared_lookups_once_per_project(
     project_count = 4
     projects = []
     for index in range(project_count):
-        project = services["project_service"].create_project(
+        project = services['project_create'].create_project(
             f"Portfolio Scale Project {index}",
             start_date=today,
             end_date=today + timedelta(days=30),

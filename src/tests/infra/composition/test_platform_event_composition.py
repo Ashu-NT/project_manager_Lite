@@ -48,7 +48,7 @@ from src.core.platform.domain.tenant.tenancy.events import (
 
 
 def test_platform_view_event_families_have_one_shared_handler(services):
-    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
+    bus = services['project_create']._uow_factory._post_commit_bus
     families = (
         (OrganizationCreated,),
         (

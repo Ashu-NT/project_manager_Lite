@@ -55,7 +55,6 @@ from src.core.modules.project_management.application.portfolio.queries import (
     PortfolioScenarioQueryHandler,
     PortfolioTemplateQueryHandler,
 )
-from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.projects.commands.create import (
     ProjectCreateHandler,
 )
@@ -124,7 +123,20 @@ from src.core.modules.project_management.application.scheduling.calendars.projec
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
 )
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks import (
+    ApprovedScheduleChangeHandler,
+    ResourceLevelingCommandHandler,
+    TaskDeletionCommandHandler,
+    TaskDependencyCommandHandler,
+    TaskDependencyQueryHandler,
+    TaskHierarchyCommandHandler,
+    TaskHierarchyQueryHandler,
+    TaskLifecycleCommandHandler,
+    TaskProgressCommandHandler,
+    TaskSchedulingConstraintHandler,
+    TaskService,
+    TaskUowScope,
+)
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
 )
@@ -183,13 +195,23 @@ class ProjectManagementServiceBundle:
     collaboration_document_query: CollaborationDocumentQueryHandler
     collaboration_inbox_query: CollaborationInboxQueryHandler
     collaboration_presence_query: CollaborationPresenceQueryHandler
-    project_service: ProjectService
     project_query: ProjectQueryHandler
     project_create: ProjectCreateHandler
     project_update: ProjectUpdateHandler
     project_status: ProjectStatusHandler
     project_deletion: ProjectDeletionHandler
     task_service: TaskService
+    task_hierarchy_query: TaskHierarchyQueryHandler
+    task_deletion_commands: TaskDeletionCommandHandler
+    task_progress_commands: TaskProgressCommandHandler
+    task_schedule_changes: ApprovedScheduleChangeHandler
+    task_hierarchy_commands: TaskHierarchyCommandHandler
+    task_constraint_commands: TaskSchedulingConstraintHandler
+    task_leveling_commands: ResourceLevelingCommandHandler
+    task_lifecycle_commands: TaskLifecycleCommandHandler
+    task_dependency_commands: TaskDependencyCommandHandler
+    task_dependency_query: TaskDependencyQueryHandler
+    task_uow_scope: TaskUowScope
     task_workspace_query: TaskWorkspacePageQueryHandler
     task_detail_query: TaskDetailPageQueryHandler
     task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler

@@ -5,6 +5,9 @@ from typing import cast
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
@@ -17,16 +20,18 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class TaskLookupQueryHandler:
+class TaskLookupQueryHandler(ProjectManagementModuleGuardMixin):
     """Scoped task and assignment lookups for current application callers."""
 
     def __init__(
         self,
         *,
+        module_catalog_service=None,
         task_repo: TaskRepository,
         assignment_repo: AssignmentRepository,
         user_session: UserSessionContext | None,
     ) -> None:
+        self._module_catalog_service = module_catalog_service
         self._task_repo = task_repo
         self._assignment_repo = assignment_repo
         self._user_session = user_session

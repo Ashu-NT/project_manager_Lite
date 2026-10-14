@@ -76,7 +76,7 @@ from src.infra.integration.procurement_financial_dispatcher import (
 
 
 def test_budget_and_forecast_events_have_one_shared_handler_per_family(services) -> None:
-    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
+    bus = services['project_create']._uow_factory._post_commit_bus
     for event_types, name in (
         (
             (
@@ -109,7 +109,7 @@ def test_budget_and_forecast_events_have_one_shared_handler_per_family(services)
 
 
 def test_remaining_finance_events_have_one_handler_per_family(services) -> None:
-    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
+    bus = services['project_create']._uow_factory._post_commit_bus
     for event_types, name in (
         ((FinancialChangeChanged,), "handle"),
         ((PlannedCostSnapshotCalculated,), "handle_planned_cost_event"),

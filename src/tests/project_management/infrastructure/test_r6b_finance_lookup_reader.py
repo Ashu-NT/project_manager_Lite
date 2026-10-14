@@ -13,7 +13,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 def test_project_lookup_is_bounded_searchable_and_visibility_filtered(services) -> None:
     prefix = "R6B-LKP-PROJECT"
     projects = [
-        services["project_service"].create_project(
+        services['project_create'].create_project(
             f"{prefix} {index:02d}", financial_currency_code="XAF"
         )
         for index in range(6)
@@ -59,10 +59,10 @@ def test_project_lookup_is_bounded_searchable_and_visibility_filtered(services) 
 
 
 def test_task_lookup_is_project_dependent_paged_and_resolvable(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B Lookup Tasks", financial_currency_code="XAF"
     )
-    other = services["project_service"].create_project(
+    other = services['project_create'].create_project(
         "R6B Lookup Other Tasks", financial_currency_code="XAF"
     )
     tasks = [
@@ -89,7 +89,7 @@ def test_task_lookup_is_project_dependent_paged_and_resolvable(services) -> None
 
 
 def test_cost_code_lookup_preserves_restriction_and_effective_date_policy(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B Lookup Cost Codes", financial_currency_code="XAF"
     )
     configuration = services["financial_configuration_service"]
@@ -136,7 +136,7 @@ def test_cost_code_lookup_preserves_restriction_and_effective_date_policy(servic
 
 
 def test_manual_actual_defaults_and_selected_ids_do_not_require_full_lists(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B Lookup Defaults", financial_currency_code="XAF"
     )
     desktop = ProjectManagementFinancialsDesktopApi(

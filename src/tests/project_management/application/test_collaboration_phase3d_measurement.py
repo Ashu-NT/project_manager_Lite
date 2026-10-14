@@ -15,10 +15,10 @@ _SIZES = {"small": 1, "medium": 5, "large": 12}
 
 
 def _seed_collaboration_workspace(services, *, project_count: int) -> None:
-    projects = services["project_service"]
+    projects = services['project_query']
     tasks = services["task_service"]
     for index in range(project_count):
-        project = projects.create_project(f"Phase 3D Project {index}")
+        project = services['project_create'].create_project(f"Phase 3D Project {index}")
         task = tasks.create_task(project.id, f"Phase 3D Task {index}")
         services["collaboration_comment_commands"].post_comment(
             task_id=task.id,

@@ -32,7 +32,7 @@ def _ensure_qgui_application() -> QGuiApplication:
 
 def _seed_project_with_overdue_tasks(services, count: int):
     today = date.today()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Overview Live Tab Project",
         start_date=today - timedelta(days=60),
         end_date=today + timedelta(days=60),

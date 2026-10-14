@@ -56,7 +56,7 @@ def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
     task_service = _FakeTaskService()
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
-        task_service=task_service,
+        task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_detail_query=task_service, task_assignment_commands=task_service,
     )
 
     created = api.create_task(
@@ -127,7 +127,7 @@ def test_project_management_tasks_desktop_api_threads_is_milestone() -> None:
     task_service = _FakeTaskService()
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
-        task_service=task_service,
+        task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_detail_query=task_service, task_assignment_commands=task_service,
     )
 
     created = api.create_task(
@@ -191,7 +191,7 @@ def test_project_management_tasks_desktop_api_uses_task_scoped_project_query() -
     )
     api = build_project_management_tasks_desktop_api(
         project_service=_TaskScopedProjectService([project]),
-        task_service=task_service,
+        task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_detail_query=task_service, task_assignment_commands=task_service,
     )
 
     assert [option.label for option in api.list_projects()] == ["Plant Upgrade"]

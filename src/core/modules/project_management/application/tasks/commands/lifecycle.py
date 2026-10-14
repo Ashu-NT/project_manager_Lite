@@ -9,6 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
     TaskHierarchyPolicy,
 )
@@ -55,10 +58,11 @@ from src.core.shared.activity import record_activity
 logger = logging.getLogger(__name__)
 
 
-class TaskLifecycleCommandHandler:
+class TaskLifecycleCommandHandler(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
+        module_catalog_service=None,
         task_repo: TaskRepository,
         work_calendar_engine: CalendarProtocol,
         user_session: UserSessionContext | None,
@@ -69,6 +73,7 @@ class TaskLifecycleCommandHandler:
         scheduling_constraint_handler: TaskSchedulingConstraintHandler,
         uow_scope: TaskUowScope,
     ) -> None:
+        self._module_catalog_service = module_catalog_service
         self._task_repo = task_repo
         self._work_calendar_engine = work_calendar_engine
         self._user_session = user_session

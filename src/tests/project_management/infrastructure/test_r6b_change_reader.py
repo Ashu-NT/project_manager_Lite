@@ -45,7 +45,7 @@ def _statement_count(session):
 
 
 def _seed_changes(services):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B Change Reader", financial_currency_code="USD"
     )
     code = services["financial_configuration_service"].create_cost_code(
@@ -270,7 +270,7 @@ def test_selected_change_detail_and_typed_impacts_are_bounded(services):
 
 def test_change_reader_denies_wrong_parent_scope_and_serializes_decimal_as_text(services):
     project, _code, _task, alpha, _zulu, budget, *_ = _seed_changes(services)
-    other_project = services["project_service"].create_project(
+    other_project = services['project_create'].create_project(
         "R6B Other Project", financial_currency_code="USD"
     )
     query = services["finance_workspace_query"]

@@ -19,7 +19,7 @@ from src.core.platform.application.master_data.site.dto import (
 def test_project_activity_resolves_only_page_references_in_bounded_queries(
     services, session,
 ) -> None:
-    project = services["project_service"].create_project("R7G Activity Labels")
+    project = services['project_create'].create_project("R7G Activity Labels")
     site = services["site_commands"].create_site(SiteCreateCommand(site_code="R7G-SITE", name="North Yard"))
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="R7G-DEPT", name="Operations"))
     party = services["party_commands"].create_party(PartyCreateCommand(party_code="R7G-PARTY", party_name="Customer Group"))

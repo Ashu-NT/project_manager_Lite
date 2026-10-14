@@ -38,7 +38,7 @@ def _statement_count(session):
 
 
 def _seed_rates(services):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B Rate Reader", financial_currency_code="USD"
     )
     rates = services["rate_card_service"]

@@ -27,10 +27,10 @@ def _repo(services):
     ],
 )
 def test_every_editable_constraint_type_round_trips_through_persistence(services, constraint_type):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     repo = _repo(services)
-    project = ps.create_project("Constraint Persistence", "")
+    project = services['project_create'].create_project("Constraint Persistence", "")
     task = ts.create_task(project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3)
 
     from dataclasses import replace
@@ -46,10 +46,10 @@ def test_every_editable_constraint_type_round_trips_through_persistence(services
 
 
 def test_no_constraint_round_trips_as_none(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     repo = _repo(services)
-    project = ps.create_project("Constraint Persistence No Constraint", "")
+    project = services['project_create'].create_project("Constraint Persistence No Constraint", "")
     task = ts.create_task(project.id, "Plain Task", "", start_date=date(2026, 9, 1), duration_days=3)
 
     reloaded = repo.get(task.id)
@@ -58,10 +58,10 @@ def test_no_constraint_round_trips_as_none(services):
 
 
 def test_clearing_a_constraint_round_trips_as_none(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     repo = _repo(services)
-    project = ps.create_project("Constraint Persistence Clear", "")
+    project = services['project_create'].create_project("Constraint Persistence Clear", "")
     task = ts.create_task(project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3)
 
     from dataclasses import replace
@@ -87,10 +87,10 @@ def test_is_milestone_update_persists(services):
     version-checked write-column dict -- a change to it via update_task
     silently never persisted. Fixed alongside the constraint columns
     while touching this exact dict."""
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     repo = _repo(services)
-    project = ps.create_project("Milestone Persistence Update", "")
+    project = services['project_create'].create_project("Milestone Persistence Update", "")
     task = ts.create_task(project.id, "Regular Task", "", start_date=date(2026, 9, 1), duration_days=3)
     assert repo.get(task.id).is_milestone is False
 
@@ -104,10 +104,10 @@ def test_is_milestone_update_persists(services):
 
 
 def test_constraint_update_respects_optimistic_concurrency(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     repo = _repo(services)
-    project = ps.create_project("Constraint Persistence Concurrency", "")
+    project = services['project_create'].create_project("Constraint Persistence Concurrency", "")
     task = ts.create_task(project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3)
 
     from dataclasses import replace

@@ -27,7 +27,7 @@ def _approval_api(services) -> PlatformApprovalDesktopApi:
 
 def test_platform_access_desktop_api_manages_project_scope_grants(services):
     api = _access_api(services)
-    project = services["project_service"].create_project("Desktop Access Project")
+    project = services['project_create'].create_project("Desktop Access Project")
     tenant_id = services["tenant_context_service"].require_active_tenant_id(
         operation_label="prepare desktop access test user"
     )
@@ -75,7 +75,7 @@ def test_platform_access_desktop_api_manages_project_scope_grants(services):
 
 def test_platform_approval_desktop_api_lists_and_approves_requests(services):
     api = _approval_api(services)
-    project = services["project_service"].create_project("Desktop Approval Project")
+    project = services['project_create'].create_project("Desktop Approval Project")
     # Overrides the real baseline.create participant with a no-op stub for this
     # desktop-API-surface test.
     services["approval_participants"].register_apply_handler(

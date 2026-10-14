@@ -211,7 +211,6 @@ def build_project_management_service_bundle(
         platform_services,
         shared_session_uow_factory,
     )
-    project_service = project_capabilities.service
 
     timesheet_capabilities = build_timesheet_capabilities(
         session,
@@ -365,7 +364,7 @@ def build_project_management_service_bundle(
         session,
         repositories,
         platform_services,
-        task_service=task_service,
+        task_service=task_capabilities.schedule_changes,
         clock=system_clock,
     )
 
@@ -517,13 +516,23 @@ def build_project_management_service_bundle(
         collaboration_document_query=collaboration.document_query,
         collaboration_inbox_query=collaboration.inbox_query,
         collaboration_presence_query=collaboration.presence_query,
-        project_service=project_service,
         project_query=project_capabilities.query,
         project_create=project_capabilities.create,
         project_update=project_capabilities.update,
         project_status=project_capabilities.status,
         project_deletion=project_capabilities.deletion,
         task_service=task_service,
+        task_hierarchy_query=task_capabilities.hierarchy_query,
+        task_deletion_commands=task_capabilities.deletion,
+        task_progress_commands=task_capabilities.progress,
+        task_schedule_changes=task_capabilities.schedule_changes,
+        task_hierarchy_commands=task_capabilities.hierarchy,
+        task_constraint_commands=task_capabilities.constraints,
+        task_leveling_commands=task_capabilities.leveling,
+        task_lifecycle_commands=task_capabilities.lifecycle,
+        task_dependency_commands=task_capabilities.dependencies,
+        task_dependency_query=task_capabilities.dependency_query,
+        task_uow_scope=task_capabilities.uow_scope,
         task_workspace_query=task_capabilities.workspace,
         task_detail_query=task_capabilities.detail,
         task_dependency_diagnostics=task_capabilities.dependency_diagnostics,

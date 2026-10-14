@@ -1,7 +1,5 @@
 """Project use cases."""
 
-from src.core.modules.project_management.application.projects.service import (
-    ProjectService,
-)
+from src.core.modules.project_management.application.projects.queries.project_query import ProjectQueryHandler
 
-__all__ = ["ProjectService"]
+__all__ = ["ProjectQueryHandler"]

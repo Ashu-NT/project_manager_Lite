@@ -6,9 +6,9 @@ from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 
 
 def _create_entry_context(services):
-    projects = services["project_service"]
+    projects = services['project_query']
     tasks = services["task_service"]
-    project = projects.create_project("R5H TimeEntry Project")
+    project = services['project_create'].create_project("R5H TimeEntry Project")
     task = tasks.create_task(
         project.id,
         "R5H TimeEntry Task",

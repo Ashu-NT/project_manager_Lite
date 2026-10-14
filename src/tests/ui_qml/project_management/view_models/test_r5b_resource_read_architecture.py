@@ -68,7 +68,7 @@ def test_resource_inspector_and_summary_are_scoped_bounded_independent_reads(ser
     page = services["resource_query"].query_catalog_page(page=1, page_size=1)
     assert [item.resource_id for item in page.items] == [first.id]
 
-    session = services["project_service"]._session
+    session = services['project_deletion']._session
     engine = session.get_bind()
     statements: list[str] = []
 

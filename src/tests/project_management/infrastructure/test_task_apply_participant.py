@@ -35,9 +35,9 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _make_two_tasks(services, name: str = "Task Approval Participant"):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project(name, "")
+    project = services['project_create'].create_project(name, "")
     a = ts.create_task(
         project.id, "Task A", "", start_date=date(2026, 9, 1), duration_days=2
     )
@@ -46,9 +46,9 @@ def _make_two_tasks(services, name: str = "Task Approval Participant"):
 
 
 def _make_task(services, name: str = "Task Approval Participant Constraint"):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project(name, "")
+    project = services['project_create'].create_project(name, "")
     task = ts.create_task(
         project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3
     )
@@ -131,7 +131,7 @@ def test_participant_apply_dependency_add_adds_dependency_on_the_supplied_sessio
 
     result = TaskApprovalParticipant().apply_dependency_add(request, deps)
 
-    persisted = deps.task_service._task_uow_scope._dependencies.list_by_task(a.id)
+    persisted = deps.uow_scope._dependencies.list_by_task(a.id)
     assert len(persisted) == 1
     assert persisted[0].predecessor_task_id == a.id
     assert persisted[0].successor_task_id == b.id
@@ -164,7 +164,7 @@ def test_participant_apply_task_constraint_update_updates_task_on_the_supplied_s
 
     result = TaskApprovalParticipant().apply_task_constraint_update(request, deps)
 
-    updated = deps.task_service._task_uow_scope._tasks.get(task.id)
+    updated = deps.uow_scope._tasks.get(task.id)
     assert updated.constraint_type is ConstraintType.MUST_START_ON
     assert updated.constraint_date == constraint_date
     assert updated.start_date == constraint_date
@@ -207,32 +207,32 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         deps_a = _deps(services, session_a)
         deps_b = _deps(services, session_b)
 
-        assert deps_a.task_service._task_uow_scope._factory is None
-        assert deps_b.task_service._task_uow_scope._factory is None
-        assert deps_a.task_service._task_uow_scope._tasks.session is session_a
-        assert deps_b.task_service._task_uow_scope._tasks.session is session_b
-        assert deps_a.task_service._task_uow_scope._dependencies.session is session_a
-        assert deps_b.task_service._task_uow_scope._dependencies.session is session_b
-        assert deps_a.task_service is not deps_b.task_service
-        activity_a = deps_a.task_service._task_uow_scope._activity_service
-        activity_b = deps_b.task_service._task_uow_scope._activity_service
+        assert deps_a.uow_scope._factory is None
+        assert deps_b.uow_scope._factory is None
+        assert deps_a.uow_scope._tasks.session is session_a
+        assert deps_b.uow_scope._tasks.session is session_b
+        assert deps_a.uow_scope._dependencies.session is session_a
+        assert deps_b.uow_scope._dependencies.session is session_b
+        assert deps_a.dependencies is not deps_b.dependencies
+        activity_a = deps_a.uow_scope._activity_service
+        activity_b = deps_b.uow_scope._activity_service
         assert activity_a is not activity_b
         assert activity_a._session is session_a
         assert activity_b._session is session_b
         scheduler_a = (
-            deps_a.task_service._scheduling_constraint_handler._scheduling_engine
+            deps_a.constraints._scheduling_engine
         )
         scheduler_b = (
-            deps_b.task_service._scheduling_constraint_handler._scheduling_engine
+            deps_b.constraints._scheduling_engine
         )
         assert scheduler_a is not scheduler_b
         assert scheduler_a._session is session_a
         assert scheduler_b._session is session_b
         assert (
-            deps_a.task_service._dependency_command_handler._approval_commands is None
+            deps_a.dependencies._approval_commands is None
         ), "the apply path must never reach back into ApprovalCommandHandler"
         assert (
-            deps_b.task_service._dependency_command_handler._approval_commands is None
+            deps_b.dependencies._approval_commands is None
         )
     finally:
         session_a.close()
@@ -241,6 +241,6 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
 
 def test_dependencies_factory_never_opens_its_own_session(services, session):
     deps = _deps(services, session)
-    assert deps.task_service._task_uow_scope._tasks.session is session, (
+    assert deps.uow_scope._tasks.session is session, (
         "the factory must use the supplied Session, never a fresh one"
     )

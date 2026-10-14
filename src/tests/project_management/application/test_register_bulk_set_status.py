@@ -37,7 +37,7 @@ def _count_uow_creations(factory_cls):
 
 def test_bulk_set_entry_status_updates_every_entry_in_one_transaction(services) -> None:
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Bulk register project", financial_currency_code=organization.base_currency
     )
     register_query = services["register_query"]

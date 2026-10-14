@@ -2,17 +2,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.core.modules.project_management.application.tasks import (
+    ApprovedScheduleChangeHandler,
+    ResourceLevelingCommandHandler,
+    TaskDeletionCommandHandler,
+    TaskDependencyCommandHandler,
+    TaskDependencyQueryHandler,
+    TaskHierarchyCommandHandler,
+    TaskHierarchyQueryHandler,
+    TaskLifecycleCommandHandler,
+    TaskProgressCommandHandler,
+    TaskSchedulingConstraintHandler,
+    TaskUowScope,
+)
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
-)
-from src.core.modules.project_management.application.tasks.commands.hierarchy import (
-    TaskHierarchyCommandHandler,
-)
-from src.core.modules.project_management.application.tasks.commands.lifecycle import (
-    TaskLifecycleCommandHandler,
-)
-from src.core.modules.project_management.application.tasks.commands.progress import (
-    TaskProgressCommandHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.time_entries import (
     TaskTimeEntryHandler,
@@ -35,12 +39,20 @@ from src.core.modules.project_management.application.tasks.service import TaskSe
 @dataclass(frozen=True)
 class TaskComposition:
     service: TaskService
+    hierarchy_query: TaskHierarchyQueryHandler
+    deletion: TaskDeletionCommandHandler
+    progress: TaskProgressCommandHandler
+    schedule_changes: ApprovedScheduleChangeHandler
+    hierarchy: TaskHierarchyCommandHandler
+    constraints: TaskSchedulingConstraintHandler
+    leveling: ResourceLevelingCommandHandler
+    lifecycle: TaskLifecycleCommandHandler
+    dependencies: TaskDependencyCommandHandler
+    dependency_query: TaskDependencyQueryHandler
+    uow_scope: TaskUowScope
     lookup: TaskLookupQueryHandler
     workspace: TaskWorkspacePageQueryHandler
     detail: TaskDetailPageQueryHandler
     dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler
     assignment: TaskAssignmentCommandHandler
     time_entries: TaskTimeEntryHandler
-    lifecycle: TaskLifecycleCommandHandler
-    hierarchy: TaskHierarchyCommandHandler
-    progress: TaskProgressCommandHandler

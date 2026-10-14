@@ -64,7 +64,7 @@ def _approve_budget(services, project_id: str, amount: str) -> None:
 
 
 def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(services) -> None:
-    projects = services["project_service"]
+    projects = services['project_query']
     tasks = services["task_service"]
 
     shared = services["resource_master_commands"].create_resource(
@@ -85,8 +85,8 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
         capacity_percent=900.0,
         currency_code="EUR",
     )
-    alpha = projects.create_project("Alpha", financial_currency_code="EUR")
-    beta = projects.create_project("Beta", financial_currency_code="EUR")
+    alpha = services['project_create'].create_project("Alpha", financial_currency_code="EUR")
+    beta = services['project_create'].create_project("Beta", financial_currency_code="EUR")
     _approve_budget(services, alpha.id, "400")
     _approve_budget(services, beta.id, "700")
 
@@ -174,7 +174,7 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
 
 
 def test_scenario_comparison_reads_one_fact_graph(services, monkeypatch) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Single", financial_currency_code="EUR"
     )
     base = services["portfolio_scenario_commands"].create_scenario(name="Base", project_ids=[project.id], intake_item_ids=[])

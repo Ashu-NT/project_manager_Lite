@@ -21,9 +21,9 @@ def test_priority_bucket_label_none_or_empty_is_not_set() -> None:
 
 
 def test_wbs_code_round_trips_from_db_to_serialized_table_row(services) -> None:
-    project_service = services["project_service"]
+    project_service = services['project_query']
     task_service = services["task_service"]
-    project = project_service.create_project("WBS Serializer Check")
+    project = services['project_create'].create_project("WBS Serializer Check")
     task_service.create_task(
         project.id,
         "Root Package",
@@ -34,7 +34,7 @@ def test_wbs_code_round_trips_from_db_to_serialized_table_row(services) -> None:
     )
 
     tasks_api = build_project_management_tasks_desktop_api(
-        task_service=task_service,
+        task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'],
         task_workspace_query=services["task_workspace_query"],
         module_catalog_service=services["module_catalog_service"],
     )
@@ -55,9 +55,9 @@ def test_wbs_code_round_trips_from_db_to_serialized_table_row(services) -> None:
 
 
 def test_milestone_task_shows_marker_in_title_and_milestones_only_filter_selects_it(services) -> None:
-    project_service = services["project_service"]
+    project_service = services['project_query']
     task_service = services["task_service"]
-    project = project_service.create_project("Milestone Marker Check")
+    project = services['project_create'].create_project("Milestone Marker Check")
     task_service.create_task(
         project.id, "Regular Task", start_date=date(2026, 5, 1), duration_days=5,
     )
@@ -70,7 +70,7 @@ def test_milestone_task_shows_marker_in_title_and_milestones_only_filter_selects
     )
 
     tasks_api = build_project_management_tasks_desktop_api(
-        task_service=task_service,
+        task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'],
         task_workspace_query=services["task_workspace_query"],
         module_catalog_service=services["module_catalog_service"],
     )
@@ -91,9 +91,9 @@ def test_milestone_task_shows_marker_in_title_and_milestones_only_filter_selects
 
 
 def test_priority_label_shows_the_same_bucket_the_priority_filter_selects(services) -> None:
-    project_service = services["project_service"]
+    project_service = services['project_query']
     task_service = services["task_service"]
-    project = project_service.create_project("Priority Bucket Check")
+    project = services['project_create'].create_project("Priority Bucket Check")
     task_service.create_task(
         project.id, "High Task", start_date=date(2026, 5, 1), duration_days=1, priority=95,
     )
@@ -114,7 +114,7 @@ def test_priority_label_shows_the_same_bucket_the_priority_filter_selects(servic
     )
 
     tasks_api = build_project_management_tasks_desktop_api(
-        task_service=task_service,
+        task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'],
         task_workspace_query=services["task_workspace_query"],
         module_catalog_service=services["module_catalog_service"],
     )

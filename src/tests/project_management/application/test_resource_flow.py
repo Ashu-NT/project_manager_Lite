@@ -8,9 +8,9 @@ from src.core.modules.project_management.application.tasks.commands import (
 
 
 def test_resource_assignment_and_overload(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Res Test", "")
+    project = services['project_create'].create_project("Res Test", "")
     pid = project.id
 
     # Create tasks with overlapping periods
@@ -47,9 +47,9 @@ def test_resource_assignment_and_overload(services):
 def test_auto_provisioned_project_resource_rolls_back_with_assignment_failure(
     services, monkeypatch
 ):
-    projects = services["project_service"]
+    projects = services['project_query']
     tasks = services["task_service"]
-    project = projects.create_project("Assignment rollback", "")
+    project = services['project_create'].create_project("Assignment rollback", "")
     task = tasks.create_task(project.id, "Work")
     resource = services["resource_master_commands"].create_resource("Rollback resource", "Developer")
 
@@ -67,9 +67,9 @@ def test_auto_provisioned_project_resource_rolls_back_with_assignment_failure(
 def test_auto_provisioned_envelope_and_assignment_roll_back_after_staging(
     services, monkeypatch
 ):
-    projects = services["project_service"]
+    projects = services['project_query']
     tasks = services["task_service"]
-    project = projects.create_project("Assignment staged rollback", "")
+    project = services['project_create'].create_project("Assignment staged rollback", "")
     task = tasks.create_task(project.id, "Work")
     resource = services["resource_master_commands"].create_resource("Staged rollback resource", "Developer")
 

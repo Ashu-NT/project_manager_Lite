@@ -36,7 +36,7 @@ def _time_entry_count(services) -> int:
 
 def test_import_projects_collects_row_errors_without_stopping(services, workspace_dir):
     importer = services["data_import_service"]
-    ps = services["project_service"]
+    ps = services['project_query']
 
     csv_path = _write_csv(
         workspace_dir,
@@ -54,7 +54,7 @@ def test_import_projects_collects_row_errors_without_stopping(services, workspac
     assert summary.updated_count == 0
     assert summary.error_count == 1
     assert "line 3" in summary.error_rows[0]
-    assert any(project.name == "Good Project" for project in ps.list_projects())
+    assert any(project.name == "Good Project" for project in services['project_query'].list_projects())
 
 
 def test_import_resources_updates_existing_rows_by_id_and_parses_false_boolean(services, workspace_dir):
@@ -86,10 +86,10 @@ def test_import_resources_updates_existing_rows_by_id_and_parses_false_boolean(s
 
 def test_import_tasks_updates_existing_rows_and_reports_missing_project_reference(services, workspace_dir):
     importer = services["data_import_service"]
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Task Import Project")
+    project = services['project_create'].create_project("Task Import Project")
     task = ts.create_task(project.id, "Imported Task", start_date=date(2026, 4, 1), duration_days=2)
     csv_path = _write_csv(
         workspace_dir,
@@ -116,8 +116,8 @@ def test_import_tasks_updates_existing_rows_and_reports_missing_project_referenc
 
 def test_legacy_combined_cost_import_is_rejected_after_command_cutover(services, workspace_dir):
     importer = services["data_import_service"]
-    ps = services["project_service"]
-    ps.create_project("Cost Import Project")
+    ps = services['project_query']
+    services['project_create'].create_project("Cost Import Project")
     csv_path = _write_csv(
         workspace_dir,
         "costs.csv",
@@ -141,9 +141,9 @@ def test_import_csv_rejects_unknown_entity_types(services, workspace_dir):
 
 
 def test_initialize_timesheet_is_idempotent_for_legacy_hours(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Idempotent Timesheet")
+    project = services['project_create'].create_project("Idempotent Timesheet")
     task = ts.create_task(project.id, "Idempotent Task", start_date=date(2026, 3, 10), duration_days=1)
     resource = services["resource_master_commands"].create_resource("Idempotent Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=50.0)
@@ -159,9 +159,9 @@ def test_initialize_timesheet_is_idempotent_for_legacy_hours(services):
 
 
 def test_add_time_entry_bootstraps_legacy_hours_without_explicit_initialize(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Implicit Bootstrap")
+    project = services['project_create'].create_project("Implicit Bootstrap")
     task = ts.create_task(project.id, "Bootstrap Task", start_date=date(2026, 3, 11), duration_days=1)
     resource = services["resource_master_commands"].create_resource("Implicit Dev", hourly_rate=110.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=75.0)
@@ -178,9 +178,9 @@ def test_add_time_entry_bootstraps_legacy_hours_without_explicit_initialize(serv
 
 
 def test_unassigning_resource_without_actuals_still_succeeds(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Unassign Timesheet Cleanup")
+    project = services['project_create'].create_project("Unassign Timesheet Cleanup")
     task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 13), duration_days=1)
     resource = services["resource_master_commands"].create_resource("Cleanup Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
@@ -195,9 +195,9 @@ def test_unassigning_resource_with_actuals_is_blocked_to_preserve_history(servic
     disappear because a planning assignment is removed. Once real hours are
     logged, unassign_resource must refuse rather than silently cascading
     the time-entry deletion it used to perform unconditionally."""
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Unassign Timesheet Cleanup")
+    project = services['project_create'].create_project("Unassign Timesheet Cleanup")
     task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 13), duration_days=1)
     resource = services["resource_master_commands"].create_resource("Cleanup Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
@@ -215,9 +215,9 @@ def test_unassigning_resource_with_actuals_is_blocked_to_preserve_history(servic
 
 
 def test_deleting_task_removes_associated_time_entries(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Delete Task Timesheet Cleanup")
+    project = services['project_create'].create_project("Delete Task Timesheet Cleanup")
     task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 14), duration_days=1)
     resource = services["resource_master_commands"].create_resource("Cleanup Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
@@ -231,7 +231,7 @@ def test_deleting_task_removes_associated_time_entries(services):
 
 
 def test_failed_task_delete_rolls_back_time_and_assignment(services, monkeypatch):
-    project = services["project_service"].create_project("Delete rollback")
+    project = services['project_create'].create_project("Delete rollback")
     tasks = services["task_service"]
     resource = services["resource_master_commands"].create_resource("Rollback crew", hourly_rate=100.0)
     task = tasks.create_task(project.id, "Rollback task", start_date=date(2026, 3, 14), duration_days=1)
@@ -251,9 +251,9 @@ def test_failed_task_delete_rolls_back_time_and_assignment(services, monkeypatch
 
 
 def test_deleting_project_removes_time_entries_created_under_its_assignments(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Delete Project Timesheet Cleanup")
+    project = services['project_create'].create_project("Delete Project Timesheet Cleanup")
     task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 15), duration_days=1)
     resource = services["resource_master_commands"].create_resource("Cleanup Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
@@ -261,15 +261,15 @@ def test_deleting_project_removes_time_entries_created_under_its_assignments(ser
 
     assert _time_entry_count(services) == 1
 
-    ps.delete_project(project.id)
+    services['project_deletion'].delete_project(project.id)
 
     assert _time_entry_count(services) == 0
 
 
 def test_time_entry_hours_must_be_greater_than_zero(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Time Entry Validation")
+    project = services['project_create'].create_project("Time Entry Validation")
     task = ts.create_task(project.id, "Validation Task", start_date=date(2026, 3, 17), duration_days=1)
     resource = services["resource_master_commands"].create_resource("Validation Dev", hourly_rate=100.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=25.0)

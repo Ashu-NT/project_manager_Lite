@@ -21,7 +21,7 @@ def _become_independent_admin_decider(services) -> None:
 
 def _submitted_cost_entry(services, name: str):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(name)
+    project = services['project_create'].create_project(name)
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="MANUAL-ACTUAL",
         name="Manual actual",
@@ -75,11 +75,11 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "dependency.add")
     _login(services, "admin", "ChangeMe123!")
 
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     approvals = services["approval_commands"]
 
-    project = ps.create_project("Governed Dependency Project")
+    project = services['project_create'].create_project("Governed Dependency Project")
     a = ts.create_task(project.id, "Task Alpha", start_date=date(2026, 2, 24), duration_days=1)
     b = ts.create_task(project.id, "Task Beta", start_date=date(2026, 2, 25), duration_days=1)
     services["user_registration"].register_user("planner-dep", "StrongPass123", role_names=["planner"])

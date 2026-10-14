@@ -19,16 +19,16 @@ from src.core.modules.project_management.api.desktop.scheduling.api import (
 
 def _desktop_api(services):
     return ProjectManagementSchedulingDesktopApi(
-        task_service=services["task_service"],
+        task_lookup_query=services['task_lookup_query'], task_detail_query=services['task_detail_query'], task_hierarchy_query=services['task_hierarchy_query'], task_dependency_query=services['task_dependency_query'], task_dependency_commands=services['task_dependency_commands'], task_leveling_commands=services['task_leveling_commands'],
         scheduling_engine=services["scheduling_engine"],
         work_calendar_engine=services["work_calendar_engine"],
     )
 
 
 def _make_overload(services, name: str):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project(name, "")
+    project = services['project_create'].create_project(name, "")
     task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
     resource = services["resource_master_commands"].create_resource("Desktop API Dev", "Developer", hourly_rate=100.0)
@@ -54,9 +54,9 @@ class TestPreview:
 
     def test_preview_of_a_conflict_free_project_returns_no_moves(self, services):
         api = _desktop_api(services)
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
-        project = ps.create_project("Desktop API Leveling No Conflicts", "")
+        project = services['project_create'].create_project("Desktop API Leveling No Conflicts", "")
         ts.create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
 
         dto = api.preview_resource_leveling(project.id)
@@ -88,8 +88,8 @@ class TestApply:
 
     def test_apply_without_a_prior_preview_raises(self, services):
         api = _desktop_api(services)
-        ps = services["project_service"]
-        project = ps.create_project("Desktop API Leveling No Preview", "")
+        ps = services['project_query']
+        project = services['project_create'].create_project("Desktop API Leveling No Preview", "")
 
         with pytest.raises(ValueError):
             api.apply_resource_leveling(project.id)

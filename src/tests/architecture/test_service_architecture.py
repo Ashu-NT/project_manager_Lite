@@ -20,7 +20,7 @@ from src.core.modules.project_management.application.portfolio.commands import (
 from src.core.modules.project_management.application.portfolio.queries import (
     PortfolioExecutiveQueryHandler,
 )
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects import ProjectQueryHandler
 from src.core.modules.project_management.application.reporting import (
     EarnedValueReportBuilder,
     ProjectKpiReportBuilder,
@@ -138,7 +138,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.enterprise_audit_service, EnterpriseAuditService)
     assert isinstance(graph.collaboration_comment_commands, CollaborationCommentCommandHandler)
     assert isinstance(graph.collaboration_inbox_query, CollaborationInboxQueryHandler)
-    assert isinstance(graph.project_service, ProjectService)
+    assert isinstance(graph.project_query, ProjectQueryHandler)
     assert isinstance(graph.task_service, TaskService)
     assert isinstance(graph.timesheet_workspace_query, TimesheetWorkspaceQueryHandler)
     assert isinstance(graph.timesheet_workspace_commands, TimesheetWorkspaceCommandHandler)

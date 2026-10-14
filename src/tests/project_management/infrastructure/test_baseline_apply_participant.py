@@ -26,7 +26,7 @@ from src.infra.persistence.orm.base import Base
 
 
 def _make_project(services, name: str = "Baseline Project"):
-    return services["project_service"].create_project(name, "")
+    return services['project_create'].create_project(name, "")
 
 
 def _login(services, username: str, password: str) -> None:

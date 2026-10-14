@@ -77,7 +77,7 @@ def _login_as_scoped_approver(services) -> None:
 
 def _submitted_budget(services, session):
     _login(services, "admin", "ChangeMe123!")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         _unique("View Invalidation Project"),
         code=_unique("VI-PRJ"),
         financial_currency_code="USD",
@@ -265,7 +265,7 @@ def test_host_workflow_submit_change_refreshes_control_workspace_exactly_once(se
     catalog.controlWorkspace.refresh_approvals = lambda: refresh_calls.append("approvals") or None
 
     _login(services, "admin", "ChangeMe123!")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         _unique("View Invalidation Finance Project"), financial_currency_code="USD"
     )
     code = services["financial_configuration_service"].create_cost_code(

@@ -17,7 +17,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyEr
 
 
 def test_stale_forecast_submit_is_rejected(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Stale Forecast submit", financial_currency_code="USD"
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
@@ -53,7 +53,7 @@ def test_stale_forecast_submit_is_rejected(services) -> None:
 
 
 def test_generation_cannot_create_a_second_open_forecast(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Single open Forecast", financial_currency_code="USD"
     )
     cost_code = services["financial_configuration_service"].create_cost_code(

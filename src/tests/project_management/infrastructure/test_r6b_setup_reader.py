@@ -28,7 +28,7 @@ def _statement_count(session):
 
 
 def test_setup_reader_returns_one_scoped_immutable_projection(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B Finance Setup",
         financial_currency_code="XAF",
     )
@@ -65,7 +65,7 @@ def test_setup_reader_returns_one_scoped_immutable_projection(services) -> None:
 
 
 def test_setup_reader_denies_explicit_wrong_scope_and_desktop_serializes(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B Finance Setup Scope",
         financial_currency_code="USD",
     )

@@ -55,7 +55,7 @@ def _setup(services):
             initial_role_name="viewer",
         )
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Approved Time Finance", financial_currency_code=organization.base_currency
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
@@ -612,7 +612,7 @@ def test_posting_failure_read_is_bounded_scoped_and_sensitive_by_permission(
     assert page.items[0].failure_code == "RATE_CARD_NO_APPLICABLE_RATE"
     assert "No applicable rate" in page.items[0].failure_message
 
-    unrelated_project = services["project_service"].create_project(
+    unrelated_project = services['project_create'].create_project(
         "Unrelated Finance Project"
     )
     unrelated = services[

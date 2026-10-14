@@ -5,6 +5,9 @@ from __future__ import annotations
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     DependencyRepository,
     TaskRepository,
@@ -17,14 +20,16 @@ from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class TaskDependencyQueryHandler:
+class TaskDependencyQueryHandler(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
+        module_catalog_service=None,
         task_repo: TaskRepository,
         dependency_repo: DependencyRepository,
         user_session: UserSessionContext | None,
     ) -> None:
+        self._module_catalog_service = module_catalog_service
         self._task_repo = task_repo
         self._dependency_repo = dependency_repo
         self._user_session = user_session

@@ -18,7 +18,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
 def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float = 50.0):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Planned Cost Project", financial_currency_code="USD"
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
@@ -217,7 +217,7 @@ def test_empty_project_produces_valid_empty_snapshot(services) -> None:
 
 
 def test_missing_default_cost_code_fails_closed(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "No Cost Code Project", financial_currency_code="USD"
     )
     with pytest.raises(BusinessRuleError) as exc:

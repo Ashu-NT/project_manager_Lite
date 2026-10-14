@@ -16,7 +16,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def test_task_detail_pages_use_composed_query_handler(services) -> None:
-    project = services["project_service"].create_project("Task Detail Pages")
+    project = services['project_create'].create_project("Task Detail Pages")
     tasks = services["task_service"]
     predecessor = tasks.create_task(project.id, "Predecessor")
     task = tasks.create_task(project.id, "Delivery")
@@ -80,12 +80,12 @@ def test_assignment_hours_command_checks_module_before_composed_handler() -> Non
 
 
 def test_dependency_previews_use_composed_handler(services) -> None:
-    project = services["project_service"].create_project("Dependency Preview")
+    project = services['project_create'].create_project("Dependency Preview")
     tasks = services["task_service"]
     predecessor = tasks.create_task(project.id, "Predecessor")
     successor = tasks.create_task(project.id, "Successor")
     api = build_project_management_tasks_desktop_api(
-        task_service=tasks,
+        task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'],
         task_dependency_diagnostics=services["task_dependency_diagnostics"],
         module_catalog_service=services["module_catalog_service"],
     )
@@ -117,7 +117,7 @@ def test_dependency_previews_check_module_before_handler(method: str) -> None:
         preview_dependency_removal=lambda *_args: pytest.fail("query called"),
     )
     api = build_project_management_tasks_desktop_api(
-        task_service=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")),
+        task_lookup_query=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")), task_hierarchy_query=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")), task_deletion_commands=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")), task_progress_commands=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")), task_hierarchy_commands=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")), task_constraint_commands=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")), task_lifecycle_commands=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")), task_dependency_commands=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")), task_dependency_query=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")), task_detail_query=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")), task_assignment_commands=SimpleNamespace(get_dependency=lambda *_args: pytest.fail("query called")),
         task_dependency_diagnostics=diagnostics,
         module_catalog_service=catalog,
     )

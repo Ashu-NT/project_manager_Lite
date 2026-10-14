@@ -16,7 +16,7 @@ from src.core.platform.common.exceptions import ValidationError
 
 
 def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -> None:
-    project_service = services["project_service"]
+    project_service = services['project_query']
     user_id = services["user_session"].principal.user_id
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="PM-MANAGER", name="Management"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="PM-MANAGER", full_name="Manager Employee", department_id=department.id))
@@ -37,17 +37,17 @@ def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -
     ).list_manager_candidates()
     assert any(row.user_id == user_id for row in options)
 
-    project = project_service.create_project("Eligible Manager", manager_user_id=user_id)
+    project = services['project_create'].create_project("Eligible Manager", manager_user_id=user_id)
     assert project.manager_user_id == user_id
     with pytest.raises(ValidationError) as create_error:
-        project_service.create_project("Resource Is Not User", manager_user_id=resource.id)
+        services['project_create'].create_project("Resource Is Not User", manager_user_id=resource.id)
     assert create_error.value.code == "PROJECT_MANAGER_NOT_ELIGIBLE"
 
-    other = project_service.create_project("Manager Update")
+    other = services['project_create'].create_project("Manager Update")
     with pytest.raises(ValidationError) as update_error:
-        project_service.update_project(other.id, manager_user_id=resource.id)
+        services['project_update'].update_project(other.id, manager_user_id=resource.id)
     assert update_error.value.code == "PROJECT_MANAGER_NOT_ELIGIBLE"
-    updated = project_service.update_project(other.id, manager_user_id=user_id)
+    updated = services['project_update'].update_project(other.id, manager_user_id=user_id)
     assert updated.manager_user_id == user_id
 
     services["resource_master_commands"].deactivate_resource(
@@ -58,7 +58,7 @@ def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -
         for row in services["project_query"].list_eligible_manager_candidates()
     )
     with pytest.raises(ValidationError) as inactive_error:
-        project_service.create_project("Inactive Manager Resource", manager_user_id=user_id)
+        services['project_create'].create_project("Inactive Manager Resource", manager_user_id=user_id)
     assert inactive_error.value.code == "PROJECT_MANAGER_NOT_ELIGIBLE"
 
 
@@ -67,7 +67,7 @@ def test_project_manager_rejects_unregistered_user(services) -> None:
         username="pm-no-resource", raw_password="StrongPass123!"
     )
     with pytest.raises(ValidationError) as error:
-        services["project_service"].create_project(
+        services['project_create'].create_project(
             "Unregistered Manager", manager_user_id=user.id
         )
     assert error.value.code == "PROJECT_MANAGER_NOT_ELIGIBLE"

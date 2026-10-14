@@ -8,6 +8,9 @@ from datetime import UTC, date, datetime
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
     TaskHierarchyPolicy,
 )
@@ -37,10 +40,11 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
 
 
-class TaskProgressCommandHandler:
+class TaskProgressCommandHandler(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
+        module_catalog_service=None,
         task_repo: TaskRepository,
         user_session: UserSessionContext | None,
         tenant_context_service: TenantContextService,
@@ -48,6 +52,7 @@ class TaskProgressCommandHandler:
         validation_policy: TaskValidationPolicy,
         uow_scope: TaskUowScope,
     ) -> None:
+        self._module_catalog_service = module_catalog_service
         self._task_repo = task_repo
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service

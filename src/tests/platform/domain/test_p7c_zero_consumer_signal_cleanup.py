@@ -138,7 +138,7 @@ def test_real_budget_approval_still_emits_its_own_real_view_invalidation(service
     )
 
     _login(services, "admin", "ChangeMe123!")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         name=_unique("P7C Budget Project"), code=_unique("P7C-BUD"), financial_currency_code="USD"
     )
     cost_code = services["financial_configuration_service"].create_cost_code(

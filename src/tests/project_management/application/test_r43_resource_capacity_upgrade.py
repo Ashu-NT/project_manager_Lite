@@ -41,11 +41,11 @@ from src.tests.ui_runtime_helpers import login_as
 
 
 def _setup_project_resource(services, *, planned_hours: float = 40.0):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     rs = services["resource_query"]
     prs = services["project_resource_query"]
-    project = ps.create_project("Capacity Upgrade Project")
+    project = services['project_create'].create_project("Capacity Upgrade Project")
     resource = services["resource_master_commands"].create_resource("Capacity Upgrade Resource", hourly_rate=70.0)
     project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=70.0, currency_code="USD", planned_hours=planned_hours
@@ -250,10 +250,10 @@ def test_desktop_api_update_project_resource_forwards_expected_version_and_confl
 
 
 def _overlapping_overallocation_setup(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     rs = services["resource_query"]
-    project = ps.create_project("Overallocation Policy Project")
+    project = services['project_create'].create_project("Overallocation Policy Project")
     resource = services["resource_master_commands"].create_resource("Overallocation Policy Resource", hourly_rate=60.0)
     task_a = ts.create_task(
         project.id, "Overallocation Task A", start_date=date(2026, 7, 6), duration_days=5
@@ -357,7 +357,7 @@ def test_delete_project_resource_without_actuals_still_succeeds(services):
 
 def test_assign_resource_requires_project_resource_repository(services, monkeypatch):
     """A missing envelope repository cannot create an orphaned assignment."""
-    project = services["project_service"].create_project("Assignment Repository Guard", "")
+    project = services['project_create'].create_project("Assignment Repository Guard", "")
     tasks = services["task_service"]
     task = tasks.create_task(project.id, "Work")
     monkeypatch.setattr(tasks._assignment_handler, "_project_resource_repo", None)
@@ -374,11 +374,11 @@ def test_assign_resource_requires_project_resource_repository(services, monkeypa
 
 def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
     access = services["access_service"]
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project_alpha = ps.create_project("Time Scope Alpha")
-    project_beta = ps.create_project("Time Scope Beta")
+    project_alpha = services['project_create'].create_project("Time Scope Alpha")
+    project_beta = services['project_create'].create_project("Time Scope Beta")
     task_alpha = ts.create_task(project_alpha.id, "Alpha Task")
     task_beta = ts.create_task(project_beta.id, "Beta Task")
     resource = services["resource_master_commands"].create_resource("Time Scope Resource", hourly_rate=90.0)
@@ -439,12 +439,12 @@ def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_au
     committed capacity from the newly-proposed allocation."""
     window_start = date.today() + timedelta(days=1)
 
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     rs = services["resource_query"]
     prs = services["project_resource_query"]
 
-    project = ps.create_project("Preview Wiring Project")
+    project = services['project_create'].create_project("Preview Wiring Project")
     resource = services["resource_master_commands"].create_resource("Preview Wiring Resource", hourly_rate=80.0)
     project_resource = services["project_resource_commands"].add_to_project(project.id, resource.id, planned_hours=1000.0)
     task_a = ts.create_task(
@@ -468,7 +468,7 @@ def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_au
 
     api = build_project_management_tasks_desktop_api(
         project_service=ps,
-        task_service=ts,
+        task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'],
         project_resource_query=prs,
         resource_query=rs,
         assignment_skill_validator=None,
@@ -490,11 +490,11 @@ def test_resource_availability_display_returns_real_data_not_none(services):
     to None (and therefore the all-zero "Allocation Summary" fallback in
     QML), because the calendar-based service it was wired to didn't
     implement the method being called on it."""
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     rs = services["resource_query"]
 
-    project = ps.create_project("Availability Display Project")
+    project = services['project_create'].create_project("Availability Display Project")
     resource = services["resource_master_commands"].create_resource("Availability Display Resource", hourly_rate=65.0)
     window_start = date.today()
     window_end = window_start + timedelta(days=29)
@@ -558,10 +558,10 @@ def test_resource_workload_uses_bounded_reader_not_repository_wide_task_lookup(s
         SqlAlchemyTaskRepository,
     )
 
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Availability Query Count Project")
+    project = services['project_create'].create_project("Availability Query Count Project")
     resource = services["resource_master_commands"].create_resource("Availability Query Count Resource", hourly_rate=55.0)
     window_start = date.today() + timedelta(days=1)
     for i in range(4):

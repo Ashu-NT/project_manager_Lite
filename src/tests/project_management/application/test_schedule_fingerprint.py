@@ -80,11 +80,11 @@ class TestPlannerComputesItsOwnFingerprint:
         """R4.4M's future Apply command must be able to recompute this
         exact token from a freshly re-read database snapshot and compare
         it against the one embedded in the proposal it is applying."""
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
 
-        project = ps.create_project("Fingerprint Planner Wiring", "")
+        project = services['project_create'].create_project("Fingerprint Planner Wiring", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("Fingerprint Dev", "Developer", hourly_rate=100.0)
@@ -109,11 +109,11 @@ class TestPlannerComputesItsOwnFingerprint:
         assert proposal.schedule_fingerprint == independently_recomputed
 
     def test_proposal_fingerprint_changes_after_an_unrelated_task_edit_bumps_its_version(self, services):
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
 
-        project = ps.create_project("Fingerprint Staleness", "")
+        project = services['project_create'].create_project("Fingerprint Staleness", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("Staleness Dev", "Developer", hourly_rate=100.0)

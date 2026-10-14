@@ -23,7 +23,7 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _seed_labor_finance_project(services) -> str:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Phase A0 Finance",
         start_date=date(2026, 1, 5),
         financial_currency_code="EUR",
@@ -198,7 +198,7 @@ def test_global_sensitive_grant_does_not_bypass_project_scope(services):
 
 def _create_audited_cost_entry(services, *, command_id: str):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Audited canonical cost",
         financial_currency_code=organization.base_currency,
     )
@@ -246,7 +246,7 @@ def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monk
     )
 
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Fail-closed canonical cost audit",
         financial_currency_code=organization.base_currency,
     )
@@ -493,7 +493,7 @@ def test_finance_project_scope_does_not_leak_across_projects(services):
     """Case F: a project-scoped finance.read grant for Project A must not
     authorize Project B."""
     project_a_id = _seed_labor_finance_project(services)
-    project_b = services["project_service"].create_project(
+    project_b = services['project_create'].create_project(
         "F0 project scope isolation B",
         start_date=date(2026, 1, 5),
         financial_currency_code="EUR",

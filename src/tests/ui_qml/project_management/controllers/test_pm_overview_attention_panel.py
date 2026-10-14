@@ -87,7 +87,7 @@ def test_build_attention_items_skips_missing_categories() -> None:
 
 def test_dashboard_route_exposes_attention_items_property(services) -> None:
     today = date.today()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Attention Panel Project",
         start_date=today - timedelta(days=30),
         end_date=today + timedelta(days=30),

@@ -29,9 +29,9 @@ def _login_eligible_reviewer(services):
 
 
 def _make_two_tasks(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Dependency Concurrency", "")
+    project = services['project_create'].create_project("Dependency Concurrency", "")
     a = ts.create_task(project.id, "Task A", "", start_date=date(2023, 11, 6), duration_days=2)
     b = ts.create_task(project.id, "Task B", "", duration_days=2)
     return project, a, b

@@ -46,7 +46,7 @@ def _login_eligible_reviewer(services) -> None:
 
 
 def _seed_approved_finance(services):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Controlled Change Project", financial_currency_code="USD"
     )
     code = services["financial_configuration_service"].create_cost_code(
@@ -669,7 +669,7 @@ def test_contract_placeholder_is_not_part_of_canonical_change_control() -> None:
 
 def test_approved_schedule_change_uses_task_owner_command(services) -> None:
     _login(services, "admin", "ChangeMe123!")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Schedule Change Project", financial_currency_code="USD"
     )
     task = services["task_service"].create_task(
@@ -721,7 +721,7 @@ def test_schedule_submission_rejects_a_stale_task_snapshot(
     services,
 ) -> None:
     _login(services, "admin", "ChangeMe123!")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Stale Schedule Project", financial_currency_code="USD"
     )
     task = services["task_service"].create_task(
@@ -757,7 +757,7 @@ def test_schedule_submission_rejects_a_stale_task_snapshot(
 
 def test_schedule_impact_rejects_summary_task_at_draft_entry(services) -> None:
     _login(services, "admin", "ChangeMe123!")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Summary Schedule Project", financial_currency_code="USD"
     )
     summary = services["task_service"].create_task(

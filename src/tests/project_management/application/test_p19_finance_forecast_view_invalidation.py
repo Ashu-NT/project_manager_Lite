@@ -90,7 +90,7 @@ def _fake_channel():
 
 
 def _seed_project_and_cost_code(services):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         _unique("P19 Forecast Project"), financial_currency_code="USD"
     )
     code = services["financial_configuration_service"].create_cost_code(

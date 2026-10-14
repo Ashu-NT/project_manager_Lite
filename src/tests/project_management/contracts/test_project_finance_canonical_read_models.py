@@ -51,7 +51,7 @@ def _login(services, username: str, password: str) -> None:
 
 def _approved_controls(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Canonical finance read model",
         financial_currency_code=organization.base_currency,
     )
@@ -505,7 +505,7 @@ def test_r6h_reporting_kpi_uses_the_requested_financial_as_of_date(services) -> 
 
 def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> None:
     project, *_ = _approved_controls(services)
-    foreign = services["project_service"].create_project("Foreign baseline owner")
+    foreign = services['project_create'].create_project("Foreign baseline owner")
     services["task_service"].create_task(
         foreign.id, "Foreign task", start_date=date(2026, 8, 3), duration_days=2,
     )

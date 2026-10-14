@@ -79,7 +79,11 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 class TaskService(
     ProjectManagementModuleGuardMixin,
 ):
-    """Task application service orchestrator."""
+    """TEMPORARY A4 migration facade; delete after desktop/fixture cutover.
+
+    Approval participants already receive transaction-bound handlers directly.
+    Do not retain this facade as a compatibility boundary at cutover closure.
+    """
 
     def __init__(
         self,

@@ -26,7 +26,7 @@ from src.infra.persistence.orm.base import Base
 
 
 def _make_project(services, name: str = "Budget Project"):
-    return services["project_service"].create_project(name, financial_currency_code="USD")
+    return services['project_create'].create_project(name, financial_currency_code="USD")
 
 
 def _login(services, username: str, password: str) -> None:

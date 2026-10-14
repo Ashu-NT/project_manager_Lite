@@ -22,7 +22,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def _project(services, name: str):
-    return services["project_service"].create_project(name, "")
+    return services['project_create'].create_project(name, "")
 
 
 def test_task_wbs_builds_ordered_hierarchy_and_rolls_up_execution(services) -> None:
@@ -214,8 +214,8 @@ def test_scheduling_runs_only_execution_leaves(services) -> None:
 def test_desktop_tasks_expose_wbs_summary_rollups_and_move_command(services) -> None:
     project = _project(services, "WBS Desktop")
     api = build_project_management_tasks_desktop_api(
-        project_service=services["project_service"],
-        task_service=services["task_service"],
+        project_service=services['project_query'],
+        task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'],
     )
     summary = api.create_task(
         TaskCreateCommand(project_id=project.id, name="Desktop Package")
@@ -271,7 +271,7 @@ def test_task_csv_import_resolves_parent_declared_later(services) -> None:
                 },
             ),
         ],
-        project_service=services["project_service"],
+        project_service=services['project_query'],
         task_capabilities=services["data_import_service"]._task_capabilities,
     )
 

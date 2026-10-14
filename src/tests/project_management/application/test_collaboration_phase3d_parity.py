@@ -18,9 +18,9 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 
 
 def test_purpose_queries_preserve_mentions_recent_activity_and_presence(services) -> None:
-    projects = services["project_service"]
+    projects = services['project_query']
     tasks = services["task_service"]
-    project = projects.create_project("Collaboration projection")
+    project = services['project_create'].create_project("Collaboration projection")
     task = tasks.create_task(project.id, "Review package")
     mentioned = services["collaboration_comment_commands"].post_comment(
         task_id=task.id,
@@ -82,7 +82,7 @@ def test_concrete_collaboration_reader_rejects_cross_organization_ids(services) 
 
 
 def test_active_presence_returns_complete_current_scoped_set_beyond_legacy_cap(services) -> None:
-    project = services["project_service"].create_project("Large active team")
+    project = services['project_create'].create_project("Large active team")
     task = services["task_service"].create_task(project.id, "Presence hub")
     now = datetime.now(UTC)
     services["session"].add_all(
@@ -123,10 +123,10 @@ def test_active_presence_returns_complete_current_scoped_set_beyond_legacy_cap(s
 
 def test_workspace_queries_keep_scoped_project_names(services) -> None:
     access = services["access_service"]
-    projects = services["project_service"]
+    projects = services['project_query']
     tasks = services["task_service"]
-    alpha = projects.create_project("Visible collaboration")
-    beta = projects.create_project("Hidden collaboration")
+    alpha = services['project_create'].create_project("Visible collaboration")
+    beta = services['project_create'].create_project("Hidden collaboration")
     alpha_task = tasks.create_task(alpha.id, "Visible task")
     beta_task = tasks.create_task(beta.id, "Hidden task")
     viewer = services["user_registration"].register_user("phase3d-viewer", "StrongPass123", role_names=["viewer"])

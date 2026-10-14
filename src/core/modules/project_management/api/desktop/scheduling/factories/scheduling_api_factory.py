@@ -8,7 +8,12 @@ from src.core.modules.project_management.api.desktop.scheduling.api import (
 def build_project_management_scheduling_desktop_api(
     *,
     project_service=None,
-    task_service=None,
+    task_lookup_query=None,
+    task_detail_query=None,
+    task_hierarchy_query=None,
+    task_dependency_query=None,
+    task_dependency_commands=None,
+    task_leveling_commands=None,
     scheduling_engine=None,
     platform_calendar_api=None,
     work_calendar_service=None,
@@ -22,7 +27,12 @@ def build_project_management_scheduling_desktop_api(
 ) -> ProjectManagementSchedulingDesktopApi:
     return ProjectManagementSchedulingDesktopApi(
         project_service=project_service,
-        task_service=task_service,
+        task_lookup_query=task_lookup_query,
+        task_detail_query=task_detail_query,
+        task_hierarchy_query=task_hierarchy_query,
+        task_dependency_query=task_dependency_query,
+        task_dependency_commands=task_dependency_commands,
+        task_leveling_commands=task_leveling_commands,
         scheduling_engine=scheduling_engine,
         platform_calendar_api=platform_calendar_api,
         work_calendar_service=work_calendar_service,

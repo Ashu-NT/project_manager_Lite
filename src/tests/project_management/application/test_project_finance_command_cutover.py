@@ -34,7 +34,7 @@ def _become_independent_decider(services) -> None:
 
 def _setup_project(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Desktop actual cutover",
         financial_currency_code=organization.base_currency,
     )

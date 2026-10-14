@@ -51,7 +51,7 @@ def _planned_cost_hints(hints):
 
 
 def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float = 50.0):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "P35 Planned Cost Project", financial_currency_code="USD"
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
@@ -202,7 +202,7 @@ def test_second_calculation_supersedes_and_produces_one_hint(services):
 
 
 def test_invalid_calculation_produces_zero_hints(services):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "P35 No Cost Code Project", financial_currency_code="USD"
     )
     hints = _spy_hints(services)

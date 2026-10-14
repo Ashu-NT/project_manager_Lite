@@ -243,7 +243,7 @@ def test_cost_phasing_quarter_boundaries_are_calendar_quarters() -> None:
 
 
 def test_cost_phasing_approved_baseline_calendar_allocation_is_exact(services, session) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6E baseline lifecycle", financial_currency_code="XAF"
     )
     approved_id = str(uuid4())
@@ -293,7 +293,7 @@ def test_cost_phasing_approved_baseline_calendar_allocation_is_exact(services, s
 def test_sql_cost_phasing_reader_is_bounded_and_rejects_wrong_scope(
     services, session
 ) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6B Performance reader", financial_currency_code="XAF"
     )
     query = services["finance_performance_query"]
@@ -329,7 +329,7 @@ def test_sql_cost_phasing_reader_is_bounded_and_rejects_wrong_scope(
 
 
 def test_evm_reader_is_bounded_and_rejects_draft_baselines(services, session) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6E Decimal EVM reader", financial_currency_code="XAF"
     )
     services["task_service"].create_task(
@@ -350,7 +350,7 @@ def test_evm_reader_is_bounded_and_rejects_draft_baselines(services, session) ->
 
 
 def test_variance_reader_is_bounded_without_per_task_queries(services, session) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R6E Variance reader", financial_currency_code="XAF"
     )
     for number in range(8):

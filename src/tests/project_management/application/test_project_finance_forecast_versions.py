@@ -37,7 +37,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, ValidationErr
 
 
 def _project(services, name: str = "Forecast Project"):
-    return services["project_service"].create_project(
+    return services['project_create'].create_project(
         name, financial_currency_code="USD"
     )
 

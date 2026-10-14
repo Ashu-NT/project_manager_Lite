@@ -740,7 +740,7 @@ def build_task_controller_bundle(tmp_path: Path) -> dict:
                 SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
             ]
         ),
-        task_service=task_service,
+        task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_assignment_commands=task_service,
         task_workspace_query=task_service,
         task_detail_query=task_service,
         project_resource_query=SimpleNamespace(

@@ -16,10 +16,10 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def test_gantt_export_inclusive_duration_for_one_day_tasks(services, tmp_path, monkeypatch):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Gantt One Day", "")
+    project = services['project_create'].create_project("Gantt One Day", "")
     pid = project.id
     ts.create_task(pid, "One Day Task", start_date=date(2023, 11, 6), duration_days=1)
 
@@ -42,9 +42,9 @@ def test_gantt_export_inclusive_duration_for_one_day_tasks(services, tmp_path, m
 
 
 def test_gantt_render_uses_day_cell_alignment_for_inclusive_finish(services, tmp_path, monkeypatch):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Gantt Day Cell Alignment", "")
+    project = services['project_create'].create_project("Gantt Day Cell Alignment", "")
     pid = project.id
     task = ts.create_task(pid, "Aligned Task", start_date=date(2023, 11, 6), duration_days=3)
 

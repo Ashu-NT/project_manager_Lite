@@ -97,7 +97,7 @@ def test_da5_schedule_impact_entry_points_share_baseline_decision() -> None:
         change_impact_service=impact_service,
     )
     task_result = ProjectManagementTasksDesktopApi(
-        task_service=task_service,
+        task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_detail_query=task_service, task_assignment_commands=task_service,
         schedule_change_impact_query=impact_service,
     ).preview_task_schedule_impact("task-1", "project-1")
 
@@ -137,7 +137,7 @@ def test_da1_project_resource_scope_resolution_uses_public_application_query() -
 
 
 def test_da1_project_manager_queries_project_resources_without_resource_read(services) -> None:
-    project = services["project_service"].create_project("DA1 Scoped Project")
+    project = services['project_create'].create_project("DA1 Scoped Project")
     resource = services["resource_master_commands"].create_resource(
         name="Scoped Planner",
         role="Planner",
@@ -170,8 +170,8 @@ def test_da1_project_manager_queries_project_resources_without_resource_read(ser
 
 
 def test_da1_task_reader_queries_only_its_scoped_project_resources(services) -> None:
-    project = services["project_service"].create_project("DA1 Task Project")
-    services["project_service"].create_project("DA1 Hidden Project")
+    project = services['project_create'].create_project("DA1 Task Project")
+    services['project_create'].create_project("DA1 Hidden Project")
     resource = services["resource_master_commands"].create_resource(
         name="Task Planner",
         role="Planner",
@@ -196,7 +196,7 @@ def test_da1_task_reader_queries_only_its_scoped_project_resources(services) -> 
         )
     )
 
-    projects = services["project_service"].list_for_task_workspace()
+    projects = services['project_query'].list_for_task_workspace()
     memberships = services["project_resource_query"].list_for_task_workspace(project.id)
     resources = services["resource_query"].list_for_task_workspace(
         resource_ids=(resource.id,),
@@ -315,7 +315,7 @@ def test_da1_resource_assignments_use_authoritative_typed_read_fact() -> None:
 
 
 def test_da1_task_service_lists_authorized_resource_assignments(services) -> None:
-    project = services["project_service"].create_project("DA1 Resource Assignment")
+    project = services['project_create'].create_project("DA1 Resource Assignment")
     resource = services["resource_master_commands"].create_resource(
         name="DA1 Planner",
         role="Planner",

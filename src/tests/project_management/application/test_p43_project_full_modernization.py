@@ -149,7 +149,7 @@ def _audit_rows_for(services, entity_id: str):
 def test_create_produces_list_hint_and_atomic_audit_for_project_and_financial_profile(services):
     hints = _spy_hints(services)
 
-    project = services["project_service"].create_project("P43 project", "")
+    project = services['project_create'].create_project("P43 project", "")
 
     project_hints = _project_hints(hints)
     assert {h.scope_code for h in project_hints} == {PROJECT_LIST_SCOPE_CODE}
@@ -161,13 +161,13 @@ def test_create_produces_list_hint_and_atomic_audit_for_project_and_financial_pr
 def test_set_status_closes_the_silent_notification_gap(services):
     """`set_status` must persist the change, record a typed `ProjectStatusChanged`, and fire
     both the list and detail ViewInvalidation targets."""
-    project = services["project_service"].create_project("P43 status project", "")
+    project = services['project_create'].create_project("P43 status project", "")
     hints = _spy_hints(services)
 
-    updated = services["project_service"].set_status(project.id, ProjectStatus.ACTIVE)
+    updated = services['project_status'].set_status(project.id, ProjectStatus.ACTIVE)
 
     assert updated.status == ProjectStatus.ACTIVE
-    reloaded = services["project_service"].get_project(project.id)
+    reloaded = services['project_query'].get_project(project.id)
     assert reloaded.status == ProjectStatus.ACTIVE
 
     project_hints = _project_hints(hints)
@@ -179,10 +179,10 @@ def test_set_status_closes_the_silent_notification_gap(services):
 
 
 def test_update_produces_hints_for_profile_change(services):
-    project = services["project_service"].create_project("P43 update project", "")
+    project = services['project_create'].create_project("P43 update project", "")
     hints = _spy_hints(services)
 
-    updated = services["project_service"].update_project(project.id, name="P43 update project V2")
+    updated = services['project_update'].update_project(project.id, name="P43 update project V2")
 
     project_hints = _project_hints(hints)
     assert {h.scope_code for h in project_hints} == {PROJECT_LIST_SCOPE_CODE, PROJECT_DETAIL_SCOPE_CODE}
@@ -190,10 +190,10 @@ def test_update_produces_hints_for_profile_change(services):
 
 
 def test_update_that_also_changes_status_emits_both_facts(services):
-    project = services["project_service"].create_project("P43 dual-fact project", "")
+    project = services['project_create'].create_project("P43 dual-fact project", "")
     hints = _spy_hints(services)
 
-    services["project_service"].update_project(
+    services['project_update'].update_project(
         project.id, name="P43 dual-fact project V2", status=ProjectStatus.ON_HOLD
     )
 
@@ -202,26 +202,26 @@ def test_update_that_also_changes_status_emits_both_facts(services):
     # within the one transaction -- so this still proves both facts were genuinely recorded via
     # the audit trail rather than merely asserting hint count.
     assert {h.scope_code for h in project_hints} == {PROJECT_LIST_SCOPE_CODE, PROJECT_DETAIL_SCOPE_CODE}
-    reloaded = services["project_service"].get_project(project.id)
+    reloaded = services['project_query'].get_project(project.id)
     assert reloaded.status == ProjectStatus.ON_HOLD
 
 
 def test_delete_produces_hints_and_atomic_audit(services):
-    project = services["project_service"].create_project("P43 delete project", "")
+    project = services['project_create'].create_project("P43 delete project", "")
     hints = _spy_hints(services)
 
-    services["project_service"].delete_project(project.id)
+    services['project_deletion'].delete_project(project.id)
 
     project_hints = _project_hints(hints)
     assert {h.scope_code for h in project_hints} == {PROJECT_LIST_SCOPE_CODE, PROJECT_DETAIL_SCOPE_CODE}
-    assert services["project_service"].get_project(project.id) is None
+    assert services['project_query'].get_project(project.id) is None
 
     rows = _audit_rows_for(services, project.id)
     assert "delete" in [row.operation for row in rows]
 
 
 def test_project_resource_add_produces_detail_hint_only(services):
-    project = services["project_service"].create_project("P43 pr project", "")
+    project = services['project_create'].create_project("P43 pr project", "")
     resource = services["resource_master_commands"].create_resource("P43 PR Resource", "Developer")
     hints = _spy_hints(services)
 
@@ -249,14 +249,14 @@ def test_audit_failure_rolls_back_create_permanently(services, monkeypatch):
     monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(RuntimeError):
-        services["project_service"].create_project("Should never persist", "")
+        services['project_create'].create_project("Should never persist", "")
 
     assert _project_hints(hints) == []
-    assert services["project_service"].list_projects() == []
+    assert services['project_query'].list_projects() == []
 
 
 def test_audit_failure_rolls_back_set_status_permanently(services, monkeypatch):
-    project = services["project_service"].create_project("P43 status rollback project", "")
+    project = services['project_create'].create_project("P43 status rollback project", "")
     hints = _spy_hints(services)
 
     from src.core.platform.application.history.audit.enterprise_audit_service import (
@@ -269,10 +269,10 @@ def test_audit_failure_rolls_back_set_status_permanently(services, monkeypatch):
     monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(RuntimeError):
-        services["project_service"].set_status(project.id, ProjectStatus.COMPLETED)
+        services['project_status'].set_status(project.id, ProjectStatus.COMPLETED)
 
     assert _project_hints(hints) == []
-    reloaded = services["project_service"].get_project(project.id)
+    reloaded = services['project_query'].get_project(project.id)
     assert reloaded.status == ProjectStatus.PLANNED
 
 
@@ -281,7 +281,7 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
     produce zero postcommit ViewInvalidation."""
     hints = _spy_hints(services)
 
-    dispatcher = services["project_service"]._create_handler._uow_factory._transactional_dispatcher
+    dispatcher = services['project_create']._uow_factory._transactional_dispatcher
 
     def _raising_handler(event, uow) -> None:
         raise RuntimeError("simulated transactional handler failure")
@@ -289,10 +289,10 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
     dispatcher.subscribe(ProjectCreated, _raising_handler)
 
     with pytest.raises(RuntimeError):
-        services["project_service"].create_project("Should never persist either", "")
+        services['project_create'].create_project("Should never persist either", "")
 
     assert _project_hints(hints) == []
-    assert services["project_service"].list_projects() == []
+    assert services['project_query'].list_projects() == []
 
 
 # ---------------------------------------------------------------------------
@@ -301,16 +301,16 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
 
 
 def test_stale_update_raises_and_produces_zero_hints_and_zero_write(services):
-    project = services["project_service"].create_project("P43 stale project", "")
+    project = services['project_create'].create_project("P43 stale project", "")
     hints = _spy_hints(services)
 
     with pytest.raises(ConcurrencyError):
-        services["project_service"].update_project(
+        services['project_update'].update_project(
             project.id, expected_version=project.version + 1, name="Should not apply"
         )
 
     assert _project_hints(hints) == []
-    reloaded = services["project_service"].get_project(project.id)
+    reloaded = services['project_query'].get_project(project.id)
     assert reloaded.name == "P43 stale project"
 
 
@@ -318,31 +318,31 @@ def test_concurrent_set_status_second_writer_gets_canonical_concurrency_error(se
     """`set_status` takes no `expected_version` parameter, but the repository still performs a
     version-checked conditional update -- two independent reads/writes on the same row must not
     silently overwrite each other."""
-    project = services["project_service"].create_project("P43 concurrent status project", "")
+    project = services['project_create'].create_project("P43 concurrent status project", "")
 
-    winner = services["project_service"].get_project(project.id)
-    loser = services["project_service"].get_project(project.id)
+    winner = services['project_query'].get_project(project.id)
+    loser = services['project_query'].get_project(project.id)
     assert winner.version == loser.version
 
-    services["project_service"].set_status(
+    services['project_status'].set_status(
         winner.id, ProjectStatus.ACTIVE, expected_version=winner.version
     )
 
     with pytest.raises(ConcurrencyError):
-        services["project_service"].set_status(
+        services['project_status'].set_status(
             loser.id, ProjectStatus.ON_HOLD, expected_version=loser.version
         )
 
-    reloaded = services["project_service"].get_project(project.id)
+    reloaded = services['project_query'].get_project(project.id)
     assert reloaded.status == ProjectStatus.ACTIVE
 
 
 def test_duplicate_name_rejected_with_zero_hints(services):
-    services["project_service"].create_project("P43 Duplicate Name", "")
+    services['project_create'].create_project("P43 Duplicate Name", "")
     hints = _spy_hints(services)
 
     with pytest.raises(ValidationError):
-        services["project_service"].create_project("P43 Duplicate Name", "")
+        services['project_create'].create_project("P43 Duplicate Name", "")
 
     assert _project_hints(hints) == []
 
@@ -354,7 +354,7 @@ def test_duplicate_name_rejected_with_zero_hints(services):
 
 def test_set_status_for_unknown_project_is_rejected_with_zero_write(services):
     with pytest.raises(NotFoundError):
-        services["project_service"].set_status("not-a-real-project-id", ProjectStatus.ACTIVE)
+        services['project_status'].set_status("not-a-real-project-id", ProjectStatus.ACTIVE)
 
 
 # ---------------------------------------------------------------------------

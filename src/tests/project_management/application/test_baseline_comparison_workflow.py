@@ -11,10 +11,10 @@ from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
 def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     bs = services["baseline_service"]
-    project = ps.create_project("Baseline Compare", "")
+    project = services['project_create'].create_project("Baseline Compare", "")
     pid = project.id
 
     task_a = ts.create_task(pid, "Task A", start_date=date(2024, 1, 1), duration_days=2)
@@ -53,10 +53,10 @@ def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services
 
 
 def test_compare_baselines_filters_out_unchanged_rows_when_requested(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     bs = services["baseline_service"]
-    project = ps.create_project("Baseline Compare Filter", "")
+    project = services['project_create'].create_project("Baseline Compare Filter", "")
     pid = project.id
     ts.create_task(pid, "Task Stable", start_date=date(2024, 2, 5), duration_days=2)
 
@@ -76,10 +76,10 @@ def test_compare_baselines_filters_out_unchanged_rows_when_requested(services):
 
 
 def test_compare_baselines_validates_input_and_missing_ids(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     bs = services["baseline_service"]
-    project = ps.create_project("Baseline Compare Validation", "")
+    project = services['project_create'].create_project("Baseline Compare Validation", "")
     pid = project.id
     ts.create_task(pid, "Task 1", start_date=date(2024, 3, 4), duration_days=1)
     baseline = bs.create_baseline(pid, "Only", rate_as_of=date.today())
@@ -94,11 +94,11 @@ def test_compare_baselines_validates_input_and_missing_ids(services):
 
 
 def test_baseline_approval_tracks_current_approved_and_variance_records(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     bs = services["baseline_service"]
 
-    project = ps.create_project("Baseline Governance", "")
+    project = services['project_create'].create_project("Baseline Governance", "")
     pid = project.id
     task = ts.create_task(pid, "Critical Task", start_date=date(2024, 4, 1), duration_days=2)
 

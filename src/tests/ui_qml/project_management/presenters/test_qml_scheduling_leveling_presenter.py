@@ -24,16 +24,16 @@ from src.ui_qml.modules.project_management.presenters.scheduling.scheduling_work
 
 def _desktop_api(services):
     return ProjectManagementSchedulingDesktopApi(
-        task_service=services["task_service"],
+        task_lookup_query=services['task_lookup_query'], task_detail_query=services['task_detail_query'], task_hierarchy_query=services['task_hierarchy_query'], task_dependency_query=services['task_dependency_query'], task_dependency_commands=services['task_dependency_commands'], task_leveling_commands=services['task_leveling_commands'],
         scheduling_engine=services["scheduling_engine"],
         work_calendar_engine=services["work_calendar_engine"],
     )
 
 
 def _make_overload(services, name: str):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project(name, "")
+    project = services['project_create'].create_project(name, "")
     task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
     resource = services["resource_master_commands"].create_resource("Presenter Dev", "Developer", hourly_rate=100.0)
@@ -52,9 +52,9 @@ class TestBuildResourceLevelingState:
 
     def test_conflict_free_project_reports_no_moves_with_an_explanatory_empty_state(self, services):
         api = _desktop_api(services)
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
-        project = ps.create_project("Presenter Leveling No Conflicts", "")
+        project = services['project_create'].create_project("Presenter Leveling No Conflicts", "")
         ts.create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
 
         state = build_resource_leveling_state(api, project.id)
@@ -81,9 +81,9 @@ class TestBuildResourceLevelingState:
 
     def test_unresolved_conflict_is_reported_never_silently_dropped(self, services):
         api = _desktop_api(services)
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
-        project = ps.create_project("Presenter Leveling Unresolved", "")
+        project = services['project_create'].create_project("Presenter Leveling Unresolved", "")
         task_1 = ts.create_task(
             project.id, "Pinned One", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
@@ -128,8 +128,8 @@ class TestPresenterDelegation:
 
     def test_apply_resource_leveling_without_a_prior_preview_raises(self, services):
         presenter = ProjectSchedulingWorkspacePresenter(desktop_api=_desktop_api(services))
-        ps = services["project_service"]
-        project = ps.create_project("Presenter Delegation No Preview", "")
+        ps = services['project_query']
+        project = services['project_create'].create_project("Presenter Delegation No Preview", "")
 
         with pytest.raises(ValueError):
             presenter.apply_resource_leveling(project.id)

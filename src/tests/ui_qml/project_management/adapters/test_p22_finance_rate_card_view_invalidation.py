@@ -369,7 +369,7 @@ def _create_card_and_line(services, **card_kwargs):
 
 
 def _seed_project(services):
-    return services["project_service"].create_project(
+    return services['project_create'].create_project(
         _unique("P22 Rate Card Project"), financial_currency_code="USD"
     )
 

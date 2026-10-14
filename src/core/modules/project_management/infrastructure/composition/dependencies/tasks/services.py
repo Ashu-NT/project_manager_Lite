@@ -124,6 +124,7 @@ def build_task_capabilities(
     )
     task_workspace_reader = SqlAlchemyTaskWorkspaceReader(session=session)
     detail_query_handler = TaskDetailPageQueryHandler(
+        module_catalog_service=platform_services.module_catalog_service,
         task_repo=repositories.pm.task_repo,
         task_workspace_reader=task_workspace_reader,
         user_session=platform_services.user_session,
@@ -136,6 +137,7 @@ def build_task_capabilities(
         tenant_context_service=platform_services.tenant_context_service,
     )
     lookup_query_handler = TaskLookupQueryHandler(
+        module_catalog_service=platform_services.module_catalog_service,
         task_repo=repositories.pm.task_repo,
         assignment_repo=repositories.pm.assignment_repo,
         user_session=platform_services.user_session,
@@ -158,6 +160,7 @@ def build_task_capabilities(
     )
     code_policy = TaskCodePolicy(task_repo=repositories.pm.task_repo)
     scheduling_constraint_handler = TaskSchedulingConstraintHandler(
+        module_catalog_service=platform_services.module_catalog_service,
         task_repo=repositories.pm.task_repo,
         user_session=platform_services.user_session,
         approval_commands=platform_services.approval_commands,
@@ -168,6 +171,7 @@ def build_task_capabilities(
         uow_scope=task_uow_scope,
     )
     lifecycle_handler = TaskLifecycleCommandHandler(
+        module_catalog_service=platform_services.module_catalog_service,
         task_repo=repositories.pm.task_repo,
         work_calendar_engine=work_calendar_engine,
         user_session=platform_services.user_session,
@@ -179,6 +183,7 @@ def build_task_capabilities(
         uow_scope=task_uow_scope,
     )
     hierarchy_command_handler = TaskHierarchyCommandHandler(
+        module_catalog_service=platform_services.module_catalog_service,
         task_repo=repositories.pm.task_repo,
         user_session=platform_services.user_session,
         tenant_context_service=platform_services.tenant_context_service,
@@ -186,6 +191,7 @@ def build_task_capabilities(
         uow_scope=task_uow_scope,
     )
     progress_handler = TaskProgressCommandHandler(
+        module_catalog_service=platform_services.module_catalog_service,
         task_repo=repositories.pm.task_repo,
         user_session=platform_services.user_session,
         tenant_context_service=platform_services.tenant_context_service,
@@ -202,6 +208,7 @@ def build_task_capabilities(
     )
     overallocation_policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
     assignment_handler = TaskAssignmentCommandHandler(
+        module_catalog_service=platform_services.module_catalog_service,
         task_repo=repositories.pm.task_repo,
         assignment_repo=repositories.pm.assignment_repo,
         resource_repo=repositories.pm.resource_repo,
@@ -223,18 +230,14 @@ def build_task_capabilities(
         assignment_repo=repositories.pm.assignment_repo,
         user_session=platform_services.user_session,
     )
-    service = TaskService(
-        user_session=platform_services.user_session,
+    deletion_handler = TaskDeletionCommandHandler(
         module_catalog_service=platform_services.module_catalog_service,
-        task_uow_scope=task_uow_scope,
-        deletion_handler=TaskDeletionCommandHandler(
             task_repo=repositories.pm.task_repo,
             user_session=platform_services.user_session,
             tenant_context_service=platform_services.tenant_context_service,
             uow_scope=task_uow_scope,
-        ),
-        progress_handler=progress_handler,
-        approved_schedule_change_handler=ApprovedScheduleChangeHandler(
+        )
+    approved_schedule_change_handler = ApprovedScheduleChangeHandler(
             task_repo=repositories.pm.task_repo,
             tenant_context_service=platform_services.tenant_context_service,
             work_calendar_engine=work_calendar_engine,
@@ -242,11 +245,9 @@ def build_task_capabilities(
             schedule_synchronizer=schedule_synchronizer,
             validation_policy=validation_policy,
             uow_scope=task_uow_scope,
-        ),
-        hierarchy_command_handler=hierarchy_command_handler,
-        scheduling_constraint_handler=scheduling_constraint_handler,
-        lifecycle_handler=lifecycle_handler,
-        dependency_command_handler=TaskDependencyCommandHandler(
+        )
+    dependency_command_handler = TaskDependencyCommandHandler(
+        module_catalog_service=platform_services.module_catalog_service,
             task_repo=repositories.pm.task_repo,
             dependency_repo=repositories.pm.dependency_repo,
             user_session=platform_services.user_session,
@@ -256,14 +257,15 @@ def build_task_capabilities(
             diagnostics_handler=dependency_diagnostics_handler,
             schedule_synchronizer=schedule_synchronizer,
             uow_scope=task_uow_scope,
-        ),
-        dependency_query_handler=TaskDependencyQueryHandler(
+        )
+    dependency_query_handler = TaskDependencyQueryHandler(
+        module_catalog_service=platform_services.module_catalog_service,
             task_repo=repositories.pm.task_repo,
             dependency_repo=repositories.pm.dependency_repo,
             user_session=platform_services.user_session,
-        ),
-        assignment_handler=assignment_handler,
-        resource_leveling_handler=ResourceLevelingCommandHandler(
+        )
+    resource_leveling_handler = ResourceLevelingCommandHandler(
+        module_catalog_service=platform_services.module_catalog_service,
             task_repo=repositories.pm.task_repo,
             assignment_repo=repositories.pm.assignment_repo,
             dependency_repo=repositories.pm.dependency_repo,
@@ -274,17 +276,41 @@ def build_task_capabilities(
             tenant_context_service=platform_services.tenant_context_service,
             schedule_synchronizer=schedule_synchronizer,
             uow_scope=task_uow_scope,
-        ),
-        detail_query_handler=detail_query_handler,
-        lookup_query_handler=lookup_query_handler,
-        hierarchy_query_handler=TaskHierarchyQueryHandler(
+        )
+    hierarchy_query_handler = TaskHierarchyQueryHandler(
+        module_catalog_service=platform_services.module_catalog_service,
             task_repo=repositories.pm.task_repo,
             work_calendar_engine=work_calendar_engine,
             user_session=platform_services.user_session,
-        ),
+        )
+    service = TaskService(
+        user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_catalog_service,
+        task_uow_scope=task_uow_scope,
+        deletion_handler=deletion_handler,
+        progress_handler=progress_handler,
+        approved_schedule_change_handler=approved_schedule_change_handler,
+        hierarchy_command_handler=hierarchy_command_handler,
+        scheduling_constraint_handler=scheduling_constraint_handler,
+        lifecycle_handler=lifecycle_handler,
+        dependency_command_handler=dependency_command_handler,
+        dependency_query_handler=dependency_query_handler,
+        assignment_handler=assignment_handler,
+        resource_leveling_handler=resource_leveling_handler,
+        detail_query_handler=detail_query_handler,
+        lookup_query_handler=lookup_query_handler,
+        hierarchy_query_handler=hierarchy_query_handler,
     )
     return TaskComposition(
         service=service,
+        deletion=deletion_handler,
+        schedule_changes=approved_schedule_change_handler,
+        dependencies=dependency_command_handler,
+        dependency_query=dependency_query_handler,
+        leveling=resource_leveling_handler,
+        constraints=scheduling_constraint_handler,
+        hierarchy_query=hierarchy_query_handler,
+        uow_scope=task_uow_scope,
         lookup=lookup_query_handler,
         workspace=workspace_query_handler,
         detail=detail_query_handler,

@@ -6,22 +6,24 @@ from src.core.modules.project_management.api.desktop.tasks.models.validation imp
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.modules.project_management.application.tasks.service import TaskService
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 
 
 def build_assignment_validation(
     task_id: str,
     project_resource_id: str,
     *,
-    task_service: TaskService | None,
+    task_query: TaskDetailPageQueryHandler | None,
     project_resource_query: object | None,
     assignment_skill_validator: AssignmentSkillValidator | None,
 ) -> AssignmentValidationDesktopDto:
     if assignment_skill_validator is None or project_resource_query is None:
         return _valid_assignment(task_id)
-    if task_service is None:
+    if task_query is None:
         raise RuntimeError("Project management tasks desktop API is not connected.")
-    task = task_service.get_task(task_id)
+    task = task_query.get_task(task_id)
     if task is None:
         return _valid_assignment(task_id)
     get_project_resource = getattr(project_resource_query, "get", None)

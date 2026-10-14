@@ -9,10 +9,10 @@ from src.tests.project_management._sql_measurement_helpers import count_calls
 
 
 def test_list_project_dependencies_is_one_query_not_per_task_loop(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Query Perf", "")
+    project = services['project_create'].create_project("Query Perf", "")
     tasks = [
         ts.create_task(project.id, f"Task {i:02d}", "", start_date=date(2023, 11, 6), duration_days=1)
         for i in range(10)
@@ -37,9 +37,9 @@ def test_list_project_dependencies_is_one_query_not_per_task_loop(services):
 def test_application_layer_method_is_permission_checked(services):
     """list_dependencies_for_project must not bypass the same
     read-permission checks list_dependencies_for_task already has."""
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Query Perf Permissions", "")
+    project = services['project_create'].create_project("Query Perf Permissions", "")
     result = ts.list_dependencies_for_project(project.id)
     assert result == []
 
@@ -47,11 +47,11 @@ def test_application_layer_method_is_permission_checked(services):
 def test_recalculation_only_persists_tasks_whose_dates_actually_changed(services):
     """A re-run of recalculate_project_schedule() that reproduces the same CPM dates for every
     task must not re-issue a repository update for any of them."""
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     sched = services["scheduling_engine"]
 
-    project = ps.create_project("Persist Only Changed", "")
+    project = services['project_create'].create_project("Persist Only Changed", "")
     tasks = [
         ts.create_task(
             project.id,
@@ -80,11 +80,11 @@ def test_recalculation_persists_only_the_tasks_whose_dates_shift(services):
     """A change that shifts a dependency chain's root must persist the
     tasks whose dates actually move, and the mechanism must be driven by
     real date deltas rather than being an unconditional no-op."""
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     sched = services["scheduling_engine"]
 
-    project = ps.create_project("Persist Partial Shift", "")
+    project = services['project_create'].create_project("Persist Partial Shift", "")
     tasks = [
         ts.create_task(
             project.id,

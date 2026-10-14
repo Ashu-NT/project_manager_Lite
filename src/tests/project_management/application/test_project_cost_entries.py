@@ -59,7 +59,7 @@ def _source(*, command_id: str = "command-1", content_hash: str = "a" * 64):
 
 def _create_project_finance_setup(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Canonical actuals",
         financial_currency_code=organization.base_currency,
     )
@@ -249,7 +249,7 @@ def test_cost_entry_query_pages_and_sorts_before_the_former_fifty_row_cap(
             cost_code_id=cost_code.id,
         )
 
-    foreign_project = services["project_service"].create_project(
+    foreign_project = services['project_create'].create_project(
         "Other scoped actuals",
         financial_currency_code=organization.base_currency,
     )

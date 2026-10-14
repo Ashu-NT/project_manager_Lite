@@ -2,9 +2,9 @@ from datetime import date
 
 
 def test_project_delete_cascade(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Delete Test", "")
+    project = services['project_create'].create_project("Delete Test", "")
     pid = project.id
 
     # Create task, resource, and assignment.
@@ -17,7 +17,7 @@ def test_project_delete_cascade(services):
     assert services["resource_query"].list_resources()
 
     # Delete project
-    ps.delete_project(pid)
+    services['project_deletion'].delete_project(pid)
 
     # Tasks gone
     assert ts.list_tasks_for_project(pid) == []

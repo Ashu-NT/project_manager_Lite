@@ -97,7 +97,7 @@ def test_project_rate_card_scope() -> None:
 
 
 def _create_project_and_resource(services, *, name: str) -> tuple[str, str]:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         f"{name} project", financial_currency_code="USD"
     )
     resource = services["resource_master_commands"].create_resource(

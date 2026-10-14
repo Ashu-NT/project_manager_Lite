@@ -8,7 +8,7 @@ from src.core.platform.infrastructure.persistence.orm.master_data.documents.docu
 
 
 def test_task_document_selector_is_bounded_and_scoped(services) -> None:
-    project = services["project_service"].create_project("Document selector")
+    project = services['project_create'].create_project("Document selector")
     task = services["task_service"].create_task(project.id, "Evidence")
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="seed document selector"

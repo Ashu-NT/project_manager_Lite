@@ -34,11 +34,11 @@ def _snapshot(ts, project_id):
 
 class TestPreviewApplyReloadIdempotence:
     def test_resource_conflict_resolution_survives_reload_and_repeated_cpm_via_the_pure_function(self, services):
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
 
-        project = ps.create_project("Idempotence Pure CPM", "")
+        project = services['project_create'].create_project("Idempotence Pure CPM", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("Idempotence Dev", "Developer", hourly_rate=100.0)
@@ -89,12 +89,12 @@ class TestPreviewApplyReloadIdempotence:
         path (SchedulingEngine.recalculate_project_schedule) rather than
         the pure function -- SchedulingEngine and pure_cpm.run_cpm are
         two independent orchestrations sharing only primitives."""
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
         sched = services["scheduling_engine"]
 
-        project = ps.create_project("Idempotence Live Engine", "")
+        project = services['project_create'].create_project("Idempotence Live Engine", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("Idempotence Live Dev", "Developer", hourly_rate=100.0)

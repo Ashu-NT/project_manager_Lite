@@ -65,6 +65,10 @@ class ApprovedScheduleChangeHandler:
         self._validation_policy = validation_policy
         self._uow_scope = uow_scope
 
+    def _take_pending_task_events(self) -> tuple:
+        """Drain participant events for the deciding operation's commit owner."""
+        return self._uow_scope.take_pending_events()
+
     def _apply_approved_schedule_changes(
         self,
         changes: list[ApprovedTaskScheduleChange],
@@ -75,7 +79,7 @@ class ApprovedScheduleChangeHandler:
         -- this handler has a participant-scoped TaskUowScope, so `create()`
         joins the caller's transaction and never
         opens a second transaction. Recorded `TaskScheduleChanged` facts are
-        collected via the TaskService facade immediately after
+        collected from this participant immediately after
         this call returns, for the caller to fold into its own
         `ApprovalHandlerResult.domain_events`."""
         candidates = self._validate_approved_schedule_changes(changes)

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.projects.commands.create import (
     ProjectCreateHandler,
 )
@@ -97,16 +96,7 @@ def build_project_capabilities(
         party_repo=repositories.platform.party_repo,
         department_repo=repositories.platform.department_repo,
     )
-    service = ProjectService(
-        query_handler=query_handler,
-        status_handler=status,
-        deletion_handler=deletion,
-        create_handler=create,
-        update_handler=update,
-        module_catalog_service=platform_services.module_catalog_service,
-        user_session=platform_services.user_session,
-    )
     return ProjectComposition(
-        service=service, query=query_handler, create=create,
+        query=query_handler, create=create,
         update=update, status=status, deletion=deletion,
     )

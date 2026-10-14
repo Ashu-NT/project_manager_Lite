@@ -23,7 +23,7 @@ def test_budget_command_uses_fresh_uow_after_shared_session_reads(tmp_path) -> N
         admin = services["authentication"].authenticate("admin", "ChangeMe123!")
         user_session.set_principal(services["principal_builder"].build(admin))
 
-        project = services["project_service"].create_project("SQLite Finance")
+        project = services['project_create'].create_project("SQLite Finance")
         boundary = services["finance_governance_commands"]
         budget = boundary.budget(
             lambda service: service.create_budget(project.id, "Draft", "XAF"),

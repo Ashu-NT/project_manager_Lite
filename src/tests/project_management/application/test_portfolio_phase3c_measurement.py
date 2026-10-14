@@ -20,14 +20,14 @@ _SIZES = {
 
 
 def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
-    project_service = services["project_service"]
+    project_service = services['project_query']
     task_service = services["task_service"]
     services["project_resource_query"]
     scenario_commands = services["portfolio_scenario_commands"]
 
     project_ids: list[str] = []
     for index in range(project_count):
-        project = project_service.create_project(
+        project = services['project_create'].create_project(
             f"Phase 3C Project {index}",
             start_date=date(2024, 1, 8),
             end_date=date(2024, 3, 29),

@@ -26,7 +26,7 @@ def _access_scope_option_loaders(services):
     return {
         "project": lambda: [
             (project.name, project.id)
-            for project in services["project_service"].list_projects()
+            for project in services['project_query'].list_projects()
         ]
     }
 
@@ -83,7 +83,7 @@ def test_security_and_payroll_roles_expose_expected_permissions(services):
 def test_access_and_security_admin_capabilities_are_separated(services):
     access = services["access_service"]
     active_tenant_id = services["user_session"].active_tenant_id()
-    project = services["project_service"].create_project("Access Admin Project")
+    project = services['project_create'].create_project("Access Admin Project")
     # H-8: target must be in the active tenant so security_admin can manage them
     target = services["user_registration"].register_user(
         "locked-target", "StrongPass123", role_names=["viewer"], tenant_id=active_tenant_id

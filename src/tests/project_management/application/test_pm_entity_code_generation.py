@@ -11,7 +11,7 @@ from src.core.platform.common.exceptions import ValidationError
 
 
 def _project(services):
-    return services["project_service"].create_project("Plant Upgrade", "")
+    return services['project_create'].create_project("Plant Upgrade", "")
 
 
 # ── Task (TSK, per-project) ──────────────────────────────────────────────────
@@ -23,9 +23,9 @@ def test_task_autogenerates_code(services):
 
 def test_task_code_is_per_project_scoped(services):
     ts = services["task_service"]
-    ps = services["project_service"]
-    p1 = ps.create_project("Project One", "").id
-    p2 = ps.create_project("Project Two", "").id
+    ps = services['project_query']
+    p1 = services['project_create'].create_project("Project One", "").id
+    p2 = services['project_create'].create_project("Project Two", "").id
     a = ts.create_task(p1, "Cabling Run", duration_days=1)
     b = ts.create_task(p2, "Cabling Run", duration_days=1)
     # same token in two projects -> both 0001 (per-project uniqueness)

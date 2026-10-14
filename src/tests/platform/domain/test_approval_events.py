@@ -82,7 +82,7 @@ def _spy_recorded_events(uow_factory, monkeypatch) -> list:
 
 def _submitted_budget(services, session):
     _login(services, "admin", "ChangeMe123!")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         _unique("Approval Events Project"), financial_currency_code="USD"
     )
     budget_service = services["budget_service"]
@@ -307,7 +307,7 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
     )
 
     _login(services, "admin", "ChangeMe123!")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         _unique("Events Finance Project"), financial_currency_code="USD"
     )
     code = services["financial_configuration_service"].create_cost_code(
@@ -364,7 +364,7 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
 
     _login(services, "admin", "ChangeMe123!")
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         _unique("Events Billing Project"), financial_currency_code=organization.base_currency
     )
     cost_code = services["financial_configuration_service"].create_cost_code(

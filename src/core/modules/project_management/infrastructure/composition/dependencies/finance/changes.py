@@ -6,7 +6,9 @@ from src.core.modules.project_management.application.common.clock import SystemC
 from src.core.modules.project_management.application.financials import (
     FinancialChangeService,
 )
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.contracts.ports.scheduling.schedule_change import (
+    ApprovedScheduleChangePort,
+)
 from src.core.modules.project_management.infrastructure.composition.context import (
     ProjectManagementRepositoryContext,
 )
@@ -18,7 +20,7 @@ def build_financial_change_service(
     repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
-    task_service: TaskService,
+    task_service: ApprovedScheduleChangePort,
     clock: SystemClock,
 ) -> FinancialChangeService:
     return FinancialChangeService(

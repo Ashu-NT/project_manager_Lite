@@ -18,12 +18,12 @@ def _row_sum(rows, key_text: str, field: str) -> float:
 
 
 def test_cpm_dependency_type_math(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     wc = services["work_calendar_engine"]
     sched = services["scheduling_engine"]
 
-    project = ps.create_project("CPM Math", "")
+    project = services['project_create'].create_project("CPM Math", "")
     pid = project.id
 
     pred = ts.create_task(pid, "Pred", start_date=date(2023, 11, 6), duration_days=3)
@@ -73,11 +73,11 @@ def test_cpm_dependency_type_math(services):
 def test_ss_lag_zero_and_lag_one_are_now_distinguishable(services):
     """SS/FF/SF lag=0 and lag=1 must produce distinguishable dates, even when the
     predecessor's anchor date falls on a working day."""
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     sched = services["scheduling_engine"]
 
-    project = ps.create_project("SS Lag Zero Vs One", "")
+    project = services['project_create'].create_project("SS Lag Zero Vs One", "")
     pid = project.id
 
     pred = ts.create_task(pid, "Pred", start_date=date(2023, 11, 6), duration_days=1)
@@ -95,11 +95,11 @@ def test_ss_lag_zero_and_lag_one_are_now_distinguishable(services):
 
 def test_fs_negative_lead_is_monotonic(services):
     """FS lag=-1 and lag=-2 must not collapse to the same date."""
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     sched = services["scheduling_engine"]
 
-    project = ps.create_project("FS Negative Lead", "")
+    project = services['project_create'].create_project("FS Negative Lead", "")
     pid = project.id
 
     pred = ts.create_task(pid, "Pred", start_date=date(2023, 11, 6), duration_days=3)
@@ -128,11 +128,11 @@ def test_mixed_successor_types_both_constrain_predecessor_late_dates(services):
     longer duration (so its own latest-start is pulled far earlier). The predecessor's latest
     start must reflect the tighter SS-derived bound, not the looser FS-derived one.
     """
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     sched = services["scheduling_engine"]
 
-    project = ps.create_project("Mixed Successor Types", "")
+    project = services['project_create'].create_project("Mixed Successor Types", "")
     pid = project.id
 
     pred = ts.create_task(pid, "Pred", start_date=date(2023, 11, 6), duration_days=2)
@@ -154,12 +154,12 @@ def test_mixed_successor_types_both_constrain_predecessor_late_dates(services):
 
 
 def test_schedule_actual_date_constraints_override_computed_dates(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     wc = services["work_calendar_engine"]
     sched = services["scheduling_engine"]
 
-    project = ps.create_project("Actual Dates", "")
+    project = services['project_create'].create_project("Actual Dates", "")
     pid = project.id
     t = ts.create_task(pid, "Execution Task", start_date=date(2023, 11, 6), duration_days=3)
 
@@ -175,11 +175,11 @@ def test_schedule_actual_date_constraints_override_computed_dates(services):
 
 
 def test_gantt_data_matches_schedule_and_includes_unscheduled_tasks(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     sched = services["scheduling_engine"]
 
-    project = ps.create_project("Gantt Math", "")
+    project = services['project_create'].create_project("Gantt Math", "")
     pid = project.id
 
     t1 = ts.create_task(pid, "Planned A", start_date=date(2023, 11, 6), duration_days=2)
@@ -204,11 +204,11 @@ def test_gantt_data_matches_schedule_and_includes_unscheduled_tasks(services):
 
 
 def test_gantt_reacts_to_new_dependency_constraints(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     wc = services["work_calendar_engine"]
 
-    project = ps.create_project("Gantt Dependency Shift", "")
+    project = services['project_create'].create_project("Gantt Dependency Shift", "")
     pid = project.id
 
     pred = ts.create_task(pid, "Predecessor", start_date=date(2023, 11, 6), duration_days=3)

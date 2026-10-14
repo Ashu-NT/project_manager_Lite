@@ -11,7 +11,7 @@ from src.tests.project_management._sql_measurement_helpers import measure_sql
 
 def _seed_project(services, *, name: str = "Overview Scale Project"):
     today = date.today()
-    return services["project_service"].create_project(
+    return services['project_create'].create_project(
         name,
         start_date=today - timedelta(days=60),
         end_date=today + timedelta(days=60),
@@ -47,7 +47,7 @@ def _build_dashboard_api(services):
     )
 
     return build_project_management_dashboard_desktop_api(
-        project_service=services["project_service"],
+        project_service=services['project_query'],
         project_dashboard=services["project_dashboard_query"],
         portfolio_dashboard=services["portfolio_dashboard_query"],
         baseline_service=services["baseline_service"],

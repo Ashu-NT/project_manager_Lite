@@ -89,10 +89,10 @@ def test_project_scope_roles_are_seeded_in_db(services):
 # ---------------------------------------------------------------------------
 
 def test_user_assigned_project_lead_gets_correct_permissions(services):
-    project_service = services["project_service"]
+    project_service = services['project_query']
     tenant_id, _ = _active_context_ids(services)
 
-    project = project_service.create_project("Phase 2B Lead Project")
+    project = services['project_create'].create_project("Phase 2B Lead Project")
     user = services["user_registration"].register_user(
         "p2b-assign-plead",
         "StrongPass123!",
@@ -110,10 +110,10 @@ def test_user_assigned_project_lead_gets_correct_permissions(services):
 
 
 def test_user_assigned_project_viewer_gets_read_only_permissions(services):
-    project_service = services["project_service"]
+    project_service = services['project_query']
     tenant_id, _ = _active_context_ids(services)
 
-    project = project_service.create_project("Phase 2B Viewer Project")
+    project = services['project_create'].create_project("Phase 2B Viewer Project")
     user = services["user_registration"].register_user(
         "p2b-assign-pviewer",
         "StrongPass123!",
@@ -134,11 +134,11 @@ def test_user_assigned_project_viewer_gets_read_only_permissions(services):
 # ---------------------------------------------------------------------------
 
 def test_project_role_binding_is_scoped_to_its_own_project(services):
-    project_service = services["project_service"]
+    project_service = services['project_query']
     tenant_id, organization_id = _active_context_ids(services)
 
-    project_a = project_service.create_project("Phase 2B Scope A")
-    project_b = project_service.create_project("Phase 2B Scope B")
+    project_a = services['project_create'].create_project("Phase 2B Scope A")
+    project_b = services['project_create'].create_project("Phase 2B Scope B")
     user = services["user_registration"].register_user(
         "p2b-project-scope",
         "StrongPass123!",

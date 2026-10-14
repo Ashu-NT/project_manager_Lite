@@ -46,11 +46,11 @@ def _report_sources(services) -> reporting_api.ProjectReportSources:
 
 
 def _setup_report_project(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     bs = services["baseline_service"]
 
-    project = ps.create_project(
+    project = services['project_create'].create_project(
         "Export Validation Project",
         "",
         start_date=date(2023, 11, 6),
@@ -114,10 +114,10 @@ def test_excel_export_contains_expected_sections_when_baseline_is_approved(servi
 
 
 def test_excel_export_without_baseline_skips_evm_sheet(services, tmp_path):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("No Baseline Export", "")
+    project = services['project_create'].create_project("No Baseline Export", "")
     pid = project.id
     ts.create_task(pid, "Task No Base", start_date=date(2023, 11, 6), duration_days=2)
 

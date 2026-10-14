@@ -25,7 +25,7 @@ def _reader(session) -> SqlAlchemyTimesheetWorkspaceReader:
 
 def _setup_resource_with_open_periods(services, *, month_count: int):
     tenant_id, organization_id = _tenant_org(services)
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Open Period Parity Project",
         financial_currency_code=services["tenant_context_service"]
         .get_active_organization()

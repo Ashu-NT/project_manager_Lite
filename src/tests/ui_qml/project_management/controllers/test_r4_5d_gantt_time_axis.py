@@ -199,11 +199,11 @@ def test_desktop_api_projects_project_bounds_and_bound_calendar() -> None:
     )()
     api = ProjectManagementSchedulingDesktopApi(
         project_service=type(
-            "ProjectService",
+            "ProjectQuery",
             (),
             {"get_project": lambda _self, _project_id: project},
         )(),
-        task_service=task_service,
+        task_lookup_query=task_service, task_detail_query=task_service, task_hierarchy_query=task_service, task_dependency_query=task_service, task_dependency_commands=task_service, task_leveling_commands=task_service,
         scheduling_engine=engine,
         tenant_context_service=_ScopeContext("tenant-1", "org-1"),
     )

@@ -12,7 +12,7 @@ def _fail_activity(*args, **kwargs):
 
 
 def test_create_rolls_back_when_activity_write_fails(services, monkeypatch):
-    project = services["project_service"].create_project("Task Lifecycle Rollback", "")
+    project = services['project_create'].create_project("Task Lifecycle Rollback", "")
     tasks = services["task_service"]
     monkeypatch.setattr(lifecycle_commands, "record_activity", _fail_activity)
 
@@ -23,7 +23,7 @@ def test_create_rolls_back_when_activity_write_fails(services, monkeypatch):
 
 
 def test_update_rolls_back_when_activity_write_fails(services, monkeypatch):
-    project = services["project_service"].create_project("Task Update Rollback", "")
+    project = services['project_create'].create_project("Task Update Rollback", "")
     tasks = services["task_service"]
     task = tasks.create_task(project.id, "Original Task")
     monkeypatch.setattr(lifecycle_commands, "record_activity", _fail_activity)

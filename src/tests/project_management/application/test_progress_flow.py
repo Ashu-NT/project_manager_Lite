@@ -9,10 +9,10 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 
 
 def test_task_progress_and_status_transitions(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Progress Test", "")
+    project = services['project_create'].create_project("Progress Test", "")
     pid = project.id
 
     t = ts.create_task(pid, "Task P", start_date=date(2023, 11, 6), duration_days=2)
@@ -29,10 +29,10 @@ def test_task_progress_and_status_transitions(services):
 
 
 def test_task_progress_accepts_explicit_status_updates(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Progress Status Override", "")
+    project = services['project_create'].create_project("Progress Status Override", "")
     pid = project.id
     t = ts.create_task(pid, "Task S", start_date=date(2023, 11, 6), duration_days=2)
 
@@ -45,10 +45,10 @@ def test_task_progress_accepts_explicit_status_updates(services):
 
 
 def test_set_status_updates_percent_complete_defaults(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Status Defaults", "")
+    project = services['project_create'].create_project("Status Defaults", "")
     pid = project.id
     task = ts.create_task(pid, "Task Defaults", start_date=date(2023, 11, 6), duration_days=2)
 
@@ -67,7 +67,7 @@ def test_set_status_updates_percent_complete_defaults(services):
 
 
 def test_bulk_status_failure_rolls_back_all_tasks(services, monkeypatch):
-    project = services["project_service"].create_project("Bulk status rollback")
+    project = services['project_create'].create_project("Bulk status rollback")
     tasks = services["task_service"]
     first = tasks.create_task(project.id, "First")
     second = tasks.create_task(project.id, "Second")

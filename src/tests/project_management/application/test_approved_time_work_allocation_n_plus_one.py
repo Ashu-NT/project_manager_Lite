@@ -15,7 +15,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 
 def _setup(services, *, suffix: str):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         f"N+1 Guardrail {suffix}", financial_currency_code=organization.base_currency
     )
     resource = services["resource_master_commands"].create_resource(

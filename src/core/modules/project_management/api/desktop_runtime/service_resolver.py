@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.application.tasks import ResourceLevelingCommandHandler
+
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TypeVar, cast
@@ -45,7 +47,6 @@ from src.core.modules.project_management.application.portfolio.queries import (
     PortfolioScenarioQueryHandler,
     PortfolioTemplateQueryHandler,
 )
-from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.projects.commands.create import (
     ProjectCreateHandler,
 )
@@ -101,7 +102,17 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
 )
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks import (
+    TaskDeletionCommandHandler,
+    TaskDependencyCommandHandler,
+    TaskDependencyQueryHandler,
+    TaskHierarchyCommandHandler,
+    TaskHierarchyQueryHandler,
+    TaskLifecycleCommandHandler,
+    TaskProgressCommandHandler,
+    TaskSchedulingConstraintHandler,
+    TaskService,
+)
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
 )
@@ -148,7 +159,6 @@ def _resolve(services: Mapping[str, object], key: str, expected: type[_T]) -> _T
 
 @dataclass(frozen=True)
 class ProjectManagementDesktopRuntimeServices:
-    project_service: ProjectService | None
     project_query: ProjectQueryHandler | None
     project_create: ProjectCreateHandler | None
     project_update: ProjectUpdateHandler | None
@@ -190,6 +200,15 @@ class ProjectManagementDesktopRuntimeServices:
     timesheet_period_query: TimesheetPeriodQueryHandler | None
     timesheet_period_transitions: TimesheetPeriodTransitionHandler | None
     task_service: TaskService | None
+    task_leveling_commands: ResourceLevelingCommandHandler | None
+    task_hierarchy_query: TaskHierarchyQueryHandler | None
+    task_deletion_commands: TaskDeletionCommandHandler | None
+    task_progress_commands: TaskProgressCommandHandler | None
+    task_hierarchy_commands: TaskHierarchyCommandHandler | None
+    task_constraint_commands: TaskSchedulingConstraintHandler | None
+    task_lifecycle_commands: TaskLifecycleCommandHandler | None
+    task_dependency_commands: TaskDependencyCommandHandler | None
+    task_dependency_query: TaskDependencyQueryHandler | None
     task_workspace_query: TaskWorkspacePageQueryHandler | None
     task_detail_query: TaskDetailPageQueryHandler | None
     task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler | None
@@ -223,7 +242,6 @@ class ProjectManagementDesktopRuntimeServices:
 def resolve_project_management_desktop_runtime_services(
     services: Mapping[str, object],
 ) -> ProjectManagementDesktopRuntimeServices:
-    project_service = services.get("project_service")
     project_query = services.get("project_query")
     register_query = services.get("register_query")
     register_lifecycle_commands = services.get("register_lifecycle_commands")
@@ -270,13 +288,19 @@ def resolve_project_management_desktop_runtime_services(
         work_calendar_engine = None
 
     return ProjectManagementDesktopRuntimeServices(
+        task_leveling_commands=_resolve(services, "task_leveling_commands", ResourceLevelingCommandHandler),
+        task_hierarchy_query=_resolve(services, "task_hierarchy_query", TaskHierarchyQueryHandler),
+        task_deletion_commands=_resolve(services, "task_deletion_commands", TaskDeletionCommandHandler),
+        task_progress_commands=_resolve(services, "task_progress_commands", TaskProgressCommandHandler),
+        task_hierarchy_commands=_resolve(services, "task_hierarchy_commands", TaskHierarchyCommandHandler),
+        task_constraint_commands=_resolve(services, "task_constraint_commands", TaskSchedulingConstraintHandler),
+        task_lifecycle_commands=_resolve(services, "task_lifecycle_commands", TaskLifecycleCommandHandler),
+        task_dependency_commands=_resolve(services, "task_dependency_commands", TaskDependencyCommandHandler),
+        task_dependency_query=_resolve(services, "task_dependency_query", TaskDependencyQueryHandler),
         project_create=_resolve(services, "project_create", ProjectCreateHandler),
         project_update=_resolve(services, "project_update", ProjectUpdateHandler),
         project_status=_resolve(services, "project_status", ProjectStatusHandler),
         project_deletion=_resolve(services, "project_deletion", ProjectDeletionHandler),
-        project_service=(
-            project_service if isinstance(project_service, ProjectService) else None
-        ),
         project_query=(
             project_query if isinstance(project_query, ProjectQueryHandler) else None
         ),

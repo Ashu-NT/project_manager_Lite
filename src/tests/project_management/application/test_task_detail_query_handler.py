@@ -9,10 +9,10 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services) -> None:
-    projects = services["project_service"]
+    projects = services['project_query']
     tasks = services["task_service"]
     detail = services["task_detail_query"]
-    project = projects.create_project("Task detail query project")
+    project = services['project_create'].create_project("Task detail query project")
     predecessor = tasks.create_task(project.id, "Predecessor")
     task = tasks.create_task(project.id, "Target")
     successor = tasks.create_task(project.id, "Successor")
@@ -50,7 +50,7 @@ def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services)
 
 def test_task_detail_scope_denial_stops_before_reader(services, monkeypatch) -> None:
     tasks = services["task_service"]
-    project = services["project_service"].create_project("Task detail scope project")
+    project = services['project_create'].create_project("Task detail scope project")
     task = tasks.create_task(project.id, "Scoped task")
     detail = services["task_detail_query"]
     reader = detail._task_workspace_reader

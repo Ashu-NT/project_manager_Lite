@@ -22,7 +22,7 @@ def _wire_catalogs(services) -> tuple[PlatformWorkspaceCatalog, ProjectManagemen
 
 def _setup(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "P41-FIX Register project", financial_currency_code=organization.base_currency
     )
     return organization, project
@@ -125,7 +125,7 @@ def test_control_does_not_refresh_from_an_unrelated_view_invalidation_category(s
     pm_catalog.registerWorkspaceStale.connect(lambda project_id: stale_calls.append(project_id))
 
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "P41-FIX unrelated budget project", financial_currency_code=organization.base_currency
     )
     services["budget_service"].create_budget(project.id, "P41-FIX unrelated budget")

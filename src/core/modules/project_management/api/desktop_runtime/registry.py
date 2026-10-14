@@ -17,12 +17,12 @@ from src.core.modules.project_management.api.desktop import (
 from src.core.modules.project_management.gateway.task.reservation import (
     TaskReservationGateway,
 )
-from src.core.platform.contract.port.approval.capabilities import ApprovalQueries
 from src.core.platform.application.master_data.department import (
     DepartmentQueryHandler,
 )
 from src.core.platform.application.master_data.employee import EmployeeQueryHandler
 from src.core.platform.application.master_data.site import SiteQueryHandler
+from src.core.platform.contract.port.approval.capabilities import ApprovalQueries
 from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
     SupportsModuleEntitlements,
 )

@@ -219,7 +219,7 @@ def test_desktop_api_requires_canonical_engine_and_rejects_scope_mismatch() -> N
     )
     api = ProjectManagementSchedulingDesktopApi(
         project_service=SimpleNamespace(get_project=lambda _project_id: project),
-        task_service=task_service,
+        task_lookup_query=task_service, task_detail_query=task_service, task_hierarchy_query=task_service, task_dependency_query=task_service, task_dependency_commands=task_service, task_leveling_commands=task_service,
         scheduling_engine=engine,
         tenant_context_service=_ScopeContext("tenant-1", "org-1"),
     )
@@ -234,7 +234,7 @@ def test_desktop_api_requires_canonical_engine_and_rejects_scope_mismatch() -> N
 
     wrong_org_api = ProjectManagementSchedulingDesktopApi(
         project_service=SimpleNamespace(get_project=lambda _project_id: project),
-        task_service=task_service,
+        task_lookup_query=task_service, task_detail_query=task_service, task_hierarchy_query=task_service, task_dependency_query=task_service, task_dependency_commands=task_service, task_leveling_commands=task_service,
         scheduling_engine=engine,
         tenant_context_service=_ScopeContext("tenant-1", "org-2"),
     )
@@ -244,7 +244,7 @@ def test_desktop_api_requires_canonical_engine_and_rejects_scope_mismatch() -> N
 
     degraded_api = ProjectManagementSchedulingDesktopApi(
         project_service=SimpleNamespace(get_project=lambda _project_id: project),
-        task_service=task_service,
+        task_lookup_query=task_service, task_detail_query=task_service, task_hierarchy_query=task_service, task_dependency_query=task_service, task_dependency_commands=task_service, task_leveling_commands=task_service,
         tenant_context_service=_ScopeContext("tenant-1", "org-1"),
     )
     with pytest.raises(RuntimeError, match="not connected"):

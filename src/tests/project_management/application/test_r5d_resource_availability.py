@@ -36,13 +36,13 @@ def test_resource_workload_demand_fact_is_immutable() -> None:
 
 
 def test_resource_workload_reads_only_overlapping_assignment_demand(services) -> None:
-    project_service = services["project_service"]
+    project_service = services['project_query']
     task_service = services["task_service"]
     workload_service = services["resource_workload_query"]
     window_start = date.today() + timedelta(days=1)
     window_end = window_start + timedelta(days=6)
 
-    project = project_service.create_project("R5D bounded workload")
+    project = services['project_create'].create_project("R5D bounded workload")
     resource = services["resource_master_commands"].create_resource("R5D bounded resource")
     inside = task_service.create_task(
         project.id,

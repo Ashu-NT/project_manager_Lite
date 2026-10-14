@@ -31,19 +31,19 @@ from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
 def _seed_resource_context(services):
-    project_service = services["project_service"]
+    project_service = services['project_query']
     task_service = services["task_service"]
     services["project_resource_query"]
 
     resource = services["resource_master_commands"].create_resource("R5E Planner", role="Planner")
-    alpha = project_service.create_project(
+    alpha = services['project_create'].create_project(
         "Alpha Delivery",
         code="R5E-ALPHA",
         status=ProjectStatus.ACTIVE,
         start_date=date(2026, 8, 1),
         end_date=date(2026, 12, 31),
     )
-    zulu = project_service.create_project(
+    zulu = services['project_create'].create_project(
         "Zulu Delivery",
         code="R5E-ZULU",
         status=ProjectStatus.PLANNED,

@@ -51,7 +51,7 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     reporting_service = _FakeReportingService()
     api = build_project_management_scheduling_desktop_api(
         project_service=project_service,
-        task_service=task_service,
+        task_lookup_query=task_service, task_detail_query=task_service, task_hierarchy_query=task_service, task_dependency_query=task_service, task_dependency_commands=task_service, task_leveling_commands=task_service,
         scheduling_engine=scheduling_engine,
         work_calendar_service=work_calendar_service,
         work_calendar_engine=work_calendar_engine,

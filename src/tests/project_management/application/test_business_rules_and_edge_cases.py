@@ -11,10 +11,10 @@ from src.core.platform.common.exceptions import (
 
 
 def test_task_name_validation_rules(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Task Name Rules", "")
+    project = services['project_create'].create_project("Task Name Rules", "")
     pid = project.id
 
     with pytest.raises(ValidationError) as exc_short:
@@ -31,10 +31,10 @@ def test_task_name_validation_rules(services):
 
 
 def test_task_dates_must_fit_project_window(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project(
+    project = services['project_create'].create_project(
         "Project Date Window",
         "",
         start_date=date(2023, 11, 10),
@@ -57,11 +57,11 @@ def test_task_dates_must_fit_project_window(services):
 
 
 def test_dependency_cross_project_and_duplicate_rules(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    p1 = ps.create_project("Deps P1", "")
-    p2 = ps.create_project("Deps P2", "")
+    p1 = services['project_create'].create_project("Deps P1", "")
+    p2 = services['project_create'].create_project("Deps P2", "")
 
     a = ts.create_task(p1.id, "Alpha", start_date=date(2023, 11, 6), duration_days=1)
     b = ts.create_task(p1.id, "Bravo", duration_days=1)
@@ -79,9 +79,9 @@ def test_dependency_cross_project_and_duplicate_rules(services):
 
 
 def test_assignment_allocation_and_resource_validation(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Assign Rules", "")
+    project = services['project_create'].create_project("Assign Rules", "")
     pid = project.id
     task = ts.create_task(
         pid, "Assignable Task", start_date=date(2023, 11, 6), duration_days=2
@@ -128,14 +128,14 @@ def test_work_calendar_next_and_negative_day_math(services):
 
 
 def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     bs = services["baseline_service"]
-    no_task_project = ps.create_project("No Tasks Baseline", "")
+    no_task_project = services['project_create'].create_project("No Tasks Baseline", "")
     with pytest.raises(ValidationError):
         bs.create_baseline(no_task_project.id, "BL-Empty", rate_as_of=date.today())
 
-    budget_project = ps.create_project(
+    budget_project = services['project_create'].create_project(
         "Uncosted Baseline",
         "",
         start_date=date(2023, 11, 6),
@@ -153,9 +153,9 @@ def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services
 
 
 def test_reporting_earned_value_reports_unavailable_without_baseline(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("No Baseline EVM", "")
+    project = services['project_create'].create_project("No Baseline EVM", "")
     pid = project.id
     ts.create_task(pid, "Any Task", start_date=date(2023, 11, 6), duration_days=1)
 
@@ -165,9 +165,9 @@ def test_reporting_earned_value_reports_unavailable_without_baseline(services):
 
 
 def test_dashboard_returns_none_evm_without_baseline(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Dashboard No Baseline", "")
+    project = services['project_create'].create_project("Dashboard No Baseline", "")
     pid = project.id
     ts.create_task(pid, "Dash Task", start_date=date(2023, 11, 6), duration_days=2)
 
@@ -176,9 +176,9 @@ def test_dashboard_returns_none_evm_without_baseline(services):
 
 
 def test_resource_load_summary_sorted_descending(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Resource Load Sort", "")
+    project = services['project_create'].create_project("Resource Load Sort", "")
     pid = project.id
     t1 = ts.create_task(pid, "Task One", start_date=date(2023, 11, 6), duration_days=2)
     t2 = ts.create_task(pid, "Task Two", start_date=date(2023, 11, 6), duration_days=2)
@@ -199,10 +199,10 @@ def test_resource_load_summary_sorted_descending(services):
 
 
 def test_dependency_diagnostics_flags_duplicates(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Dependency Diagnostics", "")
+    project = services['project_create'].create_project("Dependency Diagnostics", "")
     t1 = ts.create_task(
         project.id, "Task A", start_date=date(2023, 11, 6), duration_days=1
     )
@@ -221,10 +221,10 @@ def test_dependency_diagnostics_flags_duplicates(services):
 
 
 def test_dependency_diagnostics_cycle_includes_path_names(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Cycle Detail", "")
+    project = services['project_create'].create_project("Cycle Detail", "")
     task_a = ts.create_task(
         project.id, "Task A", start_date=date(2023, 11, 6), duration_days=1
     )
@@ -246,10 +246,10 @@ def test_dependency_diagnostics_cycle_includes_path_names(services):
 
 
 def test_dependency_diagnostics_reports_schedule_impact(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Impact Preview", "")
+    project = services['project_create'].create_project("Impact Preview", "")
     task_a = ts.create_task(
         project.id, "Task A", start_date=date(2023, 11, 6), duration_days=2
     )
@@ -273,10 +273,10 @@ def test_dependency_diagnostics_reports_schedule_impact(services):
 
 
 def test_dependency_diagnostics_no_shift_reports_none_risk(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("No Shift Preview", "")
+    project = services['project_create'].create_project("No Shift Preview", "")
     pred = ts.create_task(
         project.id, "Task P", start_date=date(2023, 11, 6), duration_days=2
     )
@@ -296,10 +296,10 @@ def test_dependency_diagnostics_no_shift_reports_none_risk(services):
 
 
 def test_add_dependency_uses_diagnostics_for_cycle_rule(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Cycle Enforcement", "")
+    project = services['project_create'].create_project("Cycle Enforcement", "")
     t1 = ts.create_task(
         project.id, "Task 1", start_date=date(2023, 11, 6), duration_days=1
     )

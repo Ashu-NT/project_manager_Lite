@@ -8,7 +8,7 @@ from src.core.modules.project_management.domain.enums import DependencyType
 
 
 def _two_tasks(services):
-    project = services["project_service"].create_project("Dependency Rollback", "")
+    project = services['project_create'].create_project("Dependency Rollback", "")
     tasks = services["task_service"]
     first = tasks.create_task(project.id, "First", start_date=date(2026, 9, 7), duration_days=2)
     second = tasks.create_task(project.id, "Second", start_date=date(2026, 9, 10), duration_days=2)

@@ -5,7 +5,6 @@ import pytest
 from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
     PortfolioPolicy,
 )
-from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     ResourceQueryHandler,
 )
@@ -198,18 +197,11 @@ def test_project_service_lists_only_active_tenant_projects() -> None:
         ProjectQueryHandler,
     )
 
-    service = ProjectService(
-        user_session=user_session,
-        query_handler=ProjectQueryHandler(
+    service = ProjectQueryHandler(
             project_repo=project_repo,
             project_catalog_reader=None,
             tenant_context_service=tenant_context,
             user_session=user_session,
-        ),
-        status_handler=object(),
-        deletion_handler=object(),
-        create_handler=object(),
-        update_handler=object(),
     )
 
     rows = service.list_projects()

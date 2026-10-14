@@ -11,6 +11,9 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common import (
     project_resource_envelope_policy as envelope_policy,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.resources.capacity.queries.availability import (
     ResourceAvailabilityQueryHandler,
 )
@@ -81,10 +84,11 @@ class TaskAssignmentActionContext:
     can_decline: bool
 
 
-class TaskAssignmentCommandHandler:
+class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
+        module_catalog_service=None,
         task_repo: TaskRepository,
         assignment_repo: AssignmentRepository,
         resource_repo: ResourceRepository,
@@ -100,6 +104,7 @@ class TaskAssignmentCommandHandler:
         uow_scope: TaskUowScope,
         overallocation_policy: str,
     ) -> None:
+        self._module_catalog_service = module_catalog_service
         self._task_repo = task_repo
         self._assignment_repo = assignment_repo
         self._resource_repo = resource_repo

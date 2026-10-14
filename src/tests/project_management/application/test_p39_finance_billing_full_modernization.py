@@ -83,7 +83,7 @@ def _login(services, username: str, password: str) -> None:
 
 def _setup_billable_project(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         _unique("P39 Billing project"), financial_currency_code=organization.base_currency
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
@@ -649,7 +649,7 @@ def test_correction_uses_reconciled_parent_without_mutating_its_evidence(account
     replacement = correction(parent.id)
     assert replacement.id != draft.id
     assert replacement.correction_of_preparation_id == parent.id
-    other_project = services["project_service"].create_project(
+    other_project = services['project_create'].create_project(
         _unique("Other correction project"), financial_currency_code=organization.base_currency,
     )
     profile = services["financial_configuration_service"].get_profile(other_project.id)

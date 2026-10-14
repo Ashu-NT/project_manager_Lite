@@ -68,9 +68,9 @@ def test_project_desktop_consumers_reuse_composed_handlers(services):
 
 
 def test_project_events_share_one_post_commit_handler(services) -> None:
-    project = services["project_service"]
+    project = services['project_query']
     tasks = services["task_service"]
-    bus = project._create_handler._uow_factory._post_commit_bus
+    bus = services['project_create']._uow_factory._post_commit_bus
 
     assert bus is tasks._task_uow_scope._factory._post_commit_bus
     event_types = (
@@ -96,8 +96,8 @@ def test_project_events_share_one_post_commit_handler(services) -> None:
 
 
 def test_project_uow_factory_opens_a_fresh_session(services, session) -> None:
-    project = services["project_service"]
-    scoped_session = project._create_handler._uow_factory._session_factory()
+    project = services['project_query']
+    scoped_session = services['project_create']._uow_factory._session_factory()
     try:
         assert scoped_session is not session
         assert scoped_session.bind is session.bind
@@ -106,7 +106,7 @@ def test_project_uow_factory_opens_a_fresh_session(services, session) -> None:
 
 
 def test_register_uses_shared_bus_and_one_invalidation_handler(services, session) -> None:
-    project_bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
+    project_bus = services['project_create']._uow_factory._post_commit_bus
     register_uow = services["register_lifecycle_commands"]._uow_factory
     assert register_uow._post_commit_bus is project_bus
     assert sum(
@@ -123,7 +123,7 @@ def test_register_uses_shared_bus_and_one_invalidation_handler(services, session
 
 def test_task_events_share_one_post_commit_handler_and_fresh_uow(services, session) -> None:
     task_uow = services["task_service"]._task_uow_scope._factory
-    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
+    bus = services['project_create']._uow_factory._post_commit_bus
     assert task_uow._post_commit_bus is bus
     event_types = (
         TaskCreated,
@@ -154,14 +154,14 @@ def test_task_events_share_one_post_commit_handler_and_fresh_uow(services, sessi
 
 
 def test_project_query_capability_reuses_the_composed_handler(services) -> None:
-    assert services["project_query"] is services["project_service"]._query_handler
+    assert services["data_import_service"]._project_query is services["project_query"]
 
 
 def test_timesheet_instance_and_invalidation_subscription_are_shared(services) -> None:
     assert services["time_entry_commands"] is services["time_entry_commands"]
     assert services["time_entry_queries"] is services["time_entry_queries"]
     assert services["task_time_entries"]._time_queries is services["time_entry_queries"]
-    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
+    bus = services['project_create']._uow_factory._post_commit_bus
     assert sum(
         handler.__name__ == "handle_timesheet_period_event"
         for handler in bus._handlers[TimesheetPeriodStatusChanged]
@@ -179,7 +179,7 @@ def test_resource_readers_clock_uow_and_events_preserve_identity(services, sessi
     assert context_reader is context_query._resource_activity_reader
     assert context_reader is capability_query._resource_capability_reader
 
-    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
+    bus = services['project_create']._uow_factory._post_commit_bus
     master_commands = services["resource_master_commands"]
     capability_commands = services["resource_capability_commands"]
     assert master_commands._uow_factory._post_commit_bus is bus
@@ -213,7 +213,7 @@ def test_scheduling_and_baseline_keep_shared_engine_and_ambient_uow(services, se
     assert baseline._session is session
     assert baseline._uow_factory()._session is session
 
-    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
+    bus = services['project_create']._uow_factory._post_commit_bus
     event_types = (
         ProjectBaselineCreated,
         ProjectBaselineSubmitted,
@@ -238,7 +238,7 @@ def test_scheduling_and_baseline_keep_shared_engine_and_ambient_uow(services, se
 
 def test_collaboration_keeps_fresh_uow_and_one_comment_handler(services, session) -> None:
     collaboration = services["collaboration_comment_commands"]
-    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
+    bus = services['project_create']._uow_factory._post_commit_bus
     assert collaboration._uow_factory._post_commit_bus is bus
     # Every collaboration write handler shares the one collaboration UoW factory.
     for key in ("collaboration_comment_engagement", "collaboration_presence_commands"):
@@ -273,7 +273,7 @@ def test_portfolio_reuses_calendar_with_one_event_handler(services, session) -> 
     calculator = services["portfolio_executive_query"]._heatmap_calculator
     assert calculator._project_calendar_adapter is services["scheduling_engine"]._project_calendar_adapter
     assert services["portfolio_dependency_query"]._heatmap_calculator is calculator
-    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
+    bus = services['project_create']._uow_factory._post_commit_bus
     assert portfolio._uow_factory._post_commit_bus is bus
     # One portfolio UoW factory and one shared scope/scoring policy across handlers.
     for key in (
@@ -350,7 +350,7 @@ def test_reporting_and_dashboard_reuse_authoritative_services(services) -> None:
 def test_resource_planning_and_imports_keep_shared_dependencies(services) -> None:
     assert (
         services["project_resource_commands"]._shared_uow_factory
-        is services["project_service"]._deletion_handler._shared_uow_factory
+        is services['project_deletion']._shared_uow_factory
     )
     availability = services["resource_availability_service"]
     assert services["resource_capacity_calculator"]._availability is availability

@@ -133,7 +133,7 @@ def _timesheet_hints(hints):
 
 def _setup(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "P40B Timesheet project", financial_currency_code=organization.base_currency
     )
     resource = services["resource_master_commands"].create_resource(

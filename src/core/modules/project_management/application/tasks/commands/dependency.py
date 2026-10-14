@@ -6,6 +6,9 @@ from datetime import UTC, datetime
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
     TaskHierarchyPolicy,
 )
@@ -30,7 +33,6 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
-from src.core.platform.contract.port.approval.capabilities import ApprovalCommands
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     is_admin_session,
     require_permission,
@@ -44,6 +46,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.contract.port.approval.capabilities import ApprovalCommands
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
@@ -64,7 +67,7 @@ def _raise_for_invalid_diagnostic(diagnostic: DependencyDiagnostic) -> None:
     raise ValidationError(message, code=diagnostic.code)
 
 
-class TaskDependencyCommandHandler:
+class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
     """Governed dependency lifecycle for add/remove/update. All three go
     through matching authorization/project-scope/governance/transaction
     machinery. Approved requests are applied via
@@ -75,6 +78,7 @@ class TaskDependencyCommandHandler:
     def __init__(
         self,
         *,
+        module_catalog_service=None,
         task_repo: TaskRepository,
         dependency_repo: DependencyRepository,
         user_session: UserSessionContext | None,
@@ -85,6 +89,7 @@ class TaskDependencyCommandHandler:
         schedule_synchronizer: TaskScheduleSynchronizer,
         uow_scope: TaskUowScope,
     ) -> None:
+        self._module_catalog_service = module_catalog_service
         self._task_repo = task_repo
         self._dependency_repo = dependency_repo
         self._user_session = user_session

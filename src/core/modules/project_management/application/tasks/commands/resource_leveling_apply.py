@@ -6,6 +6,9 @@ from datetime import UTC, date, datetime
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.scheduling.leveling.resource_leveling_planner import (
     ResourceLevelingPlanner,
 )
@@ -36,7 +39,6 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.platform.contract.port.approval.capabilities import ApprovalCommands
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     is_admin_session,
     require_permission,
@@ -49,6 +51,7 @@ from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.platform.contract.port.approval.capabilities import ApprovalCommands
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
@@ -62,7 +65,7 @@ def _coerce_date(value: date | str) -> date:
     return value if isinstance(value, date) else date.fromisoformat(value)
 
 
-class ResourceLevelingCommandHandler:
+class ResourceLevelingCommandHandler(ProjectManagementModuleGuardMixin):
     """Persists a previously-computed ``LevelingProposal`` (always built by
     ``ResourceLevelingPlanner`` against an in-memory snapshot that never itself
     writes to the repository).
@@ -79,6 +82,7 @@ class ResourceLevelingCommandHandler:
     def __init__(
         self,
         *,
+        module_catalog_service=None,
         task_repo: TaskRepository,
         assignment_repo: AssignmentRepository,
         dependency_repo: DependencyRepository,
@@ -90,6 +94,7 @@ class ResourceLevelingCommandHandler:
         schedule_synchronizer: TaskScheduleSynchronizer,
         uow_scope: TaskUowScope,
     ) -> None:
+        self._module_catalog_service = module_catalog_service
         self._task_repo = task_repo
         self._assignment_repo = assignment_repo
         self._dependency_repo = dependency_repo

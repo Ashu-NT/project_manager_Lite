@@ -46,7 +46,7 @@ def _load_projects_page(pm_catalog, platform_catalog):
 
 def test_selecting_a_row_opens_inspector_without_opening_full_detail(services) -> None:
     today = date.today()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R4.2 Inspector Project",
         start_date=today - timedelta(days=10),
         end_date=today + timedelta(days=80),
@@ -79,7 +79,7 @@ def test_selecting_a_row_opens_inspector_without_opening_full_detail(services) -
 
 def test_row_activation_still_opens_full_detail(services) -> None:
     today = date.today()
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "R4.2 Full Detail Project",
         start_date=today - timedelta(days=3),
         end_date=today + timedelta(days=90),

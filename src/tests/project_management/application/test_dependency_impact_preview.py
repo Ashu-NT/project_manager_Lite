@@ -12,9 +12,9 @@ from src.core.modules.project_management.domain.enums import DependencyType
 
 def _make_chain(services):
     """A -> B -> C, all FS lag 0."""
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Impact Preview", "")
+    project = services['project_create'].create_project("Impact Preview", "")
     a = ts.create_task(project.id, "Task A", "", start_date=date(2023, 11, 6), duration_days=2)
     b = ts.create_task(project.id, "Task B", "", duration_days=2)
     c = ts.create_task(project.id, "Task C", "", duration_days=2)
@@ -47,9 +47,9 @@ def test_removal_preview_reports_shift_when_successor_has_its_own_conflicting_st
     ignore a task's own start_date whenever incoming_deps is non-empty).
     Removing the edge reveals that underlying, previously-overridden
     start_date -- a real, reportable shift."""
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Impact Preview Isolated", "")
+    project = services['project_create'].create_project("Impact Preview Isolated", "")
     a = ts.create_task(project.id, "Task A", "", start_date=date(2023, 11, 6), duration_days=2)
     b = ts.create_task(project.id, "Task B", "", start_date=date(2024, 1, 1), duration_days=1)
     dep = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)

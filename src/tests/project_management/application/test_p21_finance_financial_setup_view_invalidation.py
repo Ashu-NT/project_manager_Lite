@@ -86,7 +86,7 @@ def _spy_events(services, *event_types):
 
 
 def _seed_project(services):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         _unique("P21 Finance Project"), financial_currency_code="USD"
     )
     return project

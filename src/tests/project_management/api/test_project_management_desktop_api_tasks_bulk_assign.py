@@ -44,7 +44,7 @@ def test_project_management_tasks_desktop_api_supports_bulk_status_and_delete() 
     task_service.set_status(task_b.id, TaskStatus.DONE)
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
-        task_service=task_service,
+        task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_detail_query=task_service, task_assignment_commands=task_service,
     )
 
     changed = api.apply_bulk_status(
@@ -108,7 +108,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
     task_service.register_project_resource(project_resource.id, resource.id)
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
-        task_service=task_service,
+        task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_detail_query=task_service,
         task_assignment_commands=task_service,
         project_resource_query=project_resource_query,
         resource_query=resource_service,
@@ -217,7 +217,7 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
     )
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
-        task_service=task_service,
+        task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_detail_query=task_service, task_assignment_commands=task_service,
         project_resource_query=project_resource_query,
         resource_query=_TaskScopedResourceService([resource]),
     )

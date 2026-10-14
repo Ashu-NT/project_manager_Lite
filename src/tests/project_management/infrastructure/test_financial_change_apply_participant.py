@@ -44,7 +44,7 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _seed_approved_budget(services):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "FC Approval Test Project", financial_currency_code="USD"
     )
     code = services["financial_configuration_service"].create_cost_code(
@@ -226,20 +226,18 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         task_service_a = change_service_a._task_service
         task_service_b = change_service_b._task_service
         assert task_service_a is not task_service_b
-        assert task_service_a._task_uow_scope._tasks.session is session_a
-        assert task_service_b._task_uow_scope._tasks.session is session_b
-        assert task_service_a._task_uow_scope._enterprise_audit_service._session is session_a
-        assert task_service_b._task_uow_scope._enterprise_audit_service._session is session_b
-        assert task_service_a._dependency_command_handler._approval_commands is None, (
-            "the fresh TaskService must never reach back into ApprovalCommandHandler either"
-        )
-        scheduler_a = task_service_a._scheduling_constraint_handler._scheduling_engine
-        scheduler_b = task_service_b._scheduling_constraint_handler._scheduling_engine
+        assert task_service_a._uow_scope._tasks.session is session_a
+        assert task_service_b._uow_scope._tasks.session is session_b
+        assert task_service_a._uow_scope._enterprise_audit_service._session is session_a
+        assert task_service_b._uow_scope._enterprise_audit_service._session is session_b
+        assert not hasattr(task_service_a, "_approval_commands")
+        scheduler_a = task_service_a._scheduling_engine
+        scheduler_b = task_service_b._scheduling_engine
         assert scheduler_a is not scheduler_b
         assert scheduler_a._session is session_a
         assert scheduler_b._session is session_b
-        activity_a = task_service_a._task_uow_scope._activity_service
-        activity_b = task_service_b._task_uow_scope._activity_service
+        activity_a = task_service_a._uow_scope._activity_service
+        activity_b = task_service_b._uow_scope._activity_service
         assert activity_a is not activity_b
         assert activity_a._session is session_a
         assert activity_b._session is session_b

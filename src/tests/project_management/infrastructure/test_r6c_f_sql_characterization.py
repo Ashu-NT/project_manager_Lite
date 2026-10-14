@@ -47,7 +47,7 @@ def _measure(engine, operation: Callable[[], object]) -> tuple[object, int]:
 
 
 def _seed_approved_bases(services, *, suffix: str):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         f"R6C-F SQL Change {suffix}", financial_currency_code="USD"
     )
     code = services["financial_configuration_service"].create_cost_code(
@@ -104,7 +104,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
     engine = session.get_bind()
     counts: dict[str, int] = {}
 
-    setup_project = services["project_service"].create_project(
+    setup_project = services['project_create'].create_project(
         "R6C-F SQL Setup", financial_currency_code="USD"
     )
     setup = services["financial_configuration_service"]
@@ -142,7 +142,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
         ),
     )
 
-    budget_project = services["project_service"].create_project(
+    budget_project = services['project_create'].create_project(
         "R6C-F SQL Budget", financial_currency_code="USD"
     )
     budget_code = setup.create_cost_code(code="R6CF-BUD", name="Budget code")
@@ -199,7 +199,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
         lambda: budgets.create_successor(budget.id, name="Measured successor"),
     )
 
-    forecast_project = services["project_service"].create_project(
+    forecast_project = services['project_create'].create_project(
         "R6C-F SQL Forecast", financial_currency_code="USD"
     )
     forecast_code = setup.create_cost_code(code="R6CF-FC", name="Forecast code")

@@ -24,8 +24,8 @@ from src.ui_qml.modules.project_management.presenters.scheduling.scheduling_work
 
 def _controller(qapp, services):
     desktop_api = ProjectManagementSchedulingDesktopApi(
-        project_service=services["project_service"],
-        task_service=services["task_service"],
+        project_service=services['project_query'],
+        task_lookup_query=services['task_lookup_query'], task_detail_query=services['task_detail_query'], task_hierarchy_query=services['task_hierarchy_query'], task_dependency_query=services['task_dependency_query'], task_dependency_commands=services['task_dependency_commands'], task_leveling_commands=services['task_leveling_commands'],
         scheduling_engine=services["scheduling_engine"],
         work_calendar_engine=services["work_calendar_engine"],
     )
@@ -37,9 +37,9 @@ def _controller(qapp, services):
 
 
 def _make_overload(services, name: str):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project(name, "")
+    project = services['project_create'].create_project(name, "")
     task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
     resource = services["resource_master_commands"].create_resource("Controller Dev", "Developer", hourly_rate=100.0)
@@ -88,8 +88,8 @@ def test_apply_resource_leveling_persists_and_resets_the_pending_proposal(qapp, 
 
 def test_apply_without_a_prior_preview_reports_an_error_not_a_crash(qapp, services):
     ctrl = _controller(qapp, services)
-    ps = services["project_service"]
-    project = ps.create_project("Controller Leveling No Preview", "")
+    ps = services['project_query']
+    project = services['project_create'].create_project("Controller Leveling No Preview", "")
     ctrl.selectProject(project.id)
 
     result = ctrl.applyResourceLeveling()

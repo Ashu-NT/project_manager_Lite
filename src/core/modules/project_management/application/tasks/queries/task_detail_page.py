@@ -5,6 +5,9 @@ from dataclasses import replace
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
@@ -33,17 +36,19 @@ from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class TaskDetailPageQueryHandler:
+class TaskDetailPageQueryHandler(ProjectManagementModuleGuardMixin):
     """Scoped, server-paged Task Detail reads and row capabilities."""
 
     def __init__(
         self,
         *,
+        module_catalog_service=None,
         task_repo: TaskRepository,
         task_workspace_reader: TaskWorkspaceReader | None,
         user_session: UserSessionContext | None,
         tenant_context_service: TenantContextService | None,
     ) -> None:
+        self._module_catalog_service = module_catalog_service
         self._task_repo = task_repo
         self._task_workspace_reader = task_workspace_reader
         self._user_session = user_session

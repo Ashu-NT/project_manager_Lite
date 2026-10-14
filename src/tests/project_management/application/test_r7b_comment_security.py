@@ -25,10 +25,10 @@ def test_service_rejects_foreign_scope_without_database_rls(services, operation)
 
 
 def test_same_organization_foreign_project_rejected_by_service(services):
-    projects = services["project_service"]
+    projects = services['project_query']
     tasks = services["task_service"]
-    visible = projects.create_project("Visible")
-    hidden = projects.create_project("Hidden")
+    visible = services['project_create'].create_project("Visible")
+    hidden = services['project_create'].create_project("Hidden")
     task = tasks.create_task(hidden.id, "Private task")
     comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Private project comment")
     user = services["user_registration"].register_user("r7b-reader", "StrongPass123", role_names=["viewer"])
@@ -64,7 +64,7 @@ def test_deleted_comment_is_redacted_in_activity_dto_audit_and_read_marks(
         return record(*args, **kwargs)
 
     monkeypatch.setattr(collaboration_comments, "record_activity", capture_activity)
-    project = services["project_service"].create_project("Privacy")
+    project = services['project_create'].create_project("Privacy")
     task = services["task_service"].create_task(project.id, "Task")
     secret = "PRIVATE-CONTENT @admin"
     comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body=secret)
@@ -90,5 +90,5 @@ def test_deleted_comment_is_redacted_in_activity_dto_audit_and_read_marks(
             assert rows
         assert secret not in str(rows)
     assert activity_intents and secret not in str(activity_intents)
-    other = services["project_service"].create_project("Different project")
+    other = services['project_create'].create_project("Different project")
     assert services["collaboration_inbox_query"].list_recent_activity(project_id=other.id) == []

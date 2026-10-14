@@ -16,7 +16,17 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
 )
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks import (
+    TaskDeletionCommandHandler,
+    TaskDependencyCommandHandler,
+    TaskDependencyQueryHandler,
+    TaskHierarchyCommandHandler,
+    TaskHierarchyQueryHandler,
+    TaskLifecycleCommandHandler,
+    TaskLookupQueryHandler,
+    TaskProgressCommandHandler,
+    TaskSchedulingConstraintHandler,
+)
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
 )
@@ -43,7 +53,15 @@ from src.core.platform.contract.port.tenant.modules.supports_module_entitlements
 def build_project_management_tasks_desktop_api(
     *,
     project_service: ProjectQueryHandler | None = None,
-    task_service: TaskService | None = None,
+    task_lookup_query: TaskLookupQueryHandler | None = None,
+    task_hierarchy_query: TaskHierarchyQueryHandler | None = None,
+    task_deletion_commands: TaskDeletionCommandHandler | None = None,
+    task_progress_commands: TaskProgressCommandHandler | None = None,
+    task_hierarchy_commands: TaskHierarchyCommandHandler | None = None,
+    task_constraint_commands: TaskSchedulingConstraintHandler | None = None,
+    task_lifecycle_commands: TaskLifecycleCommandHandler | None = None,
+    task_dependency_commands: TaskDependencyCommandHandler | None = None,
+    task_dependency_query: TaskDependencyQueryHandler | None = None,
     task_workspace_query: TaskWorkspacePageQueryHandler | None = None,
     task_detail_query: TaskDetailPageQueryHandler | None = None,
     task_dependency_diagnostics: TaskDependencyDiagnosticsQueryHandler | None = None,
@@ -58,7 +76,15 @@ def build_project_management_tasks_desktop_api(
 ) -> ProjectManagementTasksDesktopApi:
     return ProjectManagementTasksDesktopApi(
         project_service=project_service,
-        task_service=task_service,
+        task_lookup_query=task_lookup_query,
+        task_hierarchy_query=task_hierarchy_query,
+        task_deletion_commands=task_deletion_commands,
+        task_progress_commands=task_progress_commands,
+        task_hierarchy_commands=task_hierarchy_commands,
+        task_constraint_commands=task_constraint_commands,
+        task_lifecycle_commands=task_lifecycle_commands,
+        task_dependency_commands=task_dependency_commands,
+        task_dependency_query=task_dependency_query,
         task_workspace_query=task_workspace_query,
         task_detail_query=task_detail_query,
         task_dependency_diagnostics=task_dependency_diagnostics,

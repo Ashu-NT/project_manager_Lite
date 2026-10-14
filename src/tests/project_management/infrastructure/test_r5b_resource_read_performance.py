@@ -19,7 +19,7 @@ def _p95(values: list[float]) -> float:
 
 @pytest.mark.parametrize("resource_count", [100, 1_000, 10_000])
 def test_r5b_resource_catalog_scale_measurement(services, resource_count: int) -> None:
-    session = services["project_service"]._session
+    session = services['project_deletion']._session
     user_session = services["user_session"]
     tenant_id = user_session.stored_active_tenant_id()
     organization_id = user_session.stored_active_organization_id()
@@ -90,7 +90,7 @@ def test_r5b_resource_inspector_scale_measurement(services) -> None:
     cold_ms = (perf_counter() - cold_started) * 1_000.0
 
     elapsed_ms: list[float] = []
-    session = services["project_service"]._session
+    session = services['project_deletion']._session
     engine = session.get_bind()
     statement_count = 0
 
@@ -125,7 +125,7 @@ def test_r5b_resource_summary_scale_measurement(services) -> None:
     )
     services["resource_query"].get_resource_summary(resource.id)
     elapsed_ms: list[float] = []
-    session = services["project_service"]._session
+    session = services['project_deletion']._session
     engine = session.get_bind()
     statement_count = 0
 
@@ -153,7 +153,7 @@ def test_r5b_resource_summary_scale_measurement(services) -> None:
 
 
 def test_r5b_resource_catalog_sqlite_query_plan_evidence(services) -> None:
-    session = services["project_service"]._session
+    session = services['project_deletion']._session
     user_session = services["user_session"]
     params = {
         "tenant_id": user_session.stored_active_tenant_id(),

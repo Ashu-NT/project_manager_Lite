@@ -10,7 +10,7 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 
 
 def test_capacity_reader_preserves_cross_project_demand_and_utilization(services) -> None:
-    project_service = services["project_service"]
+    project_service = services['project_query']
     task_service = services["task_service"]
     services["project_resource_query"]
     pool_service = services["portfolio_resource_pool_query"]
@@ -25,7 +25,7 @@ def test_capacity_reader_preserves_cross_project_demand_and_utilization(services
     allocations = (("Alpha", 60.0), ("Beta", 70.0))
     project_ids: list[str] = []
     for project_name, allocation in allocations:
-        project = project_service.create_project(
+        project = services['project_create'].create_project(
             project_name,
             start_date=date(2024, 1, 8),
             end_date=date(2024, 1, 12),

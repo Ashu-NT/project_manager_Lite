@@ -127,7 +127,14 @@ from src.core.modules.project_management.application.scheduling.dto import (
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
 )
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks import (
+    TaskLookupQueryHandler,
+    TaskHierarchyQueryHandler,
+    TaskDependencyQueryHandler,
+    TaskDependencyCommandHandler,
+    ResourceLevelingCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import TaskDetailPageQueryHandler
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
@@ -155,7 +162,12 @@ class ProjectManagementSchedulingDesktopApi:
         self,
         *,
         project_service: ProjectQueryHandler | None = None,
-        task_service: TaskService | None = None,
+        task_lookup_query: TaskLookupQueryHandler | None = None,
+        task_detail_query: TaskDetailPageQueryHandler | None = None,
+        task_hierarchy_query: TaskHierarchyQueryHandler | None = None,
+        task_dependency_query: TaskDependencyQueryHandler | None = None,
+        task_dependency_commands: TaskDependencyCommandHandler | None = None,
+        task_leveling_commands: ResourceLevelingCommandHandler | None = None,
         scheduling_engine: SchedulingEngine | None = None,
         platform_calendar_api: _PlatformWorkingDaysApi | None = None,
         work_calendar_service=None,
@@ -168,7 +180,12 @@ class ProjectManagementSchedulingDesktopApi:
         tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._project_service = project_service
-        self._task_service = task_service
+        self._task_lookup_query = task_lookup_query
+        self._task_detail_query = task_detail_query
+        self._task_hierarchy_query = task_hierarchy_query
+        self._task_dependency_query = task_dependency_query
+        self._task_dependency_commands = task_dependency_commands
+        self._task_leveling_commands = task_leveling_commands
         self._scheduling_engine = scheduling_engine
         self._platform_calendar_api = platform_calendar_api
         self._work_calendar_service = work_calendar_service
@@ -193,7 +210,7 @@ class ProjectManagementSchedulingDesktopApi:
     def list_activity_options(
         self, project_id: str, *, exclude_task_id: str | None = None
     ) -> tuple[SchedulingProjectOptionDescriptor, ...]:
-        return build_activity_options(project_id, self._task_service, exclude_task_id=exclude_task_id)
+        return build_activity_options(project_id, self._task_hierarchy_query, exclude_task_id=exclude_task_id)
 
     # ── Calendar ──────────────────────────────────────────────────────────────
 
@@ -255,12 +272,12 @@ class ProjectManagementSchedulingDesktopApi:
         normalized_id = (project_id or "").strip()
         if not normalized_id:
             return ()
-        list_tasks = get_task_method(self._task_service, "list_tasks_for_project")
+        list_tasks = get_task_method(self._task_lookup_query, "list_tasks_for_project")
         # One query for the whole project's edge set (Phase L), not a
         # per-task loop -- list_dependencies_for_project is backed directly
         # by DependencyRepository.list_by_project, the same single-query
         # method the cycle checker and CPM engine already use.
-        list_project_deps = get_task_method(self._task_service, "list_dependencies_for_project")
+        list_project_deps = get_task_method(self._task_dependency_query, "list_dependencies_for_project")
         if list_tasks is None or list_project_deps is None:
             return ()
         tasks_by_id = {t.id: t for t in list_tasks(normalized_id)}
@@ -284,9 +301,9 @@ class ProjectManagementSchedulingDesktopApi:
         normalized_id = (task_id or "").strip()
         if not normalized_id:
             return ()
-        get_task = get_task_method(self._task_service, "get_task")
-        list_tasks = get_task_method(self._task_service, "list_tasks_for_project")
-        list_deps = get_task_method(self._task_service, "list_dependencies_for_task")
+        get_task = get_task_method(self._task_detail_query, "get_task")
+        list_tasks = get_task_method(self._task_lookup_query, "list_tasks_for_project")
+        list_deps = get_task_method(self._task_dependency_query, "list_dependencies_for_task")
         if not all([get_task, list_tasks, list_deps]):
             return ()
         current = get_task(normalized_id)
@@ -305,28 +322,28 @@ class ProjectManagementSchedulingDesktopApi:
         direction = coerce_dependency_direction(command.relationship_direction)
         predecessor_id = command.related_activity_id if direction == "PREDECESSOR" else command.task_id
         successor_id = command.task_id if direction == "PREDECESSOR" else command.related_activity_id
-        dependency = require_task_method(self._task_service, "add_dependency")(
+        dependency = require_task_method(self._task_dependency_commands, "add_dependency")(
             predecessor_id=predecessor_id,
             successor_id=successor_id,
             dependency_type=coerce_dependency_type(command.dependency_type),
             lag_days=command.lag_days,
         )
-        current = require_task_method(self._task_service, "get_task")(command.task_id)
-        tasks_by_id = build_tasks_by_id(self._task_service, current.project_id if current else "")
+        current = require_task_method(self._task_detail_query, "get_task")(command.task_id)
+        tasks_by_id = build_tasks_by_id(self._task_lookup_query, current.project_id if current else "")
         return serialize_dependency(dependency, current_task_id=command.task_id, tasks_by_id=tasks_by_id)
 
     def update_dependency(self, command: SchedulingDependencyUpdateCommand, *, current_task_id: str) -> SchedulingDependencyDto:
-        dependency = require_task_method(self._task_service, "update_dependency")(
+        dependency = require_task_method(self._task_dependency_commands, "update_dependency")(
             command.dependency_id,
             dependency_type=coerce_dependency_type(command.dependency_type),
             lag_days=command.lag_days,
         )
-        current = require_task_method(self._task_service, "get_task")(current_task_id)
-        tasks_by_id = build_tasks_by_id(self._task_service, current.project_id if current else "")
+        current = require_task_method(self._task_detail_query, "get_task")(current_task_id)
+        tasks_by_id = build_tasks_by_id(self._task_lookup_query, current.project_id if current else "")
         return serialize_dependency(dependency, current_task_id=current_task_id, tasks_by_id=tasks_by_id)
 
     def delete_dependency(self, dependency_id: str) -> None:
-        require_task_method(self._task_service, "remove_dependency")(str(dependency_id or "").strip())
+        require_task_method(self._task_dependency_commands, "remove_dependency")(str(dependency_id or "").strip())
 
     # ── Schedule ──────────────────────────────────────────────────────────────
 
@@ -335,7 +352,7 @@ class ProjectManagementSchedulingDesktopApi:
         if not normalized_id:
             return ()
         if self._scheduling_engine is None:
-            return build_schedule_from_tasks(normalized_id, self._task_service)
+            return build_schedule_from_tasks(normalized_id, self._task_lookup_query)
         return build_schedule_from_engine(normalized_id, self._scheduling_engine, persist=False)
 
     def recalculate_schedule(self, project_id: str) -> tuple[SchedulingTaskDto, ...]:
@@ -361,12 +378,12 @@ class ProjectManagementSchedulingDesktopApi:
             self._require_scheduling_engine(),
             persist=False,
         )
-        list_hierarchy = getattr(self._task_service, "list_task_hierarchy", None)
+        list_hierarchy = getattr(self._task_hierarchy_query, "list_task_hierarchy", None)
         if callable(list_hierarchy):
             hierarchy = tuple(list_hierarchy(normalized_id))
         else:
             list_tasks = require_task_method(
-                self._task_service, "list_tasks_for_project"
+                self._task_lookup_query, "list_tasks_for_project"
             )
             task_rows = tuple(list_tasks(normalized_id))
             # Lightweight desktop test adapters may expose canonical schedule
@@ -517,7 +534,7 @@ class ProjectManagementSchedulingDesktopApi:
         normalized_id = (project_id or "").strip()
         if not normalized_id:
             return empty_leveling_proposal_dto()
-        result = build_resource_leveling_preview(normalized_id, self._task_service)
+        result = build_resource_leveling_preview(normalized_id, self._task_leveling_commands)
         if result is None:
             return empty_leveling_proposal_dto(normalized_id)
         proposal, dto = result
@@ -534,7 +551,7 @@ class ProjectManagementSchedulingDesktopApi:
         proposal = self._pending_leveling_proposals.pop(normalized_id, None)
         if proposal is None:
             raise ValueError("Preview resource leveling before applying it.")
-        require_task_method(self._task_service, "apply_resource_leveling_plan")(normalized_id, proposal)
+        require_task_method(self._task_leveling_commands, "apply_resource_leveling_plan")(normalized_id, proposal)
         return self.list_schedule(normalized_id)
 
     # ── Constraints ───────────────────────────────────────────────────────────
@@ -543,7 +560,7 @@ class ProjectManagementSchedulingDesktopApi:
         return build_constraint_violations(
             (project_id or "").strip(),
             scheduling_engine=self._scheduling_engine,
-            task_service=self._task_service,
+            task_service=self._task_lookup_query,
             constraint_validator=self._constraint_validator,
         )
 
@@ -587,12 +604,12 @@ class ProjectManagementSchedulingDesktopApi:
         if (
             not normalized_task_id
             or not normalized_project_id
-            or self._task_service is None
+            or self._task_detail_query is None
             or self._change_impact_service is None
         ):
             return unavailable
         try:
-            task = self._task_service.get_task(normalized_task_id)
+            task = self._task_detail_query.get_task(normalized_task_id)
             if task is None or task.start_date is None:
                 return unavailable
             report = self._change_impact_service.analyse_working_day_delay(

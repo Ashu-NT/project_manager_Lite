@@ -6,7 +6,7 @@ from src.core.modules.project_management.contracts.ports.scheduling.schedule_cha
 
 
 def test_approved_schedule_validation_loads_targets_in_batch(services, monkeypatch):
-    project = services["project_service"].create_project("Batch schedule approval")
+    project = services['project_create'].create_project("Batch schedule approval")
     tasks = services["task_service"]
     first = tasks.create_task(project.id, "First")
     second = tasks.create_task(project.id, "Second")

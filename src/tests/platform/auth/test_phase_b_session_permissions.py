@@ -21,29 +21,29 @@ def test_user_session_enforces_manage_permissions(services):
     )
     _login_as(services, "viewer1", "StrongPass123")
 
-    ps = services["project_service"]
+    ps = services['project_query']
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ps.create_project("Forbidden project")
+        services['project_create'].create_project("Forbidden project")
 
 
 def test_admin_session_can_execute_manage_operations(services):
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services["project_service"]
-    p = ps.create_project("Allowed project")
+    ps = services['project_query']
+    p = services['project_create'].create_project("Allowed project")
     assert p.id
 
 
 def test_cleared_session_denies_core_read_models(services):
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     finance = services["finance_snapshot_query"]
     services["approval_commands"]
     audit = services["enterprise_audit_service"]
 
-    project = ps.create_project("Read Permission Project")
+    project = services['project_create'].create_project("Read Permission Project")
     ts.create_task(
         project.id, "Read Permission Task", start_date=date(2026, 5, 1), duration_days=2
     )
@@ -54,7 +54,7 @@ def test_cleared_session_denies_core_read_models(services):
     services["user_session"].clear()
 
     with pytest.raises(BusinessRuleError):
-        ps.list_projects()
+        services['project_query'].list_projects()
     with pytest.raises(BusinessRuleError):
         ts.list_tasks_for_project(project.id)
     with pytest.raises(BusinessRuleError):
@@ -80,12 +80,12 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     cost_entries = services["cost_entry_service"]
     services["project_resource_query"]
 
-    project = ps.create_project("Permission project")
+    project = services['project_create'].create_project("Permission project")
     resource = services["resource_master_commands"].create_resource(
         "Assigned Resource", hourly_rate=120.0
     )
@@ -137,11 +137,11 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services["project_service"]
+    ps = services['project_query']
     services["project_resource_query"]
     ecs_commands = services["platform_calendar_commands"]
 
-    project = ps.create_project("Ops permission project")
+    project = services['project_create'].create_project("Ops permission project")
     resource = services["resource_master_commands"].create_resource(
         "Ops resource", hourly_rate=100.0
     )
@@ -196,12 +196,12 @@ def test_governance_permissions_are_split_between_request_and_decide(
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services["project_service"]
+    ps = services['project_query']
     cost_entries = services["cost_entry_service"]
     configuration = services["financial_configuration_service"]
     approvals = services["approval_commands"]
 
-    project = ps.create_project("Governance permission split")
+    project = services['project_create'].create_project("Governance permission split")
     organization = services["tenant_context_service"].get_active_organization()
     cost_code = configuration.create_cost_code(code="HOTEL", name="Hotel")
     item = cost_entries.create_manual_entry(
@@ -237,10 +237,10 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Timesheet Permission Split")
+    project = services['project_create'].create_project("Timesheet Permission Split")
     task = ts.create_task(
         project.id,
         "Timesheet Permission Task",
@@ -284,11 +284,11 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
 
 
 def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     user_session = services["user_session"]
 
-    project = ps.create_project("Shared Time Permission Alias")
+    project = services['project_create'].create_project("Shared Time Permission Alias")
     task = ts.create_task(
         project.id,
         "Alias Permission Task",

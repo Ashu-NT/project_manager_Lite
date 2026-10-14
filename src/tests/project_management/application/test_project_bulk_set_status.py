@@ -1,4 +1,4 @@
-"""ProjectService.bulk_set_status() must persist the same per-project audit/
+"""ProjectStatusHandler.bulk_set_status() must persist the same per-project audit/
 activity/event work as set_status(), but for every selected project inside
 ONE UnitOfWork/commit instead of one per project (same reasoning as
 the Organization handlers.bulk_activate_organizations())."""
@@ -28,16 +28,16 @@ def _count_uow_creations(factory_cls):
 
 
 def test_bulk_set_status_updates_every_project_in_one_transaction(services) -> None:
-    project_service = services["project_service"]
+    project_service = services['project_query']
     projects = [
-        project_service.create_project(f"Bulk status project {i}", "")
+        services['project_create'].create_project(f"Bulk status project {i}", "")
         for i in range(3)
     ]
     project_ids = [p.id for p in projects]
 
     counts, restore = _count_uow_creations(SqlAlchemyProjectUnitOfWorkFactory)
     try:
-        results = project_service.bulk_set_status(project_ids, ProjectStatus.ACTIVE)
+        results = services['project_status'].bulk_set_status(project_ids, ProjectStatus.ACTIVE)
     finally:
         restore()
 
@@ -47,5 +47,5 @@ def test_bulk_set_status_updates_every_project_in_one_transaction(services) -> N
     )
     assert [p.status for p in results] == [ProjectStatus.ACTIVE] * 3
     for project_id in project_ids:
-        reloaded = project_service.get_project(project_id)
+        reloaded = services['project_query'].get_project(project_id)
         assert reloaded.status == ProjectStatus.ACTIVE

@@ -139,11 +139,11 @@ def test_leveling_floor_survives_the_live_persisting_scheduling_engine_too(servi
     DashboardService/leveling actually calls (per R4.4A verification,
     pure_cpm.run_cpm and SchedulingEngine have separate orchestrations
     sharing the same primitives; both must apply this floor)."""
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     sched = services["scheduling_engine"]
 
-    project = ps.create_project("Leveling Floor Survives Live Engine", "")
+    project = services['project_create'].create_project("Leveling Floor Survives Live Engine", "")
     task_a = ts.create_task(project.id, "Task A", "", start_date=date(2026, 9, 7), duration_days=2)
     task_b = ts.create_task(project.id, "Task B", "", duration_days=2)
     ts.add_dependency(

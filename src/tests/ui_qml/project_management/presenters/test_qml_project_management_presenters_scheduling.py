@@ -122,7 +122,7 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
                 organization_id="org-1",
             ),
         ),
-        task_service=SimpleNamespace(list_tasks_for_project=lambda project_id: []),
+        task_lookup_query=SimpleNamespace(list_tasks_for_project=lambda project_id: []), task_detail_query=SimpleNamespace(list_tasks_for_project=lambda project_id: []), task_hierarchy_query=SimpleNamespace(list_tasks_for_project=lambda project_id: []), task_dependency_query=SimpleNamespace(list_tasks_for_project=lambda project_id: []), task_dependency_commands=SimpleNamespace(list_tasks_for_project=lambda project_id: []), task_leveling_commands=SimpleNamespace(list_tasks_for_project=lambda project_id: []),
         scheduling_engine=_FakeSchedulingEngine(
             {
                 "proj-1": [

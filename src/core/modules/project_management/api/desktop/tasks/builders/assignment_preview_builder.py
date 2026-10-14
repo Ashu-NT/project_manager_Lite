@@ -12,14 +12,20 @@ from src.core.modules.project_management.api.desktop.tasks.services.capacity_sta
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.modules.project_management.application.tasks.service import TaskService
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentCommandHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 
 
 def build_assignment_preview(
     task_id: str,
     project_resource_id: str,
     *,
-    task_service: TaskService | None,
+    task_query: TaskDetailPageQueryHandler | None,
+    assignment_commands: TaskAssignmentCommandHandler | None,
     project_resource_query: object | None,
     assignment_skill_validator: AssignmentSkillValidator | None,
     proposed_allocation_percent: float = 100.0,
@@ -27,7 +33,7 @@ def build_assignment_preview(
     project_names: dict[str, str] | None = None,
 ) -> AssignmentPreviewDesktopDto:
     """Return combined availability + skill/cert check for an assignment
-    candidate. Capacity comes from `TaskService.preview_assignment_capacity`
+    candidate. Capacity comes from `TaskAssignmentCommandHandler.preview_assignment_capacity`
     -- the exact same authority save-time validation uses -- not a
     separate calculation."""
     empty_preview = _empty_assignment_preview(task_id)
@@ -56,7 +62,7 @@ def build_assignment_preview(
     peak_utilization_percent = 0.0
     capacity_status = "UNKNOWN"
     conflict_date_labels: tuple[str, ...] = ()
-    preview_capacity = getattr(task_service, "preview_assignment_capacity", None)
+    preview_capacity = getattr(assignment_commands, "preview_assignment_capacity", None)
     if callable(preview_capacity):
         fact = preview_capacity(
             task_id,
@@ -76,7 +82,7 @@ def build_assignment_preview(
             capacity_status = fact.capacity_status
             conflict_date_labels = tuple(d.isoformat() for d in fact.conflict_dates)
 
-            if fact.is_over_capacity and task_service is not None:
+            if fact.is_over_capacity and task_query is not None:
                 conflict_task_ids: set[str] = set()
                 for day in fact.days:
                     if day.status == fact.capacity_status:
@@ -86,7 +92,7 @@ def build_assignment_preview(
                 # current user isn't authorized to see simply won't resolve a name here.
                 names = project_names or {}
                 for conflict_task_id in conflict_task_ids:
-                    conflict_task = task_service.get_task(conflict_task_id)
+                    conflict_task = task_query.get_task(conflict_task_id)
                     if conflict_task is not None:
                         project_name = str(
                             names.get(getattr(conflict_task, "project_id", ""), "") or ""
@@ -100,8 +106,8 @@ def build_assignment_preview(
     warning_messages: list[str] = []
     is_blocked = False
     block_messages: list[str] = []
-    if assignment_skill_validator is not None and task_service is not None:
-        task = task_service.get_task(task_id)
+    if assignment_skill_validator is not None and task_query is not None:
+        task = task_query.get_task(task_id)
         if task is not None:
             result = assignment_skill_validator.validate(task, resource_id)
             skills_matched = not any(

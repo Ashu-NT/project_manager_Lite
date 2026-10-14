@@ -35,7 +35,7 @@ def _boom(*_args, **_kwargs):
 
 
 def _make_task(services):
-    project = services["project_service"].create_project("Collaboration Rollback Project")
+    project = services['project_create'].create_project("Collaboration Rollback Project")
     task = services["task_service"].create_task(
         project.id,
         "Collaboration Rollback Task",

@@ -21,9 +21,9 @@ from src.core.platform.common.exceptions import ConcurrencyError
 
 
 def _setup_assignment(services, *, allocation_percent: float = 50.0):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
-    project = ps.create_project("Assignment Concurrency Project")
+    project = services['project_create'].create_project("Assignment Concurrency Project")
     task = ts.create_task(project.id, "Concurrency Task")
     resource = services["resource_master_commands"].create_resource("Concurrency Resource", hourly_rate=90.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=allocation_percent)
@@ -81,12 +81,12 @@ def test_set_assignment_allocation_requires_expected_version(services):
 
 
 def test_task_assignment_desktop_dto_exposes_planned_hours_and_version(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     rs = services["resource_query"]
     prs = services["project_resource_query"]
 
-    project = ps.create_project("Planned Hours Exposure Project")
+    project = services['project_create'].create_project("Planned Hours Exposure Project")
     resource = services["resource_master_commands"].create_resource("Planned Hours Resource", hourly_rate=80.0)
     project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=80.0, currency_code="USD", planned_hours=40.0
@@ -104,7 +104,7 @@ def test_task_assignment_desktop_dto_exposes_planned_hours_and_version(services)
 
     api = build_project_management_tasks_desktop_api(
         project_service=ps,
-        task_service=ts,
+        task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'],
         project_resource_query=prs,
         resource_query=rs,
     )
@@ -120,10 +120,10 @@ def test_task_assignment_desktop_dto_exposes_planned_hours_and_version(services)
 
 
 def test_build_assignment_snapshot_logged_is_task_scoped_not_resource_wide(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
 
-    project = ps.create_project("Scope Leak Project")
+    project = services['project_create'].create_project("Scope Leak Project")
     resource = services["resource_master_commands"].create_resource("Shared Resource", hourly_rate=70.0)
 
     task_a = ts.create_task(project.id, "Task A")
@@ -153,11 +153,11 @@ def test_build_assignment_snapshot_logged_is_task_scoped_not_resource_wide(servi
 
 
 def test_build_assignment_snapshot_planned_and_remaining_are_page_independent(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     services["project_resource_query"]
 
-    project = ps.create_project("Planned Remaining Project")
+    project = services['project_create'].create_project("Planned Remaining Project")
     resource = services["resource_master_commands"].create_resource("Planned Remaining Resource", hourly_rate=60.0)
     project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=60.0, currency_code="USD", planned_hours=20.0
@@ -225,11 +225,11 @@ def test_backend_set_assignment_hours_command_is_intentionally_retained(services
 
 
 def _setup_project_resource(services, *, planned_hours: float = 40.0):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     rs = services["resource_query"]
     prs = services["project_resource_query"]
-    project = ps.create_project("Planned Work Entry Project")
+    project = services['project_create'].create_project("Planned Work Entry Project")
     resource = services["resource_master_commands"].create_resource("Planned Work Resource", hourly_rate=75.0)
     project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=75.0, currency_code="USD", planned_hours=planned_hours
@@ -273,7 +273,7 @@ def test_desktop_create_assignment_forwards_planned_hours_and_exposes_project_re
 ):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, project_resource_query=prs, resource_query=rs,
+        project_service=ps, task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'], project_resource_query=prs, resource_query=rs,
     )
 
     from src.core.modules.project_management.application.tasks.dto import (
@@ -296,7 +296,7 @@ def test_desktop_create_assignment_forwards_planned_hours_and_exposes_project_re
 def test_desktop_update_assignment_planned_hours_succeeds_with_correct_versions(services):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, project_resource_query=prs, resource_query=rs,
+        project_service=ps, task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'], project_resource_query=prs, resource_query=rs,
     )
     assignment = ts.assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
@@ -331,7 +331,7 @@ def test_desktop_update_assignment_planned_hours_stale_project_resource_version_
     )
     task_b = ts.create_task(project.id, "Sibling Planned Work Task")
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, project_resource_query=prs, resource_query=rs,
+        project_service=ps, task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'], project_resource_query=prs, resource_query=rs,
     )
     assignment_a = ts.assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=50.0
@@ -375,11 +375,11 @@ def test_desktop_update_assignment_planned_hours_stale_project_resource_version_
 
 
 def test_list_assignments_exposes_within_capacity_for_a_lightly_loaded_resource(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     rs = services["resource_query"]
 
-    project = ps.create_project("List Assignments Capacity Project")
+    project = services['project_create'].create_project("List Assignments Capacity Project")
     resource = services["resource_master_commands"].create_resource("List Assignments Capacity Resource", hourly_rate=50.0)
     window_start = date.today() + timedelta(days=1)
     task = ts.create_task(
@@ -388,7 +388,7 @@ def test_list_assignments_exposes_within_capacity_for_a_lightly_loaded_resource(
     ts.assign_resource(task.id, resource.id, allocation_percent=20.0)
 
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, resource_query=rs,
+        project_service=ps, task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'], resource_query=rs,
     )
     dtos = api.list_assignments(task.id)
 
@@ -402,11 +402,11 @@ def test_list_assignments_exposes_within_capacity_for_a_lightly_loaded_resource(
 
 
 def test_list_assignments_exposes_over_capacity_for_a_double_booked_resource(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     rs = services["resource_query"]
 
-    project = ps.create_project("List Assignments Over Capacity Project")
+    project = services['project_create'].create_project("List Assignments Over Capacity Project")
     resource = services["resource_master_commands"].create_resource("List Assignments Over Capacity Resource", hourly_rate=50.0)
     window_start = date.today() + timedelta(days=1)
     task_a = ts.create_task(
@@ -419,7 +419,7 @@ def test_list_assignments_exposes_over_capacity_for_a_double_booked_resource(ser
     ts.assign_resource(task_b.id, resource.id, allocation_percent=60.0)
 
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, resource_query=rs,
+        project_service=ps, task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'], resource_query=rs,
     )
     dtos_a = api.list_assignments(task_a.id)
     dtos_b = api.list_assignments(task_b.id)

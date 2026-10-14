@@ -26,11 +26,11 @@ def _snapshot(services, project_id):
 
 class TestBasicOverloadResolution:
     def test_single_overload_between_two_independent_tasks_is_resolved(self, services):
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
 
-        project = ps.create_project("Leveling Planner Single Overload", "")
+        project = services['project_create'].create_project("Leveling Planner Single Overload", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("Overload Dev", "Developer", hourly_rate=100.0)
@@ -53,11 +53,11 @@ class TestBasicOverloadResolution:
         assert len(proposal.moves) >= 1
 
     def test_no_conflicts_produces_an_empty_feasible_proposal(self, services):
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
 
-        project = ps.create_project("Leveling Planner No Conflicts", "")
+        project = services['project_create'].create_project("Leveling Planner No Conflicts", "")
         ts.create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
 
         tasks_by_id, assignments, deps = _snapshot(services, project.id)
@@ -80,11 +80,11 @@ class TestPreviewNeverPersists:
         """K1: preview must not update Task, increment versions, or
         commit -- confirmed by re-reading the task from the repository
         after building a proposal and asserting nothing changed."""
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
 
-        project = ps.create_project("Leveling Planner No Persist", "")
+        project = services['project_create'].create_project("Leveling Planner No Persist", "")
         task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("No Persist Dev", "Developer", hourly_rate=100.0)
@@ -124,11 +124,11 @@ class TestDependencyAwarePropagation:
         (prefer moving a non-critical, positive-float task first) would
         legitimately choose it instead of task_a, which is the more
         interesting case for THIS test but not what it's checking."""
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
 
-        project = ps.create_project("Leveling Planner Propagation", "")
+        project = services['project_create'].create_project("Leveling Planner Propagation", "")
         task_a = ts.create_task(project.id, "Task A (overloaded)", start_date=date(2026, 9, 7), duration_days=3)
         task_other = ts.create_task(
             project.id, "Task Other", start_date=date(2026, 9, 7), duration_days=3,
@@ -169,11 +169,11 @@ class TestDependencyAwarePropagation:
 
 class TestMovabilityRespectedByPlanner:
     def test_must_start_on_task_is_never_moved_another_candidate_is_used_instead(self, services):
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
 
-        project = ps.create_project("Leveling Planner MSO Respected", "")
+        project = services['project_create'].create_project("Leveling Planner MSO Respected", "")
         task_pinned = ts.create_task(
             project.id, "Pinned Task", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
@@ -204,11 +204,11 @@ class TestUnresolvedConflictWhenNoLegalMoveExists:
         """R4.4G1/I2/T: when every candidate on an overloaded resource is
         an exact pin, the planner must surface an explicit unresolved
         conflict, never silently claim success."""
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
 
-        project = ps.create_project("Leveling Planner Unresolved", "")
+        project = services['project_create'].create_project("Leveling Planner Unresolved", "")
         task_1 = ts.create_task(
             project.id, "Pinned One", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
@@ -244,11 +244,11 @@ class TestMultiResourceTaskCandidatePlacement:
         must not "resolve" that by shifting task_multi onto a date that
         is clear for Resource X but collides with task_y on Resource Y,
         which task_multi is also assigned to."""
-        ps = services["project_service"]
+        ps = services['project_query']
         ts = services["task_service"]
         calendar = services["work_calendar_engine"]
 
-        project = ps.create_project("Leveling Planner Multi-Resource", "")
+        project = services['project_create'].create_project("Leveling Planner Multi-Resource", "")
         task_x = ts.create_task(project.id, "Task X", start_date=date(2026, 9, 7), duration_days=3)
         task_multi = ts.create_task(project.id, "Task Multi", start_date=date(2026, 9, 7), duration_days=3)
         task_y = ts.create_task(project.id, "Task Y", start_date=date(2026, 9, 14), duration_days=3)

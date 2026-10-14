@@ -132,7 +132,7 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
 def _submitted_budget_in_org_a1(services, *, org_a1_id: str):
 
     assert _session_active_organization_id(services) == org_a1_id
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         _unique("XORG-Budget-Project"), financial_currency_code="USD"
     )
     cost_code = services["financial_configuration_service"].create_cost_code(

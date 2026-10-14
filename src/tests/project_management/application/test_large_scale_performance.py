@@ -83,10 +83,10 @@ def _timed(metrics: dict[str, float], key: str, fn):
 
 
 def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     project_end = config.start_date + timedelta(days=max(365, config.tasks // 2))
-    project = ps.create_project(
+    project = services['project_create'].create_project(
         f"Large Perf Project ({config.tasks} tasks)",
         "Synthetic large-scale performance workload",
         start_date=config.start_date,

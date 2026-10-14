@@ -38,7 +38,7 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _submitted_forecast(services, session):
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Forecast approval project", financial_currency_code="USD"
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
@@ -226,7 +226,7 @@ def test_platform_approval_request_enforces_separation_of_duties(
 
 def test_generation_is_denied_without_forecast_manage_permission(services) -> None:
     _login(services, "admin", "ChangeMe123!")
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Forecast authorization project", financial_currency_code="USD"
     )
     user_session = services["user_session"]

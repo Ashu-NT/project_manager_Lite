@@ -6,6 +6,9 @@ from datetime import UTC, date, datetime
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSynchronizer,
@@ -23,7 +26,6 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 )
 from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.platform.contract.port.approval.capabilities import ApprovalCommands
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     is_admin_session,
     require_permission,
@@ -37,6 +39,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.contract.port.approval.capabilities import ApprovalCommands
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
@@ -46,7 +49,7 @@ from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
-class TaskSchedulingConstraintHandler:
+class TaskSchedulingConstraintHandler(ProjectManagementModuleGuardMixin):
     """Governed Task scheduling-constraint mutation (MSO/MFO/SNET/SNLT/
     FNET/FNLT + clear-back-to-ASAP). Mirrors the dependency command's
     request-time/apply-time governance shape -- kept separate from generic
@@ -60,6 +63,7 @@ class TaskSchedulingConstraintHandler:
     def __init__(
         self,
         *,
+        module_catalog_service=None,
         task_repo: TaskRepository,
         user_session: UserSessionContext | None,
         approval_commands: ApprovalCommands | None,
@@ -69,6 +73,7 @@ class TaskSchedulingConstraintHandler:
         schedule_synchronizer: TaskScheduleSynchronizer,
         uow_scope: TaskUowScope,
     ) -> None:
+        self._module_catalog_service = module_catalog_service
         self._task_repo = task_repo
         self._user_session = user_session
         self._approval_commands = approval_commands

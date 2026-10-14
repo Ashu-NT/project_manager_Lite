@@ -55,7 +55,7 @@ def test_financial_configuration_domain_enforces_currency_billing_and_hierarchy(
 
 
 def test_project_creation_atomically_initializes_financial_profile_and_audit(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Canonical financial profile",
         financial_currency_code="usd",
         start_date=date(2026, 2, 1),
@@ -77,7 +77,7 @@ def test_project_creation_atomically_initializes_financial_profile_and_audit(ser
 
 
 def test_profile_configuration_requires_version_and_is_the_only_currency_authority(services) -> None:
-    project = services["project_service"].create_project(
+    project = services['project_create'].create_project(
         "Profile concurrency",
         financial_currency_code="EUR",
     )
@@ -95,7 +95,7 @@ def test_profile_configuration_requires_version_and_is_the_only_currency_authori
 
     assert updated.currency_code == "GBP"
     assert updated.version == 2
-    operational_project = services["project_service"].get_project(project.id)
+    operational_project = services['project_query'].get_project(project.id)
     assert not hasattr(operational_project, "currency")
     with pytest.raises(ConcurrencyError, match="changed since"):
         service.configure_profile(
@@ -108,7 +108,7 @@ def test_profile_configuration_requires_version_and_is_the_only_currency_authori
 
 
 def test_cost_code_hierarchy_restrictions_and_profile_lifecycle(services) -> None:
-    project = services["project_service"].create_project("Restricted cost catalog")
+    project = services['project_create'].create_project("Restricted cost catalog")
     service = services["financial_configuration_service"]
     parent = service.create_cost_code(code="LAB", name="Labor")
     child = service.create_cost_code(
@@ -194,7 +194,7 @@ def test_cost_code_hierarchy_restrictions_and_profile_lifecycle(services) -> Non
 
 
 def test_create_cost_code_for_restricted_project_is_immediately_available(services) -> None:
-    project = services["project_service"].create_project("Restricted cost-code creation")
+    project = services['project_create'].create_project("Restricted cost-code creation")
     service = services["financial_configuration_service"]
     profile = service.get_profile(project.id)
     service.configure_profile(
@@ -215,7 +215,7 @@ def test_create_cost_code_for_restricted_project_is_immediately_available(servic
 def test_financial_configuration_repositories_isolate_active_organization(services) -> None:
     configuration_service = services["financial_configuration_service"]
     original_organization = services["tenant_context_service"].get_active_organization()
-    project = services["project_service"].create_project("Organization A finance")
+    project = services['project_create'].create_project("Organization A finance")
     code = configuration_service.create_cost_code(code="ORG-A", name="Organization A")
     other_organization = services["organization_commands"].create_organization(
         organization_code="PF-B1-OTHER",
@@ -235,7 +235,7 @@ def test_financial_configuration_repositories_isolate_active_organization(servic
 
 
 def test_financial_configuration_requires_global_and_project_manage_permissions(services) -> None:
-    project = services["project_service"].create_project("Finance scope guard")
+    project = services['project_create'].create_project("Finance scope guard")
     user = services["user_registration"].register_user(
         "phase-b1-project-manager",
         "StrongPass123",

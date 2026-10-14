@@ -101,14 +101,14 @@ def test_project_resource_dto_validates_planned_hours():
 
 
 def test_project_service_updates_date_pair_with_final_state_validation(services):
-    project_service = services["project_service"]
-    project = project_service.create_project(
+    project_service = services['project_query']
+    project = services['project_create'].create_project(
         "Service Date Move",
         start_date=date(2026, 7, 1),
         end_date=date(2026, 7, 5),
     )
 
-    updated = project_service.update_project(
+    updated = services['project_update'].update_project(
         project.id,
         expected_version=project.version,
         start_date=date(2026, 7, 10),

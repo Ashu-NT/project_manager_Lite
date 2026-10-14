@@ -5,13 +5,13 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def test_cpm_forward_backward_basic(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     sched = services["scheduling_engine"]
     wc = services["work_calendar_engine"]
 
     # 1) Create project
-    project = ps.create_project("CPM Test", "Testing CPM")
+    project = services['project_create'].create_project("CPM Test", "Testing CPM")
     pid = project.id
 
     # 2) Create three tasks
@@ -49,11 +49,11 @@ def test_cpm_forward_backward_basic(services):
     assert len(crit_tasks) >= 1
 
 def test_cpm_cycle_detection(services):
-    ps = services["project_service"]
+    ps = services['project_query']
     ts = services["task_service"]
     sched = services["scheduling_engine"]
 
-    project = ps.create_project("Cycle Test", "")
+    project = services['project_create'].create_project("Cycle Test", "")
     pid = project.id
 
     # Give at least one task a start_date so scheduling would work if there were no cycle

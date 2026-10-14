@@ -109,7 +109,7 @@ def test_project_management_services_block_direct_calls_when_module_disabled(ser
     services["module_entitlement_commands"].disable_module(active_org.id, "project_management")
 
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled") as project_exc:
-        services["project_service"].list_projects()
+        services['project_query'].list_projects()
     assert project_exc.value.code == "MODULE_DISABLED"
 
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled") as resource_exc:
@@ -137,7 +137,7 @@ def test_module_catalog_service_supports_trial_and_suspended_lifecycle_states(se
     assert catalog.is_enabled("project_management") is False
 
     with pytest.raises(BusinessRuleError, match="suspended") as suspended_exc:
-        services["project_service"].list_projects()
+        services['project_query'].list_projects()
     assert suspended_exc.value.code == "MODULE_DISABLED"
 
 

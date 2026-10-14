@@ -62,10 +62,10 @@ def test_task_presence_dto_rejects_missing_identity_and_invalid_timestamps():
 
 
 def test_presence_handlers_use_presence_dto_normalization(services):
-    project_service = services["project_service"]
+    project_service = services['project_query']
     task_service = services["task_service"]
 
-    project = project_service.create_project("Presence DTO Service Proof")
+    project = services['project_create'].create_project("Presence DTO Service Proof")
     task = task_service.create_task(
         project.id,
         "Presence Task",
@@ -87,7 +87,7 @@ def test_presence_handlers_use_presence_dto_normalization(services):
 
 def test_presence_username_change_keeps_one_user_identity(services):
     principal = services["user_session"].principal
-    project = services["project_service"].create_project("Stable presence identity")
+    project = services['project_create'].create_project("Stable presence identity")
     task = services["task_service"].create_task(project.id, "Presence rename")
 
     with services["collaboration_presence_commands"]._uow_factory.create(context=new_collaboration_context()) as uow:
